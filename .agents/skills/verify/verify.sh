@@ -4,11 +4,20 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 Usage: .agents/skills/verify/verify.sh <command> [args]
-  build                       build WorkoutTracker for the simulator (rerun after any source change)
-  launch <fixture> [ARG...]   install the built app and launch it into a fixture (extra -UITEST_* ARGs pass through)
+  build                       build this worktree's app for SIM and stamp it with its commit (rerun after
+                              any source change)
+  install [COMMIT]            install this worktree's build, or COMMIT's build from the app cache every
+                              worktree of this repo shares (built once, on first use); prints the app now
+                              installed, and the one it replaced
+  launch [--at COMMIT] <fixture> [ARG...]
+                              install and launch into a fixture (extra -UITEST_* ARGs pass through); prints
+                              the app's hash and the commit it was built from. Without --at it installs
+                              this worktree's build and refuses to replace an installed cached build;
+                              --at COMMIT runs COMMIT's cached build
                               fixtures: session settings onboarding long-session partial-block
                                         completed-open-exercises developer-tools
-  doctor                      read-only: is the running instance ours, current, and answering?
+  doctor                      read-only: is the installed app this worktree's build or a cached one, and is
+                              the running instance ours, current, and answering?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
                               --all adds the off-screen ones (scrolled-out rows, picker tails) and
                               the ones with neither id nor label, by role, value and frame
@@ -23,7 +32,8 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               that shares it; when more than one is left, exit 1 listing each
                               with its centre. -x -y taps the point and reports whatever it hits
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
-  type TEXT                   type into the focused field
+  type TEXT                   type into the focused field, then reset the keyboard preference AXe
+                              input sets (issue 700)
   swipe up|down               scroll the screen by half its height
   shot NAME                   NAME.png and NAME.tree.txt into the run, then the tree lines that
                               changed since the previous shot; saves nothing and exits 70 when
@@ -41,15 +51,19 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
-  axe ARG...                  raw axe call with --udid filled in
-Environment: SIM (simulator UDID, default the booted iPhone 17 Pro, else the newest one, booted for you;
-                  launch boots a named one too, and waits for either boot to finish; with no iPhone
-                  17 Pro, build and launch create one on iOS 27.0, and every other command that
-                  looks one up exits 1),
-             VERIFY_RUN (names the run; give it to launch and every later command remembers it),
+  axe ARG...                  raw axe call with --udid filled in; after a keyboard verb, the same
+                              keyboard preference reset as type
+Environment: SIM (the UDID of your own simulator, required by every command that touches one; launch
+                  boots it and waits for the boot to finish),
+             VERIFY_RUN (names the run; give it to launch and every later command remembers it.
+                  tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
+                  alive on SIM),
+             VERIFY_EVIDENCE (the parent of the run directories; default
+                  <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay).
-Evidence: .build/verify/evidence/<run>/  (survives stop)
+Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
+          app each launch ran.
 EOF
   exit 2
 }
@@ -63,22 +77,27 @@ project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
 axe=$work/node_modules/xcodebuildmcp/bundled/axe
+stamp_name=verify-stamp
+# What the app compiles: build's dirty marker and doctor's sources-newer check both read it.
+sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets WorkoutTracker.xcodeproj Package.swift Package.resolved)
 sim=
-sim_state=
 state_dir=
+built_hash=
 
 resolve_sim() {
   [ -n "$sim" ] && return 0
+  if [ -z "${SIM:-}" ]; then
+    cat >&2 <<'EOF'
+SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and another agent's app may be on it (issue 660).
+Make a lane simulator once and pass it on every call:
+  export SIM=$(xcrun simctl create lane-<name> "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+EOF
+    exit 2
+  fi
   local picked
-  picked=$(pick_sim "${SIM:-}" "${1:-}") || exit
-  read -r sim sim_state <<< "$picked"
+  picked=$(pick_sim "$SIM") || exit
+  read -r sim _ <<< "$picked"
   state_dir=/tmp/workout-verify-$sim
-}
-
-need_sim() {
-  resolve_sim
-  [ "$sim_state" != Shutdown ] || xcrun simctl boot "$sim"
-  sim_state=Booted
 }
 
 ensure_axe() {
@@ -89,8 +108,29 @@ ensure_axe() {
   [ -x "$axe" ] || { echo "axe not found after install: $axe" >&2; exit 65; }
 }
 
+main_root() {
+  local common
+  common=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir) || exit
+  dirname "$common"
+}
+
+lane() {
+  local branch
+  if branch=$(git -C "$repo" symbolic-ref --short -q HEAD); then
+    printf '%s\n' "$branch" | tr -c 'A-Za-z0-9._\n-' '-'
+  else
+    printf 'detached-%s\n' "$(basename "$repo")"
+  fi
+}
+
+evidence_base() {
+  if [ -n "${VERIFY_EVIDENCE:-}" ]; then printf '%s\n' "$VERIFY_EVIDENCE"; return 0; fi
+  printf '%s/.claude/work/evidence/%s\n' "$(main_root)" "$(lane)"
+}
+
 current_run() {
   if [ -n "${VERIFY_RUN:-}" ]; then printf '%s\n' "$VERIFY_RUN"; return 0; fi
+  [ -n "$sim" ] || [ -n "${SIM:-}" ] || return 0
   resolve_sim
   [ -f "$state_dir/run" ] && cat "$state_dir/run"
   return 0
@@ -104,23 +144,25 @@ begin_run() {
 }
 
 run_dir() {
-  local name
+  local name base
   name=$(current_run)
   [ -n "$name" ] || name=$(begin_run)
-  mkdir -p "$work/evidence/$name"
-  printf '%s\n' "$work/evidence/$name"
+  base=$(evidence_base)
+  mkdir -p "$base/$name"
+  printf '%s\n' "$base/$name"
 }
 
 recorded_run_dir() {
-  local name
+  local name base
   name=$(current_run) || exit
-  if [ -n "$name" ] && [ -d "$work/evidence/$name" ]; then
-    printf '%s\n' "$work/evidence/$name"
+  base=$(evidence_base) || exit
+  if [ -n "$name" ] && [ -d "$base/$name" ]; then
+    printf '%s\n' "$base/$name"
     return 0
   fi
-  echo "no evidence directory for this run; name one: VERIFY_RUN=<run> $0 $cmd ..." >&2
+  echo "no evidence directory for this run in $base; name one: VERIFY_RUN=<run> $0 $cmd ..." >&2
   echo "recent runs:" >&2
-  ls -t "$work/evidence" 2>/dev/null | head -3 | sed 's/^/  /' >&2 || true
+  ls -t "$base" 2>/dev/null | head -3 | sed 's/^/  /' >&2 || true
   return 1
 }
 
@@ -188,6 +230,315 @@ fixture_args() {
   esac
 }
 
+# A Debug simulator build keeps its code in the debug dylib; the WorkoutTracker executable is a stub.
+app_hash() {
+  local code=$1/WorkoutTracker.debug.dylib
+  [ -f "$code" ] || code=$1/WorkoutTracker
+  shasum -a 256 "$code" | cut -c1-64
+}
+
+stamp_field() { sed -n "s/^$2=//p" "$1"; }
+
+write_stamp() {  # <app> <commit> <dirty 0|1> <origin: worktree path or cache>
+  local hash
+  hash=$(app_hash "$1")
+  printf 'commit=%s\ndirty=%s\norigin=%s\ncode_sha256=%s\n' "$2" "$3" "$4" "$hash" > "$1/$stamp_name"
+}
+
+# "<hash> <commit> <dirty> <origin>", commit and origin "-" when no stamp vouches for these bytes.
+identity_of() {
+  local stamp=$1/$stamp_name hash
+  hash=$(app_hash "$1")
+  if [ -f "$stamp" ] && [ "$(stamp_field "$stamp" code_sha256)" = "$hash" ]; then
+    printf '%s %s %s %s\n' "$hash" "$(stamp_field "$stamp" commit)" "$(stamp_field "$stamp" dirty)" "$(stamp_field "$stamp" origin)"
+  else
+    printf '%s - 0 -\n' "${hash:--}"
+  fi
+}
+
+short_identity() {  # <hash> <commit> <dirty>
+  local dirty=
+  if [ "$2" = - ]; then printf 'app %s commit unknown\n' "${1:0:12}"; return 0; fi
+  [ "$3" != 1 ] || dirty=-dirty
+  printf 'app %s commit %s%s\n' "${1:0:12}" "${2:0:8}" "$dirty"
+}
+
+identity_line() {  # <hash> <commit> <dirty> <origin>
+  local where
+  case $4 in
+    -) printf '%s (not built by verify.sh)\n' "$(short_identity "$1" "$2" "$3")"; return 0 ;;
+    cache) where="cached build" ;;
+    "$repo")
+      where="this worktree's build"
+      [ -z "$built_hash" ] || [ "$built_hash" = "$1" ] || where="an earlier build of this worktree"
+      ;;
+    *) where="built in $4" ;;
+  esac
+  printf '%s (%s)\n' "$(short_identity "$1" "$2" "$3")" "$where"
+}
+
+app_line() {  # <app>
+  local hash commit dirty origin
+  read -r hash commit dirty origin <<< "$(identity_of "$1")"
+  identity_line "$hash" "$commit" "$dirty" "$origin"
+}
+
+installed_app() { xcrun simctl get_app_container "$sim" "$bundle" 2>/dev/null || true; }
+
+installed_line() {
+  local installed
+  installed=$(installed_app)
+  if [ -n "$installed" ]; then app_line "$installed"; else echo "nothing installed"; fi
+}
+
+# Sets built (empty when this worktree has no build) and its identity in built_hash and friends.
+load_worktree_build() {
+  built=$(app_path)
+  built_hash=''
+  built_commit=-
+  built_dirty=0
+  if [ -z "$built" ] || [ ! -d "$built" ]; then built=; return 0; fi
+  read -r built_hash built_commit built_dirty _ <<< "$(identity_of "$built")"
+}
+
+worktree_build_note() {
+  if [ -n "$built" ]; then
+    echo "this worktree's build is $(short_identity "$built_hash" "$built_commit" "$built_dirty")"
+  else
+    echo "this worktree has no build"
+  fi
+}
+
+# The only xcodebuild build verify.sh runs, for this worktree and for the app cache alike.
+xcodebuild_build() {  # <project> <derived data path, empty for Xcode's own> <log>
+  local derived=()
+  [ -z "$2" ] || derived=(-derivedDataPath "$2")
+  mkdir -p "$(dirname "$3")"
+  xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
+    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$3" 2>&1 \
+    || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
+}
+
+cache_root() { printf '%s/.claude/work/app-cache\n' "$(main_root)"; }
+
+resolve_commit() {
+  git -C "$repo" rev-parse --verify --quiet "$1^{commit}" \
+    || { echo "$1 names no single commit in this repo (unknown or ambiguous)" >&2; exit 2; }
+}
+
+cache_hit() { [ -f "$1/$stamp_name" ] && [ "$(stamp_field "$1/$stamp_name" code_sha256)" = "$(app_hash "$1")" ]; }
+
+drop_cache_scratch() {
+  rm -rf "$1"
+  git -C "$repo" worktree prune
+}
+
+# Sets app to the cached build of <sha>, building it first when the cache has none. One build per
+# commit at a time: the rest wait on its lock, then find the entry it published by one rename.
+cached_app() {
+  local sha=$1 root lock scratch tmp
+  root=$(cache_root)
+  app=$root/$sha/WorkoutTracker.app
+  cache_hit "$app" && return 0
+  mkdir -p "$root/logs"
+  lock=$root/$sha.lock
+  # xcodebuild inherits fd 8, so the build of a killed install keeps the lock until it exits.
+  exec 8>>"$lock"
+  python3 -c 'import fcntl, sys
+try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
+except BlockingIOError:
+    print(sys.argv[1], file=sys.stderr, flush=True)
+    fcntl.flock(8, fcntl.LOCK_EX)' "waiting for another build of ${sha:0:8} into the app cache (lsof $lock lists it)"
+  if cache_hit "$app"; then exec 8>&-; return 0; fi
+  scratch=$root/$sha.build
+  tmp=$root/$sha.tmp
+  # Under the lock no build of this commit is alive, so whatever is here is a killed one's.
+  drop_cache_scratch "$scratch"
+  rm -rf "$tmp" "${root:?}/$sha"
+  echo "building ${sha:0:8} into the app cache at $root (2 to 4 min cold)" >&2
+  git -C "$repo" worktree add --force --force --quiet --detach "$scratch/src" "$sha" >&2
+  "$repo/scripts/bootstrap-xcode-worktree.sh" "$scratch/src"
+  if ! xcodebuild_build "$scratch/src/WorkoutTracker.xcodeproj" "$scratch/dd" "$root/logs/$sha.log"; then
+    drop_cache_scratch "$scratch"
+    exit 65
+  fi
+  mkdir -p "$tmp"
+  cp -R "$scratch/dd/Build/Products/Debug-iphonesimulator/WorkoutTracker.app" "$tmp/"
+  write_stamp "$tmp/WorkoutTracker.app" "$sha" 0 cache
+  mv "$tmp" "$root/$sha"
+  drop_cache_scratch "$scratch"
+  exec 8>&-
+}
+
+# Sets app, the identity it carries (want_hash and friends), and wanted_line. Builds a missing cache
+# entry, so it runs before any simulator lock is taken.
+target_app() {
+  local sha
+  [ -z "$at" ] || sha=$(resolve_commit "$at")
+  load_worktree_build
+  if [ -n "$at" ]; then
+    cached_app "$sha"
+  else
+    [ -n "$built" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
+    app=$built
+  fi
+  read -r want_hash want_commit want_dirty want_origin <<< "$(identity_of "$app")"
+  wanted_line=$(identity_line "$want_hash" "$want_commit" "$want_dirty" "$want_origin")
+}
+
+# The EXIT trap from the claim to the install: whatever refuses in between leaves the old app, so
+# say which one, in case the caller drops the refusal and drives on.
+report_unchanged() {
+  [ $? -ne 0 ] || return 0
+  echo "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line" >&2
+}
+
+wait_for_boot() {
+  # bootstatus exits 0 when a shutdown ends the boot.
+  without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && xcrun simctl list devices booted | grep -q "$sim" \
+    || { echo "simulator $sim did not boot" >&2; exit 70; }
+}
+
+# A bare launch over a cached build is the control-then-head slip: it would quietly swap the binary.
+refuse_replacing_cache() {
+  local installed hash commit dirty origin
+  installed=$(installed_app)
+  [ -n "$installed" ] || return 0
+  read -r hash commit dirty origin <<< "$(identity_of "$installed")"
+  { [ "$origin" = cache ] && [ "$hash" != "$want_hash" ]; } || return 0
+  echo "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." >&2
+  exit 65
+}
+
+install_app() {
+  local installed
+  xcrun simctl install "$sim" "$app"
+  trap - EXIT
+  installed=$(installed_app)
+  [ -n "$installed" ] && [ "$(app_hash "$installed")" = "$want_hash" ] && return 0
+  echo "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" >&2
+  exit 70
+}
+
+launch_parse() {
+  at=
+  while [ $# -gt 0 ]; do
+    case $1 in
+      --at) [ -n "${2:-}" ] || usage; at=$2; shift 2 ;;
+      *) break ;;
+    esac
+  done
+  fixture=${1:-}; [ -n "$fixture" ] || usage; shift
+  fixture_flags=$(fixture_args "$fixture")
+  passthrough=("$@")
+}
+
+launch_args() {
+  local extra activities
+  read -r -a extra <<< "$fixture_flags"
+  activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
+  [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
+  args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS ${activities[@]+"${activities[@]}"} ${passthrough[@]+"${passthrough[@]}"})
+}
+
+start_app() {
+  local out
+  out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
+  pid=${out##*: }
+  mkdir -p "$state_dir"
+  printf '%s\n' "$pid" > "$state_dir/pid"
+  printf '%s\n' "${args[*]}" > "$state_dir/args"
+  # stop decides whose app it is from this file, so a launch that never comes up still owns its pid.
+  begin_run >/dev/null
+  launched_line=$wanted_line
+  [ -z "$at" ] || launched_line="$wanted_line; $(worktree_build_note)"
+}
+
+record_launch() {
+  printf '%s %s %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture" "$launched_line" >> "$(run_dir)/launches.txt"
+}
+
+await_front() {
+  for _ in $(seq 1 40); do
+    if [ "$(front_pid)" = "$pid" ]; then
+      echo "launched $fixture as pid $pid on $sim"
+      echo "$launched_line"
+      echo "evidence $(run_dir)"
+      exit 0
+    fi
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "pid $pid exited during launch" >&2
+      # simctl launch --stderr captures nothing on iOS 27, so a fatalError's message is read back from the log.
+      xcrun simctl spawn "$sim" log show --last 1m --style compact \
+        --predicate "processID == $pid AND senderImagePath ENDSWITH \"libswiftCore.dylib\"" 2>/dev/null \
+        | sed -n 's/^.*(libswiftCore.dylib) //p' >&2 || true
+      exit 70
+    fi
+    sleep 0.25
+  done
+  echo "pid $pid never became the frontmost accessibility app; run: $0 doctor" >&2
+  exit 70
+}
+
+# A driver that missed its launch's refusal would otherwise drive, or film, another run's app.
+require_own_app() {
+  local owner pid
+  [ -n "${VERIFY_RUN:-}" ] || return 0
+  owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
+  [ "$owner" != "$VERIFY_RUN" ] || return 0
+  pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
+  is_fixture_launch "$pid" || return 0
+  echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+  exit 75
+}
+
+# Any AXe keyboard event hides the software keyboard until the app relaunches, and the first one after
+# a boot sets this preference, which keeps it hidden across relaunches too (issue 700).
+reset_keyboard() {
+  if xcrun simctl spawn "$sim" defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false; then
+    echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); the preference that would keep it hidden after that is reset" >&2
+  else
+    echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700), and resetting the preference that keeps it hidden after that failed" >&2
+  fi
+}
+
+sources_newer() {  # <app>
+  local d stale rc=0
+  for d in "${sources[@]}"; do
+    [ -e "$repo/$d" ] || { echo "FAIL source $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
+  done
+  # Not just *.swift: Xcode copies every other file in a buildable folder into the bundle too (ADR-0017).
+  stale=$(cd "$repo" && find "${sources[@]}" -type f -not -name '.*' -not -path '*/xcuserdata/*' -newer "$1" 2>/dev/null | head -3 || true)
+  [ -z "$stale" ] || { echo "FAIL sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; rc=1; }
+  return $rc
+}
+
+doctor_app() {
+  local installed hash commit dirty origin cached
+  load_worktree_build
+  installed=$(installed_app)
+  if [ -z "$installed" ]; then
+    echo "FAIL nothing installed on $sim (run: $0 launch <fixture>)"
+    [ -n "$built" ] || echo "FAIL no built app (run: $0 build)"
+    return 1
+  fi
+  read -r hash commit dirty origin <<< "$(identity_of "$installed")"
+  if [ "$origin" = cache ]; then
+    cached=$(cache_root)/$commit/WorkoutTracker.app
+    if [ -d "$cached" ] && [ "$(app_hash "$cached")" = "$hash" ]; then
+      echo "ok   installed $(identity_line "$hash" "$commit" "$dirty" "$origin"); $(worktree_build_note)"
+      return 0
+    fi
+  fi
+  [ -n "$built" ] || { echo "FAIL no built app (run: $0 build)"; return 1; }
+  if [ "$hash" != "$built_hash" ]; then
+    echo "FAIL installed $(identity_line "$hash" "$commit" "$dirty" "$origin") is not this worktree's build, $(short_identity "$built_hash" "$built_commit" "$built_dirty") (run: $0 install)"
+    return 1
+  fi
+  echo "ok   installed $(identity_line "$hash" "$commit" "$dirty" "$origin")"
+  sources_newer "$built"
+}
+
 cmd=${1:-}
 [ -n "$cmd" ] || usage
 shift
@@ -195,80 +546,59 @@ shift
 
 case $cmd in
   build)
-    resolve_sim create
-    need_sim
-    mkdir -p "$work"
-    log=$work/$(date +%Y%m%d-%H%M%S)-build.log
-    xcodebuild build -project "$project" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
-      -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$log" 2>&1 \
-      || { grep -E "error:|BUILD FAILED" "$log" | head -20 >&2; echo "build log: $log" >&2; exit 65; }
+    resolve_sim
+    commit=$(git -C "$repo" rev-parse HEAD)
+    changes=$(git -C "$repo" status --porcelain -- "${sources[@]}")
+    xcodebuild_build "$project" "" "$work/$(date +%Y%m%d-%H%M%S)-build.log" || exit
+    app=$(app_path)
     # An incremental build that produces no new bytes leaves the bundle's mtime alone, and doctor
     # reads that mtime to decide the app is stale. A green build is the claim that it is not.
-    touch "$(app_path)"
-    echo "built $(app_path)"
+    touch "$app"
+    dirty=0
+    [ -z "$changes" ] || dirty=1
+    write_stamp "$app" "$commit" "$dirty" "$repo"
+    echo "built $app"
+    app_line "$app"
+    ;;
+
+  install)
+    [ $# -le 1 ] || usage
+    at=${1:-}
+    resolve_sim
+    target_app
+    trap report_unchanged EXIT
+    claim_sim "$sim" "verify.sh install"
+    wait_for_boot
+    replaced=$(installed_app)
+    [ -z "$replaced" ] || [ "$(app_hash "$replaced")" != "$want_hash" ] || replaced=
+    [ -z "$replaced" ] || replaced=$(app_line "$replaced")
+    install_app
+    [ -z "$replaced" ] || echo "replaced $replaced"
+    echo "$wanted_line"
     ;;
 
   launch)
-    fixture=${1:-}; [ -n "$fixture" ] || usage; shift
-    fixture_flags=$(fixture_args "$fixture")
-    resolve_sim create
+    launch_parse "$@"
+    resolve_sim
+    target_app
+    trap report_unchanged EXIT
     claim_sim "$sim" "verify.sh launch"
-    app=$(app_path)
-    [ -d "$app" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
-    # bootstatus exits 0 when a shutdown ends the boot.
-    without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && xcrun simctl list devices booted | grep -q "$sim" \
-      || { echo "simulator $sim did not boot" >&2; exit 70; }
+    wait_for_boot
     ensure_axe
-    read -r -a extra <<< "$fixture_flags"
-    activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
-    [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
-    args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS ${activities[@]+"${activities[@]}"} "$@")
-    xcrun simctl install "$sim" "$app"
-    out=$(xcrun simctl launch --terminate-running-process "$sim" "$bundle" "${args[@]}")
-    pid=${out##*: }
-    mkdir -p "$state_dir"
-    printf '%s\n' "$pid" > "$state_dir/pid"
-    printf '%s\n' "${args[*]}" > "$state_dir/args"
-    # stop decides whose app it is from this file, so a launch that never comes up still owns its pid.
-    begin_run >/dev/null
-    for _ in $(seq 1 40); do
-      if [ "$(front_pid)" = "$pid" ]; then
-        echo "launched $fixture as pid $pid on $sim"
-        echo "evidence $(run_dir)"
-        exit 0
-      fi
-      if ! kill -0 "$pid" 2>/dev/null; then
-        echo "pid $pid exited during launch" >&2
-        # simctl launch --stderr captures nothing on iOS 27, so a fatalError's message is read back from the log.
-        xcrun simctl spawn "$sim" log show --last 1m --style compact \
-          --predicate "processID == $pid AND senderImagePath ENDSWITH \"libswiftCore.dylib\"" 2>/dev/null \
-          | sed -n 's/^.*(libswiftCore.dylib) //p' >&2 || true
-        exit 70
-      fi
-      sleep 0.25
-    done
-    echo "pid $pid never became the frontmost accessibility app; run: $0 doctor" >&2
-    exit 70
+    [ -n "$at" ] || refuse_replacing_cache
+    install_app
+    launch_args
+    start_app
+    record_launch
+    await_front
     ;;
 
   doctor)
-    need_sim
+    resolve_sim
     ensure_axe
     rc=0
     xcrun simctl list devices booted | grep -q "$sim" && echo "ok   simulator $sim booted" || { echo "FAIL simulator $sim not booted"; rc=1; }
-    app=$(app_path)
-    if [ -d "$app" ]; then
-      echo "ok   app built $(stat -f %Sm "$app"), HEAD $(git -C "$repo" log -1 --format=%h)"
-      sources=(App Sources/WorkoutTracker WorkoutShared WorkoutWidgets)
-      for d in "${sources[@]}"; do
-        [ -d "$repo/$d" ] || { echo "FAIL source folder $d is gone, so a stale build can hide; fix the list in $0"; rc=1; }
-      done
-      # Not just *.swift: Xcode copies every other file in a buildable folder into the bundle too (ADR-0017).
-      stale=$(cd "$repo" && find "${sources[@]}" -type f -not -name '.*' -newer "$app" 2>/dev/null | head -3 || true)
-      [ -z "$stale" ] || { echo "FAIL sources newer than the app (run: $0 build):"; echo "$stale" | sed 's/^/     /'; rc=1; }
-    else
-      echo "FAIL no built app (run: $0 build)"; rc=1
-    fi
+    doctor_app || rc=1
     if [ -f "$state_dir/pid" ] && kill -0 "$(cat "$state_dir/pid")" 2>/dev/null; then
       pid=$(cat "$state_dir/pid")
       argv=$(ps -p "$pid" -o args=)
@@ -285,14 +615,14 @@ case $cmd in
     ;;
 
   tree)
-    need_sim; ensure_axe
+    resolve_sim; ensure_axe
     all=${1:-}
     [ -z "$all" ] || [ "$all" = --all ] || usage
     describe | python3 "$tree" flat ${all:+--all}
     ;;
 
   find)
-    need_sim; ensure_axe
+    resolve_sim; ensure_axe
     id=${1:-}; [ -n "$id" ] || usage
     describe | python3 "$tree" find "$id"
     ;;
@@ -312,7 +642,7 @@ case $cmd in
         ''|*[!0-9]*) echo "--wait-timeout with --id or --label is whole seconds: $timeout" >&2; exit 2 ;;
       esac
     fi
-    need_sim; ensure_axe
+    resolve_sim; require_own_app; ensure_axe
     if [ ${#target[@]} -eq 0 ]; then
       "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
       exit
@@ -344,17 +674,23 @@ case $cmd in
     ;;
 
   hold)
-    need_sim; ensure_axe
+    resolve_sim; require_own_app; ensure_axe
     id=${1:-}; [ -n "$id" ] || usage
     point=$(describe | python3 "$tree" center "$id") || { echo "no element with id $id" >&2; exit 1; }
     read -r x y <<< "$point"
     "$axe" touch --udid "$sim" -x "$x" -y "$y" --down --up --delay "${2:-1.2}"
     ;;
 
-  type) need_sim; ensure_axe; printf '%s' "${1:-}" | "$axe" type --udid "$sim" --stdin ;;
+  type)
+    resolve_sim; require_own_app; ensure_axe
+    rc=0
+    printf '%s' "${1:-}" | "$axe" type --udid "$sim" --stdin || rc=$?
+    reset_keyboard
+    exit $rc
+    ;;
 
   swipe)
-    need_sim; ensure_axe
+    resolve_sim; require_own_app; ensure_axe
     read -r w h <<< "$(describe | python3 "$tree" frame)"
     x=$((w / 2)); top=$((h * 30 / 100)); bottom=$((h * 80 / 100))
     case ${1:-} in
@@ -367,7 +703,7 @@ case $cmd in
   shot)
     name=${1:-}
     valid_name "$name"
-    need_sim; require_sim_free "$sim"; ensure_axe
+    resolve_sim; require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending
     mkdir -p "$pending"
@@ -427,7 +763,7 @@ case $cmd in
     name=${1:-}
     valid_name "$name"
     shift
-    need_sim; require_sim_free "$sim"; ensure_axe
+    resolve_sim; require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     frames_dir=$dir/$name.burst
     rm -rf "$frames_dir"
@@ -446,7 +782,7 @@ case $cmd in
     ;;
 
   stop)
-    need_sim
+    resolve_sim
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
       alive=
@@ -490,7 +826,13 @@ case $cmd in
     [ "$pending" -eq 0 ] || echo "shots in $(basename "$dir") not on a contact sheet yet: $pending; run: $0 sheet, then Read every image it prints"
     ;;
 
-  axe) need_sim; ensure_axe; "$axe" "$@" --udid "$sim" ;;
+  axe)
+    resolve_sim; require_own_app; ensure_axe
+    rc=0
+    "$axe" "$@" --udid "$sim" || rc=$?
+    case ${1:-} in key|key-sequence|key-combo|type) reset_keyboard ;; esac
+    exit $rc
+    ;;
 
   *) usage ;;
 esac
