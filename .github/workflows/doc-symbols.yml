@@ -23,5 +23,5 @@ jobs:
           python-version: "3.9"
       - name: Checker tests
         run: scripts/tests/lint-doc-symbols.test.sh
-      - name: Every doc span names something in the tree
+      - name: Every doc span and fenced path names something in the tree
         run: python3 scripts/lint-doc-symbols.py

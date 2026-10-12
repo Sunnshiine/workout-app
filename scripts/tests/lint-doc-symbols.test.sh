@@ -118,13 +118,28 @@ scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat under l
 scripts/flakehunt.sh --filter MissingTests
 export PATH="$PWD/.build/debug:$PATH" && cp Secrets.xcconfig .build/crap/report.json
 xcodebuild -project <worktree>/WorkoutTracker.xcodeproj -only-testing WorkoutTrackerUITests/Smoke
+echo "$(cat scripts/flake-hunt.sh)" | grep -c x scripts/flake-hunt.sh|wc -l
+./scripts/gone-dot.sh && x="$(scripts/gone-subshell.sh)" && OUT=scripts/gone-env.sh
 ```
 MD
 stage "$root"
 check "$root"
 expect_exit "fenced" "$status" 1
-expect_count "fenced" "$out" 1
+expect_count "fenced" "$out" 4
 expect_line "fenced" "$out" "error: AGENTS.md:3: \`scripts/flakehunt.sh\` is not a path in this tree."
+expect_line "fenced" "$out" "error: AGENTS.md:7: \`scripts/gone-dot.sh\` is not a path in this tree."
+expect_line "fenced" "$out" "error: AGENTS.md:7: \`scripts/gone-subshell.sh\` is not a path in this tree."
+expect_line "fenced" "$out" "error: AGENTS.md:7: \`scripts/gone-env.sh\` is not a path in this tree."
+
+echo "an exemption that copies a printed dotted chain silences it"
+root=$(tree dotted-exempt)
+cat >"$root/docs/TESTING.md" <<'MD'
+<!-- doc-symbols: not-in-tree UIAccessibilityTraits.isHeader -->
+VoiceOver reads `UIAccessibilityTraits.isHeader` here.
+MD
+stage "$root"
+check "$root"
+expect_exit "dotted exempt" "$status" 0
 
 echo "a stray backtick in one list item does not swallow the next item's spans"
 root=$(tree stray)

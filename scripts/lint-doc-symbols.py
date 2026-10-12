@@ -8,9 +8,9 @@
 usage: scripts/lint-doc-symbols.py [ROOT]
 
 Reads the inline code spans of AGENTS.md, docs/, and the verify skill, and the repo paths in their
-fenced blocks (a token whose first segment is a top-level entry of this tree, such as
-scripts/flake-hunt.sh). ADRs and research notes are history and stay out. A span that names
-something outside the tree on purpose is exempted in its doc with
+fenced blocks (a path whose first segment, after any ./, is a top-level entry of this tree, such
+as scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). ADRs and research notes are history and stay out. A span or fenced path
+that names something outside the tree on purpose is exempted in its doc with
 <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced commands
 included, and in every file outside Markdown must be a row of the generated launch-flag table, and
 the app's sources may spell one only in LaunchFlag.
@@ -229,19 +229,15 @@ def snippets(text: str) -> list[Snippet]:
     return out
 
 
-def names_repo_path(claim: Claim, top: frozenset[str]) -> bool:
-    return claim.kind is Kind.PATH and claim.names[0].split("/")[0] in top
-
-
 def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Claim]]:
+    roots = "|".join(re.escape(name) for name in sorted(top))
+    repo_path = re.compile(rf"(?<![\w./-])(?:\./)?((?:{roots})/[\w./*<>+-]*)")
     for snippet in snippets(text):
-        for token in snippet.text.split():
+        tokens = repo_path.findall(snippet.text) if snippet.fenced else snippet.text.split()
+        for token in tokens:
             claim = classify(token, os.path.dirname(doc), top)
-            if claim is None or claim.kind is Kind.FLAG:
-                continue
-            if snippet.fenced and not names_repo_path(claim, top):
-                continue
-            yield snippet.line, claim
+            if claim is not None and claim.kind is not Kind.FLAG:
+                yield snippet.line, claim
 
 
 def exemptions(text: str) -> dict[str, int]:
@@ -258,6 +254,9 @@ def lint_doc(doc: str, text: str, tree: Tree, top: frozenset[str]) -> list[Findi
     findings = []
     for line, claim in claims(doc, text, top):
         missing = resolve(claim, tree)
+        if missing and claim.token in exempt:
+            used.add(claim.token)
+            continue
         used.update(name for name in missing if name in exempt)
         missing = tuple(name for name in missing if name not in exempt)
         if missing:
