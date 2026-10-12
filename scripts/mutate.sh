@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: scripts/mutate.sh [--filter SEL]... FILE SED_EXPR [SED_EXPR...]
+Usage: scripts/mutate.sh [--sim UDID] [--filter SEL]... FILE SED_EXPR [SED_EXPR...]
 
 Proves that a test pins a line: each mutant is one change to the code, and some test must fail on it.
 Every mutant builds and runs in a scratch tree under the primary checkout's .build/scratch/, never
@@ -12,8 +12,12 @@ snapshot must pass first; then each mutant runs alone.
 
   FILE SED_EXPR  hand-written mutants, one sed command each with its own address, such as
                  '67s/failed: /exploded: /'. An expression that changes nothing is an error.
-  --filter SEL   the tests that judge each mutant, as swift test --filter SEL; repeatable.
-                 Default: the whole suite.
+  --filter SEL   the tests that judge each mutant; repeatable. Without --sim: swift test --filter
+                 SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
+                 TEST-ID; a bare suite name means WorkoutTrackerTests/SUITE (default unit).
+  --sim UDID     runs every check through the scratch tree's scripts/test-sim.sh --sim UDID.
+                 swift test compiles only Sources/, so App/, WorkoutShared/, and WorkoutWidgets/
+                 need --sim. Run Sources/ without --sim (seconds) and those with it.
 
 Prints log:, scratch:, and baseline: lines, then one row per mutant as it finishes:
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
@@ -22,7 +26,8 @@ Prints log:, scratch:, and baseline: lines, then one row per mutant as it finish
   nocompile    the mutant does not build
   error        the runner failed without naming a failing test
 Exits 0 when every mutant was killed, 1 when any SURVIVED, did not compile, or hit an error,
-2 on usage or a failing baseline, 75 when every scratch tree is busy.
+2 on usage or a failing baseline, 75 when every scratch tree or the simulator is busy (the rows
+so far print first).
 EOF
 }
 
@@ -36,9 +41,10 @@ die() {
 }
 need_value() { [ "$1" -ge 2 ] || { usage >&2; exit 2; }; }
 
-filters=()
+sim="" filters=()
 while [ $# -gt 0 ]; do
     case $1 in
+        --sim) need_value $#; sim=$2; shift 2 ;;
         --filter) need_value $#; filters+=("$2"); shift 2 ;;
         -h | --help) usage; exit 0 ;;
         -*) usage >&2; exit 2 ;;
@@ -57,9 +63,31 @@ esac
 shift
 cd "$caller"
 
-swift_filters=()
-for sel in ${filters[@]+"${filters[@]}"}; do swift_filters+=(--filter "$sel"); done
-runner="swift test${swift_filters[*]+ ${swift_filters[*]}}"
+# Mirrors Package.swift: the test target compiles Sources/ and Tests/ minus UI, Visual, and GoogleAuthTests.
+swift_compiles() {
+    case $1 in
+        Tests/Unit/GoogleAuthTests.swift) return 1 ;;
+        Sources/* | Tests/Unit/* | Tests/Component/* | Tests/Support/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+[ -n "$sim" ] || swift_compiles "$file" ||
+    die "swift test never compiles $file; mutate it with --sim UDID, which runs scripts/test-sim.sh in the scratch tree"
+
+swift_filters=() selections=()
+for sel in ${filters[@]+"${filters[@]}"}; do
+    swift_filters+=(--filter "$sel")
+    case $sel in
+        unit | visual | ui | all | */*) selections+=("$sel") ;;
+        *) selections+=("WorkoutTrackerTests/$sel") ;;
+    esac
+done
+[ ${#selections[@]} -gt 0 ] || selections=(unit)
+if [ -n "$sim" ]; then
+    runner="test-sim.sh --sim $sim ${selections[*]}"
+else
+    runner="swift test${swift_filters[*]+ ${swift_filters[*]}}"
+fi
 
 run=$caller/.build/mutate/$(date +%Y%m%d-%H%M%S)-$$
 mkdir -p "$run"
@@ -87,17 +115,34 @@ test_count() {
          END { print run + executed }' "$1"
 }
 
-# Sets result (pass, fail, nocompile, error), tests, killers (one per line), and reason.
+# Sets result (pass, fail, nocompile, error, busy), tests, killers (one per line), and reason.
 run_check() {
-    local log=$1 rc=0
+    local log=$1 rc=0 test_log
     result="" tests=0 killers="" reason=""
-    if ! (cd "$scratch" && swift build --build-tests) </dev/null >"$log" 2>&1; then
-        result=nocompile
-        reason=$(first_error "$log")
-        return
+    if [ -n "$sim" ]; then
+        "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
+        cat "$run/stdout" "$run/stderr" >"$log"
+        if [ $rc = 75 ]; then
+            result=busy
+            reason=$(cat "$run/stderr")
+            return
+        fi
+        if [ $rc = 65 ] && grep -q '^build log: ' "$run/stderr"; then
+            result=nocompile
+            reason=$(first_error "$run/stderr")
+            return
+        fi
+        test_log=$(sed -n 's/^log: //p' "$run/stdout" | tail -1)
+        [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
+    else
+        if ! (cd "$scratch" && swift build --build-tests) </dev/null >"$log" 2>&1; then
+            result=nocompile
+            reason=$(first_error "$log")
+            return
+        fi
+        (cd "$scratch" && swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) </dev/null >>"$log" 2>"$run/stderr" || rc=$?
+        cat "$run/stderr" >>"$log"
     fi
-    (cd "$scratch" && swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) </dev/null >>"$log" 2>"$run/stderr" || rc=$?
-    cat "$run/stderr" >>"$log"
     killers=$(awk -f "$script_dir/test-failures.awk" "$log")
     tests=$(test_count "$log")
     if [ -n "$killers" ]; then
@@ -119,6 +164,10 @@ else
 fi
 
 run_check "$run/baseline.log"
+if [ "$result" = busy ]; then
+    echo "$reason" >&2
+    exit 75
+fi
 if [ "$result" != pass ] || [ "$tests" = 0 ]; then
     echo "the untouched snapshot must pass before mutating; $runner reports:" >&2
     case $result in
@@ -130,7 +179,9 @@ if [ "$result" != pass ] || [ "$tests" = 0 ]; then
     echo "  log: $run/baseline.log" >&2
     exit 2
 fi
-echo "baseline: passed $tests tests ($runner)"
+noun=tests
+[ "$tests" != 1 ] || noun=test
+echo "baseline: passed $tests $noun ($runner)"
 
 loc_width=$(awk -F'\t' '{ w = length($2 ":" $3); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
 change_width=$(awk -F'\t' '{ w = length($5 ($6 == "" ? "" : " -> " $6)); if (w > max) max = w } END { print max }' "$run/mutants.tsv")
@@ -140,12 +191,16 @@ print_row() {
     printf '%s\n' "${row%"${row##*[! ]}"}"
 }
 
-killed=0 survived=0 nocompile=0 errors=0 total=0
+killed=0 survived=0 nocompile=0 errors=0 total=0 busy=""
 while IFS=$'\t' read -r id mfile line op before after <&3; do
-    total=$((total + 1))
     cp "$run/$id.swift" "$scratch/$mfile"
     run_check "$run/$id.log"
     git -C "$scratch" checkout -q "$tree" -- "$mfile"
+    if [ "$result" = busy ]; then
+        busy=$reason
+        break
+    fi
+    total=$((total + 1))
     case $result in
         fail)
             outcome=killed detail=$(head -1 <<<"$killers") more=$(($(wc -l <<<"$killers") - 1))
@@ -166,5 +221,10 @@ for pair in "$killed killed" "$survived SURVIVED" "$nocompile nocompile" "$error
     [ "${pair%% *}" = 0 ] || counts="$counts, $pair"
 done
 [ "$total" = 1 ] && noun=mutant || noun=mutants
-echo "$total $noun: ${counts#, }"
+not_run=$(($(wc -l <"$run/mutants.tsv") - total))
+echo "$total $noun${counts:+: ${counts#, }}${busy:+; $not_run not run (simulator busy)}"
+if [ -n "$busy" ]; then
+    echo "$busy" >&2
+    exit 75
+fi
 [ $((survived + nocompile + errors)) = 0 ]

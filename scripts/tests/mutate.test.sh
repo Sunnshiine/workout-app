@@ -7,7 +7,7 @@ root=$(mktemp -d) || exit 3
 root=$(cd "$root" && pwd -P)
 trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
-export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo
+export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
 repo=$root/repo
 pool=$repo/.build/scratch
 pass=0
@@ -70,6 +70,34 @@ git -C "$repo" config user.name t
 printf '.build/\nSecrets.xcconfig\n' >"$repo/.gitignore"
 printf '%s\n' 'func gateOpens(_ count: Int) -> Bool {' '    count >= 3' '}' 'let gateName = "gate"' 'let gateLimit = 10' >"$repo/Sources/Gate/Gate.swift"
 printf '%s\n' 'enum Auth {' '    static func ok() -> Bool { return false }' '}' >"$repo/App/Auth.swift"
+# A committed stand-in for scripts/test-sim.sh: records how it was called, then acts as a simulator
+# suite over App/Auth.swift. testDeniesByDefault pins line 2. STUB_SIM_BUSY_AT=N exits 75 on call N.
+cat >"$repo/scripts/test-sim.sh" <<'STUB'
+#!/bin/bash
+echo "$0 $*" >>"$STUB_SIM_SEEN"
+dir=$(cd "$(dirname "$0")/.." && pwd)
+if [ "$(wc -l <"$STUB_SIM_SEEN")" -eq "${STUB_SIM_BUSY_AT:-0}" ]; then
+    echo "$2 is held by a test-sim.sh run (pid 1); wait for it to finish, or use another simulator" >&2
+    exit 75
+fi
+if grep -q BREAK "$dir/App/Auth.swift"; then
+    echo "$dir/App/Auth.swift:2:31: error: cannot find 'BREAK' in scope" >&2
+    echo "build log: $dir/.build/test-sim/build.log" >&2
+    exit 65
+fi
+mkdir -p "$dir/.build/test-sim"
+log=$dir/.build/test-sim/test.log
+echo "log: $log"
+if grep -q 'return false' "$dir/App/Auth.swift"; then
+    printf "Test Case '-[WorkoutTrackerTests.AuthTests testDeniesByDefault]' passed (0.001 seconds).\n\t Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds\n" >"$log"
+    echo "	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds"
+    exit 0
+fi
+printf "Test Case '-[WorkoutTrackerTests.AuthTests testDeniesByDefault]' failed (0.001 seconds).\n\t Executed 1 test, with 1 failure (0 unexpected) in 0.001 (0.001) seconds\n" >"$log"
+printf 'Failing tests:\n\tAuthTests.testDeniesByDefault()\n'
+exit 65
+STUB
+chmod +x "$repo/scripts/test-sim.sh"
 git -C "$repo" add -A
 git -C "$repo" commit -qm base
 
@@ -177,6 +205,52 @@ baseline: passed 2 tests (swift test --filter GateTests)
 $killed_row
 $survived_row
 2 mutants: 1 killed, 1 SURVIVED"
+
+udid=SIM-UDID-1
+sim_call="$pool/1/scripts/test-sim.sh --sim $udid"
+head8=$(git -C "$repo" rev-parse --short=8 HEAD)
+
+mutate --filter AuthTests App/Auth.swift '2s/return false/return true/'
+expect "an App/ mutant without --sim exits 2 naming --sim" "$status
+$out
+$err" "2
+
+swift test never compiles App/Auth.swift; mutate it with --sim UDID, which runs scripts/test-sim.sh in the scratch tree"
+
+rm -f "$STUB_SIM_SEEN"
+mutate --sim $udid --filter AuthTests App/Auth.swift '2s/return false/return true/' '2s/return/BREAK return/'
+expect "--sim judges App/ mutants through the slot's test-sim.sh, naming the killer from its full log" "$status
+$out
+$(sort -u "$STUB_SIM_SEEN")" "1
+scratch: $pool/1 at $head8
+baseline: passed 1 test (test-sim.sh --sim $udid WorkoutTrackerTests/AuthTests)
+killed       App/Auth.swift:2  sed      2s/return false/return true/  AuthTests.testDeniesByDefault
+nocompile    App/Auth.swift:2  sed      2s/return/BREAK return/       App/Auth.swift:2:31: error: cannot find 'BREAK' in scope
+2 mutants: 1 killed, 1 nocompile
+$sim_call WorkoutTrackerTests/AuthTests"
+
+rm -f "$STUB_SIM_SEEN"
+mutate --sim $udid App/Auth.swift '2s/return false/return true/'
+expect "--sim with no --filter runs unit" "$status $(sort -u "$STUB_SIM_SEEN")" "0 $sim_call unit"
+
+rm -f "$STUB_SIM_SEEN"
+STUB_SIM_BUSY_AT=1 mutate --sim $udid App/Auth.swift '2s/return false/return true/'
+expect "a busy simulator at the baseline exits 75" "$status
+$out
+$err" "75
+scratch: $pool/1 at $head8
+$udid is held by a test-sim.sh run (pid 1); wait for it to finish, or use another simulator"
+
+rm -f "$STUB_SIM_SEEN"
+STUB_SIM_BUSY_AT=3 mutate --sim $udid App/Auth.swift '2s/return false/return true/' '2s/false/nil/'
+expect "a simulator taken mid-run prints the rows so far, then exits 75" "$status
+$out
+$err" "75
+scratch: $pool/1 at $head8
+baseline: passed 1 test (test-sim.sh --sim $udid unit)
+killed       App/Auth.swift:2  sed      2s/return false/return true/  AuthTests.testDeniesByDefault
+1 mutant: 1 killed; 1 not run (simulator busy)
+$udid is held by a test-sim.sh run (pid 1); wait for it to finish, or use another simulator"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
