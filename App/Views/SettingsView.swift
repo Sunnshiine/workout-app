@@ -276,7 +276,6 @@ private struct RowLabel: View {
     }
 }
 
-/// The system secondary grey reads about 3.2:1 on the Day paper, so values take the palette's.
 private struct RowValue: View {
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.themePalette) private var palette
