@@ -36,7 +36,7 @@ struct SessionQueueSheetVisualTests {
     }
 
     private func pairingSheet() -> SessionQueueSheet {
-        queueSheet(pairable: [2, 5], superset: (first: 3, second: 4), pairingMode: .confirming(sourceOrder: 2, targetOrder: 5))
+        queueSheet(pairable: [2, 5, 6], superset: (first: 3, second: 4), pairingMode: .confirming(sourceOrder: 2, targetOrder: 5))
     }
 
     private func queueSheet(
@@ -51,7 +51,8 @@ struct SessionQueueSheetVisualTests {
             makeExercise(name: "DB Incline Press", order: 2, setStates: [.logged, .pending, .pending, .pending]),
             makeExercise(name: "Chest-Supported Row", order: 3, setStates: [.pending, .pending, .pending]),
             makeExercise(name: "Seated DB OHP", order: 4, setStates: [.pending, .pending]),
-            makeExercise(name: "Cable Fly", order: 5, setStates: [.pending, .pending])
+            makeExercise(name: "Cable Fly", order: 5, setStates: [.pending, .pending]),
+            makeExercise(name: "Triceps Pushdown", order: 6, setStates: [.pending, .pending])
         ]
         session.exercises = exercises
         let stage = SessionStage(
