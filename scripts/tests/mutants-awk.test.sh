@@ -21,8 +21,11 @@ check() {
         printf '%s\n' "$@" >"$tmp/changed"
     fi
     want=$(cat)
-    awk -v path=Sources/F.swift -v changed="$tmp/changed" -f "$generator" "$tmp/F.swift" >"$tmp/rows"
-    got=$(awk 'BEGIN { FS = "\t"; OFS = " | " } { $1 = $1; print }' "$tmp/rows")
+    : >"$tmp/compiled-out"
+    awk -v path=Sources/F.swift -v changed="$tmp/changed" -v platform="${PLATFORM:-}" -v compiledOut="$tmp/compiled-out" \
+        -f "$generator" "$tmp/F.swift" >"$tmp/rows"
+    got=$(awk 'BEGIN { FS = "\t"; OFS = " | " } { $1 = $1; print (FILENAME ~ /compiled-out$/ ? "compiled out: " : "") $0 }' \
+        "$tmp/rows" "$tmp/compiled-out")
     if [ "$got" = "$want" ]; then
         ok "$name"
     else
@@ -193,6 +196,63 @@ SWIFT
 check "changed line 2, unchanged line 1" 2 <<'ROWS'
 Sources/F.swift | 2 | compare | == | != | if a != b {
 Sources/F.swift | 2 | negate | if a == b { | if !(a == b) { | if !(a == b) {
+ROWS
+
+echo "a platform's compiled-out #if branches go to compiledOut; other conditions stay compiled in"
+cat >"$tmp/F.swift" <<'SWIFT'
+#if os(iOS)
+let total = a
+    + 1
+#elseif os(macOS)
+let mac = true
+#else
+let other = true
+#endif
+#if !canImport(UIKit) // AppKit only
+let appKit = true
+#endif
+#if DEBUG
+let debug = true
+#if canImport(AppKit)
+let nested = true
+#endif
+#else
+let release = true
+#endif
+let banner = """
+#if os(iOS)
+"""
+let after = true
+SWIFT
+PLATFORM=macOS check "macOS: os(iOS), #else after a taken branch, and canImport(UIKit) are compiled out" <<'ROWS'
+Sources/F.swift | 5 | bool | true | false | let mac = false
+Sources/F.swift | 10 | bool | true | false | let appKit = false
+Sources/F.swift | 13 | bool | true | false | let debug = false
+Sources/F.swift | 15 | bool | true | false | let nested = false
+Sources/F.swift | 18 | bool | true | false | let release = false
+Sources/F.swift | 23 | bool | true | false | let after = false
+compiled out: Sources/F.swift | 3 | const | 1 | 2 |     + 2
+compiled out: Sources/F.swift | 7 | bool | true | false | let other = false
+ROWS
+PLATFORM=iOS check "iOS: os(macOS), #else, !canImport(UIKit), and canImport(AppKit) under DEBUG are compiled out" <<'ROWS'
+Sources/F.swift | 3 | const | 1 | 2 |     + 2
+Sources/F.swift | 13 | bool | true | false | let debug = false
+Sources/F.swift | 18 | bool | true | false | let release = false
+Sources/F.swift | 23 | bool | true | false | let after = false
+compiled out: Sources/F.swift | 5 | bool | true | false | let mac = false
+compiled out: Sources/F.swift | 7 | bool | true | false | let other = false
+compiled out: Sources/F.swift | 10 | bool | true | false | let appKit = false
+compiled out: Sources/F.swift | 15 | bool | true | false | let nested = false
+ROWS
+check "no platform compiles every branch in" <<'ROWS'
+Sources/F.swift | 3 | const | 1 | 2 |     + 2
+Sources/F.swift | 5 | bool | true | false | let mac = false
+Sources/F.swift | 7 | bool | true | false | let other = false
+Sources/F.swift | 10 | bool | true | false | let appKit = false
+Sources/F.swift | 13 | bool | true | false | let debug = false
+Sources/F.swift | 15 | bool | true | false | let nested = false
+Sources/F.swift | 18 | bool | true | false | let release = false
+Sources/F.swift | 23 | bool | true | false | let after = false
 ROWS
 
 echo "a missing changed list is a usage error"
