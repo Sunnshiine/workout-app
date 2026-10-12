@@ -2609,6 +2609,7 @@ last_frame=3.402
 video_px=1206x2622
 verdict=VALID
 invalid=
+invalid_rules=
 """
 STAMP = TAKE_LINES + "screen_pt=402x874\nanimations=on\napp=app 804e750cad00 commit ea5af074 (this worktree's build)\n"
 
@@ -2654,35 +2655,45 @@ class TakeJudge(unittest.TestCase):
                 self.assertEqual(str(raised.exception), why)
 
     def test_load_at_or_over_the_limit_at_either_end(self):
-        self.assertEqual(take.judge(stamp_with(load_after="63.20")), ["load 63.2 at the end, at or over 50"])
-        self.assertEqual(take.judge(stamp_with(load_before="50.00")), ["load 50.0 at the start, at or over 50"])
+        self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, at or over 50")])
+        self.assertEqual(take.judge(stamp_with(load_before="50.00")),
+                         [("load", "load 50.0 at the start, at or over 50")])
         self.assertEqual(take.judge(stamp_with(load_after="49.99")), [])
 
     def test_a_recorder_that_stopped_early_or_exited_nonzero(self):
-        self.assertEqual(take.judge(stamp_with(recorder_early="1")), ["the recorder stopped before the take ended"])
+        self.assertEqual(take.judge(stamp_with(recorder_early="1")),
+                         [("recorder_early", "the recorder stopped before the take ended")])
         self.assertEqual(take.judge(stamp_with(recorder_exit="1")),
-                         ["recorder exit 1 after SIGINT; the video may be cut short"])
+                         [("recorder_exit", "recorder exit 1 after SIGINT; the video may be cut short")])
 
     def test_a_drive_needs_a_frame_after_the_first_at_or_after_it_began(self):
-        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.300")), [
-            "the screen never changed after the drive began at +0.32 s, so the take shows nothing the drive did"])
+        self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.300")), [("coverage",
+            "the screen never changed after the drive began at +0.32 s, so the take shows nothing the drive did")])
         self.assertEqual(take.judge(stamp_with(drive_start="0.000", first_frame="0.000", last_frame="0.000",
-                                               frames="1")), [
-            "the screen never changed after the drive began at +0.00 s, so the take shows nothing the drive did"])
+                                               frames="1")), [("coverage",
+            "the screen never changed after the drive began at +0.00 s, so the take shows nothing the drive did")])
         self.assertEqual(take.judge(stamp_with(drive_start="0.320", last_frame="0.320", frames="2")), [])
 
     def test_a_take_with_no_drive_needs_two_frames(self):
         self.assertEqual(take.judge(stamp_with(drive="", frames="1", last_frame="0.000")),
-                         ["one frame: the screen never changed while recording"])
+                         [("coverage", "one frame: the screen never changed while recording")])
         self.assertEqual(take.judge(stamp_with(drive="", frames="2")), [])
 
-    def test_every_failed_rule_gives_its_reason_in_rule_order(self):
-        self.assertEqual(take.judge(stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2",
-                                               drive_start="3.500")), [
-            "load 70.0 at the end, at or over 50",
-            "the recorder stopped before the take ended",
-            "recorder exit 2 after SIGINT; the video may be cut short",
-            "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did",
+    def test_every_failed_rule_gives_its_rule_and_reason_in_rule_order_and_the_stamp_lists_the_rules(self):
+        broken = stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2", drive_start="3.500")
+        self.assertEqual(take.judge(broken), [
+            ("load", "load 70.0 at the end, at or over 50"),
+            ("recorder_early", "the recorder stopped before the take ended"),
+            ("recorder_exit", "recorder exit 2 after SIGINT; the video may be cut short"),
+            ("coverage",
+             "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"),
+        ])
+        self.assertEqual(take.take_lines(broken)[-3:], [
+            "verdict=INVALID",
+            "invalid=load 70.0 at the end, at or over 50; the recorder stopped before the take ended; recorder exit "
+            "2 after SIGINT; the video may be cut short; the screen never changed after the drive began at +3.50 s, "
+            "so the take shows nothing the drive did",
+            "invalid_rules=load,recorder_early,recorder_exit,coverage",
         ])
 
 
@@ -2699,7 +2710,7 @@ echo "{\\"frames\\": [$frames], \\"streams\\": [{\\"width\\": 1206, \\"height\\"
 """
 TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_limit", "load_before", "load_after", "started",
              "drive_start", "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame",
-             "last_frame", "video_px", "verdict", "invalid", "screen_pt", "animations", "app"]
+             "last_frame", "video_px", "verdict", "invalid", "invalid_rules", "screen_pt", "animations", "app"]
 SUMMARY = re.compile(r"^take appear (VALID|INVALID) \d+\.\d\d s, drive \+\d+\.\d\d\.\.\+\d+\.\d\d s, 3 frames, "
                      r"last \+3\.40 s, load 12\.3 then (\d+\.\d) \(limit 50\), animations on$")
 
@@ -2747,7 +2758,8 @@ class Record(Lane):
             "format": "take/1", "name": "appear", "video": "appear.mp4", "drive": "tap -x 5 -y 6", "tail": "0.5",
             "load_limit": "50", "load_before": "12.31", "load_after": "14.02", "recorder_exit": "0",
             "recorder_early": "0", "frames": "3", "first_frame": "0.000", "last_frame": "3.402",
-            "video_px": "1206x2622", "verdict": "VALID", "invalid": "", "screen_pt": "402x874", "animations": "on",
+            "video_px": "1206x2622", "verdict": "VALID", "invalid": "", "invalid_rules": "", "screen_pt": "402x874",
+            "animations": "on",
             "app": self.worktree_build(b"v2\n", self.b)})
         self.assertTrue(before < timed["started"] < time.time(), timed)
         self.assertTrue(0 <= timed["drive_start"] <= timed["drive_end"], timed)
@@ -2767,7 +2779,8 @@ class Record(Lane):
         self.assertEqual((code, err), (3, "load 63.2 at the end, at or over 50\n"))
         self.assertEqual(SUMMARY.match(out.splitlines()[2]).groups(), ("INVALID", "63.2"))
         values = dict(self.stamp())
-        self.assertEqual((values["verdict"], values["invalid"]), ("INVALID", "load 63.2 at the end, at or over 50"))
+        self.assertEqual((values["verdict"], values["invalid"], values["invalid_rules"]),
+                         ("INVALID", "load 63.2 at the end, at or over 50", "load"))
         self.assertEqual(self.listing(self.run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
 
     def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):

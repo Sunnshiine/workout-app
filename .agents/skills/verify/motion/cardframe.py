@@ -54,7 +54,7 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from take import NoTake, Take, judge, parse, probe  # noqa: E402
+from take import NoTake, Reason, Take, judge, parse, probe  # noqa: E402
 
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
@@ -160,7 +160,7 @@ class Measure:
         return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
 
     @property
-    def invalid(self) -> List[str]:
+    def invalid(self) -> List[Reason]:
         return judge(self.take)
 
 
@@ -282,7 +282,7 @@ def _span(lo: float, hi: float) -> str:
 def report(m: Measure) -> List[str]:
     lines = []
     if m.invalid:
-        lines.append(f"INVALID take: {'; '.join(m.invalid)}")
+        lines.append(f"INVALID take: {'; '.join(r.text for r in m.invalid)}")
     if m.take.animations != "on":
         lines.append(f"animations {m.take.animations}: this take cannot show motion")
     lines.append(f"take={'INVALID' if m.invalid else 'VALID'} animations={m.take.animations} frames={m.frames} "

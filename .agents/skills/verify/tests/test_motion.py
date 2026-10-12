@@ -453,8 +453,14 @@ class Detect(unittest.TestCase):
         self.assertEqual(cardframe.detect(lum, 2.0), None)
 
 
-def reading(verdict="VALID", invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0):
-    return Reading(verdict, invalid, animations, first_seen, lost, worst, 37, "12.31/14.02")
+def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0):
+    return Reading(rules, invalid, animations, first_seen, lost, worst, 37, "12.31/14.02")
+
+
+LOAD = "load 63.2 at the end, at or over 50"
+RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
+EARLY = "the recorder stopped before the take ended"
+UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
 
 
 def results(*verdicts):
@@ -550,12 +556,20 @@ class JudgeTake(unittest.TestCase):
             (75, reading(), 0.0, (Verdict.INVALID, "record exited 75")),
             (1, None, 0.0, (Verdict.INVALID, "record exited 1")),
             (0, None, 0.0, (Verdict.INVALID, "record left no stamp")),
-            (3, reading(verdict="INVALID", invalid="load 63.2 at the end, at or over 50"), 0.0,
-             (Verdict.INVALID, "take INVALID: load 63.2 at the end, at or over 50")),
-            (3, reading(verdict="INVALID", invalid="load 63.2 at the end, at or over 50", first_seen=None), 0.0,
-             (Verdict.INVALID, "take INVALID: load 63.2 at the end, at or over 50")),
-            (3, reading(verdict="INVALID", invalid="load 63.2 at the end, at or over 50", worst=412.0), 0.0,
-             (Verdict.FAIL, "an edge moved 412.0 pt")),
+            (3, reading(rules=("load",), invalid=LOAD), 0.0, (Verdict.INVALID, f"take INVALID: {LOAD}")),
+            (3, reading(rules=("load",), invalid=LOAD, first_seen=None), 0.0,
+             (Verdict.INVALID, f"take INVALID: {LOAD}")),
+            (3, reading(rules=("load",), invalid=LOAD, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
+            (3, reading(rules=("load",), invalid=LOAD, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
+            (3, reading(rules=("recorder_exit",), invalid=RECORDER, worst=412.0), 0.0,
+             (Verdict.INVALID, f"take INVALID: {RECORDER}")),
+            (3, reading(rules=("recorder_early",), invalid=EARLY, lost=2), 0.0,
+             (Verdict.INVALID, f"take INVALID: {EARLY}")),
+            (3, reading(rules=("coverage",), invalid=UNCOVERED, worst=412.0), 0.0,
+             (Verdict.INVALID, f"take INVALID: {UNCOVERED}")),
+            (3, reading(rules=("load", "coverage"), invalid=f"{LOAD}; {UNCOVERED}", lost=2), 0.0,
+             (Verdict.INVALID, f"take INVALID: {LOAD}; {UNCOVERED}")),
+            (0, reading(animations="off", worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(animations="off"), 0.0, (Verdict.INVALID, "animations off")),
             (0, reading(animations="off", lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
             (0, reading(), 3.4, (Verdict.INVALID, "started 3.4 s late")),
