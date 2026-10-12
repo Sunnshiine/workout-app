@@ -260,25 +260,27 @@ uv run .agents/skills/verify/motion/cardframe.py <run dir>/appear.mp4    # the A
 uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card moves>   # 15 min
 ```
 
-`record` waits up to `VERIFY_LOAD_WAIT` s (60) for the 1-minute load to fall under
-`WORKOUT_LOAD_LIMIT` (50), because a loaded host films a move as a cut. It drives once the recorder is
-capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on
-stderr. Exit 70 means the recorder or ffprobe failed, or the screen size could not be read after
-the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran. The recorder
-writes a frame only when the screen changes, so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
+`record` waits up to `VERIFY_LOAD_WAIT` s (60) for the 1-minute load to fall under `WORKOUT_LOAD_LIMIT`
+(50), because a loaded host films a move as a cut. It drives once the recorder is capturing and stops it
+with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on stderr. Exit 70 means the
+recorder or ffprobe failed, or the screen size could not be read after the take, and nothing is kept, a
+VALID take included. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes,
+so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
-from its edges, and its look, the luminance inside the settled box. `still=no` means the box or the
-look moved, and `box=` and `look=` say which. `still=unknown` means nothing moved but the take is
-INVALID. `still=yes` means nothing moved on a VALID take. A label that swaps in one frame reads
-`look=cut` and stays still. A launch take is measured from the end of iOS's fade from black, so
-first-appear motion that ends inside that fade is invisible to a launch take. From the fade's end the
-window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail` watches 2.24 s
-or more. A build whose card slides up 300 pt on first appear (5e3a0d12) read
+from its edges, and its look, the luminance inside the settled box. `still=no` means the box or the look
+moved, and `box=` and `look=` say which, on a take whose INVALID reasons, if any, only hide motion (load,
+a short window), animations on or off. `still=yes` means nothing moved on a VALID take with animations
+on. `still=unknown` covers the rest: nothing moved but the take is INVALID or has animations off, or
+something moved on a take INVALID for any other reason, such as a launch with no fade from black. A label
+that swaps in one frame reads `look=cut` and stays still. A launch take is measured from the end of iOS's
+fade from black, so first-appear motion that ends inside that fade is invisible to a launch take. From
+the fade's end the window must watch 1.5 s or the take is INVALID. A launch with the default 2 s `--tail`
+watches 2.24 s or more. A build whose card slides up 300 pt on first appear (5e3a0d12) read
 `worst_edge_range=127.7` with `edges=partial`, and `look_ms=443`, `still=no`. Without `--animated` the
-same build read `still=yes`. A card that fades in place read `box=still look=changed` and
-`look_ms=1165`. `cardstill.py` prints PASS only when the control commit moved the card on one of its
-eight takes and the head held it still on all eight. After an edit to `take.py` or `motion/`, also run
-`uv run .agents/skills/verify/tests/test_motion.py`.
+same build read `box=still look=still` and `still=unknown`, because animations off hides motion. A card
+that fades in place read `box=still look=changed` and `look_ms=1165`. `cardstill.py` prints PASS only
+when the control commit moved the card on one of its eight takes and the head held it still on all eight.
+After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
 ## Cleanup
 
