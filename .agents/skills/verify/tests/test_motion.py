@@ -48,12 +48,13 @@ def scene_frames(scene, seconds):
 
 
 def encode(path, scene, seconds, lossless=True):
-    """Keeps only the frames that changed, each at its own time, as simctl's recordVideo does."""
+    """Keeps only the frames that changed, each at its own time, as simctl's recordVideo does. RGB, because
+    ffmpeg versions convert YUV back to RGB a unit apart, and the literals here are exact."""
     w, h = (n * VIDEO_PX_PER_PT for n in SCREEN_PT)
     proc = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{w}x{h}",
          "-framerate", str(FPS), "-i", "-", "-vf", "mpdecimate=hi=1:lo=1:frac=0", "-fps_mode", "vfr",
-         "-c:v", "libx264", *(["-qp", "0"] if lossless else []), "-pix_fmt", "yuv420p", str(path)],
+         "-c:v", "libx264rgb", *(["-qp", "0"] if lossless else []), "-pix_fmt", "rgb24", str(path)],
         stdin=subprocess.PIPE,
     )
     for img in scene_frames(scene, seconds):
