@@ -150,8 +150,8 @@ expect "the reclaimed run's stop says who reclaimed it and when, and touches not
     "75 run abandoned-run was reclaimed by test-sim.sh run (pid N) at T; launch again: SIM=$sim VERIFY_RUN=abandoned-run $repo/.agents/skills/verify/verify.sh launch <fixture>"
 went=
 for verb in doctor tree "find x" "tap --id x" "hold x" "type x" "swipe up" "shot s" "burst b" "axe describe-ui"; do
-    # shellcheck disable=SC2086
-    VERIFY_RUN=abandoned-run verify $verb >/dev/null 2>"$root/err"; status=$?
+    read -ra argv <<< "$verb"
+    VERIFY_RUN=abandoned-run verify "${argv[@]}" >/dev/null 2>"$root/err"; status=$?
     [ "$status $(reclaim_note)" = "75 run abandoned-run was reclaimed by test-sim.sh run (pid N) at T; launch again: SIM=$sim VERIFY_RUN=abandoned-run $repo/.agents/skills/verify/verify.sh launch <fixture>" ] \
         || went="$went${went:+, }$verb"
 done

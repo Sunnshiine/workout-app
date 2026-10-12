@@ -58,14 +58,17 @@ sim_flock() {
   [ $rc -eq 0 ] || exit $rc
 }
 
+# A Live Activity outlives its app's process, so only an uninstall ends one from outside the app.
+launched_with_live_activities() {
+  [ -f "$1/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$1/args"
+}
+
 is_fixture_launch() {
   case $(ps -p "$1" -o args= 2>/dev/null) in *-UITEST_FIXTURE*) return 0 ;; esac
   return 1
 }
 
-# Every verify.sh command that acts on its run's app passes here: a reclaimed run is refused, and a
-# live lease is renewed.
-hold_lease() {
+require_lease() {
   local dir=/tmp/workout-verify-$1 owner run reclaimer idle
   owner=$(cat "$dir/run" 2>/dev/null) || true
   run=${VERIFY_RUN:-$owner}
@@ -115,8 +118,7 @@ settle_run() {
       > "$dir/reclaimed.$run"
     xcrun simctl terminate "$1" com.sunnypatel.WorkoutTracker 8>&- 9>&- 2>/dev/null || true
   fi
-  # A Live Activity outlives its app's process, so a run launched with them on is uninstalled, as stop does.
-  if [ -f "$dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$dir/args"; then
+  if launched_with_live_activities "$dir"; then
     xcrun simctl uninstall "$1" com.sunnypatel.WorkoutTracker 8>&- 9>&- || echo "could not uninstall the app on $1; a Live Activity run $run started may still be on it" >&2
   fi
   [ -z "$abandoned" ] || rm -f "$dir/pid" "$dir/args"
@@ -143,12 +145,9 @@ host_knob() {
   eval "$name=\$value"
 }
 
-# Every wait in one script shares one WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's
-# ten-minute timeout.
 wait_until_clear() {
   local what=$1 waited said=-60
   shift
-  : "${host_wait_start:=$(date +%s)}"
   while ! "$@"; do
     waited=$(($(date +%s) - host_wait_start))
     if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
@@ -187,7 +186,7 @@ if listing.returncode:
     sys.exit("xcrun simctl list devices failed: " + listing.stderr.strip())
 try:
     devices = [d for ds in json.loads(listing.stdout)["devices"].values() for d in ds]
-except (ValueError, KeyError, AttributeError, TypeError) as error:
+except (ValueError, KeyError) as error:
     sys.exit("xcrun simctl list devices printed no device list: %r" % error)
 mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
 print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' \
@@ -231,7 +230,7 @@ host_room() {
 }
 
 # A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
-# them all at once. simctl boot exits 149 on a device another booter already started.
+# them all at once.
 boot_sim() {
   local err
   err=$(exec 7>&- 8>&- 9>&-; exec xcrun simctl boot "$1" 2>&1 >/dev/null) && return
@@ -243,12 +242,11 @@ boot_sim() {
 }
 
 take_build_slot() {
-  local slot i=0
+  local slot i=0 tries_past_a_probe=3
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     slot=$host_lock_dir/build-$i
     exec 8>>"$slot"
-    # Three tries outlast another claim's shared probe of the slot.
-    if try_flock 8 LOCK_EX 3; then
+    if try_flock 8 LOCK_EX "$tries_past_a_probe"; then
       printf '%s (pid %s)\n' "${0##*/}" "$$" > "$slot"
       build_slot=$slot
       return 0
@@ -258,7 +256,6 @@ take_build_slot() {
   slots_taken
 }
 
-# A shared lock fails only against a build holding the slot, never against another claim's probe.
 build_slot_free() {
   local i=0
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
@@ -305,5 +302,6 @@ host_knob WORKOUT_LOAD_LIMIT 50 1
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
+host_wait_start=$(date +%s)
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"
