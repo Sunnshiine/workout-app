@@ -110,6 +110,11 @@ expect "BASE alone means BASE..HEAD" "$? $(sed -E '1,2d; s/ [0-9]+s( |$)/ Ns\1/g
 (cd "$repo" && scripts/check-each-commit.sh main..main) >"$root/out" 2>"$root/err"
 expect "an empty range exits 2" "$? $(cat "$root/out" "$root/err")" "2 no commits in main..main"
 
+(cd "$repo" && scripts/check-each-commit.sh main~1...main) >"$root/out" 2>"$root/err"
+expect "a three-dot range is a usage error" "$? $(cat "$root/out")
+$(head -1 "$root/err")" "2 
+A...B names both sides of a fork; check-each-commit.sh takes BASE..HEAD"
+
 (cd "$repo" && scripts/check-each-commit.sh nope..main) >"$root/out" 2>"$root/err"
 expect "a range git cannot resolve exits 2" "$? $(cat "$root/out" "$root/err")" "2 not a commit range: nope..main"
 

@@ -31,7 +31,11 @@ case ${1:-} in
 esac
 [ $# = 1 ] || { usage >&2; exit 2; }
 range=$1
-case $range in *..*) ;; *) range=$range..HEAD ;; esac
+case $range in
+    *...*) echo "A...B names both sides of a fork; check-each-commit.sh takes BASE..HEAD" >&2; usage >&2; exit 2 ;;
+    *..*) ;;
+    *) range=$range..HEAD ;;
+esac
 
 caller=$(git rev-parse --show-toplevel)
 cd "$caller"
