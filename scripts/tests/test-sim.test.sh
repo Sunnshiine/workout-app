@@ -50,11 +50,12 @@ echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim",
 STUB
 cat >"$root/bin/sysctl" <<'STUB'
 #!/bin/sh
-echo '{ 1.50 1.25 1.00 }'
+[ -e "$STUB_LOAD_READ" ] && echo '{ 2.50 1.25 1.00 }' || echo '{ 1.50 1.25 1.00 }'
+touch "$STUB_LOAD_READ"
 STUB
 chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl"
-export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard
-result() { echo "test-sim: suite=$1 passed=- failed=- exit=$2 load1=1.50/1.50 bundle=-"; }
+export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard STUB_LOAD_READ=$root/load-read
+result() { echo "test-sim: suite=$1 passed=- failed=- exit=$2 load1=1.50/2.50 bundle=-"; }
 
 check() {
     local name=$1 want_status=$2 want_out=$3 want_err=$4 xcodebuild_status=$5 log=$6
@@ -62,6 +63,7 @@ check() {
     STUB_LOG=$root/xcodebuild.log STUB_RC=$xcodebuild_status STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
     local status=$?
+    rm -f "$root/load-read"
     local out err last
     out=$(grep -v -e '^log: ' -e '^bundle: ' -e '^test-sim: ' "$root/out")
     err=$(cat "$root/err")
@@ -377,7 +379,7 @@ fi
 
 for build in --no-build ""; do
     flags="${build:+$build }--sim"
-    rm -f "$root/seen"
+    rm -f "$root/seen" "$root/load-read"
     STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" ${build:+"$build"} --sim "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
@@ -400,7 +402,7 @@ else
 fi
 
 run() {
-    rm -f "$root/seen" "$root/keyboard"
+    rm -f "$root/seen" "$root/keyboard" "$root/load-read"
     STUB_LOG=$root/xcodebuild.log STUB_RC=${rc:-65} STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" "$@" >"$root/out" 2>"$root/err"
 }
@@ -419,16 +421,22 @@ bundle=$(sed -n 's/^bundle: //p' "$root/out")
 expect "a run hands xcodebuild the bundle path it printed" "$(grep -A1 -x -- -resultBundlePath "$root/args" | tail -1)" "$bundle"
 expect "a failed visual run names the snapshot diff command, then ends with its counts and bundle" "$(tail -2 "$root/out")" \
 "snapshot diffs: scripts/snapshot-diffs.sh $bundle
-test-sim: suite=visual passed=29 failed=1 exit=65 load1=1.50/1.50 bundle=$bundle"
+test-sim: suite=visual passed=29 failed=1 exit=65 load1=1.50/2.50 bundle=$bundle"
+
+printf '%s\n' "✔ Test run with 30 tests in 8 suites passed after 4.437 seconds." "** TEST EXECUTE SUCCEEDED **" >"$root/xcodebuild.log"
+rc=0 STUB_SUMMARY='{"passedTests":30,"failedTests":0}' run --no-build --sim "$sim" visual
+expect "a passing visual run names no diff command" "$(grep -c '^snapshot diffs' "$root/out"; tail -1 "$root/out")" \
+"0
+test-sim: suite=visual passed=30 failed=0 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
 STUB_SUMMARY='{"passedTests":1019,"failedTests":1}' run --no-build --sim "$sim" unit WorkoutTrackerTests/ParserTests
 expect "a failed run with no snapshot suite selected names no diff command" "$(tail -1 "$root/out"; grep -c '^snapshot diffs' "$root/out")" \
-"test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 exit=65 load1=1.50/1.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
+"test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
 0"
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
-"test-sim: suite=unit passed=- failed=- exit=65 load1=1.50/1.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
+"test-sim: suite=unit passed=- failed=- exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
 run
 status=$?

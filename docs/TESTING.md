@@ -154,6 +154,17 @@ Manual or non-Ralph UI Interaction Suite command, which runs the whole UI target
 scripts/test-sim.sh ui
 ```
 
+Reading a `scripts/test-sim.sh` run:
+
+- A selection that includes `WorkoutTrackerUITests` first runs `scripts/sim-keyboard.sh ensure`.
+  It sets the simulator's `com.apple.keyboard.preferences` keys `AutomaticMinimizationEnabled` and
+  `HardwareKeyboardLastSeen` to 0 and reboots only when it changed them (#700). An AXe key event sets
+  them back, so a verify session can leave a simulator that hides the software keyboard.
+- The last line is `test-sim: suite=<s> passed=<n> failed=<m> exit=<e> load1=<start>/<end>
+  bundle=<path>`. `exit=` is the script's status, which a pipe such as `| tee` hides.
+- After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
+  and difference images and prints their paths.
+
 Shared fixture policy:
 
 - Put shared builders and named scenarios under `Tests/Support`.
