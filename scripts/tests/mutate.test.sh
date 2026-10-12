@@ -87,6 +87,7 @@ printf '%s\n' 'enum Auth {' '    static func ok() -> Bool { return false }' '}' 
 cat >"$repo/scripts/mutants.awk" <<'STUB'
 BEGIN { while ((getline n < changed) > 0) want[n] = 1 }
 !want[FNR] { next }
+/iosOnly/ && platform == "macOS" { m = $0; sub(/true/, "false", m); print path "\t" FNR "\tbool\ttrue\tfalse\t" m >>compiledOut; next }
 / >= / { m = $0; sub(/ >= /, " > ", m); print path "\t" FNR "\tcompare\t>=\t>\t" m }
 /true/ { m = $0; sub(/true/, "false", m); print path "\t" FNR "\tbool\ttrue\tfalse\t" m }
 /breakme/ { m = $0; sub(/breakme/, "BREAK", m); print path "\t" FNR "\tconst\tbreakme\tBREAK\t" m }
@@ -366,8 +367,31 @@ killed       Sources/Gate/Gate.swift:2    compare  >= -> >           GateTests.t
 SURVIVED     Sources/Gate/Gate.swift:6    bool     true -> false
 SURVIVED     Sources/Gate/Gate.swift:7    bool     true -> false
 unreachable  App/Auth.swift:3             bool     true -> false     swift test never compiles it; rerun with --sim UDID
+not run      Sources/Gate/Gate.swift:8    compare  >= -> >
 5 mutants: 1 killed, 2 SURVIVED, 1 nocompile, 1 unreachable; 1 not run (--max 4)"
 expect "a generated mutant's line keeps its backslashes" "$(sed -n 7p "$logdir/m4.swift")" 'let pattern = "a\\d"; let strict = false'
+
+echo 'let lateOn = true' >"$repo/Sources/Gate/Late.swift"
+mutate --filter GateTests --max 3 --diff diffbase Sources
+expect "--max takes each file's first mutant before any file's second, and lists the ones it left out" "$status
+$(sed 1,3d <<<"$out")" "1
+nocompile    Sources/Gate/Breaks.swift:1  const    breakme -> BREAK  Sources/Gate/Breaks.swift:1:5: error: cannot find 'BREAK' in scope
+killed       Sources/Gate/Gate.swift:2    compare  >= -> >           GateTests.testOpensAtFour +1
+SURVIVED     Sources/Gate/Late.swift:1    bool     true -> false
+not run      Sources/Gate/Gate.swift:6    bool     true -> false
+not run      Sources/Gate/Gate.swift:7    bool     true -> false
+not run      Sources/Gate/Gate.swift:8    compare  >= -> >
+3 mutants: 1 killed, 1 SURVIVED, 1 nocompile; 3 not run (--max 3)"
+rm "$repo/Sources/Gate/Late.swift"
+
+echo 'let iosOnly = true' >"$repo/Sources/Gate/Platform.swift"
+mutate --diff diffbase Sources/Gate/Platform.swift
+expect "--diff lists a line an #if compiles out of swift test as unreachable and claims no scratch tree" "$status
+$out" "1
+mutants: 1 on 1 changed line in 1 file since $diffbase
+unreachable  Sources/Gate/Platform.swift:1  bool     true -> false  an #if compiles it out of swift test; rerun with --sim UDID
+1 mutant: 1 unreachable"
+rm "$repo/Sources/Gate/Platform.swift"
 
 mutate --diff diffbase Sources/Gate/Breaks.swift
 expect "a run whose only mutant does not build killed nothing, so it fails" "$status
@@ -415,8 +439,9 @@ error        Sources/Gate/Gate.swift:2  compare  >= -> >  error: no space left o
 
 mutate --filter GateTests --max 1 --diff diffbase
 expect "a run that --max left mutants unrun fails even when it killed every one it ran" "$status
-$(tail -2 <<<"$out")" "1
-killed       Sources/Gate/Gate.swift:2  compare  >= -> >  GateTests.testOpensAtFour +1
+$(tail -3 <<<"$out")" "1
+killed       Sources/Gate/Gate.swift:2  compare  >= -> >           GateTests.testOpensAtFour +1
+not run      Sources/Gate/Wall.swift:1  const    breakme -> BREAK
 1 mutant: 1 killed; 1 not run (--max 1)"
 
 (cd "$repo/Sources/Gate" && ../../scripts/mutate.sh --filter GateTests --diff diffbase Gate.swift) >"$root/out" 2>"$root/err"
