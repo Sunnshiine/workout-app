@@ -97,3 +97,15 @@ private func dayFootGround(_ day: Theme.Palette) throws -> Ground {
     let day = Theme.palette(for: Theme.Appearance.day)
     #expect(contrast(of: day.textSecondary, over: try dayFootGround(day)) >= 4.5)
 }
+
+private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)
+private let dayQueueSheetFootFill = Theme.rgb(181, 209, 171)
+
+@Test(arguments: [
+    (Theme.Appearance.night, nightOpenedSessionBorderedButtonFill),
+    (Theme.Appearance.day, dayQueueSheetFootFill)
+])
+func actionInkReadsAsTextOnItsHardestFill(appearance: Theme.Appearance, fill: Color) {
+    let actionInk = Theme.palette(for: appearance).actionInk
+    #expect(contrast(of: actionInk, over: Ground(base: fill, layers: [])) >= 4.5)
+}
