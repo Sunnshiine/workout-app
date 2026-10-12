@@ -104,6 +104,32 @@ t (pid SELF)
 the leftover is gone"
 rm "$root/gate1" "$root/gate2"
 
+sh -c 'exit 0' & dead=$!
+wait $dead
+(python3 -c 'import fcntl, os, sys, time
+fcntl.flock(8, fcntl.LOCK_EX)
+os.setsid()
+time.sleep(30)' 8>>"$locks/1.lock" & echo $! >"$root/leftover")
+leftover=$(cat "$root/leftover")
+sleep 0.3
+echo "dead run (pid $dead)" >"$locks/1.lock"
+python3 -c 'import fcntl, sys, time
+claim = open(sys.argv[1] + "/claim.lock", "a")
+fcntl.flock(claim, fcntl.LOCK_EX)
+probing = open(sys.argv[1] + "/1.lock", "a")
+open(sys.argv[2], "w").close()
+time.sleep(1)' "$locks" "$root/probing" &
+prober=$!
+wait_for "$root/probing"
+got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"')
+wait $prober
+prober_status=$?
+expect "a reclaim kills a dead run's leftover but never a claim still probing that slot" "$got
+prober exit $prober_status
+$(if kill -0 $leftover 2>/dev/null; then echo "the leftover still runs"; else echo "the leftover is gone"; fi)" "$pool/1
+prober exit 0
+the leftover is gone"
+
 got=$(GIT_CONFIG_VALUE_0=true in_tree "$repo" 'scratch_claim t; scratch_sync HEAD; git -C "$scratch" status --porcelain'
     SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"')
 expect "a git fsmonitor daemon started in a slot never holds its lock" "$got" "$pool/1"
