@@ -66,8 +66,9 @@ scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0   # prints a UDID for the stock simulator, creating it if missing
 xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
+  -destination 'platform=iOS Simulator,id=<UDID>' \
   -skipPackagePluginValidation -skipMacroValidation
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
@@ -99,8 +100,8 @@ more) starts no run.
   touches `App/`, run the simulator suite as well.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
-- Pin `OS=27.0` in every `-destination`. A machine with two runtimes holds two devices named
-  iPhone 17 Pro, and xcodebuild may pick the wrong one.
+- Name the simulator by `id=<UDID>` in every `-destination`. A name can match several devices
+  across runtimes and clones, and xcodebuild may pick the shared one other agents drive (#660).
 - Concurrent simulator runs each need their own worktree and their own simulator.
   `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
