@@ -151,6 +151,10 @@ expect "assess keeps a lane a process works in" "$(cat "$root/out")" "keep	in us
 
 lane assess a 0
 expect "assess removes a clean lane past the threshold" "$(cat "$root/out")" "remove	idle 0d"
+hold "/tmp/workout-verify-$P-2/lock" "verify.sh launch (pid 4244)"
+lane assess a 0
+release
+expect "assess keeps a lane whose simulator a run holds" "$(cat "$root/out")" "keep	in use by verify.sh launch (pid 4244)"
 
 "$lanes/a/scripts/lane.sh" down a >"$root/out" 2>"$root/err"
 expect "down from the lane's own copy of lane.sh exits 2" "$? $(cat "$root/err")" \

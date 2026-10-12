@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Remove git worktrees whose pull request has merged or closed, together with
-# their local branches. Dry run by default; --apply is the only thing that
-# deletes.
+# their local branches, and idle lanes through scripts/lane.sh. Dry run by
+# default; --apply is the only thing that deletes.
 #
 # The repo squash-merges, so `git branch --merged` never matches a landed
 # branch. Every branch is resolved through its PR state instead, in one batched
