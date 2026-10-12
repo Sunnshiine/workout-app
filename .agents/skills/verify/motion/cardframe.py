@@ -283,7 +283,8 @@ class Measure:
         box = self.card.box
         if box.changed or self.card.look.kind is LookKind.CHANGED:
             return Still.NO if moved_counts(r.rule for r in self.invalid) else Still.UNKNOWN
-        return Still.YES if unvouched(self.invalid, self.take.animations, box.partial, box.faint) is None else Still.UNKNOWN
+        why = unvouched(self.invalid, self.take.animations, box.partial, box.faint)
+        return Still.YES if why is None else Still.UNKNOWN
 
 
 def _band(pt: float, px_per_pt: float) -> slice:
@@ -525,7 +526,8 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
     if take.screen_pt is None:
         raise Usage(f"{stamp} has no screen_pt=, so its pixels cannot be read as points; record it again")
     if take.card_pt is None:
-        raise Usage(f"{stamp} has no card_pt=, so the card's frame in the accessibility tree is unknown; record it again")
+        raise Usage(f"{stamp} has no card_pt=, so the card's frame in the accessibility tree is unknown; "
+                    "record it again")
     px_per_pt = take.video_px[0] / take.screen_pt[0]
     if not (CELL_PT * px_per_pt).is_integer():
         raise Usage(f"{stamp}: {px_per_pt:g} px per point does not tile {CELL_PT:g} pt cells")

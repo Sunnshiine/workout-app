@@ -36,7 +36,6 @@ POLL = 0.05
 
 
 class CardPt(NamedTuple):
-    """The Active Set Card's frame in points, as the accessibility tree held it when the recorder stopped."""
     x: int
     y: int
     width: int

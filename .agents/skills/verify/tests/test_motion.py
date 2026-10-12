@@ -425,7 +425,8 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_20_pt_jump_in_a_launch_s_last_frame_that_brightens_x1_34_reads_edges_partial_and_still_unknown(self):
         video = self.clips["launch-jump-last"]
-        filmed = take.parse(stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 186)).read_text())
+        stamped = stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 186))
+        filmed = take.parse(stamped.read_text())
         found = cardframe.samples(video, filmed)
         jump = len(found) - 1
         found[jump:] = [dataclasses.replace(s, card=dataclasses.replace(s.card, contrast=s.card.contrast * 1.34))
@@ -546,10 +547,12 @@ class CardFrameOnClips(unittest.TestCase):
                "active-set-card, @12,105 178x168")
         self.assertEqual(self.lines("ticking", card_pt="@12,105 178x168")[0::2], (1, why + "\n"))
         self.assertEqual(self.judged("ticking", card_pt="@12,105 178x168"), (Verdict.INVALID, why))
-        self.assertEqual(self.lines("ticking", card_pt="@20,104 178x168")[0::2], (0, ""), "8 pt off in x and y is where")
+        self.assertEqual(self.lines("ticking", card_pt="@20,104 178x168")[0::2], (0, ""),
+                         "8 pt off in x and in y is where the tree put it")
 
     def test_cardstill_calls_a_window_with_no_card_in_any_frame_invalid(self):
-        self.assertEqual(self.judged("rule"), (Verdict.INVALID, "no card: no card in any of the 10 frames from 0.000 s"))
+        self.assertEqual(self.judged("rule"),
+                         (Verdict.INVALID, "no card: no card in any of the 10 frames from 0.000 s"))
 
     def test_a_stamp_without_card_pt_exits_2_naming_it(self):
         video = self.dir / "untreed.mp4"
@@ -627,7 +630,6 @@ TAKE = take.Take(
 
 
 def held_at(c, at=TAKE):
-    """The take as record stamps it when the accessibility tree put the card at c."""
     return dataclasses.replace(at, card_pt=take.CardPt(c.left, c.top, c.right - c.left, c.bottom - c.top))
 LAUNCH = dataclasses.replace(TAKE, drive="launch --animated session", drive_start=0.05, drive_end=1.0, stopped=4.0)
 FADED_IN = [Sample(0.0, None, DARK), Sample(0.5, None, DARK + 100), Sample(0.6, card(100), FLAT),

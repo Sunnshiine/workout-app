@@ -2649,7 +2649,8 @@ class TakeJudge(unittest.TestCase):
     def test_parse_reads_the_four_lines_verify_sh_appends_and_defaults_them_when_absent(self):
         appended = take.parse(STAMP)
         self.assertEqual((appended.screen_pt, appended.card_pt, appended.animations, appended.app),
-                         ((402, 874), (16, 476, 370, 308), "on", "app 804e750cad00 commit ea5af074 (this worktree's build)"))
+                         ((402, 874), (16, 476, 370, 308), "on",
+                          "app 804e750cad00 commit ea5af074 (this worktree's build)"))
         bare = take.parse(TAKE_LINES)
         self.assertEqual((bare.screen_pt, bare.card_pt, bare.animations, bare.app), (None, None, "unknown", ""))
 
