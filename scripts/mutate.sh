@@ -29,9 +29,9 @@ MUTATE_TIMEOUT=N bounds each run in seconds (default 5 x the baseline's time, at
 Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mutant as it ends:
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
   killed       a test failed, crashed, or the run timed out; results.tsv lists every killer
-  SURVIVED     no test failed, so nothing pins this change (grep '^SURVIVED')
+  SURVIVED     no test failed, and an #error on the line breaks the build (grep '^SURVIVED')
   nocompile    the compiler rejects the mutated file
-  unreachable  swift test never compiles the file; rerun with --sim
+  unreachable  this build never compiles the line (#if, no target; App/ needs --sim)
   error        the runner failed without naming a failing test, or the build failed elsewhere
 Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any SURVIVED,
 was unreachable, hit an error, or was a hand-written nocompile, when --max left any unrun, or when
@@ -214,9 +214,9 @@ sys.exit(128 - rc if rc < 0 else rc)' "$@"
 }
 
 # Sets result (pass, fail, nocompile, error, timeout, busy), tests, killers (one per line), and
-# reason. The whole check gets $limit seconds.
+# reason. The whole check gets $limit seconds. With a second argument the swift runner only builds.
 run_check() {
-    local log=$1 rc=0 test_log start=$SECONDS
+    local log=$1 build_only=${2:-} rc=0 test_log start=$SECONDS
     result="" tests=0 killers="" reason=""
     if [ -n "$sim" ]; then
         limited "$limit" "$scratch/scripts/test-sim.sh" --sim "$sim" "${selections[@]}" </dev/null >"$run/stdout" 2>"$run/stderr" || rc=$?
@@ -239,7 +239,10 @@ run_check() {
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
         (cd "$scratch" && limited "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
-        if [ $rc = 0 ]; then
+        if [ $rc = 0 ] && [ -n "$build_only" ]; then
+            result=pass
+            return
+        elif [ $rc = 0 ]; then
             (cd "$scratch" && limited $((limit - (SECONDS - start))) swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) \
                 </dev/null >>"$log" 2>"$run/stderr" || rc=$?
             cat "$run/stderr" >>"$log"
@@ -263,6 +266,24 @@ run_check() {
         result=error
         reason="exit $rc: $(head -1 "$run/stderr")"
     fi
+}
+
+# A mutant that survives may sit on a line this build never compiles: an inactive #if branch, or a
+# file in no target the runner builds. Rebuilds the snapshot with an #error just above the mutated
+# line; when that still builds, the mutant could not have been judged, so result becomes unreachable.
+probe_reach() {
+    local id=$1 mfile=$2 at=$3
+    git show "$tree:$mfile" >"$run/$id.orig"
+    case $at in '' | *[!0-9]*) at=$(cmp "$run/$id.orig" "$run/$id.swift" | sed -n 's/.*, line //p') ;; esac
+    [ -n "$at" ] || return 0
+    awk -v n="$at" 'FNR == n { print "#error(\"mutate.sh reach probe\")" } { print }' "$run/$id.orig" >"$scratch/$mfile"
+    run_check "$run/$id.probe.log" build-only
+    git -C "$scratch" checkout -q "$tree" -- "$mfile"
+    case $result in
+        busy) ;;
+        nocompile | timeout) result=pass reason="" ;;
+        *) result=unreachable reason="compiled out of this build (#if or no target)" ;;
+    esac
 }
 
 if [ $runnable -gt 0 ]; then
@@ -309,6 +330,7 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
         cp "$run/$id.swift" "$scratch/$mfile"
         run_check "$run/$id.log"
         git -C "$scratch" checkout -q "$tree" -- "$mfile"
+        [ "$result" != pass ] || probe_reach "$id" "$mfile" "$line"
     else
         result=unreachable reason="swift test never compiles it; rerun with --sim UDID"
     fi

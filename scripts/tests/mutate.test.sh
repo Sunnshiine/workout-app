@@ -25,7 +25,7 @@ cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../t
 
 # A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
 # (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4, and nothing pins line 5. swift build fails
-# on BREAK. While $STUB_GATE exists and a mutant sits on line 2, it waits, so a test can act mid-run.
+# on BREAK, and on a reach probe's #error outside an #if canImport(UIKit) block. While $STUB_GATE exists and a mutant sits on line 2, it waits, so a test can act mid-run.
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
 gate=Sources/Gate/Gate.swift
@@ -34,6 +34,9 @@ if [ "$1" = build ]; then
         echo "error: no space left on device" >&2
         exit 1
     fi
+    probe=$(awk '/^#if canImport\(UIKit\)/ { off = 1 } /^#endif/ { off = 0 }
+        /#error\("mutate.sh reach probe"\)/ && !off { print FILENAME ":" FNR; exit }' $(find Sources -name '*.swift'))
+    [ -z "$probe" ] || { echo "$PWD/$probe:1: error: mutate.sh reach probe" >&2; exit 1; }
     broken=$(grep -rn BREAK Sources | head -1 | cut -d: -f1,2)
     [ -z "$broken" ] || { echo "error: SwiftCompile normal arm64 $PWD/${broken%:*} failed with a nonzero exit code." >&2
         echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
@@ -103,7 +106,7 @@ if [ "$(wc -l <"$STUB_SIM_SEEN")" -eq "${STUB_SIM_BUSY_AT:-0}" ]; then
     echo "$2 is held by a test-sim.sh run (pid 1); wait for it to finish, or use another simulator" >&2
     exit 75
 fi
-if grep -q BREAK "$dir/App/Auth.swift"; then
+if grep -qE 'BREAK|#error' "$dir/App/Auth.swift"; then
     echo "$dir/App/Auth.swift:2:31: error: cannot find 'BREAK' in scope" >&2
     echo "build log: $dir/.build/test-sim/build.log" >&2
     exit 65
@@ -216,6 +219,16 @@ killed       Sources/Gate/Gate.swift:5  sed      5s/10/HANG/  timed out after 2s
 1 mutant: 1 killed
 the hung test is gone"
 
+printf '%s\n' '#if canImport(UIKit)' 'let platformLimit = 4' '#endif' >"$repo/Sources/Gate/Platform.swift"
+mutate --filter GateTests Sources/Gate/Platform.swift '2s/4/5/'
+expect "a surviving mutant on a line this build compiles out is unreachable" "$status
+$(tail -2 <<<"$out")
+$(cat "$logdir/results.tsv")" "1
+unreachable  Sources/Gate/Platform.swift:2  sed      2s/4/5/  compiled out of this build (#if or no target)
+1 mutant: 1 unreachable
+m1	unreachable	compiled out of this build (#if or no target)"
+rm "$repo/Sources/Gate/Platform.swift"
+
 touch "$root/gate1"
 (cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &
 first=$!
@@ -278,6 +291,12 @@ $sim_call WorkoutTrackerTests/AuthTests"
 rm -f "$STUB_SIM_SEEN"
 mutate --sim $udid App/Auth.swift '2s/return false/return true/'
 expect "--sim with no --filter runs unit" "$status $(sort -u "$STUB_SIM_SEEN")" "0 $sim_call unit"
+
+mutate --sim $udid --filter AuthTests Sources/Gate/Gate.swift '5s/10/11/'
+expect "under --sim, a surviving mutant in a file the simulator build never compiles is unreachable" "$status
+$(tail -2 <<<"$out")" "1
+unreachable  Sources/Gate/Gate.swift:5  sed      5s/10/11/  compiled out of this build (#if or no target)
+1 mutant: 1 unreachable"
 
 rm -f "$STUB_SIM_SEEN"
 STUB_SIM_BUSY_AT=1 mutate --sim $udid App/Auth.swift '2s/return false/return true/'
