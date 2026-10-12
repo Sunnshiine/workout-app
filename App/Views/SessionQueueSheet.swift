@@ -4,9 +4,10 @@ import SwiftUI
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
 /// when the Session can advance. Tapping an incomplete row brings it on stage.
 ///
-/// Superset pairing also lives here: the link affordance on an eligible row
-/// starts pairing, the row taps pick the partner, and the sheet falls back to
-/// browsing when pairing ends or the sheet closes.
+/// Superset pairing also lives here: the header's Superset button starts
+/// pairing from the row on stage, the row taps pick the partner, a Superset
+/// row's trailing glyph unlinks it, and the sheet falls back to browsing when
+/// pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -28,6 +29,7 @@ struct SessionQueueSheet: View {
             rows
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
+        .animation(.spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
@@ -42,7 +44,9 @@ struct SessionQueueSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(queue.rows) { row in
-                    if isPairing {
+                    if row.kind == .superset {
+                        supersetRow(for: row)
+                    } else if isPairing {
                         pairingRow(for: row)
                     } else {
                         queueRow(for: row)
@@ -81,110 +85,185 @@ struct SessionQueueSheet: View {
         }
     }
 
+    // MARK: - Header
+
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(isPairing ? "Pick a partner" : "This Session")
+        HStack {
+            Text("This Session")
                 .font(Theme.font(.sheetTitle))
                 .foregroundStyle(palette.textPrimary)
 
             Spacer(minLength: 12)
 
-            Button(action: coordinator.cancelPairing) {
-                Text("Cancel")
-                    .font(Theme.font(.queuePill))
-                    .foregroundStyle(palette.actionInk)
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
+            if isPairing {
+                Button(action: coordinator.cancelPairing) {
+                    headerButtonFace {
+                        Image(systemName: "xmark")
+                            .font(Theme.font(.queuePill))
+                            .foregroundStyle(palette.textSecondary)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Cancel Superset")
+                .accessibilityIdentifier("stage-queue-cancel-pairing")
+            } else if let source = queue.supersetSource {
+                Button {
+                    coordinator.beginPairing(from: source.pairingExercise, in: session)
+                } label: {
+                    headerButtonFace {
+                        SupersetStemGlyph(form: .offer, color: palette.actionInk)
+                            .frame(width: 24, height: 24)
+                    }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Superset")
+                .accessibilityHint("Pick an Exercise to pair with \(source.title)")
+                .accessibilityIdentifier("stage-queue-superset")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("stage-queue-cancel-pairing")
-            .visibleKeepingFrame(isPairing)
         }
+        .frame(minHeight: Self.headerButtonSize)
         .padding(.top, 18)
+    }
+
+    private static let headerButtonSize: CGFloat = 46
+
+    private func headerButtonFace(@ViewBuilder glyph: () -> some View) -> some View {
+        glyph()
+            .frame(width: Self.headerButtonSize, height: Self.headerButtonSize)
+            .background(Circle().fill(palette.pillFill))
+            .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
+            .contentShape(Circle())
     }
 
     // MARK: - Browsing
 
     private func queueRow(for row: SessionQueue.Row) -> some View {
+        Button {
+            jump(to: row)
+        } label: {
+            rowLabel(for: row) {
+                nowLabel(for: row)
+            }
+        }
+        .buttonStyle(.plain)
+        .disabled(row.isComplete)
+        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+    }
+
+    private func jump(to row: SessionQueue.Row) {
+        dismiss()
+        if let target = row.jumpTarget {
+            coordinator.focus(on: target)
+        }
+    }
+
+    @ViewBuilder
+    private func nowLabel(for row: SessionQueue.Row) -> some View {
+        if row.isOnStage {
+            Text("Now")
+                .font(Theme.font(.fieldLabel))
+                .foregroundStyle(palette.actionInk)
+        }
+    }
+
+    // MARK: - Superset
+
+    private func supersetRow(for row: SessionQueue.Row) -> some View {
         HStack(spacing: 0) {
             Button {
-                dismiss()
-                if let target = row.jumpTarget {
-                    coordinator.focus(on: target)
+                if isPairing {
+                    pick(row)
+                } else {
+                    jump(to: row)
                 }
             } label: {
-                rowLabel(for: row) {
-                    if row.isOnStage {
-                        Text("Now")
-                            .font(Theme.font(.fieldLabel))
-                            .foregroundStyle(palette.actionInk)
+                HStack(spacing: 0) {
+                    SupersetStemGlyph(form: .joined, color: palette.actionInk)
+                        .frame(width: 26, height: 26)
+                        .accessibilityLabel("Superset")
+                        .padding(.leading, 14)
+
+                    rowLabel(for: row) {
+                        nowLabel(for: row)
                     }
                 }
             }
             .buttonStyle(.plain)
             .disabled(row.isComplete)
+            .accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : "")
             .accessibilityIdentifier("stage-queue-row-\(row.id)")
 
-            if row.kind == .pairableExercise {
-                Button {
-                    coordinator.beginPairing(from: row.pairingExercise, in: session)
-                } label: {
-                    Image(systemName: "link")
-                        .font(Theme.font(.queuePill))
-                        .foregroundStyle(palette.textSecondary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 16)
-                        .frame(minWidth: 44)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Pair \(row.title) into a superset")
-                .accessibilityIdentifier("stage-queue-pair-\(row.id)")
+            Button {
+                coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
+            } label: {
+                SupersetStemGlyph(form: .split, color: palette.textSecondary)
+                    .frame(width: 26, height: 26)
+                    .frame(width: 46, height: 46)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .padding(.trailing, 4)
+            .accessibilityLabel("Unlink Superset")
+            .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
+            .visibleKeepingFrame(!isPairing)
         }
+        .background(Capsule().fill(palette.surface))
+        .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
     }
 
     // MARK: - Pairing
 
     private func pairingRow(for row: SessionQueue.Row) -> some View {
         Button {
-            if coordinator.handlePairingTap(on: row.pairingExercise, in: session) == .unavailable {
-                HapticPlayer.shared.play(.warning)
-            }
+            pick(row)
         } label: {
             rowLabel(for: row) {
-                pairingIndicator(for: row.pairingRole)
+                pairingGlyph(for: row.pairingRole)
+                    .frame(width: 26, height: 26)
+                    .frame(width: 46, height: 30)
             }
         }
         .buttonStyle(.plain)
         .opacity(row.pairingRole == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
         .accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : "")
+        .background {
+            if row.pairingRole == .source || row.pairingRole == .confirmingTarget {
+                Capsule().fill(palette.actionInk.opacity(0.10))
+            }
+        }
         .overlay {
-            if row.pairingRole == .confirmingTarget {
-                RoundedRectangle(cornerRadius: Theme.Radius.soft)
-                    .stroke(palette.accent, lineWidth: 2)
+            if row.pairingRole == .source {
+                Capsule().strokeBorder(palette.actionInk, lineWidth: 2)
             }
         }
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
+    private func pick(_ row: SessionQueue.Row) {
+        if coordinator.handlePairingTap(on: row.pairingExercise, in: session) == .unavailable {
+            HapticPlayer.shared.play(.warning)
+        }
+    }
+
     @ViewBuilder
-    private func pairingIndicator(for role: QueuePairingRole) -> some View {
+    private func pairingGlyph(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            Image(systemName: "link")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.actionInk)
-                .accessibilityLabel("Pairing")
+            SupersetStemGlyph(form: .offer, color: palette.actionInk)
+                .accessibilityLabel("Selected for Superset")
         case .confirmingTarget:
-            Image(systemName: "link.badge.plus")
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.actionInk)
-                .accessibilityLabel("Pairing with this")
-        case .none, .eligibleTarget, .ineligibleTarget:
+            SupersetStemGlyph(form: .joined, color: palette.actionInk)
+                .accessibilityLabel("Selected for Superset")
+        case .eligibleTarget:
+            SupersetStemGlyph(form: .bud, color: palette.actionInk)
+                .accessibilityLabel("Superset with \(pairingSourceTitle)")
+        case .none, .ineligibleTarget:
             EmptyView()
         }
+    }
+
+    private var pairingSourceTitle: String {
+        queue.rows.first { $0.pairingRole == .source }?.title ?? ""
     }
 
     // MARK: - Row label
@@ -218,5 +297,73 @@ extension View {
                 self
             }
         }
+    }
+}
+
+/// The stage's Superset fork as a glyph: `offer` dashes the lateral branch, `bud` is the lateral
+/// alone waiting to graft, `joined` is the full fork, and `split` snaps the lateral off at the joint.
+private struct SupersetStemGlyph: View {
+    enum Form { case offer, bud, joined, split }
+    let form: Form
+    let color: Color
+
+    var body: some View {
+        Canvas { context, size in
+            let s = size.width / 24
+            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+            let solid = StrokeStyle(lineWidth: 2.2 * s, lineCap: .round, lineJoin: .round)
+            let dashed = StrokeStyle(lineWidth: 2.2 * s, lineCap: .round, dash: [2.4 * s, 3 * s])
+
+            func leaf(at c: CGPoint, filled: Bool) {
+                let r = 3.6 * s
+                let path = Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r))
+                if filled {
+                    context.fill(path, with: .color(color))
+                } else {
+                    context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 2 * s))
+                }
+            }
+
+            var lateral = Path()
+            lateral.move(to: p(9, 15))
+            lateral.addQuadCurve(to: p(17.5, 8.5), control: p(15, 15))
+
+            if form != .bud {
+                var main = Path()
+                main.move(to: p(9, 22))
+                main.addLine(to: p(9, 7.5))
+                context.stroke(main, with: .color(color), style: solid)
+                leaf(at: p(9, 4.5), filled: true)
+            }
+
+            switch form {
+            case .offer:
+                context.stroke(lateral, with: .color(color), style: dashed)
+                leaf(at: p(19, 6.5), filled: false)
+            case .bud:
+                var reach = Path()
+                reach.move(to: p(4, 20))
+                reach.addQuadCurve(to: p(13.6, 11.6), control: p(11, 20))
+                context.stroke(reach, with: .color(color), style: solid)
+                let bud = CGRect(x: 12.2 * s, y: 2.2 * s, width: 10.6 * s, height: 10.6 * s)
+                context.stroke(Path(ellipseIn: bud), with: .color(color), style: StrokeStyle(lineWidth: 2 * s))
+                var plus = Path()
+                plus.move(to: p(17.5, 5))
+                plus.addLine(to: p(17.5, 10))
+                plus.move(to: p(15, 7.5))
+                plus.addLine(to: p(20, 7.5))
+                context.stroke(plus, with: .color(color), style: StrokeStyle(lineWidth: 1.6 * s, lineCap: .round))
+            case .joined:
+                context.stroke(lateral, with: .color(color), style: solid)
+                leaf(at: p(19, 6.5), filled: true)
+            case .split:
+                var broken = Path()
+                broken.move(to: p(13.5, 15.5))
+                broken.addQuadCurve(to: p(20, 10), control: p(18, 15.5))
+                context.stroke(broken, with: .color(color), style: solid)
+                leaf(at: p(21, 7.5), filled: true)
+            }
+        }
+        .accessibilityElement()
     }
 }
