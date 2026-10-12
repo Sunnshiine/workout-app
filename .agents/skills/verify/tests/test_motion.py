@@ -155,6 +155,12 @@ def a_3_pt_rule_beside_a_ticking_box(i):
     return PAPER, [(270, 395, 101, 104), (20, 40, 100, 150, PAPER + 10 + 4 * (i // 6))]
 
 
+def jumps_then_brightens_to_where_it_sits(i):
+    if i < 30:
+        return PAPER, [(100, 260, 16, 186, 225)]
+    return PAPER, [(140, 300, 16, 186, 225 if i < 48 else CARD)]
+
+
 def swaps_a_label_inside(i):
     return PAPER, [STILL_BOX, (120, 160, 40, 80, CARD if i < FPS else 210)]
 
@@ -184,6 +190,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("drop", drops_for_three_frames, 1.5),
             ("label", swaps_a_label_inside, 1.5),
             ("rule", a_3_pt_rule_beside_a_ticking_box, 1.0),
+            ("faint-tap", jumps_then_brightens_to_where_it_sits, 1.0),
             ("launch", launched(still), 1.5),
             ("launch-late", launched(still, fade=133), 2.6),
             ("launch-fade", launched(fades_in_place), 1.6),
@@ -455,6 +462,15 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(out, ["take=VALID animations=on frames=10 window_frames=10",
                                "window=start from=0.000 to=2.900 window_s=2.900"])
         self.assertEqual(err, "no card in any of the 10 frames from 0.000 s\n")
+
+    def test_a_card_that_jumps_while_faint_and_then_brightens_reads_edges_partial_and_cardstill_calls_it_invalid(self):
+        video = self.clips["faint-tap"]
+        stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.4)
+        r = Reading.of(cardframe.measure(video))
+        self.assertEqual((r.first_seen, r.faint, r.partial, r.worst_edge_range), (0.8, 2, True, 0.0))
+        self.assertEqual(cardstill.judge_take(0, r), (
+            Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the window's "
+                             "start"))
 
     def test_a_run_too_narrow_to_hold_one_4_pt_cell_is_no_card_and_exits_1(self):
         code, out, err = self.lines("rule", "--x", "102")
@@ -732,8 +748,10 @@ class Detect(unittest.TestCase):
         self.assertEqual(cardframe.detect(lum, 2.0), None)
 
 
-def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0, look="still"):
-    return Reading(rules, invalid, animations, first_seen, lost, worst, look, 37, "12.31/14.02")
+def reading(rules=(), invalid="", animations="on", first_seen=0.0, lost=0, faint=0, partial=False, worst=0.0,
+            look="still"):
+    return Reading(rules=rules, invalid=invalid, animations=animations, first_seen=first_seen, lost=lost, faint=faint,
+                   partial=partial, worst_edge_range=worst, look=look, frames=37, load="12.31/14.02")
 
 
 LOAD = "load 63.2 at the end, at or over 50"
@@ -901,6 +919,17 @@ class JudgeTake(unittest.TestCase):
             (0, reading(), 3.4, (Verdict.INVALID, "started 3.4 s late")),
             (0, reading(worst=412.0), 3.4, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
+            (0, reading(faint=2, partial=True), 0.0,
+             (Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the "
+                               "window's start")),
+            (0, reading(partial=True), 0.0,
+             (Verdict.INVALID, "the card was missing from the window's first frames, so its edges were not read "
+                               "from the window's start")),
+            (0, reading(faint=2, partial=True, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
+            (0, reading(partial=True, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
+            (3, reading(rules=("load",), invalid=LOAD, faint=2, partial=True), 0.0,
+             (Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the "
+                               "window's start")),
             (3, reading(first_seen=None), 0.0, (Verdict.INVALID, "no card in any frame")),
             (0, reading(lost=27), 0.0, (Verdict.FAIL, "lost the card in 27 frames")),
             (0, reading(worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),

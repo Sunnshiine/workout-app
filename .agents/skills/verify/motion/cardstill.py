@@ -13,15 +13,17 @@ Films eight takes through `verify.sh record` twice in one session: first on COMM
 filmed, so measuring never loads the host before a take. The rest-end take starts 26 s after the Superset
 log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
-A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or an
-edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window shorter
-than its tail, or with animations off, because those can hide motion but never invent it. Else it is
-INVALID when the take is INVALID, its animations are not on, it started late, or the card is in no frame,
-because then the metric saw nothing and the take proves nothing; else PASS. So only a lost card or a moved
-edge FAILs a take, on either side, and only those satisfy the control. The lane FAILs when any head take
-FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed (the
-host or the metric cannot see motion now), else PASSes. The look inside the box is printed beside the box
-and never judged, because the static-card rule lets content change inside a box that never moves.
+A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
+an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window
+shorter than its tail, or with animations off, because those can hide motion but never invent it. Else it
+is INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
+move there went unread), the take is INVALID, its animations are not on, it started late, or the card is
+in no frame, because then the metric missed what it had to see and the take proves nothing; else PASS. So
+only a lost card or a moved edge FAILs a take, on either side, and only those satisfy the control. The
+lane FAILs when any head take FAILs, else is INVALID when any take on either side is, else is INVALID
+when no control take FAILed (the host or the metric cannot see motion now), else PASSes. The look inside
+the box is printed beside the box and never judged, because the static-card rule lets content change
+inside a box that never moves.
 
 Prints one row per take, control and head side by side, then `cardstill PASS|FAIL|INVALID: <reason>`, and
 writes the table as cardstill.tsv in the head run's evidence directory. The app must be built
@@ -101,6 +103,8 @@ class Reading:
     animations: str
     first_seen: Optional[float]
     lost: int
+    faint: int
+    partial: bool
     worst_edge_range: float
     look: str
     frames: int
@@ -115,6 +119,8 @@ class Reading:
             animations=m.take.animations,
             first_seen=box.first_seen if box else None,
             lost=box.lost if box else 0,
+            faint=box.faint if box else 0,
+            partial=box.partial if box else False,
             worst_edge_range=box.worst_edge_range if box else 0.0,
             look=look_text(m.card.look) if m.card else "",
             frames=m.frames,
@@ -136,6 +142,10 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
         return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
+    if reading.partial:
+        first = (f"was faint for its first {reading.faint} frames" if reading.faint
+                 else "was missing from the window's first frames")
+        return Verdict.INVALID, f"the card {first}, so its edges were not read from the window's start"
     if reading.rules:
         return Verdict.INVALID, f"take INVALID: {reading.invalid}"
     if reading.animations != "on":
