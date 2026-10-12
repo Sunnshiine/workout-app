@@ -429,5 +429,17 @@ expect "assess keeps a lane idle for 10 days whose DerivedData a build touched t
     "$idle_before | $(cat "$root/out")" "remove	idle 10d | keep	active 0d ago, threshold 3d"
 lane down quiet
 
+crash_add stuck
+(cd "$lanes/stuck" && exec sleep 60) &
+sleeper=$!
+sleep 0.5
+lane down stuck
+kill "$sleeper"
+wait "$sleeper" 2>/dev/null
+expect "down refusing a crashed add's lane leaves git's lock in place" \
+    "$status $(cat "$root/err") | $(cat "$(git -C "$lanes/stuck" rev-parse --absolute-git-dir)/locked")" \
+    "75 lane.sh: pid $sleeper (sleep) works in $lanes/stuck; stop it or cd out | initializing"
+lane down stuck
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
