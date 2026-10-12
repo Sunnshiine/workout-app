@@ -2115,26 +2115,59 @@ class DriveGuard(Lane):
     def test_a_drive_that_names_no_run_is_refused_after_a_launch_that_named_none_was_refused(self):
         self.verify("build")
         self.assertEqual(self.verify("launch", "session")[0], 0)
+        run = (Path("/tmp/workout-verify-%s" % self.sim) / "run").read_text().strip()
         refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache, and its build failed" % (
             self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
         self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
         for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"]]:
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv), (75, "", (
-                    "the last launch with no VERIFY_RUN on {sim} was refused, so this would drive whatever that refusal "
+                    "the last launch of run {run} on {sim} was refused, so this would drive whatever that refusal "
                     "left running ({refusal}); stop it, then launch again: SIM={sim} {verify} stop, then "
                     "SIM={sim} {verify} launch <fixture>\n"
-                ).format(sim=self.sim, refusal=refusal, verify=self.verify_path)))
+                ).format(run=run, sim=self.sim, refusal=refusal, verify=self.verify_path)))
                 self.assertEqual(self.calls(), [], "the app the refusal left is neither driven nor filmed")
+        self.assertRegex((self.evidence("main", run) / "launches.txt").read_text(),
+                         r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r2")[0], 0)
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""), "any launch that succeeds clears it")
 
+    def test_a_drive_that_names_no_run_is_refused_after_the_first_launch_on_the_simulator_was_refused(self):
+        self.assertEqual(self.verify("launch", "session")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6")[0], 75)
+        self.assertEqual(self.calls(), [])
+
     def test_a_refused_launch_that_named_no_run_does_not_stop_a_named_owner_driving_unnamed(self):
         self.verify("build")
+        self.assertEqual(self.verify("launch", "session")[0], 0)
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="owner-1")[0], 0)
         self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="owner-1"), (0, "", ""))
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_named_launch_that_starts_but_never_comes_up_is_not_held_to_an_earlier_unnamed_refusal(self):
+        self.assertEqual(self.verify("launch", "session")[0], 65)
+        self.verify("build")
+        (self.tmp / "describe-ui.json").write_text(MINI.replace('"pid": 4121', '"pid": 99999999'))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="owner-1")[0], 70)
+        (self.tmp / "describe-ui.json").write_text(MINI)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_refused_install_blocks_no_drive(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
+        self.assertEqual(self.verify("install", self.a, VERIFY_RUN="r1", STUB_BUILD_FAIL="1")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1"), (0, "", ""))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_run_refused_because_another_runs_app_is_alive_is_not_told_to_stop_it(self):
+        self.verify("build")
+        app = self.own_the_app("owner-1")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 75)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="lane-1"), (75, "", (
+            "the app on {sim} belongs to run owner-1 (pid {pid}), not to lane-1, so this would drive another "
+            "run's app; launch yours first: SIM={sim} VERIFY_RUN=lane-1 {verify} launch <fixture>\n"
+        ).format(sim=self.sim, pid=app.pid, verify=self.verify_path)))
 
     def test_another_runs_refused_launch_does_not_stop_the_owner(self):
         self.verify("build")

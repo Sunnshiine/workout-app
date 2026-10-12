@@ -61,8 +61,7 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
                   alive on SIM, and after this run's launch was refused until one succeeds. Unset,
                   the run is the one the last launch on SIM started, and unless that run was named
-                  they also refuse after a launch with VERIFY_RUN unset was refused, until any
-                  launch succeeds),
+                  a refused launch with VERIFY_RUN unset counts as a refused launch of it),
              VERIFY_EVIDENCE (the parent of the run directories; default
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
@@ -422,16 +421,20 @@ target_app() {
   [ -z "$at" ] || launched_line="$wanted_line; $(worktree_build_note)"
 }
 
+last_run_named() { [ -f "$state_dir/run" ] && [ ! -f "$state_dir/unnamed" ]; }
+
 record_refusal() {
+  local run
   echo "$1" >&2
+  [ "$cmd" = launch ] || return 0
   mkdir -p "$state_dir"
-  if [ -z "${VERIFY_RUN:-}" ]; then
-    # A drive with no VERIFY_RUN may be a named run's owner leaning on the run it remembers, so only an
-    # unnamed run is held to an unnamed refusal.
-    [ -f "$state_dir/run" ] && [ ! -f "$state_dir/unnamed" ] || printf '%s\n' "$1" > "$state_dir/refused"
-    return 0
+  run=${VERIFY_RUN:-}
+  if [ -z "$run" ]; then
+    if last_run_named; then return 0; fi
+    run=$(current_run)
+    [ -n "$run" ] || run=$(begin_run)
   fi
-  printf '%s\n' "$1" > "$state_dir/refused.$VERIFY_RUN"
+  printf '%s\n' "$1" > "$state_dir/refused.$run"
   printf '%s %s refused: %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$cmd" "$1" >> "$(run_dir)/launches.txt"
 }
 
@@ -525,7 +528,7 @@ start_app() {
   printf '%s\n' "$pid" > "$state_dir/pid"
   printf '%s\n' "${args[*]}" > "$state_dir/args"
   # stop decides whose app it is from this file, so a launch that never comes up still owns its pid.
-  begin_run >/dev/null
+  run=$(begin_run)
 }
 
 record_launch() {
@@ -536,7 +539,7 @@ record_launch() {
 await_front() {
   for _ in $(seq 1 40); do
     if [ "$(front_pid)" = "$pid" ]; then
-      rm -f "$state_dir/refused" ${VERIFY_RUN:+"$state_dir/refused.$VERIFY_RUN"}
+      rm -f "$state_dir/refused.$run"
       echo "launched $fixture as pid $pid on $sim"
       echo "$launched_line"
       echo "evidence $(run_dir)"
@@ -556,23 +559,24 @@ await_front() {
   exit 70
 }
 
-refuse_drive_after() {
-  local again="SIM=$sim ${3:+VERIFY_RUN=$3 }$0"
-  echo "the last launch $1 on $sim was refused, so this would drive whatever that refusal left running ($(cat "$2")); stop it, then launch again: $again stop, then $again launch <fixture>" >&2
-  exit 75
-}
-
-require_own_app() {
-  local owner pid run
-  run=$(current_run)
-  [ -z "$run" ] || [ ! -f "$state_dir/refused.$run" ] || refuse_drive_after "of run $run" "$state_dir/refused.$run" "$run"
-  [ -n "${VERIFY_RUN:-}" ] || [ ! -f "$state_dir/refused" ] || refuse_drive_after "with no VERIFY_RUN" "$state_dir/refused"
+refuse_another_runs_app() {
+  local owner pid
   [ -n "${VERIFY_RUN:-}" ] || return 0
   owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
   [ "$owner" != "$VERIFY_RUN" ] || return 0
   pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
   is_fixture_launch "$pid" || return 0
   echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+  exit 75
+}
+
+require_own_app() {
+  local run again
+  refuse_another_runs_app
+  run=$(current_run)
+  [ -n "$run" ] && [ -f "$state_dir/refused.$run" ] || return 0
+  again="SIM=$sim${VERIFY_RUN:+ VERIFY_RUN=$run} $0"
+  echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again launch <fixture>" >&2
   exit 75
 }
 
