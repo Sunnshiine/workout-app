@@ -59,20 +59,7 @@ run_step() {
             ;;
     esac
 }
-test_count() {
-    awk '/ Test run with [0-9]+ tests? / { for (i = 1; i < NF; i++) if ($i == "with") { run = $(i + 1); break } }
-         /Executed [0-9]+ tests?, with/ { for (i = 1; i < NF; i++) if ($i == "Executed") executed = $(i + 1) }
-         END { print run + executed }' "$1"
-}
-
-# SwiftPM prints "error: SwiftCompile ... failed" before the compiler's own file:line: error.
-first_error() {
-    awk '{ gsub(/\033\[[0-9;]*m/, "") }
-         /^[^ ]+:[0-9]+(:[0-9]+)?: error: / || / Test .* recorded an issue/ { print; found = 1; exit }
-         first == "" && /error:/ { first = $0 }
-         { last = $0 }
-         END { if (!found) print (first != "" ? first : last) }' "$1" | sed "s#$scratch/##"
-}
+read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
 failures=0
 for commit in $commits; do
@@ -86,7 +73,7 @@ for commit in $commits; do
         log=$logs/${commit:0:8}-$step.log
         start=$SECONDS
         if (cd "$scratch" && run_step $step) </dev/null >"$log" 2>&1; then
-            [ $step != spm-test ] || line="$line  $step $(test_count "$log") $((SECONDS - start))s"
+            [ $step != spm-test ] || line="$line  $step $(read_log count "$log") $((SECONDS - start))s"
             [ $step = spm-test ] || line="$line  $step $((SECONDS - start))s"
         else
             line="$line  $step ✘"
@@ -99,7 +86,7 @@ for commit in $commits; do
     else
         failures=$((failures + 1))
         echo "FAIL  ${commit:0:8}$line  $subject"
-        echo "      $(first_error "$failed_log")"
+        echo "      $(read_log first-error "$failed_log")"
         echo "      log: $failed_log"
     fi
 done

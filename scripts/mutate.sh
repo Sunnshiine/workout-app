@@ -161,18 +161,7 @@ else
         }' "$run/sources.tsv" -
 fi
 
-# SwiftPM prints "error: SwiftCompile ... failed" before the compiler's own file:line: error.
-first_error() {
-    awk '{ gsub(/\033\[[0-9;]*m/, "") }
-         /^[^ ]+:[0-9]+(:[0-9]+)?: error: / { print; found = 1; exit }
-         first == "" && /error:/ { first = $0 }
-         END { if (!found && first != "") print first }' "$1" | sed "s#$scratch/##"
-}
-test_count() {
-    awk '/ Test run with [0-9]+ tests? / { for (i = 1; i < NF; i++) if ($i == "with") { run = $(i + 1); break } }
-         /Executed [0-9]+ tests?, with/ { for (i = 1; i < NF; i++) if ($i == "Executed") executed = $(i + 1) }
-         END { print run + executed }' "$1"
-}
+read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
 # Sets result (pass, fail, nocompile, error, busy), tests, killers (one per line), and reason.
 run_check() {
@@ -188,7 +177,7 @@ run_check() {
         fi
         if [ $rc = 65 ] && grep -q '^build log: ' "$run/stderr"; then
             result=nocompile
-            reason=$(first_error "$run/stderr")
+            reason=$(read_log first-error "$run/stderr")
             return
         fi
         test_log=$(sed -n 's/^log: //p' "$run/stdout" | tail -1)
@@ -196,14 +185,14 @@ run_check() {
     else
         if ! (cd "$scratch" && swift build --build-tests) </dev/null >"$log" 2>&1; then
             result=nocompile
-            reason=$(first_error "$log")
+            reason=$(read_log first-error "$log")
             return
         fi
         (cd "$scratch" && swift test --skip-build ${swift_filters[@]+"${swift_filters[@]}"}) </dev/null >>"$log" 2>"$run/stderr" || rc=$?
         cat "$run/stderr" >>"$log"
     fi
-    killers=$(awk -f "$script_dir/test-failures.awk" "$log")
-    tests=$(test_count "$log")
+    killers=$(read_log failures "$log")
+    tests=$(read_log count "$log")
     if [ -n "$killers" ]; then
         result=fail
     elif [ $rc = 0 ]; then

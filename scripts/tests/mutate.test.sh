@@ -21,7 +21,7 @@ expect() {
 wait_for() { local _; for _ in $(seq 1 200); do [ -e "$1" ] && return; sleep 0.05; done; }
 
 mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources/Gate" "$repo/App"
-cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-failures.awk" "$repo/scripts/"
+cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
 
 # A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
 # (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4, and nothing pins line 5. swift build fails
@@ -45,6 +45,11 @@ filters=()
 while [ $# -gt 0 ]; do [ "$1" = --filter ] && filters+=("$2") && shift; shift; done
 selected() { [ ${#filters[@]} = 0 ] && return 0; for f in "${filters[@]}"; do case $1 in *"$f"*) return 0 ;; esac; done; return 1; }
 line2_ok() { [ "$(sed -n 2p $gate)" = "    count >= 3" ]; }
+crash() { echo "error: Process '/Applications/Xcode.app/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/T.xctest' exited with unexpected signal code 5" >&2; exit 1; }
+case $(sed -n 5p $gate) in
+    *CRASH_IN_TEST*) printf '%s\n' "◇ Test run started." "◇ Test limitHolds() started."; crash ;;
+    *CRASH*) echo "◇ Test run started."; crash ;;
+esac
 failed=0 swift_tests=0 xctests=0
 if selected GateTests.testOpensAtFour; then
     xctests=1
@@ -181,6 +186,13 @@ expect "a hand-written mutant that does not build is nocompile and exits 1" "$st
 $(tail -2 <<<"$out")" "1
 nocompile    Sources/Gate/Gate.swift:2  sed      2s/count/BREAK/  Sources/Gate/Gate.swift:2:5: error: cannot find 'BREAK' in scope
 1 mutant: 1 nocompile"
+
+mutate --filter GateTests Sources/Gate/Gate.swift '5s/10/CRASH_IN_TEST/' '5s/10/CRASH/'
+expect "a mutant that crashes the test process is killed, by the one test it was running if any" "$status
+$(tail -3 <<<"$out")" "0
+killed       Sources/Gate/Gate.swift:5  sed      5s/10/CRASH_IN_TEST/  limitHolds (crashed)
+killed       Sources/Gate/Gate.swift:5  sed      5s/10/CRASH/          (test process crashed)
+2 mutants: 2 killed"
 
 touch "$root/gate1"
 (cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &

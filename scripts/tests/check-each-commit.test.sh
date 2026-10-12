@@ -19,7 +19,7 @@ expect() {
 }
 
 mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources" "$repo/App"
-cp "$script_dir/../check-each-commit.sh" "$script_dir/../scratch-tree.sh" "$repo/scripts/"
+cp "$script_dir/../check-each-commit.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
 
 # swift build fails on BREAK under Sources/, swift test fails on FAILTEST, and xcodebuild fails on
 # XBREAK under App/. Each records the caller's state while it runs.

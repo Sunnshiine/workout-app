@@ -1,13 +1,14 @@
 #!/bin/bash
 set -uo pipefail
 
-awk_file=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/test-failures.awk
+awk_file=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/test-log.awk
 pass=0
 fail=0
 
+# check MODE NAME LOG WANT
 check() {
-    local name=$1 log=$2 want=$3 got
-    got=$(printf '%s\n' "$log" | awk -f "$awk_file")
+    local mode=$1 name=$2 log=$3 want=$4 got
+    got=$(printf '%s\n' "$log" | awk -v mode="$mode" -v root=/slot/ -f "$awk_file" 2>&1)
     if [ "$got" = "$want" ]; then
         pass=$((pass + 1))
         printf '  ok   %s\n' "$name"
@@ -17,7 +18,7 @@ check() {
     fi
 }
 
-check "a swift test log with twelve failures among passing tests names all twelve" \
+check failures "a swift test log with twelve failures among passing tests names all twelve" \
 "[1/1] Planning build
 Test Suite 'All tests' started at 2026-10-12 11:00:00.000.
 Test Case '-[WorkoutTrackerTests.SyncTests testFlushKeepsOrder]' started.
@@ -62,7 +63,7 @@ ordering
 sheetRowParses(row:)
 suggestsLoadForRPESet"
 
-check "an xcodebuild log names each failing test once, qualified by its suite" \
+check failures "an xcodebuild log names each failing test once, qualified by its suite" \
 "◇ Test run started.
 ✘ Test someTest(height:setCount:) with 2 test cases failed after 0.010 seconds with 2 issues.
 ✘ Test failsOnPurpose() failed after 0.001 seconds with 1 issue.
@@ -88,11 +89,70 @@ PlainSuite.plainTest
 SomeSuite.someTest(height:setCount:)
 WorkoutTrackerUISmokeTests.testMoveOnAdvancesToNextExercise"
 
-check "a passing log names nothing" \
-"✔ Test run with 1020 tests in 11 suites passed after 2.921 seconds.
+passing="◇ Test run started.
+◇ Test a() started.
+◇ Test grows(n:) started.
+✔ Test grows(n:) with 2 test cases passed after 0.001 seconds.
+➜ Test b() skipped: \"off\"
+◇ Test a() started.
+✔ Test a() passed after 0.001 seconds with 1 known issue.
+✔ Test run with 1020 tests in 11 suites passed after 2.921 seconds.
+Test Case '-[M.C testA]' started.
 Test Case '-[M.C testA]' passed (0.001 seconds).
-	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds" \
-""
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.001 (0.001) seconds"
+check failures "a passing log names nothing" "$passing" ""
+check count "count adds Swift Testing's run line to XCTest's Executed line" "$passing" 1021
+check count "a log with no run line counts 0" "Build complete!" 0
+
+check failures "a crash names the one test that started and never finished" \
+"Test Case '-[M.C testA]' started.
+Test Case '-[M.C testA]' passed (0.001 seconds).
+◇ Test run started.
+◇ Test grows(n:) started.
+◇ Test \"Load Basis line names its Set Log\" started.
+✘ Test \"Load Basis line names its Set Log\" failed after 0.001 seconds with 1 issue.
+◇ Test rpeLookupStaysInTable() started.
+✔ Test grows(n:) with 3 test cases passed after 0.001 seconds.
+error: Process '/x/swiftpm-testing-helper --test-bundle-path /x/T.xctest' exited with unexpected signal code 5" \
+"\"Load Basis line names its Set Log\"
+rpeLookupStaysInTable (crashed)"
+check failures "an XCTest crash names the test case that never finished" \
+"Test Case '-[M.C testA]' started.
+Test Case '-[M.C testA]' passed (0.001 seconds).
+Test Case '-[M.C testB]' started." \
+"C.testB (crashed)"
+check failures "a crash with several tests running names none of them" \
+"◇ Test run started.
+◇ Test a() started.
+◇ Test b() started.
+error: Process 'helper' exited with unexpected signal code 5" \
+"(test process crashed)"
+check failures "a crash outside any test names the process" \
+"◇ Test run started.
+error: Process 'helper' exited with unexpected signal code 11" \
+"(test process crashed)"
+
+check first-error "first-error skips SwiftPM's SwiftCompile line for the compiler's own, without the root" \
+"[3/9] Compiling WorkoutTracker A.swift
+error: SwiftCompile normal arm64 /slot/Sources/A.swift failed with a nonzero exit code
+/slot/Sources/A.swift:12:5: error: cannot find 'BREAK' in scope
+/slot/Sources/B.swift:3:1: error: second" \
+"Sources/A.swift:12:5: error: cannot find 'BREAK' in scope"
+check first-error "first-error names a test's recorded issue" \
+"◇ Test run started.
+✘ Test gateOpens() recorded an issue at GateTests.swift:3:5: Expectation failed: 1 == 2
+error: 1 test failed" \
+"✘ Test gateOpens() recorded an issue at GateTests.swift:3:5: Expectation failed: 1 == 2"
+check first-error "first-error falls back to the first error: line" \
+"Fetching packages
+error: no space left on device
+error: later" \
+"error: no space left on device"
+check first-error "first-error falls back to the last line" \
+"one
+** TEST BUILD FAILED **" \
+"** TEST BUILD FAILED **"
+check nonsense "an unknown mode is a usage error" "" "usage: awk -v mode=failures|count|first-error [-v root=DIR/] -f test-log.awk LOG"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
