@@ -61,6 +61,15 @@ test_count() {
          END { print run + executed }' "$1"
 }
 
+# SwiftPM prints "error: SwiftCompile ... failed" before the compiler's own file:line: error.
+first_error() {
+    awk '{ gsub(/\033\[[0-9;]*m/, "") }
+         /^[^ ]+:[0-9]+(:[0-9]+)?: error: / || / Test .* recorded an issue/ { print; found = 1; exit }
+         first == "" && /error:/ { first = $0 }
+         { last = $0 }
+         END { if (!found) print (first != "" ? first : last) }' "$1" | sed "s#$scratch/##"
+}
+
 failures=0
 for commit in $commits; do
     scratch_sync "$commit"
@@ -86,8 +95,7 @@ for commit in $commits; do
     else
         failures=$((failures + 1))
         echo "FAIL  ${commit:0:8}$line  $subject"
-        first=$(sed $'s/\033\\[[0-9;]*m//g' "$failed_log" | grep -m1 -E 'error:|✘ Test .* recorded an issue' | sed "s#$scratch/##") || true
-        echo "      ${first:-$(tail -1 "$failed_log")}"
+        echo "      $(first_error "$failed_log")"
         echo "      log: $failed_log"
     fi
 done

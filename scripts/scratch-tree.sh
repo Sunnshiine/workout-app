@@ -18,7 +18,7 @@ scratch_pool() {
 # simulator lock, which the slot's test-sim.sh takes and closes for its own children.
 scratch_claim() {
   local who=$1 pool caller n preferred="" others="" holders=""
-  # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot until reboot.
+  # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it lives.
   export GIT_CONFIG_COUNT=$((${GIT_CONFIG_COUNT:-0} + 1))
   export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 1))=core.fsmonitor" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 1))=false"
   pool=$(scratch_pool)
