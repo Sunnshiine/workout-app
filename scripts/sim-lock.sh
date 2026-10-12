@@ -73,7 +73,7 @@ require_lease() {
   owner=$(cat "$dir/run" 2>/dev/null) || true
   run=${VERIFY_RUN:-$owner}
   if [ -n "$run" ] && reclaimer=$(cat "$dir/reclaimed.$run" 2>/dev/null); then
-    echo "run $run was reclaimed by $reclaimer; launch again: SIM=$1 VERIFY_RUN=$run $0 launch <fixture>" >&2
+    echo "run $run was reclaimed by $reclaimer; launch again: SIM=$1 ${VERIFY_RUN:+VERIFY_RUN=$run }$0 launch <fixture>" >&2
     exit 75
   fi
   [ -f "$dir/pid" ] && [ "$run" = "$owner" ] || return 0
@@ -166,12 +166,17 @@ wait_until_clear() {
 # Linux has no vm.loadavg, so there the load holds no claim.
 load_clear() {
   local reading now rc=0
-  reading=$(sysctl -n vm.loadavg 2>/dev/null) || return 0
+  if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
+    [ "$(uname)" = Darwin ] || return 0
+    busy_reason="sysctl -n vm.loadavg failed: $reading"
+    return 1
+  fi
   read -r _ now _ <<< "$reading"
-  awk -v now="$now" -v limit="$1" 'BEGIN { if (now !~ /^[0-9]+(\.[0-9]+)?$/) exit 2; exit (now + 0 > limit + 0) }' || rc=$?
+  awk -v now="$now" -v limit="$1" 'BEGIN { if (now !~ /^[0-9]+(\.[0-9]+)?$/) exit 3; exit (now + 0 > limit + 0) }' || rc=$?
   case $rc in
     0) return 0 ;;
     1) busy_reason="the 1-minute load is $now, over $1 (WORKOUT_LOAD_LIMIT)" ;;
+    3) busy_reason="sysctl -n vm.loadavg printed no 1-minute load: $reading" ;;
     *) busy_reason="awk could not compare the 1-minute load $now with $1 (exit $rc)" ;;
   esac
   return 1
@@ -181,17 +186,20 @@ sim_states() {
   local counts
   if ! counts=$(exec 7>&- 8>&- 9>&-; UDID="$1" exec python3 -c '
 import json, os, subprocess, sys
+def fail(reason):
+    print(reason)
+    sys.exit(1)
 listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
 if listing.returncode:
-    sys.exit("xcrun simctl list devices failed: " + listing.stderr.strip())
+    fail("xcrun simctl list devices failed: " + listing.stderr.strip())
 try:
     devices = [d for ds in json.loads(listing.stdout)["devices"].values() for d in ds]
-except (ValueError, KeyError) as error:
-    sys.exit("xcrun simctl list devices printed no device list: %r" % error)
+except Exception as error:
+    fail("xcrun simctl list devices printed no device list: %r" % error)
 mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
 print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' \
-    2>&1); then
-    busy_reason=$counts
+    2>/dev/null); then
+    busy_reason=${counts:-python3 could not count the booted simulators}
     return 1
   fi
   read -r others own <<< "$counts"
@@ -230,7 +238,8 @@ host_room() {
 }
 
 # A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
-# them all at once.
+# them all at once. simctl boot fails on a device another claim already started, so a failed boot
+# rereads the state.
 boot_sim() {
   local err
   err=$(exec 7>&- 8>&- 9>&-; exec xcrun simctl boot "$1" 2>&1 >/dev/null) && return

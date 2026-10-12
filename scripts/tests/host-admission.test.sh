@@ -61,6 +61,7 @@ if [ "\$*" != "simctl list devices available -j" ]; then
 fi
 [ -z "\${STUB_LIST_WARNING:-}" ] || echo "objc[4242]: Class SimDeviceSet is implemented in both CoreSimulator and CoreSimulatorUtilities" >&2
 echo call >> "$root/list-calls"
+[ "\$(wc -l < "$root/list-calls")" -lt "\${STUB_LIST_GARBAGE_FROM_CALL:-1000}" ] || { echo "not a device list"; exit 0; }
 if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_SLOW_LIST_CALL:-0}" ]; then touch "$root/listing-slowly"; sleep 3; fi
 if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_PROBE_ON_LIST_CALL:-0}" ]; then
     python3 -c 'import fcntl, sys, time
@@ -89,6 +90,7 @@ STUB
 cat >"$root/bin/sysctl" <<STUB
 #!/bin/sh
 echo call >> "$root/sysctl-calls"
+[ -z "\${STUB_SYSCTL_FAILS:-}" ] || { echo "sysctl: unknown oid 'vm.loadavg'" >&2; exit 1; }
 if [ "\$(wc -l < "$root/sysctl-calls")" -gt "\${STUB_BUSY_CALLS:-1000}" ]; then echo "{ 1.00 1.00 1.00 }"; else echo "{ \${STUB_LOAD:-1.00} 1.00 1.00 }"; fi
 STUB
 cat >"$root/bin/xcodebuild" <<STUB
@@ -104,7 +106,8 @@ exit 65
 STUB
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
-unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS
+# shellcheck disable=SC2046
+unset VERIFY_RUN SIM $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
 
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
@@ -159,6 +162,8 @@ expect "every command that acts on the reclaimed run's app refuses the same way"
 verify shot s >/dev/null 2>"$root/err"; status=$?
 expect "a command that names no run is the recorded run, so it refuses too and files no evidence" \
     "$status $(ls "$repo/.build/verify/evidence" 2>/dev/null)" "75 "
+expect "and is told to launch a run of its own, not to take the reclaimed run's name" "$(reclaim_note)" \
+    "run abandoned-run was reclaimed by test-sim.sh run (pid N) at T; launch again: SIM=$sim $repo/.agents/skills/verify/verify.sh launch <fixture>"
 VERIFY_RUN=abandoned-run verify build >/dev/null 2>"$root/err"; status=$?
 expect "build acts on no run's app, so the reclaimed run may still build" "$status $(builds)" "65 test-without-building build"
 
@@ -488,6 +493,14 @@ expect "a claim the cap refuses never waits for the admit lock" "$status $(refus
 kill "$admitting"; wait "$admitting" 2>/dev/null
 
 reset
+STUB_LIST_GARBAGE_FROM_CALL=2 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a simulator listing that is no device list holds the claim" "$status $(refusal | sed 's/device list: .*/device list: .../')" \
+    "75 gave up after N s waiting for the host before taking $sim: xcrun simctl list devices printed no device list: ..."
+reset
+PYTHONPROFILEIMPORTTIME=1 STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "what python prints on stderr never reaches the booted count, so the cap still holds" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+reset
 STUB_LIST_OK_CALLS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a simulator listing that fails holds the claim" "$status $(refusal)" \
     "75 gave up after N s waiting for the host before taking $sim: xcrun simctl list devices failed: An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)"
@@ -565,6 +578,17 @@ reset
 PATH="$root/broken-awk:$PATH" STUB_LOAD=1.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
 expect "an awk that cannot compare the load holds the wait, it never admits" "$status $(refusal)" \
     "75 gave up after N s waiting for the load to fall to 50: awk could not compare the 1-minute load 1.00 with 50 (exit 2)"
+reset
+STUB_LOAD=n/a "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
+expect "a load reading that is not a number holds the wait" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load to fall to 50: sysctl -n vm.loadavg printed no 1-minute load: { n/a 1.00 1.00 }"
+reset
+STUB_SYSCTL_FAILS=1 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
+expect "on macOS a sysctl that fails holds the wait" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load to fall to 50: sysctl -n vm.loadavg failed: sysctl: unknown oid 'vm.loadavg'"
+reset
+STUB_LOAD=50.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
+expect "a load exactly at the limit is under it" "$status $(cat "$root/err")" "0 "
 if gawk=$(command -v gawk); then
     mkdir -p "$root/gawk"
     ln -s "$gawk" "$root/gawk/awk"

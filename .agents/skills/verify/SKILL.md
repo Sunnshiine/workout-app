@@ -278,8 +278,10 @@ some command for the run came in the last `WORKOUT_LEASE_MINUTES` (60). Every co
 `diff`, `sheet`, and `crop` renews the lease. A command with no `VERIFY_RUN` keeps a live lease
 going but cannot revive an expired one. A run quiet for longer counts as abandoned. The next claim
 reclaims the simulator, stops the run's app, and says so. From then on every command for the
-reclaimed run, `stop` included, exits 75 naming who reclaimed it and when, until the run
-launches again. Pass the same `VERIFY_RUN` to take your own run's app with a second `launch` or a
+reclaimed run but `build`, `diff`, `sheet`, and `crop`, `stop` included, exits 75 naming who
+reclaimed it and when, until the run launches again. A command with no `VERIFY_RUN` acts for the
+run that launched last on the simulator, so after a `launch` reclaims your run it drives the new
+run's app. Name your run on every command. Pass the same `VERIFY_RUN` to take your own run's app with a second `launch` or a
 `test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
