@@ -4,13 +4,13 @@ name: CI
 # (GitHub suppresses token-driven events). Agent workflows check out with
 # AGENT_PAT, so their pushes do trigger it.
 
+# A pull request runs CI whatever its base, so each PR in a stack gets its own run.
+# workflow_dispatch runs it on any branch with no PR: `gh workflow run ci.yml --ref <branch>`.
 on:
   pull_request:
-    branches: [main]
     paths-ignore:
       - "**.md"
       - "docs/**"
-      - "ralph/**"
       - ".agents/**"
       - ".claude/**"
       - ".sandcastle/**"
@@ -31,18 +31,18 @@ on:
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
-      - "pyproject.toml"
-      - ".python-version"
       - "skills-lock.json"
       - ".mcp.json"
       - ".gitignore"
   push:
     branches: [main]
+  workflow_dispatch:
 
 # A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
-# merge that lands mid-run never cancels the run verifying the merge before it.
+# merge that lands mid-run never cancels the run verifying the merge before it. The event name
+# keeps a dispatch on main's tip from cancelling that commit's push run.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.sha) }}
   cancel-in-progress: true
 
 jobs:
