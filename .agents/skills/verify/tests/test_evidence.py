@@ -1893,6 +1893,47 @@ class InstalledIdentity(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (0, self.launched(head), ""))
 
 
+class LaunchAnimated(Lane):
+    def setUp(self):
+        super().setUp()
+        self.verify("build")
+
+    def launch_call(self, flags):
+        return ("xcrun simctl launch --terminate-running-process %s com.sunnypatel.WorkoutTracker -UITEST_FIXTURE "
+                "-UITEST_SESSION -UITEST_FULL_BLOCK %s" % (self.sim, flags))
+
+    def test_an_animated_launch_leaves_motion_on_and_says_so(self):
+        head = self.worktree_build(b"v2\n", self.b)
+        self.assertEqual(self.verify("launch", "--animated", "session", VERIFY_RUN="lane-1"), (0, (
+            "launched session as pid 4121 on %s (animations on)\n%s\nevidence %s\n"
+        ) % (self.sim, head, self.evidence("main", "lane-1")), ""))
+        self.assertIn(self.launch_call("-UITEST_DISABLE_LIVE_ACTIVITIES"), self.calls())
+        self.assertEqual((Path("/tmp/workout-verify-%s" % self.sim) / "args").read_text(),
+                         "-UITEST_FIXTURE -UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_LIVE_ACTIVITIES\n")
+        self.assertRegex((self.evidence("main", "lane-1") / "launches.txt").read_text(),
+                         r"^\S+ session animated %s on %s from %s\n$" % (re.escape(head), self.sim,
+                                                                         re.escape(str(self.checkout))))
+
+    def test_a_plain_launch_still_disables_animations(self):
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 0)
+        self.assertIn(self.launch_call("-UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES"), self.calls())
+
+    def test_animated_after_the_fixture_is_refused_instead_of_passed_to_the_app(self):
+        self.assertEqual(self.verify("launch", "session", "--animated", VERIFY_RUN="lane-1"),
+                         (2, "", "--animated goes before the fixture: launch --animated session\n"))
+        self.assertEqual(self.calls(), [])
+
+    def test_animated_and_at_go_in_either_order(self):
+        cached = "%s; this worktree's build is app %s commit %s" % (
+            self.cached_build(b"v1\n", self.a), digest(b"v2\n"), self.b[:8])
+        for flags in [["--animated", "--at", self.a[:8]], ["--at", self.a[:8], "--animated"]]:
+            with self.subTest(flags=flags):
+                code, out, err = self.verify("launch", *(flags + ["session"]), VERIFY_RUN="lane-1")
+                self.assertEqual((code, out.splitlines()[:2]),
+                                 (0, ["launched session as pid 4121 on %s (animations on)" % self.sim, cached]), err)
+                self.assertIn(self.launch_call("-UITEST_DISABLE_LIVE_ACTIVITIES"), self.calls())
+
+
 class Doctor(Lane):
     def doctor_app_line(self):
         return self.verify("doctor")[1].splitlines()[1]

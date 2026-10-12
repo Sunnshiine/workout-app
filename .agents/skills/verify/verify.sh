@@ -9,11 +9,12 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   install [COMMIT]            install this worktree's build, or COMMIT's build from the app cache every
                               worktree of this repo shares (built once, on first use); prints the app now
                               installed, and the one it replaced
-  launch [--at COMMIT] <fixture> [ARG...]
+  launch [--at COMMIT] [--animated] <fixture> [ARG...]
                               install and launch into a fixture (extra -UITEST_* ARGs pass through); prints
                               the app's hash and the commit it was built from. Without --at it installs
                               this worktree's build and refuses to replace an installed cached build;
-                              --at COMMIT runs COMMIT's cached build. Resets the keyboard
+                              --at COMMIT runs COMMIT's cached build; --animated leaves SwiftUI and UIKit
+                              motion on (no -UITEST_DISABLE_ANIMATIONS). Resets the keyboard
                               preference issue 700 names when it is on, and says so
                               fixtures: session settings onboarding long-session partial-block
                                         completed-open-exercises developer-tools
@@ -519,9 +520,11 @@ install_app() {
 
 launch_parse() {
   at=
+  animated=
   while [ $# -gt 0 ]; do
     case $1 in
       --at) [ -n "${2:-}" ] || usage; at=$2; shift 2 ;;
+      --animated) animated=1; shift ;;
       *) break ;;
     esac
   done
@@ -530,15 +533,18 @@ launch_parse() {
   passthrough=("$@")
   for arg in "$@"; do
     [ "$arg" != --at ] || { echo "--at goes before the fixture: launch --at COMMIT $fixture" >&2; exit 2; }
+    [ "$arg" != --animated ] || { echo "--animated goes before the fixture: launch --animated $fixture" >&2; exit 2; }
   done
 }
 
 launch_args() {
-  local extra activities
+  local extra motion activities
   read -r -a extra <<< "$fixture_flags"
+  motion=(-UITEST_DISABLE_ANIMATIONS)
+  [ -z "$animated" ] || motion=()
   activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
   [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
-  args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS ${activities[@]+"${activities[@]}"} ${passthrough[@]+"${passthrough[@]}"})
+  args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} ${motion[@]+"${motion[@]}"} ${activities[@]+"${activities[@]}"} ${passthrough[@]+"${passthrough[@]}"})
 }
 
 start_app() {
@@ -553,7 +559,7 @@ start_app() {
 }
 
 record_launch() {
-  printf '%s %s %s on %s from %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture" "$launched_line" "$sim" "$repo" \
+  printf '%s %s %s on %s from %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture${animated:+ animated}" "$launched_line" "$sim" "$repo" \
     >> "$(run_dir)/launches.txt"
 }
 
@@ -561,7 +567,7 @@ await_front() {
   for _ in $(seq 1 40); do
     if [ "$(front_pid)" = "$pid" ]; then
       rm -f "$state_dir/refused.$run"
-      echo "launched $fixture as pid $pid on $sim"
+      echo "launched $fixture as pid $pid on $sim${animated:+ (animations on)}"
       echo "$launched_line"
       echo "evidence $(run_dir)"
       exit 0
