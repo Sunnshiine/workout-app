@@ -7,7 +7,7 @@ root=$(mktemp -d) || exit 3
 root=$(cd "$root" && pwd -P)
 trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
-export PATH="$root/bin:$PATH" STUB_HANG_PID=$root/hang.pid STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
+export PATH="$root/bin:$PATH" STUB_CALLS=$root/calls STUB_HANG_PID=$root/hang.pid STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
 repo=$root/repo
 pool=$repo/.build/scratch locks=$repo/.git/scratch-locks
 pass=0
@@ -24,7 +24,8 @@ mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources/Gate" "$repo/App"
 cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
 
 # A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
-# (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4, and nothing pins line 5. swift build fails
+# (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4 (and fails from swift test call
+# $STUB_FLAKY_FROM on), and nothing pins line 5. swift build fails
 # on BREAK, and on a reach probe's #error outside an #if canImport(UIKit) block. While $STUB_GATE exists and a mutant sits on line 2, it waits, so a test can act mid-run.
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
@@ -42,6 +43,7 @@ if [ "$1" = build ]; then
         echo "$PWD/$broken:5: error: cannot find 'BREAK' in scope" >&2; exit 1; }
     exit 0
 fi
+echo $(($(cat "$STUB_CALLS" 2>/dev/null || echo 0) + 1)) >"$STUB_CALLS"
 { git -C "$STUB_CALLER" status --porcelain; shasum "$STUB_CALLER"/Sources/Gate/*; echo "slot line 5: $(sed -n 5p $gate)"; } >>"$STUB_WATCH"
 if [ -n "${STUB_GATE:-}" ] && [ "$(sed -n 2p $gate)" != "    count >= 3" ]; then
     touch "$STUB_GATE.reached"
@@ -72,7 +74,7 @@ for t in GateTests.gateOpensAtThree NameTests.nameIsGate; do
     swift_tests=$((swift_tests + 1))
     case $t in
         GateTests.*) line2_ok ;;
-        NameTests.*) grep -q '^let gateName = "gate"$' $gate ;;
+        NameTests.*) grep -q '^let gateName = "gate"$' $gate && [ "$(cat "$STUB_CALLS")" -lt "${STUB_FLAKY_FROM:-999}" ] ;;
     esac && echo "✔ Test ${t#*.}() passed after 0.001 seconds." || { echo "✘ Test ${t#*.}() failed after 0.001 seconds with 1 issue."; failed=1; }
 done
 echo "✔ Test run with $swift_tests tests in 2 suites passed after 0.002 seconds."
@@ -228,6 +230,22 @@ unreachable  Sources/Gate/Platform.swift:2  sed      2s/4/5/  compiled out of th
 1 mutant: 1 unreachable
 m1	unreachable	compiled out of this build (#if or no target)"
 rm "$repo/Sources/Gate/Platform.swift"
+
+rm -f "$STUB_CALLS"
+STUB_FLAKY_FROM=2 mutate Sources/Gate/Gate.swift '2s/>= 3/> 3/' '5s/10/11/'
+expect "a kill whose every killer also fails on the untouched snapshot is flaky, after one recheck" "$status
+$(sed 1d <<<"$out")
+$(cat "$logdir/results.tsv")
+$(cat "$STUB_CALLS")" "1
+baseline: passed 3 tests (swift test)
+killed       Sources/Gate/Gate.swift:2  sed      2s/>= 3/> 3/  GateTests.testOpensAtFour +2
+killed       Sources/Gate/Gate.swift:5  sed      5s/10/11/     nameIsGate
+recheck: the untouched snapshot fails nameIsGate
+flaky        Sources/Gate/Gate.swift:5  sed      5s/10/11/     nameIsGate
+2 mutants: 1 killed, 1 flaky
+m1	killed	GateTests.testOpensAtFour; gateOpensAtThree; nameIsGate
+m2	flaky	nameIsGate
+4"
 
 touch "$root/gate1"
 (cd "$repo" && exec env STUB_GATE="$root/gate1" scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/' >"$root/out1" 2>&1) &

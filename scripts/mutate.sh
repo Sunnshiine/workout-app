@@ -29,12 +29,13 @@ MUTATE_TIMEOUT=N bounds each run in seconds (default 5 x the baseline's time, at
 Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mutant as it ends:
   OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER +N | REASON
   killed       a test failed, crashed, or the run timed out; results.tsv lists every killer
+  flaky        every killer also failed on one rerun of the untouched snapshot after the rows
   SURVIVED     no test failed, and an #error on the line breaks the build (grep '^SURVIVED')
   nocompile    the compiler rejects the mutated file
   unreachable  this build never compiles the line (#if, no target; App/ needs --sim)
   error        the runner failed without naming a failing test, or the build failed elsewhere
-Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any SURVIVED,
-was unreachable, hit an error, or was a hand-written nocompile, when --max left any unrun, or when
+Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any was flaky,
+SURVIVED, unreachable, an error, or a hand-written nocompile, when --max left any unrun, or when
 none was killed; 2 on usage or a failing baseline; 75 when every scratch tree or the simulator is
 busy (the rows so far print first).
 EOF
@@ -324,7 +325,8 @@ print_row() {
     printf '%s\n' "${row%"${row##*[! ]}"}"
 }
 
-killed=0 survived=0 nocompile=0 unreachable=0 errors=0 total=0 busy=""
+killed=0 flaky=0 survived=0 nocompile=0 unreachable=0 errors=0 total=0 busy=""
+: >"$run/named-kills.tsv"
 while IFS=$'\t' read -r id mfile line op before after <&3; do
     if reachable "$mfile"; then
         cp "$run/$id.swift" "$scratch/$mfile"
@@ -345,6 +347,7 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
             [ $more = 0 ] || detail="$detail +$more"
             killed=$((killed + 1))
             printf '%s\tkilled\t%s\n' "$id" "$(tr '\n' ';' <<<"$killers" | sed 's/;$//; s/;/; /g')" >>"$run/results.tsv"
+            grep -q 'crashed)$' <<<"$killers" || awk -v id="$id" '{ print id "\t" $0 }' <<<"$killers" >>"$run/named-kills.tsv"
             ;;
         timeout) outcome=killed detail=$reason killed=$((killed + 1)) ;;
         pass) outcome=SURVIVED detail="" survived=$((survived + 1)) ;;
@@ -360,8 +363,28 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
     print_row "$outcome" "$mfile:$line" "$op" "$before${after:+ -> $after}" "$detail"
 done 3<"$run/mutants.tsv"
 
+# Under load a timing-sensitive test can fail on its own. One rerun of the untouched snapshot, never
+# one per mutant, tells such a failure from a kill: a row every one of whose killers fails again is flaky.
+if [ -z "$busy" ] && [ -s "$run/named-kills.tsv" ]; then
+    run_check "$run/recheck.log"
+    if [ "$result" = fail ]; then
+        echo "recheck: the untouched snapshot fails $(paste -sd , - <<<"$killers" | sed 's/,/, /g')"
+        awk -F'\t' 'FNR == NR { failing[$0] = 1; next }
+            { seen[$1] = 1; if (!($2 in failing)) steady[$1] = 1 }
+            END { for (id in seen) if (!(id in steady)) print id }' - "$run/named-kills.tsv" <<<"$killers" >"$run/flaky-ids"
+        while IFS=$'\t' read -r id mfile line op before after; do
+            grep -qx "$id" "$run/flaky-ids" || continue
+            flaky=$((flaky + 1)) killed=$((killed - 1))
+            print_row flaky "$mfile:$line" "$op" "$before${after:+ -> $after}" \
+                "$(awk -F'\t' -v id="$id" '$1 == id { printf "%s%s", sep, $2; sep = ", " }' "$run/named-kills.tsv")"
+        done <"$run/mutants.tsv"
+        awk -F'\t' -v OFS='\t' 'FNR == NR { flaky[$0] = 1; next } $1 in flaky { $2 = "flaky" } { print }' \
+            "$run/flaky-ids" "$run/results.tsv" >"$run/results.new" && mv "$run/results.new" "$run/results.tsv"
+    fi
+fi
+
 counts=""
-for pair in "$killed killed" "$survived SURVIVED" "$nocompile nocompile" "$unreachable unreachable" "$errors error"; do
+for pair in "$killed killed" "$flaky flaky" "$survived SURVIVED" "$nocompile nocompile" "$unreachable unreachable" "$errors error"; do
     [ "${pair%% *}" = 0 ] || counts="$counts, $pair"
 done
 summary="$(plural $total mutant)${counts:+: ${counts#, }}"
@@ -372,7 +395,7 @@ if [ -n "$busy" ]; then
     echo "$busy" >&2
     exit 75
 fi
-failed=$((survived + unreachable + errors + dropped))
+failed=$((flaky + survived + unreachable + errors + dropped))
 [ -n "$base" ] || failed=$((failed + nocompile))
 [ $total = 0 ] || [ $killed -gt 0 ] || failed=$((failed + 1))
 [ $failed = 0 ]
