@@ -21,7 +21,6 @@ import argparse
 import dataclasses
 import json
 import os
-import re
 import shlex
 import signal
 import subprocess
@@ -30,52 +29,15 @@ import time
 from pathlib import Path
 from typing import List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
 
+from tree import Frame
+
 STOP_GRACE = 15.0
 DRIVE_GRACE = 5.0
 POLL = 0.05
 
 
-class CardPt(NamedTuple):
-    x: int
-    y: int
-    width: int
-    height: int
-
-    @property
-    def top(self) -> int:
-        return self.y
-
-    @property
-    def bottom(self) -> int:
-        return self.y + self.height
-
-    @property
-    def left(self) -> int:
-        return self.x
-
-    @property
-    def right(self) -> int:
-        return self.x + self.width
-
-    @property
-    def middle(self) -> Tuple[float, float]:
-        return self.x + self.width / 2, self.y + self.height / 2
-
-    @property
-    def text(self) -> str:
-        return "@%d,%d %dx%d" % self
-
-
-FRAME_TEXT = re.compile(r"@(-?\d+),(-?\d+) (\d+)x(\d+)")
-
-
-def card_frame(text: str) -> Union[CardPt, Literal["none"]]:
-    if text == "none":
-        return "none"
-    match = FRAME_TEXT.fullmatch(text)
-    if match is None:
-        raise ValueError(text)
-    return CardPt(*(int(side) for side in match.groups()))
+def card_frame(text: str) -> Union[Frame, Literal["none"]]:
+    return "none" if text == "none" else Frame.parse(text)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -100,7 +62,7 @@ class Take:
     screen_pt: Optional[Tuple[int, int]] = None
     animations: str = "unknown"
     app: str = ""
-    card_pt: Union[CardPt, Literal["none"], None] = None
+    card_pt: Union[Frame, Literal["none"], None] = None
 
 
 def seconds(value: float) -> str:

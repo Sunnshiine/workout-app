@@ -24,6 +24,7 @@ sys.path.insert(0, str(MOTION))
 import cardframe  # noqa: E402
 import take  # noqa: E402
 import cardstill  # noqa: E402
+from tree import Frame  # noqa: E402
 from cardframe import Card, LookKind, Opened, Reason, Sample, Still, Window  # noqa: E402
 from cardstill import Reading, TakeResult, Verdict  # noqa: E402
 
@@ -646,11 +647,11 @@ def frames(*cards, start=0.0):
 TAKE = take.Take(
     name="x", video="x.mp4", drive="", tail=2.0, load_limit=50.0, load_before=1.0, load_after=1.0, started=0.0,
     drive_start=0.0, drive_end=0.0, stopped=3.0, recorder_exit=0, recorder_early=False, frames=2, first_frame=0.0,
-    last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on", card_pt=take.CardPt(16, 100, 170, 160))
+    last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on", card_pt=Frame(16, 100, 170, 160))
 
 
 def held_at(c, at=TAKE):
-    return dataclasses.replace(at, card_pt=take.CardPt(c.left, c.top, c.right - c.left, c.bottom - c.top))
+    return dataclasses.replace(at, card_pt=Frame(c.left, c.top, c.right - c.left, c.bottom - c.top))
 LAUNCH = dataclasses.replace(TAKE, drive="launch --animated session", drive_start=0.05, drive_end=1.0, stopped=4.0)
 FADED_IN = [Sample(0.0, None, DARK), Sample(0.5, None, DARK + 100), Sample(0.6, card(100), FLAT),
             Sample(0.7, card(100), lit(64)), Sample(0.8, card(100), FLAT)]

@@ -120,7 +120,8 @@ from typing import Dict, Iterable, Iterator, List, Literal, Optional, Sequence, 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from take import RULES_THAT_ONLY_HIDE_MOTION, CardPt, NoTake, Reason, Take, judge, parse, probe  # noqa: E402
+from take import RULES_THAT_ONLY_HIDE_MOTION, NoTake, Reason, Take, judge, parse, probe  # noqa: E402
+from tree import Frame  # noqa: E402
 
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
@@ -450,14 +451,14 @@ def look_of(window: Sequence[Sample], settled: Card) -> Look:
     return Look(d, frames, (window[depart].t, window[settle].t))
 
 
-def _fits(settled: Card, card_pt: CardPt) -> bool:
-    x, y = card_pt.middle
+def _fits(settled: Card, card_pt: Frame) -> bool:
+    x, y = card_pt.center
     return (abs(settled.bottom - settled.top - card_pt.height) <= HEIGHT_PT
             and abs((settled.left + settled.right) / 2 - x) <= MIDDLE_PT
             and abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT)
 
 
-def card_of(card_pt: Union[CardPt, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
+def card_of(card_pt: Union[Frame, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
     if card_pt == "none":
         return NoCard("the accessibility tree held no active-set-card when the recorder stopped")
     last = next((s for s in reversed(window) if s.card is not None), None)

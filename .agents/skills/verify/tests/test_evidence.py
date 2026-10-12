@@ -22,6 +22,7 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FRAME = re.compile(r"^@(-?\d+),(-?\d+) (\d+)x(\d+)$")
 sys.path.insert(0, str(SKILL))
 import take  # noqa: E402
+import tree  # noqa: E402
 
 
 MINI_TREE = [
@@ -2663,8 +2664,8 @@ class TakeJudge(unittest.TestCase):
 
     def test_card_pt_is_the_trees_frame_of_the_card_in_points_or_none(self):
         card = take.parse(STAMP).card_pt
-        self.assertEqual((card.top, card.bottom, card.left, card.right, card.middle, card.text),
-                         (476, 784, 16, 386, (201.0, 630.0), "@16,476 370x308"))
+        self.assertEqual((type(card), card, card.center, card.text),
+                         (tree.Frame, (16, 476, 370, 308), (201.0, 630.0), "@16,476 370x308"))
         self.assertEqual(take.parse(STAMP.replace("card_pt=@16,476 370x308", "card_pt=@-83,476 4770x308")).card_pt.text,
                          "@-83,476 4770x308")
         self.assertEqual(take.parse(STAMP.replace("card_pt=@16,476 370x308", "card_pt=none")).card_pt, "none")
