@@ -7,8 +7,9 @@
 
 usage: scripts/lint-doc-symbols.py [ROOT]
 
-Reads the inline code spans of AGENTS.md, docs/, and the verify skill. ADRs and research notes are
-history and stay out. A span that names something outside the tree on purpose is exempted in its
+Reads the inline code spans of AGENTS.md, docs/, and the verify skill, and the repo paths in their
+fenced blocks (a token whose first segment is a top-level entry of this tree, such as
+scripts/flake-hunt.sh). ADRs and research notes are history and stay out. A span that names something outside the tree on purpose is exempted in its
 doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
 commands included, and in every file outside Markdown must be a row of the generated launch-flag
 table, and the app's sources may spell one only in LaunchFlag.
@@ -25,6 +26,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from enum import Enum
+from typing import Iterator
 
 DOC_SCOPE = ("AGENTS.md", "docs/*.md", ".agents/skills/verify/*.md")
 HISTORY = ("docs/adr/", "docs/research/")
@@ -180,12 +182,13 @@ def message(claim: Claim, missing: tuple[str, ...]) -> str:
         return f"`{claim.token}` is not a path in this tree."
     if claim.kind is Kind.FILE:
         return f"`{claim.token}` names no file in this tree."
-    return f"`{' '.join(missing)}` is named in no Swift, project, or script file."
+    named = claim.token if missing == claim.names else ", ".join(missing)
+    return f"`{named}` is named in no Swift, project, or script file."
 
 
-def spans(text: str) -> list[tuple[int, str]]:
-    """Each inline code span outside fenced blocks with its line, joined across a paragraph."""
-    out: list[tuple[int, str]] = []
+def code(text: str) -> list[tuple[int, str, bool]]:
+    """Each inline code span outside fenced blocks, joined across a paragraph, then each fenced line."""
+    out: list[tuple[int, str, bool]] = []
     paragraph: list[str] = []
     start = 0
     fence = ""
@@ -193,7 +196,7 @@ def spans(text: str) -> list[tuple[int, str]]:
     def flush() -> None:
         joined = "\n".join(paragraph)
         for m in SPAN.finditer(joined):
-            out.append((start + joined.count("\n", 0, m.start()), m.group(2).replace("\n", " ").strip()))
+            out.append((start + joined.count("\n", 0, m.start()), m.group(2).replace("\n", " ").strip(), False))
         paragraph.clear()
 
     for number, line in enumerate(text.splitlines(), 1):
@@ -201,6 +204,8 @@ def spans(text: str) -> list[tuple[int, str]]:
         if fence:
             if marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= len(fence):
                 fence = ""
+            else:
+                out.append((number, line, True))
         elif marker:
             flush()
             fence = marker.group(1)
@@ -216,6 +221,18 @@ def spans(text: str) -> list[tuple[int, str]]:
     return out
 
 
+def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Claim]]:
+    """A fenced line is shell, Swift, or a tree drawing, so only its repo paths are claims."""
+    for line, snippet, fenced in code(text):
+        for token in snippet.split():
+            claim = classify(token, os.path.dirname(doc), top)
+            if claim is None or claim.kind is Kind.FLAG:
+                continue
+            if fenced and not (claim.kind is Kind.PATH and claim.names[0].split("/")[0] in top):
+                continue
+            yield line, claim
+
+
 def exemptions(text: str) -> dict[str, int]:
     exempt: dict[str, int] = {}
     for m in EXEMPTION.finditer(text):
@@ -228,16 +245,12 @@ def lint_doc(doc: str, text: str, tree: Tree, top: frozenset[str]) -> list[Findi
     exempt = exemptions(text)
     used: set[str] = set()
     findings = []
-    for line, span in spans(text):
-        for token in span.split():
-            claim = classify(token, os.path.dirname(doc), top)
-            if claim is None or claim.kind is Kind.FLAG:
-                continue
-            missing = resolve(claim, tree)
-            used.update(name for name in missing if name in exempt)
-            missing = tuple(name for name in missing if name not in exempt)
-            if missing:
-                findings.append(Finding(doc, line, message(claim, missing), hint(claim, missing, tree)))
+    for line, claim in claims(doc, text, top):
+        missing = resolve(claim, tree)
+        used.update(name for name in missing if name in exempt)
+        missing = tuple(name for name in missing if name not in exempt)
+        if missing:
+            findings.append(Finding(doc, line, message(claim, missing), hint(claim, missing, tree)))
     for m in FLAG.finditer(text):
         if m.group() in exempt:
             used.add(m.group())
@@ -347,13 +360,11 @@ def main(argv: list[str]) -> int:
 
     candidates = set()
     for doc in docs:
-        for _, span in spans(texts[doc]):
-            for token in span.split():
-                claim = classify(token, os.path.dirname(doc), top)
-                if claim and claim.kind in (Kind.PATH, Kind.FILE):
-                    for name in (through_links(n, links) for n in claim.names):
-                        if not is_glob(name) and not name.startswith(("..", "/")):
-                            candidates.update((name, name + "/"))
+        for _, claim in claims(doc, texts[doc], top):
+            if claim.kind in (Kind.PATH, Kind.FILE):
+                for name in (through_links(n, links) for n in claim.names):
+                    if not is_glob(name) and not name.startswith(("..", "/")):
+                        candidates.update((name, name + "/"))
     ignored = git(root, "check-ignore", "--no-index", "--stdin", stdin="\n".join(sorted(candidates)))
 
     tree = Tree(

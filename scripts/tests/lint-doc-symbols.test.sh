@@ -100,6 +100,32 @@ expect_line "suffixes" "$out" "error: docs/TESTING.md:1: \`scripts/gone.sh\` is 
 expect_line "suffixes" "$out" "error: docs/TESTING.md:1: \`.swift-formatt\` names no file in this tree."
 expect_line "suffixes" "$out" "error: docs/TESTING.md:2: \`spreadsheetIdd\` is named in no Swift, project, or script file."
 
+echo "a missing dotted chain is printed with its dot"
+root=$(tree dotted)
+printf 'Call `SyncCoordinatorGone.flushEverything` or `SyncCoordinator.flushEverything`.\n' >"$root/docs/TESTING.md"
+stage "$root"
+check "$root"
+expect_exit "dotted" "$status" 1
+expect_count "dotted" "$out" 2
+expect_line "dotted" "$out" "error: docs/TESTING.md:1: \`SyncCoordinatorGone.flushEverything\` is named in no Swift, project, or script file."
+expect_line "dotted" "$out" "error: docs/TESTING.md:1: \`flushEverything\` is named in no Swift, project, or script file."
+
+echo "a fenced block's repo paths are checked, and its other words are not"
+root=$(tree fenced)
+cat >"$root/AGENTS.md" <<'MD'
+```bash
+scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat under load
+scripts/flakehunt.sh --filter MissingTests
+export PATH="$PWD/.build/debug:$PATH" && cp Secrets.xcconfig .build/crap/report.json
+xcodebuild -project <worktree>/WorkoutTracker.xcodeproj -only-testing WorkoutTrackerUITests/Smoke
+```
+MD
+stage "$root"
+check "$root"
+expect_exit "fenced" "$status" 1
+expect_count "fenced" "$out" 1
+expect_line "fenced" "$out" "error: AGENTS.md:3: \`scripts/flakehunt.sh\` is not a path in this tree."
+
 echo "a stray backtick in one list item does not swallow the next item's spans"
 root=$(tree stray)
 printf -- '- Press ` to open\n- Run `scripts/gone.sh` now\n' >"$root/docs/TESTING.md"
@@ -172,12 +198,12 @@ expect_count "exempt" "$out" 2
 expect_line "exempt" "$out" "error: docs/TESTING.md:2: \`goneMember\` is named in no Swift, project, or script file."
 expect_line "exempt" "$out" "error: docs/TESTING.md:1: the exemption names \`blueLight\`, which nothing in this file fails on. Drop it."
 
-echo "ADRs, fenced blocks, ignored files, placeholders, and linked skills pass"
+echo "ADRs, fenced words, ignored files, placeholders, and linked skills pass"
 root=$(tree skipped)
 printf 'Deleted `project.yml` and `OldCoordinator`.\n' >"$root/docs/adr/0001-old.md"
 cat >"$root/docs/TESTING.md" <<'MD'
 ```bash
-scripts/gone.sh --filter MissingTests
+scripts/flake-hunt.sh --filter MissingTests
 ```
 
 Copy `Secrets.xcconfig` into `<worktree>/Sources/Core`, read `.build/crap/report.json`, then read
