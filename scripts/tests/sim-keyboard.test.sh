@@ -22,6 +22,7 @@ case "$1 $4" in
         ;;
     "spawn read")
         [ -z "${STUB_READ_FAILS:-}" ] || { echo "Process spawn via launchd failed (code=405)" >&2; exit 1; }
+        [ -z "${STUB_NO_DOMAIN:-}" ] || { echo "Error: Domain '$5' not found." >&2; exit 1; }
         [ -s "$STUB_DEFAULTS" ] && cat "$STUB_DEFAULTS" || { echo "Error: Could not find key '$6' in domain '$5'." >&2; exit 1; }
         ;;
     "spawn write")
@@ -64,6 +65,11 @@ expect "a second ensure finds it at 0 and writes nothing" "$status $(cat "$root/
 keyboard ensure "$sim"
 expect "an absent key passes the keyboard tests, so ensure leaves it" "$status $(cat "$root/out")" \
     "0 keyboard: $sim has AutomaticMinimizationEnabled=unset"
+
+STUB_NO_DOMAIN=1 keyboard ensure "$sim"
+expect "a fresh simulator, which has no keyboard domain yet, passes the keyboard tests, so ensure leaves it" \
+    "$status $(cat "$root/out") | $(calls)" \
+    "0 keyboard: $sim has AutomaticMinimizationEnabled=unset | bootstatus $sim -b"
 
 echo 1 >"$root/defaults"
 STUB_WRITE_IGNORED=1 keyboard ensure "$sim"
