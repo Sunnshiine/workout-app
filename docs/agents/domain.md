@@ -13,8 +13,6 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 ## File structure
 
-Single-context repo:
-
 ```text
 /
 +-- CONTEXT.md
@@ -25,21 +23,6 @@ Single-context repo:
 |   +-- 0002-last-performed-local-index.md
 +-- App/
 +-- Sources/
-```
-
-Multi-context repo:
-
-```text
-/
-+-- CONTEXT-MAP.md
-+-- docs/adr/
-+-- src/
-    +-- ordering/
-    |   +-- CONTEXT.md
-    |   +-- docs/adr/
-    +-- billing/
-        +-- CONTEXT.md
-        +-- docs/adr/
 ```
 
 ## Use the glossary's vocabulary

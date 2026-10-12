@@ -101,7 +101,8 @@ more) starts no run.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Name the simulator by `id=<UDID>` in every `-destination`. A name can match several devices
-  across runtimes and clones, and xcodebuild may pick the shared one other agents drive (#660).
+  across runtimes and clones, and xcodebuild picks one of them, not necessarily the one you meant
+  (#660).
 - Concurrent simulator runs each need their own worktree and their own simulator.
   `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
