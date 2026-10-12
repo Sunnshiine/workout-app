@@ -68,6 +68,8 @@ for s in lane.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh boo
     cp "$scripts/$s" "$primary/scripts/"
 done
 printf '\000\001\002binary\n' >"$primary/app.bin"
+mkdir -p "$primary/.claude"
+echo '{}' >"$primary/.claude/settings.json"
 g add -A
 g commit -m first
 c1=$(git -C "$primary" rev-parse HEAD)
@@ -259,6 +261,22 @@ lane down gone
 saved=$(ls -d "$evidence/detached-gone"/down-* 2>/dev/null | head -1)
 expect "down bundles the commit the deleted branch held" \
     "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" "0 $gone_sha HEAD"
+
+lane up ign "$c1"
+mkdir -p "$lanes/ign/.claude"
+echo profile >"$lanes/ign/default.profraw"
+echo '{}' >"$lanes/ign/.claude/settings.local.json"
+lane assess ign 0
+expect "assess removes a clean lane whose only ignored files a build or a session regenerates" \
+    "$(cat "$root/out")" "remove	idle 0d"
+odd=$(printf "it's\there.txt")
+echo odd >"$lanes/ign/$odd"
+lane down ign
+saved=$(ls -d "$evidence/detached-ign"/down-* 2>/dev/null | head -1)
+mkdir "$root/ign-restore"
+tar -xf "$saved/untracked.tar" -C "$root/ign-restore"
+expect "down saves a file whose name holds a quote and a tab, and leaves out regenerable files" \
+    "$status $(ls -A "$root/ign-restore") $(cat "$root/ign-restore/$odd")" "0 $odd odd"
 
 g worktree add --detach "$root/moved-away" main
 mv "$root/moved-away" "$root/moved-here"

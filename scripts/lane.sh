@@ -20,17 +20,17 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
   env     print the env of an existing lane; reads only.
   down    delete the simulator first, so a run holding it stops down with exit 75 before anything
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
-          uncommitted.diff, untracked.tar of untracked and ignored-but-not-regenerable files,
+          uncommitted.diff, untracked.tar of untracked and ignored files except regenerable ones,
           commits.bundle of commits no branch or tag holds, copies of .build/test-sim and
           .build/verify); then remove the worktree and its DerivedData. Each step skips what is
           already gone, so a second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked, holds a nested worktree, has uncommitted changes or
-          ignored files that are work, holds commits no branch or tag holds, is in use (a process
-          cwd inside it or its simulator's verify lock), or was active within <idle-days>. A commit
-          counts when HEAD or its reflog reaches it; a remote-tracking ref holds nothing, because
-          the server may have deleted the branch.
+          untracked files, holds commits no branch or tag holds, is in use (a process cwd inside it
+          or its simulator's verify lock), or was active within <idle-days>. Ignored files keep
+          nothing, because down saves them. A commit counts when HEAD or its reflog reaches it; a
+          remote-tracking ref holds nothing, because the server may have deleted the branch.
 
 up and env print exactly three lines, every value single-quoted, so bash, zsh, and fish run them alike:
   export SIM='<udid>'
@@ -90,13 +90,20 @@ lane_udids() {
   "$here/sim-pool.sh" list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 }'
 }
 
-# Ignored paths that are work. Everything a build or the bootstrap regenerates is left out.
-ignored_work() {
-  git -c core.quotePath=false -C "$wt" ls-files -o -i --exclude-standard --directory --no-empty-directory \
-    | awk '{ p = $0; sub(/\/$/, "", p); n = split(p, part, "/"); base = part[n] }
-      base == ".build" || base == ".swiftpm" || base == "Secrets.xcconfig" || base == "xcuserdata" \
-        || base == ".DS_Store" || base == "__pycache__" || base == ".venv" { next }
-      { print }'
+# Untracked and ignored paths, NUL-separated, leaving out what a build, a session, or the bootstrap
+# regenerates. --directory names a wholly ignored directory once instead of every file in it.
+files_to_save() {
+  git -C "$wt" ls-files -z -o --exclude-standard
+  git -C "$wt" ls-files -z -o -i --exclude-standard --directory --no-empty-directory | python3 -c '
+import sys
+regenerable = {b".build", b".swiftpm", b"Secrets.xcconfig", b"xcuserdata", b".DS_Store", b"__pycache__", b".venv",
+               b"default.profraw", b".xcodebuildmcp", b".workout-cli", b"node_modules", b".codex"}
+for path in sys.stdin.buffer.read().split(b"\0"):
+    parts = path.rstrip(b"/").split(b"/")
+    if not path or regenerable.intersection(parts) or parts[-1].endswith(b".pyc") \
+            or path == b".claude/settings.local.json":
+        continue
+    sys.stdout.buffer.write(path + b"\0")'
 }
 
 # Sets $created, the commit the lane was made at, and $visited, HEAD and every commit the lane's HEAD
@@ -153,8 +160,6 @@ assess() {
     reason="could not read the working tree status"; return
   fi
   if [ -n "$porcelain" ]; then reason="uncommitted changes ($(printf '%s\n' "$porcelain" | grep -c .))"; return; fi
-  if ! work=$(ignored_work 2>/dev/null); then reason="could not list ignored files"; return; fi
-  if [ -n "$work" ]; then reason="ignored files that are work: $(printf '%s\n' "$work" | head -1)"; return; fi
   if ! read_lane_history || ! commits=$(unique_commits 2>/dev/null) \
     || ! admin=$(git -C "$wt" rev-parse --absolute-git-dir 2>/dev/null); then
     reason="could not list the commits no branch or tag holds"; return
@@ -252,10 +257,9 @@ save_lane() {
   git -C "$wt" diff --binary HEAD >"$dir/uncommitted.diff" || die 70 "could not save uncommitted.diff"
   if [ -s "$dir/uncommitted.diff" ]; then echo uncommitted.diff; else rm -f "$dir/uncommitted.diff"; fi
   list=$(mktemp)
-  { git -c core.quotePath=false -C "$wt" ls-files -o --exclude-standard && ignored_work; } >"$list" \
-    || { rm -f "$list"; die 70 "could not list untracked files"; }
+  files_to_save >"$list" || { rm -f "$list"; die 70 "could not list untracked files"; }
   if [ -s "$list" ]; then
-    tar -cf "$dir/untracked.tar" -C "$wt" -T "$list" && tar -tf "$dir/untracked.tar" >/dev/null \
+    tar -cf "$dir/untracked.tar" -C "$wt" --null -T "$list" && tar -tf "$dir/untracked.tar" >/dev/null \
       || { rm -f "$list"; die 70 "could not save untracked.tar"; }
     echo untracked.tar
   fi
