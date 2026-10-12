@@ -1,5 +1,7 @@
 # Block overview
 
+<!-- doc-symbols: not-in-tree AXGenericElement BackButton -->
+
 Block Overview shows the whole training Block as a grid of weeks and sessions with each session's state, opens any uploaded session, and lets the athlete make a different session the Current Session or return to it.
 
 ## Sub-features

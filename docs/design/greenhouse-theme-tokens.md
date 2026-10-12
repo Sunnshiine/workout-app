@@ -1,5 +1,7 @@
 # Greenhouse → Theme.swift: the decided token sheet
 
+<!-- doc-symbols: not-in-tree mintGreen blueLight paperDay paperNight -->
+
 Resolution asset for wayfinder ticket #422 (map #408). This records the
 *decisions* the DESIGN.md rewrite (#423) encodes — implementation is out of
 scope for the map. Values are extracted from the picked prototype variants

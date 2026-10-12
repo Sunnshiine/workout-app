@@ -36,9 +36,9 @@ missing**.
   appearances transitively. This slice adds `AtmosphereVisualTests` so the pick has its **own**
   fixture and Day/Night baseline pair, making the audit literally complete rather than transitive.
 - **Additional coverage beyond the manifest** (design-governed surfaces the re-drive rebuilt that the
-  picks don't enumerate one-to-one): the Sunbird colophon (`SunbirdMomentsVisualTests.sunbirdColophon`,
+  picks don't enumerate one-to-one): the Sunbird colophon (`SunbirdMomentsVisualTests.sunbirdColophonMatchesVisualBaseline`,
   the one glass survivor, Day + Night), native Settings (`SettingsViewVisualTests`, Day + Night), the
-  queue-sheet pairing confirmation (`SessionQueueSheetVisualTests.queueSheetPairingConfirmation`,
+  queue-sheet pairing confirmation (`SessionQueueSheetVisualTests.queueSheetPairingConfirmationMatchesVisualBaseline`,
   Day + Night), the in-progress Exercise-History fill state, and the secondary chrome
   (`GlassBearingViewsVisualTests`: rest pill, input pills, progress header, empty state, developer
   tools) that no longer bears glass after this slice.

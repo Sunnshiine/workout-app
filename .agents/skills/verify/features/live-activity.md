@@ -1,5 +1,7 @@
 # Live Activity
 
+<!-- doc-symbols: not-in-tree AXGenericElement -->
+
 Logging a set starts the rest timer, and the rest timer puts the countdown, the prescription and the sets left in the Dynamic Island as a Live Activity, so the athlete reads the rest with the app closed. Developer Tools carries a Live Activity Lab that raises the same activity from a sample workout state, for design review of a variant before it ships.
 
 ## Sub-features

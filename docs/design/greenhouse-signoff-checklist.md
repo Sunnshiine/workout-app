@@ -1,5 +1,7 @@
 # Greenhouse re-drive — owner sign-off checklist
 
+<!-- doc-symbols: not-in-tree WorkoutTracker/AppIcon.icon WorkoutTracker/AppIconDev.icon -->
+
 The pixel gates (ADR-0007 visual regression) prove the compositions *render*
 correctly in both appearances. They cannot judge **feel** — motion timing,
 haptic character, gesture thresholds under a chalky thumb. This checklist is
@@ -39,8 +41,8 @@ The xcode-27 runner bump (#481, commit `e04fbec`) **removed** the old
 from both TestFlight workflows. Xcode 26.5's `actool` could not open the Icon
 Composer documents on the strict thinned/device compile — the `.icon` bundles
 declare `"features": ["refractivity"]`
-(`WorkoutTracker/AppIcon.icon/icon.json`,
-`WorkoutTracker/AppIconDev.icon/icon.json`), a schema attribute only Xcode 27's
+(`App/AppIcon.icon/icon.json`,
+`App/AppIconDev.icon/icon.json`), a schema attribute only Xcode 27's
 `actool` parses (research ticket #477, commit `e23b574` on branch
 `research/xcode-27-runner`).
 
@@ -87,7 +89,7 @@ chrome. Each tuning is `(intensity / sharpness)`.
 - [ ] **The skip dud** — `skipDud` (0.45 / 0.15): a soft, blunt dud on skip, not
       a crisp tick.
 - [ ] **The ceremony swell-and-peak** — the one Core Haptics pattern in
-      `WorkoutTracker/Progress/MoveOnHapticPlayer.swift`: a continuous intensity
+      `Sources/WorkoutTracker/HapticPlayer.swift`: a continuous intensity
       swell rising through the stem's 1.0s climb, then a sharp peak transient
       landing with the bird (the log tuning, 1.0 / 0.65). One identical pattern
       timed to the ceremony choreography.
@@ -97,7 +99,7 @@ chrome. Each tuning is `(intensity / sharpness)`.
 ## 3. Hold-to-skip timing & rail/scroll feel under a chalky thumb
 
 DESIGN.md § 7 · token sheet § 7 · `Theme.Motion` hold-to-skip constants and
-`HoldToSkipPolicy` in `WorkoutTracker/Progress/ActiveSetPresentation.swift`.
+`HoldToSkipPolicy` in `Sources/WorkoutTracker/Session/ActiveSetPresentation.swift`.
 The hardcoded 0.8s / 0.25s constants are retired (adopted wholesale per PRD
 #497's locked decisions).
 
