@@ -73,8 +73,9 @@ for commit in $commits; do
         log=$logs/${commit:0:8}-$step.log
         start=$SECONDS
         if (cd "$scratch" && run_step $step) </dev/null >"$log" 2>&1; then
-            [ $step != spm-test ] || line="$line  $step $(read_log count "$log") $((SECONDS - start))s"
-            [ $step = spm-test ] || line="$line  $step $((SECONDS - start))s"
+            line="$line  $step"
+            [ $step != spm-test ] || line="$line $(read_log count "$log")"
+            line="$line $((SECONDS - start))s"
         else
             line="$line  $step ✘"
             failed_log=$log

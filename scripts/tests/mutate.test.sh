@@ -25,8 +25,9 @@ cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../t
 
 # A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
 # (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4 (and fails from swift test call
-# $STUB_FLAKY_FROM on), and nothing pins line 5. swift build fails
-# on BREAK, and on a reach probe's #error outside an #if canImport(UIKit) block. While $STUB_GATE exists and a mutant sits on line 2, it waits, so a test can act mid-run.
+# $STUB_FLAKY_FROM on), and nothing pins line 5. swift build fails on BREAK, and on a reach probe's
+# #error outside an #if canImport(UIKit) block. While $STUB_GATE exists and a mutant sits on line 2,
+# it waits, so a test can act mid-run.
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
 gate=Sources/Gate/Gate.swift

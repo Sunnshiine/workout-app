@@ -5,29 +5,22 @@
 # The slot locks live under the git dir, where neither git clean -x nor rm -rf .build reaches: a
 # deleted lock file would let a second run take a slot the first still holds.
 
-scratch_pool() {
-  if [ -n "${SCRATCH_POOL:-}" ]; then
-    echo "$SCRATCH_POOL"
-  else
-    echo "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.build/scratch"
-  fi
-}
-
 # Sets $scratch to a slot locked for this process. Call it directly, never through $(...): the lock
 # lives on fd 8 of the calling shell, and its exit 75 must end the caller.
 # The lock is a flock on fd 8, which every child inherits. A killed run frees its slot when the last
 # build it started exits, so no stale-pid logic exists. fd 9 stays free for test-sim.sh's
 # simulator lock, which the slot's test-sim.sh takes and closes for its own children.
 scratch_claim() {
-  local who=$1 pool locks caller n preferred="" others="" holders=""
+  local who=$1 common pool locks caller n preferred="" others="" holders=""
   # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it
   # lives. The repo's post-checkout hook would run on every per-mutant restore, and its exit status
   # would become checkout's.
   export GIT_CONFIG_COUNT=$((${GIT_CONFIG_COUNT:-0} + 2))
   export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 2))=core.fsmonitor" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 2))=false"
   export "GIT_CONFIG_KEY_$((GIT_CONFIG_COUNT - 1))=core.hooksPath" "GIT_CONFIG_VALUE_$((GIT_CONFIG_COUNT - 1))=/dev/null"
-  pool=$(scratch_pool)
-  locks=$(git rev-parse --path-format=absolute --git-common-dir)/scratch-locks
+  common=$(git rev-parse --path-format=absolute --git-common-dir)
+  pool=$(dirname "$common")/.build/scratch
+  locks=$common/scratch-locks
   caller=$(git rev-parse --show-toplevel)
   mkdir -p "$pool" "$locks"
   for n in $(seq 1 "${SCRATCH_SLOTS:-4}"); do

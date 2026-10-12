@@ -15,8 +15,7 @@ BEGIN {
         print "usage: awk -v path=REL -v changed=LINES_FILE -f mutants.awk FILE" > "/dev/stderr"
         exit 2
     }
-    while ((getline n < changed) > 0)
-        if (n ~ /^[0-9]+$/) want[n + 0] = 1
+    while ((getline n < changed) > 0) want[n] = 1
     close(changed)
     MASK = "\001"
     blockDepth = 0

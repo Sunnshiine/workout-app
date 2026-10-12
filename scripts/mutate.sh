@@ -96,15 +96,16 @@ else
 fi
 cd "$caller"
 
-# Mirrors Package.swift: the test target compiles Sources/ and Tests/ minus UI, Visual, and GoogleAuthTests.
-swift_compiles() {
+# Without --sim, mirrors Package.swift: the test target compiles Sources/ and Tests/ minus UI,
+# Visual, and GoogleAuthTests.
+reachable() {
+    [ -z "$sim" ] || return 0
     case $1 in
         Tests/Unit/GoogleAuthTests.swift) return 1 ;;
         Sources/* | Tests/Unit/* | Tests/Component/* | Tests/Support/*) return 0 ;;
         *) return 1 ;;
     esac
 }
-reachable() { [ -n "$sim" ] || swift_compiles "$1"; }
 [ -n "$base" ] || reachable "$file" ||
     die "swift test never compiles $file; mutate it with --sim UDID, which runs scripts/test-sim.sh in the scratch tree"
 
