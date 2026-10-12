@@ -28,9 +28,10 @@ turns off the keyboard preference that hides the software keyboard and prints on
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
 <stamp>-build.log, <stamp>-test.log, <stamp>.xcresult, and <stamp>-diffs, and its test log ends
 with its result line. Each run keeps the five runs written last and deletes an older run's files
-only when its test log ends with a result line and none of them changed in the last 30 minutes.
-A run killed before its result line (SIGKILL, power loss) stays until someone deletes it. Copy a
-bundle or diff you cite into your proof directory, since only five finished runs are kept.
+when its test log ends with a result line and none of them changed in the last 30 minutes, or
+when none of them changed in the last 24 hours, as for a run killed before its result line
+(SIGKILL, power loss). Copy a bundle or diff you cite into your proof directory, since only five
+runs are kept.
 When a snapshot does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the
 reference, failure, and difference images.
 The last line, on every exit after this usage text, is
@@ -135,12 +136,17 @@ xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destinat
 rc=$?
 ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6})(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
   | awk '!seen[$0]++' | tail -n +6 | while IFS= read -r old; do
-    case $(tail -n 1 "$logs/$old-test.log" 2>/dev/null) in "test-sim: "*) ;; *) continue ;; esac
     files=()
     for file in "$logs/$old-build.log" "$logs/$old-test.log" "$logs/$old.xcresult" "$logs/$old-diffs"; do
       [ ! -e "$file" ] || files+=("$file")
     done
-    [ -z "$(find "${files[@]}" -maxdepth 0 -mmin -30)" ] && rm -rf "${files[@]}"
+    # A run with no result line either is still going or was killed (SIGKILL, power loss); a day
+    # with no write tells the two apart.
+    case $(tail -n 1 "$logs/$old-test.log" 2>/dev/null) in
+      "test-sim: "*) quiet=30 ;;
+      *) quiet=1440 ;;
+    esac
+    [ -z "$(find "${files[@]}" -maxdepth 0 -mmin -$quiet)" ] && rm -rf "${files[@]}"
   done
 set -e
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then

@@ -469,7 +469,8 @@ fixture_run 20991231-000001 "$finished" 202001010001
 fixture_run 20991231-000002 "$finished" 202001010002
 for n in 3 4 5 6; do fixture_run "20991231-00000$n" "$finished" "$(minutes_ago "$n")"; done
 fixture_run 20991231-000007 "$finished" "$(minutes_ago 10)"
-fixture_run 20991231-000008 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." 202001010000
+fixture_run 20991231-000008 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." "$(date -v-25H +%Y%m%d%H%M)"
+fixture_run 20991231-000012 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." "$(date -v-2H +%Y%m%d%H%M)"
 echo notes >"$logs/20200101-000000-notes.txt"
 echo notes >"$logs/README.txt"
 mkdir "$logs/unit.xcresult"
@@ -501,10 +502,10 @@ expect "a run deletes every file of a finished run older than the five written l
 20991231-000007-diffs
 20991231-000007-test.log
 20991231-000007.xcresult
-20991231-000008-build.log
-20991231-000008-diffs
-20991231-000008-test.log
-20991231-000008.xcresult
+20991231-000012-build.log
+20991231-000012-diffs
+20991231-000012-test.log
+20991231-000012.xcresult
 README.txt
 unit.xcresult"
 expect "a run's test log ends with its result line" "$(tail -1 "$logs/20991231-000000-test.log")" \
@@ -514,11 +515,13 @@ expect "a file whose name only starts with a stamp, and a file with no stamp, su
 "20200101-000000-notes.txt
 README.txt
 unit.xcresult"
-expect "an old run with no result line survives" "$(cd "$logs" && ls -d 20991231-000008*)" \
-"20991231-000008-build.log
-20991231-000008-diffs
-20991231-000008-test.log
-20991231-000008.xcresult"
+expect "a run with no result line, untouched for 24 hours, is abandoned and deleted" \
+    "$(cd "$logs" && ls -d 20991231-000008* 2>/dev/null)" ""
+expect "a run with no result line touched 2 hours ago survives" "$(cd "$logs" && ls -d 20991231-000012*)" \
+"20991231-000012-build.log
+20991231-000012-diffs
+20991231-000012-test.log
+20991231-000012.xcresult"
 expect "a finished run past the five written last survives while a file of it changed in the last 30 minutes" \
     "$(cd "$logs" && ls -d 20991231-000007*)" \
 "20991231-000007-build.log
@@ -546,7 +549,7 @@ STUB_RELEASE=$root/release STUB_STAMP=20991231-100000 STUB_SUMMARY='{"passedTest
     "$repo/scripts/test-sim.sh" --no-build --sim "$other_sim" unit >"$root/in-progress.out" 2>"$root/in-progress.err" &
 pid=$!
 for _ in $(seq 50); do [ -e "$root/in-progress.seen" ] && break; sleep 0.1; done
-touch -t 202001010000 "$logs/20991231-100000"*
+touch -t "$(date -v-2H +%Y%m%d%H%M)" "$logs/20991231-100000"*
 for n in 1 2 3 4 5; do
     rc=0 STUB_STAMP=20991231-10000$n STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
 done
