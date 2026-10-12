@@ -54,8 +54,9 @@ The hash covers every file in the bundle (the code, the widget extension, assets
 files had uncommitted changes. An app whose bytes no stamp describes reads `commit unknown (not
 built by verify.sh)`. When a lock, boot, app-cache build, or no-built-app refusal leaves another
 app installed, the refusal ends with `app on <udid> unchanged:`, the app still there, and the app
-the launch wanted. When the installed bytes differ from the build, or `simctl install` fails, `launch` exits 70 and names both
-apps.
+the launch wanted. When `simctl install` leaves bytes that differ from the build, `install` and
+`launch` say so, uninstall the app, and install it once more. When the bytes still differ, or
+`simctl install` fails, they exit 70 and name both apps.
 
 ### Control and head on one simulator
 
@@ -278,8 +279,11 @@ command that lands on the wrong simulator cannot end another agent's drive (issu
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
 nothing to compare against, so it steps aside, except that a drive with no `VERIFY_RUN` acts for
 the run the last launch on this simulator started, and refuses after that run's launch was
-refused. `SIM` has no default, so no command lands on a
-shared simulator by accident. With `VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
+refused. Unless that run was named, it also refuses after a `launch` with no `VERIFY_RUN` was
+refused, until any `launch` succeeds, so an agent that never names a run cannot drive the app its
+own refused relaunch left behind. Both refusals print the way out, which is `stop` and then
+`launch`. `SIM` has no default, so no command lands on a shared simulator by accident. With
+`VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
 `burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, and after a
 `launch` of the same run was refused, until a `launch` of it succeeds. So a driver that missed its
 own launch's refusal cannot drive or film the app that refusal left behind. Your drive is protected from a

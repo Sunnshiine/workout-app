@@ -60,7 +60,9 @@ Environment: SIM (the UDID of your own simulator, required by every command that
              VERIFY_RUN (names the run; give it to launch and every later command remembers it.
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
                   alive on SIM, and after this run's launch was refused until one succeeds. Unset,
-                  the run is the one the last launch on SIM started),
+                  the run is the one the last launch on SIM started, and unless that run was named
+                  they also refuse after a launch with VERIFY_RUN unset was refused, until any
+                  launch succeeds),
              VERIFY_EVIDENCE (the parent of the run directories; default
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
@@ -144,6 +146,7 @@ begin_run() {
   local name=${VERIFY_RUN:-$(date +%Y%m%d-%H%M%S)}
   mkdir -p "$state_dir"
   printf '%s\n' "$name" > "$state_dir/run"
+  if [ -n "${VERIFY_RUN:-}" ]; then rm -f "$state_dir/unnamed"; else : > "$state_dir/unnamed"; fi
   printf '%s\n' "$name"
 }
 
@@ -421,8 +424,13 @@ target_app() {
 
 record_refusal() {
   echo "$1" >&2
-  [ -n "${VERIFY_RUN:-}" ] || return 0
   mkdir -p "$state_dir"
+  if [ -z "${VERIFY_RUN:-}" ]; then
+    # A drive with no VERIFY_RUN may be a named run's owner leaning on the run it remembers, so only an
+    # unnamed run is held to an unnamed refusal.
+    [ -f "$state_dir/run" ] && [ ! -f "$state_dir/unnamed" ] || printf '%s\n' "$1" > "$state_dir/refused"
+    return 0
+  fi
   printf '%s\n' "$1" > "$state_dir/refused.$VERIFY_RUN"
   printf '%s %s refused: %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$cmd" "$1" >> "$(run_dir)/launches.txt"
 }
@@ -463,14 +471,26 @@ refuse_replacing_cache() {
   refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." 65
 }
 
-install_app() {
-  local installed
+simctl_install() {
   xcrun simctl install "$sim" "$app" || refuse "simctl install failed, so $sim holds $(installed_line), not $wanted_line" 70
+}
+
+holds_wanted() {
+  local installed
   installed=$(installed_app)
-  [ -n "$installed" ] && [ "$(app_hash "$installed")" = "$want_hash" ] \
-    || refuse "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" 70
+  [ -n "$installed" ] && [ "$(app_hash "$installed")" = "$want_hash" ]
+}
+
+install_app() {
+  simctl_install
+  if ! holds_wanted; then
+    # simctl install over an installed app has left the old bytes in place; an uninstall first clears it.
+    echo "after simctl install, $sim holds $(installed_line), not $wanted_line; uninstalling it and installing once more" >&2
+    xcrun simctl uninstall "$sim" "$bundle" || true
+    simctl_install
+    holds_wanted || refuse "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" 70
+  fi
   trap - EXIT
-  [ -z "${VERIFY_RUN:-}" ] || rm -f "$state_dir/refused.$VERIFY_RUN"
 }
 
 launch_parse() {
@@ -516,6 +536,7 @@ record_launch() {
 await_front() {
   for _ in $(seq 1 40); do
     if [ "$(front_pid)" = "$pid" ]; then
+      rm -f "$state_dir/refused" ${VERIFY_RUN:+"$state_dir/refused.$VERIFY_RUN"}
       echo "launched $fixture as pid $pid on $sim"
       echo "$launched_line"
       echo "evidence $(run_dir)"
@@ -535,13 +556,17 @@ await_front() {
   exit 70
 }
 
+refuse_drive_after() {
+  local again="SIM=$sim ${3:+VERIFY_RUN=$3 }$0"
+  echo "the last launch $1 on $sim was refused, so this would drive whatever that refusal left running ($(cat "$2")); stop it, then launch again: $again stop, then $again launch <fixture>" >&2
+  exit 75
+}
+
 require_own_app() {
   local owner pid run
   run=$(current_run)
-  if [ -n "$run" ] && [ -f "$state_dir/refused.$run" ]; then
-    echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); launch again: SIM=$sim VERIFY_RUN=$run $0 launch <fixture>" >&2
-    exit 75
-  fi
+  [ -z "$run" ] || [ ! -f "$state_dir/refused.$run" ] || refuse_drive_after "of run $run" "$state_dir/refused.$run" "$run"
+  [ -n "${VERIFY_RUN:-}" ] || [ ! -f "$state_dir/refused" ] || refuse_drive_after "with no VERIFY_RUN" "$state_dir/refused"
   [ -n "${VERIFY_RUN:-}" ] || return 0
   owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
   [ "$owner" != "$VERIFY_RUN" ] || return 0
