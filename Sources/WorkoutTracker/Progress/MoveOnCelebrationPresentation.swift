@@ -62,9 +62,9 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
     }
 
     private static var launchQuoteOverride: String? {
-        guard ProcessInfo.processInfo.arguments.contains("-UITEST_LONG_CELEBRATION_QUOTE") else {
-            return nil
-        }
-        return longQuoteFixture
+        #if DEBUG
+            if UITestFixture.launch.showsLongCelebrationQuote { return longQuoteFixture }
+        #endif
+        return nil
     }
 }
