@@ -35,6 +35,7 @@ function label(u) { return sname[u] != "" ? sname[u] : (sid[u] != "" ? sid[u] : 
 # The runner compares names without case, so Always() is a status check.
 function finish_if(    lc) {
     collecting = 0
+    if (if_job != "" && !if_step && index(cond, "github.event.changes.base")) guarded[if_path, if_job] = 1
     lc = tolower(cond)
     if (lc !~ /steps\.[a-z0-9_*-]+\.(conclusion|outcome)/) return
     if (index(lc, "success(") || index(lc, "failure(") || index(lc, "always(") || index(lc, "cancelled(")) return
@@ -44,7 +45,7 @@ function finish_if(    lc) {
 
 FNR == 1 {
     if (collecting) finish_if()
-    skip = -1; injobs = 0; job = ""; jcol = -1; jkcol = -1; scol = -1; step = 0
+    skip = -1; injobs = 0; job = ""; jcol = -1; jkcol = -1; scol = -1; step = 0; prcol = -1
 }
 
 {
@@ -75,12 +76,18 @@ blank || c ~ /^#/ { next }
     k = c; kcol = ind
     if (c ~ /^-[ \t]/) { match(c, /^-[ \t]+/); kcol = ind + RLENGTH; k = substr(c, RLENGTH + 1) }
 
+    if (prcol >= 0 && ind <= prcol) prcol = -1
     if (ind == 0) {
         injobs = (c ~ /^jobs:/); job = ""; jcol = -1; scol = -1; step = 0
+    } else if (!injobs && k ~ /^pull_request[ \t]*:/) {
+        prcol = kcol
+    } else if (prcol >= 0 && (k == "edited" || (k ~ /^types[ \t]*:/ && k ~ /[[ ,]edited[] ,]/))) {
+        edited[FILENAME] = 1
     } else if (injobs) {
         if (jcol < 0) jcol = ind
         if (ind <= jcol) {
             job = c; sub(/:.*/, "", job); jkcol = -1; scol = -1; step = 0; nstep = 0
+            jobs[FILENAME, ++njobs[FILENAME]] = job
         } else {
             if (jkcol < 0) jkcol = ind
             # Step items may sit at the same column as steps: itself, so only a non-item line there ends it.
@@ -118,12 +125,21 @@ END {
         print fpath[i] ":" fline[i] ": " where ": if: reads a step conclusion or outcome and calls no status check function"
         print "    " fcond[i]
     }
+    for (f in edited) for (j = 1; j <= njobs[f]; j++) if (!guarded[f, jobs[f, j]]) {
+        print f ": job " sq jobs[f, j] sq " runs on every pull_request edit; give it if: github.event.action != " sq "edited" sq " || github.event.changes.base"
+        unguarded++
+    }
+    if (unguarded) {
+        print "A title or body edit fires the same event as a base change. ci-wait.sh reads such a run as a"
+        print "verdict unless every job skips, and the run cancels nothing only under its own concurrency group."
+    }
     if (n) {
         print "GitHub prepends success() && to an if: that calls no status check function, so these guards are"
         print "false once an earlier step has failed. To run after a failure, write if: ${{ !cancelled() && (...) }}."
         print "When green so far is the meaning, as on a continue-on-error step, write if: success() && (...)."
         exit 1
     }
+    if (unguarded) exit 1
     print "==> Clean: " (total + 0) " if: conditions in " (ARGC - 1) " file(s)"
 }
 ' "$@"

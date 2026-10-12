@@ -2,10 +2,14 @@ name: Script tests
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     paths:
       - "scripts/**"
       - ".sandcastle/**"
       - ".claude/settings.json"
+      - ".swiftlint.yml"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -16,6 +20,9 @@ on:
       - "scripts/**"
       - ".sandcastle/**"
       - ".claude/settings.json"
+      - ".swiftlint.yml"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -23,11 +30,13 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: script-tests-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.sha }}
+  group: script-tests-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
   script-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'script-tests (edit, base unchanged)' || 'script-tests' }}
     runs-on: xcode-27
     timeout-minutes: 15
     steps:

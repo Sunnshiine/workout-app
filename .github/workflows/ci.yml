@@ -6,6 +6,10 @@ name: CI
 
 on:
   pull_request:
+    # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited. A title
+    # or body edit's jobs skip, and GitHub lists a skipped job under its name expression unevaluated,
+    # so each job's name expression keeps those checks off the real check names in gh pr checks.
+    types: [opened, synchronize, reopened, edited]
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -44,10 +48,10 @@ on:
         type: boolean
         default: false
 
-# A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
-# merge that lands mid-run never cancels the run verifying the merge before it.
+# A title or body edit gets a group of its own, so it never cancels one. A push to main is keyed on
+# its commit, so a merge that lands mid-run never cancels the run verifying the merge before it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || (github.event_name == 'workflow_dispatch' && github.run_id) || github.sha }}
+  group: ci-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -56,6 +60,8 @@ jobs:
   # config's `included:` list and linted nowhere (issue #607). Nothing here builds the app, so it
   # finishes in about a minute alongside the two test jobs rather than extending them.
   lint:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'lint (edit, base unchanged)' || 'lint' }}
     # SwiftLint needs no Xcode and no simulator. This label is the repo's runner pool, not a
     # toolchain requirement.
     runs-on: xcode-27
@@ -65,6 +71,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+      # actions/checkout#919: a retarget's run may still get the merge commit built on the old base.
+      - name: Refuse a merge commit built on the base this pull request left
+        if: github.event.action == 'edited'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          parent=$(git rev-parse HEAD^1)
+          if [ "$parent" != "$BASE_SHA" ]; then
+            echo "::error::The merge commit sits on ${parent:0:7}, not the new base ${BASE_SHA:0:7}. Push to the branch to rerun."
+            exit 1
+          fi
       # The version comes from the same Package.resolved the Xcode plugin resolves against, so the
       # cache key moves when the pin moves and never serves a stale binary.
       - name: Read the pinned SwiftLint version
@@ -79,31 +96,13 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
         run: scripts/lint.sh
-      - name: Run each custom SwiftLint rule against its fixtures
-        env:
-          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
-        run: scripts/tests/swiftlint-custom-rules.test.sh
-      - name: Test scripts/lint.sh's tree check
-        env:
-          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
-        run: scripts/tests/lint.test.sh
       - name: swift-format the Swift files this pull request changes
         if: github.event_name == 'pull_request'
-        run: |
-          changed=$(git diff --name-only --diff-filter=d HEAD^1 HEAD -- '*.swift' \
-            ':(exclude)scripts/tests/swiftlint-custom-rules')
-          files=()
-          while IFS= read -r file; do [ -z "$file" ] || files+=("$file"); done <<<"$changed"
-          if [ "${#files[@]}" -eq 0 ]; then
-            echo "No changed Swift file to check."
-            exit 0
-          fi
-          if ! xcrun swift-format lint --strict "${files[@]}"; then
-            echo "::error::Format these files with: xcrun swift-format format -i ${files[*]}"
-            exit 1
-          fi
+        run: scripts/swift-format-changed.sh HEAD^1
 
   swift-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'swift-tests (edit, base unchanged)' || 'swift-tests' }}
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -140,6 +139,8 @@ jobs:
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   visual-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
     timeout-minutes: 45
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
