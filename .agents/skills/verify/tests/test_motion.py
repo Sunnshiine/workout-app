@@ -24,7 +24,7 @@ sys.path.insert(0, str(MOTION))
 import cardframe  # noqa: E402
 import take  # noqa: E402
 import cardstill  # noqa: E402
-from cardframe import Card, Sample  # noqa: E402
+from cardframe import Card, Opened, Reason, Sample, Still, Window  # noqa: E402
 from cardstill import Reading, TakeResult, Verdict  # noqa: E402
 
 SCREEN_PT = (200, 400)
@@ -63,13 +63,15 @@ def encode(path, scene, seconds, lossless=True):
     assert proc.wait() == 0, f"ffmpeg could not encode {path}"
 
 
-def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None):
+def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None,
+          stopped=None):
     pts, size = take.probe(like or video)
     filmed = take.Take(
         name=video.stem, video=video.name, drive=drive, tail=2.0, load_limit=50.0, load_before=12.31,
         load_after=load_after, started=1791817306.217, drive_start=drive_start, drive_end=drive_end,
-        stopped=round(max(pts[-1], drive_end) + 2.0, 3), recorder_exit=0, recorder_early=False, frames=len(pts),
-        first_frame=round(pts[0], 3), last_frame=round(pts[-1], 3), video_px=size)
+        stopped=round(max(pts[-1], drive_end) + 2.0, 3) if stopped is None else stopped, recorder_exit=0,
+        recorder_early=False, frames=len(pts), first_frame=round(pts[0], 3), last_frame=round(pts[-1], 3),
+        video_px=size)
     path = video.with_suffix(".take")
     path.write_text("\n".join(take.take_lines(filmed) + [
         f"screen_pt={SCREEN_PT[0]}x{SCREEN_PT[1]}",
@@ -103,36 +105,43 @@ def cuts(i):
     return PAPER, [(top, top + 150, 16, 186)]
 
 
-def zoomed(box, scale):
-    top, bottom, left, right = box
-    cy, cx, h, w = (top + bottom) / 2, (left + right) / 2, (bottom - top) * scale, (right - left) * scale
-    return (cy - h / 2, cy + h / 2, cx - w / 2, cx + w / 2)
+def drops_for_three_frames(i):
+    return (PAPER + 3 * (i - FPS + 1), []) if FPS <= i < FPS + 3 else (PAPER, [STILL_BOX])
 
 
-def fades_in(i):
-    if i < FPS:
-        return 10 + 3 * i, []
-    k = min((i - FPS + 1) / 10, 1.0)
-    return round(PAPER * k), [STILL_BOX + (round(CARD * k),)]
-
-
-def launches(slide_after=0.0):
+def launched(app, fade=43):
+    """iOS's launch as every recorded one shows it: the springboard, then the app's first frame faded in from
+    black over `fade` frames, the last at frame 17 + fade, then app(j) from j = 1."""
     def scene(i):
         if i < 18:
             return PAPER, [(100, 300, 12, 196)]
-        if i < FPS:
-            return 10 + 3 * i, []
-        if i < FPS + 6:
-            return PAPER, [zoomed(STILL_BOX, 0.8 + 0.2 * (i - FPS) / 6)]
-        progress = min((i - FPS - 6) / 18, 1.0)
-        top, bottom, left, right = STILL_BOX
-        lift = slide_after * (1 - progress)
-        return PAPER, [(top + lift, bottom + lift, left, right)]
+        if i < 18 + fade:
+            k = (i - 17) / fade
+            paper, boxes = app(0)
+            return round(paper * k), [box[:4] + (round((box[4] if len(box) > 4 else CARD) * k),) for box in boxes]
+        return app(i - 17 - fade)
     return scene
 
 
-def drops_for_three_frames(i):
-    return (PAPER + 3 * (i - FPS + 1), []) if FPS <= i < FPS + 3 else (PAPER, [STILL_BOX])
+def eased(j):
+    return min(max((j - 5) / 24, 0.0), 1.0)
+
+
+def fades_in_place(j):
+    return PAPER, [STILL_BOX + (round(PAPER + (CARD - PAPER) * eased(j)),)]
+
+
+def slides_in_from_the_right(j):
+    shift = 184 * (1 - eased(j))
+    return PAPER, [(100, 260, 16 + shift, min(186 + shift, SCREEN_PT[0]))]
+
+
+def flies_in_from_the_top(j):
+    return PAPER, [(100 * eased(j), 160 + 100 * eased(j), 16, 186)]
+
+
+def jumps_20_pt_in_its_last_two_frames(j):
+    return PAPER, [STILL_BOX if j < 30 else (100, 280, 16, 186) if j == 30 else (100, 280, 16, 196)]
 
 
 def run_cardframe(*args):
@@ -143,6 +152,7 @@ def run_cardframe(*args):
     return done.returncode, done.stdout, done.stderr
 
 
+LAUNCH_DRIVE = "launch --animated session"
 
 
 class CardFrameOnClips(unittest.TestCase):
@@ -156,79 +166,86 @@ class CardFrameOnClips(unittest.TestCase):
             ("third", a_third_of_a_point_low, 1.0),
             ("slide", slide, 2.0),
             ("cut", cuts, 2.0),
-            ("launch", launches(), 1.5),
-            ("launch-slide", launches(slide_after=40), 1.5),
-            ("launch-fade", fades_in, 1.5),
             ("drop", drops_for_three_frames, 1.5),
+            ("launch", launched(still), 1.5),
+            ("launch-late", launched(still, fade=133), 2.6),
+            ("launch-fade", launched(fades_in_place), 1.6),
+            ("launch-slide", launched(slides_in_from_the_right), 1.6),
+            ("launch-fly", launched(flies_in_from_the_top), 1.6),
+            ("launch-jump", launched(jumps_20_pt_in_its_last_two_frames), 1.6),
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
             encode(cls.clips[name], scene, seconds)
         cls.clips["lossy"] = cls.dir / "lossy.mp4"
         encode(cls.clips["lossy"], ticks_beside, 1.0, lossless=False)
 
-    def test_a_still_card_with_nothing_else_changing_is_one_frame_an_invalid_take_and_reads_still(self):
-        video = self.clips["still"]
-        stamp(video)
-        code, out, _ = run_cardframe(video)
+    def lines(self, name, *args, **stamped):
+        video = self.clips[name]
+        stamp(video, **stamped)
+        code, out, err = run_cardframe(video, *args)
+        return code, out.splitlines(), err
+
+    def test_a_still_card_with_nothing_else_changing_is_one_frame_an_invalid_take_and_reads_still_unknown(self):
+        code, out, _ = self.lines("still")
         self.assertEqual(code, 3)
-        self.assertEqual(out.splitlines(), [
+        self.assertEqual(out, [
             "INVALID take: one frame: the screen never changed while recording",
             "take=INVALID animations=on frames=1 window_frames=1",
-            "first_seen=0.000 lost=0",
+            "window=start from=0.000 to=2.000 window_s=2.000",
+            "first_seen=0.000 lost=0 faint=0 edges=full",
             "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
             "worst_edge_range=0.0",
             "contrast=40.0..40.0",
             "motion=none",
-            "still=yes",
+            "still=unknown box=still",
         ])
 
     def test_a_still_card_beside_a_changing_box_reads_still(self):
-        video = self.clips["ticking"]
-        stamp(video)
-        code, out, err = run_cardframe(video)
+        code, out, err = self.lines("ticking")
         self.assertEqual(code, 0, err)
-        self.assertEqual(out.splitlines(), [
+        self.assertEqual(out, [
             "take=VALID animations=on frames=10 window_frames=10",
-            "first_seen=0.000 lost=0",
+            "window=start from=0.000 to=2.900 window_s=2.900",
+            "first_seen=0.000 lost=0 faint=0 edges=full",
             "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
             "worst_edge_range=0.0",
             "contrast=40.0..40.0",
             "motion=none",
-            "still=yes",
+            "still=yes box=still",
         ])
 
     def test_edges_are_read_at_the_recordings_own_pixels_a_third_of_a_point_apart(self):
         video = self.clips["third"]
         stamp(video)
         m = cardframe.measure(video)
-        self.assertEqual((round(m.ranges["top"][0], 3), m.ranges["bottom"]), (100.333, (260.0, 260.0)))
+        self.assertEqual((round(m.box.ranges["top"][0], 3), m.box.ranges["bottom"]), (100.333, (260.0, 260.0)))
 
     def test_a_still_card_in_a_lossy_recording_reads_still(self):
-        video = self.clips["lossy"]
-        stamp(video)
-        code, out, err = run_cardframe(video)
+        code, out, err = self.lines("lossy")
         self.assertEqual(code, 0, err)
-        self.assertEqual(out.splitlines()[0], "take=VALID animations=on frames=10 window_frames=10")
-        self.assertEqual(out.splitlines()[-1], "still=yes")
+        self.assertEqual((out[0], out[-1]), ("take=VALID animations=on frames=10 window_frames=10",
+                                             "still=yes box=still"))
 
     def test_a_slide_of_160_pt_over_400_ms_reads_its_range_and_duration_by_frame_time(self):
         video = self.clips["slide"]
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.0, drive_end=0.5)
         m = cardframe.measure(video)
-        self.assertEqual((m.frames, len(m.window)), (25, 25))
-        self.assertEqual((m.first_seen, m.lost), (0.0, 0))
-        self.assertEqual(m.ranges["top"], (40.0, 200.0))
-        self.assertEqual(m.worst_edge_range, 160.0)
-        self.assertEqual((round(m.motion[0], 3), round(m.motion[1], 3), m.motion_ms), (1.017, 1.4, 383))
-        self.assertEqual(m.changed_frames, 24)
-        self.assertEqual(m.still, False)
+        b = m.box
+        self.assertEqual((m.frames, len(m.in_window)), (25, 25))
+        self.assertEqual((b.first_seen, b.lost), (0.0, 0))
+        self.assertEqual(b.ranges["top"], (40.0, 200.0))
+        self.assertEqual(b.worst_edge_range, 160.0)
+        self.assertEqual((round(b.motion[0], 3), round(b.motion[1], 3), b.motion_ms), (1.017, 1.4, 383))
+        self.assertEqual(b.changed_frames, 24)
+        self.assertEqual(m.still, Still.NO)
 
     def test_a_cut_after_the_drive_is_measured_from_the_frame_showing_when_the_drive_began(self):
         video = self.clips["cut"]
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.5)
         m = cardframe.measure(video)
-        self.assertEqual((m.frames, len(m.window)), (2, 2))
-        self.assertEqual((m.first_seen, m.worst_edge_range, m.changed_frames, m.still), (0.0, 160.0, 1, False))
+        self.assertEqual((m.frames, len(m.in_window), m.window.opened), (2, 2, Opened.DRIVE))
+        self.assertEqual((m.box.first_seen, m.box.worst_edge_range, m.box.changed_frames, m.still),
+                         (0.0, 160.0, 1, Still.NO))
 
     def test_the_tsv_has_a_row_per_window_frame_timed_from_the_drive(self):
         video = self.clips["slide"]
@@ -238,9 +255,9 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(code, 0, err)
         rows = tsv.read_text().splitlines()
         self.assertEqual(rows[:3], [
-            "t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast",
-            "0.000\t-0.500\t40.0\t190.0\t16.0\t186.0\t40.0",
-            "1.017\t0.517\t46.7\t196.7\t16.0\t186.0\t40.0",
+            "t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tscreen",
+            "0.000\t-0.500\t40.0\t190.0\t16.0\t186.0\t40.0\t",
+            "1.017\t0.517\t46.7\t196.7\t16.0\t186.0\t40.0\t0.115",
         ])
         self.assertEqual(len(rows), 26)
 
@@ -248,69 +265,130 @@ class CardFrameOnClips(unittest.TestCase):
         video = self.clips["slide"]
         stamp(video)
         m = cardframe.measure(video, from_s=1.19)
-        self.assertEqual(round(m.first_seen, 3), 1.183)
-        self.assertEqual((round(m.ranges["top"][0], 3), m.ranges["top"][1]), (113.333, 200.0))
-        self.assertEqual(len(m.window), 14)
+        self.assertEqual((m.window.opened, round(m.box.first_seen, 3)), (Opened.FROM, 1.183))
+        self.assertEqual((round(m.box.ranges["top"][0], 3), m.box.ranges["top"][1]), (113.333, 200.0))
+        self.assertEqual(len(m.in_window), 14)
 
-    def test_a_launch_is_measured_from_the_card_at_full_width_so_the_system_zoom_reads_still(self):
-        video = self.clips["launch"]
-        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
-        m = cardframe.measure(video)
-        self.assertEqual((round(m.first_seen, 3), m.lost, m.worst_edge_range, m.still), (1.1, 0, 0.0, True))
-
-    def test_a_launch_that_fades_in_is_measured_once_the_card_nears_the_median_contrast_of_its_last_frames(self):
-        video = self.clips["launch-fade"]
-        stamp(video, drive="launch session", drive_start=0.0, drive_end=1.4, animations="off")
-        m = cardframe.measure(video)
-        self.assertEqual((round(m.first_seen, 3), m.worst_edge_range, m.still), (1.083, 0.0, True))
-
-    def test_a_card_that_slides_in_after_the_launch_zoom_reads_its_slide(self):
-        video = self.clips["launch-slide"]
-        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
-        m = cardframe.measure(video)
-        self.assertEqual((round(m.first_seen, 3), m.lost, m.ranges["top"], m.still), (1.1, 0, (100.0, 140.0), False))
-        self.assertEqual((round(m.motion[0], 3), round(m.motion[1], 3)), (1.117, 1.4))
-
-    def test_from_0_on_a_launch_reads_the_springboard_and_the_zoom_as_motion(self):
-        video = self.clips["launch"]
-        stamp(video, drive="launch --animated session", drive_start=0.0, drive_end=1.4)
-        m = cardframe.measure(video, from_s=0)
-        self.assertEqual((m.first_seen, m.still), (0.0, False))
-
-    def test_three_frames_without_the_card_after_it_showed_are_lost(self):
-        video = self.clips["drop"]
-        stamp(video)
-        code, out, err = run_cardframe(video)
+    def test_a_launch_with_a_still_card_is_measured_from_the_end_of_ios_s_fade_and_reads_still(self):
+        code, out, err = self.lines("launch", drive=LAUNCH_DRIVE, drive_end=1.4)
         self.assertEqual(code, 0, err)
-        self.assertEqual(out.splitlines()[:2], ["take=VALID animations=on frames=5 window_frames=5",
-                                                "first_seen=0.000 lost=3"])
-        self.assertEqual(out.splitlines()[-1], "still=no")
-
-    def test_an_invalid_take_is_measured_under_a_banner_and_exits_3(self):
-        video = self.clips["ticking"]
-        stamp(video, load_after=63.2)
-        code, out, _ = run_cardframe(video)
-        self.assertEqual(code, 3)
-        self.assertEqual(out.splitlines()[:3], [
-            "INVALID take: load 63.2 at the end, at or over 50",
-            "take=INVALID animations=on frames=10 window_frames=10",
-            "first_seen=0.000 lost=0",
+        self.assertEqual(out, [
+            "take=VALID animations=on frames=44 window_frames=1",
+            "window=ramp from=1.000 to=3.400 window_s=2.400",
+            "first_seen=1.000 lost=0 faint=0 edges=full",
+            "top=100.0..100.0 bottom=260.0..260.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=0.0",
+            "contrast=40.0..40.0",
+            "motion=none",
+            "still=yes box=still",
         ])
 
-    def test_a_take_with_animations_off_exits_3_under_a_banner(self):
-        video = self.clips["ticking"]
-        stamp(video, animations="off")
-        code, out, _ = run_cardframe(video)
+    def test_an_animations_off_launch_reads_still_and_exits_3_under_a_banner(self):
+        code, out, _ = self.lines("launch", drive="launch session", drive_end=1.4, animations="off")
         self.assertEqual(code, 3)
-        self.assertEqual(out.splitlines()[0], "animations off: this take cannot show motion")
-        self.assertEqual(out.splitlines()[-1], "still=yes")
+        self.assertEqual((out[0], out[1], out[-1]), ("animations off: this take cannot show motion",
+                                                     "take=VALID animations=off frames=44 window_frames=1",
+                                                     "still=yes box=still"))
+
+    def test_a_card_sliding_in_past_the_screen_edge_is_measured_from_the_fade_and_says_its_edges_are_partial(self):
+        code, out, err = self.lines("launch-slide", drive=LAUNCH_DRIVE, drive_end=1.4)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out[1:], [
+            "window=ramp from=1.000 to=3.483 window_s=2.483",
+            "first_seen=1.467 lost=0 faint=0 edges=partial",
+            "top=100.0..100.0 bottom=260.0..260.0 left=16.0..23.7 right=186.0..193.7",
+            "worst_edge_range=7.7",
+            "contrast=40.0..40.0",
+            "motion=1.483..1.483 motion_ms=0 changed_frames=1",
+            "still=no box=changed",
+        ])
+
+    def test_a_card_flying_in_from_the_top_on_launch_reads_its_flight(self):
+        code, out, err = self.lines("launch-fly", drive=LAUNCH_DRIVE, drive_end=1.4)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out[1:], [
+            "window=ramp from=1.000 to=3.483 window_s=2.483",
+            "first_seen=1.000 lost=0 faint=0 edges=full",
+            "top=0.0..100.0 bottom=160.0..260.0 left=16.0..16.0 right=186.0..186.0",
+            "worst_edge_range=100.0",
+            "contrast=40.0..40.0",
+            "motion=1.100..1.483 motion_ms=383 changed_frames=24",
+            "still=no box=changed",
+        ])
+
+    def test_a_20_pt_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
+        code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out, [
+            "take=VALID animations=on frames=46 window_frames=3",
+            "window=ramp from=1.000 to=3.517 window_s=2.517",
+            "first_seen=1.000 lost=0 faint=0 edges=full",
+            "top=100.0..100.0 bottom=260.0..280.0 left=16.0..16.0 right=186.0..196.0",
+            "worst_edge_range=20.0",
+            "contrast=40.0..40.0",
+            "motion=1.500..1.517 motion_ms=17 changed_frames=2",
+            "still=no box=changed",
+        ])
+
+    def test_a_launch_whose_fade_ended_after_the_launch_returned_watched_under_its_tail_and_is_invalid(self):
+        code, out, _ = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=3.4)
+        self.assertEqual(code, 3)
+        self.assertEqual(out[:3], [
+            "INVALID take: the window watched 0.90 s from +2.500 s, under the 2 s tail",
+            "take=INVALID animations=on frames=134 window_frames=1",
+            "window=ramp from=2.500 to=3.400 window_s=0.900",
+        ])
+        self.assertEqual(out[-1], "still=unknown box=still")
+        code, out, err = self.lines("launch-late", drive=LAUNCH_DRIVE, drive_end=1.4, stopped=4.5)
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out[0], out[-1]), ("take=VALID animations=on frames=134 window_frames=1",
+                                             "still=yes box=still"))
+
+    def test_a_launch_take_with_no_full_screen_fade_is_invalid_and_measured_from_the_drive(self):
+        code, out, _ = self.lines("ticking", drive=LAUNCH_DRIVE, drive_start=0.5, drive_end=0.9)
+        self.assertEqual(code, 3)
+        self.assertEqual(out[:3], [
+            "INVALID take: no frame after the launch began changed three quarters of the screen, so iOS's "
+            "fade-in cannot be told from the app's motion",
+            "take=INVALID animations=on frames=10 window_frames=5",
+            "window=drive from=0.500 to=2.900 window_s=2.400",
+        ])
+        self.assertEqual(out[-1], "still=unknown box=still")
+
+    def test_from_0_on_a_launch_reads_the_springboard_and_the_fade_as_motion(self):
+        video = self.clips["launch"]
+        stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4)
+        m = cardframe.measure(video, from_s=0)
+        self.assertEqual((m.window.opened, m.box.first_seen, m.box.worst_edge_range, m.still),
+                         (Opened.FROM, 0.0, 40.0, Still.NO))
+
+    def test_three_frames_without_the_card_after_it_showed_are_lost(self):
+        code, out, err = self.lines("drop")
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out[0], out[2], out[-1]), ("take=VALID animations=on frames=5 window_frames=5",
+                                                     "first_seen=0.000 lost=3 faint=0 edges=full",
+                                                     "still=no box=changed"))
+
+    def test_an_invalid_take_is_measured_under_a_banner_reads_still_unknown_and_exits_3(self):
+        code, out, _ = self.lines("ticking", load_after=63.2)
+        self.assertEqual(code, 3)
+        self.assertEqual(out[:3], [
+            "INVALID take: load 63.2 at the end, at or over 50",
+            "take=INVALID animations=on frames=10 window_frames=10",
+            "window=start from=0.000 to=2.900 window_s=2.900",
+        ])
+        self.assertEqual(out[-1], "still=unknown box=still")
+
+    def test_a_take_with_animations_off_exits_3_under_a_banner(self):
+        code, out, _ = self.lines("ticking", animations="off")
+        self.assertEqual(code, 3)
+        self.assertEqual((out[0], out[-1]), ("animations off: this take cannot show motion", "still=yes box=still"))
 
     def test_no_card_in_the_window_exits_1(self):
-        video = self.clips["ticking"]
-        stamp(video)
-        code, out, err = run_cardframe(video, "--x", "190")
+        code, out, err = self.lines("ticking", "--x", "190")
         self.assertEqual(code, 1)
-        self.assertEqual(out, "take=VALID animations=on frames=10 window_frames=10\n")
+        self.assertEqual(out, ["take=VALID animations=on frames=10 window_frames=10",
+                               "window=start from=0.000 to=2.900 window_s=2.900"])
         self.assertEqual(err, "no card in any of the 10 frames from 0.000 s\n")
 
     def test_a_video_with_no_take_beside_it_exits_2_naming_the_stamp(self):
@@ -329,6 +407,14 @@ class CardFrameOnClips(unittest.TestCase):
         code, _, err = run_cardframe(video)
         self.assertEqual(code, 2)
         self.assertEqual(err, f"{stamped} has no screen_pt=, so its pixels cannot be read as points; record it again\n")
+
+    def test_a_screen_whose_pixels_per_point_do_not_tile_4_pt_cells_exits_2_naming_it(self):
+        video = self.dir / "odd.mp4"
+        video.write_bytes(self.clips["ticking"].read_bytes())
+        stamped = stamp(video)
+        stamped.write_text(stamped.read_text().replace("screen_pt=200x400", "screen_pt=180x360"))
+        code, _, err = run_cardframe(video)
+        self.assertEqual((code, err), (2, f"{stamped}: 3.33333 px per point does not tile 4 pt cells\n"))
 
     def test_a_stamp_that_is_not_take_1_exits_2_naming_why(self):
         video = self.dir / "future.mp4"
@@ -351,69 +437,112 @@ def card(top, bottom=None, left=16.0, right=186.0, contrast=40.0):
     return Card(top, top + 160 if bottom is None else bottom, left, right, contrast)
 
 
+FLAT = np.full((100, 50), float(PAPER), np.float32)
+DARK = np.zeros((100, 50), np.float32)
+
+
+def lit(rows):
+    cells = FLAT.copy()
+    cells[:rows] += 1.0
+    return cells
+
+
+def frames(*cards, start=0.0):
+    return [Sample(round(start + 0.1 * k, 3), c, FLAT) for k, c in enumerate(cards)]
+
+
 TAKE = take.Take(
     name="x", video="x.mp4", drive="", tail=2.0, load_limit=50.0, load_before=1.0, load_after=1.0, started=0.0,
     drive_start=0.0, drive_end=0.0, stopped=3.0, recorder_exit=0, recorder_early=False, frames=2, first_frame=0.0,
     last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on")
+LAUNCH = dataclasses.replace(TAKE, drive="launch --animated session", drive_start=0.05, drive_end=1.0, stopped=4.0)
+FADED_IN = [Sample(0.0, None, DARK), Sample(0.5, None, DARK + 100), Sample(0.6, card(100), FLAT),
+            Sample(0.7, card(100), lit(64)), Sample(0.8, card(100), FLAT)]
 
 
 class Summarize(unittest.TestCase):
 
     def test_a_cut_is_one_changed_frame_of_zero_duration(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(1.0, card(260))], 0.0)
-        self.assertEqual((m.worst_edge_range, m.motion, m.motion_ms, m.changed_frames, m.still),
-                         (160.0, (1.0, 1.0), 0, 1, False))
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(1.0, card(260), FLAT)], 0.0)
+        b = m.box
+        self.assertEqual((b.worst_edge_range, b.motion, b.motion_ms, b.changed_frames, m.still),
+                         (160.0, (1.0, 1.0), 0, 1, Still.NO))
 
     def test_a_move_under_three_quarters_of_a_point_is_not_motion_but_counts_against_still(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.5, card(100.5))], 0.0)
-        self.assertEqual((m.worst_edge_range, m.motion, m.changed_frames, m.still), (0.5, None, 0, True))
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.5, card(100.6))], 0.0)
-        self.assertEqual(m.still, False)
+        m = cardframe.summarize(TAKE, frames(card(100), card(100.5)), 0.0)
+        self.assertEqual((m.box.worst_edge_range, m.box.motion, m.box.changed_frames, m.still),
+                         (0.5, None, 0, Still.YES))
+        m = cardframe.summarize(TAKE, frames(card(100), card(100.6)), 0.0)
+        self.assertEqual(m.still, Still.NO)
 
     def test_frames_without_the_card_before_it_shows_are_not_lost_and_after_it_are(self):
-        samples = [Sample(0.0, None), Sample(0.1, None), Sample(0.2, card(100)), Sample(0.3, None),
-                   Sample(0.4, card(100))]
-        m = cardframe.summarize(TAKE, samples, 0.0)
-        self.assertEqual((m.first_seen, m.lost, m.still), (0.2, 1, False))
+        m = cardframe.summarize(TAKE, frames(None, None, card(100), None, card(100)), 0.0)
+        self.assertEqual((m.box.first_seen, m.box.lost, m.box.partial, m.still), (0.2, 1, True, Still.NO))
 
     def test_motion_skips_a_lost_frame_and_compares_the_cards_either_side(self):
-        samples = [Sample(0.0, card(100)), Sample(0.1, None), Sample(0.2, card(110)), Sample(0.3, card(110))]
-        m = cardframe.summarize(TAKE, samples, 0.0)
-        self.assertEqual((m.motion, m.changed_frames), ((0.2, 0.2), 1))
+        m = cardframe.summarize(TAKE, frames(card(100), None, card(110), card(110)), 0.0)
+        self.assertEqual((m.box.motion, m.box.changed_frames), ((0.2, 0.2), 1))
 
-    def test_a_window_with_no_card_has_no_first_seen_and_is_not_still(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, None), Sample(1.0, None)], 0.5)
-        self.assertEqual((len(m.window), m.first_seen, m.lost, m.still), (2, None, 0, False))
+    def test_a_window_with_no_card_has_no_box_and_its_stillness_is_unknown(self):
+        m = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT), Sample(1.0, None, FLAT)], 0.5)
+        self.assertEqual((len(m.in_window), m.box, m.still), (2, None, Still.UNKNOWN))
 
     def test_the_frame_showing_at_from_opens_the_window(self):
-        m = cardframe.summarize(TAKE, [Sample(0.0, card(100)), Sample(0.4, card(120)), Sample(1.0, None)], 0.5)
-        self.assertEqual((len(m.window), m.first_seen, m.lost, m.ranges["top"]), (2, 0.4, 1, (120.0, 120.0)))
+        m = cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT), Sample(0.4, card(120), FLAT),
+                                       Sample(1.0, None, FLAT)], 0.5)
+        self.assertEqual((len(m.in_window), m.box.first_seen, m.box.lost, m.box.ranges["top"]),
+                         (2, 0.4, 1, (120.0, 120.0)))
+
+    def test_a_20_pt_layout_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
+        settled = Card(top=470, bottom=820, left=16, right=386, contrast=15)
+        jumped = Card(top=470, bottom=840, left=16, right=396, contrast=15)
+        found = ([Sample(0.0, None, DARK), Sample(0.4, settled, FLAT)]
+                 + frames(*[settled] * 8, start=0.5) + [Sample(2.0, jumped, FLAT), Sample(2.02, jumped, FLAT)])
+        m = cardframe.summarize(LAUNCH, found)
+        self.assertEqual(m.window, Window(Opened.RAMP, 1, 0.4, 3.6))
+        self.assertEqual((m.box.worst_edge_range, m.box.motion, m.still), (20.0, (2.0, 2.0), Still.NO))
 
 
-class FullSize(unittest.TestCase):
-    def launch(self, last_right):
-        zoom = [Sample(1.0, card(110, left=40.0, right=162.0)), Sample(1.017, card(105, left=28.0, right=174.0))]
-        settled = [Sample(round(1.033 + 0.017 * k, 3), card(100)) for k in range(8)]
-        return zoom + settled + [Sample(1.2, card(100, right=last_right))]
+class Ramp(unittest.TestCase):
+    def test_a_change_over_three_quarters_of_the_tiles_is_the_fade_and_two_thirds_is_not(self):
+        self.assertEqual(cardframe.changed_fraction(FLAT, lit(72)), 0.75)
+        self.assertEqual(cardframe.changed_fraction(FLAT, lit(64)), 0.6666666666666666)
+        self.assertEqual(cardframe.changed_fraction(FLAT, FLAT + 0.5), 0.0)
 
-    def test_the_window_opens_after_the_last_two_unsettled_frames_in_a_row(self):
-        self.assertEqual(cardframe.launch_settled_at(self.launch(186.0), 0.0), 1.033)
+    def test_the_last_frame_after_the_launch_that_changed_three_quarters_of_the_screen_ends_the_fade(self):
+        self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.05), 2)
+        self.assertEqual(cardframe.last_ramp_frame(FADED_IN, 0.65), None)
 
-    def test_one_stray_last_frame_keeps_the_window_and_counts_against_still(self):
-        found = self.launch(187.0)
-        from_s = cardframe.launch_settled_at(found, 0.0)
-        m = cardframe.summarize(TAKE, found, from_s)
-        self.assertEqual((from_s, len(m.window), m.worst_edge_range, m.still), (1.033, 9, 1.0, False))
 
-    def test_one_dim_frame_among_the_settled_ones_is_skipped(self):
-        found = self.launch(186.0)
-        found[5] = Sample(found[5].t, card(100, contrast=20.0))
-        self.assertEqual(cardframe.launch_settled_at(found, 0.0), 1.033)
+class OpenWindow(unittest.TestCase):
+    def test_each_way_a_window_opens(self):
+        tap = dataclasses.replace(TAKE, drive="tap --id x", drive_start=0.65)
+        self.assertEqual(cardframe.open_window(LAUNCH, FADED_IN, None), (Window(Opened.RAMP, 2, 0.6, 3.4), ()))
+        self.assertEqual(cardframe.open_window(LAUNCH, FADED_IN, 0.75), (Window(Opened.FROM, 3, 0.75, 3.25), ()))
+        self.assertEqual(cardframe.open_window(tap, FADED_IN, None), (Window(Opened.DRIVE, 2, 0.65, 2.35), ()))
+        self.assertEqual(cardframe.open_window(TAKE, FADED_IN, None), (Window(Opened.START, 0, 0.0, 3.0), ()))
 
-    def test_a_tie_for_the_most_common_width_goes_to_the_later_one(self):
-        widths = [150.0, 150.0, 160.0, 160.0, 165.0, 165.0, 170.0, 170.0]
-        found = [Sample(round(1.0 + 0.017 * k, 3), card(100, left=16.0, right=16.0 + w)) for k, w in enumerate(widths)]
-        self.assertEqual(cardframe.launch_settled_at(found, 0.0), 1.102)
+    def test_a_window_that_watched_under_the_take_s_tail_says_so(self):
+        window, reasons = cardframe.open_window(dataclasses.replace(LAUNCH, stopped=2.5), FADED_IN, None)
+        self.assertEqual((window.seconds, reasons), (1.9, (
+            Reason("window", "the window watched 1.90 s from +0.600 s, under the 2 s tail"),)))
+
+    def test_a_launch_with_no_fade_opens_at_the_drive_and_says_so(self):
+        self.assertEqual(cardframe.open_window(LAUNCH, FADED_IN[2:], None), (Window(Opened.DRIVE, 0, 0.05, 3.95), (
+            Reason("ramp", "no frame after the launch began changed three quarters of the screen, so iOS's fade-in "
+                           "cannot be told from the app's motion"),)))
+
+
+class BoxOf(unittest.TestCase):
+    def test_a_faint_card_before_the_first_solid_one_is_counted_and_its_edges_not_read(self):
+        box = cardframe.box_of(frames(card(90, contrast=5.0), card(95, contrast=29.9), card(100, contrast=30.0),
+                                      card(100)), card(100))
+        self.assertEqual((box.first_seen, box.faint, box.partial, box.ranges["top"], box.changed),
+                         (0.2, 2, True, (100.0, 100.0), False))
+
+    def test_after_the_first_solid_card_every_detection_counts_however_faint(self):
+        box = cardframe.box_of(frames(card(100), card(400, contrast=2.0), card(100)), card(100))
+        self.assertEqual((box.faint, box.partial, box.worst_edge_range, box.changed), (0, False, 300.0, True))
 
 
 class Detect(unittest.TestCase):
@@ -452,6 +581,9 @@ LOAD = "load 63.2 at the end, at or over 50"
 RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
+SHORT = "the window watched 0.90 s from +2.500 s, under the 2 s tail"
+NO_FADE = ("no frame after the launch began changed three quarters of the screen, so iOS's fade-in cannot be told "
+           "from the app's motion")
 
 
 def results(*verdicts):
@@ -553,7 +685,7 @@ class Film(unittest.TestCase):
         def measure(video):
             with calls.open("a") as log:
                 log.write(f"measure {video.parent.name}/{video.stem}\n")
-            return cardframe.summarize(TAKE, [Sample(0.0, card(100))], 0.0)
+            return cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT)], 0.0)
 
         self.addCleanup(setattr, cardframe, "measure", cardframe.measure)
         cardframe.measure = measure
@@ -600,6 +732,10 @@ class JudgeTake(unittest.TestCase):
              (Verdict.INVALID, f"take INVALID: {UNCOVERED}")),
             (3, reading(rules=("load", "coverage"), invalid=f"{LOAD}; {UNCOVERED}", lost=2), 0.0,
              (Verdict.INVALID, f"take INVALID: {LOAD}; {UNCOVERED}")),
+            (3, reading(rules=("window",), invalid=SHORT, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
+            (3, reading(rules=("window",), invalid=SHORT), 0.0, (Verdict.INVALID, f"take INVALID: {SHORT}")),
+            (3, reading(rules=("ramp",), invalid=NO_FADE, worst=412.0), 0.0,
+             (Verdict.INVALID, f"take INVALID: {NO_FADE}")),
             (0, reading(animations="off", worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(animations="off"), 0.0, (Verdict.INVALID, "animations off")),
             (0, reading(animations="off", lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),

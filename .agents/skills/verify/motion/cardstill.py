@@ -13,14 +13,14 @@ Films eight takes through `verify.sh record` twice in one session: first on COMM
 filmed, so measuring never loads the host before a take. The rest-end take starts 26 s after the Superset
 log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
-A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
-an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or with animations
-off, because those can hide motion but never invent it. Else it is INVALID when the stamp is INVALID, its
-animations are not on, it started late, or the card is in no frame, because then the metric saw nothing
-and the take proves nothing; else PASS. So only a lost card or a moved edge FAILs a take, on either side,
-and only those satisfy the control. The lane FAILs when any head take FAILs, else is INVALID when any take
-on either side is, else is INVALID when no control take FAILed (the host or the metric cannot see motion
-now), else PASSes.
+A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or an
+edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window shorter
+than its tail, or with animations off, because those can hide motion but never invent it. Else it is
+INVALID when the take is INVALID, its animations are not on, it started late, or the card is in no frame,
+because then the metric saw nothing and the take proves nothing; else PASS. So only a lost card or a moved
+edge FAILs a take, on either side, and only those satisfy the control. The lane FAILs when any head take
+FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed (the
+host or the metric cannot see motion now), else PASSes.
 
 Prints one row per take, control and head side by side, then `cardstill PASS|FAIL|INVALID: <reason>`, and
 writes the table as cardstill.tsv in the head run's evidence directory. The app must be built
@@ -110,9 +110,9 @@ class Reading:
             rules=tuple(r.rule for r in m.invalid),
             invalid="; ".join(r.text for r in m.invalid),
             animations=m.take.animations,
-            first_seen=m.first_seen,
-            lost=m.lost,
-            worst_edge_range=m.worst_edge_range,
+            first_seen=m.box.first_seen if m.box else None,
+            lost=m.box.lost if m.box else 0,
+            worst_edge_range=m.box.worst_edge_range if m.box else 0.0,
             frames=m.frames,
             load=f"{m.take.load_before:.2f}/{m.take.load_after:.2f}",
         )
@@ -123,7 +123,7 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
-    seen_soundly = reading.first_seen is not None and set(reading.rules) <= take.RULES_THAT_ONLY_HIDE_MOTION
+    seen_soundly = reading.first_seen is not None and set(reading.rules) <= cardframe.HIDES_MOTION
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:

@@ -3,40 +3,66 @@
 # requires-python = ">=3.9"
 # dependencies = ["numpy"]
 # ///
-"""The Active Set Card's edges, in points, in every encoded frame of a `verify.sh record` take.
+"""The Active Set Card's box, in points, in every encoded frame of a `verify.sh record` take.
 
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
 Reads NAME.take beside the video. Each encoded frame is decoded once, at the recording's own pixels
 (video width over the stamp's screen_pt width per point), and timed by its own presentation time, in
-seconds after the take started. recordVideo writes a frame only when the screen changes, so
-the window is the frame showing at --from and every frame after it. --from is by default the drive's start
-(0 with no drive). For a launch take it is the frame from which the card keeps the most common width of
-the take's last eight cards and nine tenths of their median contrast, one stray frame aside: iOS opens an
-app by scaling its window up from the icon, or by fading it in from black under -UITEST_DISABLE_ANIMATIONS,
-and until then the system, not the app, moves the card's edges. An app's own scale-in or fade-in on launch
-therefore reads as part of the launch, and a first-appear motion that overlaps the launch zoom is measured
-only from when the zoom ends (a 300 pt slide in on first appear read 23 pt).
-The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column at
---x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
-run's middle. Frames before the card first shows are not lost; a frame after it without the card is.
+seconds after the take started. recordVideo writes a frame only when the screen changes, so a still
+screen is one frame and a window is a span of time: the frame showing when it opens, every frame after
+it, and the still screen up to the moment the recorder stopped.
+
+Window. It opens at --from S, else at the drive's start, else at 0. A launch take opens it at the last
+frame of iOS's launch fade: the last frame, after the drive began, in which at least three quarters of
+the screen changed from the frame before (24 x 12 tiles, each changed by more than 0.5 of mean luminance).
+Every recorded launch, animations on or off, fades the app in from black that way, and no app motion
+recorded changed more than 0.69 of the screen. The window is INVALID when:
+  - a launch take has no such frame (rule ramp), because then the window holds the system's fade;
+  - it watched less than the take's tail, from opening to the recorder's stop (rule window), as when the
+    fade ended after the launch returned. A tap's window opens at the drive's start and always watches
+    its tail.
+A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
+
+Box. The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column
+at --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
+run's middle. The settled card is the window's last. The box is read from the first solid card: the first
+detection with at least three quarters of the settled card's contrast. Detections before it are faint
+and their edges are not read, because a faint card reads short and narrow. edges=partial when the first
+solid card is not the window's first frame. After it every detection counts, at any contrast, and a frame
+without the card is lost.
 
 Prints key=value lines:
-  take=VALID animations=on frames=111 window_frames=110
-  first_seen=0.280 lost=83
-  top=469.5..521.5 bottom=613.5..819.5 left=9.0..16.0 right=364.0..402.0
-  worst_edge_range=206.0
-  contrast=11.5..16.9
-  motion=3.177..3.528 motion_ms=352 changed_frames=22
-  still=no
-motion spans the first and last frame whose edges moved more than 0.75 pt from the previous frame with
-the card (motion=none when none did). still=yes when the card was seen, never lost, and no edge ranged
-over more than 0.5 pt. --tsv writes one row per window frame: t, t_from_drive, top, bottom, left, right,
-contrast, blank cells for a frame with no card.
+  take=VALID animations=on frames=212 window_frames=87
+  window=ramp from=3.948 to=7.320 window_s=3.372
+  first_seen=5.048 lost=0 faint=0 edges=partial
+  top=481.3..497.3 bottom=762.3..777.3 left=16.0..26.3 right=386.0..396.3
+  worst_edge_range=16.0
+  contrast=12.2..13.0
+  motion=5.065..5.148 motion_ms=83 changed_frames=6
+  still=no box=changed
+window= is how it opened (ramp, drive, start or from), from= and to= its span, and window_s how long it
+watched. first_seen is the first solid card, lost the frames after it without the card, faint the
+detections before it. Each edge's range and worst_edge_range are over the cards from first_seen on.
+motion spans the first and last of those cards whose edges moved more than 0.75 pt from the card before
+(motion=none when none did). box=changed when the card was lost or an edge ranged over 0.5 pt. still=no
+when the box changed; else unknown when the take is INVALID for any reason, because an INVALID take cannot
+vouch for stillness; else yes. --tsv writes one row per window frame: t, t_from_drive, top, bottom, left,
+right, contrast, screen (the fraction of tiles that changed from the frame before); blank card cells for
+a frame with no card, blank screen on the take's first frame.
 
-Exit 0 measured, 1 no card in any window frame, 3 measured but the take is INVALID or its animations are
-not on (a banner line first), 2 usage or no readable NAME.take with a screen_pt=, 70 ffmpeg or ffprobe
-failed.
+It cannot see:
+  - a card that fades in place: its faint frames are not read and its solid frames hold their edges;
+  - first-appear motion that ends inside iOS's launch fade, or the part of it that ran under the fade;
+  - where a card went while it was faint, or while its left edge was right of --x (a slide from the
+    side is seen only once it crosses --x, so its edges are partial);
+  - motion still running when the recorder stopped: its range is truncated;
+  - an app change over three quarters of the screen in one frame after a launch: it reads as the fade's
+    end.
+
+Exit 0 measured, 1 no card in any window frame, 3 measured but INVALID or animations not on (a banner line
+first), 2 usage, no readable NAME.take with a screen_pt=, or pixels per point that do not tile 4 pt cells,
+70 ffmpeg or ffprobe failed.
 """
 from __future__ import annotations
 
@@ -45,25 +71,35 @@ import math
 import subprocess
 import sys
 import tempfile
-from collections import Counter
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
-from statistics import median
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from take import NoTake, Reason, Take, judge, parse, probe  # noqa: E402
+from take import RULES_THAT_ONLY_HIDE_MOTION, NoTake, Reason, Take, judge, parse, probe  # noqa: E402
 
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
 STEP_PT = 0.75
-LAUNCH_CONTRAST = 0.9
-SETTLED_FRAMES = 8
 EDGES = ("top", "bottom", "left", "right")
+
+# 218 x 100 float32 cells per 1206 x 2622 frame, 87 KB, against 12.6 MB for the frame itself.
+CELL_PT = 4.0
+GRID = (24, 12)
+# The fade's last frames change the screen by +0.7 to +1.3 each, which a 2.0 tile threshold missed.
+TILE_LUM = 0.5
+# The fade's last frame changed 0.91 to 0.98 of the tiles on all 7 recorded launches; app motion at most 0.69.
+RAMP_FRAC = 0.75
+# Fade frames at 0.54 to 0.66 of the settled contrast read the bottom edge 31 pt short; from 0.67 every edge held.
+SOLID_CONTRAST = 0.75
+
+# A window shorter than its tail hides motion and never invents it, as load does.
+HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
 
 
 class Usage(Exception):
@@ -88,8 +124,78 @@ class Card:
 
 @dataclass(frozen=True)
 class Sample:
+    """One encoded frame. cells is its mean luminance in CELL_PT squares, row 0 at the top."""
     t: float
     card: Optional[Card]
+    cells: np.ndarray
+
+
+class Opened(Enum):
+    START = "start"
+    DRIVE = "drive"
+    RAMP = "ramp"
+    FROM = "from"
+
+
+@dataclass(frozen=True)
+class Window:
+    """samples[start:], watched from `at` for `seconds`, until the recorder stopped."""
+    opened: Opened
+    start: int
+    at: float
+    seconds: float
+
+
+@dataclass(frozen=True)
+class Box:
+    first_seen: float
+    partial: bool
+    lost: int
+    faint: int
+    ranges: Dict[str, Tuple[float, float]]
+    worst_edge_range: float
+    contrast: Tuple[float, float]
+    motion: Optional[Tuple[float, float]]
+    changed_frames: int
+
+    @property
+    def changed(self) -> bool:
+        return self.lost > 0 or self.worst_edge_range > STILL_PT
+
+    @property
+    def motion_ms(self) -> Optional[int]:
+        return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
+
+
+class Still(Enum):
+    YES = "yes"
+    NO = "no"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class Measure:
+    take: Take
+    samples: Tuple[Sample, ...]
+    window: Window
+    box: Optional[Box]
+    invalid: Tuple[Reason, ...]
+
+    @property
+    def frames(self) -> int:
+        return len(self.samples)
+
+    @property
+    def in_window(self) -> Tuple[Sample, ...]:
+        return self.samples[self.window.start:]
+
+    @property
+    def still(self) -> Still:
+        if self.box is None:
+            return Still.UNKNOWN
+        if self.box.changed:
+            return Still.NO
+        return Still.UNKNOWN if self.invalid else Still.YES
 
 
 def _band(pt: float, px_per_pt: float) -> slice:
@@ -138,60 +244,90 @@ def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 
     )
 
 
-@dataclass(frozen=True)
-class Measure:
-    take: Take
-    frames: int
-    from_s: float
-    window: Tuple[Sample, ...]
-    first_seen: Optional[float]
-    lost: int
-    ranges: Dict[str, Tuple[float, float]]
-    worst_edge_range: float
-    contrast: Optional[Tuple[float, float]]
-    motion: Optional[Tuple[float, float]]
-    changed_frames: int
-    still: bool
-
-    @property
-    def motion_ms(self) -> Optional[int]:
-        return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
-
-    @property
-    def invalid(self) -> List[Reason]:
-        return judge(self.take)
+def cells_of(lum: np.ndarray, px_per_pt: float) -> np.ndarray:
+    c = round(CELL_PT * px_per_pt)
+    rows, cols = lum.shape[0] // c, lum.shape[1] // c
+    return lum[:rows * c, :cols * c].reshape(rows, c, cols, c).mean(axis=(1, 3), dtype=np.float32)
 
 
-def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
-    showing = [s for s in samples if s.t <= from_s][-1:]
-    window = tuple(showing) + tuple(s for s in samples if s.t > from_s)
-    seen = next((i for i, s in enumerate(window) if s.card is not None), None)
-    after = window[seen:] if seen is not None else ()
-    cards = [s for s in after if s.card is not None]
+def _tiles(cells: np.ndarray) -> np.ndarray:
+    r, c = cells.shape[0] // GRID[0], cells.shape[1] // GRID[1]
+    return cells[:r * GRID[0], :c * GRID[1]].reshape(GRID[0], r, GRID[1], c).mean(axis=(1, 3))
+
+
+def changed_fraction(before: np.ndarray, after: np.ndarray) -> float:
+    """The fraction of GRID tiles whose mean luminance moved more than TILE_LUM between two frames' cells."""
+    return float((np.abs(_tiles(after) - _tiles(before)) > TILE_LUM).mean())
+
+
+def screen_changes(samples: Sequence[Sample]) -> List[Optional[float]]:
+    return [None] + [changed_fraction(a.cells, b.cells) for a, b in zip(samples, samples[1:])]
+
+
+def last_ramp_frame(samples: Sequence[Sample], after: float) -> Optional[int]:
+    """The last frame at or after `after` that changed RAMP_FRAC of the screen from the frame before."""
+    changes = screen_changes(samples)
+    return max((i for i in range(1, len(samples)) if samples[i].t >= after and changes[i] >= RAMP_FRAC),
+               default=None)
+
+
+def _showing(samples: Sequence[Sample], at: float) -> int:
+    return max((i for i, s in enumerate(samples) if s.t <= at), default=0)
+
+
+def open_window(take: Take, samples: Sequence[Sample], from_s: Optional[float]) -> Tuple[Window, Tuple[Reason, ...]]:
+    reasons: List[Reason] = []
+    if from_s is not None:
+        opened, start, at = Opened.FROM, _showing(samples, from_s), from_s
+    elif not take.drive:
+        opened, start, at = Opened.START, 0, 0.0
+    else:
+        opened, start, at = Opened.DRIVE, _showing(samples, take.drive_start), take.drive_start
+        if take.drive.split()[:1] == ["launch"]:
+            last = last_ramp_frame(samples, take.drive_start)
+            if last is None:
+                reasons.append(Reason("ramp", "no frame after the launch began changed three quarters of the screen, "
+                                              "so iOS's fade-in cannot be told from the app's motion"))
+            else:
+                opened, start, at = Opened.RAMP, last, samples[last].t
+    seconds = take.stopped - at
+    if seconds < take.tail:
+        reasons.append(Reason("window", "the window watched %.2f s from +%.3f s, under the %g s tail"
+                              % (seconds, at, take.tail)))
+    return Window(opened, start, at, seconds), tuple(reasons)
+
+
+def box_of(window: Sequence[Sample], settled: Card) -> Box:
+    seen = next(i for i, s in enumerate(window)
+                if s.card is not None and s.card.contrast >= SOLID_CONTRAST * settled.contrast)
+    after = window[seen:]
+    shown = [s for s in after if s.card is not None]
+    cards = [s.card for s in shown]
     ranges = {}
     for name in EDGES:
-        values = [s.card.edge(name) for s in cards]
-        ranges[name] = (float(np.nanmin(values)), float(np.nanmax(values))) if values else (math.nan, math.nan)
-    moved = [
-        b.t for a, b in zip(cards, cards[1:])
-        if any(abs(a.card.edge(n) - b.card.edge(n)) > STEP_PT for n in EDGES)
-    ]
-    worst = max((hi - lo for lo, hi in ranges.values()), default=0.0) if cards else 0.0
-    lost = sum(1 for s in after if s.card is None)
-    return Measure(
-        take=take,
-        frames=len(samples),
-        from_s=from_s,
-        window=window,
-        first_seen=after[0].t if after else None,
-        lost=lost,
+        values = [c.edge(name) for c in cards]
+        ranges[name] = (float(np.nanmin(values)), float(np.nanmax(values)))
+    moved = [b.t for a, b in zip(shown, shown[1:])
+             if any(abs(a.card.edge(n) - b.card.edge(n)) > STEP_PT for n in EDGES)]
+    return Box(
+        first_seen=window[seen].t,
+        partial=seen > 0,
+        lost=len(after) - len(cards),
+        faint=sum(1 for s in window[:seen] if s.card is not None),
         ranges=ranges,
-        worst_edge_range=worst,
-        contrast=(min(s.card.contrast for s in cards), max(s.card.contrast for s in cards)) if cards else None,
+        worst_edge_range=max(hi - lo for lo, hi in ranges.values()),
+        contrast=(min(c.contrast for c in cards), max(c.contrast for c in cards)),
         motion=(moved[0], moved[-1]) if moved else None,
         changed_frames=len(moved),
-        still=bool(cards) and lost == 0 and worst <= STILL_PT,
     )
+
+
+def summarize(take: Take, samples: Sequence[Sample], from_s: Optional[float] = None) -> Measure:
+    window, reasons = open_window(take, samples, from_s)
+    frames = samples[window.start:]
+    settled = next((s.card for s in reversed(frames) if s.card is not None), None)
+    box = None if settled is None else box_of(frames, settled)
+    return Measure(take, tuple(samples), window, box, tuple(judge(take)) + reasons)
 
 
 def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
@@ -225,10 +361,11 @@ def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Samp
         raise DecodeFailure(str(error)) from None
     width, height = take.video_px
     px_per_pt = width / take.screen_pt[0]
-    cards = [detect(lum, px_per_pt, x, ref) for lum in decode(video, width, height)]
-    if len(cards) != len(times):
-        raise DecodeFailure(f"ffmpeg decoded {len(cards)} frames of {video} and ffprobe timed {len(times)}")
-    return [Sample(t, card) for t, card in zip(times, cards)]
+    found = [Sample(t, detect(lum, px_per_pt, x, ref), cells_of(lum, px_per_pt))
+             for t, lum in zip(times, decode(video, width, height))]
+    if len(found) != len(times):
+        raise DecodeFailure(f"ffmpeg decoded {len(found)} frames of {video} and ffprobe timed {len(times)}")
+    return found
 
 
 def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8) -> Measure:
@@ -242,26 +379,10 @@ def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8
         raise Usage(f"{stamp}: {error}") from None
     if take.screen_pt is None:
         raise Usage(f"{stamp} has no screen_pt=, so its pixels cannot be read as points; record it again")
-    found = samples(video, take, x, ref)
-    if from_s is None:
-        drive_start = take.drive_start if take.drive else 0.0
-        from_s = launch_settled_at(found, drive_start) if take.drive.split()[:1] == ["launch"] else drive_start
-    return summarize(take, found, from_s)
-
-
-def launch_settled_at(found: Sequence[Sample], after: float) -> float:
-    cards = [s for s in found if s.card is not None and s.t >= after]
-    if not cards:
-        return after
-    final = [s.card for s in cards[-SETTLED_FRAMES:]]
-    counts = Counter(c.right - c.left for c in final)
-    width = max(reversed([c.right - c.left for c in final]), key=lambda w: counts[w])
-    contrast = median(c.contrast for c in final)
-    settled = [s.card.right - s.card.left == width and s.card.contrast >= LAUNCH_CONTRAST * contrast for s in cards]
-    for i in range(len(cards) - 1, 0, -1):
-        if not settled[i] and not settled[i - 1]:
-            return cards[min(i + 1, len(cards) - 1)].t
-    return cards[0].t
+    px_per_pt = take.video_px[0] / take.screen_pt[0]
+    if not (CELL_PT * px_per_pt).is_integer():
+        raise Usage(f"{stamp}: {px_per_pt:g} px per point does not tile {CELL_PT:g} pt cells")
+    return summarize(take, samples(video, take, x, ref), from_s)
 
 
 def _span(lo: float, hi: float) -> str:
@@ -275,29 +396,34 @@ def report(m: Measure) -> List[str]:
     if m.take.animations != "on":
         lines.append(f"animations {m.take.animations}: this take cannot show motion")
     lines.append(f"take={'INVALID' if m.invalid else 'VALID'} animations={m.take.animations} frames={m.frames} "
-                 f"window_frames={len(m.window)}")
-    if m.first_seen is None:
+                 f"window_frames={len(m.in_window)}")
+    w = m.window
+    lines.append(f"window={w.opened.value} from={w.at:.3f} to={m.take.stopped:.3f} window_s={w.seconds:.3f}")
+    b = m.box
+    if b is None:
         return lines
-    lines.append(f"first_seen={m.first_seen:.3f} lost={m.lost}")
-    lines.append(" ".join(f"{name}={_span(*m.ranges[name])}" for name in EDGES))
-    lines.append(f"worst_edge_range={m.worst_edge_range:.1f}")
-    lines.append(f"contrast={_span(*m.contrast)}")
-    if m.motion is None:
+    lines.append(f"first_seen={b.first_seen:.3f} lost={b.lost} faint={b.faint} "
+                 f"edges={'partial' if b.partial else 'full'}")
+    lines.append(" ".join(f"{name}={_span(*b.ranges[name])}" for name in EDGES))
+    lines.append(f"worst_edge_range={b.worst_edge_range:.1f}")
+    lines.append(f"contrast={_span(*b.contrast)}")
+    if b.motion is None:
         lines.append("motion=none")
     else:
-        lines.append(f"motion={m.motion[0]:.3f}..{m.motion[1]:.3f} motion_ms={m.motion_ms} "
-                     f"changed_frames={m.changed_frames}")
-    lines.append(f"still={'yes' if m.still else 'no'}")
+        lines.append(f"motion={b.motion[0]:.3f}..{b.motion[1]:.3f} motion_ms={b.motion_ms} "
+                     f"changed_frames={b.changed_frames}")
+    lines.append(f"still={m.still.value} box={'changed' if b.changed else 'still'}")
     return lines
 
 
 def write_tsv(path: Path, m: Measure) -> None:
     drive_start = m.take.drive_start if m.take.drive else None
-    rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast"]
-    for s in m.window:
+    screen = screen_changes(m.samples)[m.window.start:]
+    rows = ["t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast\tscreen"]
+    for s, changed in zip(m.in_window, screen):
         from_drive = "" if drive_start is None else f"{s.t - drive_start:.3f}"
         cells = [""] * 5 if s.card is None else [f"{s.card.edge(n):.1f}" for n in EDGES] + [f"{s.card.contrast:.1f}"]
-        rows.append("\t".join([f"{s.t:.3f}", from_drive] + cells))
+        rows.append("\t".join([f"{s.t:.3f}", from_drive] + cells + ["" if changed is None else f"{changed:.3f}"]))
     path.write_text("\n".join(rows) + "\n")
 
 
@@ -321,8 +447,8 @@ def main(argv: Sequence[str]) -> int:
     print("\n".join(report(m)))
     if args.tsv:
         write_tsv(args.tsv, m)
-    if m.first_seen is None:
-        print(f"no card in any of the {len(m.window)} frames from {m.from_s:.3f} s", file=sys.stderr)
+    if m.box is None:
+        print(f"no card in any of the {len(m.in_window)} frames from {m.window.at:.3f} s", file=sys.stderr)
         return 1
     return 3 if m.invalid or m.take.animations != "on" else 0
 
