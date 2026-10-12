@@ -327,5 +327,41 @@ expect "down refuses a worktree on a branch with exit 2 and leaves it" \
     "$status $(cat "$root/err") | $([ -d "$lanes/feature" ] && echo kept)" \
     "2 lane.sh: $lanes/feature is on branch feature, not a lane; prune-merged-worktrees.sh decides branch worktrees | kept"
 
+bundle_subjects() {
+    rm -rf "$root/unbundled"
+    git clone -q "$root/origin.git" "$root/unbundled"
+    git -C "$root/unbundled" fetch -q "$1" HEAD 2>&1 && git -C "$root/unbundled" log --format=%s "$c2..FETCH_HEAD" | tr '\n' ' '
+}
+
+aged="@$(($(date +%s) - 100 * 86400)) +0000"
+for n in aged foreign; do
+    GIT_COMMITTER_DATE=$aged lane up "$n" "$c2"
+    GIT_COMMITTER_DATE=$aged commit_in "$n" dated-a >/dev/null
+    commit_in "$n" dated-b >/dev/null
+done
+git -C "$lanes/foreign" update-ref -d refs/worktree/lane-base
+git -C "$primary" reflog expire --expire=90.days --all
+for n in aged foreign; do
+    lane assess "$n" 0
+    expect "assess keeps both commits of a $n lane after reflog expiry dropped its creation entry" \
+        "$(head -1 "$(git -C "$lanes/$n" rev-parse --absolute-git-dir)/logs/HEAD" | cut -c1-40) $(cat "$root/out")" \
+        "$(git -C "$lanes/$n" rev-parse HEAD~1) keep	commits no branch or tag holds (2)"
+    lane down "$n"
+    expect "down bundles both commits of a $n lane after reflog expiry dropped its creation entry" \
+        "$status $(bundle_subjects "$(ls -d "$evidence/detached-$n"/down-*)/commits.bundle")" "0 dated-b dated-a "
+done
+
+lane up nolog "$c2"
+commit_in nolog no-reflog >/dev/null
+git -C "$lanes/nolog" reflog expire --expire=now --expire-unreachable=now --all
+lane assess nolog 0
+expect "assess keeps the commit of a lane whose reflog is entirely expired" \
+    "$(wc -c <"$(git -C "$lanes/nolog" rev-parse --absolute-git-dir)/logs/HEAD" | tr -d ' ') $(cat "$root/out")" \
+    "0 keep	commits no branch or tag holds (1)"
+lane down nolog
+expect "down bundles the commit of a lane whose reflog is entirely expired, and removes it" \
+    "$status $(bundle_subjects "$(ls -d "$evidence/detached-nolog"/down-*)/commits.bundle")| $([ -d "$lanes/nolog" ] && echo worktree)" \
+    "0 no-reflog | "
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
