@@ -200,8 +200,8 @@ one_line() {
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
 # Runs a command in a new session for at most $1 seconds, then kills its whole process group and
-# exits 124. close_fds=False keeps the slot lock on fd 8 in every child. A signal to this script
-# kills the group too, so a hung build never outlives the run and holds its slot.
+# exits 124. close_fds=False keeps the slot lock on fd 8 in every child. Ctrl-C, or any signal to
+# the watchdog, kills the group too, so an interrupted run leaves no build holding its slot.
 limited() {
     python3 -c 'import os, signal, subprocess, sys
 p = subprocess.Popen(sys.argv[2:], start_new_session=True, close_fds=False)
