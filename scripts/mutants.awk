@@ -3,8 +3,7 @@
 #
 #   awk -v path=Sources/X.swift -v changed=LINES_FILE -f scripts/mutants.awk Sources/X.swift
 #
-# LINES_FILE holds the changed line numbers, one per line. The whole file is read so that
-# multi-line strings and block comments are tracked; rows come only from changed lines. Each op
+# LINES_FILE holds the changed line numbers, one per line. Each op
 # (bool, compare, logic, negate, return, const) yields at most one mutant per line, at its first
 # match in a masked copy of the line where string literals and comments are blanked. Binary
 # operators match with one space each side, which swift-format guarantees, so generics, `->`,
@@ -42,7 +41,6 @@ function hashes(count,    s) {
 # characters are tested by lookup.
 function inSet(c, set) { return c != "" && index(set, c) > 0 }
 
-# Index just past the string whose opening quote ends right before i.
 function skipString(s, i, closeHashes,    n, c, j) {
     n = length(s)
     while (i <= n) {
@@ -78,8 +76,6 @@ function skipInterpolation(s, i,    n, c, depth, k) {
     return n + 1
 }
 
-# The line with every character inside a string literal or a comment replaced by MASK.
-# Carries block-comment and multi-line-string state across lines.
 function mask(s,    n, i, c, out, k, h, end, rest) {
     n = length(s)
     out = ""
@@ -130,7 +126,6 @@ function emit(op, before, after, mutated) {
     printf "%s\t%d\t%s\t%s\t%s\t%s\n", path, NR, op, before, after, mutated
 }
 
-# Position of the first token in m with an identifier boundary on both sides, or 0.
 function findWord(m, word,    from, p, prev, next_) {
     from = 0
     while ((p = index(substr(m, from + 1), word)) > 0) {
@@ -143,8 +138,6 @@ function findWord(m, word,    from, p, prev, next_) {
     return 0
 }
 
-# Replaces the earliest match of any from[i] with to[i]. Operators match as spaced text and display
-# trimmed; words match on identifier boundaries.
 function swapFirst(op, line, m, from, to, count, isOperator,    i, p, best, b, a) {
     best = 0
     for (i = 1; i <= count; i++) {
@@ -160,7 +153,6 @@ function trim(s) {
     return s
 }
 
-# Index of the first occurrence of token in m at bracket depth 0, searching from start, or 0.
 function topLevelIndex(m, start, token,    n, i, c, depth) {
     n = length(m)
     depth = 0
@@ -211,8 +203,6 @@ function bumpConstant(line, m,    n, i, j, k, prev, intPart, literal) {
             k = j + 1
             while (inSet(substr(m, k, 1), DIGITS "_")) k++
         }
-        # A literal directly before a colon is a dictionary key or a case label, where + 1 most
-        # often makes a duplicate key or case that does not compile.
         if (!inSet(prev, NOT_BEFORE_LITERAL) && !inSet(substr(m, k, 1), IDENT ":")) {
             literal = substr(line, i, k - i)
             intPart = substr(line, i, j - i)

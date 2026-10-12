@@ -1,15 +1,9 @@
 # shellcheck shell=bash
-# A pool of detached worktrees under the primary checkout's .build/scratch/, where mutate.sh and
-# check-each-commit.sh build and test, so the caller's worktree is never written. Slot paths never
-# change, so each keeps one warm SwiftPM .build/ and one DerivedData dir, and the pool size bounds disk.
 # The slot locks live under the git dir, where neither git clean -x nor rm -rf .build reaches: a
 # deleted lock file would let a second run take a slot the first still holds.
 
 # Sets $scratch to a slot locked for this process. Call it directly, never through $(...): the lock
 # lives on fd 8 of the calling shell, and its exit 75 must end the caller.
-# The lock is a flock on fd 8, which every child inherits. A killed run frees its slot when the last
-# build it started exits, so no stale-pid logic exists. fd 9 stays free for test-sim.sh's
-# simulator lock, which the slot's test-sim.sh takes and closes for its own children.
 scratch_claim() {
   local who=$1 common pool locks caller n preferred="" others="" holders=""
   # A git fsmonitor daemon started from here would inherit fd 8 and hold the slot for as long as it
@@ -49,7 +43,6 @@ except BlockingIOError: sys.exit(75)'; then
   exit 75
 }
 
-# Converges a slot that is missing, half-created, pruned, or a plain directory into a detached worktree.
 _scratch_ensure() {
   local caller=$1
   if ! { [ -f "$scratch/.git" ] && git -C "$scratch" rev-parse -q --verify HEAD >/dev/null 2>&1; }; then
@@ -65,7 +58,7 @@ _scratch_ensure() {
 }
 
 # Prints the tree of the caller's working state: HEAD plus staged, unstaged, and untracked files that
-# are not ignored. It stages into a copy of the index, so the caller's index and files are never written.
+# are not ignored.
 scratch_snapshot() {
   local index status=0
   index=$(mktemp)
@@ -76,9 +69,7 @@ scratch_snapshot() {
   return $status
 }
 
-# Puts the slot at COMMIT, then the files of TREE on top when given. Converges from any state,
-# including a crashed run's mutant. Git rewrites only the files that differ, so builds stay warm, and
-# clean has no -x, so .build/ and Secrets.xcconfig survive.
+# Puts the slot at COMMIT, then the files of TREE on top when given.
 scratch_sync() {
   git -C "$scratch" checkout -q --detach -f "$1"
   if [ -n "${2:-}" ]; then

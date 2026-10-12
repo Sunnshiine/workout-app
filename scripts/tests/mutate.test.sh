@@ -23,11 +23,6 @@ wait_for() { local _; for _ in $(seq 1 200); do [ -e "$1" ] && return; sleep 0.0
 mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources/Gate" "$repo/App"
 cp "$script_dir/../mutate.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
 
-# A fake suite over the tree it runs in. gateOpensAtThree (Swift Testing) and GateTests.testOpensAtFour
-# (XCTest) pin line 2 of Gate.swift, nameIsGate pins line 4 (and fails from swift test call
-# $STUB_FLAKY_FROM on), and nothing pins line 5. swift build fails on BREAK, and on a reach probe's
-# #error outside an #if canImport(UIKit) block. While $STUB_GATE exists and a mutant sits on line 2,
-# it waits, so a test can act mid-run.
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
 gate=Sources/Gate/Gate.swift
@@ -89,8 +84,6 @@ git -C "$repo" config user.name t
 printf '.build/\nSecrets.xcconfig\n' >"$repo/.gitignore"
 printf '%s\n' 'func gateOpens(_ count: Int) -> Bool {' '    count >= 3' '}' 'let gateName = "gate"' 'let gateLimit = 10' >"$repo/Sources/Gate/Gate.swift"
 printf '%s\n' 'enum Auth {' '    static func ok() -> Bool { return false }' '}' >"$repo/App/Auth.swift"
-# A stand-in for scripts/mutants.awk with its interface: on each changed line, >= becomes >, true
-# becomes false, and breakme becomes BREAK.
 cat >"$repo/scripts/mutants.awk" <<'STUB'
 BEGIN { while ((getline n < changed) > 0) want[n] = 1 }
 !want[FNR] { next }
@@ -99,8 +92,6 @@ BEGIN { while ((getline n < changed) > 0) want[n] = 1 }
 /breakme/ { m = $0; sub(/breakme/, "BREAK", m); print path "\t" FNR "\tconst\tbreakme\tBREAK\t" m }
 STUB
 
-# A committed stand-in for scripts/test-sim.sh: records how it was called, then acts as a simulator
-# suite over App/Auth.swift. testDeniesByDefault pins line 2. STUB_SIM_BUSY_AT=N exits 75 on call N.
 cat >"$repo/scripts/test-sim.sh" <<'STUB'
 #!/bin/bash
 echo "$0 $*" >>"$STUB_SIM_SEEN"
@@ -130,7 +121,6 @@ chmod +x "$repo/scripts/test-sim.sh"
 git -C "$repo" add -A
 git -C "$repo" commit -qm base
 
-# Runs mutate.sh from the caller; sets status, out (stdout without its log: line), err, and logdir.
 mutate() {
     (cd "$repo" && scripts/mutate.sh "$@") >"$root/out" 2>"$root/err"
     status=$?

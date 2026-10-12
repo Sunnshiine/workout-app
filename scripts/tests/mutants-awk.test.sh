@@ -12,9 +12,6 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
-# Runs the generator over $tmp/F.swift with the given changed lines (default: every line) and
-# compares its rows, fields joined by " | ", with the expected rows on stdin. Then applies each
-# row's mutated_line and checks the file differs from the original in that line alone.
 check() {
     local name=$1 got want n mutated
     shift

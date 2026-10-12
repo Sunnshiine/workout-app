@@ -69,7 +69,6 @@ case $max in '' | *[!0-9]* | 0) die "--max takes a whole number above 0, not '$m
 
 caller=$(git rev-parse --show-toplevel)
 caller_physical=$(cd "$caller" && pwd -P)
-# Sets rel to a path given from the current directory, made relative to the repo root.
 repo_path() {
     local dir name=""
     if [ -d "$1" ]; then
@@ -96,8 +95,6 @@ else
 fi
 cd "$caller"
 
-# Without --sim, mirrors Package.swift: the test target compiles Sources/ and Tests/ minus UI,
-# Visual, and GoogleAuthTests.
 reachable() {
     [ -z "$sim" ] || return 0
     case $1 in
@@ -191,7 +188,6 @@ else
         }' "$run/sources.tsv" -
 fi
 
-# One line for a table row: absolute paths shortened to their last component, at most 120 characters.
 one_line() {
     local s
     s=$(head -1 <<<"$1" | sed -E "s#(^|[ '\"(])/[^ '\"]*/#\1#g")
@@ -200,9 +196,7 @@ one_line() {
 }
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
-# Runs a command in a new session for at most $1 seconds, then kills its whole process group and
-# exits 124. close_fds=False keeps the slot lock on fd 8 in every child. Ctrl-C, or any signal to
-# the watchdog, kills the group too, so an interrupted run leaves no build holding its slot.
+# close_fds=False keeps the slot lock on fd 8 in every child.
 limited() {
     python3 -c 'import os, signal, subprocess, sys
 p = subprocess.Popen(sys.argv[2:], start_new_session=True, close_fds=False)
@@ -215,8 +209,6 @@ except subprocess.TimeoutExpired: stop()
 sys.exit(128 - rc if rc < 0 else rc)' "$@"
 }
 
-# Sets result (pass, fail, nocompile, error, timeout, busy), tests, killers (one per line), and
-# reason. The whole check gets $limit seconds. With a second argument the swift runner only builds.
 run_check() {
     local log=$1 build_only=${2:-} rc=0 test_log start=$SECONDS
     result="" tests=0 killers="" reason=""
@@ -270,9 +262,6 @@ run_check() {
     fi
 }
 
-# A mutant that survives may sit on a line this build never compiles: an inactive #if branch, or a
-# file in no target the runner builds. Rebuilds the snapshot with an #error just above the mutated
-# line; when that still builds, the mutant could not have been judged, so result becomes unreachable.
 probe_reach() {
     local id=$1 mfile=$2 at=$3
     git show "$tree:$mfile" >"$run/$id.orig"
@@ -352,7 +341,6 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
             ;;
         timeout) outcome=killed detail=$reason killed=$((killed + 1)) ;;
         pass) outcome=SURVIVED detail="" survived=$((survived + 1)) ;;
-        # A broken build environment fails every build; only an error in the mutated file is the mutant's.
         nocompile) case $reason in
                 "$mfile":*) outcome=nocompile detail=$reason nocompile=$((nocompile + 1)) ;;
                 *) outcome=error detail=$(one_line "$reason") errors=$((errors + 1)) ;;
@@ -364,8 +352,6 @@ while IFS=$'\t' read -r id mfile line op before after <&3; do
     print_row "$outcome" "$mfile:$line" "$op" "$before${after:+ -> $after}" "$detail"
 done 3<"$run/mutants.tsv"
 
-# Under load a timing-sensitive test can fail on its own. One rerun of the untouched snapshot, never
-# one per mutant, tells such a failure from a kill: a row every one of whose killers fails again is flaky.
 if [ -z "$busy" ] && [ -s "$run/named-kills.tsv" ]; then
     run_check "$run/recheck.log"
     if [ "$result" = fail ]; then

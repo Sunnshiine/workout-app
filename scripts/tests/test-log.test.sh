@@ -5,7 +5,6 @@ awk_file=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/test-log.awk
 pass=0
 fail=0
 
-# check MODE NAME LOG WANT
 check() {
     local mode=$1 name=$2 log=$3 want=$4 got
     got=$(printf '%s\n' "$log" | awk -v mode="$mode" -v root=/slot/ -f "$awk_file" 2>&1)
