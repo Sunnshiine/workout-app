@@ -204,6 +204,20 @@ error        Sources/Gate/Gate.swift:5  sed      5s/10/EXPLODE/  exit 1: error: 
 1 mutant: 1 error
 1"
 
+rm -f "$root/hang.pid"
+set -m
+(cd "$repo" && exec scripts/mutate.sh --filter GateTests Sources/Gate/Gate.swift '5s/10/HANG/') >/dev/null 2>&1 &
+group=$!
+set +m
+wait_for "$root/hang.pid"
+kill -KILL -- -"$group"
+wait "$group" 2>/dev/null
+for _ in $(seq 1 40); do lsof "$locks/1.lock" >/dev/null 2>&1 || kill -0 "$(cat "$root/hang.pid")" 2>/dev/null || break; sleep 0.05; done
+expect "a SIGKILL to mutate.sh's process group kills the test it started and frees the slot within a second" "$(
+    if kill -0 "$(cat "$root/hang.pid")" 2>/dev/null; then echo "the hung test still runs"; else echo "the hung test is gone"; fi
+    lsof -t "$locks/1.lock" 2>/dev/null | wc -l | tr -d ' ')" "the hung test is gone
+0"
+
 MUTATE_TIMEOUT=2 mutate --filter GateTests Sources/Gate/Gate.swift '5s/10/HANG/'
 expect "a mutant that runs past MUTATE_TIMEOUT is killed with its whole process group" "$status
 $(tail -2 <<<"$out")

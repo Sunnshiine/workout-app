@@ -96,13 +96,13 @@ expect "a claim with every slot held exits 75 naming each holder" "$status $got"
 
 kill -9 "$(cat "$root/pid1")"
 sleep 0.2
-got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"' 2>/dev/null)
-expect "a killed holder keeps its slot while a child it started still runs" "$?" 75
-rm "$root/gate1"
-while kill -0 "$(cat "$root/child1")" 2>/dev/null; do sleep 0.05; done
-got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"')
-expect "the slot frees when the killed holder's last child exits" "$got" "$pool/1"
-rm "$root/gate2"
+got=$(SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"; cat "$locks/1.lock" | sed "s/$$/SELF/"')
+expect "a claim kills what a dead holder left running in its slot and takes the slot" "$got
+$(if kill -0 "$(cat "$root/child1")" 2>/dev/null; then echo "the leftover still runs"; else echo "the leftover is gone"; fi)" \
+"$pool/1
+t (pid SELF)
+the leftover is gone"
+rm "$root/gate1" "$root/gate2"
 
 got=$(GIT_CONFIG_VALUE_0=true in_tree "$repo" 'scratch_claim t; scratch_sync HEAD; git -C "$scratch" status --porcelain'
     SCRATCH_SLOTS=1 in_tree "$repo" 'scratch_claim t; echo "$scratch"')
