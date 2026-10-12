@@ -4,12 +4,13 @@ set -uo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=HOST-ADMISSION-TEST-$$
+sim2=$sim-2
 state=/tmp/workout-verify-$sim
 apps=()
 cleanup() {
     touch "$root/release"
     [ ${#apps[@]} -eq 0 ] || { kill "${apps[@]}"; wait "${apps[@]}"; } 2>/dev/null
-    rm -rf "$root" "$state"
+    rm -rf "$root" "$state" "/tmp/workout-verify-$sim2"
 }
 trap cleanup EXIT
 repo=$root/repo
@@ -37,10 +38,24 @@ exit 1
 STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
-[ "\$*" = "simctl list devices available -j" ] || { echo "\$*" >> "$root/xcrun-calls"; exit 0; }
-python3 -c 'import json, sys
-others = [{"udid": "OTHER-%d" % i, "state": "Booted"} for i in range(int(sys.argv[1]))]
-print(json.dumps({"devices": {"iOS-27-0": others + [{"udid": "$sim", "state": "Booted", "name": "iPhone 17 Pro"}]}}))' "\${STUB_BOOTED_OTHERS:-0}"
+if [ "\$*" != "simctl list devices available -j" ]; then
+    echo "\$*" >> "$root/xcrun-calls"
+    [ "\$2" != boot ] || echo "\$3" >> "$root/booted"
+    exit 0
+fi
+echo call >> "$root/list-calls"
+if [ "\$(wc -l < "$root/list-calls")" -gt "\${STUB_LIST_OK_CALLS:-1000}" ]; then
+    echo "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)" >&2
+    exit 1
+fi
+python3 -c 'import json, os, sys
+others = [{"udid": "OTHER-%d" % i, "state": "Booted", "name": "iPad Pro"} for i in range(int(sys.argv[1]))]
+shut = sys.argv[2].split()
+booted = open(sys.argv[3]).read().split() if os.path.exists(sys.argv[3]) else []
+ours = ["$sim"] + [u for u in shut if u != "$sim"]
+print(json.dumps({"devices": {"iOS-27-0": others + [
+    {"udid": u, "state": "Shutdown" if u in shut and u not in booted else "Booted", "name": "iPhone 17 Pro"}
+    for u in ours]}}))' "\${STUB_BOOTED_OTHERS:-0}" "\${STUB_SHUTDOWN:-}" "$root/booted"
 STUB
 cat >"$root/bin/sysctl" <<STUB
 #!/bin/sh
@@ -59,10 +74,13 @@ echo "** BUILD FAILED **"
 exit 65
 STUB
 chmod +x "$root/bin/"*
-export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_BUILD_SLOT_DIR=$root/slots
+export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
 unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS
 
-reset() { rm -rf "$state" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/holding" "$root/release"; }
+reset() {
+    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
+        "$root/booted" "$root/holding" "$root/release"
+}
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
 age_minutes() { python3 -c 'import os, sys, time; t = time.time() - int(sys.argv[2]) * 60; os.utime(sys.argv[1], (t, t))' "$1" "$2"; }
@@ -155,6 +173,37 @@ STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "the claimer's own booted simulator does not count against the cap" "$status $(builds)" "65 test-without-building"
 
 reset
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build unit >"$root/out" 2>"$root/err"; status=$?
+expect "a claim the host refuses boots nothing" "$status $(cat "$root/xcrun-calls" 2>/dev/null)" "75 "
+reset
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=5 test_sim --no-build; status=$?
+expect "an admitted claim boots its shut-down simulator before the run" "$status $(cat "$root/xcrun-calls") $(builds)" \
+    "65 simctl boot $sim test-without-building"
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >"$root/out" 2>"$root/err"; status=$?
+expect "the next claim counts a simulator the last claim booted" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+
+reset
+mkdir -p "$root/locks"
+python3 -c 'import fcntl, sys, time
+admit = open(sys.argv[1], "a")
+fcntl.flock(admit, fcntl.LOCK_EX)
+open(sys.argv[2], "w").close()
+time.sleep(30)' "$root/locks/admit" "$root/holding" &
+admitting=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+kill "$admitting"; wait "$admitting" 2>/dev/null
+expect "claims are admitted one at a time" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: another claim is being admitted (lsof $root/locks/admit lists it)"
+
+reset
+STUB_LIST_OK_CALLS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a simulator listing that fails holds the claim" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: xcrun simctl list devices failed: An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)"
+
+reset
 WORKOUT_SIM_CAP=six test_sim --no-build; status=$?
 expect "a knob that is not a whole number is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_SIM_CAP must be a whole number: six"
 reset
@@ -170,7 +219,7 @@ for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "a build waits while every slot is taken, and gives up with 75, not a build failure" "$status $(builds)" "75 build"
 expect "the slot refusal reaches stderr through the build log's redirect" "$(refusal)" \
-    "gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): verify.sh (pid $first); lsof $root/slots/* lists every process holding one"
+    "gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): verify.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
 kill -9 "$first"; wait "$first" 2>/dev/null
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "the xcodebuild of a killed run keeps its slot until it exits" "$status $(builds)" "75 build"

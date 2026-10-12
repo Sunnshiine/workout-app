@@ -135,7 +135,7 @@ host_knob() {
 
 # Runs CHECK ARG... in this shell until it returns 0, so a lock CHECK takes stays held. A failing CHECK
 # sets busy_reason. Says why on the first wait and once a minute. Every wait in one script shares one
-# WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's ten minutes.
+# WORKOUT_ADMIT_WAIT, so the 75 arrives inside the Bash tool's ten minutes, last poll included.
 wait_until_clear() {
   local what=$1 waited said=-60
   shift
@@ -163,32 +163,51 @@ load_clear() {
   return 1
 }
 
+# Admits a claim on UDID while the load and the booted count leave room, and boots UDID if it is shut
+# down. One claim at a time decides and boots, so the next one counts the simulator this one booted.
 host_clear() {
-  local others
+  local listing counts others own rc=1
   load_clear "$WORKOUT_LOAD_LIMIT" || return 1
-  others=$(xcrun simctl list devices available -j 2>/dev/null | UDID="$1" python3 -c '
+  exec 7>>"$host_lock_dir/admit"
+  if ! try_flock 7 LOCK_EX 20; then
+    exec 7>&-
+    busy_reason="another claim is being admitted (lsof $host_lock_dir/admit lists it)"
+    return 1
+  fi
+  if ! listing=$(xcrun simctl list devices available -j 2>&1); then
+    busy_reason="xcrun simctl list devices failed: $listing"
+  elif ! counts=$(printf %s "$listing" | UDID="$1" python3 -c '
 import json, os, sys
-try: runtimes = json.load(sys.stdin)["devices"].values()
-except ValueError: runtimes = []
-print(sum(d.get("state") == "Booted" and d.get("udid") != os.environ["UDID"] for ds in runtimes for d in ds))') || true
-  [ "${others:-0}" -ge "$WORKOUT_SIM_CAP" ] || return 0
-  busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
-  return 1
+devices = [d for ds in json.load(sys.stdin)["devices"].values() for d in ds]
+mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
+print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' 2>&1); then
+    busy_reason="xcrun simctl list devices printed no device list: $counts"
+  else
+    read -r others own <<< "$counts"
+    if [ "$others" -ge "$WORKOUT_SIM_CAP" ]; then
+      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
+    else
+      [ "${own:-}" != Shutdown ] || xcrun simctl boot "$1" 7>&- 9>&- || exit
+      rc=0
+    fi
+  fi
+  exec 7>&-
+  return $rc
 }
 
 take_build_slot() {
-  local dir=${WORKOUT_BUILD_SLOT_DIR:-/tmp/workout-build-slots} i=0 holders=
-  mkdir -p "$dir"
+  local slot i=0 holders=
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
-    exec 8>>"$dir/$i"
+    slot=$host_lock_dir/build-$i
+    exec 8>>"$slot"
     if try_flock 8 LOCK_EX 1; then
-      printf '%s (pid %s)\n' "${0##*/}" "$$" > "$dir/$i"
+      printf '%s (pid %s)\n' "${0##*/}" "$$" > "$slot"
       return 0
     fi
     exec 8>&-
-    holders="$holders${holders:+, }$(cat "$dir/$i")"
+    holders="$holders${holders:+, }$(cat "$slot")"
   done
-  busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $dir/* lists every process holding one"
+  busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $host_lock_dir/build-* lists every process holding one"
   return 1
 }
 
@@ -211,5 +230,7 @@ require_sim_free() {
 
 host_knob WORKOUT_SIM_CAP 6 1
 host_knob WORKOUT_LOAD_LIMIT 50 1
-host_knob WORKOUT_ADMIT_WAIT 600 0
+host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
+host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
+mkdir -p "$host_lock_dir"

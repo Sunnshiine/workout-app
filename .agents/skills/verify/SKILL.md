@@ -297,7 +297,7 @@ a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` w
 may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
 
-Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (600), while
+Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), while
 `WORKOUT_SIM_CAP` other simulators are booted (6) or the 1-minute load is over `WORKOUT_LOAD_LIMIT`
 (50), and exits 75 with the reason if it never clears. Each `build` and each `test-sim.sh` build
 takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. Gate anything else heavy
