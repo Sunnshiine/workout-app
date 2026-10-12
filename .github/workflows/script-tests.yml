@@ -8,7 +8,8 @@ on:
       - ".sandcastle/**"
       - ".claude/settings.json"
       - ".swiftlint.yml"
-      - "Package.resolved"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -20,7 +21,8 @@ on:
       - ".sandcastle/**"
       - ".claude/settings.json"
       - ".swiftlint.yml"
-      - "Package.resolved"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
@@ -34,6 +36,7 @@ concurrency:
 jobs:
   script-tests:
     if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'script-tests (edit, base unchanged)' || 'script-tests' }}
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
