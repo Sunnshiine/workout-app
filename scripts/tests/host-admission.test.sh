@@ -42,7 +42,13 @@ if [ "\$*" != "simctl list devices available -j" ]; then
     echo "\$*" >> "$root/xcrun-calls"
     case "\$*" in
       "simctl boot "*)
-        [ -z "\${STUB_BOOT_FAILS:-}" ] || { [ "\$STUB_BOOT_FAILS" != raced ] || echo "\$3" >> "$root/booted"
+        if [ -n "\${STUB_BOOT_HOLD:-}" ]; then
+            touch "$root/boot-holding"
+            i=0
+            while [ ! -f "$root/release" ] && [ \$i -lt 300 ]; do sleep 0.1; i=\$((i + 1)); done
+        fi
+        [ -z "\${STUB_BOOT_FAILS:-}" ] || { case \$STUB_BOOT_FAILS in raced) echo "\$3" >> "$root/booted" ;;
+            booting) echo "\$3" >> "$root/booting" ;; esac
             echo "Unable to boot device in current state: Booted" >&2; exit 149; }
         echo "\$3" >> "$root/booted" ;;
       "simctl list devices booted") sed 's/.*/    iPhone 17 Pro (&) (Booted)/' "$root/booted" 2>/dev/null ;;
@@ -59,10 +65,12 @@ python3 -c 'import json, os, sys
 others = [{"udid": "OTHER-%d" % i, "state": "Booted", "name": "iPad Pro"} for i in range(int(sys.argv[1]))]
 shut = sys.argv[2].split()
 booted = open(sys.argv[3]).read().split() if os.path.exists(sys.argv[3]) else []
+booting = open(sys.argv[4]).read().split() if os.path.exists(sys.argv[4]) else []
 ours = ["$sim"] + [u for u in shut if u != "$sim"]
+state = lambda u: "Booting" if u in booting else "Shutdown" if u in shut and u not in booted else "Booted"
 print(json.dumps({"devices": {"iOS-27-0": others + [
-    {"udid": u, "state": "Shutdown" if u in shut and u not in booted else "Booted", "name": "iPhone 17 Pro"}
-    for u in ours]}}))' "\${STUB_BOOTED_OTHERS:-0}" "\${STUB_SHUTDOWN:-}" "$root/booted"
+    {"udid": u, "state": state(u), "name": "iPhone 17 Pro"} for u in ours]}}))' \
+    "\${STUB_BOOTED_OTHERS:-0}" "\${STUB_SHUTDOWN:-}" "$root/booted" "$root/booting"
 STUB
 cat >"$root/bin/sysctl" <<STUB
 #!/bin/sh
@@ -86,7 +94,7 @@ unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKO
 
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
-        "$root/booted" "$root/holding" "$root/release"
+        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release"
 }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
@@ -110,7 +118,7 @@ test_sim --no-build; status=$?
 expect "a run unused for 61 min is reclaimed and the claim goes on" "$status $(builds)" "65 test-without-building"
 expect "the reclaim names the run and its idle time" "$(head -1 "$root/err")" \
     "reclaimed $sim from verify run abandoned-run (pid $app): no verify.sh call used it for 61 min, and the lease is 60 min"
-expect "the reclaim leaves the run's record for the next launch to overwrite" "$(ls "$state" | tr '\n' ' ')" "args lock pid run "
+expect "a reclaim drops the abandoned run's record, so no later call renews it" "$(ls "$state" | tr '\n' ' ')" "lock run "
 expect "an app launched without Live Activities is left for the next install to replace" "$(cat "$root/xcrun-calls" 2>/dev/null)" ""
 
 reset; own_the_app live-activity-run 61 ""
@@ -134,17 +142,28 @@ reset; own_the_app lane-812 5
 VERIFY_RUN=lane-812 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a takeover the host refuses leaves the run's app recorded and announces nothing" \
     "$status $(ls "$state" | tr '\n' ' ')$(grep -c "taking over" "$root/err")" "75 args lock pid run 0"
-reset; own_the_app lane-812 5
-SIM=$sim WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
+reset; own_the_app lane-812 5 ""
+SIM=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
-VERIFY_RUN=lane-812 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_SHUTDOWN=$sim VERIFY_RUN=lane-812 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 touch "$root/release"; wait "$first"
-expect "a takeover refused at the build slot leaves the run's app recorded" "$status $(ls "$state" | tr '\n' ' ')" \
-    "75 args lock pid run "
+expect "a takeover refused at the build slot boots, uninstalls and announces nothing, and keeps the record" \
+    "$status $(cat "$root/xcrun-calls" 2>/dev/null)$(grep -c "taking over" "$root/err") $(ls "$state" | tr '\n' ' ')" \
+    "75 0 args lock pid run "
 reset; own_the_app abandoned-run 61
 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a reclaim the host refuses leaves the abandoned run recorded" "$status $(ls "$state" | tr '\n' ' ')" "75 args lock pid run "
+reset; own_the_app abandoned-run 61
+SIM=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+touch "$root/release"; wait "$first"
+SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
+test_sim --no-build; status="$status $?"
+expect "a reclaim refused at the build slot stays reclaimed, though a verify.sh call that names no run follows" \
+    "$status $(grep -c 'owns the app' "$root/err")" "75 65 0"
 
 reset; own_the_app lane-812 59
 SIM=$sim VERIFY_RUN=lane-813 "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
@@ -154,6 +173,9 @@ expect "a verify.sh call for the run renews its lease" "$(minutes_old "$state/pi
 age_minutes "$state/pid" 59
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
 expect "a verify.sh call that names no run renews the recorded one" "$(minutes_old "$state/pid")" "0"
+age_minutes "$state/pid" 61
+SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
+expect "a verify.sh call that names no run does not revive an expired lease" "$(minutes_old "$state/pid")" "61"
 rm "$state/pid"
 SIM=$sim "$repo/.agents/skills/verify/verify.sh" tree >/dev/null 2>&1
 expect "renewing never recreates a stopped run's pid file" "$(ls "$state" | tr '\n' ' ')" "args run "
@@ -195,9 +217,21 @@ reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
 expect "a boot that fails because another process booted the simulator goes on" "$status $(builds)" "65 test-without-building"
 reset
+STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=booting test_sim --no-build; status=$?
+expect "a boot that fails because another process is booting the simulator goes on" "$status $(builds)" "65 test-without-building"
+reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=1 test_sim --no-build; status=$?
 expect "a boot that fails leaves it shut down, exits 70, and says why" "$status $(builds) $(cat "$root/err")" \
     "70  could not boot $sim: Unable to boot device in current state: Booted"
+
+reset
+STUB_SHUTDOWN=$sim STUB_BOOT_HOLD=1 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
+kill -9 "$first"; wait "$first" 2>/dev/null
+WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+touch "$root/release"
+expect "a claimer killed during its boot frees the simulator and the admit lock at once" "$status $(builds)" "65 test-without-building"
 
 reset
 STUB_LIST_WARNING=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
@@ -224,10 +258,12 @@ open(sys.argv[2], "w").close()
 time.sleep(30)' "$root/locks/admit" "$root/holding" &
 admitting=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+STUB_SHUTDOWN=$sim WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "claims that boot a simulator are admitted one at a time" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: another claim is booting a simulator (lsof $root/locks/admit lists it)"
 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a claim on a booted simulator does not wait behind another claim's boot" "$status $(builds)" "65 test-without-building"
 kill "$admitting"; wait "$admitting" 2>/dev/null
-expect "claims are admitted one at a time" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim: another claim is being admitted (lsof $root/locks/admit lists it)"
 
 reset
 STUB_LIST_OK_CALLS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?

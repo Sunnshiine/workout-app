@@ -275,7 +275,8 @@ directory yourself once its proof is filed.
 One app instance per simulator, and one run owns it. `launch` and `scripts/test-sim.sh` refuse
 (exit 75) while another run's app is alive on the same simulator and a `verify.sh` call for that
 run came in the last 60 minutes. A run quiet for longer counts as abandoned, and the next claim
-takes the simulator and says so. Pass the same `VERIFY_RUN` to take your own run's app with a second
+takes the simulator and says so. A call with no `VERIFY_RUN` keeps a live lease going but cannot
+revive an expired one. Pass the same `VERIFY_RUN` to take your own run's app with a second
 `launch` or a `test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
