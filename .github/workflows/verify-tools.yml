@@ -5,14 +5,11 @@ on:
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
-      - "scripts/contact-sheet.*"
+      - "scripts/contact-sheet.swift"
       - "scripts/ensure-simulator.sh"
-      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/test-log-summary.awk"
-      - "scripts/tests/test-sim.test.sh"
-      - "scripts/tests/flake-hunt.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -20,14 +17,11 @@ on:
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
-      - "scripts/contact-sheet.*"
+      - "scripts/contact-sheet.swift"
       - "scripts/ensure-simulator.sh"
-      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/test-log-summary.awk"
-      - "scripts/tests/test-sim.test.sh"
-      - "scripts/tests/flake-hunt.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
