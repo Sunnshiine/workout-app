@@ -85,8 +85,9 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 ## Verification
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
-gate, the simulator-hosted unit and component suite, and the visual gate. CI never runs
-`WorkoutTrackerUITests` (#662), so only a local `scripts/test-sim.sh ui` proves a UI test. A PR
+gate, the simulator-hosted unit and component suite, the visual gate, and swift-format on the
+Swift files the PR changes. CI runs `WorkoutTrackerUITests` only when a change touches `App/` or
+`Tests/UI/`, or on `gh workflow run ci.yml --ref <branch>` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
 more) starts no run.
 
