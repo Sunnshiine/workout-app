@@ -182,9 +182,10 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
   `LANE_WORKTREE`, and `VERIFY_EVIDENCE`, an evidence directory in the main checkout that outlives
   the worktree. The shell forgets them between calls, so start each call with
   `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
-- `scripts/lane.sh down <name>` saves any uncommitted diff, untracked files, commits no branch holds, and
-  the lane's `.build/test-sim` runs into that evidence directory, then removes the worktree, its
-  simulator, and its DerivedData. It refuses with exit 75 while a run holds the simulator.
+- `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
+  touches anything else while a run holds the simulator. It then saves any uncommitted diff,
+  untracked files, commits no branch holds, and the lane's `.build/test-sim` runs into that evidence
+  directory, and removes the worktree and its DerivedData.
 - `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
   as a candidate, and `--apply` removes it through `lane.sh down`.
 

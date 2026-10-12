@@ -18,12 +18,12 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           when <commit> is not here yet. Runs .githooks/post-checkout in the worktree, so it has
           Secrets.xcconfig. Leaves the simulator Shutdown; test-sim.sh and verify.sh boot it.
   env     print the env of an existing lane; reads only.
-  down    save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
+  down    delete the simulator first, so a run holding it stops down with exit 75 before anything
+          else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
           uncommitted.diff, untracked.tar of untracked and ignored-but-not-regenerable files,
           commits.bundle of commits no branch or tag holds, copies of .build/test-sim and
-          .build/verify), then remove the worktree, its DerivedData, and its simulator. Each step
-          skips what is already gone, so a second down exits 0. --if-idle removes only when assess
-          says remove.
+          .build/verify); then remove the worktree and its DerivedData. Each step skips what is
+          already gone, so a second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked, holds a nested worktree, has uncommitted changes or
@@ -42,7 +42,7 @@ Each later Bash call re-derives them, for example:
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
 a locked lane or one holding a nested worktree, or down run from the lane's own copy of this script;
-69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then removes nothing);
+69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree);
 75 a test-sim or verify run holds the lane's simulator, or the simulator pool is busy.
 EOF
   exit 2
@@ -275,7 +275,7 @@ for d in sorted(glob.glob(os.path.join(sys.argv[1], "WorkoutTracker-*"))):
 }
 
 lane_down() {
-  local idle= udid reg branch work dir saved removed=0 d
+  local idle= reg branch work dir saved removed=0 d
   if [ "${1:-}" = --if-idle ]; then
     [ $# -eq 3 ] || usage
     whole_days "$2"
@@ -289,8 +289,6 @@ lane_down() {
     assess "$idle"
     [ "$verdict" = remove ] || { echo "SKIPPED: $reason" >&2; exit 1; }
   fi
-  udid=$(lane_udids)
-  for d in $udid; do require_sim_free "$d"; done
   git -C "$primary" worktree prune
   reg=$(registration)
   if [ -n "$reg" ]; then
@@ -299,6 +297,10 @@ lane_down() {
     ! printf '%s\n' "$reg" | grep -q '^locked' || die 2 "lane $name is locked; git worktree unlock $wt first"
     work=$(nested_worktree)
     [ -z "$work" ] || die 2 "lane $name holds the worktree $work; remove that first"
+  fi
+  # First, so a simulator a run holds stops down (exit 75) before anything is saved or removed.
+  "$here/sim-pool.sh" delete "$name" || exit
+  if [ -n "$reg" ]; then
     dir=$evidence/down-$(date +%Y%m%d-%H%M%S)
     saved=$(save_lane "$dir")
     echo "lane.sh: saved $(printf '%s\n' "$saved" | tr '\n' ' ')to $dir" >&2
@@ -312,7 +314,6 @@ lane_down() {
     removed=$((removed + 1))
   done < <(derived_data_of "$wt/WorkoutTracker.xcodeproj")
   [ "$removed" -eq 0 ] || echo "lane.sh: removed $removed DerivedData dir(s)" >&2
-  "$here/sim-pool.sh" delete "$name"
 }
 
 [ $# -ge 1 ] || usage

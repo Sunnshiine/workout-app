@@ -116,6 +116,31 @@ expect "delete while a run holds the simulator exits 75 and deletes nothing" \
     "$status $(cat "$root/err") | $(calls) | $(listing | grep -c "$P-4")" \
     "75 $P-4 is held by a test-sim.sh unit (pid 4242); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$P-4/lock lists every process holding it) |  | 1"
 
+xcrun simctl boot "$P-4"
+FAKE_SIM_SLOW_SHUTDOWN="$root/shutting" "$scripts/sim-pool.sh" delete c >"$root/out" 2>"$root/err" &
+deleter=$!
+while [ ! -f "$root/shutting" ]; do sleep 0.05; done
+claim=$(bash -c '. "$1/sim-lock.sh" && claim_sim "$2" "test-sim.sh run" && echo claimed' _ "$scripts" "$P-4" 2>&1)
+claim_status=$?
+wait "$deleter"
+status=$?
+expect "a claim while delete shuts the simulator down exits 75, and the delete finishes" \
+    "$claim_status $claim | $status $(listing | grep -c "$P-4")" \
+    "75 $P-4 is held by a sim-pool.sh delete c (pid $deleter); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$P-4/lock lists every process holding it) | 0 0"
+
+seed workout-lane-fx
+python3 -c 'import time; time.sleep(60)' -UITEST_FIXTURE &
+fixture=$!
+mkdir -p "/tmp/workout-verify-$P-5"
+echo "$fixture" >"/tmp/workout-verify-$P-5/pid"
+echo run-7 >"/tmp/workout-verify-$P-5/run"
+pool delete fx
+kill "$fixture"
+wait "$fixture" 2>/dev/null
+expect "delete while a verify run's app is live exits 75 and deletes nothing" \
+    "$status $(cat "$root/err") | $(calls) | $(listing | grep -c "$P-5")" \
+    "75 sim-pool: a verify run run-7 owns the app on $P-5 (pid $fixture); if it is yours, run: SIM=$P-5 VERIFY_RUN=run-7 $(dirname "$scripts")/.agents/skills/verify/verify.sh stop, and delete again |  | 1"
+
 for n in 1 2 3 4 5 6; do seed "iPhone 17 Pro $n" Booted; done
 xcrun simctl shutdown "$P-2"
 rm -f "$root/calls"
