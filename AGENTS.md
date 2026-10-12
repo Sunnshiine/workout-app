@@ -100,7 +100,8 @@ more) starts no run.
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Pin `OS=27.0` in every `-destination`. A machine with two runtimes holds two devices named
   iPhone 17 Pro, and xcodebuild may pick the wrong one.
-- Concurrent simulator runs each need their own worktree and their own simulator. Pass the UDID
+- Concurrent simulator runs each need their own worktree and their own simulator.
+  `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
   another `test-sim.sh` run or a verify run holds it, or after waiting up to 540 s
   (`WORKOUT_ADMIT_WAIT`) for the host's load, booted simulators, or build slots; `--help` names each.
@@ -122,7 +123,8 @@ more) starts no run.
 - Land with `scripts/ci-wait.sh N` and the merge command it prints. Leave out `--delete-branch`.
   GitHub deletes the remote branch itself, and the flag switches whichever worktree holds the
   branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged or
-  closed and removes them only under `--apply`.
+  closed, and clean lane worktrees idle past `--lane-idle-days`, and removes them only under
+  `--apply`.
 
 ## Agent workflows
 
