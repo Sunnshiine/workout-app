@@ -37,6 +37,7 @@ while [ $# -gt 0 ]; do
     shift
 done
 cat "$STUB_LOG"
+[ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
 exit "$STUB_RC"
 STUB
 cat >"$root/bin/xcrun" <<STUB
@@ -415,7 +416,9 @@ expect() {
     fi
 }
 
-printf '%s\n' "✘ Test run with 30 tests in 8 suites failed after 4.437 seconds with 1 issue." "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
+printf '%s\n' "✘ Test seededSessionViewMatchesVisualBaseline() recorded an issue at SessionViewVisualTests.swift:11:32: Issue recorded" \
+    "↳ Snapshot does not match reference." "✘ Test run with 30 tests in 8 suites failed after 4.437 seconds with 1 issue." \
+    "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
 STUB_SUMMARY='{"passedTests":29,"failedTests":1,"skippedTests":0}' run --no-build --sim "$sim" visual
 bundle=$(sed -n 's/^bundle: //p' "$root/out")
 expect "a run hands xcodebuild the bundle path it printed" "$(grep -A1 -x -- -resultBundlePath "$root/args" | tail -1)" "$bundle"
@@ -429,8 +432,10 @@ expect "a passing visual run names no diff command" "$(grep -c '^snapshot diffs'
 "0
 test-sim: suite=visual passed=30 failed=0 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
+printf '%s\n' "✘ Test parses() recorded an issue at ParserTests.swift:9:5: Expectation failed: isValid" \
+    "✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue." "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
 STUB_SUMMARY='{"passedTests":1019,"failedTests":1}' run --no-build --sim "$sim" unit WorkoutTrackerTests/ParserTests
-expect "a failed run with no snapshot suite selected names no diff command" "$(tail -1 "$root/out"; grep -c '^snapshot diffs' "$root/out")" \
+expect "a failed run with no snapshot mismatch names no diff command" "$(tail -1 "$root/out"; grep -c '^snapshot diffs' "$root/out")" \
 "test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
 0"
 
@@ -452,6 +457,22 @@ for selection in unit visual WorkoutTrackerSnapshotTests/BlockGridVisualTests; d
     run --no-build --sim "$sim" "$selection"
     expect "$selection skips the keyboard step" "$([ -e "$root/keyboard" ] && echo ran || echo skipped)" skipped
 done
+
+run --no-build unit --sim
+status=$?
+expect "a --sim with no UDID is a usage error, not a clean run" "$status $(cat "$root/out")" "2 $(result unit 2)"
+
+rm -f "$root/seen" "$root/load-read"
+printf '%s\n' "◇ Test run started." >"$root/xcodebuild.log"
+STUB_SLEEP=2 HOME=$root/home PATH="$root/bin:$PATH" STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/out STUB_SEEN=$root/seen \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err" &
+pid=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do [ -e "$root/seen" ] && break; sleep 0.2; done
+kill -TERM "$pid"
+wait "$pid"
+status=$?
+expect "a run killed with TERM reports exit=143, not the last command's 0" "$status $(tail -1 "$root/out" | sed 's/ load1=.*//')" \
+    "143 test-sim: suite=unit passed=- failed=- exit=143"
 
 STUB_KEYBOARD_RC=70 run --no-build --sim "$sim" ui
 status=$?

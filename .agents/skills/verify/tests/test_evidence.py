@@ -1329,7 +1329,10 @@ class SimulatorPick(unittest.TestCase):
         return done.returncode, done.stdout, done.stderr, calls.read_text().splitlines() if calls.exists() else []
 
     def run_test_sim(self, *argv):
-        return self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
+        code, out, err, calls = self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
+        body, _, last = out.rstrip("\n").rpartition("\n")
+        self.assertRegex(last, r"^test-sim: suite=\S+ passed=- failed=- exit=%d load1=\S+/\S+ bundle=-$" % code)
+        return code, body + "\n" if body else "", err, calls
 
     def verify(self, *argv, **env):
         return self.run_script([str(self.checkout / ".agents" / "skills" / "verify" / "verify.sh")] + list(argv), **env)
