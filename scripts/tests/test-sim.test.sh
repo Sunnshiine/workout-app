@@ -56,7 +56,7 @@ touch "$STUB_LOAD_READ"
 STUB
 chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl"
 export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard STUB_LOAD_READ=$root/load-read
-result() { echo "test-sim: suite=$1 passed=- failed=- exit=$2 load1=1.50/2.50 bundle=-"; }
+result() { echo "test-sim: suite=$1 passed=- failed=- expected=- exit=$2 load1=1.50/2.50 bundle=-"; }
 
 check() {
     local name=$1 want_status=$2 want_out=$3 want_err=$4 xcodebuild_status=$5 log=$6
@@ -419,29 +419,57 @@ expect() {
 printf '%s\n' "✘ Test seededSessionViewMatchesVisualBaseline() recorded an issue at SessionViewVisualTests.swift:11:32: Issue recorded" \
     "↳ Snapshot does not match reference." "✘ Test run with 30 tests in 8 suites failed after 4.437 seconds with 1 issue." \
     "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
-STUB_SUMMARY='{"passedTests":29,"failedTests":1,"skippedTests":0}' run --no-build --sim "$sim" visual
+STUB_SUMMARY='{"passedTests":29,"failedTests":1,"expectedFailures":0,"skippedTests":0}' run --no-build --sim "$sim" visual
 bundle=$(sed -n 's/^bundle: //p' "$root/out")
 expect "a run hands xcodebuild the bundle path it printed" "$(grep -A1 -x -- -resultBundlePath "$root/args" | tail -1)" "$bundle"
 expect "a failed visual run names the snapshot diff command, then ends with its counts and bundle" "$(tail -2 "$root/out")" \
 "snapshot diffs: scripts/snapshot-diffs.sh $bundle
-test-sim: suite=visual passed=29 failed=1 exit=65 load1=1.50/2.50 bundle=$bundle"
+test-sim: suite=visual passed=29 failed=1 expected=0 exit=65 load1=1.50/2.50 bundle=$bundle"
 
 printf '%s\n' "✔ Test run with 30 tests in 8 suites passed after 4.437 seconds." "** TEST EXECUTE SUCCEEDED **" >"$root/xcodebuild.log"
-rc=0 STUB_SUMMARY='{"passedTests":30,"failedTests":0}' run --no-build --sim "$sim" visual
+rc=0 STUB_SUMMARY='{"passedTests":30,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" visual
 expect "a passing visual run names no diff command" "$(grep -c '^snapshot diffs' "$root/out"; tail -1 "$root/out")" \
 "0
-test-sim: suite=visual passed=30 failed=0 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
+test-sim: suite=visual passed=30 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
 printf '%s\n' "✘ Test parses() recorded an issue at ParserTests.swift:9:5: Expectation failed: isValid" \
     "✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue." "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
-STUB_SUMMARY='{"passedTests":1019,"failedTests":1}' run --no-build --sim "$sim" unit WorkoutTrackerTests/ParserTests
+STUB_SUMMARY='{"passedTests":1019,"failedTests":1,"expectedFailures":0}' run --no-build --sim "$sim" unit WorkoutTrackerTests/ParserTests
 expect "a failed run with no snapshot mismatch names no diff command" "$(tail -1 "$root/out"; grep -c '^snapshot diffs' "$root/out")" \
-"test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
+"test-sim: suite=unit,WorkoutTrackerTests/ParserTests passed=1019 failed=1 expected=0 exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")
 0"
+
+printf '%s\n' "━ Test run with 1069 tests in 11 suites passed after 4.453 seconds with 1 known issue." \
+    "** TEST EXECUTE SUCCEEDED **" >"$root/xcodebuild.log"
+rc=0 STUB_SUMMARY='{"passedTests":1068,"failedTests":0,"expectedFailures":1,"skippedTests":0}' run --no-build --sim "$sim" unit
+expect "a test that records only a known issue counts as expected, not passed" "$(tail -1 "$root/out")" \
+"test-sim: suite=unit passed=1068 failed=0 expected=1 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
+
+logs=$repo/.build/test-sim
+rm -rf "$logs"
+mkdir -p "$logs"
+for n in 1 2 3 4 5 6; do
+    mkdir "$logs/20200101-00000$n.xcresult" "$logs/20200101-00000$n-diffs"
+    touch "$logs/20200101-00000$n-test.log"
+done
+rc=0 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
+expect "a run keeps the five newest bundles, its own included, and deletes the older ones with their diffs" \
+    "$(ls "$logs" | sed 's/^202[1-9][0-9]\{4\}-[0-9]\{6\}/<run>/' | grep -v '^20200101-00000[1-6]-test.log$')" \
+"20200101-000003-diffs
+20200101-000003.xcresult
+20200101-000004-diffs
+20200101-000004.xcresult
+20200101-000005-diffs
+20200101-000005.xcresult
+20200101-000006-diffs
+20200101-000006.xcresult
+<run>-test.log
+<run>.xcresult"
+expect "pruning keeps every test log" "$(ls "$logs" | grep -c '^20200101-00000[1-6]-test.log$')" 6
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
-"test-sim: suite=unit passed=- failed=- exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
+"test-sim: suite=unit passed=- failed=- expected=- exit=65 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
 run
 status=$?
@@ -472,7 +500,7 @@ kill -TERM "$pid"
 wait "$pid"
 status=$?
 expect "a run killed with TERM reports exit=143, not the last command's 0" "$status $(tail -1 "$root/out" | sed 's/ load1=.*//')" \
-    "143 test-sim: suite=unit passed=- failed=- exit=143"
+    "143 test-sim: suite=unit passed=- failed=- expected=- exit=143"
 
 STUB_KEYBOARD_RC=70 run --no-build --sim "$sim" ui
 status=$?

@@ -932,6 +932,10 @@ class SimulatorLock(unittest.TestCase):
             (self.stubs / tool).chmod(0o755)
         self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
         self.runs = []
+        self.checkout = self.stubs / "checkout"
+        (self.checkout / "scripts").mkdir(parents=True)
+        for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
+            (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
 
     def tearDown(self):
         (self.stubs / "release").touch()
@@ -964,7 +968,7 @@ class SimulatorLock(unittest.TestCase):
         return run
 
     def spawn_test_sim(self, hold=False):
-        return self.spawn([str(REPO / "scripts" / "test-sim.sh"), "--sim", self.sim, "unit"], hold)
+        return self.spawn([str(self.checkout / "scripts" / "test-sim.sh"), "--sim", self.sim, "unit"], hold)
 
     def wait_for_hold(self, run, stub):
         for _ in range(100):
@@ -1005,7 +1009,7 @@ class SimulatorLock(unittest.TestCase):
         self.assertEqual(
             err,
             "a verify run owner-626 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-626 "
-            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, REPO),
+            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, self.checkout),
             "names the verify run and its app, and a stop that frees this simulator from any directory",
         )
         self.assertEqual(self.calls(), [], "refused before xcodebuild")
@@ -1331,7 +1335,7 @@ class SimulatorPick(unittest.TestCase):
     def run_test_sim(self, *argv):
         code, out, err, calls = self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
         body, _, last = out.rstrip("\n").rpartition("\n")
-        self.assertRegex(last, r"^test-sim: suite=\S+ passed=- failed=- exit=%d load1=\S+/\S+ bundle=-$" % code)
+        self.assertRegex(last, r"^test-sim: suite=\S+ passed=- failed=- expected=- exit=%d load1=\S+/\S+ bundle=-$" % code)
         return code, body + "\n" if body else "", err, calls
 
     def verify(self, *argv, **env):

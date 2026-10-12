@@ -160,8 +160,11 @@ Reading a `scripts/test-sim.sh` run:
   It sets `AutomaticMinimizationEnabled` in the simulator's `com.apple.keyboard.preferences` to 0
   when it reads 1, the state that hides the software keyboard below the window (#700). An AXe key
   or type event into a focused field sets it back to 1, so a verify session can leave it wrong.
-- The last line is `test-sim: suite=<s> passed=<n> failed=<m> exit=<e> load1=<start>/<end>
-  bundle=<path>`. `exit=` is the script's status, which a pipe such as `| tee` hides.
+- The last line is `test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e>
+  load1=<start>/<end> bundle=<path>`. `expected=` counts tests whose only issues were known
+  issues, which `passed=` leaves out. `exit=` is the script's status, which a pipe such as `| tee`
+  hides.
+- Each run keeps the five newest result bundles in `.build/test-sim` and deletes older ones.
 - After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
   and difference images and prints their paths.
 
