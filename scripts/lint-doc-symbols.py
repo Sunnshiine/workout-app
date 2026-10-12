@@ -360,7 +360,7 @@ def main(argv: list[str]) -> int:
             print(f"       {finding.hint}", file=sys.stderr)
     if findings:
         print(
-            f"{len(findings)} finding(s). Fix the doc. When a span names something outside this tree on purpose\n"
+            f"{len(findings)} finding(s). Fix each line above. When a doc span names something outside this tree on purpose\n"
             "(an Apple accessibility role, a retired name), add <!-- doc-symbols: not-in-tree NAME... --> to that doc.",
             file=sys.stderr,
         )
