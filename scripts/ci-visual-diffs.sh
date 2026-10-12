@@ -67,7 +67,7 @@ if [ "$apply" -eq 0 ] && [ "${#names[@]}" -gt 0 ]; then
 fi
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-snapshots=Tests/Visual/__Snapshots__
+baselines=Tests/Visual/__Snapshots__
 
 if [ "${#target}" -ge 8 ]; then
     run=$target
@@ -196,7 +196,7 @@ selected=$(printf '%s\n' "${names[@]}" | awk -F'\t' '
 ' "$dir/index.tsv" -) || die 2 "failing snapshots in run $run: $(tr '\n' ' ' <"$dir/index.tsv")"
 
 while IFS= read -r snapshot; do
-    mkdir -p "$repo/$snapshots/${snapshot%/*}"
-    cp "$dir/snapshots/$snapshot" "$repo/$snapshots/$snapshot"
-    echo "$snapshots/$snapshot"
+    mkdir -p "$repo/$baselines/${snapshot%/*}"
+    cp "$dir/snapshots/$snapshot" "$repo/$baselines/$snapshot"
+    echo "$baselines/$snapshot"
 done <<<"$selected"
