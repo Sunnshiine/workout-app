@@ -23,6 +23,10 @@ case "$1 $4" in
     "spawn read")
         [ -z "${STUB_READ_FAILS:-}" ] || { echo "Selected developer directory '/x' does not exist" >&2; exit 1; }
         [ -z "${STUB_NO_DOMAIN:-}" ] || { echo "Error: Domain '$5' not found." >&2; exit 1; }
+        [ -z "${STUB_IOS_26:-}" ] || {
+            printf '2026-10-12 16:13:02.939 defaults[42098:119089167] \nThe domain/default pair of (%s, %s) does not exist\n' "$5" "$6" >&2
+            exit 1
+        }
         [ -s "$STUB_DEFAULTS" ] && cat "$STUB_DEFAULTS" || { echo "Error: Could not find key '$6' in domain '$5'." >&2; exit 1; }
         ;;
     "spawn write")
@@ -68,6 +72,11 @@ expect "an absent key passes the keyboard tests, so ensure leaves it" "$status $
 
 STUB_NO_DOMAIN=1 keyboard ensure "$sim"
 expect "a fresh simulator, which has no keyboard domain yet, passes the keyboard tests, so ensure leaves it" \
+    "$status $(cat "$root/out") | $(calls)" \
+    "0 keyboard: $sim has AutomaticMinimizationEnabled=unset | bootstatus $sim -b"
+
+STUB_IOS_26=1 keyboard ensure "$sim"
+expect "an iOS 26.5 simulator without the key passes the keyboard tests, so ensure leaves it" \
     "$status $(cat "$root/out") | $(calls)" \
     "0 keyboard: $sim has AutomaticMinimizationEnabled=unset | bootstatus $sim -b"
 

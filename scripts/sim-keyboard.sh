@@ -21,7 +21,8 @@ key=AutomaticMinimizationEnabled
 read_key() {
   local value
   value=$(xcrun simctl spawn "$1" defaults read "$domain" "$key" 2>&1) || case $value in
-    *"Could not find key"* | *"Domain '$domain' not found"*) value="unset" ;;
+    *"Could not find key"* | *"Domain '$domain' not found"* | *"pair of ($domain, $key) does not exist"*)
+      value="unset" ;;
     *) echo "keyboard: cannot read $key on $1: $value" >&2; exit 69 ;;
   esac
   case $value in 1) echo 1 ;; 0) echo 0 ;; *) echo unset ;; esac
