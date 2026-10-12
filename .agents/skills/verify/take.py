@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import List, NamedTuple, Optional, Sequence, Tuple
 
 STOP_GRACE = 15.0
+DRIVE_GRACE = 5.0
 POLL = 0.05
 
 
@@ -191,7 +192,6 @@ class Recorder:
             if self.proc.poll() is not None:
                 raise self.failed("exited %d before it started capturing" % self.proc.returncode)
             if time.time() > deadline:
-                self.stop()
                 raise self.failed("did not start capturing within %g s" % timeout)
             time.sleep(POLL)
         return time.time()
@@ -235,24 +235,47 @@ def probe(video: Path) -> Tuple[List[float], Tuple[int, int]]:
     return pts, size
 
 
+def run_drive(argv: List[str], env: dict) -> int:
+    """The drive's exit code. Interrupted, its process group gets SIGINT and DRIVE_GRACE s to exit, so a wrapped
+    launch runs its EXIT trap; bash ignores a SIGINT sent to it alone while a child it waits on survives one."""
+    proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=sys.stderr.fileno(), stderr=sys.stderr.fileno(),
+                            env=env, start_new_session=True)
+    try:
+        return proc.wait()
+    except Interrupted:
+        os.killpg(proc.pid, signal.SIGINT)
+        try:
+            proc.wait(DRIVE_GRACE)
+        except subprocess.TimeoutExpired:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+        raise
+
+
 def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, load_before: float,
          drive: Sequence[str], start_timeout: float) -> Take:
     recorder = Recorder(sim, out)
+    failed = True
     try:
         started = recorder.await_capture(start_timeout)
         drive_start = time.time() - started
         if drive:
-            ran = subprocess.run([verify] + list(drive), stdin=subprocess.DEVNULL, stdout=sys.stderr.fileno(),
-                                 stderr=sys.stderr.fileno(), env=dict(os.environ, SIM=sim, VERIFY_RUN=run))
-            if ran.returncode != 0:
-                raise DriveFailed("the drive `%s` exited %d, so the take is not kept" % (shlex.join(drive), ran.returncode))
+            code = run_drive([verify] + list(drive), dict(os.environ, SIM=sim, VERIFY_RUN=run))
+            if code != 0:
+                raise DriveFailed("the drive `%s` exited %d, so the take is not kept" % (shlex.join(drive), code))
         drive_end = time.time() - started
         time.sleep(tail)
         early = recorder.proc.poll() is not None
         stopped = time.time() - started
-        recorder_exit = recorder.stop()
+        failed = False
     finally:
-        recorder.stop()
+        try:
+            recorder_exit = recorder.stop()
+        except NoTake as stuck:
+            if not failed:
+                raise
+            # The failure already on its way out says why there is no take; this one says what is left running.
+            print(stuck, file=sys.stderr)
     try:
         load_after = load_now()
     except (OSError, subprocess.CalledProcessError, ValueError, IndexError) as error:
