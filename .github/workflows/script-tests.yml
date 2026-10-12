@@ -2,7 +2,6 @@ name: Script tests
 
 on:
   pull_request:
-    # edited for a base change, as in ci.yml.
     types: [opened, synchronize, reopened, edited]
     paths:
       - "scripts/**"
