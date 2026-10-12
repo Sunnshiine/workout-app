@@ -107,7 +107,6 @@ MIN_RUN_PT = 120.0
 MERGE_GAP_PT = 8.0
 STILL_PT = 0.5
 MIDDLE_PT = 8.0
-STEP_PT = 0.75
 EDGES = ("top", "bottom", "left", "right")
 
 CELL_PT = 4.0
@@ -276,7 +275,7 @@ def _band(pt: float, px_per_pt: float) -> slice:
     return slice(px - 2, px + 3)
 
 
-def _runs(mask: np.ndarray, px_per_pt: float) -> List[Tuple[int, int]]:
+def _runs(mask: np.ndarray, px_per_pt: float, height_pt: float) -> List[Tuple[int, int]]:
     runs: List[Tuple[int, int]] = []
     start = None
     for y, on in enumerate(mask):
@@ -289,7 +288,8 @@ def _runs(mask: np.ndarray, px_per_pt: float) -> List[Tuple[int, int]]:
         runs.append((start, len(mask) - 1))
     merged: List[Tuple[int, int]] = []
     for run in runs:
-        if merged and run[0] - merged[-1][1] <= MERGE_GAP_PT * px_per_pt:
+        if (merged and run[0] - merged[-1][1] <= MERGE_GAP_PT * px_per_pt
+                and (run[1] + 1 - merged[-1][0]) / px_per_pt <= height_pt):
             merged[-1] = (merged[-1][0], run[1])
         else:
             merged.append(run)
@@ -301,10 +301,11 @@ def box_cells(card: Card) -> Tuple[slice, slice]:
             slice(math.ceil(card.left / CELL_PT), math.floor(card.right / CELL_PT)))
 
 
-def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
+def detect(lum: np.ndarray, px_per_pt: float, height_pt: float, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
     card_band, paper_band = _band(x_pt, px_per_pt), _band(ref_pt, px_per_pt)
     contrast = lum[:, card_band].mean(axis=1) - lum[:, paper_band].mean(axis=1)
-    runs = [r for r in _runs(contrast > THRESHOLD, px_per_pt) if (r[1] - r[0]) / px_per_pt >= MIN_RUN_PT]
+    runs = [r for r in _runs(contrast > THRESHOLD, px_per_pt, height_pt)
+            if (r[1] - r[0]) / px_per_pt >= MIN_RUN_PT and (r[1] + 1 - r[0]) / px_per_pt <= height_pt]
     if not runs:
         return None
     start, end = max(runs, key=lambda r: r[1] - r[0])
@@ -396,6 +397,10 @@ def open_window(take: Take, samples: Sequence[Sample], from_s: Optional[float]) 
     return Window(opened, start, at, seconds), tuple(reasons)
 
 
+def _apart(a: Card, b: Card) -> bool:
+    return any(abs(a.edge(n) - b.edge(n)) > STILL_PT for n in EDGES)
+
+
 def box_of(window: Sequence[Sample], settled: Card) -> Box:
     seen = next(i for i, s in enumerate(window)
                 if s.card is not None and s.card.contrast >= SOLID_CONTRAST * settled.contrast)
@@ -406,8 +411,8 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
     for name in EDGES:
         values = [c.edge(name) for c in cards]
         ranges[name] = (min(values), max(values))
-    moved = [b.t for a, b in zip(shown, shown[1:])
-             if any(abs(a.card.edge(n) - b.card.edge(n)) > STEP_PT for n in EDGES)]
+    settle = next(k for k in range(len(cards)) if not any(_apart(c, settled) for c in cards[k:]))
+    depart = next((k for k in range(settle) if _apart(cards[k], cards[0])), settle)
     return Box(
         first_seen=window[seen].t,
         partial=seen > 0,
@@ -416,8 +421,8 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
         ranges=ranges,
         worst_edge_range=max(hi - lo for lo, hi in ranges.values()),
         contrast=(min(c.contrast for c in cards), max(c.contrast for c in cards)),
-        motion=(moved[0], moved[-1]) if moved else None,
-        changed_frames=len(moved),
+        motion=None if settle == 0 else (shown[depart].t, shown[settle].t),
+        changed_frames=sum(1 for a, b in zip(cards, cards[1:]) if _apart(a, b)),
     )
 
 
@@ -484,7 +489,8 @@ def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Samp
         raise DecodeFailure(str(error)) from None
     width, height = take.video_px
     px_per_pt = width / take.screen_pt[0]
-    found = [Sample(t, None if take.card_pt == "none" else detect(lum, px_per_pt, x, ref), cells_of(lum, px_per_pt))
+    found = [Sample(t, None if take.card_pt == "none" else detect(lum, px_per_pt, take.card_pt.height, x, ref),
+                    cells_of(lum, px_per_pt))
              for t, lum in zip(times, decode(video, width, height))]
     if len(found) != len(times):
         raise DecodeFailure(f"ffmpeg decoded {len(found)} frames of {video} and ffprobe timed {len(times)}")

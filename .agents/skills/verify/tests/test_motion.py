@@ -478,12 +478,12 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual((out[2], out[-1]), ("window=drive from=0.050 to=3.000 window_s=2.950",
                                              "still=unknown box=changed look=changed"))
 
-    def test_from_0_on_a_launch_reads_the_springboard_and_the_fade_as_motion(self):
+    def test_from_0_on_a_launch_reads_the_fade_as_motion_and_the_springboard_taller_than_the_card_as_no_card(self):
         video = self.clips["launch"]
         stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4)
         m = cardframe.measure(video, from_s=0)
-        self.assertEqual((m.window.opened, m.card.box.first_seen, m.card.box.worst_edge_range, m.still),
-                         (Opened.FROM, 0.0, 40.0, Still.NO))
+        self.assertEqual((m.window.opened, round(m.card.box.first_seen, 3), m.card.box.partial, m.card.look.kind,
+                          m.still), (Opened.FROM, 0.817, True, LookKind.CHANGED, Still.NO))
 
     def test_three_frames_without_the_card_after_it_showed_are_lost(self):
         code, out, err = self.lines("drop")
@@ -663,12 +663,12 @@ class Summarize(unittest.TestCase):
         self.assertEqual((b.worst_edge_range, b.motion, b.motion_ms, b.changed_frames, m.still),
                          (160.0, (1.0, 1.0), 0, 1, Still.NO))
 
-    def test_a_move_under_three_quarters_of_a_point_is_not_motion_but_counts_against_still(self):
+    def test_a_move_of_half_a_point_is_not_motion_and_more_is(self):
         m = cardframe.summarize(TAKE, frames(card(100), card(100.5)), 0.0)
         self.assertEqual((m.card.box.worst_edge_range, m.card.box.motion, m.card.box.changed_frames, m.still),
                          (0.5, None, 0, Still.YES))
         m = cardframe.summarize(TAKE, frames(card(100), card(100.6)), 0.0)
-        self.assertEqual(m.still, Still.NO)
+        self.assertEqual((m.card.box.motion, m.card.box.changed_frames, m.still), ((0.1, 0.1), 1, Still.NO))
 
     def test_frames_without_the_card_before_it_shows_are_not_lost_and_after_it_are(self):
         m = cardframe.summarize(TAKE, frames(None, None, card(100), None, card(100)), 0.0)
@@ -840,6 +840,12 @@ class BoxOf(unittest.TestCase):
         self.assertEqual((box.first_seen, box.faint, box.partial, box.ranges["top"], box.changed),
                          (0.2, 2, True, (100.0, 100.0), False))
 
+    def test_an_eased_move_runs_from_the_first_card_half_a_point_away_to_the_first_that_stays_by_the_settled_one(self):
+        tops = (100, 100.2, 100.8, 102.5, 105, 108, 111, 113.5, 115.2, 115.8, 116, 116)
+        box = cardframe.box_of(frames(*(card(top) for top in tops)), card(116))
+        self.assertEqual((box.motion, box.motion_ms, box.changed_frames, box.worst_edge_range),
+                         ((0.2, 0.9), 700, 8, 16.0))
+
     def test_after_the_first_solid_card_every_detection_counts_however_faint(self):
         box = cardframe.box_of(frames(card(100), card(400, contrast=2.0), card(100)), card(100))
         self.assertEqual((box.faint, box.partial, box.worst_edge_range, box.changed), (0, False, 300.0, True))
@@ -852,38 +858,51 @@ class Detect(unittest.TestCase):
     def test_a_bright_rectangle_reads_as_its_edges_in_points_and_its_contrast(self):
         lum = self.paper()
         lum[200:520, 32:372] = CARD
-        self.assertEqual(cardframe.detect(lum, 2.0), Card(100.0, 260.0, 16.0, 186.0, 40.0))
+        self.assertEqual(cardframe.detect(lum, 2.0, 168), Card(100.0, 260.0, 16.0, 186.0, 40.0))
 
     def test_a_run_shorter_than_120_pt_is_no_card(self):
         lum = self.paper()
         lum[200:438, 32:372] = CARD
-        self.assertEqual(cardframe.detect(lum, 2.0), None)
+        self.assertEqual(cardframe.detect(lum, 2.0, 168), None)
+
+    def test_a_run_taller_than_the_trees_card_is_no_card(self):
+        lum = self.paper()
+        lum[200:600, 32:372] = CARD
+        self.assertEqual(cardframe.detect(lum, 2.0, 199), None)
+        self.assertEqual(cardframe.detect(lum, 2.0, 200).bottom, 300.0)
 
     def test_two_runs_split_by_a_gap_under_8_pt_are_one_card_and_8_pt_splits_them(self):
         lum = self.paper()
         lum[200:340, 32:372] = CARD
         lum[355:600, 32:372] = CARD
-        self.assertEqual((cardframe.detect(lum, 2.0).top, cardframe.detect(lum, 2.0).bottom), (100.0, 300.0))
+        self.assertEqual((cardframe.detect(lum, 2.0, 208).top, cardframe.detect(lum, 2.0, 208).bottom), (100.0, 300.0))
         lum[355, 32:372] = PAPER
-        self.assertEqual((cardframe.detect(lum, 2.0).top, cardframe.detect(lum, 2.0).bottom), (178.0, 300.0))
+        self.assertEqual((cardframe.detect(lum, 2.0, 208).top, cardframe.detect(lum, 2.0, 208).bottom), (178.0, 300.0))
+
+    def test_a_brighter_neighbour_touching_the_card_across_a_1_pt_seam_is_not_joined_past_the_cards_height(self):
+        lum = self.paper()
+        lum[200:520, 32:372] = CARD
+        lum[522:600, 32:200] = CARD + 10
+        self.assertEqual(cardframe.detect(lum, 2.0, 168), Card(100.0, 260.0, 16.0, 186.0, 40.0))
+        self.assertEqual(cardframe.detect(lum, 2.0, 200).bottom, 300.0, "joined while the pair fits the height")
 
     def test_a_run_whose_middle_row_is_paper_across_the_screen_is_no_card(self):
         lum = self.paper()
         lum[200:600, 32:372] = CARD
         lum[396:404, :] = PAPER
-        self.assertIsNone(cardframe.detect(lum, 2.0))
+        self.assertIsNone(cardframe.detect(lum, 2.0, 208))
 
     def test_a_run_whose_middle_row_shows_one_speck_is_no_card(self):
         lum = self.paper()
         lum[200:600, 32:372] = CARD
         lum[396:404, :] = PAPER
         lum[400, 60] = 230
-        self.assertIsNone(cardframe.detect(lum, 2.0))
+        self.assertIsNone(cardframe.detect(lum, 2.0, 208))
 
     def test_a_card_over_the_paper_column_is_invisible(self):
         lum = self.paper()
         lum[200:520, 0:372] = CARD
-        self.assertEqual(cardframe.detect(lum, 2.0), None)
+        self.assertEqual(cardframe.detect(lum, 2.0, 168), None)
 
 
 def reading(rules=(), invalid="", animations="on", no_card=None, lost=0, faint=0, partial=False, worst=0.0,
