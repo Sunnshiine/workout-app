@@ -148,7 +148,10 @@ jobs:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
     steps:
+      # Depth 2 keeps the first parent, which the UI suite's scope check diffs against.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       # Creating the device is enough. xcodebuild boots it itself for the test step below.
       - name: Ensure the pinned baseline simulator exists
         run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
@@ -229,6 +232,30 @@ jobs:
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
             TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+      # The UI suite (#662) is the only check that reaches App/ behaviour through real controls. It
+      # runs when the change touches App/ or Tests/UI/, and on every manual dispatch, reusing the
+      # build above.
+      - name: Decide whether the UI suite runs
+        id: ui-scope
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] ||
+            [ -n "$(git diff --name-only HEAD^1 HEAD -- App Tests/UI)" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run the UI suite (WorkoutTrackerUITests)
+        if: ${{ !cancelled() && steps.ui-scope.outputs.run == 'true' && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -only-testing:WorkoutTrackerUITests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -resultBundlePath UITests.xcresult \
+            -collect-test-diagnostics never \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       - name: Save the compilation cache
         if: github.event_name == 'push'
         uses: actions/cache/save@v4
@@ -250,4 +277,11 @@ jobs:
         with:
           name: hosted-test-results
           path: HostedTests.xcresult
+          if-no-files-found: ignore
+      - name: Upload UI test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: UITests.xcresult
           if-no-files-found: ignore
