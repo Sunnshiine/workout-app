@@ -8,6 +8,11 @@ already judge, and never a preference. A force unwrap, force try, force cast, or
 outside the Theme seam in the app is a lint error, not a finding; `Tests/.swiftlint.yml` lists
 what a test body may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
 
+A claim about runtime behaviour, such as SwiftUI layering or transaction order, gesture or focus
+callback order, or timing, is a hypothesis. The finding names the measurement that would settle
+it, and the owner runs that measurement before changing code. (#860: a `.zIndex` two reviewers
+called redundant was the lift, and deleting it cut the Superset bud.)
+
 ## Architecture
 
 - **A write that reaches the Sheet or the cache outside `SyncCoordinator` and its pending-write
@@ -53,6 +58,14 @@ what a test body may do. Read a trailing issue or symbol when a bullet does not 
 
 - **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists bind
   too, and a synonym is a finding even when the code works. (#572, fixed in #591.)
+
+## Comments
+
+- **A comment that narrates the next line,** or restates a name, a type, or a test. Delete it.
+- **A deleted comment that carried what the code cannot show:** a platform fact no test pins, a
+  measured number with its evidence, or a contract every conformer honours. It stays. A reviewer
+  who wants one gone names the test that would pin it instead. (#860 lost the bud wake's timing
+  reason twice, and #861 lost the `SheetSwitchSyncing` contract a reviewer had asked for.)
 
 ## Tests
 
