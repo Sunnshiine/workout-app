@@ -52,7 +52,7 @@ selected() { [ ${#filters[@]} = 0 ] && return 0; for f in "${filters[@]}"; do ca
 line2_ok() { [ "$(sed -n 2p $gate)" = "    count >= 3" ]; }
 crash() { echo "error: Process '/Applications/Xcode.app/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/T.xctest' exited with unexpected signal code 5" >&2; exit 1; }
 case $(sed -n 5p $gate) in
-    *HANG*) sleep 600 & echo $! >"$STUB_HANG_PID"; wait ;;
+    *HANG*) python3 -c 'import os, time; os.setpgid(0, 0); time.sleep(600)' & echo $! >"$STUB_HANG_PID"; wait ;;
     *EXPLODE*) echo "error: Process '/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/libexec/swift/pm/swiftpm-testing-helper --test-bundle-path $PWD/.build/out/Products/Debug/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests --testing-library swift-testing' exited with code 3" >&2; exit 1 ;;
     *CRASH_IN_TEST*) printf '%s\n' "◇ Test run started." "◇ Test limitHolds() started."; crash ;;
     *CRASH*) echo "◇ Test run started."; crash ;;
@@ -214,13 +214,13 @@ wait_for "$root/hang.pid"
 kill -KILL -- -"$group"
 wait "$group" 2>/dev/null
 for _ in $(seq 1 40); do lsof "$locks/1.lock" >/dev/null 2>&1 || kill -0 "$(cat "$root/hang.pid")" 2>/dev/null || break; sleep 0.05; done
-expect "a SIGKILL to mutate.sh's process group kills the test it started and frees the slot within a second" "$(
+expect "a SIGKILL to mutate.sh's process group kills the test it started, in its own process group, and frees the slot within a second" "$(
     if kill -0 "$(cat "$root/hang.pid")" 2>/dev/null; then echo "the hung test still runs"; else echo "the hung test is gone"; fi
     lsof -t "$locks/1.lock" 2>/dev/null | wc -l | tr -d ' ')" "the hung test is gone
 0"
 
 MUTATE_TIMEOUT=2 mutate --filter GateTests Sources/Gate/Gate.swift '5s/10/HANG/'
-expect "a mutant that runs past MUTATE_TIMEOUT is killed with its whole process group" "$status
+expect "a mutant that runs past MUTATE_TIMEOUT is killed with its whole session, test process group included" "$status
 $(tail -2 <<<"$out")
 $(if kill -0 "$(cat "$root/hang.pid")" 2>/dev/null; then echo "the hung test still runs"; else echo "the hung test is gone"; fi)" "0
 killed       Sources/Gate/Gate.swift:5  sed      5s/10/HANG/  timed out after 2s
