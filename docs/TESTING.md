@@ -182,6 +182,10 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
   `LANE_WORKTREE`, and `VERIFY_EVIDENCE`, an evidence directory in the main checkout that outlives
   the worktree. The shell forgets them between calls, so start each call with
   `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
+- The lane's simulator stays Shutdown until something boots it. `scripts/test-sim.sh` and
+  `verify.sh` boot it themselves, outside any host cap until #883 lands. Before a raw `xcodebuild`
+  or XcodeBuildMCP call on a lane, run `scripts/sim-pool.sh boot <name>`, which boots it within
+  the cap of six booted simulators (`WORKOUT_SIM_CAP`).
 - `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
   touches anything else while a run holds the simulator. It then saves any uncommitted diff,
   untracked files, commits no branch holds, and the lane's `.build/test-sim` runs into that evidence
