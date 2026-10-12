@@ -151,6 +151,10 @@ def zooms_from_the_icon(i):
     return PAPER, [(180 - 80 * k, 180 + 80 * k, 101 - 85 * k, 101 + 85 * k)]
 
 
+def a_3_pt_rule_beside_a_ticking_box(i):
+    return PAPER, [(270, 395, 101, 104), (20, 40, 100, 150, PAPER + 10 + 4 * (i // 6))]
+
+
 def swaps_a_label_inside(i):
     return PAPER, [STILL_BOX, (120, 160, 40, 80, CARD if i < FPS else 210)]
 
@@ -179,6 +183,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("cut", cuts, 2.0),
             ("drop", drops_for_three_frames, 1.5),
             ("label", swaps_a_label_inside, 1.5),
+            ("rule", a_3_pt_rule_beside_a_ticking_box, 1.0),
             ("launch", launched(still), 1.5),
             ("launch-late", launched(still, fade=133), 2.6),
             ("launch-fade", launched(fades_in_place), 1.6),
@@ -451,6 +456,12 @@ class CardFrameOnClips(unittest.TestCase):
                                "window=start from=0.000 to=2.900 window_s=2.900"])
         self.assertEqual(err, "no card in any of the 10 frames from 0.000 s\n")
 
+    def test_a_run_too_narrow_to_hold_one_4_pt_cell_is_no_card_and_exits_1(self):
+        code, out, err = self.lines("rule", "--x", "102")
+        self.assertEqual((code, out, err), (1, ["take=VALID animations=on frames=10 window_frames=10",
+                                                "window=start from=0.000 to=2.900 window_s=2.900"],
+                                            "no card in any of the 10 frames from 0.000 s\n"))
+
     def test_a_video_with_no_take_beside_it_exits_2_naming_the_stamp(self):
         video = self.dir / "unstamped.mp4"
         video.write_bytes(self.clips["still"].read_bytes())
@@ -706,6 +717,13 @@ class Detect(unittest.TestCase):
         lum = self.paper()
         lum[200:600, 32:372] = CARD
         lum[396:404, :] = PAPER
+        self.assertIsNone(cardframe.detect(lum, 2.0))
+
+    def test_a_run_whose_middle_row_shows_one_speck_is_no_card(self):
+        lum = self.paper()
+        lum[200:600, 32:372] = CARD
+        lum[396:404, :] = PAPER
+        lum[400, 60] = 230
         self.assertIsNone(cardframe.detect(lum, 2.0))
 
     def test_a_card_over_the_paper_column_is_invisible(self):

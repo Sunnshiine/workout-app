@@ -26,13 +26,13 @@ recorded changed more than 0.69 of the screen. The window is INVALID when:
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
 Box. The card is the longest vertical run, at least 120 pt with gaps up to 8 pt merged, where the column
-at --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at the
-run's middle, and a run whose middle row shows nothing brighter than the paper is no card. The settled
-card is the window's last. The box is read from the first solid card: the first detection with at least
-three quarters of the settled card's contrast. Detections before it are faint and their edges are not
-read, because a faint card reads short and narrow. edges=partial when the first solid card is not the
-window's first frame. After it every detection counts, at any contrast, and a frame without the card is
-lost.
+at --x pt is brighter than the paper column at --ref pt by 4.0; left and right come from a row scan at
+the run's middle. A run whose middle row shows nothing brighter than the paper, or whose box holds no
+whole 4 pt cell, is no card. The settled card is the window's last. The box is read from the first solid
+card: the first detection with at least three quarters of the settled card's contrast. Detections before
+it are faint and their edges are not read, because a faint card reads short and narrow. edges=partial
+when the first solid card is not the window's first frame. After it every detection counts, at any
+contrast, and a frame without the card is lost.
 
 Look. In 4 pt cells wholly inside the settled card's box, d is each window frame's mean luminance
 difference from the window's last frame, so the last frame's d is 0 and look_peak is the largest d. The
@@ -270,6 +270,11 @@ def _runs(mask: np.ndarray, px_per_pt: float) -> List[Tuple[int, int]]:
     return merged
 
 
+def box_cells(card: Card) -> Tuple[slice, slice]:
+    return (slice(math.ceil(card.top / CELL_PT), math.floor(card.bottom / CELL_PT)),
+            slice(math.ceil(card.left / CELL_PT), math.floor(card.right / CELL_PT)))
+
+
 def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 8) -> Optional[Card]:
     card_band, paper_band = _band(x_pt, px_per_pt), _band(ref_pt, px_per_pt)
     contrast = lum[:, card_band].mean(axis=1) - lum[:, paper_band].mean(axis=1)
@@ -282,13 +287,15 @@ def detect(lum: np.ndarray, px_per_pt: float, x_pt: float = 28, ref_pt: float = 
     on = np.where(row - row[paper_band].mean() > THRESHOLD)[0]
     if not len(on):
         return None
-    return Card(
+    card = Card(
         top=start / px_per_pt,
         bottom=(end + 1) / px_per_pt,
         left=float(on[0] / px_per_pt),
         right=float((on[-1] + 1) / px_per_pt),
         contrast=float(contrast[start:end + 1].mean()),
     )
+    rows, cols = box_cells(card)
+    return card if rows.start < rows.stop and cols.start < cols.stop else None
 
 
 def cells_of(lum: np.ndarray, px_per_pt: float) -> np.ndarray:
@@ -351,7 +358,7 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
     ranges = {}
     for name in EDGES:
         values = [c.edge(name) for c in cards]
-        ranges[name] = (float(np.nanmin(values)), float(np.nanmax(values)))
+        ranges[name] = (min(values), max(values))
     moved = [b.t for a, b in zip(shown, shown[1:])
              if any(abs(a.card.edge(n) - b.card.edge(n)) > STEP_PT for n in EDGES)]
     return Box(
@@ -365,11 +372,6 @@ def box_of(window: Sequence[Sample], settled: Card) -> Box:
         motion=(moved[0], moved[-1]) if moved else None,
         changed_frames=len(moved),
     )
-
-
-def box_cells(card: Card) -> Tuple[slice, slice]:
-    return (slice(math.ceil(card.top / CELL_PT), math.floor(card.bottom / CELL_PT)),
-            slice(math.ceil(card.left / CELL_PT), math.floor(card.right / CELL_PT)))
 
 
 def look_of(window: Sequence[Sample], settled: Card) -> Look:
