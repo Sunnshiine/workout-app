@@ -43,7 +43,8 @@ Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle
 <reason>); 2 usage, a bad name, an unknown commit, a lane at another commit, a worktree on a branch,
 a locked lane or one holding a nested worktree, or down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree);
-75 a test-sim or verify run holds the lane's simulator, or the simulator pool is busy.
+75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, or down found
+another process working inside the lane (stop it or cd out; this script's callers do not count).
 EOF
   exit 2
 }
@@ -56,6 +57,8 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir) || die 2 "$here is not in a git checkout"
 primary=$(dirname "$common")
 case $primary in *"'"* | *$'\n'*) die 2 "the checkout path holds a quote or a newline, which the printed env cannot carry: $primary" ;; esac
+# Out of the caller's directory, which may be the lane, so no child of this script holds it.
+cd "$primary"
 
 set_lane() {
   [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || usage
@@ -123,12 +126,15 @@ unique_commits() {
   git -C "$wt" rev-list $visited --not --branches --tags "$created"
 }
 
+# Prints "<pid> <command>" of a process whose working directory lies inside the worktree, leaving
+# out this script and its callers; returns 1 when lsof lists nothing.
 cwd_holder() {
-  local cwds
-  cwds=$(lsof -a -d cwd -Fpn 2>/dev/null) || true
+  local cwds skip=" $$ " p=$$
+  while p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ') && [ -n "$p" ] && [ "$p" -gt 1 ]; do skip="$skip$p "; done
+  cwds=$(lsof -a -d cwd -Fpcn 2>/dev/null) || true
   [ -n "$cwds" ] || return 1
-  printf '%s\n' "$cwds" | awk -v w="$wt" -v me=$$ '/^p/ { pid = substr($0, 2) }
-    /^n/ { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && pid != me) { print pid; exit } }'
+  printf '%s\n' "$cwds" | awk -v w="$wt" -v skip="$skip" '/^p/ { pid = substr($0, 2) } /^c/ { cmd = substr($0, 2) }
+    /^n/ { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && !index(skip, " " pid " ")) { print pid " " cmd; exit } }'
 }
 
 # Newest mtime, in epoch seconds, of each path and of what lies up to <depth> levels below it.
@@ -147,7 +153,7 @@ if found: print(int(max(found)))' "$@"
 # index is not an activity mark because git status rewrites it, and the HEAD commit date is not one
 # because a fresh lane can sit on an old commit.
 assess() {
-  local days=$1 reg branch porcelain work admin commits udid lock pid newest age
+  local days=$1 reg branch porcelain work admin commits holder udid lock newest age
   verdict=keep
   reg=$(registration)
   if [ -z "$reg" ]; then reason="not a registered worktree"; return; fi
@@ -165,8 +171,8 @@ assess() {
     reason="could not list the commits no branch or tag holds"; return
   fi
   if [ -n "$commits" ]; then reason="commits no branch or tag holds ($(printf '%s\n' "$commits" | grep -c .))"; return; fi
-  if ! pid=$(cwd_holder); then reason="could not list process working directories"; return; fi
-  if [ -n "$pid" ]; then reason="in use by pid $pid"; return; fi
+  if ! holder=$(cwd_holder); then reason="could not list process working directories"; return; fi
+  if [ -n "$holder" ]; then reason="in use by pid ${holder%% *} (${holder#* })"; return; fi
   if ! udid=$(lane_udids 2>/dev/null); then reason="could not list simulators"; return; fi
   for udid in $udid; do
     lock=/tmp/workout-verify-$udid/lock
@@ -287,7 +293,7 @@ for d in sorted(glob.glob(os.path.join(sys.argv[1], "WorkoutTracker-*"))):
 }
 
 lane_down() {
-  local idle= reg branch work dir saved removed=0 d
+  local idle= reg branch work holder dir saved removed=0 d
   if [ "${1:-}" = --if-idle ]; then
     [ $# -eq 3 ] || usage
     whole_days "$2"
@@ -309,6 +315,8 @@ lane_down() {
     ! printf '%s\n' "$reg" | grep -q '^locked' || die 2 "lane $name is locked; git worktree unlock $wt first"
     work=$(nested_worktree)
     [ -z "$work" ] || die 2 "lane $name holds the worktree $work; remove that first"
+    holder=$(cwd_holder) || die 70 "could not list process working directories"
+    [ -z "$holder" ] || die 75 "pid ${holder%% *} (${holder#* }) works in $wt; stop it or cd out"
   fi
   # First, so a simulator a run holds stops down (exit 75) before anything is saved or removed.
   "$here/sim-pool.sh" delete "$name" || exit

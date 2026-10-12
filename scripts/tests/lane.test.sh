@@ -149,7 +149,7 @@ sleep 0.5
 lane assess a 0
 kill "$sleeper"
 wait "$sleeper" 2>/dev/null
-expect "assess keeps a lane a process works in" "$(cat "$root/out")" "keep	in use by pid $sleeper"
+expect "assess keeps a lane a process works in" "$(cat "$root/out")" "keep	in use by pid $sleeper (sleep)"
 
 lane assess a 0
 expect "assess removes a clean lane past the threshold" "$(cat "$root/out")" "remove	idle 0d"
@@ -261,6 +261,19 @@ lane down gone
 saved=$(ls -d "$evidence/detached-gone"/down-* 2>/dev/null | head -1)
 expect "down bundles the commit the deleted branch held" \
     "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" "0 $gone_sha HEAD"
+
+lane up busy "$c1"
+(cd "$lanes/busy" && exec sleep 60) &
+sleeper=$!
+sleep 0.5
+lane down busy
+kill "$sleeper"
+wait "$sleeper" 2>/dev/null
+expect "down while another process works in the lane exits 75 and removes nothing" \
+    "$status $(cat "$root/err") | $([ -d "$lanes/busy" ] && echo worktree) $(lane_rows | grep -c workout-lane-busy)" \
+    "75 lane.sh: pid $sleeper (sleep) works in $lanes/busy; stop it or cd out | worktree 1"
+(cd "$lanes/busy" && "$primary/scripts/lane.sh" down busy >"$root/out" 2>"$root/err")
+expect "down run from a shell inside the lane removes it" "$? $([ -d "$lanes/busy" ] && echo worktree)" "0 "
 
 lane up ign "$c1"
 mkdir -p "$lanes/ign/.claude"
