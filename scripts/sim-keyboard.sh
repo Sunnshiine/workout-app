@@ -9,7 +9,7 @@ reads 1 and prints one `keyboard:` line. At 1 the simulator hides the software k
 window and the keyboard UI tests fail; the next app launch after the write shows it again, with no
 reboot. An AXe key or type event into a focused text field sets it back to 1, so a verify session
 can leave it wrong. Boots the simulator first if it is not booted. Exits 69 when the simulator
-cannot be booted or read and 70 when the write does not read back.
+cannot be booted or read and 70 when the write fails or does not read back.
 scripts/test-sim.sh runs this before every selection that includes WorkoutTrackerUITests (#700).
 EOF
   exit 2
@@ -35,7 +35,8 @@ if [ "$before" != 1 ]; then
   echo "keyboard: $sim has $key=$before"
   exit
 fi
-xcrun simctl spawn "$sim" defaults write "$domain" "$key" -bool false
+xcrun simctl spawn "$sim" defaults write "$domain" "$key" -bool false \
+  || { echo "keyboard: cannot write $key on $sim (#700)" >&2; exit 70; }
 after=$(read_key "$sim")
 [ "$after" = 0 ] || { echo "keyboard: wrote $key=0 on $sim but it reads $after (#700)" >&2; exit 70; }
 echo "keyboard: $sim had $key=1, set it to 0"

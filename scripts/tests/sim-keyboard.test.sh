@@ -26,6 +26,7 @@ case "$1 $4" in
         ;;
     "spawn write")
         echo "$*" >>"$STUB_CALLS"
+        [ -z "${STUB_WRITE_FAILS:-}" ] || { echo "Process spawn via launchd failed (code=405)" >&2; exit 148; }
         [ -n "${STUB_WRITE_IGNORED:-}" ] || echo 0 >"$STUB_DEFAULTS"
         ;;
     *) echo "$*" >>"$STUB_CALLS" ;;
@@ -68,6 +69,12 @@ echo 1 >"$root/defaults"
 STUB_WRITE_IGNORED=1 keyboard ensure "$sim"
 expect "a write that does not read back exits 70" "$status $(cat "$root/err")" \
     "70 keyboard: wrote AutomaticMinimizationEnabled=0 on $sim but it reads 1 (#700)"
+
+echo 1 >"$root/defaults"
+STUB_WRITE_FAILS=1 keyboard ensure "$sim"
+expect "a write that fails exits 70" "$status $(cat "$root/err")" \
+    "70 Process spawn via launchd failed (code=405)
+keyboard: cannot write AutomaticMinimizationEnabled on $sim (#700)"
 
 STUB_READ_FAILS=1 keyboard ensure "$sim"
 expect "a read that fails for another reason than a missing key exits 69 and writes nothing" \

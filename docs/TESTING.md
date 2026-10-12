@@ -164,7 +164,8 @@ Reading a `scripts/test-sim.sh` run:
   load1=<start>/<end> bundle=<path>`. `expected=` counts tests whose only issues were known
   issues, which `passed=` leaves out. `exit=` is the script's status, which a pipe such as `| tee`
   hides.
-- Each run keeps the five newest result bundles in `.build/test-sim` and deletes older ones.
+- Each run keeps the logs, bundle, and diffs of the five runs written last in `.build/test-sim`
+  and deletes the rest.
 - After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
   and difference images and prints their paths.
 
