@@ -271,6 +271,13 @@ class Find(unittest.TestCase):
         self.assertIn("disabled", err, "a tap on it does nothing")
         self.assertEqual(tree_py("find", "weight-pill", stdin=json.dumps(tree))[2], "", "an enabled hit needs no warning")
 
+    def test_frame_of_prints_the_first_hits_frame_or_none_and_fails_only_on_a_broken_tree(self):
+        self.assertEqual(tree_py("frame-of", "active-set-card", stdin=MINI), (0, "@-83,476 4770x308\n", ""))
+        self.assertEqual(tree_py("frame-of", "stage-queue-row-exercise-7", stdin=MINI), (0, "@23,900 312x52\n", ""),
+                         "off-screen is still a frame")
+        self.assertEqual(tree_py("frame-of", "nope", stdin=MINI), (0, "none\n", ""))
+        self.assertNotEqual(tree_py("frame-of", "active-set-card", stdin="")[0], 0)
+
     def test_center_and_frame_still_answer(self):
         self.assertEqual(tree_py("center", "reps-100", stdin=MINI)[1], "4674 641\n", "hold still reaches off-screen ids")
         self.assertEqual(tree_py("frame", stdin=MINI)[1], "402 874\n", "swipe reads the screen size")
@@ -2894,6 +2901,20 @@ class Record(Lane):
         code, _, err = self.record("--", "tap", "-x", "5", "-y", "6")
         self.assertEqual((code, err), (0, ""))
         self.assertEqual((dict(self.stamp())["screen_pt"], dict(self.stamp())["card_pt"]), ("402x874", "none"))
+        self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1)
+
+    def test_a_tree_whose_card_frame_cannot_be_read_keeps_nothing_and_exits_70_naming_doctor(self):
+        self.launch()
+        tree = json.loads(MINI)
+        card = next(node for node in tree[0]["children"] if node.get("AXUniqueId") == "active-set-card")
+        del card["frame"]
+        (self.tmp / "describe-ui.json").write_text(json.dumps(tree))
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6")
+        self.assertEqual((code, out, err.splitlines()[-1]), (70, "", (
+            "could not read active-set-card's frame from the accessibility tree after the take, so appear.take "
+            "cannot say where the card is; run: %s doctor" % self.verify_path)))
+        self.assertEqual(self.listing(self.run), [".pending", "launches.txt"])
+        self.assertEqual(self.listing(self.run / ".pending"), [])
         self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1)
 
     def test_load_over_the_limit_after_the_take_keeps_it_and_exits_3_with_the_reason(self):

@@ -57,8 +57,9 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               seconds (default 2), and stamps load, timing, frames and the verdict.
                               Waits for load under the limit first. Exit 0 VALID, 3 INVALID (both kept,
                               reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, or the
-                              screen size could not be read after the take (nothing kept, a VALID take
-                              included), 75 nothing ran (simulator held or load never fell)
+                              screen size or the card's frame could not be read from the tree after the
+                              take (nothing kept, a VALID take included), 75 nothing ran (simulator held
+                              or load never fell)
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
@@ -994,13 +995,17 @@ case $cmd in
       echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
       exit 70
     fi
-    card_pt=$(printf '%s\n' "$ui" | python3 "$tree" find active-set-card 2>/dev/null | awk -F '\t' 'NR == 1 { print $5 }') || card_pt=
+    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card); then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      echo "could not read active-set-card's frame from the accessibility tree after the take, so $name.take cannot say where the card is; run: $0 doctor" >&2
+      exit 70
+    fi
     animations=unknown
     if [ -f "$state_dir/args" ]; then
       animations=on
       if grep -q -- -UITEST_DISABLE_ANIMATIONS "$state_dir/args"; then animations=off; fi
     fi
-    printf 'screen_pt=%s\ncard_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "${card_pt:-none}" "$animations" \
+    printf 'screen_pt=%s\ncard_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "$card_pt" "$animations" \
       "$(installed_line)" >> "$pending/$name.take"
     keep_video_then_stamp "$pending" "$dir" "$name"
     echo "$dir/$name.mp4"

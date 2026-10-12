@@ -9,11 +9,12 @@ look inside that box changed.
   uv run .agents/skills/verify/motion/cardframe.py <run>/NAME.mp4 [--tsv PATH] [--from S] [--x 28] [--ref 8]
 
 Reads NAME.take beside the video, whose card_pt= is the card's frame in the accessibility tree when the
-recorder stopped, or none when the tree held no active-set-card. Each encoded frame is decoded once, at
-the recording's own pixels (video width over the stamp's screen_pt width per point), and timed by its own
-presentation time, in seconds after the take started. recordVideo writes a frame only when the screen
-changes, so a still screen is one frame and a window is a span of time: the frame showing when it opens,
-every frame after it, and the still screen up to the moment the recorder stopped.
+recorder stopped, or none when the tree held no active-set-card; record keeps no take whose tree it
+could not read. Each encoded frame is decoded once, at the recording's own pixels (video width over the
+stamp's screen_pt width per point), and timed by its own presentation time, in seconds after the take
+started. recordVideo writes a frame only when the screen changes, so a still screen is one frame and a
+window is a span of time: the frame showing when it opens, every frame after it, and the still screen up
+to the moment the recorder stopped.
 
 Window. It opens at --from S, else at the drive's start, else at 0. --from on a launch take skips the
 fade rules below, so a --from inside the fade reads the fade as motion. A launch take's window opens at the

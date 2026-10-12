@@ -13,9 +13,10 @@ Films eight takes through `verify.sh record` twice in one session: first on COMM
 filmed, so measuring never loads the host before a take. The rest-end take starts 26 s after the Superset
 log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
-A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
-an edge ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window
-under 1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
+A take is INVALID when record did not exit 0 or 3 with a stamp, as when it exits 70 because it could not
+read the screen's size or the card's frame from the tree. Else it FAILs when the card was lost or an edge
+ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window under
+1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
 INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, or its animations are not on, the rule that keeps cardframe
 from printing still=yes; or when it started late, or cardframe read no card (none in the tree, none in

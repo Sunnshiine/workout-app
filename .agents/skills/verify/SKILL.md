@@ -263,8 +263,8 @@ uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card 
 `record` waits up to `VERIFY_LOAD_WAIT` s (60) for the 1-minute load to fall under `WORKOUT_LOAD_LIMIT`
 (50), because a loaded host films a move as a cut. It drives once the recorder is capturing and stops it
 with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on stderr. Exit 70 means the
-recorder or ffprobe failed, or the screen size could not be read after the take, and nothing is kept, a
-VALID take included. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes,
+recorder or ffprobe failed, or the screen size or the card's frame could not be read from the accessibility
+tree after the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes,
 so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
 pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
 from its edges, and its look, the luminance inside the settled box. A neighbour such as the rest pill joins
