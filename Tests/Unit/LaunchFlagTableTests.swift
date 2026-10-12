@@ -20,7 +20,7 @@ import Testing
             | --- | --- | --- |
 
             """
-        return header + flags.map { "| `\($0.rawValue)` | \(kind(of: $0)) | \($0.meaning) |\n" }.joined()
+        return header + flags.map { "| `\($0.argument)` | \(kind(of: $0)) | \($0.meaning) |\n" }.joined()
     }
 
     private func kind(of flag: LaunchFlag) -> String {
@@ -31,7 +31,7 @@ import Testing
     }
 
     @Test func launchFlagTableMatchesTheRegistry() throws {
-        let table = launchFlagTable(LaunchFlag.allCases)
+        let table = launchFlagTable(LaunchFlag.all)
         if ProcessInfo.processInfo.environment["RECORD_LAUNCH_FLAGS"] == "1" {
             try table.write(to: RepositoryFiles.existingURL(of: launchFlagTablePath), atomically: true, encoding: .utf8)
         }

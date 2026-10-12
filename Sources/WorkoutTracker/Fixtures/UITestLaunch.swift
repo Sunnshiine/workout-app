@@ -75,7 +75,7 @@
 
         var appearance: AppearancePreference {
             get throws(UnknownAppearance) {
-                guard let flagIndex = arguments.firstIndex(of: LaunchFlag.appearance.rawValue) else {
+                guard let flagIndex = arguments.firstIndex(of: LaunchFlag.appearance.argument) else {
                     return .system
                 }
                 let value = arguments.dropFirst(flagIndex + 1).first ?? ""
@@ -91,12 +91,12 @@
 
             var description: String {
                 let accepted = AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")
-                return "\(LaunchFlag.appearance.rawValue) takes \(accepted), not \"\(value)\""
+                return "\(LaunchFlag.appearance.argument) takes \(accepted), not \"\(value)\""
             }
         }
 
         private func has(_ flag: LaunchFlag) -> Bool {
-            arguments.contains(flag.rawValue)
+            arguments.contains(flag.argument)
         }
     }
 #endif

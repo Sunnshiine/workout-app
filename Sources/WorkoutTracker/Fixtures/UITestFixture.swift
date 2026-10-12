@@ -4,9 +4,8 @@
 
     /// Boots the app into a deterministic, populated `SessionView` for unattended UI verification.
     ///
-    /// Activated by launching with `LaunchFlag.fixture`. Uses an in-memory store and a
-    /// faked sign-in so it never touches real data, Google auth, or the network — the Ralph loop
-    /// can screenshot a known screen without clearing the OAuth onboarding wall.
+    /// Activated by launching with `LaunchFlag.fixture`. An in-memory store and a faked sign-in keep
+    /// it off real data, Google auth, and the network, and past the OAuth onboarding wall.
     enum UITestFixture {
         /// The launch configuration this process was started with.
         static let launch = UITestLaunch(arguments: ProcessInfo.processInfo.arguments)
