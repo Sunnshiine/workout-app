@@ -51,7 +51,7 @@ def tree_py(*args, stdin=""):
 
 def verify_sh(*args, run, sim=None, path=None, evidence=None, **extra):
     env = dict(os.environ, **extra)
-    for name in ["VERIFY_RUN", "SIM", "VERIFY_EVIDENCE"]:
+    for name in ["VERIFY_RUN", "SIM"]:
         env.pop(name, None)
     if run:
         env["VERIFY_RUN"] = run
@@ -93,9 +93,11 @@ EVIDENCE_BEFORE = []
 
 def setUpModule():
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
+    os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
 
 
 def tearDownModule():
+    shutil.rmtree(os.environ.pop("VERIFY_EVIDENCE"), ignore_errors=True)
     after = evidence_files(DEFAULT_EVIDENCE)
     if after != EVIDENCE_BEFORE:
         raise AssertionError("the tests wrote into this checkout's own evidence %s: %s"
@@ -1950,11 +1952,18 @@ class AppCache(Lane):
         self.assertEqual(self.entries(), sorted([self.a + ".lock", self.b, self.b + ".lock", "logs"]))
         self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
 
-    def test_a_killed_installs_lock_frees_when_its_build_exits_under_the_real_global_config_with_fsmonitor(self):
+    def test_a_killed_installs_lock_frees_when_its_build_exits_though_git_leaves_processes_behind(self):
         real = [os.environ.get("GIT_CONFIG_GLOBAL") or os.path.expanduser("~/.gitconfig"),
                 os.path.expanduser("~/.config/git/config")]
-        (self.tmp / "gitconfig").write_text("[include]\n%s[core]\n\tfsmonitor = true\n"
-                                            % "".join("\tpath = %s\n" % path for path in real))
+        hooks = self.tmp / "hooks"
+        hooks.mkdir()
+        (hooks / "post-checkout").write_text('#!/bin/sh\nsleep 60 >/dev/null 2>&1 &\necho $! >> "%s"\n'
+                                             % (self.tmp / "hook-pids"))
+        (hooks / "post-checkout").chmod(0o755)
+        self.addCleanup(subprocess.run, ["sh", "-c", 'kill -9 $(cat "$0") 2>/dev/null', str(self.tmp / "hook-pids")])
+        (self.tmp / "gitconfig").write_text("[include]\n%s[core]\n\tfsmonitor = true\n\thooksPath = %s\n"
+                                            % ("".join("\tpath = %s\n" % path for path in real), hooks))
+        (self.tmp / "bin" / "bash").symlink_to("/bin/bash")
         lock = self.cache / (self.a + ".lock")
         if shutil.which("lsof"):
             self.addCleanup(subprocess.run, ["sh", "-c", 'lsof -t "$0" | xargs kill -9', str(lock)],
@@ -2136,7 +2145,7 @@ class KeyboardReset(Lane):
                 sim=self.sim, verify=self.verify_path)))
         self.minimized("0\n")
         self.assertEqual(self.verify("doctor")[1].splitlines()[-1],
-                         "ok   AutomaticMinimizationEnabled is not 1 on %s, so the software keyboard can show" % self.sim)
+                         "ok   AutomaticMinimizationEnabled is not 1 on %s" % self.sim)
 
     def test_type_resets_the_keyboard_preference_after_axe_and_keeps_axes_status(self):
         self.assertEqual(self.verify("type", "245", STUB_AXE_EXIT="3"), (3, "", KEYBOARD))

@@ -52,10 +52,9 @@ The hash covers every file in the bundle (the code, the widget extension, assets
 `Info.plist`), so two apps are the same app when their hashes match. `build` stamps the commit into the bundle, with `-dirty` when
 `App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, the project, or the package
 files had uncommitted changes. An app whose bytes no stamp describes reads `commit unknown (not
-built by verify.sh)`. When a lock, boot, or app-cache build refusal leaves another app installed,
-the refusal ends with `app on <udid> unchanged:`, the app still there, and the app the launch
-wanted. When the
-installed bytes differ from the build, or `simctl install` fails, `launch` exits 70 and names both
+built by verify.sh)`. When a lock, boot, app-cache build, or no-built-app refusal leaves another
+app installed, the refusal ends with `app on <udid> unchanged:`, the app still there, and the app
+the launch wanted. When the installed bytes differ from the build, or `simctl install` fails, `launch` exits 70 and names both
 apps.
 
 ### Control and head on one simulator

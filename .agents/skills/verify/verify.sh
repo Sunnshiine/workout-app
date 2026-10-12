@@ -365,7 +365,10 @@ scratch_checkout() {
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
-without_cache_lock() { "$@" 8>&-; }
+# Only xcodebuild keeps fd 8, so a killed install's build holds the cache lock until it exits. A process git
+# leaves behind, such as a core.fsmonitor daemon, would hold it for good. The subshell matters: bash 3.2 lets
+# children inherit the copy of fd 8 it saves around a function's own 8>&-.
+without_cache_lock() { (exec 8>&- && "$@"); }
 
 cached_app_path() { printf '%s/%s/WorkoutTracker.app\n' "$(cache_root)" "$1"; }
 
@@ -376,7 +379,6 @@ ensure_cached() {
   cache_hit "$app" && return 0
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
-  # git with core.fsmonitor starts a daemon that would inherit fd 8 and hold the lock for good.
   exec 8>>"$lock"
   python3 -c 'import fcntl, sys
 try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -681,7 +683,7 @@ case $cmd in
         echo "FAIL AutomaticMinimizationEnabled is 1 on $sim, so a focused field shows no software keyboard (issue 700); the next launch resets it (run: $0 launch <fixture>)"
         rc=1
       else
-        echo "ok   AutomaticMinimizationEnabled is not 1 on $sim, so the software keyboard can show"
+        echo "ok   AutomaticMinimizationEnabled is not 1 on $sim"
       fi
     fi
     exit $rc
