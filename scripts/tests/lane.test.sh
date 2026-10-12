@@ -128,6 +128,24 @@ expect "one argument holding a name and a SHA, as zsh passes \"x <sha>\", exits 
     "$status $(head -1 "$root/err") | $(ls "$lanes" | tr '\n' ' ')| $(calls)" \
     "2 Usage: scripts/lane.sh up <name> <commit> | a b p | "
 
+"$primary/scripts/lane.sh" --help >"$root/out" 2>"$root/err"
+expect "--help prints the usage on stdout and exits 0" "$? $(head -1 "$root/out") | $(cat "$root/err")" \
+    "0 Usage: scripts/lane.sh up <name> <commit> | "
+
+touch "$root/case-probe"
+if [ -e "$root/CASE-PROBE" ]; then
+    lane up A "$c1"
+    expect "on a disk that ignores case, up of a name that differs from lane a only by case exits 2 and names lane a" \
+        "$status $(cat "$root/err") | $(ls "$lanes" | tr '\n' ' ')" \
+        "2 lane.sh: $lanes/A is the directory of lane a, because this disk ignores case; pick a name that differs by more than case | a b p "
+    lane down A
+    expect "down of that name leaves lane a and says why" \
+        "$status $(tail -1 "$root/err") | $(git -C "$lanes/a" rev-parse HEAD)" \
+        "0 lane.sh: left $lanes/A alone: it is the directory of lane a, because this disk ignores case | $c1"
+else
+    ok "case clash: this disk is case-sensitive, so lane A and lane a cannot clash"
+fi
+
 zsh_out=$(cd "$primary" && zsh -fc 'env=$(scripts/lane.sh env a) && eval "$env" && print -r -- "$SIM|$LANE_WORKTREE|$VERIFY_EVIDENCE" && cat "$LANE_WORKTREE/Secrets.xcconfig"' 2>&1)
 expect "zsh evals env on a checkout path with a space in it" "$zsh_out" \
     "$P-2|$lanes/a|$evidence/detached-a
@@ -234,6 +252,47 @@ commit_in() {
     git -C "$lanes/$1" commit -qm "$2"
     git -C "$lanes/$1" rev-parse HEAD
 }
+
+lane up reup "$c1"
+reup_sha=$(commit_in reup unsaved)
+lane up reup "$reup_sha"
+up_result="$status $(git -C "$lanes/reup" rev-parse refs/worktree/lane-base)"
+lane assess reup 0
+expect "up at the lane's own new commit keeps the lane's base, so assess keeps that commit" \
+    "$up_result | $(cat "$root/out")" "0 $c1 | keep	commits no branch or tag holds (1)"
+lane down reup
+saved=$(ls -d "$evidence/detached-reup"/down-* 2>/dev/null | head -1)
+expect "down then bundles that commit" "$status $(git -C "$primary" bundle list-heads "$saved/commits.bundle" 2>&1)" \
+    "0 $reup_sha HEAD"
+
+lane up results "$c1"
+results=$(grep -rhoE --include='*.sh' --exclude-dir=tests '\.build/[A-Za-z0-9_-]+' "$scripts" "$scripts/../.agents" \
+    | sed 's|^\.build/||' | grep -vx debug | sort -u | tr '\n' ' ')
+for d in $results debug; do
+    mkdir -p "$lanes/results/.build/$d"
+    echo "$d" >"$lanes/results/.build/$d/result.txt"
+done
+mkdir -p "$lanes/results/.workout-cli"
+echo logged >"$lanes/results/.workout-cli/workbook.json"
+lane down results
+saved=$(ls -d "$evidence/detached-results"/down-* 2>/dev/null | head -1)
+expect "down saves every results dir under .build the repo's scripts write, and the CLI's home, but no build products" \
+    "$status $results| $(cd "$saved" && ls -d */result.txt | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
+    "0 crap flake-hunt test-sim verify | crap/result.txt flake-hunt/result.txt test-sim/result.txt verify/result.txt | .workout-cli/workbook.json"
+
+lane up staged "$c1"
+echo staged >"$lanes/staged/staged.txt"
+git -C "$lanes/staged" add staged.txt
+rm "$lanes/staged/staged.txt"
+lane assess staged 0
+assessed=$(cat "$root/out")
+lane down staged
+saved=$(ls -d "$evidence/detached-staged"/down-* 2>/dev/null | head -1)
+git -C "$primary" worktree add -q --detach "$root/restore" "$c1" 2>/dev/null
+git -C "$root/restore" apply --cached "$saved/staged.diff"
+expect "down saves a new file staged and then deleted from the tree, and it restores into the index" \
+    "$assessed | $status $(git -C "$root/restore" show :staged.txt 2>&1)" "keep	uncommitted changes (1) | 0 staged"
+git -C "$primary" worktree remove --force "$root/restore"
 
 lane up back "$c1"
 back_sha=$(commit_in back left-behind)

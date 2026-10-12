@@ -471,6 +471,12 @@ echo mine >"$lanes/unref/mine.txt"
 git -C "$lanes/unref" add -A
 git -C "$lanes/unref" commit -qm mine
 idle unref
+up reup
+echo again >"$lanes/reup/again.txt"
+git -C "$lanes/reup" add -A
+git -C "$lanes/reup" commit -qm again
+up reup "$(git -C "$lanes/reup" rev-parse HEAD)"
+idle reup
 mkdir -p "$lanes/work/.claude/work"
 echo plan >"$lanes/work/.claude/work/plan.md"
 git -C "$lane_repo" worktree add -q --detach "$root/outside" main
@@ -499,6 +505,7 @@ assert_lane CANDIDATES zzz-raced -
 assert_lane KEPT recent "lane active 1d ago, threshold 3d"
 assert_lane KEPT dirty "lane uncommitted changes (1)"
 assert_lane KEPT unref "lane commits no branch or tag holds (1)"
+assert_lane KEPT reup "lane commits no branch or tag holds (1)"
 assert_lane CANDIDATES work -
 assert_lane KEPT oldsha "lane active 0d ago, threshold 3d"
 assert_lane KEPT "not a lane" "detached under .claude/worktrees, but 'not a lane' is not a lane name; remove it by hand"
@@ -540,7 +547,7 @@ if [ "$(tar -tf "$lane_repo/.claude/work/evidence/detached-work"/down-*/untracke
 else
     bad "--apply did not save the ignored note of lane work"
 fi
-if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent workout-lane-unref workout-lane-zzz-raced " ]; then
+if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent workout-lane-reup workout-lane-unref workout-lane-zzz-raced " ]; then
     ok "--apply deleted the idle lanes' simulators and no other"
 else
     bad "lane simulators after --apply: $devices"
@@ -551,7 +558,7 @@ else
     bad "the raced lane was not skipped"
 fi
 if [ "$lane_apply_status" -eq 1 ]; then ok "a skipped lane makes --apply exit 1"; else bad "--apply exited $lane_apply_status"; fi
-for l in recent dirty unref oldsha; do
+for l in recent dirty unref oldsha reup; do
     [ -d "$lanes/$l" ] || bad "--apply removed the kept lane $l"
 done
 

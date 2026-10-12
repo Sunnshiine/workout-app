@@ -184,6 +184,24 @@ $P-1	Shutdown	newer-template	workout-template-v2
 booted: 0 of cap 6"
 
 fresh
+seed workout-template-v2
+pool create a
+seed workout-template-v1-building
+pool delete-template
+expect "delete-template deletes this recipe's template and a crashed build, and leaves lanes and a newer recipe's template" \
+    "$status $(calls) | $(listing)" \
+    "0 delete $P-2
+delete $P-4 | UDID	STATE	ROLE	NAME
+$P-3	Shutdown	lane	workout-lane-a
+$P-1	Shutdown	newer-template	workout-template-v2
+booted: 0 of cap 6"
+pool delete-template
+expect "a second delete-template exits 0 with a note" "$status $(cat "$root/err") | $(calls)" \
+    "0 sim-pool: no workout-template-v1 to delete | "
+pool create b
+expect "create after delete-template builds the template again" "$status $(calls | grep -c '^create workout-template-v1-building')" "0 1"
+
+fresh
 "$scripts/sim-pool.sh" create a >"$root/out-a" 2>&1 &
 "$scripts/sim-pool.sh" create b >"$root/out-b" 2>&1 &
 wait
@@ -213,9 +231,12 @@ release
 expect "a held pool lock exits 75 and names the holder" "$status $(cat "$root/err") | $(calls)" \
     "75 sim-pool: waited 0 s for the pool lock, held by sim-pool.sh create z (pid 4243) (lsof $root/locks/sim-pool lists it) | "
 
+pool --help
+expect "--help prints the usage on stdout and exits 0" "$status $(head -1 "$root/out") | $(cat "$root/err")" \
+    "0 Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | delete-template | list | "
 pool create 'lane-x 1a2b3c4'
 expect "a lane name with a space prints usage and exits 2" "$status $(head -1 "$root/err") | $(calls)" \
-    "2 Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | list | "
+    "2 Usage: scripts/sim-pool.sh create <lane> | boot <lane> | delete <lane> | delete-template | list | "
 pool delete ../x
 expect "a lane name with a slash exits 2" "$status" "2"
 WORKOUT_SIM_CAP=0 pool boot a
