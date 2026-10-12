@@ -882,9 +882,11 @@ case $cmd in
     load_wait=${VERIFY_LOAD_WAIT:-60}
     { decimal "$tail" && decimal "$limit"; } || usage
     case $load_wait in ''|*[!0-9]*) echo "VERIFY_LOAD_WAIT is whole seconds: $load_wait" >&2; exit 2 ;; esac
-    resolve_sim; require_sim_free "$sim"; require_own_app; ensure_axe
+    resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
+    # After the load wait, so the simulator and app checks hold for the take and not for a minute before it.
     load=$(admit_load "$limit" "$load_wait")
+    require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending
     mkdir -p "$pending"

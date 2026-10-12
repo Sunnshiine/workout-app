@@ -2433,6 +2433,13 @@ frames=
 for t in ${STUB_PTS:-0.000000 3.402000 0.400000}; do frames="$frames${frames:+, }{\\"pts_time\\": \\"$t\\"}"; done
 echo "{\\"frames\\": [$frames], \\"streams\\": [{\\"width\\": 1206, \\"height\\": 2622}]}"
 """
+CLAIMING_SYSCTL_STUB = """#!/bin/sh
+if [ -f "{dir}/claimed" ]; then echo "{ 12.31 9.00 8.00 }"; exit 0; fi
+touch "{dir}/claimed"
+echo lane-2 > "{state}/run"
+echo {pid} > "{state}/pid"
+echo "{ 63.20 9.00 8.00 }"
+"""
 TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_limit", "load_before", "load_after", "started",
              "drive_start", "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame",
              "last_frame", "video_px", "verdict", "invalid", "invalid_rules", "screen_pt", "animations", "app"]
@@ -2520,6 +2527,21 @@ class Record(Lane):
         self.assertEqual(self.record(STUB_LOAD_BEFORE="50", VERIFY_LOAD_WAIT="1"), (75, "", (
             "load 50 at or over 50; waiting up to 1s for it to fall\n"
             "load 50 at or over 50 after 1s; nothing recorded or driven\n")))
+        self.assertEqual(self.calls(), [])
+
+    def test_a_run_that_takes_the_simulator_while_record_waits_for_load_is_refused_after_the_wait(self):
+        self.launch()
+        other = subprocess.Popen(FIXTURE_APP, start_new_session=True)
+        self.addCleanup(other.wait)
+        self.addCleanup(other.kill)
+        state = Path("/tmp/workout-verify-%s" % self.sim)
+        (self.tmp / "bin" / "sysctl").write_text(CLAIMING_SYSCTL_STUB.replace("{dir}", str(self.tmp)).replace(
+            "{state}", str(state)).replace("{pid}", str(other.pid)))
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", VERIFY_LOAD_WAIT="1"), (75, "", (
+            "load 63.20 at or over 50; waiting up to 1s for it to fall\n"
+            "the app on %s belongs to run lane-2 (pid %d), not to lane-1, so this would drive another run's app; "
+            "launch yours first: SIM=%s VERIFY_RUN=lane-1 %s launch <fixture>\n"
+            % (self.sim, other.pid, self.sim, self.verify_path))))
         self.assertEqual(self.calls(), [])
 
     def test_a_recorder_that_never_starts_capturing_drives_nothing_and_leaves_nothing(self):
