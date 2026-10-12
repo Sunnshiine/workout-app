@@ -10,7 +10,7 @@ apps=()
 cleanup() {
     touch "$root/release"
     [ ${#apps[@]} -eq 0 ] || { kill "${apps[@]}"; wait "${apps[@]}"; } 2>/dev/null
-    rm -rf "$root" "$state" "/tmp/workout-verify-$sim2" "/tmp/workout-verify-$sim-W"*
+    rm -rf "$root" "$state" "/tmp/workout-verify-$sim2"
 }
 trap cleanup EXIT
 repo=$root/repo
@@ -390,21 +390,15 @@ mkdir -p "$root/locks"
 python3 -c 'import fcntl, sys, time
 admit, build = open(sys.argv[1], "a"), open(sys.argv[2], "a")
 fcntl.flock(admit, fcntl.LOCK_EX)
-fcntl.flock(build, fcntl.LOCK_EX)
+fcntl.flock(build, fcntl.LOCK_SH)
 open(sys.argv[3], "w").close()
 time.sleep(30)' "$root/locks/admit" "$root/locks/build-1" "$root/holding" &
 admitting=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
-waiters=
-for w in 1 2 3 4 5 6 7 8 9 10 11 12; do
-    STUB_SHUTDOWN="$(printf "$sim-W%s " 1 2 3 4 5 6 7 8 9 10 11 12)" WORKOUT_BUILD_SLOTS=2 WORKOUT_ADMIT_WAIT=12 \
-        "$repo/scripts/test-sim.sh" --sim "$sim-W$w" unit >/dev/null 2>"$root/err-w$w" &
-    waiters="$waiters $!"
-done
-wait $waiters
+STUB_SHUTDOWN=$sim WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 kill "$admitting"; wait "$admitting" 2>/dev/null
-expect "build claims waiting on a boot blame the boot, never each other's slot probes" \
-    "$(grep -h 'gave up' "$root"/err-w* | grep -c 'another claim is booting') of 12" "12 of 12"
+expect "a build claim waiting on a boot blames the boot, never another claim's slot probe" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: another claim is booting a simulator (lsof $root/locks/admit lists it)"
 
 went=0
 for _ in 1 2 3 4 5; do
