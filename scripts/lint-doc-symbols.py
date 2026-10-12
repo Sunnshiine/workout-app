@@ -89,7 +89,6 @@ class Finding:
 
 
 def classify(token: str, doc_dir: str, top: frozenset[str]) -> Claim | None:
-    """The claim a span token makes about the tree, or None when it makes none."""
     t = token.strip("'\"").rstrip(",;:.")
     if not t or "://" in t or ("@" in t and "/" in t):
         return None
@@ -128,7 +127,6 @@ def is_glob(name: str) -> bool:
 
 
 def through_links(path: str, links: dict[str, str]) -> str:
-    """The path with a tracked symlink prefix (.claude/skills/<name>) replaced by its target."""
     for link, target in links.items():
         if path == link or path.startswith(link + "/"):
             return target + path[len(link):]
@@ -136,7 +134,6 @@ def through_links(path: str, links: dict[str, str]) -> str:
 
 
 def resolve(claim: Claim, tree: Tree) -> tuple[str, ...]:
-    """The names in the claim this tree does not have. Empty when the claim holds."""
     if claim.kind is Kind.FLAG:
         return () if claim.token in tree.flags else (claim.token,)
     if claim.kind is Kind.IDENT:
@@ -220,7 +217,6 @@ def spans(text: str) -> list[tuple[int, str]]:
 
 
 def exemptions(text: str) -> dict[str, int]:
-    """Each name a doc exempts, with the line of its comment."""
     exempt: dict[str, int] = {}
     for m in EXEMPTION.finditer(text):
         for name in m.group(1).split():
@@ -277,7 +273,7 @@ def lint_callers(path: str, text: str, flags: frozenset[str]) -> list[Finding]:
 
 
 def git(root: str, *args: str, stdin: str = "") -> str:
-    """Stdout of a git command. Exit 1 is an answer (check-ignore found nothing); above 1 is fatal."""
+    """Exit 1 is an answer (check-ignore found nothing); above 1 is fatal."""
     result = subprocess.run(
         ["git", "-C", root, "-c", "core.quotePath=false", *args],
         input=stdin, capture_output=True, text=True, check=False,

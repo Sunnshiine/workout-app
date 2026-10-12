@@ -1,12 +1,7 @@
 #if DEBUG
-    /// Every launch argument the app honours, with the row `.agents/skills/verify/launch-flags.md`
-    /// prints for it. `scripts/lint-doc-symbols.py` fails a `-UITEST_` literal anywhere else in the
-    /// app's sources, and a flag spelled here but left out of `all`, so a flag cannot be read
-    /// without a meaning or go missing from the table.
     struct LaunchFlag: Hashable, Sendable {
         let argument: String
         let meaning: String
-        /// False for a flag the app reads only on the fixture launch path, so it does nothing without `fixture`.
         var actsWithoutFixture = false
 
         static let fixture = LaunchFlag(
