@@ -23,6 +23,7 @@ on:
       - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/verify-tools.yml"
+      - ".github/workflows/script-tests.yml"
       - ".github/workflows/workflow-lint.yml"
       - ".github/workflows/skill-links.yml"
       - ".github/workflows/architecture-review.yml"
