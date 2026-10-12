@@ -9,8 +9,9 @@ usage: scripts/lint-doc-symbols.py [ROOT]
 
 Reads the inline code spans of AGENTS.md, docs/, and the verify skill. ADRs and research notes are
 history and stay out. A span that names something outside the tree on purpose is exempted in its
-doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag outside Markdown must be a
-row of the generated launch-flag table, and the app's sources may spell one only in LaunchFlag.
+doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
+commands included, and in every file outside Markdown must be a row of the generated launch-flag
+table, and the app's sources may spell one only in LaunchFlag.
 
 Exits 0 when clean, 1 on findings, 2 on a usage error.
 """
