@@ -22,6 +22,7 @@ BEGIN {
     while ((getline n < changed) > 0) want[n] = 1
     close(changed)
     MASK = "\001"
+    IN = 1; OUT = 0; UNKNOWN = -1
     blockDepth = 0
     inMultiline = 0
     multilineHashes = ""
@@ -133,19 +134,16 @@ function emit(op, before, after, mutated,    row) {
     else print row
 }
 
-# 1 when platform compiles the branch in, 0 when it compiles it out, -1 when it cannot tell.
 function branchOn(cond,    negated, v) {
     gsub(/[ \t]/, "", cond)
     negated = sub(/^!/, "", cond)
     if (cond ~ /^os\([A-Za-z]+\)$/) v = cond == "os(" platform ")"
     else if (cond == "canImport(UIKit)") v = platform == "iOS"
     else if (cond == "canImport(AppKit)") v = platform == "macOS"
-    else return -1
+    else return UNKNOWN
     return negated ? 1 - v : v
 }
 
-# Tracks each open #if's branch: on[d] for the branch the line sits in, taken[d] when an earlier branch
-# was compiled in, unsure[d] when an earlier branch could not be told.
 function directive(m,    t, kind, v, d) {
     t = m
     gsub(MASK, "", t)
@@ -155,18 +153,18 @@ function directive(m,    t, kind, v, d) {
     sub(/[^A-Za-z#].*/, "", kind)
     sub(/^#(if|elseif)/, "", t)
     if (kind == "#endif") { depth--; return }
-    if (kind == "#if") { depth++; taken[depth] = 0; unsure[depth] = 0 }
+    if (kind == "#if") { depth++; earlierIn[depth] = 0; earlierUnknown[depth] = 0 }
     d = depth
-    v = kind == "#else" ? 1 : (platform == "" ? -1 : branchOn(t))
-    if (taken[d] || v == 0) on[d] = 0
-    else if (unsure[d] || v == -1) on[d] = -1
-    else on[d] = 1
-    taken[d] = taken[d] || on[d] == 1
-    unsure[d] = unsure[d] || on[d] == -1
+    v = kind == "#else" ? IN : (platform == "" ? UNKNOWN : branchOn(t))
+    if (earlierIn[d] || v == OUT) branch[d] = OUT
+    else if (earlierUnknown[d] || v == UNKNOWN) branch[d] = UNKNOWN
+    else branch[d] = IN
+    earlierIn[d] = earlierIn[d] || branch[d] == IN
+    earlierUnknown[d] = earlierUnknown[d] || branch[d] == UNKNOWN
 }
 
 function inCompiledOutBranch(    d) {
-    for (d = 1; d <= depth; d++) if (on[d] == 0) return 1
+    for (d = 1; d <= depth; d++) if (branch[d] == OUT) return 1
     return 0
 }
 

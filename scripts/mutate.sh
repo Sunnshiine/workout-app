@@ -42,7 +42,7 @@ Prints log:, mutants: (--diff), scratch:, and baseline: lines, then a row per mu
   unreachable  this build never compiles the line (#if, no target; App/ needs --sim)
   error        the runner failed without naming a failing test, or the build failed elsewhere
   not run      --max left it out
-The #error probe misjudges a hand-written mutant in two places: on a continuation line inside an #if
+The #error probe misjudges a mutant in two places: on a continuation line inside an #if
 branch the build compiles out it reads SURVIVED, and inside a multi-line string literal it reads
 unreachable. --diff never mutates inside a string and decides the #if branches above itself.
 Exits 0 when every mutant was killed (a generated nocompile does not count); 1 when any was flaky,
@@ -166,7 +166,7 @@ else
     : >"$run/compiled-out.tsv"
     : >"$run/unreachable.tsv"
     : >"$run/sources.tsv"
-    why() { awk -v why="$1" '{ print why "\t" $0 }'; }
+    with_reason() { awk -v why="$1" '{ print why "\t" $0 }'; }
     if [ -n "$sim" ]; then
         platform=iOS compiled_out="an #if compiles it out of the simulator build; rerun without --sim"
     else
@@ -183,10 +183,10 @@ else
         changed=$((changed + $(wc -l <"$run/changed$k")))
         if reachable "$f"; then
             awk -v changed="$run/changed$k" -v path="$f" -v platform=$platform -v compiledOut="$run/compiled-out.tsv" \
-                -f "$script_dir/mutants.awk" "$run/source$k.swift" | why "" >>"$run/runnable.tsv"
+                -f "$script_dir/mutants.awk" "$run/source$k.swift" | with_reason "" >>"$run/runnable.tsv"
         else
             awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
-                why "swift test never compiles it; rerun with --sim UDID" >>"$run/unreachable.tsv"
+                with_reason "swift test never compiles it; rerun with --sim UDID" >>"$run/unreachable.tsv"
         fi
     done <"$run/files"
     generated=$(($(cat "$run/runnable.tsv" "$run/compiled-out.tsv" "$run/unreachable.tsv" | wc -l)))
@@ -206,8 +206,8 @@ else
     runnable=$(($(wc -l <"$run/picked.tsv")))
     dropped=$(($(wc -l <"$run/unrun.tsv")))
     # mutants.awk prints the whole mutated line last, so it is read from the file, never through -v,
-    # which would rewrite its backslashes. Each row arrives with the reason it cannot run first.
-    { cat "$run/picked.tsv"; why "$compiled_out" <"$run/compiled-out.tsv"; cat "$run/unreachable.tsv"; } | awk -F'\t' -v run="$run" '
+    # which would rewrite its backslashes.
+    { cat "$run/picked.tsv"; with_reason "$compiled_out" <"$run/compiled-out.tsv"; cat "$run/unreachable.tsv"; } | awk -F'\t' -v run="$run" '
         FNR == NR { source[$1] = $2; next }
         {
             id = "m" FNR
@@ -232,12 +232,10 @@ one_line() {
 }
 read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" "$2"; }
 
-# The command runs in its own session, so a timeout can kill its whole tree, and keeps the slot lock on
-# fd 8 while it lives. The session's leader kills the session when this wrapper dies, so a SIGKILL to
-# mutate.sh's process group leaves nothing running in the slot.
+# close_fds=False keeps the slot lock on fd 8 in every child.
 with_timeout() {
     python3 -c 'import os, signal, subprocess, sys
-reap = """import os, signal, subprocess, sys
+die_with_wrapper = """import os, signal, subprocess, sys
 p = subprocess.Popen(sys.argv[2:], close_fds=False)
 while True:
     try:
@@ -247,7 +245,7 @@ while True:
         if os.getppid() != int(sys.argv[1]):
             os.killpg(0, signal.SIGKILL)
 sys.exit(128 - rc if rc < 0 else rc)"""
-p = subprocess.Popen([sys.executable, "-c", reap, str(os.getpid())] + sys.argv[2:], start_new_session=True, close_fds=False)
+p = subprocess.Popen([sys.executable, "-c", die_with_wrapper, str(os.getpid())] + sys.argv[2:], start_new_session=True, close_fds=False)
 def stop(*_):
     os.killpg(p.pid, signal.SIGKILL)
     sys.exit(124)
