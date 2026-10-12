@@ -104,14 +104,14 @@ class Reading:
     @staticmethod
     def of(m: cardframe.Measure) -> "Reading":
         return Reading(
-            verdict=m.take.verdict,
-            invalid=m.take.invalid,
+            verdict="INVALID" if m.invalid else "VALID",
+            invalid="; ".join(m.invalid),
             animations=m.take.animations,
             first_seen=m.first_seen,
             lost=m.lost,
             worst_edge_range=m.worst_edge_range,
             frames=m.frames,
-            load=f"{m.take.load_before}/{m.take.load_after}",
+            load=f"{m.take.load_before:.2f}/{m.take.load_after:.2f}",
         )
 
 

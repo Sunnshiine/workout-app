@@ -35,12 +35,12 @@ over more than 0.5 pt. --tsv writes one row per window frame: t, t_from_drive, t
 contrast, blank cells for a frame with no card.
 
 Exit 0 measured, 1 no card in any window frame, 3 measured but the take is INVALID or its animations are
-not on (a banner line first), 2 usage or no readable NAME.take, 70 ffmpeg or ffprobe failed.
+not on (a banner line first), 2 usage or no readable NAME.take with a screen_pt=, 70 ffmpeg or ffprobe
+failed.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import subprocess
 import sys
@@ -52,6 +52,9 @@ from statistics import median
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from take import NoTake, Take, judge, parse, probe  # noqa: E402
 
 THRESHOLD = 4.0
 MIN_RUN_PT = 120.0
@@ -69,74 +72,6 @@ class Usage(Exception):
 
 class DecodeFailure(Exception):
     pass
-
-
-@dataclass(frozen=True)
-class Take:
-    """The fields of a take/1 stamp that measuring reads."""
-
-    path: Path
-    verdict: str
-    invalid: str
-    animations: str
-    drive: str
-    drive_start: Optional[float]
-    drive_end: Optional[float]
-    load_before: str
-    load_after: str
-    screen_pt: Tuple[int, int]
-    video_px: Tuple[int, int]
-
-    @property
-    def launches(self) -> bool:
-        return self.drive.split()[:1] == ["launch"]
-
-    @property
-    def default_from(self) -> float:
-        if self.drive and self.drive_start is not None:
-            return self.drive_start
-        return 0.0
-
-
-def read_take(path: Path) -> Take:
-    try:
-        lines = path.read_text().splitlines()
-    except OSError:
-        raise Usage(f"no take stamp {path}; record the video with verify.sh record") from None
-    fields = dict(line.split("=", 1) for line in lines if "=" in line)
-
-    def field(key: str) -> str:
-        if key not in fields:
-            raise Usage(f"{path} has no {key}=")
-        return fields[key]
-
-    def seconds(key: str) -> Optional[float]:
-        text = field(key)
-        return float(text) if text else None
-
-    def size(key: str) -> Tuple[int, int]:
-        width, _, height = field(key).partition("x")
-        try:
-            return int(width), int(height)
-        except ValueError:
-            raise Usage(f"{path}: {key}={fields[key]} is not WxH") from None
-
-    try:
-        return Take(
-            path=path,
-            verdict=field("verdict"),
-            invalid=field("invalid"),
-            animations=field("animations"),
-            drive=field("drive"),
-            drive_start=seconds("drive_start"),
-            drive_end=seconds("drive_end"),
-            load_before=field("load_before"),
-            load_after=field("load_after"),
-            screen_pt=size("screen_pt"),
-            video_px=size("video_px"),
-        )
-    except ValueError as error:
-        raise Usage(f"{path}: {error}") from None
 
 
 @dataclass(frozen=True)
@@ -224,6 +159,10 @@ class Measure:
     def motion_ms(self) -> Optional[int]:
         return None if self.motion is None else round((self.motion[1] - self.motion[0]) * 1000)
 
+    @property
+    def invalid(self) -> List[str]:
+        return judge(self.take)
+
 
 def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
     # A frame stands on screen until the next one, so the frame showing at from_s opens the window.
@@ -258,20 +197,6 @@ def summarize(take: Take, samples: Sequence[Sample], from_s: float) -> Measure:
     )
 
 
-def frame_times(video: Path) -> List[float]:
-    done = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "frame=pts_time", "-of", "json",
-         str(video)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
-    )
-    if done.returncode != 0:
-        raise DecodeFailure(f"ffprobe could not read {video}: {done.stderr.strip()}")
-    try:
-        return sorted(float(frame["pts_time"]) for frame in json.loads(done.stdout).get("frames", []))
-    except (KeyError, ValueError) as error:
-        raise DecodeFailure(f"ffprobe gave a frame of {video} no time: {error}") from None
-
-
 def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
     """Every encoded frame in presentation order, as luminance at the video's own width x height."""
     size = width * height * 3
@@ -298,7 +223,10 @@ def decode(video: Path, width: int, height: int) -> Iterator[np.ndarray]:
 
 
 def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Sample]:
-    times = frame_times(video)
+    try:
+        times, _ = probe(video)
+    except NoTake as error:
+        raise DecodeFailure(str(error)) from None
     width, height = take.video_px
     px_per_pt = width / take.screen_pt[0]
     cards = [detect(lum, px_per_pt, x, ref) for lum in decode(video, width, height)]
@@ -307,16 +235,21 @@ def samples(video: Path, take: Take, x: float = 28, ref: float = 8) -> List[Samp
     return [Sample(t, card) for t, card in zip(times, cards)]
 
 
-def take_of(video: Path) -> Path:
-    return video.with_suffix(".take")
-
-
 def measure(video, from_s: Optional[float] = None, x: float = 28, ref: float = 8) -> Measure:
     video = Path(video)
-    take = read_take(take_of(video))
+    stamp = video.with_suffix(".take")
+    try:
+        take = parse(stamp.read_text())
+    except OSError:
+        raise Usage(f"no take stamp {stamp}; record the video with verify.sh record") from None
+    except ValueError as error:
+        raise Usage(f"{stamp}: {error}") from None
+    if take.screen_pt is None:
+        raise Usage(f"{stamp} has no screen_pt=, so its pixels cannot be read as points; record it again")
     found = samples(video, take, x, ref)
     if from_s is None:
-        from_s = full_size(found, take.default_from) if take.launches else take.default_from
+        drive_start = take.drive_start if take.drive else 0.0
+        from_s = full_size(found, drive_start) if take.drive.split()[:1] == ["launch"] else drive_start
     return summarize(take, found, from_s)
 
 
@@ -348,11 +281,11 @@ def _span(lo: float, hi: float) -> str:
 
 def report(m: Measure) -> List[str]:
     lines = []
-    if m.take.verdict != "VALID":
-        lines.append(f"INVALID take: {m.take.invalid}")
+    if m.invalid:
+        lines.append(f"INVALID take: {'; '.join(m.invalid)}")
     if m.take.animations != "on":
         lines.append(f"animations {m.take.animations}: this take cannot show motion")
-    lines.append(f"take={m.take.verdict} animations={m.take.animations} frames={m.frames} "
+    lines.append(f"take={'INVALID' if m.invalid else 'VALID'} animations={m.take.animations} frames={m.frames} "
                  f"window_frames={len(m.window)}")
     if m.first_seen is None:
         return lines
@@ -402,7 +335,7 @@ def main(argv: Sequence[str]) -> int:
     if m.first_seen is None:
         print(f"no card in any of the {len(m.window)} frames from {m.from_s:.3f} s", file=sys.stderr)
         return 1
-    return 3 if m.take.verdict != "VALID" or m.take.animations != "on" else 0
+    return 3 if m.invalid or m.take.animations != "on" else 0
 
 
 if __name__ == "__main__":
