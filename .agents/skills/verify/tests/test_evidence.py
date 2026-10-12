@@ -2854,7 +2854,7 @@ class Record(Lane):
         self.assertGreaterEqual(timed["stopped"] - timed["drive_end"], 0.5, "the tail ran after the drive")
         self.assertEqual(self.signals(), "INT\n")
         self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 \n")
-        self.assertEqual(self.listing(self.run / ".pending"), [])
+        self.assertEqual(self.listing(self.run), ["appear.mp4", "appear.take", "launches.txt"])
         self.assertEqual(self.calls()[:3], [
             "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4"),
             "Recording started",
@@ -2869,7 +2869,7 @@ class Record(Lane):
         values = dict(self.stamp())
         self.assertEqual((values["verdict"], values["invalid"], values["invalid_rules"]),
                          ("INVALID", "load 63.2 at the end, at or over 50", "load"))
-        self.assertEqual(self.listing(self.run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+        self.assertEqual(self.listing(self.run), ["appear.mp4", "appear.take", "launches.txt"])
 
     def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):
         self.launch()
@@ -2925,7 +2925,7 @@ class Record(Lane):
         head = self.worktree_build(b"v2\n", self.b)
         self.assertEqual(err, "launched session as pid 4121 on %s (animations on)\n%s\nevidence %s\n" % (
             self.sim, head, run), "the drive's output goes to stderr, and it launched into the take's run")
-        self.assertEqual(self.listing(run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+        self.assertEqual(self.listing(run), ["appear.mp4", "appear.take", "launches.txt"])
         self.assertRegex((run / "launches.txt").read_text(), r"^\S+ session animated %s on %s from %s\n$" % (
             re.escape(head), self.sim, re.escape(str(self.checkout))))
         values = dict(self.stamp(run))
@@ -2943,7 +2943,7 @@ class Record(Lane):
         self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_MARK="first")[0], 0)
         self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_MARK="second",
                                      STUB_PTS="1.250000 0.000000")[0], 0)
-        self.assertEqual(self.listing(self.run), [".pending", "appear.mp4", "appear.take", "launches.txt"])
+        self.assertEqual(self.listing(self.run), ["appear.mp4", "appear.take", "launches.txt"])
         self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 second\n")
         values = dict(self.stamp())
         self.assertEqual((values["frames"], values["last_frame"]), ("2", "1.250"))
