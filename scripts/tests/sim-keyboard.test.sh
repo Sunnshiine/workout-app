@@ -21,7 +21,7 @@ case "$1 $4" in
         [ -z "${STUB_BOOT_FAILS:-}" ] || { echo "Invalid device: $2" >&2; exit 148; }
         ;;
     "spawn read")
-        [ -z "${STUB_READ_FAILS:-}" ] || { echo "Process spawn via launchd failed (code=405)" >&2; exit 1; }
+        [ -z "${STUB_READ_FAILS:-}" ] || { echo "Selected developer directory '/x' does not exist" >&2; exit 1; }
         [ -z "${STUB_NO_DOMAIN:-}" ] || { echo "Error: Domain '$5' not found." >&2; exit 1; }
         [ -s "$STUB_DEFAULTS" ] && cat "$STUB_DEFAULTS" || { echo "Error: Could not find key '$6' in domain '$5'." >&2; exit 1; }
         ;;
@@ -85,7 +85,7 @@ keyboard: cannot write AutomaticMinimizationEnabled on $sim (#700)"
 STUB_READ_FAILS=1 keyboard ensure "$sim"
 expect "a read that fails for another reason than a missing key exits 69 and writes nothing" \
     "$status $(cat "$root/err") | $(calls)" \
-    "69 keyboard: cannot read AutomaticMinimizationEnabled on $sim: Process spawn via launchd failed (code=405) | bootstatus $sim -b"
+    "69 keyboard: cannot read AutomaticMinimizationEnabled on $sim: Selected developer directory '/x' does not exist | bootstatus $sim -b"
 
 STUB_BOOT_FAILS=1 keyboard ensure "$sim"
 expect "a simulator simctl cannot boot exits 69 and reads nothing" "$status $(cat "$root/err") | $(calls)" \
