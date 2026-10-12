@@ -146,6 +146,11 @@ def jumps_20_pt_in_its_last_two_frames(j):
     return PAPER, [STILL_BOX if j < 30 else (100, 280, 16, 186) if j == 30 else (100, 280, 16, 196)]
 
 
+def zooms_from_the_icon(i):
+    k = min(max((i - 18) / 20, 0.0), 1.0)
+    return PAPER, [(180 - 80 * k, 180 + 80 * k, 101 - 85 * k, 101 + 85 * k)]
+
+
 def swaps_a_label_inside(i):
     return PAPER, [STILL_BOX, (120, 160, 40, 80, CARD if i < FPS else 210)]
 
@@ -180,6 +185,7 @@ class CardFrameOnClips(unittest.TestCase):
             ("launch-slide", launched(slides_in_from_the_right), 1.6),
             ("launch-fly", launched(flies_in_from_the_top), 1.6),
             ("launch-jump", launched(jumps_20_pt_in_its_last_two_frames), 1.6),
+            ("launch-zoom", zooms_from_the_icon, 1.5),
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
             encode(cls.clips[name], scene, seconds)
@@ -298,12 +304,12 @@ class CardFrameOnClips(unittest.TestCase):
             "still=yes box=still look=still",
         ])
 
-    def test_an_animations_off_launch_reads_still_and_exits_3_under_a_banner(self):
+    def test_an_animations_off_launch_where_nothing_moved_reads_still_unknown_and_exits_3_under_a_banner(self):
         code, out, _ = self.lines("launch", drive="launch session", drive_end=1.4, animations="off")
         self.assertEqual(code, 3)
         self.assertEqual((out[0], out[1], out[-1]), ("animations off: this take cannot show motion",
                                                      "take=VALID animations=off frames=44 window_frames=1",
-                                                     "still=yes box=still look=still"))
+                                                     "still=unknown box=still look=still"))
 
     def test_a_card_that_fades_in_place_on_launch_reads_a_still_box_and_a_changed_look(self):
         code, out, err = self.lines("launch-fade", drive=LAUNCH_DRIVE, drive_end=1.4)
@@ -402,6 +408,12 @@ class CardFrameOnClips(unittest.TestCase):
         ])
         self.assertEqual(out[-1], "still=unknown box=still look=still")
 
+    def test_a_launch_the_system_zooms_in_with_no_fade_reads_its_growing_card_as_still_unknown(self):
+        code, out, _ = self.lines("launch-zoom", drive=LAUNCH_DRIVE, drive_start=0.05, drive_end=1.0)
+        self.assertEqual(code, 3)
+        self.assertEqual((out[2], out[-1]), ("window=drive from=0.050 to=3.000 window_s=2.950",
+                                             "still=unknown box=changed look=changed"))
+
     def test_from_0_on_a_launch_reads_the_springboard_and_the_fade_as_motion(self):
         video = self.clips["launch"]
         stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4)
@@ -426,11 +438,11 @@ class CardFrameOnClips(unittest.TestCase):
         ])
         self.assertEqual(out[-1], "still=unknown box=still look=still")
 
-    def test_a_take_with_animations_off_exits_3_under_a_banner(self):
+    def test_a_take_with_animations_off_where_nothing_moved_reads_still_unknown_and_exits_3_under_a_banner(self):
         code, out, _ = self.lines("ticking", animations="off")
         self.assertEqual(code, 3)
         self.assertEqual((out[0], out[-1]), ("animations off: this take cannot show motion",
-                                             "still=yes box=still look=still"))
+                                             "still=unknown box=still look=still"))
 
     def test_no_card_in_the_window_exits_1(self):
         code, out, err = self.lines("ticking", "--x", "190")
@@ -552,6 +564,44 @@ class Summarize(unittest.TestCase):
         m = cardframe.summarize(LAUNCH, found)
         self.assertEqual(m.window, Window(Opened.RAMP, 1, 0.4, 3.6))
         self.assertEqual((m.card.box.worst_edge_range, m.card.box.motion, m.still), (20.0, (2.0, 2.0), Still.NO))
+
+
+def ruled(m, *rules, animations="on"):
+    return dataclasses.replace(m, take=dataclasses.replace(m.take, animations=animations),
+                               invalid=tuple(Reason(rule, f"{rule} reason") for rule in rules))
+
+
+class StillOf(unittest.TestCase):
+    def test_only_rules_that_hide_motion_and_never_invent_it_keep_a_move_sound(self):
+        self.assertEqual([cardframe.hides_only(rules) for rules in
+                          [(), ("load",), ("window",), ("load", "window"), ("ramp",), ("load", "coverage"),
+                           ("recorder_exit",), ("recorder_early",)]],
+                         [True, True, True, True, False, False, False, False])
+
+    def test_the_still_table(self):
+        moved = cardframe.summarize(TAKE, frames(card(100), card(110)), 0.0)
+        faded = cardframe.summarize(TAKE, looks(200, 210, 220, 230, 240, 240), 0.0)
+        held = cardframe.summarize(TAKE, frames(card(100), card(100)), 0.0)
+        empty = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT)], 0.0)
+        cases = [
+            ("box moved, VALID", ruled(moved), Still.NO),
+            ("look changed, VALID", ruled(faded), Still.NO),
+            ("box moved under load", ruled(moved, "load"), Still.NO),
+            ("box moved in a short window", ruled(moved, "window"), Still.NO),
+            ("box moved, animations off", ruled(moved, animations="off"), Still.NO),
+            ("box moved with no ramp", ruled(moved, "ramp"), Still.UNKNOWN),
+            ("look changed with no ramp", ruled(faded, "ramp"), Still.UNKNOWN),
+            ("box moved under load and no coverage", ruled(moved, "load", "coverage"), Still.UNKNOWN),
+            ("box moved, recorder exit 1", ruled(moved, "recorder_exit"), Still.UNKNOWN),
+            ("nothing moved, VALID", ruled(held), Still.YES),
+            ("nothing moved under load", ruled(held, "load"), Still.UNKNOWN),
+            ("nothing moved, animations off", ruled(held, animations="off"), Still.UNKNOWN),
+            ("nothing moved, animations unknown", ruled(held, animations="unknown"), Still.UNKNOWN),
+            ("no card", ruled(empty), Still.UNKNOWN),
+        ]
+        for name, m, expected in cases:
+            with self.subTest(name):
+                self.assertEqual(m.still, expected)
 
 
 def looks(*insides):

@@ -90,7 +90,7 @@ import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -112,6 +112,10 @@ SOLID_CONTRAST = 0.75
 LOOK_LUM = 0.5
 
 HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
+
+
+def hides_only(rules: Iterable[str]) -> bool:
+    return set(rules) <= HIDES_MOTION
 
 
 class Usage(Exception):
@@ -237,8 +241,8 @@ class Measure:
         if self.card is None:
             return Still.UNKNOWN
         if self.card.box.changed or self.card.look.kind is LookKind.CHANGED:
-            return Still.NO
-        return Still.UNKNOWN if self.invalid else Still.YES
+            return Still.NO if hides_only(r.rule for r in self.invalid) else Still.UNKNOWN
+        return Still.YES if not self.invalid and self.take.animations == "on" else Still.UNKNOWN
 
 
 def _band(pt: float, px_per_pt: float) -> slice:

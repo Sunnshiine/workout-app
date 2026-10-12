@@ -131,7 +131,7 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
-    seen_soundly = reading.first_seen is not None and set(reading.rules) <= cardframe.HIDES_MOTION
+    seen_soundly = reading.first_seen is not None and cardframe.hides_only(reading.rules)
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
