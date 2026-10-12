@@ -3,11 +3,6 @@ import SwiftUI
 /// The full Session queue in a medium sheet: every stage item in Session order
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
 /// when the Session can advance. Tapping an incomplete row brings it on stage.
-///
-/// Superset pairing also lives here: the header's Superset button starts
-/// pairing from the row on stage, the row taps pick the partner, a Superset
-/// row's trailing glyph unlinks it, and the sheet falls back to browsing when
-/// pairing ends or the sheet closes.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -86,8 +81,6 @@ struct SessionQueueSheet: View {
         }
     }
 
-    // MARK: - Header
-
     private var header: some View {
         HStack {
             Text("This Session")
@@ -118,7 +111,7 @@ struct SessionQueueSheet: View {
                         .font(Theme.font(.queuePill))
                         .foregroundStyle(palette.textSecondary)
                 } else {
-                    SupersetStemGlyph(form: .offer, color: palette.actionInk)
+                    SupersetStemGlyph(form: .begin, color: palette.actionInk)
                         .frame(width: 24, height: 24)
                 }
             }
@@ -166,8 +159,6 @@ struct SessionQueueSheet: View {
         }
     }
 
-    // MARK: - Superset
-
     private func supersetRow(for row: SessionQueue.Row) -> some View {
         Button {
             if isPairing {
@@ -177,7 +168,7 @@ struct SessionQueueSheet: View {
             }
         } label: {
             HStack(spacing: 0) {
-                SupersetStemGlyph(form: .joined, color: palette.actionInk)
+                SupersetStemGlyph(form: .linked, color: palette.actionInk)
                     .frame(width: 26, height: 26)
                     .accessibilityLabel("Superset")
                     .padding(.leading, 14)
@@ -198,7 +189,7 @@ struct SessionQueueSheet: View {
             Button {
                 coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
             } label: {
-                SupersetStemGlyph(form: .split, color: palette.textSecondary)
+                SupersetStemGlyph(form: .unlink, color: palette.textSecondary)
                     .frame(width: 26, height: 26)
                     .frame(width: Self.unlinkButtonSize, height: Self.unlinkButtonSize)
                     .contentShape(Rectangle())
@@ -250,13 +241,13 @@ struct SessionQueueSheet: View {
     private func pairingGlyph(for role: QueuePairingRole) -> some View {
         switch role {
         case .source:
-            SupersetStemGlyph(form: .offer, color: palette.actionInk)
+            SupersetStemGlyph(form: .begin, color: palette.actionInk)
                 .accessibilityLabel("Selected for Superset")
         case .confirmingTarget:
-            SupersetStemGlyph(form: .joined, color: palette.actionInk)
+            SupersetStemGlyph(form: .linked, color: palette.actionInk)
                 .accessibilityLabel("Selected for Superset")
         case .eligibleTarget:
-            SupersetStemGlyph(form: .bud, color: palette.actionInk)
+            SupersetStemGlyph(form: .partner, color: palette.actionInk)
                 .accessibilityLabel(queue.pairingSource.map { "Superset with \($0.title)" } ?? "Superset")
         case .none, .ineligibleTarget:
             EmptyView()
@@ -303,10 +294,8 @@ extension View {
     }
 }
 
-/// The stage's Superset fork as a glyph: `offer` dashes the lateral branch, `bud` is the lateral
-/// alone waiting to graft, `joined` is the full fork, and `split` snaps the lateral off at the joint.
 private struct SupersetStemGlyph: View {
-    enum Form { case offer, bud, joined, split }
+    enum Form { case begin, partner, linked, unlink }
     let form: Form
     let color: Color
 
@@ -331,7 +320,7 @@ private struct SupersetStemGlyph: View {
             lateral.move(to: p(9, 15))
             lateral.addQuadCurve(to: p(17.5, 8.5), control: p(15, 15))
 
-            if form != .bud {
+            if form != .partner {
                 var main = Path()
                 main.move(to: p(9, 22))
                 main.addLine(to: p(9, 7.5))
@@ -340,10 +329,10 @@ private struct SupersetStemGlyph: View {
             }
 
             switch form {
-            case .offer:
+            case .begin:
                 context.stroke(lateral, with: .color(color), style: dashed)
                 leaf(at: p(19, 6.5), filled: false)
-            case .bud:
+            case .partner:
                 var reach = Path()
                 reach.move(to: p(4, 20))
                 reach.addQuadCurve(to: p(13.6, 11.6), control: p(11, 20))
@@ -356,10 +345,10 @@ private struct SupersetStemGlyph: View {
                 plus.move(to: p(15, 7.5))
                 plus.addLine(to: p(20, 7.5))
                 context.stroke(plus, with: .color(color), style: StrokeStyle(lineWidth: 1.6 * s, lineCap: .round))
-            case .joined:
+            case .linked:
                 context.stroke(lateral, with: .color(color), style: solid)
                 leaf(at: p(19, 6.5), filled: true)
-            case .split:
+            case .unlink:
                 var broken = Path()
                 broken.move(to: p(13.5, 15.5))
                 broken.addQuadCurve(to: p(20, 10), control: p(18, 15.5))
