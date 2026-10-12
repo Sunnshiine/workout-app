@@ -43,13 +43,13 @@ def scene_frames(scene, seconds):
         yield img
 
 
-def encode(path, scene, seconds):
+def encode(path, scene, seconds, lossless=True):
     """Keeps only the frames that changed, each at its own time, as simctl's recordVideo does."""
     w, h = (n * VIDEO_PX_PER_PT for n in SCREEN_PT)
     proc = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", f"{w}x{h}",
          "-framerate", str(FPS), "-i", "-", "-vf", "mpdecimate=hi=1:lo=1:frac=0", "-fps_mode", "vfr",
-         "-c:v", "libx264", "-qp", "0", "-pix_fmt", "yuv420p", str(path)],
+         "-c:v", "libx264", *(["-qp", "0"] if lossless else []), "-pix_fmt", "yuv420p", str(path)],
         stdin=subprocess.PIPE,
     )
     for img in scene_frames(scene, seconds):
@@ -90,6 +90,15 @@ def stamp(video, drive="", drive_start="", drive_end="", verdict="VALID", invali
 
 def still(i):
     return PAPER, [STILL_BOX]
+
+
+def a_third_of_a_point_low(i):
+    return PAPER, [(100 + 1 / 3, 260, 16, 186)]
+
+
+def ticks_beside(i):
+    """The card still for 1 s while a box below it, clear of the scanned columns and row, changes ten times."""
+    return PAPER, [STILL_BOX, (300, 320, 100, 150, PAPER + 10 + 4 * (i // 6))]
 
 
 def slide(i):
@@ -161,6 +170,7 @@ class CardFrameOnClips(unittest.TestCase):
         cls.clips = {}
         for name, scene, seconds in [
             ("still", still, 1.0),
+            ("third", a_third_of_a_point_low, 1.0),
             ("slide", slide, 2.0),
             ("cut", cuts, 2.0),
             ("launch", launches(), 1.5),
@@ -170,6 +180,8 @@ class CardFrameOnClips(unittest.TestCase):
         ]:
             cls.clips[name] = cls.dir / f"{name}.mp4"
             encode(cls.clips[name], scene, seconds)
+        cls.clips["lossy"] = cls.dir / "lossy.mp4"
+        encode(cls.clips["lossy"], ticks_beside, 1.0, lossless=False)
 
     def test_a_still_card_is_one_encoded_frame_and_reads_still(self):
         video = self.clips["still"]
@@ -185,6 +197,20 @@ class CardFrameOnClips(unittest.TestCase):
             "motion=none",
             "still=yes",
         ])
+
+    def test_edges_are_read_at_the_recordings_own_pixels_a_third_of_a_point_apart(self):
+        video = self.clips["third"]
+        stamp(video)
+        m = cardframe.measure(video)
+        self.assertEqual((round(m.ranges["top"][0], 3), m.ranges["bottom"]), (100.333, (260.0, 260.0)))
+
+    def test_a_still_card_in_a_lossy_recording_reads_still(self):
+        video = self.clips["lossy"]
+        stamp(video)
+        code, out, err = run_cardframe(video)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.splitlines()[0], "take=VALID animations=on frames=10 window_frames=10")
+        self.assertEqual(out.splitlines()[-1], "still=yes")
 
     def test_a_slide_of_160_pt_over_400_ms_reads_its_range_and_duration_by_frame_time(self):
         video = self.clips["slide"]
@@ -215,7 +241,7 @@ class CardFrameOnClips(unittest.TestCase):
         self.assertEqual(rows[:3], [
             "t\tt_from_drive\ttop\tbottom\tleft\tright\tcontrast",
             "0.000\t-0.500\t40.0\t190.0\t16.0\t186.0\t40.0",
-            "1.017\t0.517\t46.5\t197.0\t16.0\t186.0\t39.9",
+            "1.017\t0.517\t46.7\t196.7\t16.0\t186.0\t40.0",
         ])
         self.assertEqual(len(rows), 26)
 
@@ -224,7 +250,7 @@ class CardFrameOnClips(unittest.TestCase):
         stamp(video)
         m = cardframe.measure(video, from_s=1.19)
         self.assertEqual(round(m.first_seen, 3), 1.183)
-        self.assertEqual(m.ranges["top"], (113.0, 200.0))
+        self.assertEqual((round(m.ranges["top"][0], 3), m.ranges["top"][1]), (113.333, 200.0))
         self.assertEqual(len(m.window), 14)
 
     def test_a_launch_is_measured_from_the_card_at_full_width_so_the_system_zoom_reads_still(self):
@@ -350,25 +376,25 @@ class Detect(unittest.TestCase):
     def test_a_bright_rectangle_reads_as_its_edges_in_points_and_its_contrast(self):
         lum = self.paper()
         lum[200:520, 32:372] = CARD
-        self.assertEqual(cardframe.detect(lum), Card(100.0, 260.0, 16.0, 186.0, 40.0))
+        self.assertEqual(cardframe.detect(lum, 2.0), Card(100.0, 260.0, 16.0, 186.0, 40.0))
 
     def test_a_run_shorter_than_120_pt_is_no_card(self):
         lum = self.paper()
         lum[200:438, 32:372] = CARD
-        self.assertEqual(cardframe.detect(lum), None)
+        self.assertEqual(cardframe.detect(lum, 2.0), None)
 
     def test_two_runs_split_by_a_gap_under_8_pt_are_one_card_and_8_pt_splits_them(self):
         lum = self.paper()
         lum[200:340, 32:372] = CARD
         lum[355:600, 32:372] = CARD
-        self.assertEqual((cardframe.detect(lum).top, cardframe.detect(lum).bottom), (100.0, 300.0))
+        self.assertEqual((cardframe.detect(lum, 2.0).top, cardframe.detect(lum, 2.0).bottom), (100.0, 300.0))
         lum[355, 32:372] = PAPER
-        self.assertEqual((cardframe.detect(lum).top, cardframe.detect(lum).bottom), (178.0, 300.0))
+        self.assertEqual((cardframe.detect(lum, 2.0).top, cardframe.detect(lum, 2.0).bottom), (178.0, 300.0))
 
     def test_a_card_over_the_paper_column_is_invisible(self):
         lum = self.paper()
         lum[200:520, 0:372] = CARD
-        self.assertEqual(cardframe.detect(lum), None)
+        self.assertEqual(cardframe.detect(lum, 2.0), None)
 
 
 def reading(verdict="VALID", invalid="", animations="on", first_seen=0.0, lost=0, worst=0.0):
