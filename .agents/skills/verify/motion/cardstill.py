@@ -12,11 +12,11 @@ Films eight takes through `verify.sh record` twice in one session: first on COMM
 <lane>-head (stop, install, launch --animated session). cardframe measures each take.
 
 A take is INVALID when record did not exit 0 or 3 with a stamp. Else it FAILs when the card was lost or
-an edge ranged over more than 0.5 pt, even on an INVALID take, because load and a flagged launch can hide
-motion but never invent it. Else it is INVALID when the stamp is INVALID, its animations are not on, or it
-started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head take FAILs, else is INVALID when any take on either
-side is, else is INVALID when no control take FAILed (the host or the metric cannot see motion now), else
-PASSes.
+an edge ranged over more than 0.5 pt, even on a take INVALID only for load or with animations off, because
+those can hide motion but never invent it. Else it is INVALID when the stamp is INVALID, its animations are
+not on, or it started late; else FAIL when the card was never seen; else PASS. The lane FAILs when any head
+take FAILs, else is INVALID when any take on either side is, else is INVALID when no control take FAILed
+(the host or the metric cannot see motion now), else PASSes.
 
 Prints one row per take, control and head side by side, then `cardstill PASS|FAIL|INVALID: <reason>`, and
 writes the table as cardstill.tsv in the head run's evidence directory. The app must be built
@@ -92,7 +92,7 @@ class Verdict(Enum):
 class Reading:
     """What one measured take says, as literal values."""
 
-    verdict: str
+    rules: Tuple[str, ...]
     invalid: str
     animations: str
     first_seen: Optional[float]
@@ -104,8 +104,8 @@ class Reading:
     @staticmethod
     def of(m: cardframe.Measure) -> "Reading":
         return Reading(
-            verdict="INVALID" if m.invalid else "VALID",
-            invalid="; ".join(m.invalid),
+            rules=tuple(r.rule for r in m.invalid),
+            invalid="; ".join(r.text for r in m.invalid),
             animations=m.take.animations,
             first_seen=m.first_seen,
             lost=m.lost,
@@ -121,12 +121,14 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
     # Load and a flagged launch turn motion into a cut; they never invent one. So a card seen to move or
-    # vanish fails whatever else is wrong with the take, and only a still reading needs a sound take.
-    if reading.first_seen is not None and reading.lost > 0:
+    # vanish fails a take INVALID only for load, or with animations off. A recorder that stopped early or
+    # badly, or a take that never covered the drive, can cut a still card's video, so those stay INVALID.
+    seen_soundly = reading.first_seen is not None and set(reading.rules) <= {"load"}
+    if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
-    if reading.first_seen is not None and reading.worst_edge_range > cardframe.STILL_PT:
+    if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
         return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
-    if reading.verdict != "VALID":
+    if reading.rules:
         return Verdict.INVALID, f"take INVALID: {reading.invalid}"
     if reading.animations != "on":
         return Verdict.INVALID, f"animations {reading.animations}"

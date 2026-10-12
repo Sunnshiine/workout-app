@@ -26,7 +26,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import List, Optional, Sequence, Tuple
+from typing import List, NamedTuple, Optional, Sequence, Tuple
 
 STOP_GRACE = 15.0
 POLL = 0.05
@@ -88,23 +88,31 @@ FIELDS = {
 APPENDED = {"screen_pt": pixels, "animations": str, "app": str}
 
 
-def judge(take: Take) -> List[str]:
+class Reason(NamedTuple):
+    """A failed rule: load, recorder_early, recorder_exit or coverage, and why, in words."""
+
+    rule: str
+    text: str
+
+
+def judge(take: Take) -> List[Reason]:
     """Why the take is INVALID, one reason per failed rule; empty when it is VALID."""
     reasons = []
     for moment, load in [("the start", take.load_before), ("the end", take.load_after)]:
         if load >= take.load_limit:
-            reasons.append("load %.1f at %s, at or over %g" % (load, moment, take.load_limit))
+            reasons.append(Reason("load", "load %.1f at %s, at or over %g" % (load, moment, take.load_limit)))
             break
     if take.recorder_early:
-        reasons.append("the recorder stopped before the take ended")
+        reasons.append(Reason("recorder_early", "the recorder stopped before the take ended"))
     if take.recorder_exit != 0:
-        reasons.append("recorder exit %d after SIGINT; the video may be cut short" % take.recorder_exit)
+        reasons.append(Reason("recorder_exit",
+                              "recorder exit %d after SIGINT; the video may be cut short" % take.recorder_exit))
     # The first frame is the screen as the recorder found it, so only a later one can show the drive.
     if take.drive and (take.frames < 2 or take.last_frame < take.drive_start):
-        reasons.append("the screen never changed after the drive began at +%.2f s, so the take shows nothing "
-                       "the drive did" % take.drive_start)
+        reasons.append(Reason("coverage", "the screen never changed after the drive began at +%.2f s, so the take "
+                                          "shows nothing the drive did" % take.drive_start))
     if not take.drive and take.frames < 2:
-        reasons.append("one frame: the screen never changed while recording")
+        reasons.append(Reason("coverage", "one frame: the screen never changed while recording"))
     return reasons
 
 
@@ -112,7 +120,8 @@ def take_lines(take: Take) -> List[str]:
     reasons = judge(take)
     lines = ["format=take/1"]
     lines += ["%s=%s" % (key, render(getattr(take, key))) for key, (_, render) in FIELDS.items()]
-    lines += ["verdict=%s" % ("INVALID" if reasons else "VALID"), "invalid=%s" % "; ".join(reasons)]
+    lines += ["verdict=%s" % ("INVALID" if reasons else "VALID"), "invalid=%s" % "; ".join(r.text for r in reasons),
+              "invalid_rules=%s" % ",".join(r.rule for r in reasons)]
     return lines
 
 
@@ -290,7 +299,7 @@ def report(path: str) -> int:
     take = parse(Path(path).read_text())
     print(summary(take))
     for reason in judge(take):
-        print(reason, file=sys.stderr)
+        print(reason.text, file=sys.stderr)
     if take.animations == "off":
         print("animations are off in this app (it was launched without --animated), so the take cannot show motion",
               file=sys.stderr)
