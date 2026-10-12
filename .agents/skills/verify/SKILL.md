@@ -15,7 +15,7 @@ and the matching feature file before driving; the map lists every entry point a 
 ## Launch
 
 ```bash
-export SIM=$(xcrun simctl create lane-<name> "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)   # once
+export SIM=$(xcrun simctl create LANE_NAME "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)   # once
 .agents/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
 .agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
@@ -37,7 +37,8 @@ relaunch is `stop` then `launch`, and it resets all state. Every command that to
 needs `SIM`, the UDID of your own simulator. Without it, the command exits 2 and prints the
 `simctl create` line above. There is no default, because the stock iPhone 17 Pro is shared (issue
 660). `launch` boots the simulator when it is shut down and waits for the boot to finish before it
-installs the app.
+installs the app. When the lane is done, `xcrun simctl shutdown "$SIM" && xcrun simctl delete "$SIM"`
+removes its simulator.
 
 `launch` prints the app it installed:
 
@@ -51,8 +52,9 @@ The hash covers every file in the bundle (the code, the widget extension, assets
 `Info.plist`), so two apps are the same app when their hashes match. `build` stamps the commit into the bundle, with `-dirty` when
 `App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `WorkoutWidgets/`, the project, or the package
 files had uncommitted changes. An app whose bytes no stamp describes reads `commit unknown (not
-built by verify.sh)`. When a lock or boot refusal leaves another app installed, the refusal ends
-with `app on <udid> unchanged:`, the app still there, and the app the launch wanted. When the
+built by verify.sh)`. When a lock, boot, or app-cache build refusal leaves another app installed,
+the refusal ends with `app on <udid> unchanged:`, the app still there, and the app the launch
+wanted. When the
 installed bytes differ from the build, or `simctl install` fails, `launch` exits 70 and names both
 apps.
 
@@ -93,8 +95,11 @@ safe chain. The installed-app line hashes the app on the simulator. It reads `ok
 this worktree's build, or a cached build that still matches its cache entry. Otherwise it names
 both apps, as in `FAIL installed app 804e750cad00 commit ea5af074 (an earlier build of this
 worktree) is not this worktree's build, app 033a3ca3fcdb commit ea5af074-dirty (run: verify.sh
-install)`. For this worktree's build it also fails sources newer than the app, which means build
-before trusting anything. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
+install)`. Two builds of the same source can differ in bytes, so after a rebuild with no source
+change this line can still FAIL until the next `install`. For this worktree's build it also fails
+sources newer than the app, which means build before trusting anything. A last line reading
+`FAIL AutomaticMinimizationEnabled is 1` means a focused field shows no software keyboard (issue
+700); the next `launch` resets it. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
 `xcrun simctl shutdown <udid>` then relaunch.
 
 ## Drive
@@ -117,7 +122,9 @@ identifier nor a label still exists; `tree --all` prints it with empty id and la
 Any AXe keyboard event, `type` included, hides the software keyboard in the running app until its
 next launch (issue 700). After `type` and after `axe key`, `key-sequence`, `key-combo`, or `type`,
 `verify.sh` resets the simulator preference that would keep it hidden after that launch too, says
-so on stderr, and exits with AXe's status.
+so on stderr, and exits with AXe's status. A raw AXe call, an XCUITest run, or an older drive can
+still leave that preference on, so `launch` reads it and resets it before it starts the app, and
+says so on stderr.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
@@ -270,7 +277,9 @@ tool launched is alive on the same simulator, yours included; run `stop` or pick
 `stop` refuses the same way when it would act on another run's app, so a
 command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
 only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
-nothing to compare against, so it steps aside. `SIM` has no default, so no command lands on a
+nothing to compare against, so it steps aside, except that a drive with no `VERIFY_RUN` acts for
+the run the last launch on this simulator started, and refuses after that run's launch was
+refused. `SIM` has no default, so no command lands on a
 shared simulator by accident. With `VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
 `burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, and after a
 `launch` of the same run was refused, until a `launch` of it succeeds. So a driver that missed its

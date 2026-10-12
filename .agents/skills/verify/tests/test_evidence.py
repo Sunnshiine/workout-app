@@ -68,6 +68,40 @@ def verify_sh(*args, run, sim=None, path=None, evidence=None, **extra):
     return done.returncode, done.stdout, done.stderr
 
 
+def repo_git(*args):
+    done = subprocess.run(["git", "-C", str(REPO)] + list(args), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          universal_newlines=True)
+    return done.returncode, done.stdout.strip()
+
+
+def default_evidence():
+    _, common = repo_git("rev-parse", "--path-format=absolute", "--git-common-dir")
+    code, branch = repo_git("symbolic-ref", "--short", "-q", "HEAD")
+    lane = re.sub(r"[^A-Za-z0-9._-]", "-", branch) if code == 0 else "detached-" + REPO.name
+    return Path(common).parent / ".claude" / "work" / "evidence" / lane
+
+
+def evidence_files(root):
+    if not root.is_dir():
+        return []
+    return sorted((str(path.relative_to(root)), path.stat().st_size) for path in root.rglob("*") if path.is_file())
+
+
+DEFAULT_EVIDENCE = default_evidence()
+EVIDENCE_BEFORE = []
+
+
+def setUpModule():
+    EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
+
+
+def tearDownModule():
+    after = evidence_files(DEFAULT_EVIDENCE)
+    if after != EVIDENCE_BEFORE:
+        raise AssertionError("the tests wrote into this checkout's own evidence %s: %s"
+                             % (DEFAULT_EVIDENCE, sorted(set(after) - set(EVIDENCE_BEFORE))))
+
+
 def write_png(path, width, height, colour, box_frame=(0, 0, 0, 0), box_colour=None):
     plain = b"\x00" + bytes(colour) * width
     (x, y, w, h), inside = box_frame, box_colour or colour
@@ -1251,7 +1285,7 @@ class LaunchBoots(unittest.TestCase):
 
     def spawn(self, **env):
         env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]),
-                   VERIFY_RUN="issue-676", SIM=self.sim, **env)
+                   VERIFY_RUN="issue-676", VERIFY_EVIDENCE=str(self.home / "evidence"), SIM=self.sim, **env)
         run = subprocess.Popen(
             [str(SKILL / "verify.sh"), "launch", "session"], cwd=str(REPO), env=env, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -1277,6 +1311,8 @@ class LaunchBoots(unittest.TestCase):
         ], "the app is found before the claim; the simulator is booted and waited on while the launch holds it, "
            "and never installed to")
         self.assertEqual(result, (70, "", NOT_BOOTED % (self.sim, self.sim, digest(b"head\n"))))
+        self.assertRegex((self.home / "evidence" / "issue-676" / "launches.txt").read_text(),
+                         r"^\S+ launch refused: app on %s unchanged: an unknown app" % self.sim)
 
     def test_a_boot_wait_that_ends_with_the_simulator_down_installs_nothing(self):
         run, calls, result = self.launch(STUB_BOOTSTATUS="0")
@@ -1345,7 +1381,7 @@ SIM_UNSET = (
     "SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and "
     "another agent's app may be on it (issue 660).\n"
     "Make a lane simulator once and pass it on every call:\n"
-    "  export SIM=$(xcrun simctl create lane-<name> \"iPhone 17 Pro\" com.apple.CoreSimulator.SimRuntime.iOS-27-0)\n"
+    "  export SIM=$(xcrun simctl create LANE_NAME \"iPhone 17 Pro\" com.apple.CoreSimulator.SimRuntime.iOS-27-0)\n"
 )
 
 
@@ -1551,6 +1587,7 @@ class SimulatorPick(unittest.TestCase):
             "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
             "xcrun simctl install %s %s" % (udid, self.app),
             "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
+            "xcrun simctl spawn %s defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled" % udid,
             "xcrun simctl launch --terminate-running-process %s com.sunnypatel.WorkoutTracker -UITEST_FIXTURE "
             "-UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES" % udid,
             "axe describe-ui --udid %s" % udid,
@@ -1577,7 +1614,13 @@ case "$tool $1 $2" in
     else echo "    lane ($SIM) (Booted)"
     fi ;;
   "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: 4121" ;;
-  "xcrun simctl spawn") ;;
+  "xcrun simctl spawn")
+    case "$4 $5" in
+      "defaults read")
+        [ -f "{dir}/minimization" ] || { echo "The domain/default pair of ($6, $7) does not exist" >&2; exit 1; }
+        cat "{dir}/minimization" ;;
+      "defaults write") echo 0 > "{dir}/minimization" ;;
+    esac ;;
   "xcodebuild build -project")
     project=$3 derived=$HOME/Library/Developer/Xcode/DerivedData/WorkoutTracker-test
     while [ $# -gt 0 ]; do [ "$1" != -derivedDataPath ] || derived=$2; shift; done
@@ -1884,7 +1927,9 @@ class AppCache(Lane):
 
     def test_a_failed_build_publishes_nothing_and_the_next_install_builds_it(self):
         self.assertEqual(self.verify("install", self.a, STUB_BUILD_FAIL="1"), (65, "", self.building(self.a) + (
-            "error: stub compile error\n** BUILD FAILED **\nbuild log: %s/logs/%s.log\n" % (self.cache, self.a))))
+            "error: stub compile error\n** BUILD FAILED **\nbuild log: {c}/logs/{a}.log\napp on {sim} unchanged: nothing "
+            "installed; this install wanted {a8} from the app cache, and its build failed\n").format(
+                c=self.cache, a=self.a, sim=self.sim, a8=self.a[:8])))
         self.assertEqual(self.entries(), [self.a + ".lock", "logs"], "no entry, no scratch")
         self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
         self.assertEqual(self.verify("install", self.a), (0, self.cached_build(b"v1\n", self.a) + "\n", self.building(self.a)))
@@ -1904,6 +1949,32 @@ class AppCache(Lane):
         self.assertEqual(self.verify("install", self.b)[0], 0)
         self.assertEqual(self.entries(), sorted([self.a + ".lock", self.b, self.b + ".lock", "logs"]))
         self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
+
+    def test_a_killed_installs_lock_frees_when_its_build_exits_under_the_real_global_config_with_fsmonitor(self):
+        real = [os.environ.get("GIT_CONFIG_GLOBAL") or os.path.expanduser("~/.gitconfig"),
+                os.path.expanduser("~/.config/git/config")]
+        (self.tmp / "gitconfig").write_text("[include]\n%s[core]\n\tfsmonitor = true\n"
+                                            % "".join("\tpath = %s\n" % path for path in real))
+        lock = self.cache / (self.a + ".lock")
+        if shutil.which("lsof"):
+            self.addCleanup(subprocess.run, ["sh", "-c", 'lsof -t "$0" | xargs kill -9', str(lock)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        install = self.install_held_in_its_build(self.a)
+        self.addCleanup(install.communicate)
+        self.assertTrue((self.tmp / "building").exists(), "the install never reached its build")
+        os.kill(install.pid, signal.SIGKILL)
+        (self.tmp / "release").touch()
+        install.wait()
+        after = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
+                                 env=self.environment({}), start_new_session=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        try:
+            out, _ = after.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            os.killpg(after.pid, signal.SIGKILL)
+            after.communicate()
+            self.fail("the next install still waits on the lock 20 s after the killed install's build exited")
+        self.assertEqual((after.returncode, out), (0, self.cached_build(b"v1\n", self.a) + "\n"))
 
     def test_the_next_install_of_a_killed_builds_commit_builds_in_its_scratch(self):
         self.killed_build(self.a)
@@ -1986,6 +2057,29 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 0)
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="ui12"), (0, "", ""))
 
+    def test_a_drive_that_names_no_run_is_refused_after_the_refused_relaunch_of_the_run_it_would_drive(self):
+        self.verify("build")
+        self.verify("install", self.a)
+        self.own_the_app("ui12")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        for argv in [["shot", "02-head"], ["tap", "-x", "5", "-y", "6"]]:
+            with self.subTest(argv=argv):
+                code, out, err = self.verify(*argv)
+                self.assertEqual((code, out), (75, ""))
+                self.assertRegex(err, r"^the last launch of run ui12 on %s was refused" % self.sim)
+                self.assertEqual(self.calls(), [], "the stale app is neither driven nor filmed into ui12's evidence")
+
+    def test_a_cache_build_that_fails_refuses_the_run_until_a_launch_of_it_succeeds(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
+        refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache, and its build failed" % (
+            self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", STUB_BUILD_FAIL="1")
+        self.assertEqual((code, out, err.splitlines()[-1]), (65, "", refusal))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
+        self.assertRegex((self.evidence("main", "r1") / "launches.txt").read_text(),
+                         r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
+
     def test_another_runs_refused_launch_does_not_stop_the_owner(self):
         self.verify("build")
         self.own_the_app("owner-1")
@@ -2003,6 +2097,45 @@ class DriveGuard(Lane):
 
 class KeyboardReset(Lane):
     RESET = "xcrun simctl spawn %s defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false"
+    READ = "xcrun simctl spawn %s defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled"
+
+    def minimized(self, value):
+        (self.tmp / "minimization").write_text(value)
+
+    def test_launch_resets_a_minimized_keyboard_before_it_starts_the_app_and_says_so(self):
+        self.verify("build")
+        self.minimized("1\n")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (
+            0, self.launched(self.worktree_build(b"v2\n", self.b)),
+            "AutomaticMinimizationEnabled was 1 on %s, which hides the software keyboard (issue 700); "
+            "this launch reset it to 0\n" % self.sim))
+        calls = self.calls()
+        start = [index for index, call in enumerate(calls) if call.startswith("xcrun simctl launch")][0]
+        self.assertEqual(calls[start - 2:start], [self.READ % self.sim, self.RESET % self.sim])
+        self.assertEqual((self.tmp / "minimization").read_text(), "0\n")
+
+    def test_launch_leaves_a_keyboard_preference_that_is_0_or_unset_alone(self):
+        self.verify("build")
+        for value in [None, "0\n"]:
+            with self.subTest(value=value):
+                if value:
+                    self.minimized(value)
+                self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[::2], (0, ""))
+                self.assertIn(self.READ % self.sim, self.calls())
+                self.assertNotIn(self.RESET % self.sim, self.calls())
+
+    def test_doctor_fails_a_minimized_keyboard_and_passes_one_that_is_not(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        self.minimized("1\n")
+        code, out, _ = self.verify("doctor")
+        self.assertEqual((code, out.splitlines()[-1]), (1, (
+            "FAIL AutomaticMinimizationEnabled is 1 on {sim}, so a focused field shows no software keyboard "
+            "(issue 700); the next launch resets it (run: {verify} launch <fixture>)").format(
+                sim=self.sim, verify=self.verify_path)))
+        self.minimized("0\n")
+        self.assertEqual(self.verify("doctor")[1].splitlines()[-1],
+                         "ok   AutomaticMinimizationEnabled is not 1 on %s, so the software keyboard can show" % self.sim)
 
     def test_type_resets_the_keyboard_preference_after_axe_and_keeps_axes_status(self):
         self.assertEqual(self.verify("type", "245", STUB_AXE_EXIT="3"), (3, "", KEYBOARD))

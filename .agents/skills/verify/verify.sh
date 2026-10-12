@@ -13,11 +13,13 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               install and launch into a fixture (extra -UITEST_* ARGs pass through); prints
                               the app's hash and the commit it was built from. Without --at it installs
                               this worktree's build and refuses to replace an installed cached build;
-                              --at COMMIT runs COMMIT's cached build
+                              --at COMMIT runs COMMIT's cached build. Resets the keyboard
+                              preference issue 700 names when it is on, and says so
                               fixtures: session settings onboarding long-session partial-block
                                         completed-open-exercises developer-tools
-  doctor                      read-only: is the installed app this worktree's build or a cached one, and is
-                              the running instance ours, current, and answering?
+  doctor                      read-only: is the installed app this worktree's build or a cached one, is
+                              the running instance ours, current, and answering, and is the software
+                              keyboard hidden by the preference issue 700 names?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
                               --all adds the off-screen ones (scrolled-out rows, picker tails) and
                               the ones with neither id nor label, by role, value and frame
@@ -57,7 +59,8 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   boots it and waits for the boot to finish),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it.
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
-                  alive on SIM, and after this run's launch was refused until one succeeds),
+                  alive on SIM, and after this run's launch was refused until one succeeds. Unset,
+                  the run is the one the last launch on SIM started),
              VERIFY_EVIDENCE (the parent of the run directories; default
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
@@ -91,7 +94,7 @@ resolve_sim() {
     cat >&2 <<'EOF'
 SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and another agent's app may be on it (issue 660).
 Make a lane simulator once and pass it on every call:
-  export SIM=$(xcrun simctl create lane-<name> "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
+  export SIM=$(xcrun simctl create LANE_NAME "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
 EOF
     exit 2
   fi
@@ -357,7 +360,7 @@ sweep_cache_scratch() {
 scratch_checkout() {
   if [ ! -f "$1/src/.git" ] || [ "$(git -C "$1/src" rev-parse HEAD 2>/dev/null)" != "$2" ]; then
     drop_cache_scratch "$1"
-    git -C "$repo" worktree add --force --force --quiet --detach "$1/src" "$2" >&2
+    git -C "$repo" -c core.fsmonitor=false worktree add --force --force --quiet --detach "$1/src" "$2" >&2
   fi
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
@@ -371,7 +374,8 @@ ensure_cached() {
   cache_hit "$app" && return 0
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
-  # xcodebuild inherits fd 8, so the build of a killed install keeps the lock until it exits.
+  # xcodebuild inherits fd 8, so the build of a killed install keeps the lock until it exits. Nothing else
+  # may: git with core.fsmonitor starts a daemon that would inherit it and hold the lock for good.
   exec 8>>"$lock"
   python3 -c 'import fcntl, sys
 try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -381,19 +385,19 @@ except BlockingIOError:
   if cache_hit "$app"; then exec 8>&-; return 0; fi
   scratch=$root/$sha.build
   tmp=$root/$sha.tmp
-  sweep_cache_scratch "$root" "$sha"
+  sweep_cache_scratch "$root" "$sha" 8>&-
   rm -rf "$tmp" "${root:?}/$sha"
   echo "building ${sha:0:8} into the app cache at $root (under a minute to a few; give the call a 10 min timeout)" >&2
-  scratch_checkout "$scratch" "$sha"
+  scratch_checkout "$scratch" "$sha" 8>&-
   if ! xcodebuild_build "$scratch/src/WorkoutTracker.xcodeproj" "$scratch/dd" "$root/logs/$sha.log"; then
-    drop_cache_scratch "$scratch"
-    exit 65
+    drop_cache_scratch "$scratch" 8>&-
+    refuse "app on $sim unchanged: $(installed_line); this $cmd wanted ${sha:0:8} from the app cache, and its build failed" 65
   fi
   mkdir -p "$tmp"
   cp -R "$scratch/dd/Build/Products/Debug-iphonesimulator/WorkoutTracker.app" "$tmp/"
   write_stamp "$tmp/WorkoutTracker.app" "$sha" 0 cache
   mv "$tmp" "$root/$sha"
-  drop_cache_scratch "$scratch"
+  drop_cache_scratch "$scratch" 8>&-
   exec 8>&-
 }
 
@@ -403,7 +407,7 @@ target_app() {
     ensure_cached "$at"
     app=$(cached_app_path "$at")
   else
-    [ -n "$built" ] || { echo "no built app for $project; run: $0 build" >&2; exit 65; }
+    [ -n "$built" ] || refuse "app on $sim unchanged: $(installed_line); this $cmd found no built app for $project (run: $0 build)" 65
     app=$built
   fi
   read -r want_hash want_commit want_dirty want_origin <<< "$(identity_of "$app")"
@@ -529,12 +533,13 @@ await_front() {
 }
 
 require_own_app() {
-  local owner pid
-  [ -n "${VERIFY_RUN:-}" ] || return 0
-  if [ -f "$state_dir/refused.$VERIFY_RUN" ]; then
-    echo "the last launch of run $VERIFY_RUN on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$VERIFY_RUN")); launch again: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+  local owner pid run
+  run=$(current_run)
+  if [ -n "$run" ] && [ -f "$state_dir/refused.$run" ]; then
+    echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); launch again: SIM=$sim VERIFY_RUN=$run $0 launch <fixture>" >&2
     exit 75
   fi
+  [ -n "${VERIFY_RUN:-}" ] || return 0
   owner=$(cat "$state_dir/run" 2>/dev/null) || return 0
   [ "$owner" != "$VERIFY_RUN" ] || return 0
   pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
@@ -543,8 +548,23 @@ require_own_app() {
   exit 75
 }
 
+keyboard_minimized() {
+  [ "$(xcrun simctl spawn "$sim" defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled 2>/dev/null)" = 1 ]
+}
+
+show_keyboard() { xcrun simctl spawn "$sim" defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false; }
+
+reset_minimized_keyboard() {
+  keyboard_minimized || return 0
+  if show_keyboard; then
+    echo "AutomaticMinimizationEnabled was 1 on $sim, which hides the software keyboard (issue 700); this launch reset it to 0" >&2
+  else
+    echo "AutomaticMinimizationEnabled is 1 on $sim, which hides the software keyboard (issue 700), and resetting it failed" >&2
+  fi
+}
+
 reset_keyboard() {
-  if xcrun simctl spawn "$sim" defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false; then
+  if show_keyboard; then
     echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); the preference that would keep it hidden after that is reset" >&2
   else
     echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700), and resetting the preference that keeps it hidden after that failed" >&2
@@ -630,6 +650,7 @@ case $cmd in
     ensure_axe
     [ -n "$at" ] || refuse_replacing_cache
     install_app
+    reset_minimized_keyboard
     launch_args
     start_app
     record_launch
@@ -653,6 +674,14 @@ case $cmd in
       [ "$front" = "$pid" ] && echo "ok   accessibility tree answers for pid $pid" || { echo "FAIL frontmost accessibility app is pid $front, not $pid (reboot the simulator if the tree is empty)"; rc=1; }
     else
       echo "FAIL no app launched by this tool on $sim (run: $0 launch <fixture>)"; rc=1
+    fi
+    if booted; then
+      if keyboard_minimized; then
+        echo "FAIL AutomaticMinimizationEnabled is 1 on $sim, so a focused field shows no software keyboard (issue 700); the next launch resets it (run: $0 launch <fixture>)"
+        rc=1
+      else
+        echo "ok   AutomaticMinimizationEnabled is not 1 on $sim, so the software keyboard can show"
+      fi
     fi
     exit $rc
     ;;
