@@ -4,8 +4,9 @@ set -uo pipefail
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=TEST-SIM-TEST-$$
+other_sim=TEST-SIM-OTHER-$$
 unknown=DEADBEEF-0000-4000-8000-$(printf %012d $$)
-trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$unknown"' EXIT
+trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$other_sim" "/tmp/workout-verify-$unknown"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
@@ -30,13 +31,14 @@ echo "$repo/WorkoutTracker.xcodeproj"
 STUB
 cat >"$root/bin/xcodebuild" <<'STUB'
 #!/bin/sh
-cp "$STUB_OUT" "$STUB_SEEN"
 printf '%s\n' "$@" >"$STUB_ARGS"
 while [ $# -gt 0 ]; do
     [ "$1" != -resultBundlePath ] || [ -z "${STUB_SUMMARY:-}" ] || mkdir "$2"
     shift
 done
 cat "$STUB_LOG"
+cp "$STUB_OUT" "$STUB_SEEN"
+[ -z "${STUB_RELEASE:-}" ] || while [ ! -e "$STUB_RELEASE" ]; do sleep 0.1; done
 [ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
 exit "$STUB_RC"
 STUB
@@ -47,14 +49,19 @@ if [ "\$1" = xcresulttool ]; then
     exit
 fi
 [ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
-echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"}]}}'
+echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"},{"udid":"$other_sim","state":"Booted","name":"iPhone 17"}]}}'
+STUB
+cat >"$root/bin/date" <<'STUB'
+#!/bin/sh
+[ -n "${STUB_STAMP:-}" ] && [ "$*" = +%Y%m%d-%H%M%S ] && { echo "$STUB_STAMP"; exit; }
+exec /bin/date "$@"
 STUB
 cat >"$root/bin/sysctl" <<'STUB'
 #!/bin/sh
 [ -e "$STUB_LOAD_READ" ] && echo '{ 2.50 1.25 1.00 }' || echo '{ 1.50 1.25 1.00 }'
 touch "$STUB_LOAD_READ"
 STUB
-chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl"
+chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl" "$root/bin/date"
 export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard STUB_LOAD_READ=$root/load-read
 result() { echo "test-sim: suite=$1 passed=- failed=- expected=- exit=$2 load1=1.50/2.50 bundle=-"; }
 
@@ -446,35 +453,109 @@ expect "a test that records only a known issue counts as expected, not passed" "
 "test-sim: suite=unit passed=1068 failed=0 expected=1 exit=0 load1=1.50/2.50 bundle=$(sed -n 's/^bundle: //p' "$root/out")"
 
 logs=$repo/.build/test-sim
+finished="test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=-"
+fixture_run() {
+    local stamp=$1 last_line=$2 age=$3
+    mkdir "$logs/$stamp.xcresult" "$logs/$stamp-diffs"
+    printf '%s\n' "◇ Test run started." "$last_line" >"$logs/$stamp-test.log"
+    echo "** BUILD SUCCEEDED **" >"$logs/$stamp-build.log"
+    touch -t "$age" "$logs/$stamp"*
+}
+minutes_ago() { date -v-"$1"M +%Y%m%d%H%M; }
 rm -rf "$logs"
 mkdir -p "$logs"
-for n in 1 2 3 4 5 6; do
-    mkdir "$logs/20991231-00000$n.xcresult" "$logs/20991231-00000$n-diffs"
-    touch "$logs/20991231-00000$n-test.log"
-    touch -t "20200101000$n" "$logs/20991231-00000$n"*
-done
-mkdir "$logs/unit.xcresult" "$logs/20991230-000000-diffs"
-touch -t 202001010000 "$logs/unit.xcresult" "$logs/20991230-000000-diffs"
-rc=0 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
-bundle=$(sed -n 's/^bundle: //p' "$root/out")
-expect "a run keeps the files of the five runs written last, its own included, whatever their stamps sort as" \
-    "$(tail -1 "$root/out" | sed 's/ load1=.*bundle=/ bundle=/'; ls "$logs" | sed "s/^$(basename "$bundle" .xcresult)/<run>/")" \
-"test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$bundle
-<run>-test.log
-<run>.xcresult
+fixture_run 20991231-000001 "$finished" 202001010001
+fixture_run 20991231-000002 "$finished" 202001010002
+for n in 3 4 5 6; do fixture_run "20991231-00000$n" "$finished" "$(minutes_ago "$n")"; done
+fixture_run 20991231-000007 "$finished" "$(minutes_ago 10)"
+fixture_run 20991231-000008 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." 202001010000
+echo notes >"$logs/20200101-000000-notes.txt"
+echo notes >"$logs/README.txt"
+mkdir "$logs/unit.xcresult"
+touch -t 202001010000 "$logs/20200101-000000-notes.txt" "$logs/README.txt" "$logs/unit.xcresult"
+rc=0 STUB_STAMP=20991231-000000 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
+expect "a run deletes every file of a finished run older than the five written last, whatever their stamps sort as" \
+    "$(tail -1 "$root/out" | sed 's/ load1=.*bundle=/ bundle=/'; ls "$logs")" \
+"test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/20991231-000000.xcresult
+20200101-000000-notes.txt
+20991231-000000-test.log
+20991231-000000.xcresult
+20991231-000003-build.log
 20991231-000003-diffs
 20991231-000003-test.log
 20991231-000003.xcresult
+20991231-000004-build.log
 20991231-000004-diffs
 20991231-000004-test.log
 20991231-000004.xcresult
+20991231-000005-build.log
 20991231-000005-diffs
 20991231-000005-test.log
 20991231-000005.xcresult
+20991231-000006-build.log
 20991231-000006-diffs
 20991231-000006-test.log
 20991231-000006.xcresult
+20991231-000007-build.log
+20991231-000007-diffs
+20991231-000007-test.log
+20991231-000007.xcresult
+20991231-000008-build.log
+20991231-000008-diffs
+20991231-000008-test.log
+20991231-000008.xcresult
+README.txt
 unit.xcresult"
+expect "a run's test log ends with its result line" "$(tail -1 "$logs/20991231-000000-test.log")" \
+    "test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=$logs/20991231-000000.xcresult"
+expect "a file whose name only starts with a stamp, and a file with no stamp, survive" \
+    "$(cd "$logs" && ls -d 20200101-000000-notes.txt README.txt unit.xcresult)" \
+"20200101-000000-notes.txt
+README.txt
+unit.xcresult"
+expect "an old run with no result line survives" "$(cd "$logs" && ls -d 20991231-000008*)" \
+"20991231-000008-build.log
+20991231-000008-diffs
+20991231-000008-test.log
+20991231-000008.xcresult"
+expect "a finished run past the five written last survives while a file of it changed in the last 30 minutes" \
+    "$(cd "$logs" && ls -d 20991231-000007*)" \
+"20991231-000007-build.log
+20991231-000007-diffs
+20991231-000007-test.log
+20991231-000007.xcresult"
+
+printf '%s\n' "** BUILD FAILED **" >"$root/xcodebuild.log"
+rm -rf "$logs"
+STUB_STAMP=20991231-000009 run --sim "$sim" unit
+expect "a run that fails in the build writes its result line to its test log" \
+    "$(cat "$logs/20991231-000009-test.log")" "$(result unit 65)"
+
+printf '%s' "◇ Test run started." >"$root/xcodebuild.log"
+STUB_STAMP=20991231-000010 run --no-build --sim "$sim" unit
+expect "a result line lands on its own line after a log cut off mid-line" "$(tail -1 "$logs/20991231-000010-test.log")" \
+    "$(result unit 65)"
+
+rm -rf "$logs"
+printf '%s\n' "◇ Test run started." "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." "** TEST EXECUTE SUCCEEDED **" \
+    >"$root/xcodebuild.log"
+STUB_RELEASE=$root/release STUB_STAMP=20991231-100000 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' \
+    STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/in-progress.out STUB_SEEN=$root/in-progress.seen \
+    HOME=$root/home PATH="$root/bin:$PATH" \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$other_sim" unit >"$root/in-progress.out" 2>"$root/in-progress.err" &
+pid=$!
+for _ in $(seq 50); do [ -e "$root/in-progress.seen" ] && break; sleep 0.1; done
+touch -t 202001010000 "$logs/20991231-100000"*
+for n in 1 2 3 4 5; do
+    rc=0 STUB_STAMP=20991231-10000$n STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
+done
+touch "$root/release"
+wait "$pid"
+status=$?
+expect "a run still in xcodebuild survives five later runs in its checkout and ends with its bundle" \
+    "$status $(tail -1 "$root/in-progress.out" | sed 's/ load1=.*bundle=/ bundle=/') $(cd "$logs" && ls -d 20991231-100000*)" \
+    "0 test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/20991231-100000.xcresult 20991231-100000-test.log
+20991231-100000.xcresult"
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \

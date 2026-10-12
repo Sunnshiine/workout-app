@@ -164,8 +164,13 @@ Reading a `scripts/test-sim.sh` run:
   load1=<start>/<end> bundle=<path>`. `expected=` counts tests whose only issues were known
   issues, which `passed=` leaves out. `exit=` is the script's status, which a pipe such as `| tee`
   hides.
-- Each run keeps the logs, bundle, and diffs of the five runs written last in `.build/test-sim`
-  and deletes the rest.
+- A run's files in `.build/test-sim` are `<stamp>-build.log`, `<stamp>-test.log`,
+  `<stamp>.xcresult`, and `<stamp>-diffs`, and its test log ends with its result line. Each run
+  keeps the five runs written last. It deletes an older run's files only when that run's test log
+  ends with a result line and none of its files changed in the last 30 minutes, so a run still in
+  progress in the same checkout keeps its log and bundle. A run killed before its result line
+  (SIGKILL, power loss) stays until someone deletes it. Copy a bundle or diff you cite into your
+  proof directory, because only five finished runs are kept.
 - After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
   and difference images and prints their paths.
 
