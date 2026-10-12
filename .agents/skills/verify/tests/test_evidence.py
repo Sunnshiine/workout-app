@@ -2120,7 +2120,8 @@ class KeyboardReset(Lane):
             with self.subTest(value=value):
                 if value:
                     self.minimized(value)
-                self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[::2], (0, ""))
+                code, _, err = self.verify("launch", "session", VERIFY_RUN="lane-1")
+                self.assertEqual((code, err), (0, ""))
                 self.assertIn(self.READ % self.sim, self.calls())
                 self.assertNotIn(self.RESET % self.sim, self.calls())
 

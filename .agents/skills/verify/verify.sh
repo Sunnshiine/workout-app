@@ -365,6 +365,8 @@ scratch_checkout() {
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
+without_cache_lock() { "$@" 8>&-; }
+
 cached_app_path() { printf '%s/%s/WorkoutTracker.app\n' "$(cache_root)" "$1"; }
 
 ensure_cached() {
@@ -374,8 +376,7 @@ ensure_cached() {
   cache_hit "$app" && return 0
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
-  # xcodebuild inherits fd 8, so the build of a killed install keeps the lock until it exits. Nothing else
-  # may: git with core.fsmonitor starts a daemon that would inherit it and hold the lock for good.
+  # git with core.fsmonitor starts a daemon that would inherit fd 8 and hold the lock for good.
   exec 8>>"$lock"
   python3 -c 'import fcntl, sys
 try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -385,19 +386,19 @@ except BlockingIOError:
   if cache_hit "$app"; then exec 8>&-; return 0; fi
   scratch=$root/$sha.build
   tmp=$root/$sha.tmp
-  sweep_cache_scratch "$root" "$sha" 8>&-
+  without_cache_lock sweep_cache_scratch "$root" "$sha"
   rm -rf "$tmp" "${root:?}/$sha"
   echo "building ${sha:0:8} into the app cache at $root (under a minute to a few; give the call a 10 min timeout)" >&2
-  scratch_checkout "$scratch" "$sha" 8>&-
+  without_cache_lock scratch_checkout "$scratch" "$sha"
   if ! xcodebuild_build "$scratch/src/WorkoutTracker.xcodeproj" "$scratch/dd" "$root/logs/$sha.log"; then
-    drop_cache_scratch "$scratch" 8>&-
+    without_cache_lock drop_cache_scratch "$scratch"
     refuse "app on $sim unchanged: $(installed_line); this $cmd wanted ${sha:0:8} from the app cache, and its build failed" 65
   fi
   mkdir -p "$tmp"
   cp -R "$scratch/dd/Build/Products/Debug-iphonesimulator/WorkoutTracker.app" "$tmp/"
   write_stamp "$tmp/WorkoutTracker.app" "$sha" 0 cache
   mv "$tmp" "$root/$sha"
-  drop_cache_scratch "$scratch" 8>&-
+  without_cache_lock drop_cache_scratch "$scratch"
   exec 8>&-
 }
 
