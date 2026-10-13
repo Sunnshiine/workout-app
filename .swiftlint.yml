@@ -73,7 +73,7 @@ custom_rules:
       Draw this ink from the palette (palette.textSecondary, palette.textPrimary, or the role the
       surrounding view uses). System .secondary / .tertiary / .quaternary / .quinary and the UIKit
       *Label colours ignore the Greenhouse palette, so ContrastTests cannot hold them to WCAG AA.
-    regex: '((?<![\w)\]])\.|\b(Color|HierarchicalShapeStyle|ShapeStyle)\.|\.(foreground|tint)\.)(secondary|tertiary|quaternary|quinary)\b|\.(secondary|tertiary|quaternary)Label\b'
+    regex: '\.(secondary|tertiary|quaternary|quinary)\b|\.(secondary|tertiary|quaternary)Label\b'
     included: '.*/App/.*'
     excluded_match_kinds:
       - comment

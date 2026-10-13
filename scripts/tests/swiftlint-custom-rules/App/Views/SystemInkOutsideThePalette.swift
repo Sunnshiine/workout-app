@@ -63,7 +63,7 @@ struct SystemInkOutsideThePalette {
         Text(".foregroundStyle(.secondary) and Color(.tertiaryLabel)")
     }
 
-    func hierarchicalVariantOfAColorIsMissed() -> some View {
+    func hierarchicalVariantOfAColorIsFlagged() -> some View {
         Text("Squat").foregroundStyle(Color.blue.secondary)
     }
 
@@ -97,5 +97,9 @@ struct SystemInkOutsideThePalette {
 
     func tintQuaternaryIsFlagged() -> some View {
         Text("Squat").foregroundStyle(.tint.quaternary)
+    }
+
+    func secondaryAfterASpacedDotIsMissed() -> some View {
+        Text("Squat").foregroundStyle(Color. secondary)
     }
 }

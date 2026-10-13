@@ -81,6 +81,7 @@ system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:26
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:30
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:34
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:38
+system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:67
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:71
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:75
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:79
