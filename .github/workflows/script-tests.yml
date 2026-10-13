@@ -6,7 +6,10 @@ on:
     paths:
       - "scripts/**"
       - ".sandcastle/**"
-      - ".agents/skills/verify/verify.sh"
+      - ".agents/**/*.sh"
+      - ".githooks/**"
+      - ".gitignore"
+      - ".swift-format"
       - ".claude/settings.json"
       - ".swiftlint.yml"
       - "Tests/.swiftlint.yml"
@@ -20,7 +23,10 @@ on:
     paths:
       - "scripts/**"
       - ".sandcastle/**"
-      - ".agents/skills/verify/verify.sh"
+      - ".agents/**/*.sh"
+      - ".githooks/**"
+      - ".gitignore"
+      - ".swift-format"
       - ".claude/settings.json"
       - ".swiftlint.yml"
       - "Tests/.swiftlint.yml"
