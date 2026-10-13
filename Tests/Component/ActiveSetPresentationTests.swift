@@ -191,18 +191,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(!policy.shouldAnimate(.loggedReviewOpen))
 }
 
-@Test func focusMorphPolicyAnimatesSuccessfulSupersetSwitchWhenMotionIsAllowed() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
-}
-
-@Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: true)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchSucceeded))
-}
-
 @MainActor
 @Test func sessionProgressHeaderPresentationShowsCompactLocationAndRemainingCount() {
     let block = Block(tabName: "Block 27")

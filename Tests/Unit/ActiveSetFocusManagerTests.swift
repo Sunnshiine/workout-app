@@ -442,3 +442,32 @@ private func makePlannedSupersetSession() -> Session {
 
     #expect(relaunchedFocus.supersetSections(in: session).isEmpty)
 }
+
+@MainActor
+@Test func focusingASetNotifiesAReaderOfTheStageFocus() throws {
+    let session = makePendingSession()
+    let secondSet = try #require(session.exercises.first?.sets.first { $0.index == 1 })
+    let coordinator = SessionCoordinator(session: session)
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.visualFocusOwner?.setID ?? coordinator.activeSetID }
+
+    coordinator.focus(on: secondSet)
+
+    #expect(changes.fired == 1)
+    #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+}
+
+@MainActor
+@Test func creatingASupersetNotifiesAReaderOfTheStageInputs() throws {
+    let session = makePlannedSupersetSession()
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let coordinator = SessionCoordinator(session: session)
+    let changes = ObservedChanges()
+    changes.watch { _ = coordinator.renderItems(in: session) }
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+
+    #expect(changes.fired == 1)
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "superset-1", "hidden-paired-exercise-2"])
+}

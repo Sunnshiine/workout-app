@@ -4,7 +4,6 @@ enum SessionFocusMorphAction: Equatable, Sendable {
     case pendingFocus
     case loggedReviewOpen
     case loggedReviewCollapse
-    case supersetSwitchSucceeded
 }
 
 struct SessionFocusMorphPolicy: Equatable, Sendable {
@@ -14,7 +13,7 @@ struct SessionFocusMorphPolicy: Equatable, Sendable {
         guard !reduceMotion else { return false }
 
         return switch action {
-        case .pendingFocus, .loggedReviewOpen, .supersetSwitchSucceeded:
+        case .pendingFocus, .loggedReviewOpen:
             true
         case .loggedReviewCollapse:
             false
