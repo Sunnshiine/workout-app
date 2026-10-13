@@ -21,6 +21,7 @@ final class WorkoutStore {
     private(set) var moveOnCelebrationSession: Session?
     private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
+    private(set) var currentSession: Session?
     /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
     /// that moves the Current Session under an athlete who never navigated anywhere: they were
     /// at the live edge when they chose, so the reload has to carry them forward with it.
@@ -47,11 +48,6 @@ final class WorkoutStore {
         self.defaults = defaults
         self.lastPerformed = lastPerformed
         self.now = now
-    }
-
-    var currentSession: Session? {
-        _ = currentSessionOverrideRevision
-        return block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
     }
 
     var canMoveOn: Bool {
@@ -110,6 +106,7 @@ final class WorkoutStore {
 
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
+        refreshCurrentSession()
 
         guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
             view(currentSession)
@@ -129,14 +126,13 @@ final class WorkoutStore {
 
     func makeViewedSessionCurrent() {
         guard let block, let viewedSession else { return }
-        persistCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
+        writeCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
         view(viewedSession)
     }
 
     func resetCurrentSessionOverride() {
         guard let block else { return }
-        defaults.removeValue(forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
-        currentSessionOverrideRevision += 1
+        writeCurrentSessionOverride(nil, in: block)
         view(currentSession)
     }
 
@@ -177,12 +173,16 @@ final class WorkoutStore {
         case .returnToBlockOverview:
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):
-            persistCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
+            writeCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
             view(nextSession)
         }
     }
 
     // MARK: - Private Helpers
+
+    private func refreshCurrentSession() {
+        currentSession = block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
+    }
 
     private func view(_ session: Session?) {
         viewedSession = session
@@ -261,9 +261,15 @@ final class WorkoutStore {
         return defaults.integer(forKey: key).map(PersistedSessionIdentity.init(storageValue:))
     }
 
-    private func persistCurrentSessionOverride(_ identity: PersistedSessionIdentity, in block: Block) {
-        defaults.set(identity.storageValue, forKey: tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName))
+    private func writeCurrentSessionOverride(_ identity: PersistedSessionIdentity?, in block: Block) {
+        let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
+        if let identity {
+            defaults.set(identity.storageValue, forKey: key)
+        } else {
+            defaults.removeValue(forKey: key)
+        }
         currentSessionOverrideRevision += 1
+        refreshCurrentSession()
     }
 
     private func sessionLabel(for session: Session?) -> String {
@@ -300,46 +306,32 @@ final class WorkoutStore {
 
 extension WorkoutStore {
     func log(_ set: ExerciseSet, as log: SetLog) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog?.rpe
-        set.markLogged(log, at: now())
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: log.formatted,
-            expectedCurrentValue: previousValue
-        )
-        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
-        try refreshLastPerformed(for: set)
-        try context.save()
+        try writeNotes(of: set, operation: .upsert, valueToWrite: log.formatted) { set.markLogged(log, at: now()) }
     }
 
     func skip(_ set: ExerciseSet) throws {
-        let previousValue = notesValue(for: set)
-        let previousRPE = set.setLog?.rpe
-        set.markSkipped()
-        try enqueue(
-            for: set,
-            column: .notes,
-            operation: .upsert,
-            valueToWrite: SetLogToken.skipSentinel,
-            expectedCurrentValue: previousValue
-        )
-        try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
-        try refreshLastPerformed(for: set)
-        try context.save()
+        try writeNotes(of: set, operation: .upsert, valueToWrite: SetLogToken.skipSentinel) { set.markSkipped() }
     }
 
     func deleteLog(for set: ExerciseSet) throws {
+        try writeNotes(of: set, operation: .delete, valueToWrite: nil) { set.markPending() }
+    }
+
+    private func writeNotes(
+        of set: ExerciseSet,
+        operation: PendingWriteOperation,
+        valueToWrite: String?,
+        transition: () -> Void
+    ) throws {
+        defer { refreshCurrentSession() }
         let previousValue = notesValue(for: set)
         let previousRPE = set.setLog?.rpe
-        set.markPending()
+        transition()
         try enqueue(
             for: set,
             column: .notes,
-            operation: .delete,
-            valueToWrite: nil,
+            operation: operation,
+            valueToWrite: valueToWrite,
             expectedCurrentValue: previousValue
         )
         try enqueueLastSetRPEMirror(for: set, replacing: previousRPE)
