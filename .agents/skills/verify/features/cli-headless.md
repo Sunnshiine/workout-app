@@ -33,7 +33,7 @@ Preconditions:
 - **Sync.** Run `workout sync --viewing w2d3`. `"status" : "clear"` under `syncOutcome`, `"viewedSession" : "w2d3"`, and `"currentSession" : "w1d1"`. Then `workout session w1d1` reads the two sets back as `"logged"` and `"skipped"`, parsed from the workbook.
 - **Error shape.** Run `workout log w1d1.e0.s9 185x5@8; echo $?`. Stdout empty, stderr one JSON line with `"code":"unknown_set"` and candidates, exit 1.
 - **Outcome shape.** Strip the `Day N` header cells with `jq '.tabs["Block 27"].cells |= with_entries(select(.value | test("^Day [0-9]+$") | not))' "$WORKOUT_HOME/workbook.json" > "$WORKOUT_HOME/wb.tmp" && mv "$WORKOUT_HOME/wb.tmp" "$WORKOUT_HOME/workbook.json"`, then run `workout sync; echo $?`. Exit 4 with `"status" : "parseWarnings"` under `syncOutcome` and `"code":"sync_conflict"` on stderr. A refused write exits 4 too and prints `"status" : "writesRefused"`, so the status is what tells them apart.
-- **Proof.** A CLI drive has no `launch` to name its evidence directory. Run `mkdir -p .build/verify/evidence/<run>` and save each command's stdout, stderr, and exit code there.
+- **Proof.** A CLI drive has no `launch` to name its evidence directory. Make `<run>` under the directory `verify.sh` files runs in, `<main checkout>/.claude/work/evidence/<branch>/`, and save each command's stdout, stderr, and exit code there.
 
 ## Gotchas
 

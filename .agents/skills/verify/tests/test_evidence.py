@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import re
 import shutil
+import signal
 import struct
 import subprocess
 import sys
@@ -47,21 +49,59 @@ def tree_py(*args, stdin=""):
     return done.returncode, done.stdout, done.stderr
 
 
-def verify_sh(*args, run, sim=None, path=None):
-    env = dict(os.environ)
-    env.pop("VERIFY_RUN", None)
-    env.pop("SIM", None)
+def verify_sh(*args, run, sim=None, path=None, evidence=None, **extra):
+    env = dict(os.environ, **extra)
+    for name in ["VERIFY_RUN", "SIM"]:
+        env.pop(name, None)
     if run:
         env["VERIFY_RUN"] = run
     if sim:
         env["SIM"] = sim
     if path:
         env["PATH"] = path
+    if evidence:
+        env["VERIFY_EVIDENCE"] = str(evidence)
     done = subprocess.run(
         [str(SKILL / "verify.sh")] + list(args), cwd=str(REPO), env=env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
     )
     return done.returncode, done.stdout, done.stderr
+
+
+def repo_git(*args):
+    done = subprocess.run(["git", "-C", str(REPO)] + list(args), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          universal_newlines=True)
+    return done.returncode, done.stdout.strip()
+
+
+def default_evidence():
+    _, common = repo_git("rev-parse", "--path-format=absolute", "--git-common-dir")
+    code, branch = repo_git("symbolic-ref", "--short", "-q", "HEAD")
+    lane = re.sub(r"[^A-Za-z0-9._-]", "-", branch) if code == 0 else "detached-" + REPO.name
+    return Path(common).parent / ".claude" / "work" / "evidence" / lane
+
+
+def evidence_files(root):
+    if not root.is_dir():
+        return []
+    return sorted((str(path.relative_to(root)), path.stat().st_size) for path in root.rglob("*") if path.is_file())
+
+
+DEFAULT_EVIDENCE = default_evidence()
+EVIDENCE_BEFORE = []
+
+
+def setUpModule():
+    EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
+    os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
+
+
+def tearDownModule():
+    shutil.rmtree(os.environ.pop("VERIFY_EVIDENCE"), ignore_errors=True)
+    after = evidence_files(DEFAULT_EVIDENCE)
+    if after != EVIDENCE_BEFORE:
+        raise AssertionError("the tests wrote into this checkout's own evidence %s: %s"
+                             % (DEFAULT_EVIDENCE, sorted(set(after) - set(EVIDENCE_BEFORE))))
 
 
 def write_png(path, width, height, colour, box_frame=(0, 0, 0, 0), box_colour=None):
@@ -148,10 +188,33 @@ class Flat(unittest.TestCase):
 
     def test_every_line_has_five_columns(self):
         out = tree_py("flat", "--all", stdin=MINI)[1]
-        self.assertEqual(len(out.splitlines()), 6, "the element with neither id nor label is never printed")
+        self.assertEqual(len(out.splitlines()), 7, "the element with neither id nor label is printed too")
         for line in out.splitlines():
             self.assertEqual(len(line.split("\t")), 5, line)
         self.assertIn("Rest 1:58 remaining", out, "a tab and a newline in a label become spaces")
+
+    def test_all_prints_an_element_with_neither_id_nor_label_by_its_role_value_and_frame(self):
+        nameless = json.loads(MINI)
+        nameless[0]["children"].append(
+            {"role": "AXTextField", "AXValue": "Google Sheet URL", "frame": {"x": 32, "y": 459, "width": 338, "height": 34}})
+        payload = json.dumps(nameless)
+        code, out, err = tree_py("flat", "--all", stdin=payload)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out.splitlines()[-2:], [
+            "AXGroup\t\t\t\t@0,0 402x874",
+            "AXTextField\t\t\tGoogle Sheet URL\t@32,459 338x34",
+        ], "issue 666: a field with no name is still on the screen, so --all shows it")
+        code, out, err = tree_py("flat", stdin=payload)
+        self.assertNotIn("Google Sheet URL", out, "the plain tree stays the named elements a shot saves")
+        self.assertEqual(err, (
+            "2 off-screen elements hidden; `verify.sh tree --all` lists them\n"
+            "2 elements with neither id nor label hidden; `verify.sh tree --all` lists them\n"
+        ), "each kind of drop is counted, so a missing line is never read as a missing element")
+
+    def test_all_on_the_captured_settings_screen_prints_every_node(self):
+        payload = (FIXTURES / "settings.describe-ui.json").read_text()
+        self.assertEqual(len(tree_py("flat", "--all", stdin=payload)[1].splitlines()), 93,
+                         "34 named and 59 unnamed nodes, as axe describe-ui returned them")
 
     def test_the_session_tree_keeps_the_cards_that_run_off_both_edges(self):
         out = tree_py("flat", stdin=as_axe_json("01-before.all.txt"))[1]
@@ -625,28 +688,29 @@ class Diff(unittest.TestCase):
 class VerifyDiff(unittest.TestCase):
     def setUp(self):
         self.run = "selftest-%d" % os.getpid()
-        self.dir = REPO / ".build" / "verify" / "evidence" / self.run
+        self.evidence = Path(tempfile.mkdtemp())
+        self.dir = self.evidence / self.run
         self.dir.mkdir(parents=True, exist_ok=True)
         for offset, name in enumerate(["01-before", "02-after-log"]):
             shutil.copy(FIXTURES / ("%s.tree.txt" % name), self.dir / ("%s.tree.txt" % name))
             os.utime(self.dir / ("%s.tree.txt" % name), (offset, offset))
 
     def tearDown(self):
-        shutil.rmtree(self.dir, ignore_errors=True)
+        shutil.rmtree(self.evidence, ignore_errors=True)
 
     def test_verify_diff_maps_shot_names_onto_the_run(self):
-        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=self.run)
+        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=self.run, evidence=self.evidence)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, (FIXTURES / "01-before--02-after-log.diff.txt").read_text())
 
     def test_verify_diff_lists_the_shots_when_a_name_is_wrong(self):
-        code, out, err = verify_sh("diff", "01-before", "03-typo", run=self.run)
+        code, out, err = verify_sh("diff", "01-before", "03-typo", run=self.run, evidence=self.evidence)
         self.assertEqual(code, 1)
         self.assertIn("shots: 01-before 02-after-log", err, "capture order, so the agent can pick again")
 
     def test_a_png_whose_tree_never_landed_is_not_a_shot(self):
         (self.dir / "03-half.png").write_bytes(b"png")
-        code, out, err = verify_sh("diff", "01-before", "03-half", run=self.run)
+        code, out, err = verify_sh("diff", "01-before", "03-half", run=self.run, evidence=self.evidence)
         self.assertEqual(code, 1)
         self.assertIn("shots: 01-before 02-after-log", err, "a shot exists when its tree exists")
 
@@ -827,16 +891,21 @@ class VerifyStop(unittest.TestCase):
         self.state.mkdir(parents=True, exist_ok=True)
         (self.state / "run").write_text("%s\n" % self.owner)
         (self.state / "pid").write_text("99999999\n")
+        self.evidence = Path(tempfile.mkdtemp())
 
     def tearDown(self):
         shutil.rmtree(self.state, ignore_errors=True)
+        shutil.rmtree(self.evidence, ignore_errors=True)
+
+    def stop(self, run):
+        return verify_sh("stop", run=run, sim=self.sim, evidence=self.evidence)
 
     def launched_with_live_activities(self):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
 
     def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
         (self.state / "pid").write_text("%d\n" % os.getpid())
-        code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
+        code, out, err = self.stop("issue-660")
         self.assertEqual(code, 75, "the code launch already uses for a simulator another run owns")
         self.assertIn(self.owner, err, "whose app it is about to end")
         self.assertIn("VERIFY_RUN=%s" % self.owner, err, "the override, spelled out")
@@ -845,26 +914,26 @@ class VerifyStop(unittest.TestCase):
 
     def test_stop_ends_the_callers_own_run(self):
         self.launched_with_live_activities()
-        code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
+        code, out, err = self.stop(self.owner)
         self.assertEqual(code, 0, err)
         self.assertIn("could not uninstall on %s" % self.sim, err, "its own stop goes on to the uninstall")
         self.assertFalse((self.state / "pid").exists(), "its own stop clears the pid it recorded")
 
     def test_stop_refuses_to_uninstall_a_live_activity_run_that_is_not_the_callers(self):
         self.launched_with_live_activities()
-        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        code, out, err = self.stop(self.next)
         self.assertEqual(code, 75, "its app died, but stop would still uninstall it and end the run's Live Activity")
         self.assertIn("VERIFY_RUN=%s" % self.owner, err)
         self.assertTrue((self.state / "args").exists(), "the owner's own stop can still uninstall")
 
     def test_a_dead_pid_that_stop_would_only_forget_is_not_refused(self):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
-        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        code, out, err = self.stop(self.next)
         self.assertEqual((code, out, err), (0, "", ""))
         self.assertFalse((self.state / "pid").exists(), "no app and no Live Activity, so nothing to protect")
 
     def test_a_dead_pid_with_no_args_is_not_refused(self):
-        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        code, out, err = self.stop(self.next)
         self.assertEqual(
             (code, out, err), (0, "", ""),
             "a launch cut off after its pid write recorded no opt-in, so no stop would uninstall this app",
@@ -872,33 +941,32 @@ class VerifyStop(unittest.TestCase):
         self.assertFalse((self.state / "pid").exists())
 
     def test_after_the_owners_stop_the_next_runs_stop_is_not_refused(self):
-        code, out, err = verify_sh("stop", run=self.owner, sim=self.sim)
+        code, out, err = self.stop(self.owner)
         self.assertEqual(code, 0, err)
-        code, out, err = verify_sh("stop", run=self.next, sim=self.sim)
+        code, out, err = self.stop(self.next)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, "nothing launched by this tool on %s\n" % self.sim)
 
     def test_an_unnamed_diff_after_stop_still_reads_the_runs_shots(self):
-        evidence = REPO / ".build" / "verify" / "evidence" / self.owner
+        evidence = self.evidence / self.owner
         evidence.mkdir(parents=True, exist_ok=True)
-        self.addCleanup(shutil.rmtree, evidence, True)
         for name in ["01-before", "02-after-log"]:
             shutil.copy(FIXTURES / ("%s.tree.txt" % name), evidence / ("%s.tree.txt" % name))
-        verify_sh("stop", run=self.owner, sim=self.sim)
-        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=None, sim=self.sim)
+        self.stop(self.owner)
+        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=None, sim=self.sim, evidence=self.evidence)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, (FIXTURES / "01-before--02-after-log.diff.txt").read_text())
 
     def test_stop_on_a_simulator_no_run_has_claimed_is_not_refused(self):
         (self.state / "run").unlink()
         self.launched_with_live_activities()
-        code, out, err = verify_sh("stop", run="issue-660", sim=self.sim)
+        code, out, err = self.stop("issue-660")
         self.assertEqual(code, 0, err)
         self.assertIn("could not uninstall on %s" % self.sim, err, "an app no run has claimed is nobody's")
 
     def test_stop_without_a_run_name_is_still_allowed(self):
         self.launched_with_live_activities()
-        code, out, err = verify_sh("stop", run=None, sim=self.sim)
+        code, out, err = self.stop(None)
         self.assertEqual(code, 0, err)
         self.assertIn("could not uninstall on %s" % self.sim, err)
         self.assertFalse(
@@ -908,9 +976,34 @@ class VerifyStop(unittest.TestCase):
         )
 
 
+def bundle_hash(code):
+    manifest = "%s  ./WorkoutTracker.debug.dylib\n" % hashlib.sha256(code).hexdigest()
+    return hashlib.sha256(manifest.encode()).hexdigest()
+
+
+def digest(code):
+    return bundle_hash(code)[:12]
+
+
+def app_hash(app):
+    lines = "".join("%s  ./%s\n" % (hashlib.sha256(f.read_bytes()).hexdigest(), f.relative_to(app))
+                    for f in sorted(app.rglob("*")) if f.is_file() and f.name != "verify-stamp")
+    return hashlib.sha256(lines.encode()).hexdigest()
+
+
+def built_app(home, code):
+    derived = home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
+    app = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
+    app.mkdir(parents=True)
+    (app / "WorkoutTracker.debug.dylib").write_bytes(code)
+    (derived / "info.plist").touch()
+    return app
+
+
 STUB = """#!/bin/sh
 [ "$(basename "$0") $*" != "xcrun simctl list devices available -j" ] || { echo '{"devices": {"iOS-27-0": [{"udid": "{sim}"}]}}'; exit 0; }
 printf '%s\\n' "$(basename "$0") $*" >> "{dir}/calls"
+[ "$(basename "$0") $1 $2" != "plutil -extract WorkspacePath" ] || { echo "{project}"; exit 0; }
 [ "$(basename "$0")" != xcodebuild ] || echo "** BUILD FAILED **"
 [ -n "${STUB_HOLD:-}" ] || exit 1
 touch "{dir}/holding"
@@ -939,10 +1032,14 @@ class SimulatorLock(unittest.TestCase):
         self.state = Path("/tmp/workout-verify-%s" % self.sim)
         shutil.rmtree(self.state, ignore_errors=True)
         self.stubs = Path(tempfile.mkdtemp())
+        stub = STUB.replace("{dir}", str(self.stubs)).replace("{sim}", self.sim)
         for tool in ["xcodebuild", "xcrun", "npm", "plutil"]:
-            (self.stubs / tool).write_text(STUB.replace("{dir}", str(self.stubs)).replace("{sim}", self.sim))
+            (self.stubs / tool).write_text(stub.replace("{project}", str(REPO / "WorkoutTracker.xcodeproj")))
             (self.stubs / tool).chmod(0o755)
         self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
+        self.home = self.stubs / "home"
+        self.app = built_app(self.home, b"head\n")
+        self.evidence = self.stubs / "evidence"
         self.runs = []
         self.checkout = fake_checkout(self.stubs)
 
@@ -961,6 +1058,9 @@ class SimulatorLock(unittest.TestCase):
     def calls(self):
         path = self.stubs / "calls"
         return path.read_text().splitlines() if path.exists() else []
+
+    def verify(self, *argv, run="issue-626"):
+        return verify_sh(*argv, run=run, sim=self.sim, path=self.path, evidence=self.evidence, HOME=str(self.home))
 
     def first_words(self):
         return [call.split()[:2] for call in self.calls()]
@@ -1003,12 +1103,19 @@ class SimulatorLock(unittest.TestCase):
 
     def test_launch_refuses_while_a_test_sim_run_holds_the_simulator(self):
         run = self.holding_test_sim()
-        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
-        self.assertEqual(code, 75, err)
-        self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "names the run that holds it")
-        self.assertEqual(out, "")
-        self.assertEqual(self.first_words(), [["xcodebuild", "build-for-testing"]],
-                         "refused before any simulator is touched: no xcrun, no axe install")
+        code, out, err = self.verify("launch", "session")
+        self.assertEqual((code, out), (75, ""), err)
+        self.assertEqual(err, (
+            "%s is held by a test-sim.sh run (pid %d); wait for it to finish, or use another simulator "
+            "(lsof /tmp/workout-verify-%s/lock lists every process holding it)\n"
+            "app on %s unchanged: an unknown app (the simulator is not booted); this launch wanted app %s commit unknown "
+            "(not built by verify.sh)\n"
+        ) % (self.sim, run.pid, self.sim, self.sim, digest(b"head\n")), "names the holder, then the app left installed")
+        self.assertEqual(self.calls()[1:], [
+            "plutil -extract WorkspacePath raw %s" % (self.app.parents[3] / "info.plist"),
+            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % self.sim,
+            "xcrun simctl list devices booted",
+        ], "refused before any simulator is touched: no install, no axe install, only reads of what is installed")
 
     def test_test_sim_refuses_while_a_verify_run_owns_the_app(self):
         app = self.own_the_app("owner-626")
@@ -1032,14 +1139,14 @@ class SimulatorLock(unittest.TestCase):
 
     def test_test_sim_refuses_while_a_launch_is_under_way(self):
         launch = self.spawn([str(SKILL / "verify.sh"), "launch", "session"], hold=True,
-                            SIM=self.sim, VERIFY_RUN="issue-626")
-        self.wait_for_hold(launch, "plutil")
+                            SIM=self.sim, VERIFY_RUN="issue-626", HOME=str(self.home))
+        self.wait_for_hold(launch, "xcrun simctl bootstatus")
         run = self.spawn_test_sim()
         out, err = run.communicate(timeout=30)
         self.assertEqual(run.returncode, 75, err)
         self.assertIn("verify.sh launch (pid %d)" % launch.pid, err, "names the launch that holds it")
-        self.assertEqual(self.first_words(), [["plutil", "-extract"]],
-                         "the launch got as far as its app lookup, and test-sim.sh ran no xcodebuild")
+        self.assertEqual(self.first_words(), [["plutil", "-extract"], ["xcrun", "simctl"]],
+                         "the launch got as far as its boot wait, and test-sim.sh ran no xcodebuild")
 
     def test_stop_refuses_to_uninstall_while_a_test_sim_run_holds_the_simulator(self):
         self.state.mkdir(parents=True, exist_ok=True)
@@ -1047,7 +1154,7 @@ class SimulatorLock(unittest.TestCase):
         (self.state / "pid").write_text("99999999\n")
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
         run = self.holding_test_sim()
-        code, out, err = verify_sh("stop", run="owner-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("stop", run="owner-626")
         self.assertEqual(code, 75, "the uninstall would remove the app under test: %s" % err)
         self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "names the run that holds it")
         self.assertEqual(out, "")
@@ -1056,18 +1163,18 @@ class SimulatorLock(unittest.TestCase):
                          "a later stop can still uninstall")
         (self.stubs / "release").touch()
         run.communicate(timeout=30)
-        code, out, err = verify_sh("stop", run="owner-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("stop", run="owner-626")
         self.assertEqual(code, 0, err)
         self.assertEqual(self.calls()[-1], "xcrun simctl uninstall %s com.sunnypatel.WorkoutTracker" % self.sim)
         self.assertEqual(sorted(p.name for p in self.state.iterdir()), ["lock", "run"])
 
     def test_a_test_sim_run_holds_the_simulator_until_it_exits(self):
         run = self.holding_test_sim()
-        self.assertEqual(verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)[0], 75)
+        self.assertEqual(self.verify("launch", "session")[0], 75)
         (self.stubs / "release").touch()
         run.communicate(timeout=30)
         self.assertEqual(run.returncode, 65, "the stub build failed, so the run ended")
-        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("launch", "session")
         self.assertNotEqual(code, 75, err)
         self.assertNotIn("test-sim.sh", err)
 
@@ -1076,7 +1183,7 @@ class SimulatorLock(unittest.TestCase):
         os.killpg(killed.pid, 9)
         killed.wait()
         run = self.holding_test_sim()
-        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("launch", "session")
         self.assertEqual(code, 75, err)
         self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "the live run holds it, not the killed one")
 
@@ -1084,17 +1191,16 @@ class SimulatorLock(unittest.TestCase):
         self.own_the_app("owner-626")
         (self.state / "pid").write_text("99999999\n")
         run = self.holding_test_sim()
-        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("launch", "session")
         self.assertEqual(code, 75, "the test-sim.sh run went ahead and holds it now: %s" % err)
         self.assertIn("test-sim.sh run (pid %d)" % run.pid, err)
 
     def test_shot_and_burst_refuse_while_a_test_sim_run_holds_the_simulator(self):
         run = self.holding_test_sim()
         name = "issue-626-%d" % os.getpid()
-        evidence = REPO / ".build" / "verify" / "evidence" / name
-        self.addCleanup(shutil.rmtree, evidence, True)
+        evidence = self.evidence / name
         for argv in [["shot", "01-mid-test"], ["burst", "log-transition"]]:
-            code, out, err = verify_sh(*argv, run=name, sim=self.sim, path=self.path)
+            code, out, err = self.verify(*argv, run=name)
             self.assertEqual(code, 75, "%s would record the test run's screen: %s" % (argv[0], err))
             self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "names the run that holds it")
             self.assertEqual(out, "")
@@ -1104,7 +1210,7 @@ class SimulatorLock(unittest.TestCase):
         (self.stubs / "release").touch()
         run.communicate(timeout=30)
         for argv in [["shot", "02-after-test"], ["burst", "log-transition"]]:
-            code, out, err = verify_sh(*argv, run=name, sim=self.sim, path=self.path)
+            code, out, err = self.verify(*argv, run=name)
             self.assertNotEqual(code, 75, "%s goes ahead once the test run is over: %s" % (argv[0], err))
             self.assertNotIn("is held", err)
 
@@ -1112,14 +1218,14 @@ class SimulatorLock(unittest.TestCase):
         run = self.holding_test_sim()
         os.kill(run.pid, 9)
         run.wait()
-        code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+        code, out, err = self.verify("launch", "session")
         self.assertEqual(code, 75, "its xcodebuild still drives the simulator: %s" % err)
         self.assertIn("test-sim.sh run (pid %d)" % run.pid, err, "the run that started it")
         self.assertIn("lsof /tmp/workout-verify-%s/lock" % self.sim, err, "finds the xcodebuild its dead pid hides")
         self.assertEqual(out, "")
         (self.stubs / "release").touch()
         for _ in range(50):
-            code, out, err = verify_sh("launch", "session", run="issue-626", sim=self.sim, path=self.path)
+            code, out, err = self.verify("launch", "session")
             if code != 75:
                 break
             time.sleep(0.1)
@@ -1135,6 +1241,7 @@ if [ "$*" = "simctl list devices available -j" ]; then
 fi
 held=$(python3 -c 'import fcntl, sys
 try: fcntl.flock(open(sys.argv[1]), fcntl.LOCK_SH | fcntl.LOCK_NB)
+except FileNotFoundError: print("free")
 except BlockingIOError: print("held by " + open(sys.argv[1]).read().strip())
 else: print("free")' "$lock")
 printf '%s, lock %s\\n' "$(basename "$0") $*" "$held" >> "{dir}/calls"
@@ -1147,6 +1254,9 @@ case "$(basename "$0") $2" in
   *) exit 1 ;;
 esac
 """
+NOT_BOOTED = ("simulator %s did not boot\n"
+              "app on %s unchanged: an unknown app (the simulator is not booted); this launch wanted app %s commit unknown "
+              "(not built by verify.sh)\n")
 
 
 class LaunchBoots(unittest.TestCase):
@@ -1155,10 +1265,7 @@ class LaunchBoots(unittest.TestCase):
         self.state = Path("/tmp/workout-verify-%s" % self.sim)
         shutil.rmtree(self.state, ignore_errors=True)
         self.home = Path(tempfile.mkdtemp())
-        derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
-        (derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app").mkdir(parents=True)
-        self.plist = derived / "info.plist"
-        self.plist.touch()
+        self.plist = built_app(self.home, b"head\n").parents[3] / "info.plist"
         self.stubs = self.home / "bin"
         self.stubs.mkdir()
         stub = BOOT_STUB.replace("{sim}", self.sim).replace("{dir}", str(self.stubs))
@@ -1178,12 +1285,9 @@ class LaunchBoots(unittest.TestCase):
         shutil.rmtree(self.home, ignore_errors=True)
         shutil.rmtree(self.state, ignore_errors=True)
 
-    def spawn(self, sim, **env):
+    def spawn(self, **env):
         env = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]),
-                   VERIFY_RUN="issue-676", **env)
-        env.pop("SIM", None)
-        if sim:
-            env["SIM"] = sim
+                   VERIFY_RUN="issue-676", VERIFY_EVIDENCE=str(self.home / "evidence"), SIM=self.sim, **env)
         run = subprocess.Popen(
             [str(SKILL / "verify.sh"), "launch", "session"], cwd=str(REPO), env=env, start_new_session=True,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -1191,34 +1295,40 @@ class LaunchBoots(unittest.TestCase):
         self.runs.append(run)
         return run
 
-    def launch(self, sim, **env):
+    def launch(self, **env):
         (self.stubs / "calls").unlink(missing_ok=True)
-        run = self.spawn(sim, **env)
+        run = self.spawn(**env)
         out, err = run.communicate(timeout=30)
         calls = self.stubs / "calls"
         return run, calls.read_text().splitlines() if calls.exists() else [], (run.returncode, out, err)
 
     def test_launch_waits_on_the_boot_under_its_lock_and_installs_nothing_when_it_fails(self):
-        for named in [self.sim, None]:
-            with self.subTest(SIM=named):
-                run, calls, result = self.launch(named)
-                holder = "lock held by verify.sh launch (pid %d)" % run.pid
-                self.assertEqual(calls, [
-                    "plutil -extract WorkspacePath raw %s, %s" % (self.plist, holder),
-                    "xcrun simctl bootstatus %s -b, %s" % (self.sim, holder),
-                ], "the shut-down simulator is booted and waited on while the launch holds it, and never installed to")
-                self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim))
+        run, calls, result = self.launch()
+        holder = "lock held by verify.sh launch (pid %d)" % run.pid
+        self.assertEqual(calls, [
+            "plutil -extract WorkspacePath raw %s, lock free" % self.plist,
+            "xcrun simctl bootstatus %s -b, %s" % (self.sim, holder),
+            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker, %s" % (self.sim, holder),
+            "xcrun simctl list devices booted, %s" % holder,
+        ], "the app is found before the claim; the simulator is booted and waited on while the launch holds it, "
+           "and never installed to")
+        self.assertEqual(result, (70, "", NOT_BOOTED % (self.sim, self.sim, digest(b"head\n"))))
+        self.assertRegex((self.home / "evidence" / "issue-676" / "launches.txt").read_text(),
+                         r"^\S+ launch refused: app on %s unchanged: an unknown app" % self.sim)
 
     def test_a_boot_wait_that_ends_with_the_simulator_down_installs_nothing(self):
-        run, calls, result = self.launch(self.sim, STUB_BOOTSTATUS="0")
+        run, calls, result = self.launch(STUB_BOOTSTATUS="0")
         self.assertEqual(calls[1:], [
             "xcrun simctl bootstatus %s -b, lock held by verify.sh launch (pid %d)" % (self.sim, run.pid),
             "xcrun simctl list devices booted, lock held by verify.sh launch (pid %d)" % run.pid,
+            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker, lock held by verify.sh launch (pid %d)"
+            % (self.sim, run.pid),
+            "xcrun simctl list devices booted, lock held by verify.sh launch (pid %d)" % run.pid,
         ], "bootstatus exits 0 when a shutdown ends the boot, so the launch reads the state before it installs")
-        self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim))
+        self.assertEqual(result, (70, "", NOT_BOOTED % (self.sim, self.sim, digest(b"head\n"))))
 
     def test_a_launch_killed_during_its_boot_wait_frees_the_simulator_at_once(self):
-        killed = self.spawn(self.sim, STUB_HOLD="1")
+        killed = self.spawn(STUB_HOLD="1")
         for _ in range(100):
             if (self.stubs / "holding").exists() or killed.poll() is not None:
                 break
@@ -1228,9 +1338,9 @@ class LaunchBoots(unittest.TestCase):
         killed.wait()
         boot_wait = int((self.stubs / "holding").read_text())
         self.addCleanup(os.kill, boot_wait, 9)
-        run, calls, result = self.launch(self.sim)
+        run, calls, result = self.launch()
         os.kill(boot_wait, 0)
-        self.assertEqual(result, (70, "", "simulator %s did not boot\n" % self.sim),
+        self.assertEqual(result, (70, "", NOT_BOOTED % (self.sim, self.sim, digest(b"head\n"))),
                          "the next launch takes the simulator while the killed one's boot wait still runs")
 
 
@@ -1251,7 +1361,9 @@ for listing in ("devices.json", "catalog.json"):
         {"name": name, "udid": udid, "state": "Shutdown", "isAvailable": True})
     path.write_text(json.dumps(machine))' "{dir}" "$3" "$5" {created}
     echo {created} ;;
-  "xcrun simctl boot "*|"xcrun simctl install "*) ;;
+  "xcrun simctl boot "*) ;;
+  "xcrun simctl install "*) rm -rf "{dir}/container"; mkdir "{dir}/container"; cp -R "$4" "{dir}/container/" ;;
+  "xcrun simctl get_app_container "*) [ -d "{dir}/container/WorkoutTracker.app" ] && echo "{dir}/container/WorkoutTracker.app" ;;
   "xcrun simctl bootstatus "*) exit "${STUB_BOOTSTATUS:-1}" ;;
   "xcrun simctl launch "*) echo "com.sunnypatel.WorkoutTracker: 4121" ;;
   "xcodebuild "*) echo "** BUILD FAILED **" ; exit 65 ;;
@@ -1267,7 +1379,12 @@ PRO_MAX = {"name": "iPhone 17 Pro Max", "identifier": "com.apple.CoreSimulator.S
 AIR = {"name": "iPhone Air", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-Air"}
 CREATE_PRO = ("xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
               "com.apple.CoreSimulator.SimRuntime.iOS-27-0")
-NO_PRO = "no available iPhone 17 Pro simulator; verify.sh launch or scripts/test-sim.sh creates one\n"
+SIM_UNSET = (
+    "SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and "
+    "another agent's app may be on it (issue 660).\n"
+    "Make a lane simulator once and pass it on every call:\n"
+    "  export SIM=$(xcrun simctl create LANE_NAME \"iPhone 17 Pro\" com.apple.CoreSimulator.SimRuntime.iOS-27-0)\n"
+)
 
 
 def device(name, udid, state="Shutdown", available=True):
@@ -1283,11 +1400,9 @@ class SimulatorPick(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         self.checkout = fake_checkout(self.tmp)
         self.home = self.tmp / "home"
-        derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
-        self.app = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
-        self.app.mkdir(parents=True)
-        self.plist = derived / "info.plist"
-        self.plist.touch()
+        self.app = built_app(self.home, b"head\n")
+        self.plist = self.app.parents[3] / "info.plist"
+        self.evidence = self.tmp / "evidence"
         self.stubs = self.tmp / "bin"
         self.stubs.mkdir()
         self.created = pick_udid(1)
@@ -1323,7 +1438,8 @@ class SimulatorPick(unittest.TestCase):
         (self.stubs / "calls").unlink(missing_ok=True)
         for log in self.checkout.glob(".build/*/*-build.log"):
             log.unlink()
-        environment = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]))
+        environment = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]),
+                           VERIFY_EVIDENCE=str(self.evidence))
         environment.pop("SIM", None)
         environment.pop("VERIFY_RUN", None)
         environment.update(env)
@@ -1343,20 +1459,12 @@ class SimulatorPick(unittest.TestCase):
     def verify(self, *argv, **env):
         return self.run_script([str(self.checkout / ".agents" / "skills" / "verify" / "verify.sh")] + list(argv), **env)
 
-    def launch(self):
-        return self.verify("launch", "session", VERIFY_RUN="issue-579")
-
     def failed_build(self):
         log, = self.checkout.glob(".build/*/*-build.log")
         return "** BUILD FAILED **\nbuild log: %s\n" % log
 
     def build_for_testing_on(self, udid):
         return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
-                "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
-                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
-
-    def build_on(self, udid):
-        return ("xcodebuild build -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
                 "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
                 "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
 
@@ -1373,33 +1481,6 @@ class SimulatorPick(unittest.TestCase):
         ], "the created simulator is picked from simctl again, then booted and built for")
         self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
-    def test_verify_launch_creates_the_missing_iphone_17_pro_and_waits_on_its_boot(self):
-        self.fresh_machine()
-        code, out, err, calls = self.launch()
-        self.assertEqual(calls, [
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list -j",
-            CREATE_PRO,
-            "xcrun simctl list devices available -j",
-            "plutil -extract WorkspacePath raw %s" % self.plist,
-            "xcrun simctl bootstatus %s -b" % self.created,
-        ], "the launch claims and boots the simulator it created")
-        self.assertEqual((code, out, err), (70, "", "creating iPhone 17 Pro on iOS 27.0\nsimulator %s did not boot\n"
-                                            % self.created))
-
-    def test_verify_build_creates_the_missing_iphone_17_pro_and_builds_for_it(self):
-        self.fresh_machine()
-        code, out, err, calls = self.verify("build")
-        self.assertEqual(calls, [
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list -j",
-            CREATE_PRO,
-            "xcrun simctl list devices available -j",
-            "xcrun simctl boot %s" % self.created,
-            self.build_on(self.created),
-        ], "the created simulator is booted and built for")
-        self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
-
     def test_the_created_simulator_is_the_pair_the_visual_baselines_were_recorded_on(self):
         ci = (REPO / ".github" / "workflows" / "ci.yml").read_text()
         pinned = re.search(r"BASELINE_DEVICE: (.+)\n\s+BASELINE_RUNTIME: \"(.+)\"", ci).groups()
@@ -1408,11 +1489,31 @@ class SimulatorPick(unittest.TestCase):
         self.assertEqual(err.splitlines()[0], "creating %s on iOS %s" % pinned,
                          "re-recording the baselines on a new pair moves pick_sim's pair with it")
 
-    def test_every_other_verify_command_creates_nothing_and_says_which_ones_do(self):
+    def test_with_sim_unset_every_verify_command_that_needs_a_simulator_refuses_and_calls_no_xcrun(self):
         self.fresh_machine()
-        for argv in [["doctor"], ["stop"], ["tree"], ["sheet"], ["diff", "01-before", "02-after-log"]]:
+        for argv in [["build"], ["install"], ["install", "HEAD"], ["launch", "session"], ["launch", "--at", "HEAD", "session"],
+                     ["doctor"], ["stop"], ["tree"], ["find", "weight-pill"], ["tap", "-x", "1", "-y", "2"],
+                     ["hold", "weight-pill"], ["type", "245"], ["swipe", "up"], ["shot", "01-before"],
+                     ["burst", "log-transition"], ["axe", "key", "40"]]:
             with self.subTest(argv=argv):
-                self.assertEqual(self.verify(*argv), (1, "", NO_PRO, ["xcrun simctl list devices available -j"]))
+                self.assertEqual(self.verify(*argv, VERIFY_RUN="issue-660"), (2, "", SIM_UNSET, []),
+                                 "issue 660: the stock iPhone 17 Pro is never picked for you")
+        self.assertFalse(self.evidence.exists(), "nothing was shot")
+
+    def test_with_sim_unset_diff_sheet_and_crop_read_the_run_verify_run_names(self):
+        run = self.evidence / "issue-660"
+        run.mkdir(parents=True)
+        for name in ["01-before", "02-after-log"]:
+            shutil.copy(FIXTURES / ("%s.tree.txt" % name), run / ("%s.tree.txt" % name))
+        diff = (FIXTURES / "01-before--02-after-log.diff.txt").read_text()
+        self.assertEqual(self.verify("diff", "01-before", "02-after-log", VERIFY_RUN="issue-660"), (0, diff, "", []))
+        verify = self.checkout / ".agents" / "skills" / "verify" / "verify.sh"
+        for argv in [["diff", "01-before", "02-after-log"], ["sheet"], ["crop", "01-before", "weight-pill"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv), (1, "", (
+                    "no evidence directory for this run in %s; name one: VERIFY_RUN=<run> %s %s ...\n"
+                    "recent runs:\n  issue-660\n") % (self.evidence, verify, argv[0]), []),
+                    "with neither SIM nor VERIFY_RUN there is no run to read, so it says to name one")
 
     def test_a_missing_runtime_or_device_type_fails_with_what_the_machine_has(self):
         unavailable = pick_udid(4)
@@ -1427,16 +1528,14 @@ class SimulatorPick(unittest.TestCase):
                 {IOS_27_0["identifier"]: [device("iPhone 17 Pro", unavailable, available=False)]}, no_type),
         }
         for machine, (runtimes, devicetypes, devices, message) in machines.items():
-            for script, run in [("test-sim.sh", self.run_test_sim), ("verify.sh launch", self.launch),
-                                ("verify.sh build", lambda: self.verify("build"))]:
-                with self.subTest(machine=machine, script=script):
-                    self.machine(runtimes, devicetypes, devices)
-                    code, out, err, calls = run()
-                    self.assertEqual((code, out, err), (1, "", message))
-                    self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
-                                     "nothing is created, booted, locked, or built")
-                    self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
-                                     "the unavailable one is never claimed")
+            with self.subTest(machine=machine):
+                self.machine(runtimes, devicetypes, devices)
+                code, out, err, calls = self.run_test_sim()
+                self.assertEqual((code, out, err), (1, "", message))
+                self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
+                                 "nothing is created, booted, locked, or built")
+                self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
+                                 "the unavailable one is never claimed")
 
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
         old, new = pick_udid(0x2605), pick_udid(0x2700)
@@ -1475,20 +1574,671 @@ class SimulatorPick(unittest.TestCase):
 
     def test_a_lowercase_sim_launches_on_the_simulator_simctl_spells_in_capitals(self):
         udid = pick_udid(3)
-        self.locks.append(udid)
+        self.machine([IOS_27_0], [PRO], {IOS_27_0["identifier"]: [device("iPhone 17 Pro", udid)]})
         code, out, err, calls = self.verify("launch", "session", SIM=udid.lower(), VERIFY_RUN="issue-579",
                                             STUB_BOOTSTATUS="0", STUB_BOOTED=udid)
-        self.assertEqual((code, out, err), (0, "launched session as pid 4121 on %s\nevidence %s/.build/verify/evidence/issue-579\n"
-                                            % (udid, self.checkout), ""), "simctl lists it booted in capitals")
+        self.assertEqual((code, out, err), (0, "launched session as pid 4121 on %s\n"
+                                               "app %s commit unknown (not built by verify.sh)\n"
+                                               "evidence %s/issue-579\n" % (udid, digest(b"head\n"), self.evidence), ""),
+                         "simctl lists it booted in capitals")
         self.assertEqual(calls, [
+            "xcrun simctl list devices available -j",
             "plutil -extract WorkspacePath raw %s" % self.plist,
             "xcrun simctl bootstatus %s -b" % udid,
             "xcrun simctl list devices booted",
+            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
             "xcrun simctl install %s %s" % (udid, self.app),
+            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
+            "xcrun simctl spawn %s defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled" % udid,
             "xcrun simctl launch --terminate-running-process %s com.sunnypatel.WorkoutTracker -UITEST_FIXTURE "
             "-UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES" % udid,
             "axe describe-ui --udid %s" % udid,
         ])
+
+
+LANE_STUB = """#!/bin/sh
+tool=$(basename "$0")
+printf '%s\\n' "$tool $*" >> "{dir}/calls"
+case "$tool $1 $2" in
+  "plutil -extract WorkspacePath") echo "{project}" ;;
+  "xcrun simctl install")
+    [ -z "${STUB_INSTALL_FAIL:-}" ] || exit 1
+    [ -z "${STUB_STALE_INSTALL:-}" ] || [ ! -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 0
+    rm -rf "{dir}/containers/$3"
+    mkdir -p "{dir}/containers/$3"
+    cp -R "$4" "{dir}/containers/$3/"
+    [ -z "${STUB_TAMPER:-}" ] || printf x >> "{dir}/containers/$3/WorkoutTracker.app/WorkoutTracker.debug.dylib" ;;
+  "xcrun simctl uninstall") rm -rf "{dir}/containers/$3" ;;
+  "xcrun simctl get_app_container")
+    [ -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 1
+    echo "{dir}/containers/$3/WorkoutTracker.app" ;;
+  "xcrun simctl bootstatus") ;;
+  "xcrun simctl list")
+    if [ "$4" = available ]; then echo "{\\"devices\\": {\\"iOS-27-0\\": [{\\"udid\\": \\"${STUB_AVAILABLE:-$SIM}\\"}]}}"
+    else echo "    lane ($SIM) (Booted)"
+    fi ;;
+  "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: 4121" ;;
+  "xcrun simctl spawn")
+    case "$4 $5" in
+      "defaults read")
+        [ -f "{dir}/minimization" ] || { echo "The domain/default pair of ($6, $7) does not exist" >&2; exit 1; }
+        cat "{dir}/minimization" ;;
+      "defaults write") echo 0 > "{dir}/minimization" ;;
+    esac ;;
+  "xcodebuild build -project")
+    project=$3 derived=$HOME/Library/Developer/Xcode/DerivedData/WorkoutTracker-test
+    while [ $# -gt 0 ]; do [ "$1" != -derivedDataPath ] || derived=$2; shift; done
+    if [ -n "${STUB_BUILD_HOLD:-}" ]; then
+      touch "{dir}/building"
+      i=0
+      while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
+    fi
+    [ -z "${STUB_BUILD_FAIL:-}" ] || { echo "error: stub compile error"; echo "** BUILD FAILED **"; exit 65; }
+    app=$derived/Build/Products/Debug-iphonesimulator/WorkoutTracker.app
+    mkdir -p "$app"
+    cat "$(dirname "$project")/App/Main.swift" > "$app/WorkoutTracker.debug.dylib" ;;
+  "axe describe-ui --udid") cat "{dir}/describe-ui.json" ;;
+  "axe "*) exit "${STUB_AXE_EXIT:-0}" ;;
+  *) exit 1 ;;
+esac
+"""
+KEYBOARD = ("AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); "
+            "the preference that would keep it hidden after that is reset\n")
+
+
+class Lane(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(shutil.rmtree, str(self.tmp), True)
+        (self.tmp / "gitconfig").touch()
+        self.env = dict(os.environ, HOME=str(self.tmp / "home"), PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]),
+                        GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"), GIT_CONFIG_NOSYSTEM="1",
+                        GIT_AUTHOR_NAME="lane", GIT_AUTHOR_EMAIL="lane@example.com",
+                        GIT_COMMITTER_NAME="lane", GIT_COMMITTER_EMAIL="lane@example.com")
+        for name in ["SIM", "VERIFY_RUN", "VERIFY_EVIDENCE", "VERIFY_LIVE_ACTIVITIES"]:
+            self.env.pop(name, None)
+        self.checkout = self.tmp / "checkout"
+        self.git("init", "-q", "-b", "main", str(self.checkout), cwd=self.tmp)
+        for path, text in [("App/Main.swift", "v1\n"), ("Sources/WorkoutTracker/Model.swift", ""),
+                           ("WorkoutShared/Shared.swift", ""), ("WorkoutWidgets/Widget.swift", ""),
+                           ("WorkoutTracker.xcodeproj/project.pbxproj", ""), ("Package.swift", ""),
+                           ("Package.resolved", ""), (".gitignore", "Secrets.xcconfig\n.agents/\nscripts/\n.build/\n.claude/\n")]:
+            (self.checkout / path).parent.mkdir(parents=True, exist_ok=True)
+            (self.checkout / path).write_text(text)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "v1")
+        self.a = self.git("rev-parse", "HEAD")
+        self.edit("v2\n")
+        self.git("commit", "-q", "-am", "v2")
+        self.b = self.git("rev-parse", "HEAD")
+        self.verify_path = self.link_verify(self.checkout)
+        (self.checkout / "Secrets.xcconfig").write_text("")
+        derived = self.tmp / "home" / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
+        derived.mkdir(parents=True)
+        (derived / "info.plist").touch()
+        self.built = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
+        self.cache = self.checkout / ".claude" / "work" / "app-cache"
+        stub = LANE_STUB.replace("{dir}", str(self.tmp)).replace("{project}", str(self.checkout / "WorkoutTracker.xcodeproj"))
+        axe = self.checkout / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
+        axe.parent.mkdir(parents=True)
+        (self.tmp / "bin").mkdir()
+        for tool in [self.tmp / "bin" / "xcrun", self.tmp / "bin" / "xcodebuild", self.tmp / "bin" / "plutil",
+                     self.tmp / "bin" / "npm", axe]:
+            tool.write_text(stub)
+            tool.chmod(0o755)
+        (self.tmp / "describe-ui.json").write_text(MINI)
+        self.sim = "LANE-%d" % os.getpid()
+        self.other_sim = "LANE-%d-B" % os.getpid()
+        for udid in [self.sim, self.other_sim]:
+            shutil.rmtree("/tmp/workout-verify-%s" % udid, ignore_errors=True)
+            self.addCleanup(shutil.rmtree, "/tmp/workout-verify-%s" % udid, True)
+
+    def git(self, *args, cwd=None):
+        done = subprocess.run(["git"] + list(args), cwd=str(cwd or self.checkout), env=self.env, check=True,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        return done.stdout.strip()
+
+    def link_verify(self, checkout):
+        skill = checkout / ".agents" / "skills" / "verify"
+        skill.mkdir(parents=True)
+        for name in ["verify.sh", "tree.py"]:
+            (skill / name).symlink_to(SKILL / name)
+        (checkout / "scripts").mkdir()
+        for name in ["sim-lock.sh", "bootstrap-xcode-worktree.sh"]:
+            (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
+        return skill / "verify.sh"
+
+    def edit(self, code):
+        (self.checkout / "App" / "Main.swift").write_text(code)
+
+    def environment(self, env):
+        environment = dict(self.env, SIM=self.sim)
+        environment.update(env)
+        return environment
+
+    def verify(self, *argv, verify=None, **env):
+        (self.tmp / "calls").unlink(missing_ok=True)
+        done = subprocess.run([str(verify or self.verify_path)] + list(argv), cwd=str(self.checkout),
+                              env=self.environment(env), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              universal_newlines=True)
+        return done.returncode, done.stdout, done.stderr
+
+    def calls(self):
+        calls = self.tmp / "calls"
+        return calls.read_text().splitlines() if calls.exists() else []
+
+    def own_the_app(self, owner):
+        app = subprocess.Popen(FIXTURE_APP, start_new_session=True)
+        self.addCleanup(app.wait)
+        self.addCleanup(app.kill)
+        state = Path("/tmp/workout-verify-%s" % self.sim)
+        state.mkdir(parents=True, exist_ok=True)
+        (state / "run").write_text("%s\n" % owner)
+        (state / "pid").write_text("%d\n" % app.pid)
+        return app
+
+    def evidence(self, lane, run):
+        return self.checkout / ".claude" / "work" / "evidence" / lane / run
+
+    def launched(self, line, run="lane-1", lane="main"):
+        return "launched session as pid 4121 on %s\n%s\nevidence %s\n" % (self.sim, line, self.evidence(lane, run))
+
+    def worktree_build(self, code, commit, dirty=""):
+        return "app %s commit %s%s (this worktree's build)" % (digest(code), commit[:8], dirty)
+
+    def cached_build(self, code, commit):
+        return "app %s commit %s (cached build)" % (digest(code), commit[:8])
+
+    def building(self, commit):
+        return ("building %s into the app cache at %s (under a minute to a few; give the call a 10 min timeout)\n"
+                "xcode-worktree-bootstrap: copied Secrets.xcconfig from main worktree\n" % (commit[:8], self.cache))
+
+
+class InstalledIdentity(Lane):
+    def test_build_stamps_the_app_and_launch_prints_its_hash_and_commit(self):
+        self.assertEqual(self.verify("build"), (0, "built %s\n%s\n" % (self.built, self.worktree_build(b"v2\n", self.b)), ""))
+        self.assertEqual((self.built / "verify-stamp").read_text(), "commit=%s\ndirty=0\norigin=%s\ncode_sha256=%s\n"
+                         % (self.b, self.checkout, bundle_hash(b"v2\n")))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"),
+                         (0, self.launched(self.worktree_build(b"v2\n", self.b)), ""))
+        self.assertRegex((self.evidence("main", "lane-1") / "launches.txt").read_text(),
+                         r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d session %s on %s from %s\n$" % (
+                             re.escape(self.worktree_build(b"v2\n", self.b)), self.sim, re.escape(str(self.checkout))),
+                         "the evidence names its binary after the worktree and the simulator are gone")
+
+    def test_only_an_edit_to_what_the_app_compiles_marks_the_build_dirty(self):
+        (self.checkout / "decisions.tsv").write_text("an untracked file at the root\n")
+        self.assertEqual(self.verify("build")[1].splitlines()[1], self.worktree_build(b"v2\n", self.b))
+        self.edit("v3\n")
+        self.assertEqual(self.verify("build")[1].splitlines()[1], self.worktree_build(b"v3\n", self.b, "-dirty"))
+
+    def test_a_stamp_whose_code_hash_no_longer_matches_reads_commit_unknown(self):
+        self.verify("build")
+        (self.built / "WorkoutTracker.debug.dylib").write_bytes(b"rebuilt by Xcode\n")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (0, self.launched(
+            "app %s commit unknown (not built by verify.sh)" % digest(b"rebuilt by Xcode\n")), ""),
+            "the hash is the identity; a stamp that does not describe these bytes vouches for nothing")
+
+    def test_a_lock_refusal_names_the_app_it_left_installed_and_the_one_it_wanted(self):
+        self.verify("build")
+        self.assertEqual(self.verify("install", self.a)[0], 0)
+        app = self.own_the_app("owner-1")
+        code, out, err = self.verify("launch", "session", VERIFY_RUN="lane-1")
+        self.assertEqual((code, out), (75, ""), err)
+        self.assertEqual(err, (
+            "a verify run owner-1 owns the app on {sim} (pid {pid}); if it is yours, run: SIM={sim} VERIFY_RUN=owner-1 "
+            "{checkout}/.agents/skills/verify/verify.sh stop, else use another simulator\n"
+            "app on {sim} unchanged: {installed}; this launch wanted {wanted}\n"
+        ).format(sim=self.sim, pid=app.pid, checkout=self.checkout, installed=self.cached_build(b"v1\n", self.a),
+                 wanted=self.worktree_build(b"v2\n", self.b)), "a driver that drops the first line still reads the second")
+        self.assertNotIn("xcrun simctl install", " ".join(self.calls()))
+
+    def test_installed_bytes_that_differ_from_the_build_after_a_reinstall_exit_70_naming_both(self):
+        self.verify("build")
+        tampered = "app %s commit unknown (not built by verify.sh)" % digest(b"v2\nx")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_TAMPER="1"), (70, "", (
+            "after simctl install, {sim} holds {tampered}, not {wanted}; uninstalling it and installing once more\n"
+            "after simctl install, {sim} holds {tampered}, not {wanted} that this launch installed from {built}\n"
+        ).format(sim=self.sim, tampered=tampered, wanted=self.worktree_build(b"v2\n", self.b), built=self.built)))
+        self.assertEqual([c for c in self.calls() if c.startswith(("xcrun simctl install", "xcrun simctl uninstall"))], [
+            "xcrun simctl install %s %s" % (self.sim, self.built),
+            "xcrun simctl uninstall %s com.sunnypatel.WorkoutTracker" % self.sim,
+            "xcrun simctl install %s %s" % (self.sim, self.built),
+        ], "one reinstall, then the refusal")
+        self.assertNotIn("xcrun simctl launch", " ".join(self.calls()), "the wrong bytes are never launched")
+
+    def test_an_install_that_leaves_the_old_bytes_is_uninstalled_and_installed_once_more(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 0)
+        self.edit("v3\n")
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_STALE_INSTALL="1"), (
+            0, self.launched(self.worktree_build(b"v3\n", self.b, "-dirty")),
+            "after simctl install, %s holds app %s commit %s (an earlier build of this worktree), not %s; uninstalling it "
+            "and installing once more\n" % (self.sim, digest(b"v2\n"), self.b[:8],
+                                             self.worktree_build(b"v3\n", self.b, "-dirty"))))
+        self.assertEqual(self.verify("doctor")[1].splitlines()[1],
+                         "ok   installed %s" % self.worktree_build(b"v3\n", self.b, "-dirty"))
+
+    def test_a_file_outside_the_dylib_is_part_of_the_apps_identity(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        (self.built / "Assets.car").write_bytes(b"a new colour\n")
+        self.assertEqual(self.verify("doctor")[1].splitlines()[1], (
+            "FAIL installed app %s commit %s (an earlier build of this worktree) is not this worktree's build, "
+            "app %s commit unknown (run: %s install)") % (digest(b"v2\n"), self.b[:8],
+                                                          app_hash(self.built)[:12], self.verify_path))
+
+    def test_a_failed_simctl_install_says_so_once_and_names_what_is_there(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_INSTALL_FAIL="1"), (70, "", (
+            "simctl install failed, so %s holds nothing installed, not %s\n") % (self.sim, self.worktree_build(b"v2\n", self.b))))
+
+    def test_at_after_the_fixture_is_refused_instead_of_passed_to_the_app(self):
+        self.assertEqual(self.verify("launch", "session", "--at", self.a, VERIFY_RUN="lane-1"),
+                         (2, "", "--at goes before the fixture: launch --at COMMIT session\n"))
+        self.assertEqual(self.calls(), [])
+
+    def test_a_sim_no_simulator_answers_to_is_refused_before_any_build(self):
+        self.assertEqual(self.verify("build", STUB_AVAILABLE="SOMEONE-ELSE"), (2, "", (
+            "no available simulator %s; xcrun simctl list devices available lists them\n") % self.sim))
+        self.assertEqual(self.calls(), ["xcrun simctl list devices available -j"])
+
+    def test_a_bare_launch_over_a_cached_build_refuses_and_launch_at_runs_it(self):
+        self.verify("build")
+        self.assertEqual(self.verify("install", self.a[:8])[:2], (0, self.cached_build(b"v1\n", self.a) + "\n"))
+        cached, head = self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b)
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (65, "", (
+            "{sim} holds {cached}, and this launch would replace it with {head}. To run the cached build: "
+            "launch --at {a8} session. To replace it: install, then launch.\n"
+        ).format(sim=self.sim, cached=cached, head=head, a8=self.a[:8])))
+        self.assertNotIn("xcrun simctl install", " ".join(self.calls()), "the control build stays installed")
+        self.assertEqual(self.verify("launch", "--at", self.a[:8], "session", VERIFY_RUN="lane-1"), (0, self.launched(
+            "%s; this worktree's build is app %s commit %s" % (cached, digest(b"v2\n"), self.b[:8])), ""))
+        self.assertEqual(self.verify("install"), (0, "replaced %s\n%s\n" % (cached, head), ""),
+                         "the head phase reinstalls this worktree's build on purpose")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (0, self.launched(head), ""))
+
+
+class Doctor(Lane):
+    def doctor_app_line(self):
+        return self.verify("doctor")[1].splitlines()[1]
+
+    def test_doctor_passes_this_worktrees_build_once_it_is_installed(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        code, out, err = self.verify("doctor")
+        self.assertEqual(out.splitlines()[:2], ["ok   simulator %s booted" % self.sim,
+                                                "ok   installed %s" % self.worktree_build(b"v2\n", self.b)])
+        self.assertNotIn("sources", out, "nothing was edited after the build")
+
+    def test_doctor_fails_an_installed_app_that_is_not_this_worktrees_build_naming_both(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        self.edit("v3\n")
+        self.verify("build")
+        self.assertEqual(self.doctor_app_line(), (
+            "FAIL installed app %s commit %s (an earlier build of this worktree) is not this worktree's build, "
+            "app %s commit %s-dirty (run: %s install)") % (digest(b"v2\n"), self.b[:8], digest(b"v3\n"), self.b[:8],
+                                                          self.verify_path))
+
+    def test_doctor_passes_a_cached_build_that_matches_its_cache_entry(self):
+        self.verify("build")
+        self.verify("install", self.a)
+        self.assertEqual(self.doctor_app_line(), "ok   installed %s; this worktree's build is app %s commit %s"
+                         % (self.cached_build(b"v1\n", self.a), digest(b"v2\n"), self.b[:8]))
+
+    def test_doctor_fails_when_nothing_is_installed(self):
+        self.verify("build")
+        self.assertEqual(self.doctor_app_line(), "FAIL nothing installed on %s (run: %s launch <fixture>)"
+                         % (self.sim, self.verify_path))
+
+
+class AppCache(Lane):
+    def entries(self):
+        return sorted(p.name for p in self.cache.iterdir())
+
+    def worktrees(self):
+        return [line for line in self.git("worktree", "list", "--porcelain").splitlines() if line.startswith("worktree ")]
+
+    def install_held_in_its_build(self, commit):
+        install = subprocess.Popen([str(self.verify_path), "install", commit], cwd=str(self.checkout),
+                                   env=self.environment({"STUB_BUILD_HOLD": "1"}), start_new_session=True,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        for _ in range(100):
+            if (self.tmp / "building").exists() or install.poll() is not None:
+                break
+            time.sleep(0.1)
+        return install
+
+    def test_install_builds_a_commit_once_and_every_later_install_reuses_it(self):
+        self.assertEqual(self.verify("install", self.a[:7]),
+                         (0, self.cached_build(b"v1\n", self.a) + "\n", self.building(self.a)))
+        self.assertEqual([call for call in self.calls() if call.startswith("xcodebuild")], [
+            "xcodebuild build -project {c}/{a}.build/src/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
+            "-destination platform=iOS Simulator,id={sim} -derivedDataPath {c}/{a}.build/dd -skipPackagePluginValidation "
+            "-skipMacroValidation CODE_SIGNING_ALLOWED=NO".format(c=self.cache, a=self.a, sim=self.sim)])
+        self.assertEqual(self.entries(), [self.a, self.a + ".lock", "logs"],
+                         "the abbreviated SHA keys the full one, and the scratch worktree and DerivedData are gone")
+        self.assertEqual((self.cache / self.a / "WorkoutTracker.app" / "verify-stamp").read_text(),
+                         "commit=%s\ndirty=0\norigin=cache\ncode_sha256=%s\n" % (self.a, bundle_hash(b"v1\n")))
+        self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
+        self.assertEqual(self.verify("install", self.a), (0, self.cached_build(b"v1\n", self.a) + "\n", ""))
+        self.assertEqual([call for call in self.calls() if call.startswith("xcodebuild")], [], "a hit builds nothing")
+
+    def test_two_installs_of_one_commit_at_once_build_it_once(self):
+        first = self.install_held_in_its_build(self.a)
+        self.assertTrue((self.tmp / "building").exists(), "the first install never reached its build")
+        waited = self.tmp / "second.err"
+        with open(str(waited), "w") as err:
+            second = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
+                                      env=self.environment({"SIM": self.other_sim, "STUB_BUILD_HOLD": "1"}),
+                                      start_new_session=True, stdout=subprocess.PIPE, stderr=err, universal_newlines=True)
+        wait_line = "waiting for another build of %s into the app cache (lsof %s/%s.lock lists it)\n" % (
+            self.a[:8], self.cache, self.a)
+        for _ in range(100):
+            if waited.read_text() == wait_line or second.poll() is not None:
+                break
+            time.sleep(0.1)
+        (self.tmp / "release").touch()
+        first_out, first_err = first.communicate(timeout=30)
+        second_out, _ = second.communicate(timeout=30)
+        self.assertEqual((first.returncode, first_out, first_err), (0, self.cached_build(b"v1\n", self.a) + "\n",
+                                                                    self.building(self.a)))
+        self.assertEqual((second.returncode, second_out, waited.read_text()),
+                         (0, self.cached_build(b"v1\n", self.a) + "\n", wait_line))
+        self.assertEqual(len([call for call in self.calls() if call.startswith("xcodebuild")]), 1)
+
+    def test_a_failed_build_publishes_nothing_and_the_next_install_builds_it(self):
+        self.assertEqual(self.verify("install", self.a, STUB_BUILD_FAIL="1"), (65, "", self.building(self.a) + (
+            "error: stub compile error\n** BUILD FAILED **\nbuild log: {c}/logs/{a}.log\napp on {sim} unchanged: nothing "
+            "installed; this install wanted {a8} from the app cache, and its build failed\n").format(
+                c=self.cache, a=self.a, sim=self.sim, a8=self.a[:8])))
+        self.assertEqual(self.entries(), [self.a + ".lock", "logs"], "no entry, no scratch")
+        self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
+        self.assertEqual(self.verify("install", self.a), (0, self.cached_build(b"v1\n", self.a) + "\n", self.building(self.a)))
+
+    def killed_build(self, commit):
+        install = self.install_held_in_its_build(commit)
+        self.addCleanup(install.communicate)
+        self.assertTrue((self.tmp / "building").exists(), "the install never reached its build")
+        os.killpg(install.pid, signal.SIGKILL)
+        install.wait()
+        (self.tmp / "building").unlink()
+        self.assertEqual(self.entries(), [commit + ".build", commit + ".lock", "logs"])
+
+    def test_another_commits_install_sweeps_a_killed_builds_scratch_and_worktree(self):
+        self.killed_build(self.a)
+        self.assertEqual(len(self.worktrees()), 2)
+        self.assertEqual(self.verify("install", self.b)[0], 0)
+        self.assertEqual(self.entries(), sorted([self.a + ".lock", self.b, self.b + ".lock", "logs"]))
+        self.assertEqual(self.worktrees(), ["worktree %s" % self.checkout])
+
+    def test_a_killed_installs_lock_frees_when_its_build_exits_though_git_leaves_processes_behind(self):
+        real = [os.environ.get("GIT_CONFIG_GLOBAL") or os.path.expanduser("~/.gitconfig"),
+                os.path.expanduser("~/.config/git/config")]
+        hooks = self.tmp / "hooks"
+        hooks.mkdir()
+        (hooks / "post-checkout").write_text('#!/bin/sh\nsleep 60 >/dev/null 2>&1 &\necho $! >> "%s"\n'
+                                             % (self.tmp / "hook-pids"))
+        (hooks / "post-checkout").chmod(0o755)
+        self.addCleanup(subprocess.run, ["sh", "-c", 'kill -9 $(cat "$0") 2>/dev/null', str(self.tmp / "hook-pids")])
+        (self.tmp / "gitconfig").write_text("[include]\n%s[core]\n\tfsmonitor = true\n\thooksPath = %s\n"
+                                            % ("".join("\tpath = %s\n" % path for path in real), hooks))
+        (self.tmp / "bin" / "bash").symlink_to("/bin/bash")
+        lock = self.cache / (self.a + ".lock")
+        if shutil.which("lsof"):
+            self.addCleanup(subprocess.run, ["sh", "-c", 'lsof -t "$0" | xargs kill -9', str(lock)],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        install = self.install_held_in_its_build(self.a)
+        self.addCleanup(install.communicate)
+        self.assertTrue((self.tmp / "building").exists(), "the install never reached its build")
+        os.kill(install.pid, signal.SIGKILL)
+        (self.tmp / "release").touch()
+        install.wait()
+        after = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
+                                 env=self.environment({}), start_new_session=True,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        try:
+            out, _ = after.communicate(timeout=20)
+        except subprocess.TimeoutExpired:
+            os.killpg(after.pid, signal.SIGKILL)
+            after.communicate()
+            self.fail("the next install still waits on the lock 20 s after the killed install's build exited")
+        self.assertEqual((after.returncode, out), (0, self.cached_build(b"v1\n", self.a) + "\n"))
+
+    def test_the_next_install_of_a_killed_builds_commit_builds_in_its_scratch(self):
+        self.killed_build(self.a)
+        kept = self.cache / (self.a + ".build") / "src" / "kept"
+        kept.touch()
+        install = self.install_held_in_its_build(self.a)
+        self.assertTrue(kept.exists(), "the killed build's worktree and DerivedData are built on, not recreated")
+        (self.tmp / "release").touch()
+        out, _ = install.communicate(timeout=30)
+        self.assertEqual((install.returncode, out), (0, self.cached_build(b"v1\n", self.a) + "\n"))
+        self.assertEqual(self.entries(), [self.a, self.a + ".lock", "logs"])
+
+    def test_a_commit_the_repo_does_not_know_is_refused_before_any_simulator(self):
+        self.assertEqual(self.verify("install", "0badc0de"),
+                         (2, "", "0badc0de names no single commit in this repo (unknown or ambiguous)\n"))
+        self.assertEqual(self.calls(), [])
+
+
+class EvidenceBase(Lane):
+    def setUp(self):
+        super().setUp()
+        self.verify("build")
+
+    def test_a_branchs_runs_land_in_the_main_checkout_under_the_branch_name(self):
+        self.git("checkout", "-q", "-b", "lane/x+y")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"),
+                         (0, self.launched(self.worktree_build(b"v2\n", self.b), lane="lane-x-y"), ""))
+
+    def test_a_detached_worktrees_runs_land_under_its_directory_name(self):
+        self.git("checkout", "-q", "--detach")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"),
+                         (0, self.launched(self.worktree_build(b"v2\n", self.b), lane="detached-checkout"), ""))
+
+    def test_verify_evidence_names_the_parent_of_the_run_directories(self):
+        elsewhere = self.tmp / "elsewhere"
+        code, out, err = self.verify("launch", "session", VERIFY_RUN="lane-1", VERIFY_EVIDENCE=str(elsewhere))
+        self.assertEqual((code, out.splitlines()[-1], err), (0, "evidence %s/lane-1" % elsewhere, ""))
+
+    def test_a_linked_worktrees_runs_land_in_the_main_checkout_so_they_outlive_it(self):
+        linked = self.tmp / "linked"
+        self.git("worktree", "add", "-q", "-b", "lane/linked", str(linked))
+        verify = self.link_verify(linked)
+        self.assertEqual(self.verify("diff", "01-before", "02-after-log", verify=verify, VERIFY_RUN="lane-1"), (1, "", (
+            "no evidence directory for this run in %s; name one: VERIFY_RUN=<run> %s diff ...\nrecent runs:\n"
+        ) % (self.checkout / ".claude" / "work" / "evidence" / "lane-linked", verify)))
+
+
+class DriveGuard(Lane):
+    def test_a_drive_command_refuses_another_live_runs_app(self):
+        app = self.own_the_app("owner-1")
+        for argv in [["tap", "-x", "5", "-y", "6"], ["hold", "weight-pill"], ["type", "245"], ["swipe", "up"],
+                     ["shot", "01-before"], ["burst", "log-transition"], ["axe", "key", "40"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv, VERIFY_RUN="lane-1"), (75, "", (
+                    "the app on {sim} belongs to run owner-1 (pid {pid}), not to lane-1, so this would drive another "
+                    "run's app; launch yours first: SIM={sim} VERIFY_RUN=lane-1 {verify} launch <fixture>\n"
+                ).format(sim=self.sim, pid=app.pid, verify=self.verify_path)))
+                self.assertEqual(self.calls(), [], "nothing was driven or filmed")
+
+    def test_a_refused_relaunch_of_the_same_run_drives_nothing_until_a_launch_of_it_succeeds(self):
+        self.verify("build")
+        self.verify("install", self.a)
+        control = self.own_the_app("ui12")
+        refusal = "app on %s unchanged: %s; this launch wanted %s" % (
+            self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"], ["type", "245"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv, VERIFY_RUN="ui12"), (75, "", (
+                    "the last launch of run ui12 on {sim} was refused, so this would drive whatever that refusal left "
+                    "running ({refusal}); stop it, then launch again: SIM={sim} VERIFY_RUN=ui12 {verify} stop, then "
+                    "SIM={sim} VERIFY_RUN=ui12 {verify} launch <fixture>\n"
+                ).format(sim=self.sim, refusal=refusal, verify=self.verify_path)))
+                self.assertEqual(self.calls(), [], "the control app is neither driven nor filmed as the head")
+        self.assertRegex((self.evidence("main", "ui12") / "launches.txt").read_text(),
+                         r"^\S+ launch refused: %s\n$" % re.escape(refusal))
+        control.kill()
+        control.wait()
+        self.assertEqual(self.verify("install")[0], 0)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="ui12")[0], 75, "an install is not a launch")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 0)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="ui12"), (0, "", ""))
+
+    def test_a_drive_that_names_no_run_is_refused_after_the_refused_relaunch_of_the_run_it_would_drive(self):
+        self.verify("build")
+        self.verify("install", self.a)
+        self.own_the_app("ui12")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        for argv in [["shot", "02-head"], ["tap", "-x", "5", "-y", "6"]]:
+            with self.subTest(argv=argv):
+                code, out, err = self.verify(*argv)
+                self.assertEqual((code, out), (75, ""))
+                self.assertRegex(err, r"^the last launch of run ui12 on %s was refused" % self.sim)
+                self.assertEqual(self.calls(), [], "the stale app is neither driven nor filmed into ui12's evidence")
+
+    def test_a_cache_build_that_fails_refuses_the_run_until_a_launch_of_it_succeeds(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
+        refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache, and its build failed" % (
+            self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", STUB_BUILD_FAIL="1")
+        self.assertEqual((code, out, err.splitlines()[-1]), (65, "", refusal))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
+        self.assertRegex((self.evidence("main", "r1") / "launches.txt").read_text(),
+                         r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
+
+    def test_a_drive_that_names_no_run_is_refused_after_a_launch_that_named_none_was_refused(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session")[0], 0)
+        run = (Path("/tmp/workout-verify-%s" % self.sim) / "run").read_text().strip()
+        refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache, and its build failed" % (
+            self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
+        self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
+        for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv), (75, "", (
+                    "the last launch of run {run} on {sim} was refused, so this would drive whatever that refusal "
+                    "left running ({refusal}); stop it, then launch again: SIM={sim} {verify} stop, then "
+                    "SIM={sim} {verify} launch <fixture>\n"
+                ).format(run=run, sim=self.sim, refusal=refusal, verify=self.verify_path)))
+                self.assertEqual(self.calls(), [], "the app the refusal left is neither driven nor filmed")
+        self.assertRegex((self.evidence("main", run) / "launches.txt").read_text(),
+                         r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r2")[0], 0)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""), "any launch that succeeds clears it")
+
+    def test_a_drive_that_names_no_run_is_refused_after_the_first_launch_on_the_simulator_was_refused(self):
+        self.assertEqual(self.verify("launch", "session")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6")[0], 75)
+        self.assertEqual(self.calls(), [])
+
+    def test_a_refused_launch_that_named_no_run_does_not_stop_a_named_owner_driving_unnamed(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session")[0], 0)
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="owner-1")[0], 0)
+        self.assertEqual(self.verify("launch", "--at", self.a, "session", STUB_BUILD_FAIL="1")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="owner-1"), (0, "", ""))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_named_launch_that_starts_but_never_comes_up_is_not_held_to_an_earlier_unnamed_refusal(self):
+        self.assertEqual(self.verify("launch", "session")[0], 65)
+        self.verify("build")
+        (self.tmp / "describe-ui.json").write_text(MINI.replace('"pid": 4121', '"pid": 99999999'))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="owner-1")[0], 70)
+        (self.tmp / "describe-ui.json").write_text(MINI)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_refused_install_blocks_no_drive(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
+        self.assertEqual(self.verify("install", self.a, VERIFY_RUN="r1", STUB_BUILD_FAIL="1")[0], 65)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1"), (0, "", ""))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+
+    def test_a_run_refused_because_another_runs_app_is_alive_is_not_told_to_stop_it(self):
+        self.verify("build")
+        app = self.own_the_app("owner-1")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 75)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="lane-1"), (75, "", (
+            "the app on {sim} belongs to run owner-1 (pid {pid}), not to lane-1, so this would drive another "
+            "run's app; launch yours first: SIM={sim} VERIFY_RUN=lane-1 {verify} launch <fixture>\n"
+        ).format(sim=self.sim, pid=app.pid, verify=self.verify_path)))
+
+    def test_another_runs_refused_launch_does_not_stop_the_owner(self):
+        self.verify("build")
+        self.own_the_app("owner-1")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1")[0], 75)
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="owner-1"), (0, "", ""))
+
+    def test_the_owner_an_unnamed_caller_and_a_dead_owner_still_drive(self):
+        self.own_the_app("owner-1")
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="owner-1"), (0, "", ""))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
+        (Path("/tmp/workout-verify-%s" % self.sim) / "pid").write_text("99999999\n")
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="lane-1"), (0, "", ""))
+        self.assertEqual(self.calls(), ["axe tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim])
+
+
+class KeyboardReset(Lane):
+    RESET = "xcrun simctl spawn %s defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false"
+    READ = "xcrun simctl spawn %s defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled"
+
+    def minimized(self, value):
+        (self.tmp / "minimization").write_text(value)
+
+    def test_launch_resets_a_minimized_keyboard_before_it_starts_the_app_and_says_so(self):
+        self.verify("build")
+        self.minimized("1\n")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (
+            0, self.launched(self.worktree_build(b"v2\n", self.b)),
+            "AutomaticMinimizationEnabled was 1 on %s, which hides the software keyboard (issue 700); "
+            "this launch reset it to 0\n" % self.sim))
+        calls = self.calls()
+        start = [index for index, call in enumerate(calls) if call.startswith("xcrun simctl launch")][0]
+        self.assertEqual(calls[start - 2:start], [self.READ % self.sim, self.RESET % self.sim])
+        self.assertEqual((self.tmp / "minimization").read_text(), "0\n")
+
+    def test_launch_leaves_a_keyboard_preference_that_is_0_or_unset_alone(self):
+        self.verify("build")
+        for value in [None, "0\n"]:
+            with self.subTest(value=value):
+                if value:
+                    self.minimized(value)
+                code, _, err = self.verify("launch", "session", VERIFY_RUN="lane-1")
+                self.assertEqual((code, err), (0, ""))
+                self.assertIn(self.READ % self.sim, self.calls())
+                self.assertNotIn(self.RESET % self.sim, self.calls())
+
+    def test_doctor_fails_a_minimized_keyboard_and_passes_one_that_is_not(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        self.minimized("1\n")
+        code, out, _ = self.verify("doctor")
+        self.assertEqual((code, out.splitlines()[-1]), (1, (
+            "FAIL AutomaticMinimizationEnabled is 1 on {sim}, so a focused field shows no software keyboard "
+            "(issue 700); the next launch resets it (run: {verify} launch <fixture>)").format(
+                sim=self.sim, verify=self.verify_path)))
+        self.minimized("0\n")
+        self.assertEqual(self.verify("doctor")[1].splitlines()[-1],
+                         "ok   AutomaticMinimizationEnabled is not 1 on %s" % self.sim)
+
+    def test_type_resets_the_keyboard_preference_after_axe_and_keeps_axes_status(self):
+        self.assertEqual(self.verify("type", "245", STUB_AXE_EXIT="3"), (3, "", KEYBOARD))
+        self.assertEqual(self.calls(), ["axe type --udid %s --stdin" % self.sim, self.RESET % self.sim])
+
+    def test_an_axe_keyboard_verb_resets_it_too_and_any_other_verb_does_not(self):
+        for verb in [["key", "42"], ["key-sequence", "--keycodes", "42,42"], ["key-combo", "--modifiers", "227", "--key", "4"],
+                     ["type", "245"]]:
+            with self.subTest(verb=verb[0]):
+                self.assertEqual(self.verify("axe", *verb), (0, "", KEYBOARD))
+                self.assertEqual(self.calls(), ["axe %s --udid %s" % (" ".join(verb), self.sim), self.RESET % self.sim])
+        self.assertEqual(self.verify("axe", "tap", "-x", "5", "-y", "6", STUB_AXE_EXIT="4"), (4, "", ""))
+        self.assertEqual(self.calls(), ["axe tap -x 5 -y 6 --udid %s" % self.sim])
 
 
 AXE_STUB = """#!/bin/sh
@@ -1516,7 +2266,7 @@ class VerifyShot(unittest.TestCase):
         axe.chmod(0o755)
         self.verify = skill / "verify.sh"
         self.sim = "SHOT-TEST-%d" % os.getpid()
-        self.evidence = self.root / ".build" / "verify" / "evidence" / "issue-674"
+        self.evidence = self.root / "evidence" / "issue-674"
         self.home, self.stage = self.root / "home.png", self.root / "stage.png"
         write_png(self.home, 4, 4, (32, 96, 160))
         write_png(self.stage, 4, 4, (240, 240, 240))
@@ -1527,7 +2277,8 @@ class VerifyShot(unittest.TestCase):
     def shot(self, name, frame, tree):
         described = self.root / ("%s.describe-ui.json" % name)
         described.write_text(tree)
-        env = dict(os.environ, SIM=self.sim, VERIFY_RUN="issue-674", STUB_FRAME=str(frame), STUB_TREE=str(described))
+        env = dict(os.environ, SIM=self.sim, VERIFY_RUN="issue-674", STUB_FRAME=str(frame), STUB_TREE=str(described),
+                   VERIFY_EVIDENCE=str(self.evidence.parent))
         done = subprocess.run(
             [str(self.verify), "shot", name], cwd=str(self.root), env=env,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True,
@@ -1583,7 +2334,8 @@ class VerifyShot(unittest.TestCase):
 class VerifySheet(unittest.TestCase):
     def setUp(self):
         self.run = "sheettest-%d" % os.getpid()
-        self.dir = REPO / ".build" / "verify" / "evidence" / self.run
+        self.evidence = Path(tempfile.mkdtemp())
+        self.dir = self.evidence / self.run
         self.dir.mkdir(parents=True, exist_ok=True)
         for captured, name in enumerate(["02-b", "01-a", "03-c"]):
             write_png(self.dir / ("%s.png" % name), 120, 260, (32, 96, 160))
@@ -1592,10 +2344,10 @@ class VerifySheet(unittest.TestCase):
             os.utime(tree, (captured + 1, captured + 1))
 
     def tearDown(self):
-        shutil.rmtree(self.dir, ignore_errors=True)
+        shutil.rmtree(self.evidence, ignore_errors=True)
 
     def test_the_sheet_numbers_every_shot_of_the_run_in_capture_order(self):
-        code, out, err = verify_sh("sheet", run=self.run)
+        code, out, err = verify_sh("sheet", run=self.run, evidence=self.evidence)
         self.assertEqual(code, 0, err)
         self.assertEqual(len(out.splitlines()), 1, "three shots are one page")
         fields = out.rstrip("\n").split("\t")
@@ -1605,18 +2357,15 @@ class VerifySheet(unittest.TestCase):
         self.assertEqual(fields[4], "1. 02-b  2. 01-a  3. 03-c", "capture order, not name order")
 
     def test_a_second_sheet_of_the_same_shots_is_the_same_bytes(self):
-        self.assertEqual(verify_sh("sheet", run=self.run)[0], 0)
+        self.assertEqual(verify_sh("sheet", run=self.run, evidence=self.evidence)[0], 0)
         first = (self.dir / "_sheet.png").read_bytes()
-        self.assertEqual(verify_sh("sheet", run=self.run)[0], 0)
+        self.assertEqual(verify_sh("sheet", run=self.run, evidence=self.evidence)[0], 0)
         self.assertEqual((self.dir / "_sheet.png").read_bytes(), first, "rerunning converges")
 
     def test_a_run_with_no_shots_says_how_to_take_one(self):
         empty = self.dir.with_name("%s-empty" % self.run)
         empty.mkdir(parents=True, exist_ok=True)
-        try:
-            code, out, err = verify_sh("sheet", run=empty.name)
-        finally:
-            shutil.rmtree(empty, ignore_errors=True)
+        code, out, err = verify_sh("sheet", run=empty.name, evidence=self.evidence)
         self.assertEqual(code, 1)
         self.assertEqual(out, "")
         self.assertIn("shot NAME", err, "the way out of an empty run")
@@ -1628,14 +2377,15 @@ class VerifyCrop(unittest.TestCase):
 
     def setUp(self):
         self.run = "croptest-%d" % os.getpid()
-        self.dir = REPO / ".build" / "verify" / "evidence" / self.run
+        self.evidence = Path(tempfile.mkdtemp())
+        self.dir = self.evidence / self.run
         self.dir.mkdir(parents=True, exist_ok=True)
         shutil.copy(BEFORE_TREE, self.dir / "01-before.tree.txt")
         write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box_frame=(196, 1062, 412, 132), box_colour=self.PILL)
         self.crop = self.dir / "01-before-crop-90_523_222x82.png"
 
     def tearDown(self):
-        shutil.rmtree(self.dir, ignore_errors=True)
+        shutil.rmtree(self.evidence, ignore_errors=True)
 
     def colours(self, png, points):
         probe = Path(tempfile.mkdtemp())
@@ -1658,7 +2408,7 @@ class VerifyCrop(unittest.TestCase):
         return found
 
     def test_a_crop_by_id_is_the_shots_own_pixels_around_the_element(self):
-        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run),
+        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run, evidence=self.evidence),
                          (0, "%s\t444x164\n" % self.crop, ""), "8 points around the pill at 2 pixels a point")
         surround, pill = self.SURROUND, self.PILL
         self.assertEqual(self.colours(self.crop, [(15, 16), (16, 15), (16, 16), (427, 147), (428, 147), (427, 148)]),
@@ -1668,34 +2418,34 @@ class VerifyCrop(unittest.TestCase):
     def test_a_crop_at_the_top_left_corner_starts_there(self):
         write_png(self.dir / "01-before.png", 804, 1748, self.SURROUND, box_frame=(0, 0, 8, 8), box_colour=self.PILL)
         corner = self.dir / "01-before-crop-0_0_10x10.png"
-        self.assertEqual(verify_sh("crop", "01-before", "0", "0", "10", "10", run=self.run),
+        self.assertEqual(verify_sh("crop", "01-before", "0", "0", "10", "10", run=self.run, evidence=self.evidence),
                          (0, "%s\t20x20\n" % corner, ""))
         self.assertEqual(self.colours(corner, [(0, 0), (7, 7), (8, 8)]), [self.PILL, self.PILL, self.SURROUND],
                          "sips centres a crop whose offset is 0 0, which would show the surround alone")
 
     def test_a_crop_is_not_a_shot(self):
-        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run)[0], 0)
-        code, out, err = verify_sh("sheet", run=self.run)
+        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run, evidence=self.evidence)[0], 0)
+        code, out, err = verify_sh("sheet", run=self.run, evidence=self.evidence)
         self.assertEqual(code, 0, err)
         self.assertEqual(out.split("\t")[4], "1. 01-before\n", "the sheet tiles the shot alone")
-        self.assertEqual(verify_sh("diff", "01-before", self.crop.stem, run=self.run), (
+        self.assertEqual(verify_sh("diff", "01-before", self.crop.stem, run=self.run, evidence=self.evidence), (
             1, "", "no shot %s in %s; shots: 01-before \n" % (self.crop.stem, self.dir)))
-        code, out, err = verify_sh("shot", self.crop.stem, run=self.run)
+        code, out, err = verify_sh("shot", self.crop.stem, run=self.run, evidence=self.evidence)
         self.assertEqual((code, out), (2, ""), "the underscore makes a crop's name illegal for a shot: %s" % err)
 
     def test_the_same_region_by_points_converges_on_one_file(self):
-        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run)[0], 0)
+        self.assertEqual(verify_sh("crop", "01-before", "weight-pill", run=self.run, evidence=self.evidence)[0], 0)
         first = self.crop.read_bytes()
-        self.assertEqual(verify_sh("crop", "01-before", "90", "523", "222", "82", run=self.run),
+        self.assertEqual(verify_sh("crop", "01-before", "90", "523", "222", "82", run=self.run, evidence=self.evidence),
                          (0, "%s\t444x164\n" % self.crop, ""))
         self.assertEqual(sorted(p.name for p in self.dir.iterdir() if "-crop-" in p.name), [self.crop.name])
         self.assertEqual(self.crop.read_bytes(), first, "rerunning converges")
 
     def test_a_missing_shot_lists_the_runs_shots(self):
-        self.assertEqual(verify_sh("crop", "09-nope", "0", "0", "10", "10", run=self.run),
+        self.assertEqual(verify_sh("crop", "09-nope", "0", "0", "10", "10", run=self.run, evidence=self.evidence),
                          (1, "", "no shot 09-nope in %s; shots: 01-before \n" % self.dir))
         (self.dir / "02-half.png").write_bytes(b"png")
-        self.assertEqual(verify_sh("crop", "02-half", "weight-pill", run=self.run)[0], 1,
+        self.assertEqual(verify_sh("crop", "02-half", "weight-pill", run=self.run, evidence=self.evidence)[0], 1,
                          "a PNG whose tree never landed is not a shot")
 
 
