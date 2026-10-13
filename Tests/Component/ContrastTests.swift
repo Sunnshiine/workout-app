@@ -86,6 +86,11 @@ private let paperGrid = (0...20).flatMap { row in
     (0...20).map { column in UnitPoint(x: Double(column) / 20, y: Double(row) / 20) }
 }
 
+/// A wash peaks at its centre, which the grid steps over, so every centre on the page is sampled too.
+private func paperPoints(_ palette: Theme.Palette) -> [UnitPoint] {
+    paperGrid + palette.paper.washes.map(\.center).filter { (0...1).contains($0.x) && (0...1).contains($0.y) }
+}
+
 private enum Surface: CaseIterable {
     case paper
     case card
@@ -104,7 +109,7 @@ private enum Surface: CaseIterable {
         if let base = opaqueBase(palette) {
             return [GroundSample(paperPoint: nil, ground: Ground(base: base, layers: fills))]
         }
-        return paperGrid.map { point in
+        return paperPoints(palette).map { point in
             let paper = paperGround(palette, at: point)
             return GroundSample(paperPoint: point, ground: Ground(base: paper.base, layers: paper.layers + fills))
         }
@@ -215,40 +220,40 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.day, "danger", .foot, floor: 2.53, dangerCall),
     (.day, "danger", .weekCard, floor: 2.56, dangerCall),
     (.day, "danger", .carvedChip, floor: 1.75, dangerCall),
-    (.night, "danger", .paper, floor: 2.81, dangerCall),
-    (.night, "danger", .card, floor: 2.30, dangerCall),
-    (.night, "danger", .pill, floor: 1.97, dangerCall),
-    (.night, "danger", .rail, floor: 1.97, dangerCall),
-    (.night, "danger", .railSelected, floor: 1.41, dangerCall),
-    (.night, "danger", .foot, floor: 2.37, dangerCall),
-    (.night, "danger", .focusCard, floor: 2.30, dangerCall),
-    (.night, "danger", .raisedControl, floor: 2.30, dangerCall),
-    (.night, "danger", .weekCard, floor: 2.37, dangerCall),
-    (.night, "danger", .carvedChip, floor: 2.37, dangerCall),
-    (.night, "action", .paper, floor: 2.15, nightActionCall),
-    (.night, "action", .card, floor: 1.76, nightActionCall),
-    (.night, "action", .railSelected, floor: 1.08, nightActionCall),
-    (.night, "prescriptionTick", .rail, floor: 1.51, "whether the Night prescription tick lightens off the action green"),
-    (.night, "prescriptionTick", .railSelected, floor: 1.08, "whether the Night prescription tick lightens off the action green"),
+    (.night, "danger", .paper, floor: 2.75, dangerCall),
+    (.night, "danger", .card, floor: 2.26, dangerCall),
+    (.night, "danger", .pill, floor: 1.93, dangerCall),
+    (.night, "danger", .rail, floor: 1.93, dangerCall),
+    (.night, "danger", .railSelected, floor: 1.39, dangerCall),
+    (.night, "danger", .foot, floor: 2.32, dangerCall),
+    (.night, "danger", .focusCard, floor: 2.26, dangerCall),
+    (.night, "danger", .raisedControl, floor: 2.26, dangerCall),
+    (.night, "danger", .weekCard, floor: 2.32, dangerCall),
+    (.night, "danger", .carvedChip, floor: 2.32, dangerCall),
+    (.night, "action", .paper, floor: 2.10, nightActionCall),
+    (.night, "action", .card, floor: 1.73, nightActionCall),
+    (.night, "action", .railSelected, floor: 1.06, nightActionCall),
+    (.night, "prescriptionTick", .rail, floor: 1.48, "whether the Night prescription tick lightens off the action green"),
+    (.night, "prescriptionTick", .railSelected, floor: 1.06, "whether the Night prescription tick lightens off the action green"),
     (.night, "actionText", .action, floor: 4.23, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
-    (.night, "actionInk", .pill, floor: 4.09, nightActionInkCall),
-    (.night, "actionInk", .rail, floor: 4.09, nightActionInkCall),
-    (.night, "actionInk", .railSelected, floor: 2.94, nightActionInkCall),
-    (.night, "textPrimary", .railSelected, floor: 4.46, "whether the Night selected chip fill dims under the sun wash"),
-    (.night, "stem", .paper, floor: 2.68, nightBranchCall),
-    (.night, "leafFill", .paper, floor: 2.68, nightBranchCall),
-    (.night, "leafFill", .focusCard, floor: 2.20, nightBranchCall),
-    (.night, "leafFill", .weekCard, floor: 2.26, nightBranchCall),
-    (.night, "textSecondary", .paper, floor: 4.08, nightSecondaryCall),
-    (.night, "textSecondary", .card, floor: 3.35, nightSecondaryCall),
-    (.night, "textSecondary", .pill, floor: 2.87, nightSecondaryCall),
-    (.night, "textSecondary", .rail, floor: 2.87, nightSecondaryCall),
-    (.night, "textSecondary", .railSelected, floor: 2.06, nightSecondaryCall),
-    (.night, "textSecondary", .foot, floor: 3.45, nightSecondaryCall),
-    (.night, "textSecondary", .focusCard, floor: 3.35, nightSecondaryCall),
-    (.night, "textSecondary", .raisedControl, floor: 3.35, nightSecondaryCall),
-    (.night, "textSecondary", .weekCard, floor: 3.45, nightSecondaryCall),
-    (.night, "textSecondary", .carvedChip, floor: 3.45, nightSecondaryCall),
+    (.night, "actionInk", .pill, floor: 4.01, nightActionInkCall),
+    (.night, "actionInk", .rail, floor: 4.01, nightActionInkCall),
+    (.night, "actionInk", .railSelected, floor: 2.89, nightActionInkCall),
+    (.night, "textPrimary", .railSelected, floor: 4.40, "whether the Night selected chip fill dims under the sun wash"),
+    (.night, "stem", .paper, floor: 2.62, nightBranchCall),
+    (.night, "leafFill", .paper, floor: 2.62, nightBranchCall),
+    (.night, "leafFill", .focusCard, floor: 2.16, nightBranchCall),
+    (.night, "leafFill", .weekCard, floor: 2.22, nightBranchCall),
+    (.night, "textSecondary", .paper, floor: 3.99, nightSecondaryCall),
+    (.night, "textSecondary", .card, floor: 3.28, nightSecondaryCall),
+    (.night, "textSecondary", .pill, floor: 2.81, nightSecondaryCall),
+    (.night, "textSecondary", .rail, floor: 2.81, nightSecondaryCall),
+    (.night, "textSecondary", .railSelected, floor: 2.03, nightSecondaryCall),
+    (.night, "textSecondary", .foot, floor: 3.38, nightSecondaryCall),
+    (.night, "textSecondary", .focusCard, floor: 3.28, nightSecondaryCall),
+    (.night, "textSecondary", .raisedControl, floor: 3.28, nightSecondaryCall),
+    (.night, "textSecondary", .weekCard, floor: 3.38, nightSecondaryCall),
+    (.night, "textSecondary", .carvedChip, floor: 3.38, nightSecondaryCall),
     (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
     (.day, "actionInk", .carvedChip, floor: 4.17, "whether Day actionInk darkens under the foot wash"),
     (
