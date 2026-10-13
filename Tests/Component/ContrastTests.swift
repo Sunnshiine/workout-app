@@ -75,6 +75,10 @@ private func paperGridAndWashCentres(_ palette: Theme.Palette) -> [UnitPoint] {
     paperGrid + palette.paper.washes.map(\.center).filter { (0...1).contains($0.x) && (0...1).contains($0.y) }
 }
 
+private enum SupersetStageOnIPhone17Pro {
+    static let partnerNameWithTwoMoreLines = (x: 0.04...0.96, y: 0.15...0.25)
+}
+
 private enum Surface: CaseIterable {
     case paper
     case stageHeading
@@ -109,12 +113,9 @@ private enum Surface: CaseIterable {
         }
     }
 
-    /// The stage heading holds the exercise and partner names. The SupersetStage Visual Baselines
-    /// draw the partner name 0.155 to 0.18 down the page inside a 0.04 margin; the rows leave room
-    /// for two more lines.
     var pageRegion: (x: ClosedRange<Double>, y: ClosedRange<Double>) {
         switch self {
-        case .stageHeading: (0.04...0.96, 0.15...0.25)
+        case .stageHeading: SupersetStageOnIPhone17Pro.partnerNameWithTwoMoreLines
         default: (0...1, 0...1)
         }
     }
@@ -339,6 +340,11 @@ func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
     #expect(keyed.subtracting(roles).sorted() == [], "Use or quiet keys that name no palette role")
     #expect(Set(uses.keys).intersection(quietRoles.keys).sorted() == [], "roles both measured and quiet")
     #expect(unmeasuredInks.keys.sorted() == [], "inks whose Use names no Surface")
+}
+
+@Test func everyQuietRoleSaysWhyItGoesUnmeasured() {
+    let thin = quietRoles.filter { $0.value.split(separator: " ").count < 4 }.map { "\($0.key): \($0.value)" }
+    #expect(thin.sorted() == [], "quiet roles whose reason is too thin for a reviewer to check")
 }
 
 @Test(arguments: Theme.Appearance.allCases)

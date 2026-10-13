@@ -266,15 +266,13 @@ struct SettingsView: View {
 
 /// System blue, named rather than read from the tint, so an app accent colour cannot repaint the
 /// row. A Button whose label is a LabeledContent draws that label in the primary colour once
-/// disabled, where it would read as tappable, so the label dims itself. A disabled row keeps the
-/// system tertiary label, since WCAG 1.4.3 exempts an inactive control.
+/// disabled, where it would read as tappable, so the label dims itself.
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
     let title: String
 
     var body: some View {
-        // swiftlint:disable:next system_ink_outside_the_palette
-        Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
+        Text(title).foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
     }
 }
 
@@ -284,12 +282,13 @@ private struct RowValue: View {
     let text: String
 
     var body: some View {
-        // A disabled value dims to the system tertiary label beside its label; WCAG 1.4.3 exempts an
-        // inactive control.
-        // swiftlint:disable:next system_ink_outside_the_palette
-        Text(text).foregroundStyle(isEnabled ? palette.textSecondary : Color(.tertiaryLabel))
+        Text(text).foregroundStyle(isEnabled ? palette.textSecondary : inactiveRowInk)
     }
 }
+
+// WCAG 1.4.3 exempts an inactive control from contrast.
+// swiftlint:disable:next system_ink_outside_the_palette
+private let inactiveRowInk = Color(.tertiaryLabel)
 
 /// A Stepper lays out through LabeledContent. Beside its control, an accessibility-size label has
 /// too little width and hyphenates mid-word (`Stan-dard`), so at those sizes the control drops
