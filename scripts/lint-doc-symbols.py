@@ -9,11 +9,15 @@ usage: scripts/lint-doc-symbols.py [ROOT]
 
 Reads the inline code spans of AGENTS.md, docs/, and the verify skill, and the repo paths in their
 fenced blocks (a path whose first segment, after any ./, is a top-level entry of this tree, such
-as scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). ADRs and research notes are history and stay out. A span or fenced path
-that names something outside the tree on purpose is exempted in its doc with
-<!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced commands
-included, and in every file outside Markdown must be a row of the generated launch-flag table, and
-the app's sources may spell one only in LaunchFlag.
+as scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). ADRs and research notes are history and
+stay out. A span or fenced path that names something outside the tree on purpose is exempted in
+its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
+commands included, and in every file outside Markdown must be a row of the generated launch-flag
+table, and the app's sources may spell one only in LaunchFlag.
+
+A symbol is checked only by its camelCase segments, where a lowercase letter or digit meets a
+capital (flushEverything), each as a word anywhere in a Swift, project, or script file. Any other
+segment is never checked, so a stale hairline, Theme.Radius.hairline, or URLSession passes.
 
 Exits 0 when clean, 1 on findings, 2 on a usage error.
 """
