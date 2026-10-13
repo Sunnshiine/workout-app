@@ -1,0 +1,82 @@
+name: Script tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    paths:
+      - "scripts/**"
+      - ".sandcastle/**"
+      - ".agents/**/*.sh"
+      - ".githooks/**"
+      - ".gitignore"
+      - ".swift-format"
+      - ".claude/settings.json"
+      - ".swiftlint.yml"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/script-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - ".sandcastle/**"
+      - ".agents/**/*.sh"
+      - ".githooks/**"
+      - ".gitignore"
+      - ".swift-format"
+      - ".claude/settings.json"
+      - ".swiftlint.yml"
+      - "Tests/.swiftlint.yml"
+      - "WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - ".github/workflows/script-tests.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: script-tests-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  script-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'script-tests (edit, base unchanged)' || 'script-tests' }}
+    runs-on: xcode-27
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the pinned SwiftLint version
+        id: swiftlint
+        run: echo "version=$(scripts/lint.sh --print-version)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pinned SwiftLint binary
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/swiftlint
+          key: swiftlint-${{ runner.os }}-${{ steps.swiftlint.outputs.version }}
+      - name: Bash script tests
+        env:
+          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
+        run: |
+          status=0
+          tests=$(find scripts \( -name '*.test.sh' -o -name '*-test.sh' \) | sort)
+          for test in $tests; do
+            echo "::group::$test"
+            if ! "$test"; then
+              echo "::error::$test failed"
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          exit "$status"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:prototype
+      - run: npm run test:sandcastle
+      - run: npm run typecheck:sandcastle

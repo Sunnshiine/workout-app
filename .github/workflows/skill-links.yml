@@ -6,7 +6,6 @@ on:
       - ".agents/skills/**"
       - ".claude/skills/**"
       - "scripts/lint-skill-links.sh"
-      - "scripts/tests/lint-skill-links.test.sh"
       - ".github/workflows/skill-links.yml"
   push:
     branches: [main]
@@ -14,7 +13,6 @@ on:
       - ".agents/skills/**"
       - ".claude/skills/**"
       - "scripts/lint-skill-links.sh"
-      - "scripts/tests/lint-skill-links.test.sh"
       - ".github/workflows/skill-links.yml"
 
 concurrency:
@@ -27,7 +25,5 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
-      - name: Checker tests
-        run: scripts/tests/lint-skill-links.test.sh
       - name: Every skill linked from .claude/skills
         run: scripts/lint-skill-links.sh

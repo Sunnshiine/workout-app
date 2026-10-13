@@ -62,7 +62,7 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
 scripts/lint.sh [file.swift ...]                  # what CI runs, --strict, or just those files; --fix autocorrects first
-swift-format -i -r App/ Sources/ Tests/           # format
+scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
@@ -87,8 +87,9 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 ## Verification
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
-gate, the simulator-hosted unit and component suite, and the visual gate. CI never runs
-`WorkoutTrackerUITests` (#662), so only a local `scripts/test-sim.sh ui` proves a UI test. A PR
+gate, the simulator-hosted unit and component suite, the visual gate, and swift-format on the
+Swift files the PR changes. CI runs `WorkoutTrackerUITests` only on request, with
+`gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
 more) starts no run.
 

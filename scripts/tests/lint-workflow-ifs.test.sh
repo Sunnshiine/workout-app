@@ -132,6 +132,53 @@ status=$?
 expect_exit "good.yml" "$status" 0
 expect_line "good.yml" "$out" "==> Clean: 8 if: conditions in 1 file(s)"
 
+cat >"$root/edited.yml" <<'YAML'
+name: Runs on a base change
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+jobs:
+  guarded:
+    if: github.event.action != 'edited' || github.event.changes.base
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo guarded
+  unguarded:
+    runs-on: ubuntu-latest
+    steps:
+      - if: github.event.changes.base
+        run: echo a step guard still starts the job
+YAML
+
+cat >"$root/labeled.yml" <<'YAML'
+name: Edited on another event
+on:
+  issues:
+    types: [edited]
+  pull_request:
+    types: [labeled]
+jobs:
+  any:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo any
+YAML
+
+echo "edited.yml: a job in a workflow that takes pull_request edited runs on a title edit unless it checks changes.base"
+out=$(cd "$root" && "$checker" edited.yml 2>&1)
+status=$?
+expect_exit "edited.yml" "$status" 1
+expect_line "edited.yml" "$out" "edited.yml: job 'unguarded' runs on every pull_request edit; give it if: github.event.action != 'edited' || github.event.changes.base"
+count=$(printf '%s\n' "$out" | grep -c "^edited\.yml: job ")
+if [ "$count" -eq 1 ]; then ok "edited.yml names 1 job"; else bad "edited.yml names 1 job, got $count"; fi
+
+echo "labeled.yml: edited on another event, or pull_request without edited, passes"
+out=$(cd "$root" && "$checker" labeled.yml 2>&1)
+status=$?
+expect_exit "labeled.yml" "$status" 0
+
 echo "a path that does not exist is a usage error, not a clean run"
 out=$(cd "$root" && "$checker" missing.yml 2>&1)
 status=$?

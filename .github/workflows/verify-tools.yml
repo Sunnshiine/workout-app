@@ -5,20 +5,12 @@ on:
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
-      - "scripts/contact-sheet.*"
+      - "scripts/contact-sheet.swift"
+      - "scripts/bootstrap-xcode-worktree.sh"
       - "scripts/ensure-simulator.sh"
-      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
-      - "scripts/sim-keyboard.sh"
-      - "scripts/snapshot-diffs.sh"
       - "scripts/test-log-summary.awk"
-      - "scripts/tests/test-sim.test.sh"
-      - "scripts/tests/sim-keyboard.test.sh"
-      - "scripts/tests/snapshot-diffs.test.sh"
-      - "scripts/tests/flake-hunt.test.sh"
-      - "scripts/wait-load.sh"
-      - "scripts/tests/host-admission.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -26,20 +18,12 @@ on:
     paths:
       - ".agents/skills/verify/**"
       - ".claude/skills/verify"
-      - "scripts/contact-sheet.*"
+      - "scripts/contact-sheet.swift"
+      - "scripts/bootstrap-xcode-worktree.sh"
       - "scripts/ensure-simulator.sh"
-      - "scripts/flake-hunt.sh"
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
-      - "scripts/sim-keyboard.sh"
-      - "scripts/snapshot-diffs.sh"
       - "scripts/test-log-summary.awk"
-      - "scripts/tests/test-sim.test.sh"
-      - "scripts/tests/sim-keyboard.test.sh"
-      - "scripts/tests/snapshot-diffs.test.sh"
-      - "scripts/tests/flake-hunt.test.sh"
-      - "scripts/wait-load.sh"
-      - "scripts/tests/host-admission.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
@@ -67,11 +51,5 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - run: scripts/contact-sheet.test.sh
-      - run: scripts/tests/test-sim.test.sh
-      - run: scripts/tests/sim-keyboard.test.sh
-      - run: scripts/tests/snapshot-diffs.test.sh
-      - run: scripts/tests/flake-hunt.test.sh
-      - run: scripts/tests/host-admission.test.sh
       - name: test_evidence.py, with the VerifySheet tests that only run on macOS
         run: python3 .agents/skills/verify/tests/test_evidence.py

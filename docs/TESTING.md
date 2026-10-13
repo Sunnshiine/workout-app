@@ -78,8 +78,11 @@ To record: flip the affected suite's `@Suite(.snapshots(record: .never))` to
 simulator (`scripts/test-sim.sh --sim "$(scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0)" visual`), then
 revert the trait to `.never` before committing. Two caveats: a record run that crashes leaves
 the stale PNG silently in place, and the CI runner is the canonical recorder — baselines
-recorded on other machines differ at exact precision (issue #479). CI agents record on the
-runner itself; humans recording locally should expect the `visual-tests` job to re-arbitrate.
+recorded on other machines differ at exact precision (issue #479). To take the runner's render,
+push without recording, then run `scripts/ci-visual-diffs.sh <PR>` to list each failing snapshot
+with its runner and difference images, and `scripts/ci-visual-diffs.sh <PR> --apply <test>...` to
+copy the runner's render over those baselines, or create a new one. Commit the result; the next
+`visual-tests` run is the proof.
 
 Initial component-test scope:
 

@@ -6,23 +6,26 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited. A title
+    # or body edit's jobs skip, and GitHub lists a skipped job under its name expression unevaluated,
+    # so each job's name expression keeps those checks off the real check names in gh pr checks.
+    types: [opened, synchronize, reopened, edited]
     paths-ignore:
       - "**.md"
       - "docs/**"
-      - "ralph/**"
       - ".agents/**"
       - ".claude/**"
       - ".sandcastle/**"
       - "scripts/prototype-capture/**"
+      - "scripts/tests/**"
       - "scripts/contact-sheet.*"
       - "scripts/lint-workflow-ifs.sh"
-      - "scripts/tests/lint-workflow-ifs.test.sh"
       - "scripts/lint-skill-links.sh"
-      - "scripts/tests/lint-skill-links.test.sh"
+      - "scripts/ci-visual-diffs.sh"
       - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/verify-tools.yml"
+      - ".github/workflows/script-tests.yml"
       - ".github/workflows/workflow-lint.yml"
       - ".github/workflows/skill-links.yml"
       - ".github/workflows/architecture-review.yml"
@@ -31,18 +34,22 @@ on:
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
-      - "pyproject.toml"
-      - ".python-version"
       - "skills-lock.json"
       - ".mcp.json"
       - ".gitignore"
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      ui-suite:
+        description: Also run WorkoutTrackerUITests after the hosted suite
+        type: boolean
+        default: false
 
-# A pull request cancels its own superseded runs. A push to main is keyed on its commit, so a
-# merge that lands mid-run never cancels the run verifying the merge before it.
+# A title or body edit gets a group of its own, so it never cancels one. A push to main is keyed on
+# its commit, so a merge that lands mid-run never cancels the run verifying the merge before it.
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ci-${{ ((github.event_name == 'workflow_dispatch' || (github.event.action == 'edited' && !github.event.changes.base)) && github.run_id) || github.event.pull_request.number || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -51,12 +58,28 @@ jobs:
   # config's `included:` list and linted nowhere (issue #607). Nothing here builds the app, so it
   # finishes in about a minute alongside the two test jobs rather than extending them.
   lint:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'lint (edit, base unchanged)' || 'lint' }}
     # SwiftLint needs no Xcode and no simulator. This label is the repo's runner pool, not a
     # toolchain requirement.
     runs-on: xcode-27
     timeout-minutes: 10
     steps:
+      # Depth 2 keeps the pull request merge commit's first parent, the base the diff below needs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # actions/checkout#919: a retarget's run may still get the merge commit built on the old base.
+      - name: Refuse a merge commit built on the base this pull request left
+        if: github.event.action == 'edited'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          parent=$(git rev-parse HEAD^1)
+          if [ "$parent" != "$BASE_SHA" ]; then
+            echo "::error::The merge commit sits on ${parent:0:7}, not the new base ${BASE_SHA:0:7}. Push to the branch to rerun."
+            exit 1
+          fi
       # The version comes from the same Package.resolved the Xcode plugin resolves against, so the
       # cache key moves when the pin moves and never serves a stale binary.
       - name: Read the pinned SwiftLint version
@@ -71,16 +94,13 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
         run: scripts/lint.sh
-      - name: Run each custom SwiftLint rule against its fixtures
-        env:
-          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
-        run: scripts/tests/swiftlint-custom-rules.test.sh
-      - name: Test scripts/lint.sh's tree check
-        env:
-          SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
-        run: scripts/tests/lint.test.sh
+      - name: swift-format the Swift files this pull request changes
+        if: github.event_name == 'pull_request'
+        run: scripts/swift-format-changed.sh HEAD^1
 
   swift-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'swift-tests (edit, base unchanged)' || 'swift-tests' }}
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
@@ -117,6 +137,8 @@ jobs:
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   visual-tests:
+    if: github.event.action != 'edited' || github.event.changes.base
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
     timeout-minutes: 45
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
@@ -165,8 +187,6 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
-      # TEST_RUNNER_SNAPSHOT_ARTIFACTS lands swift-snapshot-testing's failure diffs in a
-      # known folder so the artifact upload below can show why the gate went red.
       - name: Run Visual Regression tests (ADR-0007 gate)
         id: visual
         run: |
@@ -180,8 +200,7 @@ jobs:
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       # WorkoutTrackerTests hosted in the app reaches what `swift test` on macOS cannot: UIKit
       # font registration, Live Activity content state, and the Google auth scopes (#606). The
       # two runs cover deliberately different sets (#592); do not reconcile them. Every flag
@@ -193,6 +212,7 @@ jobs:
       # green job and always-false on a red one, and a baseline mismatch silently skips the
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
+        id: hosted
         if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -205,27 +225,48 @@ jobs:
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" \
-            TEST_RUNNER_SNAPSHOT_ARTIFACTS="$PWD/snapshot-diffs"
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       - name: Save the compilation cache
         if: github.event_name == 'push'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+      # Opt-in, not per PR: on unchanged code it goes red about half the time on
+      # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
+      - name: Run the UI suite (WorkoutTrackerUITests)
+        id: ui
+        if: ${{ !cancelled() && inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        run: |
+          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -only-testing:WorkoutTrackerUITests \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            -resultBundlePath UITests.xcresult \
+            -collect-test-diagnostics never \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
+            COMPILATION_CACHE_ENABLE_CACHING=YES \
+            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
       - name: Upload Visual Baseline diffs
-        if: failure()
+        if: failure() && steps.visual.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-baseline-diffs
-          path: |
-            snapshot-diffs
-            VisualTests.xcresult
+          path: VisualTests.xcresult
           if-no-files-found: ignore
       - name: Upload hosted test results
-        if: failure()
+        if: failure() && steps.hosted.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: hosted-test-results
           path: HostedTests.xcresult
+          if-no-files-found: ignore
+      - name: Upload UI test results
+        if: failure() && steps.ui.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-test-results
+          path: UITests.xcresult
           if-no-files-found: ignore
