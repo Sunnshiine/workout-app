@@ -254,7 +254,7 @@ cannot show it. Prove a change to anything that moves with a measured take that 
 
 ```bash
 VERIFY_RUN=card-in verify.sh launch --animated session                 # same lock, pid and install path; motion on
-verify.sh record log --tail 3 -- tap --id log-active-set-button          # log.mp4 + log.take in the run
+verify.sh record log --tail 3 -- tap --id log-active-set-button          # log.mp4, log.take, log.end.txt
 verify.sh stop && verify.sh record appear -- launch --animated session   # a first appear: the launch is the drive
 uv run .agents/skills/verify/motion/cardframe.py <run dir>/appear.mp4    # the Active Set Card's box and look per frame
 uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card moves>   # 15 min
@@ -269,7 +269,8 @@ The recorder writes a frame only when the screen changes, so a still screen is o
 also INVALID when the screen never changed after the drive began, or, with no drive, never changed at
 all. Any change counts, the rest pill's countdown included, so `VALID` says the recorder was capturing.
 It does not say the drive did anything. While the rest pill counts down, a drive that changes nothing
-is `VALID`. Whether the card moved is `still=`'s answer. `cardframe.py` is the one frame metric, and it
+is `VALID`. `record` also saves the tree at the take's end as `NAME.end.txt`; read it to see that the
+drive landed. Whether the card moved is `still=`'s answer. `cardframe.py` is the one frame metric, and it
 times frames by their own pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads
 two things: the card's box, from its edges, and its look, the luminance inside the settled box.
 A neighbour such as the rest pill joins the box across a gap only while the pair fits the
@@ -289,7 +290,8 @@ frames in the 0.5 s after the screen leaves black; any later frame that changes 
 screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
 take. From the fade's end the window must watch 1.5 s or the take is INVALID. `cardstill.py` prints PASS
 only when the control commit moved the card on one of its eight takes and the head held it still on all
-eight.
+eight. Each take's `.end.txt` must show where its drive leads (the next Set active, the review open, the
+partner in front, the rest pill gone), or the take is INVALID.
 
 Judge a take by its reads, never by its numbers. The contract is the exit codes, `VALID` or `INVALID`,
 `still=`, `box=`, `look=` and `edges=`. `cardframe.py` exits 0 when it measured, 1 with no card, and 3

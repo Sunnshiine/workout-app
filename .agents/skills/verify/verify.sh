@@ -52,16 +52,17 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
   record NAME [--tail S] [-- COMMAND...]
-                              NAME.mp4 and NAME.take into the run: films from the moment the recorder
-                              captures, runs COMMAND (a drive command, launch included), then S more
-                              seconds (default 2), and stamps load, timing, frames and the verdict.
+                              NAME.mp4, NAME.take and NAME.end.txt into the run: films from the moment
+                              the recorder captures, runs COMMAND (a drive command, launch included),
+                              then S more seconds (default 2), stamps load, timing, frames and the
+                              verdict, and saves the tree at the take's end as `tree` prints it.
                               Waits for load under the limit first. Exit 0 VALID, 3 INVALID (both kept,
                               reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, or the
                               screen size or the card's frame could not be read from the tree after the
                               take (nothing kept, a VALID take included), 75 nothing ran (simulator held
                               or load never fell). A take whose screen never changed after COMMAND began
                               is INVALID, but any change counts, the rest pill's countdown included, so
-                              VALID does not say COMMAND did anything
+                              VALID does not say COMMAND did anything; NAME.end.txt shows what it did
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
@@ -644,6 +645,7 @@ decimal() {
 keep_video_then_stamp() {
   mv "$1/$3.mp4" "$2/$3.mp4"
   mv "$1/$3.take" "$2/$3.take"
+  mv "$1/$3.end.txt" "$2/$3.end.txt"
   rmdir "$1" 2>/dev/null || true
 }
 
@@ -962,6 +964,7 @@ case $cmd in
     name=${1:-}
     valid_name "$name"
     shift
+    # Over cardframe.py's MIN_WINDOW_S, so a tap take with the default tail is long enough to judge.
     tail=2
     if [ "${1:-}" = --tail ]; then
       [ $# -ge 2 ] || usage
@@ -984,7 +987,7 @@ case $cmd in
     dir=$(run_dir)
     pending=$dir/.pending
     mkdir -p "$pending"
-    rm -f "$pending/$name.mp4" "$pending/$name.take"
+    rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
     rc=0
     python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
       --tail "$tail" --limit "$limit" --load-before "$load" -- "$@" > "$pending/$name.take" || rc=$?
@@ -997,8 +1000,9 @@ case $cmd in
       echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
       exit 70
     fi
-    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card); then
-      rm -f "$pending/$name.mp4" "$pending/$name.take"
+    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card) \
+      || ! printf '%s\n' "$ui" | python3 "$tree" flat > "$pending/$name.end.txt" 2>/dev/null; then
+      rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
       echo "could not read active-set-card's frame from the accessibility tree after the take," \
         "so $name.take cannot say where the card is; run: $0 doctor" >&2
       exit 70
@@ -1013,6 +1017,7 @@ case $cmd in
     keep_video_then_stamp "$pending" "$dir" "$name"
     echo "$dir/$name.mp4"
     echo "$dir/$name.take"
+    echo "$dir/$name.end.txt"
     python3 "$here/take.py" summary "$dir/$name.take"
     exit $rc
     ;;

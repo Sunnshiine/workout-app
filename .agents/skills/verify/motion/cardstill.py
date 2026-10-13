@@ -17,6 +17,10 @@ A take is INVALID when record did not exit 0 or 3 with a stamp, as when it exits
 read the screen's size or the card's frame from the tree. Else it FAILs when the card was lost or an edge
 ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window under
 1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
+INVALID when the tree record saved at the take's end (NAME.end.txt) lacks what the take's drive leads to,
+the marks TAKES lists beside each drive: the next Set active after a log, the review open, the Superset
+partner in front, the rest pill gone. A drive that exits 0 and changes nothing is a VALID take of a still
+card whenever the rest pill counts down, so only the tree says the drive landed. Else it is
 INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, or its animations are not on, the rule that keeps cardframe
 from printing still=yes; or when it started late, or cardframe read no card (none in the tree, none in
@@ -67,23 +71,53 @@ class SetNode:
 
 
 @dataclass(frozen=True)
+class Mark:
+    id: str = ""
+    label: str = ""
+    shown: bool = True
+
+    def held_by(self, tree: str) -> bool:
+        found = any((not self.id or fields[1] == self.id) and (not self.label or fields[2] == self.label)
+                    for fields in (line.split("\t") for line in tree.splitlines()) if len(fields) > 2)
+        return found == self.shown
+
+    def missed(self) -> str:
+        what = " ".join(part for part in (self.id, f'"{self.label}"' if self.label else "") if part)
+        return f"the take ended without {what}" if self.shown else f"the take ended with {what} still on screen"
+
+
+@dataclass(frozen=True)
 class TakeSpec:
     name: str
     drive: Tuple[Union[str, SetNode], ...]
     tail: float
+    lands: Tuple[Mark, ...]
     setup: Setup = Setup.NONE
 
 
+RESTING = Mark("rest-pill")
 TAKES: Tuple[TakeSpec, ...] = (
-    TakeSpec("single-log-rest-start", ("tap", "--id", "log-active-set-button"), 3, Setup.LAUNCH),
-    TakeSpec("node-tap", ("tap", "--label", SetNode(3)), 2),
-    TakeSpec("review-open", ("tap", "--label", SetNode(1)), 2),
-    TakeSpec("review-collapse", ("tap", "--label", "Collapse logged set"), 2),
-    TakeSpec("superset-log-switch", ("tap", "--id", "log-active-set-button"), 3, Setup.LAUNCH_AND_PAIR),
-    TakeSpec("partner-tap", ("tap", "--id", "superset-partner-name"), 2),
-    TakeSpec("partner-tap-back", ("tap", "--id", "superset-partner-name"), 2),
-    TakeSpec("superset-rest-end", (), 14, Setup.AFTER_REST),
+    TakeSpec("single-log-rest-start", ("tap", "--id", "log-active-set-button"), 3,
+             (Mark(label="Set 2 of 3"), RESTING), Setup.LAUNCH),
+    TakeSpec("node-tap", ("tap", "--label", SetNode(3)), 2, (Mark(label="Set 3 of 3"),)),
+    TakeSpec("review-open", ("tap", "--label", SetNode(1)), 2, (Mark(label="Collapse logged set"),)),
+    TakeSpec("review-collapse", ("tap", "--label", "Collapse logged set"), 2,
+             (Mark(label="Collapse logged set", shown=False),)),
+    TakeSpec("superset-log-switch", ("tap", "--id", "log-active-set-button"), 3,
+             (Mark("stage-exercise-name", "BB RDL"), RESTING), Setup.LAUNCH_AND_PAIR),
+    TakeSpec("partner-tap", ("tap", "--id", "superset-partner-name"), 2, (Mark("stage-exercise-name", "Back Squat"),)),
+    TakeSpec("partner-tap-back", ("tap", "--id", "superset-partner-name"), 2,
+             (Mark("stage-exercise-name", "BB RDL"),)),
+    TakeSpec("superset-rest-end", (), 14, (Mark("rest-pill", shown=False),), Setup.AFTER_REST),
 )
+
+
+def landing_miss(spec: TakeSpec, take_path: Path) -> Optional[str]:
+    try:
+        tree = take_path.with_suffix(".end.txt").read_text()
+    except OSError:
+        return f"record left no {take_path.with_suffix('.end.txt').name} to check the take landed"
+    return next((mark.missed() for mark in spec.lands if not mark.held_by(tree)), None)
 
 PAIR_ENTRY_BY_APP: Dict[str, str] = {
     "since UI-11 (#857)": "stage-queue-superset",
@@ -133,7 +167,8 @@ def look_text(look: cardframe.Look) -> str:
     return f"changed {look.ms} ms" if look.kind is cardframe.LookKind.CHANGED else look.kind.value
 
 
-def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0) -> Tuple[Verdict, str]:
+def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0,
+               missed: Optional[str] = None) -> Tuple[Verdict, str]:
     if record_exit not in (0, 3):
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
@@ -143,6 +178,8 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
         return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
+    if missed is not None:
+        return Verdict.INVALID, missed
     if reading.unvouched is not None:
         return Verdict.INVALID, reading.unvouched
     if late_s > 0:
@@ -166,6 +203,7 @@ class Filmed:
     record_exit: int
     path: Optional[Path]
     late_s: float = 0.0
+    missed: Optional[str] = None
 
 
 def rest_end_at(switch: take.Take) -> float:
@@ -195,7 +233,7 @@ def measured(filmed: Union[Filmed, TakeResult]) -> TakeResult:
             reading = Reading.of(cardframe.measure(filmed.path.with_suffix(".mp4")))
         except (cardframe.Usage, cardframe.DecodeFailure) as error:
             return TakeResult(filmed.name, Verdict.INVALID, str(error))
-    return TakeResult(filmed.name, *judge_take(filmed.record_exit, reading, filmed.late_s), reading)
+    return TakeResult(filmed.name, *judge_take(filmed.record_exit, reading, filmed.late_s, filmed.missed), reading)
 
 
 def lane_verdict(control_sha: str, control: Sequence[TakeResult], head: Sequence[TakeResult]) -> Tuple[Verdict, str]:
@@ -361,11 +399,12 @@ class Side:
             code, path = self.record(spec, drive)
             stamp = parsed_stamp(code, path)
             late_s = 0.0
+            missed = landing_miss(spec, path) if stamp is not None else None
             if spec.name == "superset-log-switch" and stamp is not None:
                 rest_end_target = rest_end_at(stamp)
             if spec.setup is Setup.AFTER_REST and stamp is not None:
                 late_s = late_by(rest_end_target, stamp)
-            results.append(Filmed(spec.name, code, path, late_s))
+            results.append(Filmed(spec.name, code, path, late_s, missed))
         self.verify("stop")
         return results
 
