@@ -310,8 +310,8 @@ The numbers vary with the host's load and the build, so take them as rough examp
 come from one Mac at load 4 to 12, on two builds of the app after the UI refactor stack (717737ad and
 8e495e47). With the default 2 s `--tail`, the launch window watched about 2.2 to 2.9 s. A card sliding
 in 300 pt from the right read `worst_edge_range` about 13 to 18 and `look_ms` about 1150. A fade read
-`look_ms` just under 1000. A take with the reads above is read correctly even when its numbers fall
-outside these.
+`look_ms` just under 1000. At load 34 to 38 the same slide read `worst_edge_range` 1.7 on a VALID take,
+with the reads above. A take with those reads is read correctly even when its numbers fall outside these.
 After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
 ## Cleanup
