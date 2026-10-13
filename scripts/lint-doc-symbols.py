@@ -136,6 +136,11 @@ def is_glob(name: str) -> bool:
     return any(c in name for c in "*?[")
 
 
+def sample(glob: str) -> str:
+    """One path the glob matches, for asking git whether that path is ignored."""
+    return glob.replace("*", "x")
+
+
 def through_links(path: str, links: dict[str, str]) -> str:
     for link, target in links.items():
         if path == link or path.startswith(link + "/"):
@@ -159,6 +164,8 @@ def resolve(claim: Claim, tree: Tree) -> tuple[str, ...]:
         if is_glob(name):
             patterns = (name, "*/" + name, name[2:] if name.startswith("*/") else name)
             if any(fnmatch.fnmatchcase(p, pattern) for p in tree.paths for pattern in patterns):
+                return ()
+            if sample(name) in tree.ignored:
                 return ()
         elif name in tree.paths or name in tree.ignored or name + "/" in tree.ignored:
             return ()
@@ -233,7 +240,10 @@ def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Clai
     roots = "|".join(re.escape(name) for name in sorted(top))
     repo_path = re.compile(rf"(?<![\w./-])(?:\./)?((?:{roots})/[\w./*<>+-]*)")
     for snippet in snippets(text):
-        tokens = repo_path.findall(snippet.text) if snippet.fenced else snippet.text.split()
+        if snippet.fenced:
+            tokens = repo_path.findall(snippet.text)
+        else:
+            tokens = [token.rsplit("$(", 1)[-1] for token in snippet.text.split()]
         for token in tokens:
             claim = classify(token, os.path.dirname(doc), top)
             if claim is not None and claim.kind is not Kind.FLAG:
@@ -373,6 +383,8 @@ def main(argv: list[str]) -> int:
         for _, claim in claims(doc, texts[doc], top):
             if claim.kind in (Kind.PATH, Kind.FILE):
                 for name in (through_links(n, links) for n in claim.names):
+                    if is_glob(name):
+                        name = sample(name)
                     if not is_glob(name) and not name.startswith(("..", "/")):
                         candidates.update((name, name + "/"))
     ignored = git(root, "check-ignore", "--no-index", "--stdin", stdin="\n".join(sorted(candidates)))
