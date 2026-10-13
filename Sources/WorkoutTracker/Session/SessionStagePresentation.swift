@@ -67,7 +67,7 @@ struct SessionStageItem: Identifiable {
 
     var title: String {
         switch item {
-        case .exercise(let config): config.exercise.name
+        case .exercise(let config): config.exercise.baseName
         case .superset(let config): config.exercises.map(\.baseName).joined(separator: " + ")
         case .hiddenPairedExercise: ""
         }
@@ -108,6 +108,14 @@ enum BranchNodeState: Equatable, Sendable {
     case bud
     /// A Pending Set still ahead — a faint ghost outline of the leaf to come.
     case future
+}
+
+struct QueuePosition: Equatable, Sendable {
+    let number: Int
+    let count: Int
+
+    var label: String { "\(number) of \(count)" }
+    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
 }
 
 /// The part a queue row plays while Superset pairing is in flight.
@@ -173,9 +181,9 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete && $0.id != stageItem.id }
     }
 
-    /// The queue button label: completed items out of all items.
-    static func queueProgressLabel(for items: [SessionStageItem]) -> String {
-        "\(items.filter(\.isComplete).count) of \(items.count)"
+    static func queuePosition(of stageItem: SessionStageItem?, in items: [SessionStageItem]) -> QueuePosition {
+        let number = items.firstIndex { $0.id == stageItem?.id }.map { $0 + 1 } ?? items.count
+        return QueuePosition(number: number, count: items.count)
     }
 
     /// The completion stage summary, e.g. "12 sets done across 4 exercises".

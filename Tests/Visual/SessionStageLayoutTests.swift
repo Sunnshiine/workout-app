@@ -323,9 +323,9 @@ struct SessionStageLadderTransitionTests {
             pages.map(\.labels) == [
                 [
                     "Session complete", "1 set done across 1 exercise", "Open Exercises",
-                    "Back Squat, 1 pending set, W1 D1", "Move On", "1 of 1"
+                    "Back Squat, 1 pending set, W1 D1", "Move On", "Queue, 1 of 1"
                 ],
-                ["Session complete", "1 set done across 1 exercise", "Move On", "1 of 1"]
+                ["Session complete", "1 set done across 1 exercise", "Move On", "Queue, 1 of 1"]
             ]
         )
         for (page, height) in zip(pages, heights) {

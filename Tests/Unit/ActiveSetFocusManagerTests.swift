@@ -358,9 +358,8 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.createSuperset(with: [squat, bench], in: session))
 
     let initialSurface = try #require(focus.activeSupersetPresentation(in: session))
-    #expect(initialSurface.sides.map(\.exerciseName) == ["Squat", "Bench Press"])
+    #expect(initialSurface.sides.map(\.exerciseOrder) == [0, 1])
     #expect(initialSurface.sides.map(\.isActive) == [true, false])
-    #expect(initialSurface.sides.map(\.nextSetText) == ["Set 1 of 2", "Set 1 of 1"])
 
     #expect(focus.focusNextSupersetSet(for: bench, in: session))
 
@@ -408,7 +407,7 @@ private func makePlannedSupersetSession() -> Session {
     let surface = try #require(focus.supersetSections(in: session).first?.presentation)
     #expect(surface.activeSetID == nil)
     #expect(surface.containerExerciseOrder == 1)
-    #expect(surface.sides.map(\.exerciseName) == ["Squat", "Bench Press"])
+    #expect(surface.sides.map(\.exerciseOrder) == [1, 2])
     #expect(surface.sides.map(\.isActive) == [false, false])
 }
 

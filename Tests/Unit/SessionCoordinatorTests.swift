@@ -639,6 +639,32 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func supersetLogRendersThePairBeforeAndAfterTheFocusMove() throws {
+    let session = Session(dayNumber: 1, date: nil)
+    let squat = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: 0)
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+    for exercise in [squat, rdl] {
+        exercise.sets = (0..<2).map {
+            ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+        }
+    }
+    session.exercises = [squat, rdl]
+    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
+    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
+    var idsBeforeFocusMove: [String] = []
+
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven)) { update in
+        idsBeforeFocusMove = coordinator.renderItems(in: session).map(\.id)
+        update()
+    }
+
+    #expect(idsBeforeFocusMove == ["superset-0", "hidden-paired-exercise-1"])
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["superset-0", "hidden-paired-exercise-1"])
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
 @Test func coordinatorPreservesCurrentSessionFlowThroughRenderItems() throws {
     let session = makeIntegratedCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
