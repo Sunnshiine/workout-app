@@ -16,8 +16,13 @@ first three issues each test recorded with the values each one compared, every f
 any error or crash that stopped xcodebuild before the run finished.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
-Refuses (exit 75) while another test-sim.sh run or a verify run's app holds that simulator, and
-refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
+Refuses (exit 75) while another test-sim.sh run holds that simulator, or a verify run whose app
+on it was used in the last WORKOUT_LEASE_MINUTES (60); a verify run idle for longer is reclaimed
+and its app stopped. Refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
+Waits while the host is busy, saying why once a minute: while the 1-minute load is over
+WORKOUT_LOAD_LIMIT (50), to boot while WORKOUT_SIM_CAP (6) other simulators are booted, and to
+build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are taken. Gives up with exit 75
+after WORKOUT_ADMIT_WAIT seconds (540).
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. Files in .build/test-sim are named by
@@ -86,8 +91,7 @@ done
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
 [ "$state" != named ] || sim_available "$sim" || exit
-[ "$state" != Shutdown ] || xcrun simctl boot "$sim"
-claim_sim "$sim" "test-sim.sh run"
+claim_sim "$sim" "test-sim.sh run" "$build"
 [ $ui = 0 ] || "$repo/scripts/sim-keyboard.sh" ensure "$sim"
 destination="platform=iOS Simulator,id=$sim"
 
@@ -96,7 +100,7 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)
 
 if [ $build = 1 ]; then
-  xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
+  with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
     || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi

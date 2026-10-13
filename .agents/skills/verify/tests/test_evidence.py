@@ -19,6 +19,14 @@ REPO = SKILL.parent.parent.parent
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FRAME = re.compile(r"^@(-?\d+),(-?\d+) (\d+)x(\d+)$")
 
+
+def setUpModule():
+    locks = tempfile.mkdtemp(prefix="workout-host-locks-")
+    unittest.addModuleCleanup(shutil.rmtree, locks, True)
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
+                      WORKOUT_HOST_LOCK_DIR=locks)
+
+
 MINI_TREE = [
     {
         "role": "AXApplication", "AXLabel": "WorkoutTracker", "pid": 4121,
@@ -1124,7 +1132,8 @@ class SimulatorLock(unittest.TestCase):
         self.assertEqual(run.returncode, 75, err)
         self.assertEqual(
             err,
-            "a verify run owner-626 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-626 "
+            "a verify run owner-626 owns the app on %s (pid %d), last used 0 min ago; a claim takes it once it goes 60 min "
+            "unused. If it is yours, rerun with VERIFY_RUN=owner-626 or run: SIM=%s VERIFY_RUN=owner-626 "
             "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, self.checkout),
             "names the verify run and its app, and a stop that frees this simulator from any directory",
         )
@@ -1250,7 +1259,7 @@ case "$(basename "$0") $2" in
   "xcrun bootstatus")
     if [ -n "${STUB_HOLD:-}" ]; then echo $$ > "{dir}/holding"; exec sleep 30; fi
     exit "${STUB_BOOTSTATUS:-1}" ;;
-  "xcrun list") ;;
+  "xcrun list"|"xcrun boot") ;;
   *) exit 1 ;;
 esac
 """
@@ -1307,10 +1316,11 @@ class LaunchBoots(unittest.TestCase):
         holder = "lock held by verify.sh launch (pid %d)" % run.pid
         self.assertEqual(calls, [
             "plutil -extract WorkspacePath raw %s, lock free" % self.plist,
+            "xcrun simctl boot %s, %s" % (self.sim, holder),
             "xcrun simctl bootstatus %s -b, %s" % (self.sim, holder),
             "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker, %s" % (self.sim, holder),
             "xcrun simctl list devices booted, %s" % holder,
-        ], "the app is found before the claim; the simulator is booted and waited on while the launch holds it, "
+        ], "the app is found before the claim; the simulator is admitted, booted and waited on while the launch holds it, "
            "and never installed to")
         self.assertEqual(result, (70, "", NOT_BOOTED % (self.sim, self.sim, digest(b"head\n"))))
         self.assertRegex((self.home / "evidence" / "issue-676" / "launches.txt").read_text(),
@@ -1318,7 +1328,7 @@ class LaunchBoots(unittest.TestCase):
 
     def test_a_boot_wait_that_ends_with_the_simulator_down_installs_nothing(self):
         run, calls, result = self.launch(STUB_BOOTSTATUS="0")
-        self.assertEqual(calls[1:], [
+        self.assertEqual(calls[2:], [
             "xcrun simctl bootstatus %s -b, lock held by verify.sh launch (pid %d)" % (self.sim, run.pid),
             "xcrun simctl list devices booted, lock held by verify.sh launch (pid %d)" % run.pid,
             "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker, lock held by verify.sh launch (pid %d)"
@@ -1476,9 +1486,11 @@ class SimulatorPick(unittest.TestCase):
             "xcrun simctl list -j",
             CREATE_PRO,
             "xcrun simctl list devices available -j",
+            "xcrun simctl list devices available -j",
+            "xcrun simctl list devices available -j",
             "xcrun simctl boot %s" % self.created,
             self.build_for_testing_on(self.created),
-        ], "the created simulator is picked from simctl again, then booted and built for")
+        ], "the created simulator is picked from simctl again, admitted on the host's booted count, recounted under the admit lock, booted, and built for")
         self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
     def test_the_created_simulator_is_the_pair_the_visual_baselines_were_recorded_on(self):
@@ -1540,9 +1552,11 @@ class SimulatorPick(unittest.TestCase):
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
         old, new = pick_udid(0x2605), pick_udid(0x2700)
         cases = [
-            ("the booted one, though older", "Booted", "Shutdown", [self.build_for_testing_on(old)]),
+            ("the booted one, though older", "Booted", "Shutdown",
+             ["xcrun simctl list devices available -j", self.build_for_testing_on(old)]),
             ("the newest when none is booted", "Shutdown", "Shutdown",
-             ["xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
+             ["xcrun simctl list devices available -j", "xcrun simctl list devices available -j",
+              "xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
         ]
         for case, old_state, new_state, after_pick in cases:
             with self.subTest(case):
@@ -1567,7 +1581,8 @@ class SimulatorPick(unittest.TestCase):
         self.machine([IOS_27_0], [PRO], {IOS_27_0["identifier"]: [device("iPhone 17 Pro", udid)]})
         code, out, err, calls = self.run_test_sim("--sim", udid.lower(), "unit")
         self.assertEqual((code, out, err), (75, "", (
-            "a verify run owner-579 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-579 "
+            "a verify run owner-579 owns the app on %s (pid %d), last used 0 min ago; a claim takes it once it goes 60 min "
+            "unused. If it is yours, rerun with VERIFY_RUN=owner-579 or run: SIM=%s VERIFY_RUN=owner-579 "
             "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
             "the lock is keyed by the one spelling, so a case-sensitive /tmp cannot split it")
         self.assertEqual(calls, ["xcrun simctl list devices available -j"])
@@ -1584,6 +1599,9 @@ class SimulatorPick(unittest.TestCase):
         self.assertEqual(calls, [
             "xcrun simctl list devices available -j",
             "plutil -extract WorkspacePath raw %s" % self.plist,
+            "xcrun simctl list devices available -j",
+            "xcrun simctl list devices available -j",
+            "xcrun simctl boot %s" % udid,
             "xcrun simctl bootstatus %s -b" % udid,
             "xcrun simctl list devices booted",
             "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
@@ -1786,7 +1804,8 @@ class InstalledIdentity(Lane):
         code, out, err = self.verify("launch", "session", VERIFY_RUN="lane-1")
         self.assertEqual((code, out), (75, ""), err)
         self.assertEqual(err, (
-            "a verify run owner-1 owns the app on {sim} (pid {pid}); if it is yours, run: SIM={sim} VERIFY_RUN=owner-1 "
+            "a verify run owner-1 owns the app on {sim} (pid {pid}), last used 0 min ago; a claim takes it once it goes "
+            "60 min unused. If it is yours, rerun with VERIFY_RUN=owner-1 or run: SIM={sim} VERIFY_RUN=owner-1 "
             "{checkout}/.agents/skills/verify/verify.sh stop, else use another simulator\n"
             "app on {sim} unchanged: {installed}; this launch wanted {wanted}\n"
         ).format(sim=self.sim, pid=app.pid, checkout=self.checkout, installed=self.cached_build(b"v1\n", self.a),
@@ -2069,9 +2088,10 @@ class DriveGuard(Lane):
         self.verify("build")
         self.verify("install", self.a)
         control = self.own_the_app("ui12")
-        refusal = "app on %s unchanged: %s; this launch wanted %s" % (
-            self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b))
-        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        refusal = ("%s holds %s, and this launch would replace it with %s. To run the cached build: launch --at %s "
+                   "session. To replace it: install, then launch.") % (
+            self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b), self.a[:8])
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 65)
         for argv in [["tap", "-x", "5", "-y", "6"], ["shot", "02-head"], ["type", "245"]]:
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv, VERIFY_RUN="ui12"), (75, "", (
@@ -2093,7 +2113,7 @@ class DriveGuard(Lane):
         self.verify("build")
         self.verify("install", self.a)
         self.own_the_app("ui12")
-        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 65)
         for argv in [["shot", "02-head"], ["tap", "-x", "5", "-y", "6"]]:
             with self.subTest(argv=argv):
                 code, out, err = self.verify(*argv)

@@ -23,6 +23,7 @@ touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0
 mkdir -p "$products/Debug-iphonesimulator/WorkoutTracker.app" "$repo/.build/verify/node_modules/xcodebuildmcp/bundled"
 printf '#!/bin/sh\n' > "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"
 chmod +x "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"
+git -C "$repo" init -q && git -C "$repo" add -A && git -C "$repo" -c user.name=test -c user.email=test@example.com commit -qm test
 pass=0
 fail=0
 
@@ -56,6 +57,7 @@ if [ "\$*" != "simctl list devices available -j" ]; then
         echo "\$3" >> "$root/booted" ;;
       "simctl list devices booted") sed 's/.*/    iPhone 17 Pro (&) (Booted)/' "$root/booted" 2>/dev/null ;;
       "simctl launch "*) echo "com.sunnypatel.WorkoutTracker: 999999" ;;
+      "simctl get_app_container "*) echo "$products/Debug-iphonesimulator/WorkoutTracker.app" ;;
     esac
     exit 0
 fi
@@ -112,7 +114,7 @@ unset VERIFY_RUN SIM $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
         "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing" \
-        "$repo/.build/verify/evidence"
+        "$repo/.claude/work/evidence"
 }
 leftovers() {
     local file
@@ -161,7 +163,7 @@ done
 expect "every command that acts on the reclaimed run's app refuses the same way" "${went:-none went on}" "none went on"
 verify shot s >/dev/null 2>"$root/err"; status=$?
 expect "a command that names no run is the recorded run, so it refuses too and files no evidence" \
-    "$status $(ls "$repo/.build/verify/evidence" 2>/dev/null)" "75 "
+    "$status $(ls "$repo/.claude/work/evidence" 2>/dev/null)" "75 "
 expect "and is told to launch a run of its own, not to take the reclaimed run's name" "$(reclaim_note)" \
     "run abandoned-run was reclaimed by test-sim.sh run (pid N) at T; launch again: SIM=$sim $repo/.agents/skills/verify/verify.sh launch <fixture>"
 VERIFY_RUN=abandoned-run verify build >/dev/null 2>"$root/err"; status=$?
@@ -207,7 +209,7 @@ VERIFY_RUN=lane-812 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; s
 expect "a takeover the host refuses leaves the run's app recorded and announces nothing" \
     "$status $(ls "$state" | tr '\n' ' ')$(grep -c "taking over" "$root/err")" "75 args lock pid run 0"
 reset; own_the_app lane-812 5 ""
-SIM=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
+SIM=$sim2 STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
 STUB_SHUTDOWN=$sim VERIFY_RUN=lane-812 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
@@ -219,7 +221,7 @@ reset; own_the_app abandoned-run 61
 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a reclaim the host refuses leaves the abandoned run recorded" "$status $(ls "$state" | tr '\n' ' ')" "75 args lock pid run "
 reset; own_the_app abandoned-run 61
-SIM=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
+SIM=$sim2 STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
@@ -254,7 +256,8 @@ expect "the refusal names the load and the knob" "$(refusal)" \
     "gave up after N s waiting for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)"
 
 reset
-STUB_LOAD=212.40 STUB_BUSY_CALLS=1 WORKOUT_ADMIT_WAIT=30 test_sim --no-build; status=$?
+# test-sim.sh reads the load once for its result line before it claims.
+STUB_LOAD=212.40 STUB_BUSY_CALLS=2 WORKOUT_ADMIT_WAIT=30 test_sim --no-build; status=$?
 expect "a claim waits for the load to fall, then goes on" "$status $(builds)" "65 test-without-building"
 expect "the wait is announced, then its end" "$(sed -n '1p;2s/[0-9]* s$/N s/p' "$root/err")" \
     "waiting up to 30 s for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)
@@ -276,9 +279,14 @@ STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a simulator already booted boots nothing, so the cap does not hold it" "$status $(builds)" "65 test-without-building"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/.agents/skills/verify/verify.sh" tree >"$root/out" 2>"$root/err"; status=$?
-expect "verify.sh boots a shut-down simulator only through admission" "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot')" "75 0"
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/.agents/skills/verify/verify.sh" build >"$root/out" 2>"$root/err"; status=$?
+for verb in "launch session" install; do
+    read -ra argv <<< "$verb"
+    STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify "${argv[@]}" >"$root/out" 2>"$root/err"; status=$?
+    expect "verify.sh $verb boots a shut-down simulator only through admission" \
+        "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(grep '^gave up' "$root/err" | sed 's/^gave up after [0-9]* s/gave up after N s/')" \
+        "75 0 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+done
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify build >"$root/out" 2>"$root/err"; status=$?
 expect "verify.sh build boots nothing, so the cap does not hold it" "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(builds)" "65 0 build"
 
 reset
