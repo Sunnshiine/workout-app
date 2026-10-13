@@ -47,15 +47,17 @@ Each later Bash call re-derives them, for example:
   env=$(scripts/lane.sh env e8) && eval "$env" && "$LANE_WORKTREE/scripts/test-sim.sh" unit
 
 Exit codes: 0 done; 1 env: no such lane, or down --if-idle: the lane is not idle (stderr SKIPPED:
-<reason>); 2 usage, a bad name, a name that differs only by case from a directory already there
-on a disk that ignores case, an unknown commit, a lane at another commit, a worktree on a branch, a
-locked lane, one holding a nested worktree, or one registered but missing (moved or deleted), or
-down run from the lane's own copy of this script;
+<reason>); 2 usage, a bad WORKOUT_* setting, a bad name, a name that differs only by case from a
+directory already there on a disk that ignores case, an unknown commit, a lane at another commit, a
+worktree on a branch, a locked lane, one holding a nested worktree, or one registered but missing
+(moved or deleted), or down run from the lane's own copy of this script;
 69 the simulator runtime is missing; 70 git, simctl, or a save failed (down then leaves the worktree,
 but its simulator is already gone; lane.sh up <name> <commit> makes a new one);
-75 a test-sim or verify run holds the lane's simulator, the simulator pool is busy, down found
-another process working inside the lane (stop it or cd out; this script's callers do not count), or
-another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds (default 540).
+75 a test-sim or verify run holds the lane's simulator, the simulator pool or the host is busy (up
+builds the template on first use, and its boot waits for the host as scripts/sim-pool.sh --help
+says), down found another process working inside the lane (stop it or cd out; this script's callers
+do not count), or another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds
+(default 540).
 EOF
 }
 
@@ -65,12 +67,12 @@ case ${1:-} in -h | --help) help; exit 0 ;; esac
 
 die() { echo "lane.sh: $2" >&2; exit "$1"; }
 
-# The lane lock is fd 6, and a flock is shared by every process holding the fd, so no child that
-# may outlive this script, such as git's background gc, gets it. Not `command git`: bash 3.2 hands
-# a builtin's child its saved copy of fd 6.
+# The lane lock is fd 5, because sim-lock.sh keeps fd 6 for stderr. A flock is shared by every process
+# holding the fd, so no child that may outlive this script, such as git's background gc, gets it.
+# Not `command git`: bash 3.2 hands a builtin's child its saved copy of fd 5.
 git_bin=$(type -P git) || die 2 "git is not on PATH"
-git() { "$git_bin" "$@" 6>&-; }
-sim_pool() { "$here/sim-pool.sh" "$@" 6>&-; }
+git() { "$git_bin" "$@" 5>&-; }
+sim_pool() { "$here/sim-pool.sh" "$@" 5>&-; }
 
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -93,23 +95,11 @@ case_twin() {
     END { if (!exact) print twin }'
 }
 
-flock_fd() {
-  python3 -c 'import fcntl, sys, time
-deadline = time.time() + float(sys.argv[2])
-while True:
-    try: fcntl.flock(int(sys.argv[1]), fcntl.LOCK_EX | fcntl.LOCK_NB); break
-    except BlockingIOError:
-        if time.time() >= deadline: sys.exit(75)
-        time.sleep(0.1)' "$1" "$2"
-}
-
 lock_lane() {
-  local lock=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}/lane-$name wait=${WORKOUT_ADMIT_WAIT:-540} rc=0
-  case $wait in '' | *[!0-9]*) die 2 "WORKOUT_ADMIT_WAIT must be a whole number of seconds: $wait" ;; esac
-  mkdir -p "$(dirname "$lock")"
-  exec 6>>"$lock"
-  flock_fd 6 "$wait" || rc=$?
-  [ $rc -ne 75 ] || die 75 "waited $wait s for lane $name, held by $(cat "$lock") (lsof $lock lists it)"
+  local lock=$host_lock_dir/lane-$name rc=0
+  exec 5>>"$lock"
+  try_flock 5 LOCK_EX $((WORKOUT_ADMIT_WAIT * 20 + 1)) || rc=$?
+  [ $rc -ne 75 ] || die 75 "waited $WORKOUT_ADMIT_WAIT s for lane $name, held by $(cat "$lock") (lsof $lock lists it)"
   [ $rc -eq 0 ] || exit $rc
   printf 'lane.sh %s %s (pid %s)\n' "$1" "$name" "$$" >"$lock"
 }
@@ -277,7 +267,7 @@ lane_up() {
   [ -z "$branch" ] && [ "$head" = "$sha" ] \
     || die 2 "lane $name is at $head${branch:+ on branch $branch}, not $sha; lane.sh down $name first"
   if [ -f "$wt/.githooks/post-checkout" ]; then
-    (cd "$wt" && sh .githooks/post-checkout) >&2 6>&- || die 70 "the post-checkout hook failed in $wt"
+    (cd "$wt" && sh .githooks/post-checkout) >&2 5>&- || die 70 "the post-checkout hook failed in $wt"
   fi
   udid=$(sim_pool create "$name")
   mkdir -p "$evidence"
