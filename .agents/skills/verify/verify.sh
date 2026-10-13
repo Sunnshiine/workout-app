@@ -60,9 +60,10 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe
                               failed, or the screen size or the card's frame could not be read from the
                               tree after the take (nothing kept, a VALID take included), 75 nothing ran
-                              (simulator held or load never fell). A take whose screen never changed after COMMAND began
-                              is INVALID, but any change counts, the rest pill's countdown included, so
-                              VALID does not say COMMAND did anything; NAME.end.txt shows what it did
+                              (simulator held or load never fell). A take whose screen never changed
+                              after COMMAND began is INVALID, but any change counts, the rest pill's
+                              countdown included, so VALID does not say COMMAND did anything;
+                              NAME.end.txt shows what it did
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
@@ -648,7 +649,6 @@ keep_video_then_stamp() {
   rmdir "$1" 2>/dev/null || true
 }
 
-
 reset_keyboard() {
   if show_keyboard; then
     echo "AXe keyboard input hides the software keyboard in this app until its next launch (issue 700); the preference that would keep it hidden after that is reset" >&2
@@ -957,10 +957,10 @@ case $cmd in
     decimal "$tail" || usage
     resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
+    [ "${1:-}" != launch ] || relaunch="$*"
+    require_sim_free "$sim"; require_own_app
     wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT before recording" \
       load_clear "$WORKOUT_LOAD_LIMIT"
-    load=$(sysctl -n vm.loadavg | awk '{ print $2 }')
-    [ "${1:-}" != launch ] || relaunch="$*"
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending
@@ -968,7 +968,7 @@ case $cmd in
     rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
     rc=0
     python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
-      --tail "$tail" --limit "$WORKOUT_LOAD_LIMIT" --load-before "$load" -- "$@" > "$pending/$name.take" || rc=$?
+      --tail "$tail" --limit "$WORKOUT_LOAD_LIMIT" -- "$@" > "$pending/$name.take" || rc=$?
     if [ $rc -ne 0 ] && [ $rc -ne 3 ]; then
       rm -f "$pending/$name.mp4" "$pending/$name.take"
       exit $rc

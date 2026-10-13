@@ -1134,6 +1134,7 @@ case $1 in
     [ -e "{dir}/stamp.take" ] || exit 75
     mkdir -p "{dir}/$VERIFY_RUN"
     cp "{dir}/stamp.take" "{dir}/$VERIFY_RUN/$2.take"
+    echo "$VERIFY_RUN $2 ${WORKOUT_ADMIT_WAIT:-unset}" >> "{dir}/admit"
     [ ! -e "{dir}/end/$VERIFY_RUN/$2" ] || cp "{dir}/end/$VERIFY_RUN/$2" "{dir}/$VERIFY_RUN/$2.end.txt"
     echo "{dir}/$VERIFY_RUN/$2.take" ;;
 esac
@@ -1238,6 +1239,20 @@ class Film(unittest.TestCase):
         self.assertEqual(kinds, ["record"] * 16 + ["measure"] * 16)
         self.assertEqual(lines[-1], "measure lane-head/superset-rest-end")
         self.assertEqual(code, 3)
+
+    def test_only_the_after_rest_take_refuses_to_wait_for_the_host(self):
+        (self.dir / "stamp.take").write_text("\n".join(take.take_lines(dataclasses.replace(TAKE, started=1000.0)) + [
+            "screen_pt=200x400", "animations=on", "app="]) + "\n")
+        self.addCleanup(setattr, cardframe, "measure", cardframe.measure)
+        cardframe.measure = lambda video: cardframe.summarize(TAKE, [Sample(0.0, card(100), FLAT)], 0.0)
+        env = {key: value for key, value in os.environ.items() if key != "WORKOUT_ADMIT_WAIT"}
+        with mock.patch.dict(os.environ, dict(env, SIM="LANE", VERIFY_RUN="lane"), clear=True), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            cardstill.main(["--control", "7fefd137"])
+        waits = [line.split() for line in (self.dir / "admit").read_text().splitlines()]
+        self.assertEqual([wait for run, name, wait in waits if name != "superset-rest-end"], ["unset"] * 14)
+        self.assertEqual([(run, wait) for run, name, wait in waits if name == "superset-rest-end"],
+                         [("lane-control", "0"), ("lane-head", "0")])
 
     def lane(self, side, node_tap_ends_on):
         (self.dir / "stamp.take").write_text("\n".join(take.take_lines(dataclasses.replace(TAKE, started=1000.0)) + [

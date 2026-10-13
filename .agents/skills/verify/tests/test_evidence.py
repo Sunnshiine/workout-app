@@ -2749,7 +2749,8 @@ class Film(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp()).resolve()
         self.addCleanup(shutil.rmtree, str(self.tmp), True)
         (self.tmp / "bin").mkdir()
-        for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB)]:
+        for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB),
+                           (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n")]:
             path.write_text(stub.replace("{dir}", str(self.tmp)))
             path.chmod(0o755)
         self.env = dict(os.environ, PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
@@ -2770,8 +2771,8 @@ class Film(unittest.TestCase):
         with mock.patch.dict(os.environ, dict(self.env, **env)), tempfile.TemporaryFile("w+") as stderr, \
                 contextlib.redirect_stderr(stderr):
             try:
-                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, 1.0,
-                          drive, start_timeout)
+                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, drive,
+                          start_timeout)
             except (take.DriveFailed, take.NoTake) as failure:
                 stderr.seek(0)
                 return type(failure).__name__, str(failure), stderr.read()
@@ -2780,6 +2781,11 @@ class Film(unittest.TestCase):
     def stuck(self):
         pid = int((self.tmp / "recorder.pid").read_text())
         return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: kill -INT %d\n" % (pid, pid)
+
+    def test_a_load_that_cannot_be_read_as_the_take_begins_drives_nothing(self):
+        (self.tmp / "bin" / "sysctl").write_text("#!/bin/sh\necho 'sysctl: transient' >&2\nexit 1\n")
+        self.assertEqual(self.film(["fail"]), ("NoTake", "could not read the load as the take began: Command "
+                                               "'['sysctl', '-n', 'vm.loadavg']' returned non-zero exit status 1.", ""))
 
     def test_a_failed_drive_is_the_failure_even_when_the_recorder_will_not_stop(self):
         failure = self.film(["fail"], STUB_STUCK="1")
@@ -2794,7 +2800,7 @@ class Film(unittest.TestCase):
         record = subprocess.Popen(
             [sys.executable, str(SKILL / "take.py"), "record", "--sim", "SIM", "--run", "lane-1", "--verify",
              str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--limit", "50",
-             "--load-before", "1", "--", "launch", "--animated", "session"],
+             "--", "launch", "--animated", "session"],
             env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.addCleanup(record.kill)
         deadline = time.time() + 10
@@ -2971,12 +2977,13 @@ class Record(Lane):
             % (self.sim, other.pid, self.sim, self.verify_path)) + "$")
         self.assertEqual(self.calls(), [])
 
-    def test_a_reclaimed_run_records_nothing_and_is_told_who_reclaimed_it(self):
+    def test_a_reclaimed_run_records_nothing_and_is_told_who_reclaimed_it_before_any_wait(self):
         self.launch()
         Path("/tmp/workout-verify-%s/reclaimed.lane-1" % self.sim).write_text("test-sim.sh run (pid 1) at T\n")
         for drive in [["tap", "-x", "5", "-y", "6"], ["launch", "--animated", "session"]]:
             with self.subTest(drive=drive):
-                self.assertEqual(self.record("--", *drive), (75, "", (
+                refused = self.record("--", *drive, STUB_LOAD_BEFORE="63.20", WORKOUT_ADMIT_WAIT="30")
+                self.assertEqual(refused, (75, "", (
                     "run lane-1 was reclaimed by test-sim.sh run (pid 1) at T; launch again: SIM=%s VERIFY_RUN=lane-1 "
                     "%s launch <fixture>\n" % (self.sim, self.verify_path))))
                 self.assertEqual(self.calls(), [])

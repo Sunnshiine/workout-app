@@ -2,13 +2,13 @@
 """Films one verify.sh drive with simctl recordVideo, and owns the take stamp (NAME.take).
 
   take.py record --sim UDID --run RUN --verify VERIFY_SH --out PENDING/NAME.mp4 --tail S --limit L
-                 --load-before B [-- VERB [ARG...]]
+                 [-- VERB [ARG...]]
       records from the moment the recorder says it is capturing, runs VERIFY_SH VERB... (its output
       goes to stderr), waits S seconds, stops the recorder with SIGINT only, and prints the stamp's
       take lines on stdout. Exit 0 VALID, 3 INVALID, 1 the drive failed, 70 the recorder or ffprobe
       failed; on 1 and 70 no video is kept. VERIFY_RECORD_START (default 10) is how many seconds
-      the recorder gets to start capturing. B is the load verify.sh admitted the take at, at or under
-      L; it is stamped, and only the load after the take, over L, can make it INVALID.
+      the recorder gets to start capturing. The load is read as the recorder starts capturing and again
+      after the take; both are stamped, and only the second, over L, can make it INVALID.
   take.py summary NAME.take
       one line on stdout, as `take appear VALID 4.71 s, drive +0.32..+2.69 s, 37 frames, last +3.40 s,
       load 12.3 then 14.0 (limit 50), animations on`; each INVALID reason on stderr
@@ -212,11 +212,14 @@ class Recorder:
         return self.proc.returncode
 
 
-def load_now() -> float:
+def load_now(when: str) -> float:
     """The 1-minute load average, field 2 of `sysctl -n vm.loadavg` ("{ 12.31 9.80 8.71 }")."""
-    out = subprocess.run(["sysctl", "-n", "vm.loadavg"], stdout=subprocess.PIPE, universal_newlines=True,
-                         check=True).stdout
-    return float(out.split()[1])
+    try:
+        out = subprocess.run(["sysctl", "-n", "vm.loadavg"], stdout=subprocess.PIPE, universal_newlines=True,
+                             check=True).stdout
+        return float(out.split()[1])
+    except (OSError, subprocess.CalledProcessError, ValueError, IndexError) as error:
+        raise NoTake("could not read the load %s: %s" % (when, error))
 
 
 def probe(video: Path) -> Tuple[List[float], Tuple[int, int]]:
@@ -254,12 +257,13 @@ def run_drive(argv: List[str], env: dict) -> int:
         raise
 
 
-def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, load_before: float,
-         drive: Sequence[str], start_timeout: float) -> Take:
+def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, drive: Sequence[str],
+         start_timeout: float) -> Take:
     recorder = Recorder(sim, out)
     failed = True
     try:
         started = recorder.await_capture(start_timeout)
+        load_before = load_now("as the take began")
         drive_start = time.time() - started
         if drive:
             code = run_drive([verify] + list(drive), dict(os.environ, SIM=sim, VERIFY_RUN=run))
@@ -277,10 +281,7 @@ def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, 
             if not failed:
                 raise
             print(stuck, file=sys.stderr)
-    try:
-        load_after = load_now()
-    except (OSError, subprocess.CalledProcessError, ValueError, IndexError) as error:
-        raise NoTake("could not read the load after the take: %s" % error)
+    load_after = load_now("after the take")
     pts, size = probe(out)
     return Take(
         name=out.stem, video=out.name, drive=shlex.join(drive), tail=tail, load_limit=limit,
@@ -295,14 +296,14 @@ def record(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(prog="take.py record")
     for flag in ["--sim", "--run", "--verify", "--out"]:
         parser.add_argument(flag, required=True)
-    for flag in ["--tail", "--limit", "--load-before"]:
+    for flag in ["--tail", "--limit"]:
         parser.add_argument(flag, required=True, type=float)
     args = parser.parse_args(flags)
     out = Path(args.out)
     signal.signal(signal.SIGINT, interrupted)
     signal.signal(signal.SIGTERM, interrupted)
     try:
-        take = film(args.sim, args.run, args.verify, out, args.tail, args.limit, args.load_before, drive,
+        take = film(args.sim, args.run, args.verify, out, args.tail, args.limit, drive,
                     float(os.environ.get("VERIFY_RECORD_START", "10")))
     except Interrupted as signum:
         out.unlink(missing_ok=True)

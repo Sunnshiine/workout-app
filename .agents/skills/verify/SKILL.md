@@ -262,9 +262,10 @@ uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card 
 
 `record` first waits for the 1-minute load the way a claim does (below), because a loaded host films a
 move as a cut. A take whose load ends over `WORKOUT_LOAD_LIMIT` is INVALID. It drives once the recorder
-is capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on stderr. Exit 70 means the
-recorder or ffprobe failed, or the screen size or the card's frame could not be read from the
-accessibility tree after the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran.
+is capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons
+on stderr. Exit 70 means the recorder or ffprobe failed, or the screen size or the card's frame could
+not be read from the accessibility tree after the take, and nothing is kept, a VALID take included.
+Exit 75 means nothing ran.
 The recorder writes a frame only when the screen changes, so a still screen is one frame. A take is
 also INVALID when the screen never changed after the drive began, or, with no drive, never changed at
 all. Any change counts, the rest pill's countdown included, so `VALID` says the recorder was capturing.
