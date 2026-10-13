@@ -36,8 +36,8 @@ Each concurrent simulator run takes its own worktree and simulator (`AGENTS.md`,
 while another run holds that simulator. Nothing yet limits the host: every booted simulator and
 build slows the rest. A timing or motion measurement taken under load describes the host, not the
 app, so record the 1-minute load (`sysctl -n vm.loadavg`) beside it, and rerun when it is high.
-`verify.sh launch` and the UI tests turn animations off, so neither sees a defect that exists
-only in motion.
+`verify.sh launch` and most UI tests turn animations off, so they miss a defect that exists only in
+motion. A UI test that needs motion launches with `animated: true`.
 
 ## AI-Generated Code Gate
 
@@ -85,11 +85,12 @@ Precision is the fraction of pixels that must match. `WorkoutVisualBaseline.prec
 `0.999`, so up to 0.1% of the image may differ and the test still passes.
 `grep -rn WorkoutVisualBaseline.labelAntialiasingPrecision Tests/Visual` lists each one.
 `GlassBearingViewsVisualTests` passes it only in `smartValuePillsMatchesVisualBaseline`, and its
-other tests compare at `1.0`. Every other suite the grep lists passes it in its shared snapshot
-helper, so every test in that suite compares at `0.999`. That budget absorbs text anti-aliasing,
-and it also hid a whole missing Settings row from the Block grid baselines. For a change to one of
-those surfaces, open the rendered image and compare it with the baseline yourself; a green run does
-not prove they match.
+other tests compare at `1.0`. `ExerciseHistorySheetVisualTests` holds
+`exerciseHistoryRaisedVolumeControlMatchesNightVisualBaseline` at `1.0`. Every other test in a
+suite the grep lists compares at `0.999` through that suite's shared snapshot helper. That budget
+absorbs text anti-aliasing, and it also hid a whole missing Settings row from the Block grid
+baselines. For a change to one of those surfaces, open the rendered image and compare it with the
+baseline yourself; a green run does not prove they match.
 
 Recording recipe (issue #471): the recording switch is the suite trait, not an environment
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
