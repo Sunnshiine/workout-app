@@ -49,6 +49,11 @@ navigation flows. They cover view-facing labels, accessibility strings, enabled 
 and progression state. Visual Regression tests are the separate pixel layer; do not use component
 tests to assert screenshots.
 
+Colour contrast is checked against the palette, not pixels. `Tests/Component/ContrastTests.swift`
+holds every `Theme.Palette` ink to WCAG AA (4.5:1 text, 3:1 rims and glyphs) on the grounds it draws
+on, in Day and Night. The `system_ink_outside_the_palette` rule in `.swiftlint.yml` keeps system
+grey inks, which that test cannot see, out of `App/`.
+
 Visual vocabulary:
 
 - **Visual Regression test**: a hosted unit test under `Tests/Visual` that renders a deterministic
