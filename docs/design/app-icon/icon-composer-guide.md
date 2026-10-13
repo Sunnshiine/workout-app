@@ -12,8 +12,8 @@ The two documents:
 
 | File | Flavor | Disc fill (light / dark) |
 |---|---|---|
-| `WorkoutTracker/AppIcon.icon` | stable | deep green `#0B7A45` / mint `#73FFB8` |
-| `WorkoutTracker/AppIconDev.icon` | WT Dev | vivid amber `#D9820F` / warm amber `#FFC873` |
+| `App/AppIcon.icon` | stable | deep green `#0B7A45` / mint `#73FFB8` |
+| `App/AppIconDev.icon` | WT Dev | vivid amber `#D9820F` / warm amber `#FFC873` |
 
 Each is a package (right-click → Show Package Contents) holding `icon.json`
 plus one SVG layer asset — the sun disc with the Sunbird as a negative-space
@@ -36,7 +36,7 @@ the hand-authored file are two views of one document.
 
 ## 2. Open the document
 
-Work on a branch. Then double-click `WorkoutTracker/AppIcon.icon` (or File →
+Work on a branch. Then double-click `App/AppIcon.icon` (or File →
 Open in Icon Composer). The window has three parts:
 
 - **Left sidebar** — the layer tree. You'll see one group, **Sun disc**,

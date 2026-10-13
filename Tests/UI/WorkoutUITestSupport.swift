@@ -19,7 +19,7 @@ enum WorkoutUITestFixture {
         case .longSession:
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_LONG_SESSION"]
         case .partiallyUploadedBlock:
-            ["-UITEST_FIXTURE", "-UITEST_PARTIAL_BLOCK"]
+            ["-UITEST_FIXTURE"]
         case .completedSessionWithOpenExercises:
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_COMPLETED_OPEN_EXERCISES"]
         }

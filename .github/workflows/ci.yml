@@ -90,13 +90,11 @@ jobs:
         with:
           path: ${{ runner.temp }}/swiftlint
           key: swiftlint-${{ runner.os }}-${{ steps.swiftlint.outputs.version }}
-      - name: Lint WorkoutTracker, WorkoutCLI and Tests
+      - name: Lint, check doc spans and workflow guards, and swift-format the changed Swift
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
+          LINT_FORMAT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'HEAD' }}
         run: scripts/lint.sh
-      - name: swift-format the Swift files this pull request changes
-        if: github.event_name == 'pull_request'
-        run: scripts/swift-format-changed.sh HEAD^1
 
   swift-tests:
     if: github.event.action != 'edited' || github.event.changes.base

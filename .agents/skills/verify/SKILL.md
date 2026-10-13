@@ -24,7 +24,8 @@ Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `s
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
 `partial-block` (Block Overview, some sessions not uploaded), `completed-open-exercises`
 (completion stage), `developer-tools`. Extra `-UITEST_*` arguments pass through, for example
-`launch settings -UITEST_PENDING_WRITE`. `launch session -UITEST_APPEARANCE dark` renders Night
+`launch settings -UITEST_PENDING_WRITE`. [launch-flags.md](launch-flags.md) lists every flag and
+what it does. `launch session -UITEST_APPEARANCE dark` renders Night
 without changing the simulator's appearance, and `light` renders Day. Any other value, `night`
 included, makes the app exit, and `launch` prints the fatal error naming the values. Every launch
 adds `-UITEST_FIXTURE -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES`, so the app runs on an in-memory store with a faked sign-in and

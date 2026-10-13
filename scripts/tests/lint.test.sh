@@ -37,6 +37,13 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
+    cp "$repo/scripts/lint-doc-symbols.py" "$repo/scripts/lint-workflow-ifs.sh" \
+        "$repo/scripts/swift-format-changed.sh" "$fx/scripts/"
+    mkdir -p "$fx/.github/workflows"
+    printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
+    mkdir -p "$fx/.agents/skills/verify"
+    printf '| `-UITEST_FIXTURE` | Switch | Runs on fixtures. |\n' >"$fx/.agents/skills/verify/launch-flags.md"
+    printf 'Lint with `scripts/lint.sh`.\n' >"$fx/AGENTS.md"
     cp "$repo/$resolved" "$fx/$resolved"
     printf 'disabled_rules:\n  - force_unwrapping\n' >"$fx/Tests/.swiftlint.yml"
     printf 'let appRoot = 1\n' >"$fx/App/Root.swift"
@@ -47,6 +54,8 @@ fresh_fixture() {
     printf 'let helper = 1\n' >"$fx/Tests/Support/Helper.swift"
     git -C "$fx" init -q
     git -C "$fx" add -A
+    git -C "$fx" -c user.name=lint-test -c user.email=lint-test@example.com commit -qm fixture
+    git -C "$fx" update-ref refs/remotes/origin/main HEAD
 }
 
 baseline_config() {
@@ -75,6 +84,70 @@ baseline_config
 run_lint
 expect_exit "baseline" "$status" 0
 expect_line "baseline" "$out" "==> Clean"
+expect_line "baseline" "$out" "==> Clean: 2 docs, 1 launch flags"
+
+echo "doc symbols: a whole-tree run fails on a doc span the tree lacks, and a file run skips it"
+fresh_fixture
+baseline_config
+printf 'Lint with `scripts/lint-gone.sh`.\n' >"$fx/AGENTS.md"
+run_lint
+expect_exit "doc symbols" "$status" 1
+expect_line "doc symbols" "$err" "error: AGENTS.md:1: \`scripts/lint-gone.sh\` is not a path in this tree."
+run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
+expect_exit "doc symbols, file run" "$status" 0
+expect_no_text "doc symbols, file run" "$both" "Doc symbols"
+
+echo "workflow guards: a whole-tree run fails on an if: GitHub would make false, and a file run skips it"
+fresh_fixture
+baseline_config
+printf 'on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - id: s\n        run: exit 1\n      - if: steps.s.outcome == %s\n        run: echo report\n' \
+    "'failure'" >"$fx/.github/workflows/ci.yml"
+run_lint
+expect_exit "workflow guards" "$status" 1
+expect_text "workflow guards" "$both" ".github/workflows/ci.yml:8: job 'a', step '#2': if: reads a step conclusion or outcome and calls no status check function"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
+expect_exit "workflow guards, file run" "$status" 0
+
+echo "swift-format: a whole-tree run fails on a Swift file changed since origin/main that swift-format rejects"
+fresh_fixture
+baseline_config
+printf 'let model  =  1\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "swift-format" "$status" 1
+expect_text "swift-format" "$err" "error: format them with: xcrun swift-format format -i Sources/Core/Model.swift"
+expect_no_text "swift-format" "$err" "LINT_FORMAT_BASE"
+printf 'let model = 2\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "swift-format, formatted" "$status" 0
+expect_line "swift-format, formatted" "$out" "swift-format: 1 changed Swift file(s) clean since $(git -C "$fx" rev-parse --short=7 HEAD)."
+
+echo "no origin/main: a whole-tree run says how to give swift-format a base"
+fresh_fixture
+baseline_config
+git -C "$fx" update-ref -d refs/remotes/origin/main
+run_lint env -u LINT_FORMAT_BASE "$fx/scripts/lint.sh"
+expect_exit "no origin/main" "$status" 2
+expect_line "no origin/main" "$err" "error: git cannot find where HEAD left 'origin/main'."
+expect_line "no origin/main" "$err" "       Run 'git fetch origin main', or set LINT_FORMAT_BASE to a commit this branch"
+expect_line "no origin/main" "$err" "       grew from: LINT_FORMAT_BASE=<base> scripts/lint.sh"
+run_lint env LINT_FORMAT_BASE=nosuchref "$fx/scripts/lint.sh"
+expect_exit "LINT_FORMAT_BASE=nosuchref" "$status" 2
+expect_line "LINT_FORMAT_BASE=nosuchref" "$err" "       LINT_FORMAT_BASE='nosuchref' is not a commit this branch grew from."
+expect_no_text "LINT_FORMAT_BASE=nosuchref" "$err" "git fetch origin main"
+run_lint env LINT_FORMAT_BASE=HEAD "$fx/scripts/lint.sh"
+expect_exit "no origin/main, LINT_FORMAT_BASE=HEAD" "$status" 0
+
+echo "help: --help prints usage naming LINT_FORMAT_BASE, and an unknown flag is a usage error"
+fresh_fixture
+baseline_config
+run_lint "$fx/scripts/lint.sh" --help
+expect_exit "--help" "$status" 0
+expect_line "--help" "$out" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
+expect_exit "--help, bytes on stderr" "$(wc -c <"$root/stderr" | tr -d ' ')" 0
+run_lint "$fx/scripts/lint.sh" --nope
+expect_exit "--nope" "$status" 64
+expect_line "--nope" "$err" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
+expect_exit "--nope, bytes on stdout" "$(wc -c <"$root/stdout" | tr -d ' ')" 0
 
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture

@@ -1,5 +1,7 @@
 # Greenhouse → Theme.swift: the decided token sheet
 
+<!-- doc-symbols: not-in-tree mintGreen blueLight -->
+
 Resolution asset for wayfinder ticket #422 (map #408). This records the
 *decisions* the DESIGN.md rewrite (#423) encodes — implementation is out of
 scope for the map. Values are extracted from the picked prototype variants
@@ -38,20 +40,20 @@ are recorded inline.
 
 | Paint | Value | Notes |
 |---|---|---|
-| `ink` | `#152118` | day text; at low opacity: carved chips, scrim, shadows |
+| `ink` | `#152118` | day text; at low opacity: carved chips, shadows |
 | `inkNight` | `#EFF3E3` | night text |
 | `muted` | `#404E44` | day secondary text; at low opacity: `skipStroke`, `skipFillOverlay`, `tileGhostStroke` |
 | `mutedNight` | `#9AAA9B` | night secondary text |
 | `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
-| `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint: the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
+| `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint (not Settings action rows): the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
-| `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
+| `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint (not Settings action rows): actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
 | `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
-| `paperDay` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
-| `paperNight` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
+| `paperDayTop` → `paperDayBottom` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
+| `paperNightTop` → `paperNightBottom` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
 
 ## 3. Semantic roles — Day · Night
 
@@ -87,7 +89,6 @@ appearance.
 |---|---|---|
 | `textPrimary` | ink | inkNight |
 | `textSecondary` | muted | mutedNight |
-| `homeBar` | ink @ 20% | cream @ 22% |
 
 ### Stage & branch
 
@@ -98,7 +99,6 @@ appearance.
 | `leafRib` | cream @ 50% | cream @ 55% |
 | `budFill` | cream @ 95% | cream @ 92% |
 | `budStroke` | actionDay | `#78F0B2` |
-| `budRib` | actionDay @ 55% | foliage @ 60% |
 | `futureStroke` | actionDay @ 40% | foliage @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
 | `supersetPartnerName` (the "& partner" line) | foliageDeep | mutedNightLight |
@@ -137,9 +137,8 @@ composition itself are locked by #455.
 |---|---|---|
 | `action` (fill) | actionDay | actionNight |
 | `actionText` | cream | cream |
-| `actionInk` (green words and glyphs on paper, system tint) | actionDayInk | actionNightInk |
+| `actionInk` (green words and glyphs on paper, system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
-| pressed/logged fill | `#0A5936` | — (build) |
 | `skipFillOverlay` | muted @ 30% | — (build) |
 | skipped state | transparent, muted text, `1.5px dashed skipStroke` | same recipe |
 
@@ -156,8 +155,8 @@ composition itself are locked by #455.
 |---|---|
 | `tileComplete` / text | actionDay / cream |
 | `tileCurrentFill` | cream @ 95%; Night: foliage |
-| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
-| `sunGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
+| `tileCurrentBorder` | **literal `#1F8552`** + `currentTileGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
+| `currentTileGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
 | tile partial | `pillFill` + bottom bar in `tileComplete`, height quantized quarters |
@@ -177,8 +176,6 @@ composition itself are locked by #455.
 | chart line | ink @ 35%, 1.5px |
 | Block seam | ink @ 14%, dotted `1 4` |
 | data dot / approx dot | ink solid r4.5 + paper core / ink outline r4 @ 1.5 |
-| `scrim` | ink @ 32% |
-| `grabber` | ink @ 18% |
 
 ### Bird & colophon (#414)
 
@@ -269,7 +266,6 @@ not rounded to a prettier scale.
 | `tile` | 15 | day tiles |
 | `cell` | 14 | rail chips |
 | `mini` | 6 | week mini-chips |
-| `hairline` | 2–3 | grabber, home bar, prescription tick |
 
 Replaces the 8 / 16 / 28 scale.
 

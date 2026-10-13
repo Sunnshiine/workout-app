@@ -36,7 +36,6 @@ import Testing
 
     @Test func scenarioFallsBackToPartialUploadAndEachArgumentSelectsItsScenario() {
         #expect(UITestLaunch(arguments: ["WorkoutTracker"]).scenario == .partialUpload)
-        #expect(UITestLaunch(arguments: ["-UITEST_PARTIAL_BLOCK"]).scenario == .partialUpload)
         #expect(UITestLaunch(arguments: ["-UITEST_FULL_BLOCK"]).scenario == .fullBlock)
         #expect(UITestLaunch(arguments: ["-UITEST_LONG_SESSION"]).scenario == .longSession)
         #expect(UITestLaunch(arguments: ["-UITEST_OPEN_EXERCISES"]).scenario == .openExercises)

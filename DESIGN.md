@@ -137,8 +137,11 @@ one serif voice — never from hype, density, or gamification.
 - **Light leads.** Day (sage-light) is the primary appearance. Night is the
   same room re-lit — never recolored, never neutral black.
 - **One living thing per page.** The Session stage's branch is the app's only
-  flora and, with the day tiles' state marks, effectively its only icon —
-  **maximum one icon per page**.
+  flora and the stage's one illustrative icon — **maximum one illustrative
+  icon per page**. A control or status glyph does not count against it: any
+  glyph on or inside a tappable control (the back arrow, pin, X, chevrons, the
+  clear menu's ellipsis, and the queue sheet's pairing stems, §5.4), or one
+  that marks a state beside its word (the Saved check, the danger mark).
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
@@ -178,7 +181,7 @@ near-black drifts back toward the cockpit), leaves as moonlit foliage
 A small paint box plus flat semantic roles; views consume roles only, via the
 environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
 
-- **`ink` / `inkNight`** — text; at low opacity, carved chips, scrims, shadows.
+- **`ink` / `inkNight`** — text; at low opacity, carved chips, shadows.
 - **`muted` / `mutedNight`** — secondary text, skip strokes, ghost strokes.
 - **`cream` (`#F2F7E8`)** — the workhorse: surfaces, pills, buds, leaf ribs,
   and text on action fills.
@@ -188,14 +191,16 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
   action role at night** (it reads candy and reverts to cockpit); the Log
   capsule stays green-fill with cream text in both appearances.
 - **`actionDayInk` (`#0A5936`) / `actionNightInk` (`#A8CFB4`)** — the action
-  green as words and glyphs on paper and as the system tint. Day uses the
-  pressed Log green; Night is `actionNight` under cream @ 65%. The action
+  green as words and glyphs on paper and as the system tint, except on
+  Settings action rows (§5.9). Day uses the pressed Log green; Night is
+  `actionNight` under cream @ 65%. The action
   greens stay fill and stroke colours: as small text `#1F8552` measures 1.9 to
   3.7:1 on night paper, and `#0D6B40` 4.0 to 4.4:1 on the queue sheet's darker
   foot.
 - **`foliage` (`#579168`)** — *the* night pigment: leaves, stems, bird, and
   Block-grid tiles all re-light to this.
-- **`paperDay` / `paperNight`** — the base gradient pairs under the washes.
+- **`paperDayTop` → `paperDayBottom` / `paperNightTop` → `paperNightBottom`** — the
+  base gradient pairs under the washes.
 - **`danger`** — system red, hold-to-skip only. Carried forward unchanged; no
   Greenhouse prototype styled an error state, so it awaits the build.
 
@@ -393,6 +398,7 @@ trophy. A dashed leaf is honest about a Skip; a full branch marks
 completion, not achievement.
 
 **One Icon Per Page Rule.** The branch is the stage's icon budget spent.
+Control and status glyphs (§1) do not draw on it.
 Other pages spend theirs as sparingly (the Block grid spends its on nothing —
 tiles are wordless fills).
 
@@ -574,7 +580,9 @@ sync carries no brand duty.
 ### 5.9 Settings
 
 Settings stay native: system-owned rows, native text styles, normal Dynamic
-Type. Appearance (System / Light / Night) lives here.
+Type. Action rows keep system blue and Sign Out keeps system red; no contrast
+fix retints them (operator ruling 2026-10-11). Appearance (System / Light /
+Night) lives here.
 
 **Settings Own Manual Sync Rule** (carried forward). Manual sync is a
 Settings row labeled **Sync now**, never a Session control or
@@ -653,8 +661,11 @@ unchanged (§5.2).
   hue-preserved sage paper.
 - **Do** keep Fraunces to the Exercise name and ceremony, and every numeral
   bold + tabular.
-- **Do** spend at most one icon per page, and let the branch be it on the
-  stage.
+- **Do** spend at most one illustrative icon per page, and let the branch be
+  it on the stage.
+- **Do** prefer a self-describing glyph (X, back arrow, pin, a pairing stem) to an
+  action spelled out in words, give each icon-only control an accessibility
+  label, and keep on-screen text to a minimum (operator ruling 2026-10-11).
 - **Do** use exact domain language from CONTEXT.md: Block, Week, Session,
   Exercise, Set, Set Log, Last Performed, Exercise History, Move On.
 - **Do** preserve native iOS affordances for Settings, sheets, navigation,

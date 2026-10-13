@@ -22,7 +22,7 @@ products of `scripts/generate-app-icons.sh` (Chromium is the reference
 rasterizer). Edit the SVGs and re-render; never retouch the PNGs.
 
 The true glass icons are the hand-authored Icon Composer documents
-`WorkoutTracker/AppIcon.icon` and `WorkoutTracker/AppIconDev.icon` (#373):
+`App/AppIcon.icon` and `App/AppIconDev.icon` (#373):
 one monochrome disc-with-bird-cutout SVG layer whose fill and background
 gradient specialize per appearance (light/dark), with the system glass
 material replacing the baked glow/rim/sheen. iOS 26 renders those; the

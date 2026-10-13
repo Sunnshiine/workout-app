@@ -3,7 +3,7 @@
 
     /// The launch configuration of a UI-test run, read once from the process arguments.
     ///
-    /// Every flag the app honours lives here, so a test can construct a launch from a literal
+    /// Every flag the app honours is read here, so a test can construct a launch from a literal
     /// argument list instead of launching the app to find out what a flag does.
     struct UITestLaunch: Sendable {
         /// Which fixture Block `UITestFixture.seed` inserts.
@@ -16,23 +16,18 @@
             case partialUpload
         }
 
-        /// The scenario priority: the first argument present in a launch wins, and a launch that
-        /// names none gets `.partialUpload`.
-        private static let scenarioArguments: [(argument: String, scenario: Scenario)] = [
-            ("-UITEST_PERFECT_MOVE_ON_CELEBRATION", .perfectMoveOnCelebration),
-            ("-UITEST_COMPLETED_OPEN_EXERCISES", .completedOpenExercises),
-            ("-UITEST_OPEN_EXERCISES", .openExercises),
-            ("-UITEST_LONG_SESSION", .longSession),
-            ("-UITEST_FULL_BLOCK", .fullBlock)
+        /// The scenario priority: the first flag present in a launch wins, and a launch that names
+        /// none gets `.partialUpload`.
+        static let scenarioFlags: [(flag: LaunchFlag, scenario: Scenario)] = [
+            (.perfectMoveOnCelebration, .perfectMoveOnCelebration),
+            (.completedOpenExercises, .completedOpenExercises),
+            (.openExercises, .openExercises),
+            (.longSession, .longSession),
+            (.fullBlock, .fullBlock)
         ]
 
-        /// The arguments that send the app somewhere other than the Block overview.
-        private static let screenArguments = [
-            "-UITEST_SESSION",
-            "-UITEST_DEVELOPER_TOOLS",
-            "-UITEST_SETTINGS",
-            "-UITEST_ONBOARDING"
-        ]
+        /// The flags that send the app somewhere other than the Block overview.
+        static let screenFlags: [LaunchFlag] = [.session, .developerTools, .settings, .onboarding]
 
         private let arguments: [String]
 
@@ -40,43 +35,47 @@
             self.arguments = arguments
         }
 
-        var disablesAnimations: Bool { has("-UITEST_DISABLE_ANIMATIONS") }
+        var runsOnFixture: Bool { has(.fixture) }
+
+        var disablesAnimations: Bool { has(.disableAnimations) }
 
         /// A Live Activity outlives the test's app process. The next test session's reinstall ends
         /// it, liveactivitiesd launches the app in the background while Xcode's own launch is
         /// pending, and SpringBoard kills that instance and hands Xcode no process (#537).
-        var disablesLiveActivities: Bool { has("-UITEST_DISABLE_LIVE_ACTIVITIES") }
+        var disablesLiveActivities: Bool { has(.disableLiveActivities) }
 
-        var startsWithPendingWrite: Bool { has("-UITEST_PENDING_WRITE") }
+        var startsWithPendingWrite: Bool { has(.pendingWrite) }
 
-        var slowsSync: Bool { has("-UITEST_SLOW_SYNC") }
+        var slowsSync: Bool { has(.slowSync) }
 
-        var startsInDeveloperTools: Bool { has("-UITEST_DEVELOPER_TOOLS") }
+        var startsInDeveloperTools: Bool { has(.developerTools) }
 
-        var startsInSettings: Bool { has("-UITEST_SETTINGS") }
+        var startsInSettings: Bool { has(.settings) }
 
         /// Boots signed-in but with **no** spreadsheet selected, so the app shows onboarding's sheet
         /// picker. Combined with the seeded (stale) Block this exercises the onboarding selection
         /// path that previously bypassed the safe Settings switch flow.
-        var startsInOnboarding: Bool { has("-UITEST_ONBOARDING") }
+        var startsInOnboarding: Bool { has(.onboarding) }
 
-        var startsWithCurrentSessionOverride: Bool { has("-UITEST_CURRENT_SESSION_OVERRIDE") }
+        var startsWithCurrentSessionOverride: Bool { has(.currentSessionOverride) }
 
-        var startsWithMoveOnCelebration: Bool { has("-UITEST_MOVE_ON_CELEBRATION") }
+        var startsWithMoveOnCelebration: Bool { has(.moveOnCelebration) }
 
-        var startsWithPerfectMoveOnCelebration: Bool { has("-UITEST_PERFECT_MOVE_ON_CELEBRATION") }
+        var startsWithPerfectMoveOnCelebration: Bool { has(.perfectMoveOnCelebration) }
+
+        var showsLongCelebrationQuote: Bool { has(.longCelebrationQuote) }
 
         var startsInBlockOverview: Bool {
-            !Self.screenArguments.contains(where: arguments.contains)
+            !Self.screenFlags.contains(where: has)
         }
 
         var scenario: Scenario {
-            Self.scenarioArguments.first { has($0.argument) }?.scenario ?? .partialUpload
+            Self.scenarioFlags.first { has($0.flag) }?.scenario ?? .partialUpload
         }
 
         var appearance: AppearancePreference {
             get throws(UnknownAppearance) {
-                guard let flagIndex = arguments.firstIndex(of: "-UITEST_APPEARANCE") else {
+                guard let flagIndex = arguments.firstIndex(of: LaunchFlag.appearance.argument) else {
                     return .system
                 }
                 let value = arguments.dropFirst(flagIndex + 1).first ?? ""
@@ -92,12 +91,12 @@
 
             var description: String {
                 let accepted = AppearancePreference.allCases.map(\.rawValue).joined(separator: ", ")
-                return "-UITEST_APPEARANCE takes \(accepted), not \"\(value)\""
+                return "\(LaunchFlag.appearance.argument) takes \(accepted), not \"\(value)\""
             }
         }
 
-        private func has(_ argument: String) -> Bool {
-            arguments.contains(argument)
+        private func has(_ flag: LaunchFlag) -> Bool {
+            arguments.contains(flag.argument)
         }
     }
 #endif
