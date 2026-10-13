@@ -67,6 +67,22 @@ custom_rules:
     included: '.*/App/Views/.*'
     severity: error
 
+  # System hierarchical inks resolve against UIKit's grey label colours, not the Greenhouse palette,
+  # so ContrastTests cannot measure them (RETRO 8: UI-12 shipped Day text at 3.1:1 this way).
+  system_ink_outside_the_palette:
+    name: "System ink outside the palette"
+    message: >
+      Draw this ink from the palette (palette.textSecondary, palette.textPrimary, or the role the
+      surrounding view uses). System .secondary / .tertiary / .quaternary and the UIKit *Label
+      colours ignore the Greenhouse palette, so ContrastTests cannot hold them to WCAG AA.
+    regex: '((?<![\w)\]])\.|\b(Color|HierarchicalShapeStyle)\.)(secondary|tertiary|quaternary)\b|\.(secondary|tertiary|quaternary)Label\b'
+    included: '.*/App/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
   # The vacuous-test trap (issues #608, #636). `message:` below is the reason a reader gets at the
   # violation; this is the reason the pattern has the shape it has.
   #
