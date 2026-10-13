@@ -6,6 +6,7 @@ import UIKit
 /// briefly swaps the line for a "Copied" confirmation.
 struct BuildIdentityFooter: View {
     let identity: BuildIdentity
+    @Environment(\.themePalette) private var palette
     @State private var didCopy = false
 
     init(identity: BuildIdentity = .current) {
@@ -17,7 +18,7 @@ struct BuildIdentityFooter: View {
             Text(didCopy ? "Copied" : identity.compactLine)
                 .font(Theme.font(.cadence))
                 .monospaced()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
         }

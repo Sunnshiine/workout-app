@@ -13,7 +13,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Appearance") {
+                Section {
                     Picker("Appearance", selection: appearanceSelection) {
                         ForEach(AppearancePreference.allCases, id: \.self) { appearance in
                             Text(appearance.label).tag(appearance)
@@ -21,19 +21,31 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("settings-appearance-picker")
+                } header: {
+                    Text("Appearance").foregroundStyle(palette.textSecondary)
                 }
                 .listRowBackground(palette.surface)
 
-                Section("Rest") {
+                Section {
                     Stepper(value: standardRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
-                        LabeledContent("Standard", value: settings.standardRestDuration.displayText)
+                        LabeledContent {
+                            RowValue(text: settings.standardRestDuration.displayText)
+                        } label: {
+                            Text("Standard")
+                        }
                     }
                     .accessibilityIdentifier("settings-standard-rest-stepper")
 
                     Stepper(value: supersetRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
-                        LabeledContent("Superset rest", value: settings.supersetRestDuration.displayText)
+                        LabeledContent {
+                            RowValue(text: settings.supersetRestDuration.displayText)
+                        } label: {
+                            Text("Superset rest")
+                        }
                     }
                     .accessibilityIdentifier("settings-superset-rest-stepper")
+                } header: {
+                    Text("Rest").foregroundStyle(palette.textSecondary)
                 }
                 .labeledContentStyle(StackedAtAccessibilitySizes())
                 .listRowBackground(palette.surface)
@@ -43,7 +55,7 @@ struct SettingsView: View {
                         isSheetPickerPresented = true
                     } label: {
                         LabeledContent {
-                            Text(sheetDisplayName)
+                            RowValue(text: sheetDisplayName)
                         } label: {
                             RowLabel(title: "Training Sheet")
                         }
@@ -55,7 +67,7 @@ struct SettingsView: View {
                         Task { await connection.syncNow() }
                     } label: {
                         LabeledContent {
-                            Text(connection.syncNowDetail)
+                            RowValue(text: connection.syncNowDetail)
                         } label: {
                             RowLabel(title: "Sync now")
                         }
@@ -261,6 +273,16 @@ private struct RowLabel: View {
 
     var body: some View {
         Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
+    }
+}
+
+private struct RowValue: View {
+    @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.themePalette) private var palette
+    let text: String
+
+    var body: some View {
+        Text(text).foregroundStyle(isEnabled ? palette.textSecondary : Color(.tertiaryLabel))
     }
 }
 
