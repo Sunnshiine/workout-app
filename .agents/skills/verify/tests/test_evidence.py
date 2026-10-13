@@ -918,6 +918,18 @@ i=0
 while [ ! -f "{dir}/release" ] && [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
 exit 1
 """
+def fake_checkout(root):
+    checkout = root / "checkout"
+    skill = checkout / ".agents" / "skills" / "verify"
+    skill.mkdir(parents=True)
+    (checkout / "scripts").mkdir()
+    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
+        (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
+    for name in ["verify.sh", "tree.py"]:
+        (skill / name).symlink_to(SKILL / name)
+    return checkout
+
+
 FIXTURE_APP = [sys.executable, "-c", "import time; time.sleep(60)", "-UITEST_FIXTURE"]
 
 
@@ -932,6 +944,7 @@ class SimulatorLock(unittest.TestCase):
             (self.stubs / tool).chmod(0o755)
         self.path = "%s:%s" % (self.stubs, os.environ["PATH"])
         self.runs = []
+        self.checkout = fake_checkout(self.stubs)
 
     def tearDown(self):
         (self.stubs / "release").touch()
@@ -964,7 +977,7 @@ class SimulatorLock(unittest.TestCase):
         return run
 
     def spawn_test_sim(self, hold=False):
-        return self.spawn([str(REPO / "scripts" / "test-sim.sh"), "--sim", self.sim, "unit"], hold)
+        return self.spawn([str(self.checkout / "scripts" / "test-sim.sh"), "--sim", self.sim, "unit"], hold)
 
     def wait_for_hold(self, run, stub):
         for _ in range(100):
@@ -1005,7 +1018,7 @@ class SimulatorLock(unittest.TestCase):
         self.assertEqual(
             err,
             "a verify run owner-626 owns the app on %s (pid %d); if it is yours, run: SIM=%s VERIFY_RUN=owner-626 "
-            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, REPO),
+            "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n" % (self.sim, app.pid, self.sim, self.checkout),
             "names the verify run and its app, and a stop that frees this simulator from any directory",
         )
         self.assertEqual(self.calls(), [], "refused before xcodebuild")
@@ -1268,14 +1281,7 @@ def pick_udid(serial):
 class SimulatorPick(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
-        self.checkout = self.tmp / "checkout"
-        skill = self.checkout / ".agents" / "skills" / "verify"
-        skill.mkdir(parents=True)
-        (self.checkout / "scripts").mkdir()
-        for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
-            (self.checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
-        for name in ["verify.sh", "tree.py"]:
-            (skill / name).symlink_to(SKILL / name)
+        self.checkout = fake_checkout(self.tmp)
         self.home = self.tmp / "home"
         derived = self.home / "Library" / "Developer" / "Xcode" / "DerivedData" / "WorkoutTracker-test"
         self.app = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
@@ -1329,7 +1335,10 @@ class SimulatorPick(unittest.TestCase):
         return done.returncode, done.stdout, done.stderr, calls.read_text().splitlines() if calls.exists() else []
 
     def run_test_sim(self, *argv):
-        return self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
+        code, out, err, calls = self.run_script([str(self.checkout / "scripts" / "test-sim.sh")] + list(argv or ["visual"]))
+        body, _, last = out.rstrip("\n").rpartition("\n")
+        self.assertRegex(last, r"^test-sim: suite=\S+ passed=- failed=- expected=- exit=%d load1=\S+/\S+ bundle=-$" % code)
+        return code, body + "\n" if body else "", err, calls
 
     def verify(self, *argv, **env):
         return self.run_script([str(self.checkout / ".agents" / "skills" / "verify" / "verify.sh")] + list(argv), **env)
