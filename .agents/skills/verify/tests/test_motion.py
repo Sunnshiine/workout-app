@@ -508,7 +508,7 @@ class CardFrameOnClips(unittest.TestCase):
         code, out, _ = self.lines("ticking", load_after=63.2)
         self.assertEqual(code, 3)
         self.assertEqual(out[:3], [
-            "INVALID take: load 63.2 at the end, at or over 50",
+            "INVALID take: load 63.2 at the end, over 50",
             "take=INVALID animations=on frames=10 window_frames=10",
             "window=start from=0.000 to=2.900 window_s=2.900",
         ])
@@ -1000,7 +1000,7 @@ def reading(rules=(), invalid="", animations="on", no_card=None, lost=0, faint=0
                                look=look, frames=37, load="12.31/14.02")
 
 
-LOAD = "load 63.2 at the end, at or over 50"
+LOAD = "load 63.2 at the end, over 50"
 RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
@@ -1055,7 +1055,7 @@ class Takes(unittest.TestCase):
         record = "/e/lane-head/node-tap.mp4\n/e/lane-head/node-tap.take\ntake node-tap VALID 4.71 s, ...\n"
         launch = "launched session as pid 4121 on SIM (animations on)\napp 804e750cad00\nevidence /e/lane-head\n"
         self.assertEqual(cardstill.recorded_take(record), Path("/e/lane-head/node-tap.take"))
-        self.assertEqual(cardstill.recorded_take("load 63 at or over 50 after 60s\n"), None)
+        self.assertEqual(cardstill.recorded_take("gave up after 540 s waiting for the load to fall to 50 before recording\n"), None)
         self.assertEqual(cardstill.evidence_dir(launch), Path("/e/lane-head"))
 
     def test_each_take_lands_on_the_screen_its_drive_leads_to_and_not_on_the_one_before(self):

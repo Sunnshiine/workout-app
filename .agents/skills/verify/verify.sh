@@ -56,11 +56,11 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               the recorder captures, runs COMMAND (a drive command, launch included),
                               then S more seconds (default 2), stamps load, timing, frames and the
                               verdict, and saves the tree at the take's end as `tree` prints it.
-                              Waits for load under the limit first. Exit 0 VALID, 3 INVALID (both kept,
-                              reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, or the
-                              screen size or the card's frame could not be read from the tree after the
-                              take (nothing kept, a VALID take included), 75 nothing ran (simulator held
-                              or load never fell). A take whose screen never changed after COMMAND began
+                              Waits for the host's load first, as launch does. Exit 0 VALID, 3 INVALID
+                              (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe
+                              failed, or the screen size or the card's frame could not be read from the
+                              tree after the take (nothing kept, a VALID take included), 75 nothing ran
+                              (simulator held or load never fell). A take whose screen never changed after COMMAND began
                               is INVALID, but any change counts, the rest pill's countdown included, so
                               VALID does not say COMMAND did anything; NAME.end.txt shows what it did
   stop                        terminate the app this run launched; the simulator stays up, and it
@@ -81,19 +81,18 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay),
+             VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing),
              WORKOUT_LEASE_MINUTES (60; a run's lease on its app. Every command but build, install,
                   diff, sheet and crop renews it, one with no VERIFY_RUN only before it runs out.
                   Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
                   the simulator and stops the app, and every later command for that run but build,
                   install, diff, sheet and crop exits 75 naming who took it, until it launches again),
              WORKOUT_LOAD_LIMIT (50), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
-             WORKOUT_ADMIT_WAIT (540): launch and install wait while the 1-minute load is over the
-                  limit, and before a boot while WORKOUT_SIM_CAP others are booted; build, and a
-                  build into the app cache, wait for the load and for one of the host's build slots.
+             WORKOUT_ADMIT_WAIT (540): launch, install and record wait while the 1-minute load is over
+                  the limit, and a take whose load ends over it is INVALID. Launch and install also
+                  wait before a boot while WORKOUT_SIM_CAP others are booted; build, and a build into
+                  the app cache, wait for the load and for one of the host's build slots.
                   A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
-             WORKOUT_LOAD_LIMIT (default 50; record's 1-minute load ceiling),
-             VERIFY_LOAD_WAIT (default 60; seconds record waits for load to fall under it),
-             VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing).
 Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
          refused, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
@@ -649,25 +648,6 @@ keep_video_then_stamp() {
   rmdir "$1" 2>/dev/null || true
 }
 
-admit_load() {
-  local limit=$1 wait=$2 waited=0 step load
-  while :; do
-    load=$(sysctl -n vm.loadavg | awk '{ print $2 }')
-    if awk -v current="$load" -v limit="$limit" 'BEGIN { exit !(current < limit) }'; then
-      echo "$load"
-      return 0
-    fi
-    if [ "$waited" -ge "$wait" ]; then
-      echo "load $load at or over $limit after ${waited}s; nothing recorded or driven" >&2
-      exit 75
-    fi
-    [ "$waited" -gt 0 ] || echo "load $load at or over $limit; waiting up to ${wait}s for it to fall" >&2
-    step=$((wait - waited))
-    [ "$step" -le 5 ] || step=5
-    sleep "$step"
-    waited=$((waited + step))
-  done
-}
 
 reset_keyboard() {
   if show_keyboard; then
@@ -974,13 +954,12 @@ case $cmd in
       [ "$1" = -- ] || usage
       shift
     fi
-    limit=${WORKOUT_LOAD_LIMIT:-50}
-    load_wait=${VERIFY_LOAD_WAIT:-60}
-    { decimal "$tail" && decimal "$limit"; } || usage
-    case $load_wait in ''|*[!0-9]*) echo "VERIFY_LOAD_WAIT is whole seconds: $load_wait" >&2; exit 2 ;; esac
+    decimal "$tail" || usage
     resolve_sim
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
-    load=$(admit_load "$limit" "$load_wait")
+    wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT before recording" \
+      load_clear "$WORKOUT_LOAD_LIMIT"
+    load=$(sysctl -n vm.loadavg | awk '{ print $2 }')
     [ "${1:-}" != launch ] || relaunch="$*"
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
@@ -989,7 +968,7 @@ case $cmd in
     rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
     rc=0
     python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
-      --tail "$tail" --limit "$limit" --load-before "$load" -- "$@" > "$pending/$name.take" || rc=$?
+      --tail "$tail" --limit "$WORKOUT_LOAD_LIMIT" --load-before "$load" -- "$@" > "$pending/$name.take" || rc=$?
     if [ $rc -ne 0 ] && [ $rc -ne 3 ]; then
       rm -f "$pending/$name.mp4" "$pending/$name.take"
       exit $rc

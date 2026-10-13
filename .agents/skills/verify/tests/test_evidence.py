@@ -2684,10 +2684,10 @@ class TakeJudge(unittest.TestCase):
                     take.parse(text)
                 self.assertEqual(str(raised.exception), why)
 
-    def test_load_at_or_over_the_limit_at_the_end(self):
-        self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, at or over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="50.00")), [("load", "load 50.0 at the end, at or over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="49.99")), [])
+    def test_load_over_the_limit_at_the_end_as_host_admission_reads_over(self):
+        self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, over 50")])
+        self.assertEqual(take.judge(stamp_with(load_after="50.01")), [("load", "load 50.0 at the end, over 50")])
+        self.assertEqual(take.judge(stamp_with(load_after="50.00")), [])
 
     def test_load_over_the_limit_at_the_start_is_record_s_refusal_not_a_rule_so_the_take_is_valid(self):
         self.assertEqual(take.judge(stamp_with(load_before="63.20", load_after="14.02")), [])
@@ -2714,7 +2714,7 @@ class TakeJudge(unittest.TestCase):
     def test_every_failed_rule_gives_its_rule_and_reason_in_rule_order_and_the_stamp_lists_the_rules(self):
         broken = stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2", drive_start="3.500")
         self.assertEqual(take.judge(broken), [
-            ("load", "load 70.0 at the end, at or over 50"),
+            ("load", "load 70.0 at the end, over 50"),
             ("recorder_early", "the recorder stopped before the take ended"),
             ("recorder_exit", "recorder exit 2 after SIGINT; the video may be cut short"),
             ("coverage",
@@ -2722,7 +2722,7 @@ class TakeJudge(unittest.TestCase):
         ])
         self.assertEqual(take.take_lines(broken)[-3:], [
             "verdict=INVALID",
-            "invalid=load 70.0 at the end, at or over 50; the recorder stopped before the take ended; recorder exit "
+            "invalid=load 70.0 at the end, over 50; the recorder stopped before the take ended; recorder exit "
             "2 after SIGINT; the video may be cut short; the screen never changed after the drive began at +3.50 s, "
             "so the take shows nothing the drive did",
             "invalid_rules=load,recorder_early,recorder_exit,coverage",
@@ -2850,6 +2850,7 @@ class Record(Lane):
         for marker in ["signals", "stopped"]:
             (self.tmp / marker).unlink(missing_ok=True)
         env.setdefault("VERIFY_RUN", "lane-1")
+        env.setdefault("WORKOUT_LOAD_LIMIT", "50")
         return self.verify("record", "appear", "--tail", "0.5", *argv, **env)
 
     def stamp(self, run=None):
@@ -2927,25 +2928,29 @@ class Record(Lane):
     def test_load_over_the_limit_after_the_take_keeps_it_and_exits_3_with_the_reason(self):
         self.launch()
         code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_AFTER="63.20")
-        self.assertEqual((code, err), (3, "load 63.2 at the end, at or over 50\n"))
+        self.assertEqual((code, err), (3, "load 63.2 at the end, over 50\n"))
         self.assertEqual(SUMMARY.match(out.splitlines()[3]).groups(), ("INVALID", "63.2"))
         values = dict(self.stamp())
         self.assertEqual((values["verdict"], values["invalid"], values["invalid_rules"]),
-                         ("INVALID", "load 63.2 at the end, at or over 50", "load"))
+                         ("INVALID", "load 63.2 at the end, over 50", "load"))
         self.assertEqual(self.listing(self.run), ["appear.end.txt", "appear.mp4", "appear.take", "launches.txt"])
 
     def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):
         self.launch()
-        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20", VERIFY_LOAD_WAIT="0"),
-                         (75, "", "load 63.20 at or over 50 after 0s; nothing recorded or driven\n"))
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20"), (75, "", (
+            "gave up after 0 s waiting for the load to fall to 50 before recording: the 1-minute load is 63.20, "
+            "over 50 (WORKOUT_LOAD_LIMIT)\n")))
         self.assertEqual(self.calls(), [])
         self.assertEqual(self.listing(self.run), ["launches.txt"])
 
     def test_load_that_stays_over_the_limit_is_waited_on_then_refused(self):
         self.launch()
-        self.assertEqual(self.record(STUB_LOAD_BEFORE="50", VERIFY_LOAD_WAIT="1"), (75, "", (
-            "load 50 at or over 50; waiting up to 1s for it to fall\n"
-            "load 50 at or over 50 after 1s; nothing recorded or driven\n")))
+        code, out, err = self.record(STUB_LOAD_BEFORE="50.01", WORKOUT_ADMIT_WAIT="1")
+        self.assertEqual((code, out), (75, ""))
+        self.assertRegex(err, (
+            r"^waiting up to 1 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
+            r"\(WORKOUT_LOAD_LIMIT\)\ngave up after [1-4] s waiting for the load to fall to 50 before recording: the "
+            r"1-minute load is 50\.01, over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
         self.assertEqual(self.calls(), [])
 
     def test_a_run_that_takes_the_simulator_while_record_waits_for_load_is_refused_after_the_wait(self):
@@ -2956,12 +2961,41 @@ class Record(Lane):
         state = Path("/tmp/workout-verify-%s" % self.sim)
         (self.tmp / "bin" / "sysctl").write_text(CLAIMING_SYSCTL_STUB.replace("{dir}", str(self.tmp)).replace(
             "{state}", str(state)).replace("{pid}", str(other.pid)))
-        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", VERIFY_LOAD_WAIT="1"), (75, "", (
-            "load 63.20 at or over 50; waiting up to 1s for it to fall\n"
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", WORKOUT_ADMIT_WAIT="10")
+        self.assertEqual((code, out), (75, ""))
+        self.assertRegex(err, re.escape(
+            "waiting up to 10 s for the load to fall to 50 before recording: the 1-minute load is 63.20, over 50 "
+            "(WORKOUT_LOAD_LIMIT)\n") + r"went ahead after [2-4] s\n" + re.escape(
             "the app on %s belongs to run lane-2 (pid %d), not to lane-1, so this would drive another run's app; "
             "launch yours first: SIM=%s VERIFY_RUN=lane-1 %s launch <fixture>\n"
-            % (self.sim, other.pid, self.sim, self.verify_path))))
+            % (self.sim, other.pid, self.sim, self.verify_path)) + "$")
         self.assertEqual(self.calls(), [])
+
+    def test_a_reclaimed_run_records_nothing_and_is_told_who_reclaimed_it(self):
+        self.launch()
+        Path("/tmp/workout-verify-%s/reclaimed.lane-1" % self.sim).write_text("test-sim.sh run (pid 1) at T\n")
+        for drive in [["tap", "-x", "5", "-y", "6"], ["launch", "--animated", "session"]]:
+            with self.subTest(drive=drive):
+                self.assertEqual(self.record("--", *drive), (75, "", (
+                    "run lane-1 was reclaimed by test-sim.sh run (pid 1) at T; launch again: SIM=%s VERIFY_RUN=lane-1 "
+                    "%s launch <fixture>\n" % (self.sim, self.verify_path))))
+                self.assertEqual(self.calls(), [])
+                self.assertEqual(self.listing(self.run), ["launches.txt"])
+
+    def test_load_at_the_limit_is_admitted_as_host_admission_admits_a_launch(self):
+        self.launch()
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="50.00")
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual(dict(self.stamp())["load_before"], "50.00")
+
+    def test_one_load_limit_admits_and_judges_a_take(self):
+        self.launch()
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20", STUB_LOAD_AFTER="70.00",
+                                     WORKOUT_LOAD_LIMIT="70")
+        self.assertEqual((code, err), (0, ""))
+        values = dict(self.stamp())
+        self.assertEqual((values["load_limit"], values["load_before"], values["load_after"], values["verdict"]),
+                         ("70", "63.20", "70.00", "VALID"))
 
     def test_a_take_of_a_launch_refused_for_another_runs_app_hints_that_launch_as_given(self):
         app = self.own_the_app("owner-1")
@@ -2980,9 +3014,10 @@ class Record(Lane):
     def test_a_take_of_a_launch_refused_after_a_refused_relaunch_hints_that_launch_as_given(self):
         self.verify("install", self.a)
         self.own_the_app("ui12")
-        refusal = "app on %s unchanged: %s; this launch wanted %s" % (
-            self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b))
-        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[0], 75)
+        refusal = ("%s holds %s, and this launch would replace it with %s. To run the cached build: launch --at %s "
+                   "session. To replace it: install, then launch." % (
+                       self.sim, self.cached_build(b"v1\n", self.a), self.worktree_build(b"v2\n", self.b), self.a[:8]))
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12")[:2], (65, ""))
         for drive, hint in [(["launch", "--at", "abc123", "--animated", "session"],
                              "launch --at abc123 --animated session"),
                             (["tap", "-x", "5", "-y", "6"], "launch <fixture>")]:

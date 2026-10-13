@@ -362,7 +362,7 @@ class Side:
         return argv
 
     def record(self, spec: TakeSpec, drive: Sequence[str]) -> Tuple[int, Optional[Path]]:
-        env = {"VERIFY_LOAD_WAIT": "0"} if spec.setup is Setup.AFTER_REST else None
+        env = {"WORKOUT_ADMIT_WAIT": "0"} if spec.setup is Setup.AFTER_REST else None
         verb = ["--", *drive] if drive else []
         code, out = self.verify("record", spec.name, "--tail", str(spec.tail), *verb, env=env)
         return code, recorded_take(out)
