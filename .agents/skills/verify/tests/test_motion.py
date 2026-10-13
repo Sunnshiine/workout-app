@@ -19,6 +19,7 @@ import numpy as np
 
 SKILL = Path(__file__).resolve().parent.parent
 MOTION = SKILL / "motion"
+FIXTURES = SKILL / "tests" / "fixtures"
 sys.path.insert(0, str(SKILL))
 sys.path.insert(0, str(MOTION))
 import cardframe  # noqa: E402
@@ -1063,7 +1064,7 @@ echo "$VERIFY_RUN $*" >> "{dir}/calls"
 case $1 in
   launch) [ ! -e "{dir}/alive" ] || exit 75; touch "{dir}/alive"; echo "evidence {dir}/$VERIFY_RUN" ;;
   stop) rm -f "{dir}/alive" ;;
-  tree) printf 'AXButton\\t\\tSet 1, 185 x 5, logged\\t\\t@20,300 40x40\\nAXButton\\t\\tSet 3, 195 x 5\\t\\t@120,300 40x40\\n' ;;
+  tree) cat "{dir}/tree"; [ ! -e "{dir}/tree.next" ] || mv "{dir}/tree.next" "{dir}/tree" ;;
   record)
     [ -e "{dir}/stamp.take" ] || exit 75
     mkdir -p "{dir}/$VERIFY_RUN"
@@ -1079,12 +1080,50 @@ class Film(unittest.TestCase):
         fake = self.dir / "verify.sh"
         fake.write_text(FAKE_VERIFY.replace("{dir}", str(self.dir)))
         fake.chmod(0o755)
-        self.saved = cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS
-        cardstill.VERIFY, cardstill.REST_END_AFTER_S = fake, 0.0
+        (self.dir / "tree").write_text("AXButton\t\tSet 1, 185 x 5, logged\t\t@20,300 40x40\n"
+                                       "AXButton\t\tSet 3, 195 x 5\t\t@120,300 40x40\n"
+                                       "AXButton\tstage-queue-superset\tSuperset\t\t@334,432 44x44\n")
+        self.saved = cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS, cardstill.PAIR_WAIT_S
+        cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_WAIT_S = fake, 0.0, 0.0
         cardstill.PAIR_TAPS = tuple((ident, 0) for ident, _ in cardstill.PAIR_TAPS)
 
     def tearDown(self):
-        cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS = self.saved
+        cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS, cardstill.PAIR_WAIT_S = self.saved
+
+    def pair_taps(self, queue_tree):
+        (self.dir / "tree").write_text((FIXTURES / queue_tree).read_text())
+        with contextlib.redirect_stderr(io.StringIO()):
+            cardstill.Side("lane-head", None).pair()
+        return [c.split(" ", 1)[1] for c in (self.dir / "calls").read_text().splitlines() if " tap " in c]
+
+    def test_an_app_after_ui_11_pairs_through_the_queue_s_superset_button(self):
+        self.assertEqual(self.pair_taps("04-queue-superset.tree.txt"), [
+            "tap --id stage-queue-button",
+            "tap --id stage-queue-superset",
+            "tap --id stage-queue-row-exercise-1",
+            "tap --id stage-queue-row-superset-0",
+        ])
+
+    def test_an_app_before_ui_11_pairs_through_the_first_row_s_pair_button(self):
+        self.assertEqual(self.pair_taps("03-queue.all.txt"), [
+            "tap --id stage-queue-button",
+            "tap --id stage-queue-pair-exercise-0",
+            "tap --id stage-queue-row-exercise-1",
+            "tap --id stage-queue-row-superset-0",
+        ])
+
+    def test_pairing_waits_for_the_queue_sheet_to_show_its_way_in(self):
+        (self.dir / "tree.next").write_text((FIXTURES / "04-queue-superset.tree.txt").read_text())
+        cardstill.PAIR_WAIT_S = 2.0
+        self.assertEqual(self.pair_taps("01-before.tree.txt")[1], "tap --id stage-queue-superset")
+
+    def test_a_queue_with_neither_way_into_pairing_fails_the_setup_after_one_tap(self):
+        with self.assertRaises(cardstill.SetupFailed) as raised:
+            self.pair_taps("01-before.tree.txt")
+        self.assertEqual(str(raised.exception),
+                         "the queue showed neither stage-queue-superset nor stage-queue-pair-exercise-0")
+        self.assertEqual([c for c in (self.dir / "calls").read_text().splitlines() if " tap " in c],
+                         ["lane-head tap --id stage-queue-button"])
 
     def test_each_relaunch_stops_the_side_s_app_first_so_launch_is_never_refused(self):
         results = cardstill.Side("lane-control", "7fefd137").film()

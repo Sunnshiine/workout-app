@@ -85,9 +85,11 @@ TAKES: Tuple[TakeSpec, ...] = (
     TakeSpec("superset-rest-end", (), 14, Setup.AFTER_REST),
 )
 
+# UI-11 (#857) replaced the first row's Pair button with the sheet's Superset button. Both stay, because
+# every control whose card moves predates it.
+PAIR_ENTRIES: Tuple[str, ...] = ("stage-queue-superset", "stage-queue-pair-exercise-0")
+PAIR_WAIT_S = 3.0
 PAIR_TAPS: Tuple[Tuple[str, float], ...] = (
-    ("stage-queue-button", 0),
-    ("stage-queue-pair-exercise-0", 0),
     ("stage-queue-row-exercise-1", 1),
     ("stage-queue-row-superset-0", 2),
 )
@@ -246,6 +248,11 @@ def node_label(tree: str, n: int) -> Optional[str]:
     return None
 
 
+def pair_entry(tree: str) -> Optional[str]:
+    ids = {line.split("\t")[1] for line in tree.splitlines() if "\t" in line}
+    return next((ident for ident in PAIR_ENTRIES if ident in ids), None)
+
+
 def recorded_take(stdout: str) -> Optional[Path]:
     return next((Path(line) for line in stdout.splitlines() if line.endswith(".take")), None)
 
@@ -286,7 +293,15 @@ class Side:
         self.evidence = evidence_dir(self.must("launch", *at, "--animated", "session")) or self.evidence
 
     def pair(self) -> None:
-        for ident, settle in PAIR_TAPS:
+        self.must("tap", "--id", "stage-queue-button")
+        deadline = time.time() + PAIR_WAIT_S
+        entry = pair_entry(self.must("tree"))
+        while entry is None and time.time() < deadline:
+            time.sleep(0.5)
+            entry = pair_entry(self.must("tree"))
+        if entry is None:
+            raise SetupFailed(f"the queue showed neither {' nor '.join(PAIR_ENTRIES)}")
+        for ident, settle in ((entry, 0), *PAIR_TAPS):
             self.must("tap", "--id", ident)
             time.sleep(settle)
 
