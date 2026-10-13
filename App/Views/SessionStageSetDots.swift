@@ -21,9 +21,9 @@ struct SessionStageSetDots: View {
             case .logged:
                 Circle().fill(palette.accent)
             case .skipped:
-                Circle().fill(Color.secondary.opacity(0.45))
+                Circle().fill(palette.textSecondary.opacity(0.45))
             case .pending:
-                Circle().strokeBorder(Color.secondary.opacity(0.6), lineWidth: 1)
+                Circle().strokeBorder(palette.textSecondary.opacity(0.6), lineWidth: 1)
             }
         }
         .frame(width: dotSize, height: dotSize)

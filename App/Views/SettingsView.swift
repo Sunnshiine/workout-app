@@ -266,12 +266,14 @@ struct SettingsView: View {
 
 /// System blue, named rather than read from the tint, so an app accent colour cannot repaint the
 /// row. A Button whose label is a LabeledContent draws that label in the primary colour once
-/// disabled, where it would read as tappable, so the label dims itself.
+/// disabled, where it would read as tappable, so the label dims itself. Disabled rows keep the
+/// system tertiary label: Settings keeps system colours, and WCAG 1.4.3 exempts an inactive control.
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
     let title: String
 
     var body: some View {
+        // swiftlint:disable:next system_ink_outside_the_palette
         Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
     }
 }
@@ -282,6 +284,7 @@ private struct RowValue: View {
     let text: String
 
     var body: some View {
+        // swiftlint:disable:next system_ink_outside_the_palette
         Text(text).foregroundStyle(isEnabled ? palette.textSecondary : Color(.tertiaryLabel))
     }
 }

@@ -32,6 +32,5 @@ struct LastPerformedCard: View {
         guard let matchedName = presentation.matchedName else { return Text("") }
         return Text(" as “\(matchedName)”")
             .italic()
-            .foregroundStyle(.tertiary)
     }
 }
