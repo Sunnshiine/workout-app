@@ -74,4 +74,28 @@ struct SystemInkOutsideThePalette {
     func shapeStyleSecondaryIsFlagged() -> some View {
         Text("Squat").foregroundStyle(ShapeStyle.secondary)
     }
+
+    func foregroundSecondaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.foreground.secondary)
+    }
+
+    func foregroundTertiaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.foreground.tertiary)
+    }
+
+    func foregroundQuaternaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.foreground.quaternary)
+    }
+
+    func tintSecondaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.tint.secondary)
+    }
+
+    func tintTertiaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.tint.tertiary)
+    }
+
+    func tintQuaternaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.tint.quaternary)
+    }
 }
