@@ -283,12 +283,13 @@ where the tree put it, exits 1 with `no card:` and its reason. A label that swap
 `look=cut` and stays still. A launch take's window opens at the end of iOS's fade-in, the full-screen
 frames in the 0.5 s after the screen leaves black; any later frame that changes three quarters of the
 screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
-take. From the fade's end the window must watch 1.5 s or the take is INVALID. Over 14 launch takes with
-the default 2 s `--tail` the window watched 2.21 to 2.42 s. A build whose card slides in 300 pt from the
-right on first appear read `worst_edge_range` 15.0 to 16.0 with `edges=partial`, `look_ms` 1150 to 1152,
-and `still=no` over three takes. Without `--animated` a launch reads `still=unknown`, because animations
-off hides motion. A card that fades in place read `box=still look=changed` and `look_ms` 975 to 990 over
-three takes. `cardstill.py` prints PASS only when the control commit moved the card on one of its eight
+take. From the fade's end the window must watch 1.5 s or the take is INVALID. These figures come from
+the app before and after the UI refactor stack (a9d1e20c). Over 19 launch takes with the default 2 s
+`--tail` the window watched 2.21 to 2.92 s. A build whose card slides in 300 pt from the right on first
+appear read `worst_edge_range` 15.0 to 17.0 with `edges=partial`, `look_ms` 1150 to 1167, and `still=no`
+over five takes. Without `--animated` a launch reads `still=unknown`, because animations off hides
+motion. A card that fades in place read `box=still look=changed` and `look_ms` 968 to 990 over four
+takes. `cardstill.py` prints PASS only when the control commit moved the card on one of its eight
 takes and the head held it still on all eight.
 After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
