@@ -142,22 +142,24 @@ private enum Surface: CaseIterable {
 private enum Use {
     case text
     case ink(on: [Surface], Bar)
+    case textWithGlyphs(text: [Surface], glyphs: [Surface])
     case ground
     case quiet(String)
 
-    var requirement: (surfaces: [Surface], bar: Bar)? {
+    var requirements: [(surface: Surface, bar: Bar)] {
         switch self {
-        case .text: (Surface.allCases.filter { $0 != .action }, .text)
-        case .ink(let surfaces, let bar): (surfaces, bar)
-        case .ground, .quiet: nil
+        case .text: Surface.allCases.filter { $0 != .action }.map { ($0, .text) }
+        case .ink(let surfaces, let bar): surfaces.map { ($0, bar) }
+        case .textWithGlyphs(let text, let glyphs): text.map { ($0, .text) } + glyphs.map { ($0, .nonText) }
+        case .ground, .quiet: []
         }
     }
 }
 
 private let uses: [String: Use] = [
     "textPrimary": .text,
-    "textSecondary": .text,
-    "actionInk": .text,
+    "textSecondary": .ink(on: Surface.allCases.filter { $0 != .action && $0 != .railSelected }, .text),
+    "actionInk": .textWithGlyphs(text: [.paper, .card], glyphs: [.pill]),
     "supersetPartnerName": .ink(on: [.paper], .text),
     "actionText": .ink(on: [.action], .text),
     "stepperGlyph": .ink(on: [.pill], .nonText),
@@ -205,7 +207,6 @@ private struct ParkedPair: Hashable {
 
 private let dangerCall = "whether danger stays system red or takes a Greenhouse red that holds 3:1 on every ground"
 private let nightActionCall = "whether the Night action green lightens where it marks the page, the card, and the selected chip"
-private let nightActionInkCall = "whether Night actionInk lightens, or the pill and rail fills dim, under the sun wash"
 private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
@@ -236,9 +237,6 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "prescriptionTick", .rail, floor: 1.48, "whether the Night prescription tick lightens off the action green"),
     (.night, "prescriptionTick", .railSelected, floor: 1.06, "whether the Night prescription tick lightens off the action green"),
     (.night, "actionText", .action, floor: 4.23, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
-    (.night, "actionInk", .pill, floor: 4.01, nightActionInkCall),
-    (.night, "actionInk", .rail, floor: 4.01, nightActionInkCall),
-    (.night, "actionInk", .railSelected, floor: 2.89, nightActionInkCall),
     (.night, "textPrimary", .railSelected, floor: 4.40, "whether the Night selected chip fill dims under the sun wash"),
     (.night, "stem", .paper, floor: 2.62, nightBranchCall),
     (.night, "leafFill", .paper, floor: 2.62, nightBranchCall),
@@ -248,14 +246,12 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .card, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .pill, floor: 2.81, nightSecondaryCall),
     (.night, "textSecondary", .rail, floor: 2.81, nightSecondaryCall),
-    (.night, "textSecondary", .railSelected, floor: 2.03, nightSecondaryCall),
     (.night, "textSecondary", .foot, floor: 3.38, nightSecondaryCall),
     (.night, "textSecondary", .focusCard, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .raisedControl, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .weekCard, floor: 3.38, nightSecondaryCall),
     (.night, "textSecondary", .carvedChip, floor: 3.38, nightSecondaryCall),
     (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
-    (.day, "actionInk", .carvedChip, floor: 4.17, "whether Day actionInk darkens under the foot wash"),
     (
         .day, "supersetPartnerName", .paper, floor: 3.40,
         "whether the partner name may sit over a wash; UI-14 measured 4.5:1 only where none reaches"
@@ -318,13 +314,26 @@ private func describe(_ sample: GroundSample) -> String {
     #expect(keyed.subtracting(roles).sorted() == [], "Use keys that name no palette role")
 }
 
+// withKnownIssue fails only on a row the matrix still measures, so a row whose pair left `uses` needs this.
+@Test func everyParkedPairIsOneTheMatrixMeasures() {
+    let measured = Set(
+        Theme.Appearance.allCases.flatMap { appearance in
+            uses.flatMap { role, use in
+                use.requirements.map { ParkedPair(appearance: appearance, role: role, surface: $0.surface) }
+            }
+        }
+    )
+    let unmeasured = parked.keys.filter { !measured.contains($0) }.map { "\($0.appearance) \($0.role) on \($0.surface)" }
+    #expect(unmeasured.sorted() == [], "parked pairs no view draws")
+}
+
 @Test(arguments: Theme.Appearance.allCases)
 func everyBarredInkClearsItsBarOnEverySurfaceItIsDrawnOn(appearance: Theme.Appearance) {
     let palette = Theme.palette(for: appearance)
     let inks = paletteInks(palette)
     for (role, use) in uses.sorted(by: { $0.key < $1.key }) {
-        guard let (surfaces, bar) = use.requirement, case let ink?? = inks[role] else { continue }
-        for surface in surfaces {
+        guard case let ink?? = inks[role] else { continue }
+        for (surface, bar) in use.requirements {
             let worst = worstCase(of: ink, on: surface, palette)
             let measured = String(format: "%.2f", worst.ratio)
             let comment: Comment = """
