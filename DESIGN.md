@@ -137,8 +137,9 @@ one serif voice — never from hype, density, or gamification.
 - **Light leads.** Day (sage-light) is the primary appearance. Night is the
   same room re-lit — never recolored, never neutral black.
 - **One living thing per page.** The Session stage's branch is the app's only
-  flora and, with the day tiles' state marks, effectively its only icon —
-  **maximum one icon per page**.
+  flora and, with the day tiles' state marks, effectively its only
+  illustrative icon — **maximum one illustrative icon per page**. Control
+  glyphs are not icons in this budget (§8).
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
@@ -188,8 +189,9 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
   action role at night** (it reads candy and reverts to cockpit); the Log
   capsule stays green-fill with cream text in both appearances.
 - **`actionDayInk` (`#0A5936`) / `actionNightInk` (`#A8CFB4`)** — the action
-  green as words and glyphs on paper and as the system tint. Day uses the
-  pressed Log green; Night is `actionNight` under cream @ 65%. The action
+  green as words and glyphs on paper and as the system tint, except on
+  Settings action rows (§5.9). Day uses the pressed Log green; Night is
+  `actionNight` under cream @ 65%. The action
   greens stay fill and stroke colours: as small text `#1F8552` measures 1.9 to
   3.7:1 on night paper, and `#0D6B40` 4.0 to 4.4:1 on the queue sheet's darker
   foot.
@@ -394,6 +396,7 @@ trophy. A dashed leaf is honest about a Skip; a full branch marks
 completion, not achievement.
 
 **One Icon Per Page Rule.** The branch is the stage's icon budget spent.
+Control glyphs (back arrow, pin, X) do not draw on it (§8).
 Other pages spend theirs as sparingly (the Block grid spends its on nothing —
 tiles are wordless fills).
 
@@ -656,8 +659,8 @@ unchanged (§5.2).
   hue-preserved sage paper.
 - **Do** keep Fraunces to the Exercise name and ceremony, and every numeral
   bold + tabular.
-- **Do** spend at most one icon per page, and let the branch be it on the
-  stage.
+- **Do** spend at most one illustrative icon per page, and let the branch be
+  it on the stage.
 - **Do** prefer a self-describing glyph (X, back arrow, pin, the stem) to an
   action spelled out in words, give each icon-only control an accessibility
   label, and keep on-screen text to a minimum (operator ruling 2026-10-11).

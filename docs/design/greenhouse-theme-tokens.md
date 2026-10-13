@@ -137,7 +137,7 @@ composition itself are locked by #455.
 |---|---|---|
 | `action` (fill) | actionDay | actionNight |
 | `actionText` | cream | cream |
-| `actionInk` (green words and glyphs on paper, system tint) | actionDayInk | actionNightInk |
+| `actionInk` (green words and glyphs on paper, system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
 | pressed/logged fill | `#0A5936` | — (build) |
 | `skipFillOverlay` | muted @ 30% | — (build) |
