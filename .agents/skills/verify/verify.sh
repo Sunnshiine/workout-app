@@ -964,7 +964,6 @@ case $cmd in
     name=${1:-}
     valid_name "$name"
     shift
-    # Over cardframe.py's MIN_WINDOW_S, so a tap take with the default tail is long enough to judge.
     tail=2
     if [ "${1:-}" = --tail ]; then
       [ $# -ge 2 ] || usage
@@ -1000,13 +999,13 @@ case $cmd in
       echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
       exit 70
     fi
-    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card) \
-      || ! printf '%s\n' "$ui" | python3 "$tree" flat > "$pending/$name.end.txt" 2>/dev/null; then
-      rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
+    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card); then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
       echo "could not read active-set-card's frame from the accessibility tree after the take," \
         "so $name.take cannot say where the card is; run: $0 doctor" >&2
       exit 70
     fi
+    printf '%s\n' "$ui" | python3 "$tree" flat > "$pending/$name.end.txt" 2>/dev/null
     animations=unknown
     if [ -f "$state_dir/args" ]; then
       animations=on

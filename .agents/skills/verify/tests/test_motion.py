@@ -1078,6 +1078,10 @@ class Takes(unittest.TestCase):
             'the take ended without stage-exercise-name "BB RDL"',
             "the take ended with rest-pill still on screen",
         ])
+        self.assertEqual(cardstill.landing_miss(cardstill.TAKES[3], ended_on(LOGGED)),
+                         'the take ended without "Set 3 of 3"', "a closed review on another Set did not land")
+        self.assertEqual(cardstill.landing_miss(cardstill.TAKES[7], ended_on(screen(SQUAT, card_heading(2, 3)))),
+                         'the take ended without stage-exercise-name "BB RDL"', "a rest that ended off the partner")
 
     def test_a_take_with_no_end_tree_beside_its_stamp_did_not_show_it_landed(self):
         self.assertEqual(cardstill.landing_miss(cardstill.TAKES[1], Path(tempfile.mkdtemp()) / "node-tap.take"),
@@ -1097,8 +1101,6 @@ def card_heading(n, of):
     return ("AXStaticText", "", f"Set {n} of {of}", "", "@32,492 59x23")
 
 
-# The lines cardstill's marks read from `verify.sh tree` on the head after each drive, as the control
-# (9a72f8dc) shows them too: proof/E-3b/fix5-explore-{head,control}.txt.
 LAUNCHED = screen(SQUAT, card_heading(1, 3), ("AXButton", "log-active-set-button", "Log 237.5 × 5 @6", "",
                                               "@32,712 338x58"))
 LOGGED = screen(SQUAT, card_heading(2, 3), RESTING)
@@ -1237,15 +1239,15 @@ class Film(unittest.TestCase):
         self.assertEqual(lines[-1], "measure lane-head/superset-rest-end")
         self.assertEqual(code, 3)
 
-    def lane(self, head_node_tap_ends_on):
+    def lane(self, side, node_tap_ends_on):
         (self.dir / "stamp.take").write_text("\n".join(take.take_lines(dataclasses.replace(TAKE, started=1000.0)) + [
             "screen_pt=200x400", "animations=on", "app="]) + "\n")
         ends = [LOGGED, NODE_3, REVIEW, COLLAPSED, SWITCHED, PARTNER, SWITCHED, RESTED]
-        for side in ("lane-control", "lane-head"):
-            (self.dir / "end" / side).mkdir(parents=True)
+        for run in ("lane-control", "lane-head"):
+            (self.dir / "end" / run).mkdir(parents=True)
             for spec, tree in zip(cardstill.TAKES, ends):
-                (self.dir / "end" / side / spec.name).write_text(tree)
-        (self.dir / "end" / "lane-head" / "node-tap").write_text(head_node_tap_ends_on)
+                (self.dir / "end" / run / spec.name).write_text(tree)
+        (self.dir / "end" / side / "node-tap").write_text(node_tap_ends_on)
 
         def measure(video):
             moved = video.parent.name == "lane-control" and video.stem == "node-tap"
@@ -1260,11 +1262,15 @@ class Film(unittest.TestCase):
         return code, out.getvalue().splitlines()[-1]
 
     def test_a_head_drive_that_left_the_screen_as_it_was_is_invalid_though_its_card_held_still(self):
-        self.assertEqual(self.lane(head_node_tap_ends_on=LOGGED), (
+        self.assertEqual(self.lane("lane-head", node_tap_ends_on=LOGGED), (
             3, 'cardstill INVALID: head node-tap: the take ended without "Set 3 of 3"'))
 
+    def test_a_control_drive_that_did_not_land_is_invalid_though_its_card_moved(self):
+        self.assertEqual(self.lane("lane-control", node_tap_ends_on=LOGGED), (
+            3, 'cardstill INVALID: control node-tap: the take ended without "Set 3 of 3"'))
+
     def test_the_same_lane_passes_when_that_drive_landed(self):
-        self.assertEqual(self.lane(head_node_tap_ends_on=NODE_3), (
+        self.assertEqual(self.lane("lane-head", node_tap_ends_on=NODE_3), (
             0, "cardstill PASS: the head held the card still on every take; the control 7fefd137 moved it on 1"))
 
 
@@ -1332,20 +1338,20 @@ class JudgeTake(unittest.TestCase):
             with self.subTest(record_exit=record_exit, reading=r, late=late):
                 self.assertEqual(cardstill.judge_take(record_exit, r, late), expected)
 
-
-    def test_a_take_that_did_not_land_is_invalid_unless_its_card_moved_or_was_lost(self):
+    def test_a_take_that_did_not_land_is_invalid_even_when_its_card_moved(self):
         missed = 'the take ended without "Set 3 of 3"'
         cases = [
             (0, reading(), (Verdict.INVALID, missed)),
             (3, reading(rules=("load",), invalid=LOAD), (Verdict.INVALID, missed)),
             (0, reading(no_card=NO_FRAMES), (Verdict.INVALID, missed)),
-            (0, reading(worst=412.0), (Verdict.FAIL, "an edge moved 412.0 pt")),
-            (0, reading(lost=2), (Verdict.FAIL, "lost the card in 2 frames")),
+            (0, reading(worst=412.0), (Verdict.INVALID, missed)),
+            (0, reading(lost=2), (Verdict.INVALID, missed)),
             (75, reading(), (Verdict.INVALID, "record exited 75")),
         ]
         for record_exit, r, expected in cases:
             with self.subTest(record_exit=record_exit, reading=r):
                 self.assertEqual(cardstill.judge_take(record_exit, r, 0.0, missed), expected)
+
 
 class LaneVerdict(unittest.TestCase):
     def test_a_head_fail_fails_the_lane_even_beside_invalid_takes(self):

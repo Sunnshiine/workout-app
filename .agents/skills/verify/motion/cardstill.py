@@ -14,13 +14,12 @@ filmed, so measuring never loads the host before a take. The rest-end take start
 log tap, timed from that take's stamp, and is late when its own stamp started more than 2 s after that.
 
 A take is INVALID when record did not exit 0 or 3 with a stamp, as when it exits 70 because it could not
-read the screen's size or the card's frame from the tree. Else it FAILs when the card was lost or an edge
+read the screen's size or the card's frame from the tree, or when the tree record saved at the take's end
+(NAME.end.txt) lacks what the take's drive leads to, the marks TAKES lists beside each drive: the next Set
+active after a log, the review open, then closed, the Superset partner in front, the rest pill gone. Else
+it FAILs when the card was lost or an edge
 ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window under
 1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
-INVALID when the tree record saved at the take's end (NAME.end.txt) lacks what the take's drive leads to,
-the marks TAKES lists beside each drive: the next Set active after a log, the review open, the Superset
-partner in front, the rest pill gone. A drive that exits 0 and changes nothing is a VALID take of a still
-card whenever the rest pill counts down, so only the tree says the drive landed. Else it is
 INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, or its animations are not on, the rule that keeps cardframe
 from printing still=yes; or when it started late, or cardframe read no card (none in the tree, none in
@@ -102,22 +101,25 @@ TAKES: Tuple[TakeSpec, ...] = (
     TakeSpec("node-tap", ("tap", "--label", SetNode(3)), 2, (Mark(label="Set 3 of 3"),)),
     TakeSpec("review-open", ("tap", "--label", SetNode(1)), 2, (Mark(label="Collapse logged set"),)),
     TakeSpec("review-collapse", ("tap", "--label", "Collapse logged set"), 2,
-             (Mark(label="Collapse logged set", shown=False),)),
+             (Mark(label="Collapse logged set", shown=False), Mark(label="Set 3 of 3"))),
     TakeSpec("superset-log-switch", ("tap", "--id", "log-active-set-button"), 3,
              (Mark("stage-exercise-name", "BB RDL"), RESTING), Setup.LAUNCH_AND_PAIR),
     TakeSpec("partner-tap", ("tap", "--id", "superset-partner-name"), 2, (Mark("stage-exercise-name", "Back Squat"),)),
     TakeSpec("partner-tap-back", ("tap", "--id", "superset-partner-name"), 2,
              (Mark("stage-exercise-name", "BB RDL"),)),
-    TakeSpec("superset-rest-end", (), 14, (Mark("rest-pill", shown=False),), Setup.AFTER_REST),
+    TakeSpec("superset-rest-end", (), 14, (Mark("rest-pill", shown=False), Mark("stage-exercise-name", "BB RDL")),
+             Setup.AFTER_REST),
 )
 
 
 def landing_miss(spec: TakeSpec, take_path: Path) -> Optional[str]:
+    end = take_path.with_suffix(".end.txt")
     try:
-        tree = take_path.with_suffix(".end.txt").read_text()
+        tree = end.read_text()
     except OSError:
-        return f"record left no {take_path.with_suffix('.end.txt').name} to check the take landed"
+        return f"record left no {end.name} to check the take landed"
     return next((mark.missed() for mark in spec.lands if not mark.held_by(tree)), None)
+
 
 PAIR_ENTRY_BY_APP: Dict[str, str] = {
     "since UI-11 (#857)": "stage-queue-superset",
@@ -173,13 +175,13 @@ def judge_take(record_exit: int, reading: Optional[Reading], late_s: float = 0.0
         return Verdict.INVALID, f"record exited {record_exit}"
     if reading is None:
         return Verdict.INVALID, "record left no stamp"
+    if missed is not None:
+        return Verdict.INVALID, missed
     seen_soundly = reading.no_card is None and cardframe.moved_counts(reading.rules)
     if seen_soundly and reading.lost > 0:
         return Verdict.FAIL, f"lost the card in {reading.lost} frames"
     if seen_soundly and reading.worst_edge_range > cardframe.STILL_PT:
         return Verdict.FAIL, f"an edge moved {reading.worst_edge_range:.1f} pt"
-    if missed is not None:
-        return Verdict.INVALID, missed
     if reading.unvouched is not None:
         return Verdict.INVALID, reading.unvouched
     if late_s > 0:

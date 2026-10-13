@@ -290,8 +290,8 @@ frames in the 0.5 s after the screen leaves black; any later frame that changes 
 screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
 take. From the fade's end the window must watch 1.5 s or the take is INVALID. `cardstill.py` prints PASS
 only when the control commit moved the card on one of its eight takes and the head held it still on all
-eight. Each take's `.end.txt` must show where its drive leads (the next Set active, the review open, the
-partner in front, the rest pill gone), or the take is INVALID.
+eight. Each take's `.end.txt` must show where its drive leads (the next Set active, the review open, then
+closed, the partner in front, the rest pill gone), or the take is INVALID.
 
 Judge a take by its reads, never by its numbers. The contract is the exit codes, `VALID` or `INVALID`,
 `still=`, `box=`, `look=` and `edges=`. `cardframe.py` exits 0 when it measured, 1 with no card, and 3
