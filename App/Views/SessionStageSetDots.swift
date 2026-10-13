@@ -17,8 +17,8 @@ struct SessionStageSetDots: View {
     @ViewBuilder
     private func dot(for set: ExerciseSet) -> some View {
         Group {
-            // System secondary until a palette role holds 3:1 for these dots. The quiet skipStroke and
-            // futureStroke roles would drop the Night pending ring from 2.9:1 to 1.9:1.
+            // System secondary until a palette role holds 3:1 for these dots. On the Night paper the
+            // pending ring's worst case is 2.48:1; the quiet futureStroke role would drop it to 1.57:1.
             switch set.state {
             case .logged:
                 Circle().fill(palette.accent)
