@@ -197,8 +197,8 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
 - `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
   touches anything else while a run holds the simulator. It then saves any uncommitted or staged
   diff, untracked files, commits no branch holds, and the lane's results under `.build` (`test-sim`,
-  `verify`, `crap`, `flake-hunt`) into that evidence directory, and removes the worktree and its
-  DerivedData.
+  `verify`, `crap`, `flake-hunt`, `mutate`, `check-each-commit`) into that evidence directory, and
+  removes the worktree and its DerivedData.
 - `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
   as a candidate, and `--apply` removes it through `lane.sh down`.
 

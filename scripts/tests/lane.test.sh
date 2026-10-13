@@ -269,8 +269,8 @@ expect "down then bundles that commit" "$status $(git -C "$primary" bundle list-
 
 lane up results "$c1"
 results=$(grep -rhoE --include='*.sh' --exclude-dir=tests '\.build/[A-Za-z0-9_-]+' "$scripts" "$scripts/../.agents" \
-    | sed 's|^\.build/||' | grep -vx debug | sort -u | tr '\n' ' ')
-for d in $results debug; do
+    | sed 's|^\.build/||' | grep -vxE 'debug|scratch' | sort -u | tr '\n' ' ')
+for d in $results debug scratch; do
     mkdir -p "$lanes/results/.build/$d"
     echo "$d" >"$lanes/results/.build/$d/result.txt"
 done
@@ -283,7 +283,7 @@ lane down results
 saved=$(ls -d "$evidence/detached-results"/down-* 2>/dev/null | head -1)
 expect "down saves every results dir under .build the repo's scripts write, and the CLI's home, but no build products" \
     "$status $results| $(cd "$saved" && find . -type f ! -name head.txt ! -name untracked.tar | sort | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
-    "0 crap flake-hunt test-sim verify | ./crap/result.txt ./flake-hunt/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
+    "0 check-each-commit crap flake-hunt mutate test-sim verify | ./check-each-commit/result.txt ./crap/result.txt ./flake-hunt/result.txt ./mutate/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
 
 lane up staged "$c1"
 echo staged >"$lanes/staged/staged.txt"

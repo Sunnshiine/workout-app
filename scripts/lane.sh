@@ -26,7 +26,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           uncommitted.diff against HEAD, staged.diff of the index against HEAD, untracked.tar of
           untracked and ignored files except regenerable ones, commits.bundle of commits no branch
           or tag holds, copies of the results dirs .build/test-sim, .build/verify without its
-          node_modules, .build/crap, and .build/flake-hunt); then remove the worktree and its
+          node_modules, .build/crap, .build/flake-hunt, .build/mutate, and .build/check-each-commit);
+          then remove the worktree and its
           DerivedData. Each step skips what is already gone, so a second down exits 0. --if-idle
           removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
@@ -336,7 +337,7 @@ save_lane() {
     save_commits "$dir/commits.bundle" || die 70 "could not save commits.bundle"
     echo commits.bundle
   fi
-  for d in test-sim verify crap flake-hunt; do
+  for d in test-sim verify crap flake-hunt mutate check-each-commit; do
     [ -d "$wt/.build/$d" ] || continue
     copy_results "$d" || die 70 "could not copy .build/$d"
     echo "$d"
