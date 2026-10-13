@@ -472,6 +472,7 @@ fixture_run 20991231-000007 "$finished" "$(minutes_ago 10)"
 fixture_run 20991231-000008 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." "$(date -v-25H +%Y%m%d%H%M)"
 fixture_run 20991231-000012 "✔ Test run with 1 test in 1 suite passed after 1.000 seconds." "$(date -v-2H +%Y%m%d%H%M)"
 echo notes >"$logs/20200101-000000-notes.txt"
+echo notes >"$logs/20991231-000001-notes.txt"
 echo notes >"$logs/README.txt"
 mkdir "$logs/unit.xcresult"
 touch -t 202001010000 "$logs/20200101-000000-notes.txt" "$logs/README.txt" "$logs/unit.xcresult"
@@ -482,6 +483,7 @@ expect "a run deletes every file of a finished run older than the five written l
 20200101-000000-notes.txt
 20991231-000000-test.log
 20991231-000000.xcresult
+20991231-000001-notes.txt
 20991231-000003-build.log
 20991231-000003-diffs
 20991231-000003-test.log
@@ -510,9 +512,10 @@ README.txt
 unit.xcresult"
 expect "a run's test log ends with its result line" "$(tail -1 "$logs/20991231-000000-test.log")" \
     "test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=$logs/20991231-000000.xcresult"
-expect "a file whose name only starts with a stamp, and a file with no stamp, survive" \
-    "$(cd "$logs" && ls -d 20200101-000000-notes.txt README.txt unit.xcresult)" \
+expect "a file whose name only starts with a stamp, even a deleted run's, and a file with no stamp, survive" \
+    "$(cd "$logs" && ls -d 20200101-000000-notes.txt 20991231-000001-notes.txt README.txt unit.xcresult)" \
 "20200101-000000-notes.txt
+20991231-000001-notes.txt
 README.txt
 unit.xcresult"
 expect "a run with no result line, untouched for 24 hours, is abandoned and deleted" \
