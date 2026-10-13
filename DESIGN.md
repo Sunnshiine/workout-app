@@ -137,9 +137,9 @@ one serif voice — never from hype, density, or gamification.
 - **Light leads.** Day (sage-light) is the primary appearance. Night is the
   same room re-lit — never recolored, never neutral black.
 - **One living thing per page.** The Session stage's branch is the app's only
-  flora and, with the day tiles' state marks, effectively its only
-  illustrative icon — **maximum one illustrative icon per page**. Control
-  glyphs are not icons in this budget (§8).
+  flora and the stage's one illustrative icon — **maximum one illustrative
+  icon per page**. Control glyphs (back arrow, pin, X, and the queue sheet's
+  pairing stems, §5.4) do not count against it.
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
@@ -179,7 +179,7 @@ near-black drifts back toward the cockpit), leaves as moonlit foliage
 A small paint box plus flat semantic roles; views consume roles only, via the
 environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
 
-- **`ink` / `inkNight`** — text; at low opacity, carved chips, scrims, shadows.
+- **`ink` / `inkNight`** — text; at low opacity, carved chips, shadows.
 - **`muted` / `mutedNight`** — secondary text, skip strokes, ghost strokes.
 - **`cream` (`#F2F7E8`)** — the workhorse: surfaces, pills, buds, leaf ribs,
   and text on action fills.
@@ -396,7 +396,7 @@ trophy. A dashed leaf is honest about a Skip; a full branch marks
 completion, not achievement.
 
 **One Icon Per Page Rule.** The branch is the stage's icon budget spent.
-Control glyphs (back arrow, pin, X) do not draw on it (§8).
+Control glyphs (§1) do not draw on it.
 Other pages spend theirs as sparingly (the Block grid spends its on nothing —
 tiles are wordless fills).
 
@@ -661,7 +661,7 @@ unchanged (§5.2).
   bold + tabular.
 - **Do** spend at most one illustrative icon per page, and let the branch be
   it on the stage.
-- **Do** prefer a self-describing glyph (X, back arrow, pin, the stem) to an
+- **Do** prefer a self-describing glyph (X, back arrow, pin, a pairing stem) to an
   action spelled out in words, give each icon-only control an accessibility
   label, and keep on-screen text to a minimum (operator ruling 2026-10-11).
 - **Do** use exact domain language from CONTEXT.md: Block, Week, Session,
