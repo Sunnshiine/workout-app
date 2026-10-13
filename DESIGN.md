@@ -195,7 +195,8 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
   foot.
 - **`foliage` (`#579168`)** — *the* night pigment: leaves, stems, bird, and
   Block-grid tiles all re-light to this.
-- **`paperDay` / `paperNight`** — the base gradient pairs under the washes.
+- **`paperDayTop` → `paperDayBottom` / `paperNightTop` → `paperNightBottom`** — the
+  base gradient pairs under the washes.
 - **`danger`** — system red, hold-to-skip only. Carried forward unchanged; no
   Greenhouse prototype styled an error state, so it awaits the build.
 

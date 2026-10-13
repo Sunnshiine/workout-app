@@ -1,5 +1,7 @@
 # Settings
 
+<!-- doc-symbols: not-in-tree BackButton -->
+
 Settings lets the athlete pick appearance, set rest timers, see and change the connected training sheet, sync now, sign out, copy the build identity, and reach Developer Tools.
 
 ## Sub-features

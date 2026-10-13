@@ -89,7 +89,6 @@ appearance.
 |---|---|---|
 | `textPrimary` | ink | inkNight |
 | `textSecondary` | muted | mutedNight |
-| `homeBar` | ink @ 20% | cream @ 22% |
 
 ### Stage & branch
 
@@ -100,7 +99,6 @@ appearance.
 | `leafRib` | cream @ 50% | cream @ 55% |
 | `budFill` | cream @ 95% | cream @ 92% |
 | `budStroke` | actionDay | `#78F0B2` |
-| `budRib` | actionDay @ 55% | foliage @ 60% |
 | `futureStroke` | actionDay @ 40% | foliage @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
 | `supersetPartnerName` (the "& partner" line) | foliageDeep | mutedNightLight |
@@ -158,8 +156,8 @@ composition itself are locked by #455.
 |---|---|
 | `tileComplete` / text | actionDay / cream |
 | `tileCurrentFill` | cream @ 95%; Night: foliage |
-| `tileCurrentBorder` | **literal `#1F8552`** + `sunGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
-| `sunGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
+| `tileCurrentBorder` | **literal `#1F8552`** + `currentTileGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
+| `currentTileGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
 | tile partial | `pillFill` + bottom bar in `tileComplete`, height quantized quarters |
