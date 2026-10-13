@@ -67,10 +67,9 @@ case ${1:-} in -h | --help) help; exit 0 ;; esac
 
 die() { echo "lane.sh: $2" >&2; exit "$1"; }
 
-# The lane lock is fd 5, because sim-lock.sh keeps fd 6 as a copy of stderr. A flock is shared by every
-# process holding the fd, and a pipe stays open while any process holds its write end, so no child
-# that may outlive this script, such as git's background gc, gets either. Not `command git`: bash 3.2
-# hands a builtin's child its saved copy of the fd.
+# A flock is shared by every process holding the fd, and a pipe stays open while any process holds
+# its write end, so no child that may outlive this script, such as git's background gc, gets either.
+# Not `command git`: bash 3.2 hands a builtin's child its saved copy of the fd.
 git_bin=$(type -P git) || die 2 "git is not on PATH"
 git() { "$git_bin" "$@" 5>&- 6>&-; }
 sim_pool() { "$here/sim-pool.sh" "$@" 5>&- 6>&-; }

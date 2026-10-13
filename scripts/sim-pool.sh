@@ -124,7 +124,6 @@ remove_device() {
   rm -rf "/tmp/workout-verify-$1"
 }
 
-# A booted device needs no seat, so only a Shutdown one waits on the host's load and cap.
 boot_admitted() {
   state_of "$1"
   case $state in Booted | Booting) return ;; esac
