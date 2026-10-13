@@ -21,7 +21,7 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
 
     @State private var form: SmartValuePillsForm
-    @State private var isEditingWeight = false
+    @State private var weightFieldMount = WeightFieldMount()
     @Environment(\.themePalette) private var palette
     @Environment(\.showsLoadBasis) private var showsLoadBasis
     @FocusState private var weightFieldFocused: Bool
@@ -67,17 +67,6 @@ struct SmartValuePills: View {
 
             actionRow
         }
-        .task(id: isEditingWeight) {
-            weightFieldFocused = isEditingWeight
-        }
-        // Focus can be taken away from outside this view (the stage-wide tap-to-dismiss
-        // surface resigns the first responder directly); fold the edit UI when that happens
-        // so the field doesn't linger unfocused.
-        .onChange(of: weightFieldFocused) { _, focused in
-            if !focused {
-                isEditingWeight = false
-            }
-        }
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -89,8 +78,17 @@ struct SmartValuePills: View {
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
         }
+        .onChange(of: weightFieldFocused) { _, focused in
+            weightFieldMount.focusChanged(to: focused)
+        }
+        .onChange(of: weightFieldMount.focusRequests) {
+            weightFieldFocused = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidHideNotification)) { _ in
+            weightFieldMount.keyboardDidHide()
+        }
         .onDisappear(perform: commitChangedDraftIfNeeded)
-        .preference(key: EditingWeightPreferenceKey.self, value: isEditingWeight)
+        .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
     }
 
     private var presentation: SetCardPresentation {
@@ -146,49 +144,50 @@ struct SmartValuePills: View {
         form.invalidFields.contains(.weight) ? palette.danger : palette.textPrimary
     }
 
-    @ViewBuilder
     private var weightValue: some View {
-        if isEditingWeight {
-            // The field sits over the number it replaces, so its taller line box never grows the card.
-            weightNumber
-                .hidden()
-                .overlay { weightField }
-        } else {
-            weightNumber
-                .contentShape(.rect)
-                .onTapGesture { isEditingWeight = true }
-                .accessibilityLabel("Weight, \(form.weightDisplay)")
-                .accessibilityIdentifier("weight-pill")
-                .accessibilityAddTraits(.isButton)
-        }
-    }
-
-    private var weightNumber: some View {
-        Text(form.weightDisplay)
-            .font(Theme.font(.weightEntry))
-            .foregroundStyle(weightForeground)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
+        Text(verbatim: "0")
+            .fixedSize(horizontal: false, vertical: true)
+            .hidden()
             .frame(maxWidth: .infinity)
-    }
-
-    private var weightField: some View {
-        TextField(form.weightDisplay, text: $form.weightText)
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.center)
-            .font(Theme.font(.weightEntry))
-            .foregroundStyle(weightForeground)
-            .lineLimit(1)
-            .minimumScaleFactor(0.5)
-            .focused($weightFieldFocused)
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done", action: dismissFieldUI)
-                        .accessibilityIdentifier("weight-keyboard-done")
+            .overlay {
+                // A mounted text field stays in the accessibility tree whatever its modifiers say.
+                if weightFieldMount.mountsField {
+                    TextField(form.weightDisplay, text: $form.weightText)
+                        .keyboardType(.decimalPad)
+                        .multilineTextAlignment(.center)
+                        .focused($weightFieldFocused)
+                        .opacity(weightFieldFocused ? 1 : 0)
+                        .accessibilityIdentifier("weight-pill")
                 }
             }
-            .accessibilityIdentifier("weight-pill")
+            .overlay {
+                if !weightFieldFocused {
+                    Text(form.weightDisplay)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(.rect)
+                        .onTapGesture {
+                            weightFieldMount.tapped()
+                        }
+                        .accessibilityLabel("Weight, \(form.weightDisplay)")
+                        .accessibilityIdentifier("weight-pill")
+                        .accessibilityAddTraits(.isButton)
+                }
+            }
+            .font(Theme.font(.weightEntry))
+            .foregroundStyle(weightForeground)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            // The decimal pad has no return key, so Done is the way out. Attached outside the weight
+            // font and colour, which Done would otherwise inherit.
+            .toolbar {
+                if weightFieldMount.showsDone {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done", action: dismissFieldUI)
+                            .accessibilityIdentifier("weight-keyboard-done")
+                    }
+                }
+            }
     }
 
     @ViewBuilder
@@ -271,15 +270,7 @@ struct SmartValuePills: View {
         onSkip()
     }
 
-    /// A focused field resigns through UIKit first, and the focus change folds it. Removing the field
-    /// while it is still first responder, as a log's remount does, leaves a bottom keyboard inset
-    /// behind that lifts the card 14pt.
     private func dismissFieldUI() {
-        guard weightFieldFocused else {
-            isEditingWeight = false
-            return
-        }
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         weightFieldFocused = false
     }
 }
@@ -380,6 +371,7 @@ private struct ValueRail: View {
                 .font(Theme.font(.railChipValue))
                 .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
                 .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
+                .contentShape(.rect)
                 .background {
                     if chip.isSelected {
                         RoundedRectangle(cornerRadius: Theme.Radius.cell)
@@ -556,8 +548,10 @@ private struct HoldToSkipLogButton: View {
             Text(logTitle)
                 .opacity(presentation.logOpacity)
 
+            // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
+                .accessibilityLabel("")
         }
         .frame(maxWidth: .infinity)
     }

@@ -32,7 +32,7 @@ struct SessionStageView: View {
                         session: session,
                         coordinator: coordinator,
                         composition: composition,
-                        onShowHistory: { historyExercise = $0 }
+                        onShowHistory: showHistory(of:)
                     )
                     .transition(.identity)
                 case .complete(let completion):
@@ -83,7 +83,7 @@ struct SessionStageView: View {
             composition: composition,
             lastPerformed: stage.lastPerformed.map { presentation in
                 LastPerformedCard(presentation: presentation) {
-                    historyExercise = stage.exercise
+                    showHistory(of: stage.exercise)
                 }
             }
         ) {
@@ -212,6 +212,13 @@ struct SessionStageView: View {
                 .allowsHitTesting(composition == .reading)
                 .animation(nil, value: composition)
         }
+    }
+
+    // UIKit hands the first responder back when a sheet closes, so the weight keyboard would reopen
+    // over the stage unless the field resigns before the sheet presents (#697).
+    private func showHistory(of exercise: Exercise) {
+        dismissKeyboard()
+        historyExercise = exercise
     }
 
     private func dismissKeyboard() {

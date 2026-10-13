@@ -60,6 +60,45 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
+        let app = launchFixtureApp(animated: true)
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        let card = app.otherElements["active-set-card"]
+        let idleTop = settledFrame(of: card).minY
+        var cardTops: [CGFloat] = []
+        for _ in 1...3 {
+            openWeightKeyboard(in: app)
+            cardTops.append(settledFrame(of: card).minY)
+            app.buttons["weight-keyboard-done"].tap()
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        }
+        XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
+
+        openWeightKeyboard(in: app)
+        app.buttons["log-active-set-button"].tap()
+
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertEqual(settledFrame(of: card).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
+    }
+
+    @MainActor
+    func testWeightKeyboardDoneKeepsTheSystemButtonFont() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        openWeightKeyboard(in: app)
+
+        XCTAssertEqual(
+            app.buttons["weight-keyboard-done"].frame.width,
+            62,
+            accuracy: 2,
+            "at the default text size, Done in the weight font measures 75"
+        )
+    }
+
+    @MainActor
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
         let app = launchFixtureApp()
 
@@ -110,15 +149,22 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let hud = app.otherElements["session-header-hud"]
         let stageTop = hud.frame.minY
+        let weightControls = app.descendants(matching: .any).matching(identifier: "weight-pill")
+        XCTAssertEqual(weightControls.count, 1)
+        XCTAssertEqual(app.textFields.count, 0, "an idle weight exposes no text field")
 
         openWeightKeyboard(in: app)
         XCTAssertFalse(hud.exists, "the HUD steps aside while the weight is being edited")
+        XCTAssertEqual(weightControls.count, 1)
+        XCTAssertEqual(app.textFields.count, 1)
 
         tapEmptyStageSpaceAboveExerciseName(in: app, stageTop: stageTop)
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
+        XCTAssertEqual(weightControls.count, 1)
+        XCTAssertEqual(app.textFields.count, 0, "a folded weight exposes no text field")
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
     }
 
@@ -196,8 +242,37 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
-        launchWorkoutApp(fixture: .currentSession, options: options)
+    func testSwipeDismissingASheetOpenedWhileTypingFoldsTheWeightEdit() throws {
+        // With UIKit animations off, a closing sheet never hands its first responder back, so only
+        // an animated launch takes the path an athlete takes (#697).
+        let app = launchFixtureApp(animated: true)
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        openWeightKeyboard(in: app)
+        XCTAssertFalse(app.otherElements["session-header-hud"].exists)
+
+        tapWhenHittable(app.staticTexts["last-performed-line"])
+        let historyTitle = app.staticTexts["Exercise History · last 5"]
+        XCTAssertTrue(historyTitle.appears(within: 3))
+        historyTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)),
+            withVelocity: .fast,
+            thenHoldForDuration: 0
+        )
+        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: 3))
+
+        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
+        XCTAssertTrue(app.otherElements["session-header-hud"].exists)
+        XCTAssertTrue(app.buttons["stage-queue-button"].exists)
+        waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "weight-pill").count, 1)
+        XCTAssertEqual(app.textFields.count, 0, "a folded weight exposes no text field")
+    }
+
+    @MainActor
+    private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = [], animated: Bool = false) -> XCUIApplication {
+        launchWorkoutApp(fixture: .currentSession, options: options, animated: animated)
     }
 
     @MainActor
@@ -309,6 +384,20 @@ private func openWeightKeyboard(in app: XCUIApplication) {
         "the software keyboard is below the window. Run `xcrun simctl spawn <udid> defaults write "
             + "com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false`, then reboot the simulator (#700)"
     )
+}
+
+@MainActor
+private func settledFrame(of element: XCUIElement) -> CGRect {
+    var frame = element.frame
+    let deadline = Date().addingTimeInterval(3)
+    while Date() < deadline {
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        let next = element.frame
+        if next == frame { return frame }
+        frame = next
+    }
+    XCTFail("\(element) still moving after 3 s, last at \(frame)")
+    return frame
 }
 
 /// The keyboard's Done toolbar is the `Toolbar` group that is not the full-window one.

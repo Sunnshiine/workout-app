@@ -130,6 +130,7 @@ extension SessionView {
                     .compositingGroup()
             }
         }
+        .ignoresSafeArea(stageComposition == .reading ? .keyboard : [], edges: .bottom)
         .onPreferenceChange(EditingWeightPreferenceKey.self) { isEditingWeight in
             withAnimation(reduceMotion ? nil : Theme.stageCompositionAnimation) {
                 stageComposition = SessionStageComposition(isEditingWeight: isEditingWeight)
