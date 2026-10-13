@@ -12,8 +12,9 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
 
   create <lane>  print the UDID of workout-lane-<lane>, cloning it first if it does not exist. Builds the
                  template on first use, and deletes the half-built device when its boot or keyboard
-                 step fails; a build killed midway leaves it for the next create to delete. Leaves
-                 the clone Shutdown, so it holds no seat of the host cap.
+                 step fails. The next create deletes a half-built device a killed build left running,
+                 and finishes one left Shutdown, as a build that gave up waiting for the host leaves
+                 it. Leaves the clone Shutdown, so it holds no seat of the host cap.
   boot <lane>    boot it and print its UDID. test-sim.sh and verify.sh boot a lane themselves; run
                  this before a raw xcodebuild or XcodeBuildMCP call on a lane.
   delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
@@ -127,11 +128,11 @@ remove_device() {
 boot_admitted() {
   state_of "$1"
   case $state in Booted | Booting) return ;; esac
-  wait_until_clear "the host before booting $1" admit_claim "$1" 0
+  (exec 4>&- && wait_until_clear "the host before booting $1" admit_claim "$1" 0) || exit
 }
 
 abandon_build() {
-  echo "sim-pool: $2; deleting $1, the $building that failed, so it holds no slot of the cap" >&2
+  echo "sim-pool: $2; deleting $1, the $building that failed, so it holds no seat of the cap" >&2
   remove_device "$1"
   exit 70
 }
@@ -144,8 +145,8 @@ ensure_template() {
     return
   fi
   load_devices
-  for doomed in $(pick -v n="$building" '$3 == n { print $1 }'); do
-    echo "sim-pool: deleting $doomed, a $building a crashed build left" >&2
+  for doomed in $(pick -v n="$building" '$3 == n && $2 != "Shutdown" { print $1 }'); do
+    echo "sim-pool: deleting $doomed, a $building a killed build left running" >&2
     remove_device "$doomed"
   done
   echo "sim-pool: building $template" >&2

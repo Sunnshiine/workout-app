@@ -109,11 +109,23 @@ def run(store, verb, args):
         sys.exit(2)
 
 
+def is_open(fd):
+    try:
+        os.fstat(fd)
+        return True
+    except OSError:
+        return False
+
+
 def main():
     if sys.argv[1:2] != ["simctl"]:
         print("fake xcrun: only simctl: " + " ".join(sys.argv[1:]), file=sys.stderr)
         sys.exit(2)
     verb, args = sys.argv[2], sys.argv[3:]
+    held = os.environ.get("FAKE_SIM_HELD_FDS")
+    if held and verb == "boot":
+        with open(held, "a") as out:
+            out.write("boot {} holds fds: {}\n".format(args[0], " ".join(str(fd) for fd in (4, 5, 7, 8, 9) if is_open(fd))))
     path = os.environ["FAKE_SIM_STORE"]
     slow = os.environ.get("FAKE_SIM_SLOW_SHUTDOWN")
     if verb == "shutdown" and slow:

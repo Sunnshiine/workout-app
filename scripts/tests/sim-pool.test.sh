@@ -19,6 +19,7 @@ echo "{ ${STUB_LOAD:-1.00} 1.00 1.00 }"
 STUB
 chmod +x "$root/bin/sysctl"
 export PATH="$root/bin:$PATH" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
+unset WORKOUT_SIM_CAP WORKOUT_LOAD_LIMIT WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 runtime=com.apple.CoreSimulator.SimRuntime.iOS-27-0
 build_calls="create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime
@@ -50,6 +51,7 @@ pool() {
     status=$?
 }
 calls() { cat "$root/calls" 2>/dev/null; }
+refusal() { sed 's/^gave up after [0-9]* s/gave up after N s/' "$root/err"; }
 listing() { "$scripts/sim-pool.sh" list; }
 expect() {
     if [ "$2" = "$3" ]; then
@@ -74,11 +76,13 @@ time.sleep(120)' "$1" "$2" "$root/held" &
 release() { kill "$holder"; wait "$holder" 2>/dev/null; holder=; }
 
 fresh
-pool create a
+FAKE_SIM_HELD_FDS="$root/held-fds" pool create a
 expect "create on a fresh Mac builds the template (boot, keyboard, shutdown, rename) and clones it Shutdown" \
     "$status $(cat "$root/out") | $(calls)" \
     "0 $P-2 | $build_calls
 clone $P-1 workout-lane-a"
+expect "the template's simctl boot holds no lock fd, so a boot outliving a killed create holds no pool lock" \
+    "$(cat "$root/held-fds")" "boot $P-1 holds fds: "
 expect "list shows the lane and the template, and nothing booted" "$(listing)" \
     "UDID	STATE	ROLE	NAME
 $P-2	Shutdown	lane	workout-lane-a
@@ -150,8 +154,8 @@ for n in 1 2 3 4 5 6; do seed "iPhone 17 Pro $n" Booted; done
 xcrun simctl shutdown "$P-2"
 rm -f "$root/calls"
 WORKOUT_ADMIT_WAIT=0 pool boot a
-expect "boot with six others booted exits 75 and boots nothing" "$status $(cat "$root/err") | $(calls)" \
-    "75 gave up after 0 s waiting for the host before booting $P-2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP) | "
+expect "boot with six others booted exits 75 and boots nothing" "$status $(refusal) | $(calls)" \
+    "75 gave up after N s waiting for the host before booting $P-2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP) | "
 WORKOUT_SIM_CAP=7 pool boot a
 expect "a cap of seven admits it" "$status $(cat "$root/out")" "0 $P-2"
 expect "list counts every booted device on the host" "$(listing | tail -1)" "booted: 7 of cap 6"
@@ -159,13 +163,13 @@ expect "list counts every booted device on the host" "$(listing | tail -1)" "boo
 fresh
 seed workout-lane-load
 STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool boot load
-expect "boot over the load limit exits 75, names the load, and boots nothing" "$status $(cat "$root/err") | $(calls)" \
-    "75 gave up after 0 s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | "
+expect "boot over the load limit exits 75, names the load, and boots nothing" "$status $(refusal) | $(calls)" \
+    "75 gave up after N s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | "
 hold "$root/locks/admit" "test-sim.sh run (pid 4244)"
 WORKOUT_ADMIT_WAIT=0 pool boot load
 release
-expect "boot waits while a test-sim or verify claim holds the host's admit lock" "$status $(cat "$root/err") | $(calls)" \
-    "75 gave up after 0 s waiting for the host before booting $P-1: another claim is booting a simulator (lsof $root/locks/admit lists it) | "
+expect "boot waits while a test-sim or verify claim holds the host's admit lock" "$status $(refusal) | $(calls)" \
+    "75 gave up after N s waiting for the host before booting $P-1: another claim is booting a simulator (lsof $root/locks/admit lists it) | "
 xcrun simctl boot "$P-1"
 STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool boot load
 expect "boot of a lane already booted does not wait for the load" "$status $(cat "$root/out")" "0 $P-1"
@@ -173,8 +177,12 @@ expect "boot of a lane already booted does not wait for the load" "$status $(cat
 fresh
 STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool create a
 expect "the template build over the load limit exits 75 before its boot, leaving the -building device Shutdown" \
-    "$status $(tail -1 "$root/err") | $(calls) | $(listing | awk -F '\t' '$3 == "building" { print $2 }')" \
-    "75 gave up after 0 s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime | Shutdown"
+    "$status $(refusal | tail -1) | $(calls) | $(listing | awk -F '\t' '$3 == "building" { print $2 }')" \
+    "75 gave up after N s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime | Shutdown"
+pool create a
+expect "the next create finishes that Shutdown -building device instead of deleting it" "$status $(cat "$root/out") | $(calls)" \
+    "0 $P-2 | ${build_calls#*$'\n'}
+clone $P-1 workout-lane-a"
 
 fresh
 seed workout-template-v1-building Booted
@@ -234,7 +242,7 @@ chmod +x "$root/broken/sim-keyboard.sh"
 "$root/broken/sim-pool.sh" create a >"$root/out" 2>"$root/err"
 expect "a template build that fails after booting exits 70 and deletes the booted half-built device" \
     "$? $(tail -1 "$root/err") | $(calls | tail -2 | tr '\n' ' ')| $(listing)" \
-    "70 sim-pool: scripts/sim-keyboard.sh ensure $P-1 failed; deleting $P-1, the workout-template-v1-building that failed, so it holds no slot of the cap | shutdown $P-1 delete $P-1 | UDID	STATE	ROLE	NAME
+    "70 sim-pool: scripts/sim-keyboard.sh ensure $P-1 failed; deleting $P-1, the workout-template-v1-building that failed, so it holds no seat of the cap | shutdown $P-1 delete $P-1 | UDID	STATE	ROLE	NAME
 booted: 0 of cap 6"
 
 fresh

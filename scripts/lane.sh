@@ -27,9 +27,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           untracked and ignored files except regenerable ones, commits.bundle of commits no branch
           or tag holds, copies of the results dirs .build/test-sim, .build/verify without its
           node_modules, .build/crap, .build/flake-hunt, .build/mutate, and .build/check-each-commit);
-          then remove the worktree and its
-          DerivedData. Each step skips what is already gone, so a second down exits 0. --if-idle
-          removes only when assess says remove.
+          then remove the worktree and its DerivedData. Each step skips what is already gone, so a
+          second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
           worktree, is on a branch, is locked (a crashed git worktree add's lock, "initializing",
@@ -68,12 +67,13 @@ case ${1:-} in -h | --help) help; exit 0 ;; esac
 
 die() { echo "lane.sh: $2" >&2; exit "$1"; }
 
-# The lane lock is fd 5, because sim-lock.sh keeps fd 6 for stderr. A flock is shared by every process
-# holding the fd, so no child that may outlive this script, such as git's background gc, gets it.
-# Not `command git`: bash 3.2 hands a builtin's child its saved copy of fd 5.
+# The lane lock is fd 5, because sim-lock.sh keeps fd 6 as a copy of stderr. A flock is shared by every
+# process holding the fd, and a pipe stays open while any process holds its write end, so no child
+# that may outlive this script, such as git's background gc, gets either. Not `command git`: bash 3.2
+# hands a builtin's child its saved copy of the fd.
 git_bin=$(type -P git) || die 2 "git is not on PATH"
-git() { "$git_bin" "$@" 5>&-; }
-sim_pool() { "$here/sim-pool.sh" "$@" 5>&-; }
+git() { "$git_bin" "$@" 5>&- 6>&-; }
+sim_pool() { "$here/sim-pool.sh" "$@" 5>&- 6>&-; }
 
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -268,7 +268,7 @@ lane_up() {
   [ -z "$branch" ] && [ "$head" = "$sha" ] \
     || die 2 "lane $name is at $head${branch:+ on branch $branch}, not $sha; lane.sh down $name first"
   if [ -f "$wt/.githooks/post-checkout" ]; then
-    (cd "$wt" && sh .githooks/post-checkout) >&2 5>&- || die 70 "the post-checkout hook failed in $wt"
+    (cd "$wt" && sh .githooks/post-checkout) >&2 5>&- 6>&- || die 70 "the post-checkout hook failed in $wt"
   fi
   udid=$(sim_pool create "$name")
   mkdir -p "$evidence"

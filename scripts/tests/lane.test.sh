@@ -16,7 +16,18 @@ lanes="$primary/.claude/worktrees"
 evidence="$primary/.claude/work/evidence"
 mkdir -p "$root/bin" "$root/home" "$primary"
 cp "$scripts/tests/fake-xcrun" "$root/bin/xcrun"
+real_git=$(type -P git)
+cat >"$root/bin/git" <<STUB
+#!/bin/bash
+if [ -n "\${GIT_FDS_LOG:-}" ]; then
+    for fd in 5 6; do { true >&\$fd; } 2>/dev/null && echo "git \$1 holds fd \$fd" >>"\$GIT_FDS_LOG"; done
+fi
+exec "$real_git" "\$@"
+STUB
+chmod +x "$root/bin/git"
 export PATH="$root/bin:$PATH" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
+export WORKOUT_LOAD_LIMIT=1000000
+unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 pass=0
@@ -254,6 +265,11 @@ commit_in() {
     git -C "$lanes/$1" commit -qm "$2"
     git -C "$lanes/$1" rev-parse HEAD
 }
+
+GIT_FDS_LOG="$root/git-fds" lane up fds "$c1"
+expect "up runs git with neither the lane lock (fd 5) nor sim-lock.sh's copy of stderr (fd 6)" \
+    "$status $(cat "$root/git-fds" 2>/dev/null)" "0 "
+lane down fds
 
 lane up reup "$c1"
 reup_sha=$(commit_in reup unsaved)
