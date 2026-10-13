@@ -54,16 +54,6 @@ private func dayUpperStageGround(_ day: Theme.Palette) -> Ground {
     Ground(base: day.paper.baseTop, layers: [day.paper.baseBottom.opacity(0.35)])
 }
 
-/// The top stop under the sun wash at full strength, the lightest ground light text meets up top.
-private func nightSunlitGround(_ night: Theme.Palette) throws -> Ground {
-    Ground(base: night.paper.baseTop, layers: [try #require(night.paper.washes.first).color])
-}
-
-/// The bottom stop under the foot wash at full strength, the darkest Day ground under text.
-private func dayFootGround(_ day: Theme.Palette) throws -> Ground {
-    Ground(base: day.paper.baseBottom, layers: [try #require(day.paper.washes.last).color])
-}
-
 private func paperGround(_ palette: Theme.Palette, at point: UnitPoint) -> Ground {
     let washes = palette.paper.washes.map { wash in
         let reach = 1 - hypot(point.x - wash.center.x, point.y - wash.center.y) / wash.radiusFraction
@@ -78,7 +68,7 @@ private enum Bar: Double {
 }
 
 private struct GroundSample {
-    let paperPoint: UnitPoint?
+    let paperPoint: UnitPoint
     let ground: Ground
 }
 
@@ -102,36 +92,38 @@ private enum Surface: CaseIterable {
     case weekCard
     case carvedChip
     case action
+    case actionUnderSkipWash
+    case pillUnderSkipWash
+
+    var fillRoles: [String] {
+        switch self {
+        case .paper: []
+        case .card: ["surface"]
+        case .pill: ["surface", "pillFill"]
+        case .rail: ["surface", "railFill"]
+        case .railSelected: ["surface", "railFill", "railSelectedFill"]
+        case .foot: ["footFill"]
+        case .focusCard: ["lighting.focusCardFill"]
+        case .raisedControl: ["lighting.raisedControlFill"]
+        case .weekCard: ["weekCardShade"]
+        case .carvedChip: ["chipCarvedFill"]
+        case .action: ["action"]
+        case .actionUnderSkipWash: ["action", "skipFillOverlay"]
+        case .pillUnderSkipWash: ["surface", "pillFill", "skipFillOverlay"]
+        }
+    }
 
     func samples(_ palette: Theme.Palette) -> [GroundSample] {
-        if self == .action {
-            return [GroundSample(paperPoint: nil, ground: Ground(base: palette.action, layers: []))]
-        }
-        let fills = fills(palette)
+        let inks = paletteInks(palette)
+        let fills = fillRoles.compactMap { inks[$0] ?? nil }
         return paperGridAndWashCentres(palette).map { point in
             let paper = paperGround(palette, at: point)
             return GroundSample(paperPoint: point, ground: Ground(base: paper.base, layers: paper.layers + fills))
         }
     }
-
-    private func fills(_ palette: Theme.Palette) -> [Color] {
-        switch self {
-        case .paper, .action: []
-        case .card: [palette.surface]
-        case .pill: [palette.surface, palette.pillFill]
-        case .rail: [palette.surface, palette.railFill]
-        case .railSelected: [palette.surface, palette.railFill, palette.railSelectedFill]
-        case .foot: [palette.footFill]
-        case .focusCard: [palette.lighting.focusCardFill]
-        case .raisedControl: [palette.lighting.raisedControlFill]
-        case .weekCard: [palette.weekCardShade]
-        case .carvedChip: [palette.chipCarvedFill]
-        }
-    }
 }
 
 private enum Use {
-    case text
     case ink(on: [Surface], Bar)
     case textWithGlyphs(text: [Surface], glyphs: [Surface])
     case ground
@@ -139,7 +131,6 @@ private enum Use {
 
     var requirements: [(surface: Surface, bar: Bar)] {
         switch self {
-        case .text: Surface.allCases.filter { $0 != .action }.map { ($0, .text) }
         case .ink(let surfaces, let bar): surfaces.map { ($0, bar) }
         case .textWithGlyphs(let text, let glyphs): text.map { ($0, .text) } + glyphs.map { ($0, .nonText) }
         case .ground, .quiet: []
@@ -148,14 +139,20 @@ private enum Use {
 }
 
 private let uses: [String: Use] = [
-    "textPrimary": .text,
-    "textSecondary": .ink(on: Surface.allCases.filter { $0 != .action && $0 != .railSelected }, .text),
+    "textPrimary": .ink(
+        on: [
+            .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .raisedControl, .weekCard, .carvedChip,
+            .pillUnderSkipWash
+        ],
+        .text
+    ),
+    "textSecondary": .ink(on: [.paper, .card, .pill, .rail, .focusCard, .raisedControl, .weekCard, .carvedChip], .text),
     "actionInk": .textWithGlyphs(text: [.paper, .card], glyphs: [.pill]),
     "supersetPartnerName": .ink(on: [.paper], .text),
-    "actionText": .ink(on: [.action], .text),
+    "actionText": .ink(on: [.action, .actionUnderSkipWash], .text),
     "stepperGlyph": .ink(on: [.pill], .nonText),
     "tileCurrentBorder": .ink(on: [.focusCard, .weekCard], .nonText),
-    "danger": .ink(on: Surface.allCases.filter { $0 != .action }, .nonText),
+    "danger": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .pill, .rail]),
     "action": .ink(on: [.paper, .card, .railSelected], .nonText),
     "stem": .ink(on: [.paper], .nonText),
     "leafFill": .ink(on: [.paper, .focusCard, .weekCard], .nonText),
@@ -169,7 +166,7 @@ private let uses: [String: Use] = [
     "sheetFill": .quiet("the core punched into a chart dot; no ink sits on it"),
     "chipCarvedFill": .ground,
     "weekCardShade": .ground,
-    "tileCurrentFill": .ground,
+    "tileCurrentFill": .quiet("the current tile's body; tileCurrentBorder draws its rim against the card"),
     "lighting.focusCardFill": .ground,
     "lighting.raisedControlFill": .ground,
     "leafRib": .quiet("a highlight line inside the leaf; the leaf's own fill carries the mark"),
@@ -180,7 +177,7 @@ private let uses: [String: Use] = [
     "supersetPartnerBranch": .quiet("the partner's branch, quieted on purpose so the focused branch leads"),
     "pillStroke": .quiet("a hairline edge; the pill's fill carries the shape"),
     "queueStroke": .quiet("a hairline edge; the foot pill's fill carries the shape"),
-    "skipFillOverlay": .quiet("the hold-to-skip progress wash, deliberately muted and never danger"),
+    "skipFillOverlay": .ground,
     "tileGhostStroke": .quiet("the dashed outline of an empty bed, quiet by design"),
     "chipCarveShadow": .quiet("an inset shadow that carves the chip"),
     "chipCarveEdge": .quiet("the highlight lip below a carved chip"),
@@ -196,11 +193,15 @@ private struct ParkedPair: Hashable {
     let surface: Surface
 }
 
-private let dangerCall = "whether danger stays system red or takes a Greenhouse red that holds 3:1 on every ground"
+private let dangerCall =
+    "whether danger stays system red or takes a Greenhouse red that holds 4.5:1 as Developer Tools and Live Activity "
+    + "lab text and 3:1 as a glyph or rim"
 private let nightActionCall = "whether the Night action green lightens where it marks the page, the card, and the selected chip"
 private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
+
+private let nightSkipWashCall = "whether the Night hold-to-skip wash dims the Log label less as it fills"
 
 private let daySecondaryCall =
     "whether Day muted darkens, or the carved chip fill lightens, where the foot wash reaches a History chip"
@@ -209,18 +210,11 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.day, "danger", .paper, floor: 1.93, dangerCall),
     (.day, "danger", .card, floor: 2.56, dangerCall),
     (.day, "danger", .rail, floor: 2.92, dangerCall),
-    (.day, "danger", .foot, floor: 2.53, dangerCall),
-    (.day, "danger", .weekCard, floor: 2.56, dangerCall),
     (.day, "danger", .carvedChip, floor: 1.75, dangerCall),
     (.night, "danger", .paper, floor: 2.75, dangerCall),
     (.night, "danger", .card, floor: 2.26, dangerCall),
     (.night, "danger", .pill, floor: 1.93, dangerCall),
     (.night, "danger", .rail, floor: 1.93, dangerCall),
-    (.night, "danger", .railSelected, floor: 1.39, dangerCall),
-    (.night, "danger", .foot, floor: 2.32, dangerCall),
-    (.night, "danger", .focusCard, floor: 2.26, dangerCall),
-    (.night, "danger", .raisedControl, floor: 2.26, dangerCall),
-    (.night, "danger", .weekCard, floor: 2.32, dangerCall),
     (.night, "danger", .carvedChip, floor: 2.32, dangerCall),
     (.night, "action", .paper, floor: 2.10, nightActionCall),
     (.night, "action", .card, floor: 1.73, nightActionCall),
@@ -229,6 +223,8 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "prescriptionTick", .railSelected, floor: 1.06, "whether the Night prescription tick lightens off the action green"),
     (.night, "actionText", .action, floor: 4.23, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
     (.night, "textPrimary", .railSelected, floor: 4.40, "whether the Night selected chip fill dims under the sun wash"),
+    (.night, "actionText", .actionUnderSkipWash, floor: 3.53, nightSkipWashCall),
+    (.night, "textPrimary", .pillUnderSkipWash, floor: 4.33, nightSkipWashCall),
     (.night, "stem", .paper, floor: 2.62, nightBranchCall),
     (.night, "leafFill", .paper, floor: 2.62, nightBranchCall),
     (.night, "leafFill", .focusCard, floor: 2.16, nightBranchCall),
@@ -237,7 +233,6 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .card, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .pill, floor: 2.81, nightSecondaryCall),
     (.night, "textSecondary", .rail, floor: 2.81, nightSecondaryCall),
-    (.night, "textSecondary", .foot, floor: 3.38, nightSecondaryCall),
     (.night, "textSecondary", .focusCard, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .raisedControl, floor: 3.28, nightSecondaryCall),
     (.night, "textSecondary", .weekCard, floor: 3.38, nightSecondaryCall),
@@ -253,21 +248,42 @@ private let parked: [ParkedPair: (floor: Double, reason: String)] = Dictionary(
     uniqueKeysWithValues: parkedRows.map { appearance, role, surface, floor, call in
         (
             ParkedPair(appearance: appearance, role: role, surface: surface),
-            (floor, "product call: palette value. The operator decides \(call).")
+            (floor, "product call: palette value. The operator decides \(call). Once it clears its bar, delete its parkedRows row.")
         )
     }
 )
 
-private func paletteInks(_ palette: Theme.Palette) -> [String: Color?] {
-    func inks(of value: Any, labelled prefix: String) -> [(String, Color?)] {
-        Mirror(reflecting: value).children.compactMap { child in
-            guard let label = child.label, let ink = child.value as? Color? else { return nil }
-            return (prefix + label, ink)
+private let nonInkTypes: Set<ObjectIdentifier> = [
+    ObjectIdentifier(ColorScheme.self),
+    ObjectIdentifier(Theme.PaperRecipe.self),
+    ObjectIdentifier([Theme.BoxShadow].self),
+    ObjectIdentifier(Theme.RadialLight?.self)
+]
+
+/// Every Color and Color? property of the palette and its lighting, keyed by role name, and the
+/// labels of properties of any other type the walk does not know, so a new colour group cannot hide.
+private func paletteRoles(_ palette: Theme.Palette) -> (inks: [String: Color?], unclassified: [String]) {
+    var inks: [String: Color?] = [:]
+    var unclassified: [String] = []
+    func walk(_ value: Any, prefix: String) {
+        for child in Mirror(reflecting: value).children {
+            guard let label = child.label else { continue }
+            let type = ObjectIdentifier(Swift.type(of: child.value))
+            if type == ObjectIdentifier(Color.self) || type == ObjectIdentifier(Color?.self) {
+                inks.updateValue(child.value as? Color, forKey: prefix + label)
+            } else if type == ObjectIdentifier(Theme.Lighting.self) {
+                walk(child.value, prefix: prefix + label + ".")
+            } else if !nonInkTypes.contains(type) {
+                unclassified.append(prefix + label)
+            }
         }
     }
-    return Dictionary(
-        uniqueKeysWithValues: inks(of: palette, labelled: "") + inks(of: palette.lighting, labelled: "lighting.")
-    )
+    walk(palette, prefix: "")
+    return (inks, unclassified)
+}
+
+private func paletteInks(_ palette: Theme.Palette) -> [String: Color?] {
+    paletteRoles(palette).inks
 }
 
 private struct WorstCase {
@@ -292,15 +308,32 @@ private func describe(_ ink: Color) -> String {
 
 private func describe(_ sample: GroundSample) -> String {
     let ground = "#\(hex(composite(sample.ground.layers, over: sample.ground.base)))"
-    guard let point = sample.paperPoint else { return "its opaque fill \(ground)" }
+    let point = sample.paperPoint
     return "paper (\(String(format: "%.2f", point.x)), \(String(format: "%.2f", point.y))) composited to \(ground)"
 }
 
-@Test func everyPaletteRoleHasAUse() {
-    let roles = Set(paletteInks(Theme.palette(for: .day)).keys)
+@Test(arguments: Theme.Appearance.allCases)
+func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
+    let (inks, unclassified) = paletteRoles(Theme.palette(for: appearance))
+    let roles = Set(inks.keys)
     let keyed = Set(uses.keys)
+    #expect(unclassified == [], "palette properties that are neither a colour role nor a known non-ink type")
     #expect(roles.subtracting(keyed).sorted() == [], "palette roles with no Use")
     #expect(keyed.subtracting(roles).sorted() == [], "Use keys that name no palette role")
+}
+
+@Test(arguments: Theme.Appearance.allCases)
+func everyGroundIsASurfaceFillAndEveryFillResolves(appearance: Theme.Appearance) {
+    let inks = paletteInks(Theme.palette(for: appearance))
+    let fillRoles = Set(Surface.allCases.flatMap(\.fillRoles))
+    let grounds = Set(uses.compactMap { role, use in if case .ground = use { role } else { nil } })
+    let quietFills = fillRoles.filter { role in
+        if case .quiet = uses[role] { true } else { false }
+    }
+    let unresolvedFills = fillRoles.filter { inks[$0] ?? nil == nil }
+    #expect(grounds.subtracting(fillRoles).sorted() == [], "grounds no Surface fills")
+    #expect(quietFills.sorted() == [], "Surface fills classed quiet")
+    #expect(unresolvedFills.sorted() == [], "Surface fills that resolve to no colour")
 }
 
 @Test func everyParkedPairIsOneTheMatrixMeasures() {
@@ -354,16 +387,6 @@ private enum SettingsSheetAtRestOnIPhone17Pro {
 @Test func daySupersetPartnerNameReadsAsTextWhereNoWashReaches() {
     let day = Theme.palette(for: Theme.Appearance.day)
     #expect(contrast(of: day.supersetPartnerName, over: dayUpperStageGround(day)) >= 4.5)
-}
-
-@Test func nightSupersetPartnerNameReadsAsText() throws {
-    let night = Theme.palette(for: Theme.Appearance.night)
-    #expect(contrast(of: night.supersetPartnerName, over: try nightSunlitGround(night)) >= 4.5)
-}
-
-@Test func daySecondaryTextReadsAsTextInTheStageFoot() throws {
-    let day = Theme.palette(for: Theme.Appearance.day)
-    #expect(contrast(of: day.textSecondary, over: try dayFootGround(day)) >= 4.5)
 }
 
 private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)
