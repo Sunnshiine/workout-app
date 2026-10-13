@@ -275,8 +275,8 @@ look moved, and `box=` and `look=` say which, on a take whose INVALID reasons, i
 (load, a short window), animations on or off. `still=yes` needs `edges=full` and a card where the tree
 puts it: nothing moved on a VALID take with animations on, the card's edges were read from the window's
 first frame, and the box sits on the `card_pt=` frame: its middle within 8 pt and its height within 24 pt.
-A box still moving in its last frame is exempt, because the tree is read after the recorder stops and
-holds where the card was going. `still=unknown` covers the rest: nothing moved but the take is INVALID,
+A box still moving in its last frame is held to its height and x only, because the tree is read after the
+recorder stops and holds where the card was going. `still=unknown` covers the rest: nothing moved but the take is INVALID,
 has animations off, or has `edges=partial`; or something moved on a take INVALID for any other reason,
 such as a launch with no fade from black. A take whose tree held no `active-set-card`, or whose box is not
 where the tree put it, exits 1 with `no card:` and its reason. A label that swaps in one frame reads

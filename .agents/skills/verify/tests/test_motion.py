@@ -718,6 +718,14 @@ class Summarize(unittest.TestCase):
         m = cardframe.summarize(held_at(card(160)), moving, 0.0)
         self.assertEqual((m.card.box.motion, m.card.box.worst_edge_range, m.still), ((0.1, 0.3), 30.0, Still.NO))
 
+    def test_a_box_still_moving_at_the_stop_is_the_card_only_at_the_tree_card_s_height_and_horizontal_middle(self):
+        short = frames(card(100, 200), card(110, 210), card(120, 220), card(130, 230))
+        self.assertEqual(cardframe.summarize(held_at(card(160)), short, 0.0).card, cardframe.NoCard(
+            "the box read last, 130.0..230.0 16.0..186.0, is not where the accessibility tree put active-set-card, "
+            "@16,160 170x160"))
+        aside = frames(*(card(top, left=116.0, right=286.0) for top in (100, 110, 120, 130)))
+        self.assertIsInstance(cardframe.summarize(held_at(card(160)), aside, 0.0).card, cardframe.NoCard)
+
     def test_a_148_pt_box_on_the_middle_of_a_308_pt_tree_card_is_no_card(self):
         m = cardframe.summarize(held_at(card(100, 408)), frames(card(180, 328), card(180, 328)), 0.0)
         self.assertEqual(m.card, cardframe.NoCard("the box read last, 180.0..328.0 16.0..186.0, is not where the "

@@ -32,8 +32,8 @@ INVALID when:
   - a frame after a launch's fade changed three quarters of the screen (rule screen), as a dim does,
     because the card cannot be read through it;
   - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
-    long after the launch returned. Over 13 launch takes the window watched the tail plus 0.24 to
-    0.62 s, so the default 2 s tail clears 1.5 s, and the slowest first-appear motion measured settled
+    long after the launch returned. Over 19 launch takes the window watched the tail plus 0.21 to
+    0.65 s, so the default 2 s tail clears 1.5 s, and the slowest first-appear motion measured settled
     1.28 s after its window opened. A tap's window opens at the drive's start and watches the whole tail.
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
@@ -46,12 +46,13 @@ whose middle row shows nothing brighter than the paper, or whose box holds no wh
 The settled card is the last card the window shows. There is no card at all when card_pt=none, when no
 window frame shows one, or when the settled card's height is more than 24 pt from card_pt='s or its middle
 more than 8 pt from card_pt='s in x or y, as when a sheet over the session shows a section where the tree
-still holds the card behind it, unless the card was still moving in its last frame: the tree is read after
-the recorder stops, so it holds where that card was going, and the move reads still=no with its range
-truncated. The box is read from the first solid card: the first detection with at least three quarters of
-the settled card's contrast. Detections before it are faint and their edges are not read, because a faint
-card reads short and narrow. edges=partial when the first solid card is not the window's first frame.
-After it every detection counts, at any contrast, and a frame without the card is lost.
+still holds the card behind it. A card still moving in its last frame is checked for height and x only:
+the tree is read after the recorder stops, so it holds where that card was going, and the move reads
+still=no with its range truncated. The box is read from the first solid card: the first detection with at
+least three quarters of the settled card's contrast. Detections before it are faint and their edges are not
+read, because a faint card reads short and narrow. edges=partial when the first solid card is not the
+window's first frame. After it every detection counts, at any contrast, and a frame without the card is
+lost.
 
 Look. In 4 pt cells wholly inside the settled card's box, d is each window frame's mean luminance
 difference from the window's last frame, card or not, so the last frame's d is 0 and look_peak is the
@@ -454,11 +455,11 @@ def look_of(window: Sequence[Sample], settled: Card) -> Look:
     return Look(d, frames, (window[depart].t, window[settle].t))
 
 
-def _fits(settled: Card, card_pt: Frame) -> bool:
+def _fits(settled: Card, card_pt: Frame, moving: bool) -> bool:
     x, y = card_pt.center
     return (abs(settled.bottom - settled.top - card_pt.height) <= HEIGHT_PT
             and abs((settled.left + settled.right) / 2 - x) <= MIDDLE_PT
-            and abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT)
+            and (moving or abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT))
 
 
 def card_of(card_pt: Union[Frame, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
@@ -471,7 +472,7 @@ def card_of(card_pt: Union[Frame, Literal["none"]], window: Sequence[Sample], at
     box = box_of(window, settled)
     # The tree is read after the recorder stops, so it holds where a box still moving then was going.
     moving = box.motion is not None and box.motion[1] == last.t
-    if not moving and not _fits(settled, card_pt):
+    if not _fits(settled, card_pt, moving):
         return NoCard(f"the box read last, {_span(settled.top, settled.bottom)} {_span(settled.left, settled.right)}, "
                       f"is not where the accessibility tree put active-set-card, {card_pt.text}")
     return Seen(box, look_of(window, settled))
