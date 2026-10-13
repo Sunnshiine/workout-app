@@ -263,33 +263,33 @@ uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card 
 `record` waits up to `VERIFY_LOAD_WAIT` s (60) for the 1-minute load to fall under `WORKOUT_LOAD_LIMIT`
 (50), because a loaded host films a move as a cut. It drives once the recorder is capturing and stops it
 with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons on stderr. Exit 70 means the
-recorder or ffprobe failed, or the screen size or the card's frame could not be read from the accessibility
-tree after the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran. The recorder writes a frame only when the screen changes,
-so a still screen is one frame. `cardframe.py` is the one frame metric, and it times frames by their own
-pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads two things: the card's box,
-from its edges, and its look, the luminance inside the settled box. A neighbour such as the rest pill joins
-the box across a gap only while the pair fits the height of the `card_pt=` frame `record` stamps from the
-accessibility tree, and an unbroken run counts at any height, so a card that shrinks during the take
-reads its whole range. `still=no` means the box or the look moved, and `box=` and `look=` say which, on a
-take whose INVALID reasons, if any, only hide motion (load, a short window), animations on or off.
-`still=yes` needs `edges=full` and a card where the tree puts it: nothing moved on a VALID take with
-animations on, the card's edges were read from the window's first frame, and the box sits on the
-`card_pt=` frame: its middle within 8 pt and its height within 24 pt. A box still moving in its last frame
-is exempt, because the tree is read after the recorder stops and holds where the card was going.
-`still=unknown` covers the rest: nothing moved but the take is INVALID, has animations off, or has
-`edges=partial`; or something moved on a take INVALID for any other reason, such as a launch with no
-fade from black. A take whose tree held no `active-set-card`, or whose box is not where the tree put it,
-exits 1 with `no card:` and its reason. A label that swaps in one frame reads `look=cut` and stays still.
-A launch take's window opens at the end of iOS's fade-in, the full-screen frames in the 0.5 s after the
-screen leaves black; any later frame that changes three quarters of the screen makes the take INVALID. So
-first-appear motion that ends inside that fade is invisible to a launch take. From the fade's end the
-window must watch 1.5 s or the take is INVALID. Over 14 launch takes with the default 2 s `--tail`
-the window watched 2.21 to 2.42 s. A build whose card slides in 300 pt from the right on first appear
-read `worst_edge_range` 15.0 to 16.0 with `edges=partial`, `look_ms` 1150 to 1152, and `still=no` over
-three takes. Without `--animated` a launch reads `still=unknown`, because animations off hides motion.
-A card that fades in place read `box=still look=changed` and `look_ms` 975 to 990 over three takes.
-`cardstill.py` prints PASS only when the control commit moved the card on one of its eight takes and the
-head held it still on all eight.
+recorder or ffprobe failed, or the screen size or the card's frame could not be read from the
+accessibility tree after the take, and nothing is kept, a VALID take included. Exit 75 means nothing ran.
+The recorder writes a frame only when the screen changes, so a still screen is one frame. `cardframe.py`
+is the one frame metric, and it times frames by their own pts, because ffmpeg's clock puts simctl frames
+about 0.8 s early. It reads two things: the card's box, from its edges, and its look, the luminance inside
+the settled box. A neighbour such as the rest pill joins the box across a gap only while the pair fits the
+height of the `card_pt=` frame `record` stamps from the accessibility tree, and an unbroken run counts at
+any height, so a card that shrinks during the take reads its whole range. `still=no` means the box or the
+look moved, and `box=` and `look=` say which, on a take whose INVALID reasons, if any, only hide motion
+(load, a short window), animations on or off. `still=yes` needs `edges=full` and a card where the tree
+puts it: nothing moved on a VALID take with animations on, the card's edges were read from the window's
+first frame, and the box sits on the `card_pt=` frame: its middle within 8 pt and its height within 24 pt.
+A box still moving in its last frame is exempt, because the tree is read after the recorder stops and
+holds where the card was going. `still=unknown` covers the rest: nothing moved but the take is INVALID,
+has animations off, or has `edges=partial`; or something moved on a take INVALID for any other reason,
+such as a launch with no fade from black. A take whose tree held no `active-set-card`, or whose box is not
+where the tree put it, exits 1 with `no card:` and its reason. A label that swaps in one frame reads
+`look=cut` and stays still. A launch take's window opens at the end of iOS's fade-in, the full-screen
+frames in the 0.5 s after the screen leaves black; any later frame that changes three quarters of the
+screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
+take. From the fade's end the window must watch 1.5 s or the take is INVALID. Over 14 launch takes with
+the default 2 s `--tail` the window watched 2.21 to 2.42 s. A build whose card slides in 300 pt from the
+right on first appear read `worst_edge_range` 15.0 to 16.0 with `edges=partial`, `look_ms` 1150 to 1152,
+and `still=no` over three takes. Without `--animated` a launch reads `still=unknown`, because animations
+off hides motion. A card that fades in place read `box=still look=changed` and `look_ms` 975 to 990 over
+three takes. `cardstill.py` prints PASS only when the control commit moved the card on one of its eight
+takes and the head held it still on all eight.
 After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
 ## Cleanup

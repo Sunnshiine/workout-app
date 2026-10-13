@@ -997,7 +997,8 @@ case $cmd in
     fi
     if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card); then
       rm -f "$pending/$name.mp4" "$pending/$name.take"
-      echo "could not read active-set-card's frame from the accessibility tree after the take, so $name.take cannot say where the card is; run: $0 doctor" >&2
+      echo "could not read active-set-card's frame from the accessibility tree after the take," \
+        "so $name.take cannot say where the card is; run: $0 doctor" >&2
       exit 70
     fi
     animations=unknown

@@ -41,17 +41,17 @@ Box. The card is the longest vertical run of at least 120 pt where the column at
 the paper column at --ref pt by 4.0. Runs join across a gap of up to 8 pt only while the joined run stays
 no taller than card_pt=, so a neighbour touching the card, such as the rest pill, joins it only while the
 pair fits that height. An unbroken run is the card at any height, so a card that shrinks to card_pt=
-during the take reads its whole range. left and right come from a row scan at the run's middle. A run whose middle row shows nothing brighter
-than the paper, or whose box holds no whole 4 pt cell, is no card. The settled card is the last card the
-window shows. There is no card at all when card_pt=none, when no window frame shows one, or when the
-settled card's height is more than 24 pt from card_pt='s or its middle more than 8 pt from card_pt='s in x
-or y, as when a sheet over the session shows a section where the tree still holds the card behind it,
-unless the card was still moving in its last frame: the tree is read after the recorder stops, so it
-holds where that card was going, and the move reads still=no with its range truncated. The box is read from the first
-solid card: the first detection with at least three quarters of the settled card's contrast. Detections
-before it are faint and their edges are not read, because a faint card reads short and narrow.
-edges=partial when the first solid card is not the window's first frame. After it every detection counts,
-at any contrast, and a frame without the card is lost.
+during the take reads its whole range. left and right come from a row scan at the run's middle. A run
+whose middle row shows nothing brighter than the paper, or whose box holds no whole 4 pt cell, is no card.
+The settled card is the last card the window shows. There is no card at all when card_pt=none, when no
+window frame shows one, or when the settled card's height is more than 24 pt from card_pt='s or its middle
+more than 8 pt from card_pt='s in x or y, as when a sheet over the session shows a section where the tree
+still holds the card behind it, unless the card was still moving in its last frame: the tree is read after
+the recorder stops, so it holds where that card was going, and the move reads still=no with its range
+truncated. The box is read from the first solid card: the first detection with at least three quarters of
+the settled card's contrast. Detections before it are faint and their edges are not read, because a faint
+card reads short and narrow. edges=partial when the first solid card is not the window's first frame.
+After it every detection counts, at any contrast, and a frame without the card is lost.
 
 Look. In 4 pt cells wholly inside the settled card's box, d is each window frame's mean luminance
 difference from the window's last frame, card or not, so the last frame's d is 0 and look_peak is the

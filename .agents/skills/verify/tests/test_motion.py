@@ -726,8 +726,9 @@ class Summarize(unittest.TestCase):
     def test_a_box_more_than_24_pt_shorter_than_the_tree_card_on_its_middle_is_no_card(self):
         def read(top, bottom):
             return cardframe.summarize(TAKE, frames(card(top, bottom), card(top, bottom)), 0.0).card
-        self.assertEqual(read(130, 230), cardframe.NoCard("the box read last, 130.0..230.0 16.0..186.0, is not where "
-                                                          "the accessibility tree put active-set-card, @16,100 170x160"))
+        self.assertEqual(read(130, 230), cardframe.NoCard(
+            "the box read last, 130.0..230.0 16.0..186.0, is not where the accessibility tree put active-set-card, "
+            "@16,100 170x160"))
         self.assertIsInstance(read(112, 248), cardframe.Seen, "24 pt shorter is the card")
         self.assertIsInstance(read(112.1, 247.9), cardframe.NoCard)
 
