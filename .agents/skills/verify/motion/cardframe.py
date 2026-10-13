@@ -27,7 +27,8 @@ frames between that changed less, as a repeated frame or the app's own motion do
 Every recorded launch, animations on or off, fades the springboard out over the whole screen, holds black,
 then fades the app in from black. On one Mac, over 22 launch takes, every full-screen frame of the fade-in
 fell within about 0.33 s of its start, and no app motion recorded changed more than about 0.74 of the
-screen. These and the figures below are rough examples from that host, not limits. The window is
+screen. Those two figures, and the window and settle times below, are rough examples from that host.
+The thresholds are the rules. The window is
 INVALID when:
   - a launch take has no frame where such a fade starts (rule ramp), because then the window holds the system's fade;
   - a frame after a launch's fade changed three quarters of the screen (rule screen), as a dim does,
