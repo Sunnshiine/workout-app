@@ -66,4 +66,12 @@ struct SystemInkOutsideThePalette {
     func hierarchicalVariantOfAColorIsMissed() -> some View {
         Text("Squat").foregroundStyle(Color.blue.secondary)
     }
+
+    func quinaryShapeStyleIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(.quinary)
+    }
+
+    func shapeStyleSecondaryIsFlagged() -> some View {
+        Text("Squat").foregroundStyle(ShapeStyle.secondary)
+    }
 }

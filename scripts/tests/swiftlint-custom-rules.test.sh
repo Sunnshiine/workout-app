@@ -81,6 +81,8 @@ system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:26
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:30
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:34
 system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:38
+system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:71
+system_ink_outside_the_palette App/Views/SystemInkOutsideThePalette.swift:75
 
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:5
 platform_guard_on_test_declaration Tests/PlatformGuardOnTestDeclaration.swift:12
