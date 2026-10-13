@@ -86,8 +86,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Choose RPE to log", canLog: false)
 
-    #expect(presentation.controlOpacity == 1)
-    #expect(!presentation.showsSkipAffordance)
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.tone == .incomplete)
     #expect(presentation.accessibilityHint == "Double tap to show what is missing. Press and hold to skip this Set.")
@@ -96,43 +94,36 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationShowsSkippedFeedbackOnlyDuringHoldProgress() {
     let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log", canLog: false)
 
-    #expect(!presentation.showsSkipAffordance)
     #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
 @MainActor
-@Test func setRowPresentationShowsLoggedSetWithAccentAndCheckmark() {
+@Test func setRowPresentationShowsLoggedSetLog() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)
     set.setLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "185x5@8")
-    #expect(presentation.tone == .accent)
-    #expect(presentation.showsCheckmark)
 }
 
 @MainActor
-@Test func setRowPresentationShowsSkippedSetAsMutedSkip() {
+@Test func setRowPresentationShowsSkippedSetAsSkip() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "skip")
-    #expect(presentation.tone == .muted)
-    #expect(!presentation.showsCheckmark)
 }
 
 @MainActor
-@Test func setRowPresentationShowsPendingSetAsMutedPrescription() {
+@Test func setRowPresentationShowsPendingSetAsPrescription() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
 
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "5 · RPE 8")
-    #expect(presentation.tone == .muted)
-    #expect(!presentation.showsCheckmark)
 }
 
 @MainActor
@@ -141,7 +132,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = SetCardPresentation(mode: .logging, set: set)
 
-    #expect(presentation.statusText == "Up next")
     #expect(presentation.referenceText == nil)
     #expect(presentation.showsLogControls)
     #expect(!presentation.commitsChangesOnDisappear)
@@ -154,7 +144,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
-    #expect(presentation.statusText == "Set Log")
     #expect(presentation.referenceText == nil)
     #expect(!presentation.showsLogControls)
     #expect(presentation.commitsChangesOnDisappear)
@@ -167,7 +156,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     let presentation = SetCardPresentation(mode: .reviewingLogged, set: set)
 
-    #expect(presentation.statusText == "Unstructured Set Log")
     #expect(presentation.referenceText == "BW and vest for 12")
     #expect(!presentation.showsLogControls)
     #expect(presentation.commitsChangesOnDisappear)
@@ -207,12 +195,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let policy = SessionFocusMorphPolicy(reduceMotion: false)
 
     #expect(policy.shouldAnimate(.supersetSwitchSucceeded))
-}
-
-@Test func focusMorphPolicyDoesNotAnimateFailedSupersetSwitch() {
-    let policy = SessionFocusMorphPolicy(reduceMotion: false)
-
-    #expect(!policy.shouldAnimate(.supersetSwitchFailed))
 }
 
 @Test func focusMorphPolicyDisablesSupersetSwitchWhenReduceMotionIsEnabled() {

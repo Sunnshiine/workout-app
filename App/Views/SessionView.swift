@@ -5,7 +5,6 @@ struct SessionView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
-    @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var coordinator = SessionCoordinator(session: nil)
@@ -183,13 +182,6 @@ struct SessionView: View {
         }
     }
 
-    private func dismissSuperset(_ config: SessionSupersetRenderConfig, in session: Session) {
-        guard let exercise = config.exercises.first else { return }
-        withAnimation(Theme.momentumFlowAnimation) {
-            coordinator.dismissSuperset(containing: exercise, in: session)
-        }
-    }
-
 }
 
 extension SessionView {
@@ -198,8 +190,7 @@ extension SessionView {
             session: session,
             coordinator: coordinator,
             composition: stageComposition,
-            actions: stageActions(in: session),
-            onTopContentOffsetChange: updateSessionSettingsOverpull(topContentOffset:)
+            actions: stageActions(in: session)
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
@@ -223,9 +214,6 @@ extension SessionView {
             delete: coordinator.deleteLog(for:),
             focusSupersetExercise: { exercise in
                 focusSupersetWithMorph(exercise, in: session)
-            },
-            dismissSuperset: { config in
-                dismissSuperset(config, in: session)
             },
             showSourceSession: showSourceSession(for:),
             moveOn: {

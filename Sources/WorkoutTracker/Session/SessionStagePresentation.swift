@@ -159,11 +159,6 @@ enum SessionStagePresentation {
         return "\(focusID.exerciseOrder)-\(focusID.setIndex)"
     }
 
-    static func positionLabel(of item: SessionStageItem, in items: [SessionStageItem]) -> String {
-        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return "" }
-        return "Exercise \(index + 1) of \(items.count)"
-    }
-
     /// The next incomplete item after the stage item in Session order, wrapping
     /// around to earlier skipped-over items; never the stage item itself.
     static func upNextItem(

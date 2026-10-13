@@ -15,9 +15,6 @@ struct ActiveSupersetSection: View {
     let onLog: (ExerciseSet, SetLog) -> Void
     let onSkip: (ExerciseSet) -> Void
     let onDelete: (ExerciseSet) -> Void
-    /// Retired from the stage: Unlink now lives in the queue sheet's containment
-    /// group (DESIGN.md §5.4). Kept so the call site's dismiss wiring is untouched.
-    let onDismiss: () -> Void
     @Environment(\.themePalette) private var palette
 
     private var orderedExercises: [Exercise] {
@@ -104,26 +101,15 @@ struct ActiveSupersetSection: View {
     @ViewBuilder
     private var cardRegion: some View {
         if let activeSetID = config.presentation.activeSetID, let activeSet = stageSet {
-            ZStack(alignment: .topLeading) {
-                IncomingActiveSetCard(
-                    transition: incomingTransition,
-                    set: activeSet,
-                    setOrdinal: setOrdinal(for: activeSet),
-                    setCount: focusedSortedSets.count,
-                    onLog: { onLog(activeSet, $0) },
-                    onSkip: { onSkip(activeSet) },
-                    onDelete: { onDelete(activeSet) }
-                )
-
-                if let transition = config.retiringTransition, transition.outgoingSetID == activeSetID {
-                    RetiringActiveSetCard(
-                        transition: transition,
-                        set: activeSet,
-                        setOrdinal: setOrdinal(for: activeSet),
-                        setCount: focusedSortedSets.count
-                    )
-                }
-            }
+            IncomingActiveSetCard(
+                transition: incomingTransition,
+                set: activeSet,
+                setOrdinal: setOrdinal(for: activeSet),
+                setCount: focusedSortedSets.count,
+                onLog: { onLog(activeSet, $0) },
+                onSkip: { onSkip(activeSet) },
+                onDelete: { onDelete(activeSet) }
+            )
             .id(activeSetID)
         } else if let fallbackSet = stageSet {
             ActiveSetCard(
@@ -210,68 +196,6 @@ private struct IncomingActiveSetCard: View {
         hasSettled = false
         withAnimation(animation) {
             hasSettled = true
-        }
-    }
-}
-
-private struct RetiringActiveSetCard: View {
-    let transition: ActiveSetTransition
-    let set: ExerciseSet
-    let setOrdinal: Int
-    let setCount: Int
-    @State private var hasRetired = false
-
-    var body: some View {
-        ActiveSetCard(
-            set: set,
-            setOrdinal: setOrdinal,
-            setCount: setCount,
-            onLog: { _ in },
-            onSkip: {},
-            onDelete: {},
-            showsLoggedCheckmark: transition.kind == .momentumFlow
-        )
-        .allowsHitTesting(false)
-        .offset(y: retiringOffset)
-        .scaleEffect(x: 1, y: retiringScale, anchor: .top)
-        .opacity(hasRetired ? 0 : 1)
-        .onAppear {
-            withAnimation(retiringAnimation) {
-                hasRetired = true
-            }
-        }
-    }
-
-    private var retiringOffset: CGFloat {
-        guard hasRetired else { return 0 }
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumDropOffset
-        case .softFadeUp:
-            return Theme.skipFadeUpOffset
-        case .collapseAndRise:
-            return 0
-        }
-    }
-
-    private var retiringScale: CGFloat {
-        guard hasRetired else { return 1 }
-        switch transition.kind {
-        case .momentumFlow:
-            return 1
-        case .softFadeUp, .collapseAndRise:
-            return Theme.exerciseCompressionScale
-        }
-    }
-
-    private var retiringAnimation: Animation {
-        switch transition.kind {
-        case .momentumFlow:
-            return Theme.momentumDropAnimation
-        case .softFadeUp:
-            return Theme.skipFadeUpAnimation
-        case .collapseAndRise:
-            return Theme.exerciseCollapseAnimation
         }
     }
 }

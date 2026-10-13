@@ -10,7 +10,6 @@ struct SessionStageActions {
     let skip: (ExerciseSet) -> Void
     let delete: (ExerciseSet) -> Void
     let focusSupersetExercise: (Exercise) -> Void
-    let dismissSuperset: (SessionSupersetRenderConfig) -> Void
     let showSourceSession: (Exercise) -> Void
     let moveOn: () -> Void
 }
@@ -23,7 +22,6 @@ struct SessionStageView: View {
     let coordinator: SessionCoordinator
     let composition: SessionStageComposition
     let actions: SessionStageActions
-    let onTopContentOffsetChange: (CGFloat) -> Void
     @Environment(WorkoutStore.self) private var workout
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
@@ -120,8 +118,7 @@ struct SessionStageView: View {
                 onShowHistory: { historyExercise = $0 },
                 onLog: actions.log,
                 onSkip: actions.skip,
-                onDelete: actions.delete,
-                onDismiss: { actions.dismissSuperset(config) }
+                onDelete: actions.delete
             )
         case .hiddenPairedExercise:
             EmptyView()

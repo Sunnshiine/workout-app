@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LastPerformedCard: View {
     let presentation: LastPerformedCardPresentation
-    let onTap: (() -> Void)?
+    let onTap: () -> Void
 
     @Environment(\.themePalette) private var palette
 
@@ -15,9 +15,9 @@ struct LastPerformedCard: View {
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .accessibilityHint(onTap == nil ? "" : "Opens Exercise History")
+            .accessibilityHint("Opens Exercise History")
             .accessibilityIdentifier("last-performed-line")
-            .modifier(TapModifier(onTap: onTap))
+            .onTapGesture(perform: onTap)
     }
 
     private var line: Text {
@@ -33,17 +33,5 @@ struct LastPerformedCard: View {
         return Text(" as “\(matchedName)”")
             .italic()
             .foregroundStyle(.tertiary)
-    }
-}
-
-private struct TapModifier: ViewModifier {
-    let onTap: (() -> Void)?
-
-    func body(content: Content) -> some View {
-        if let onTap {
-            content.onTapGesture(perform: onTap)
-        } else {
-            content
-        }
     }
 }

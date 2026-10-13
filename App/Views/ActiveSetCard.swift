@@ -22,7 +22,6 @@ struct ActiveSetCard: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
-    var showsLoggedCheckmark = false
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
@@ -53,7 +52,6 @@ struct ActiveSetCard: View {
                 onLog: onLog,
                 onSkip: onSkip,
                 onDelete: onDelete,
-                showsLoggedCheckmarkInitially: showsLoggedCheckmark,
                 inputDismissalRequestID: inputDismissalRequestID
             )
             .id(set.persistentModelID)

@@ -455,8 +455,7 @@ private struct SessionPage: View {
                     session: session,
                     coordinator: coordinator,
                     composition: .reading,
-                    actions: .inert,
-                    onTopContentOffsetChange: { _ in }
+                    actions: .inert
                 )
                 .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 43) }
                 .restPillInset(restTimer, composition: .reading)
@@ -647,7 +646,6 @@ extension SessionStageActions {
             skip: { _ in },
             delete: { _ in },
             focusSupersetExercise: { _ in },
-            dismissSuperset: { _ in },
             showSourceSession: { _ in },
             moveOn: {}
         )

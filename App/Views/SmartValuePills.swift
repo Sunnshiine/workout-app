@@ -39,7 +39,6 @@ struct SmartValuePills: View {
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
         onDelete: @escaping () -> Void,
-        showsLoggedCheckmarkInitially: Bool = false,
         inputDismissalRequestID: Int = 0
     ) {
         self.set = set
@@ -50,7 +49,6 @@ struct SmartValuePills: View {
         self.onDelete = onDelete
         self.inputDismissalRequestID = inputDismissalRequestID
         _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
-        _showsLoggedCheckmark = State(initialValue: showsLoggedCheckmarkInitially)
     }
 
     var body: some View {
