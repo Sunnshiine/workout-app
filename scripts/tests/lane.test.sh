@@ -289,10 +289,10 @@ expect "down then bundles that commit" "$status $(git -C "$primary" bundle list-
     "0 $reup_sha HEAD"
 
 lane up results "$c1"
-# ci-visual-diffs holds a downloaded CI artifact, which the same command downloads again.
+regenerable="debug scratch ci-visual-diffs"
 results=$(grep -rhoE --include='*.sh' --exclude-dir=tests '\.build/[A-Za-z0-9_-]+' "$scripts" "$scripts/../.agents" \
-    | sed 's|^\.build/||' | grep -vxE 'debug|scratch|ci-visual-diffs' | sort -u | tr '\n' ' ')
-for d in $results debug scratch ci-visual-diffs; do
+    | sed 's|^\.build/||' | grep -vxF "$(printf '%s\n' $regenerable)" | sort -u | tr '\n' ' ')
+for d in $results $regenerable; do
     mkdir -p "$lanes/results/.build/$d"
     echo "$d" >"$lanes/results/.build/$d/result.txt"
 done
