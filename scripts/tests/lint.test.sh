@@ -120,6 +120,32 @@ run_lint
 expect_exit "swift-format, formatted" "$status" 0
 expect_line "swift-format, formatted" "$out" "swift-format: 1 changed Swift file(s) clean since $(git -C "$fx" rev-parse --short=7 HEAD)."
 
+echo "no origin/main: a whole-tree run says how to give swift-format a base"
+fresh_fixture
+baseline_config
+git -C "$fx" update-ref -d refs/remotes/origin/main
+env -u LINT_FORMAT_BASE "$fx/scripts/lint.sh" >"$root/stdout" 2>"$root/stderr"
+status=$?
+err=$(cat "$root/stderr")
+expect_exit "no origin/main" "$status" 2
+expect_line "no origin/main" "$err" "error: git cannot find where HEAD left 'origin/main'."
+expect_line "no origin/main" "$err" "       Run 'git fetch origin main', or set LINT_FORMAT_BASE to a commit this branch"
+expect_line "no origin/main" "$err" "       grew from: LINT_FORMAT_BASE=<base> scripts/lint.sh"
+LINT_FORMAT_BASE=HEAD "$fx/scripts/lint.sh" >"$root/stdout" 2>"$root/stderr"
+expect_exit "no origin/main, LINT_FORMAT_BASE=HEAD" "$?" 0
+
+echo "help: --help prints usage naming LINT_FORMAT_BASE, and an unknown flag is a usage error"
+fresh_fixture
+baseline_config
+run_lint "$fx/scripts/lint.sh" --help
+expect_exit "--help" "$status" 0
+expect_line "--help" "$out" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
+expect_line "--help, stderr" "$err" ""
+run_lint "$fx/scripts/lint.sh" --nope
+expect_exit "--nope" "$status" 64
+expect_line "--nope" "$err" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
+expect_line "--nope, stdout" "$out" ""
+
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture
 baseline_config Tests Sources/Tool

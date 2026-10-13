@@ -3,14 +3,6 @@
 #
 # The script refuses a directory or a missing path because SwiftLint would swap it for the whole
 # `included:` set and still exit 0.
-#
-#   scripts/lint.sh                      lint, check doc spans and workflow if: guards, and
-#                                        swift-format the Swift changed since $LINT_FORMAT_BASE
-#                                        (default origin/main); what CI runs
-#   scripts/lint.sh <file.swift>...      lint those files alone
-#   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
-#   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
-#   scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -30,8 +22,20 @@ config_list() {
 }
 
 usage() {
-    echo "usage: scripts/lint.sh [--fix] [<file.swift>...] | --print-version | --print-path" >&2
-    exit 64
+    cat <<'EOF'
+usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
+       scripts/lint.sh --print-version | --print-path | --help
+
+  scripts/lint.sh                      lint, check doc spans and workflow if: guards, and
+                                       swift-format the Swift changed since LINT_FORMAT_BASE
+                                       (default origin/main); what CI runs
+  scripts/lint.sh <file.swift>...      lint those files alone
+  scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
+  scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
+  scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
+
+Exits 0 when clean and 64 on a usage error. Any other exit is the failing stage's own status.
+EOF
 }
 
 root_relative() {
@@ -76,11 +80,12 @@ FILES=()
 for arg in "$@"; do
     case "$arg" in
         --fix) MODE="fix" ;;
+        -h | --help) usage; exit 0 ;;
         --print-version | --print-path)
-            [ "$#" -eq 1 ] || usage
+            [ "$#" -eq 1 ] || { usage >&2; exit 64; }
             MODE="${arg#--}"
             ;;
-        -*) usage ;;
+        -*) usage >&2; exit 64 ;;
         *)
             file="$(root_relative "$arg")" || exit
             FILES+=("$file")
@@ -263,4 +268,11 @@ echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"
 
 echo "==> swift-format"
-"$ROOT/scripts/swift-format-changed.sh" "${LINT_FORMAT_BASE:-origin/main}"
+"$ROOT/scripts/swift-format-changed.sh" "${LINT_FORMAT_BASE:-origin/main}" || {
+    status=$?
+    if [ "$status" -eq 2 ]; then
+        echo "       Run 'git fetch origin main', or set LINT_FORMAT_BASE to a commit this branch" >&2
+        echo "       grew from: LINT_FORMAT_BASE=<base> scripts/lint.sh" >&2
+    fi
+    exit "$status"
+}
