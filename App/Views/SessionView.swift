@@ -330,7 +330,7 @@ private struct OffLiveEdgeControls: View {
 
     private var makeCurrentButton: some View {
         Button(action: onMakeCurrent) {
-            Label("Make Current", systemImage: "pin.fill")
+            Label("Make current", systemImage: "pin.fill")
                 .labelStyle(.iconOnly)
                 .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)

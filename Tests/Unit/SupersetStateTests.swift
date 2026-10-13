@@ -243,7 +243,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 
     let rows = coordinator.stage(in: secondBlock, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
-    #expect(rows.map(\.canBeginPairing) == [true, true, true])
+    #expect(rows.map(\.kind) == [.pairableExercise, .pairableExercise, .pairableExercise])
 }
 
 @MainActor

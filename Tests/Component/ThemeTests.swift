@@ -183,3 +183,40 @@ import Testing
         }
     }
 #endif
+
+#if canImport(AppKit)
+    private func relativeLuminance(_ color: RGBAComponents) -> Double {
+        func linear(_ channel: Double) -> Double {
+            channel <= 0.04045 ? channel / 12.92 : pow((channel + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(color.red) + 0.7152 * linear(color.green) + 0.0722 * linear(color.blue)
+    }
+
+    private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)
+    private let dayQueueSheetFootFill = Theme.rgb(181, 209, 171)
+
+    @Test(arguments: [
+        (Theme.Appearance.night, nightOpenedSessionBorderedButtonFill),
+        (Theme.Appearance.day, dayQueueSheetFootFill)
+    ])
+    func actionInkReadsAtWCAGBodyContrastOnItsHardestFill(appearance: Theme.Appearance, fill: Color) throws {
+        let text = try #require(rgbaComponents(of: Theme.palette(for: appearance).actionInk))
+        let ground = try #require(rgbaComponents(of: fill))
+        let luminances = [relativeLuminance(text), relativeLuminance(ground)].sorted()
+
+        let ratio = (luminances[1] + 0.05) / (luminances[0] + 0.05)
+
+        #expect(ratio >= 4.5, "\(appearance) action text measures \(ratio):1")
+    }
+
+    @Test func nightActionInkIsSageNotMint() throws {
+        let actionInk = Theme.palette(for: Theme.Appearance.night).actionInk
+        let text = try #require(rgbaComponents(of: actionInk))
+        let (high, low) = (max(text.red, text.green, text.blue), min(text.red, text.green, text.blue))
+
+        let saturation = (high - low) / (1 - abs(high + low - 1))
+
+        #expect(saturation < 0.5, "HSL saturation \(saturation); the mint bud stroke #78F0B2 is 0.80")
+        expectSageLed(actionInk)
+    }
+#endif

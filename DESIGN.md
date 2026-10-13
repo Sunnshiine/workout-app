@@ -9,7 +9,9 @@ colors:
   muted-night: "#9AAA9B"
   cream: "#F2F7E8"
   action-day: "#0D6B40"
+  action-day-ink: "#0A5936"
   action-night: "#1F8552"
+  action-night-ink: "#A8CFB4"
   foliage: "#579168"
   paper-day-top: "#E9EEDC"
   paper-day-bottom: "#CBE1C2"
@@ -185,6 +187,12 @@ environment palette. Full role tables: `docs/design/greenhouse-theme-tokens.md`.
 - **`actionNight` (`#1F8552`)** — the night action green. **Mint fails the
   action role at night** (it reads candy and reverts to cockpit); the Log
   capsule stays green-fill with cream text in both appearances.
+- **`actionDayInk` (`#0A5936`) / `actionNightInk` (`#A8CFB4`)** — the action
+  green as words and glyphs on paper and as the system tint. Day uses the
+  pressed Log green; Night is `actionNight` under cream @ 65%. The action
+  greens stay fill and stroke colours: as small text `#1F8552` measures 1.9 to
+  3.7:1 on night paper, and `#0D6B40` 4.0 to 4.4:1 on the queue sheet's darker
+  foot.
 - **`foliage` (`#579168`)** — *the* night pigment: leaves, stems, bird, and
   Block-grid tiles all re-light to this.
 - **`paperDay` / `paperNight`** — the base gradient pairs under the washes.
@@ -469,10 +477,30 @@ instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
 
 Coach note, Last Performed, and the Active Set Card follow the focus (the
 card head stays plain `Set N of M`); the foot's up-next names the partner's
-next Set. In the queue sheet, a Superset reads by **containment**: one soft
-group, a sentence-case `Superset` caption, `Unlink`, and creation via
-`Pair` → `Pair with this` — no bracket glyph. The queue sheet itself is
-living paper (§2).
+next Set. In the queue sheet, glyphs carry pairing, not words, and every
+glyph is the stage's forked stem drawn small, in four forms. **Offer**
+dashes the lateral, **bud** is the lateral alone reaching for a plus,
+**joined** is the full fork, and **split** snaps the lateral off at the
+joint.
+
+At rest a round icon button sits in the header's top right, a 46pt pill-fill
+circle with a hairline pill stroke, holding the offer stem in action ink. It
+begins pairing from the Exercise on stage, and it is absent when that
+Exercise cannot pair. No row carries a pair glyph. While pairing, the title
+stays "This Session" and the same circle holds a grey X that cancels. The
+source row takes a pale action-ink capsule with a 2px action-ink outline and
+the offer stem. Each eligible row shows the bud, the chosen partner fills and
+shows the joined fork, and an ineligible row dims with no glyph.
+
+A Superset row reads "Back Squat + Bench Press" on a surface capsule behind a
+joined stem in action ink. Its trailing grey split stem is **Unlink**, and it
+returns both Exercises to the queue. While pairing, a Superset row dims like
+an ineligible row and hides Unlink without giving up its space. Every row
+highlight is a capsule, since a soft-radius rectangle draws flat ticks on a
+row this short (#870). The header holds one height whether it shows the
+button, the X, or nothing, so the title never moves (operator rulings
+2026-10-11 and 2026-10-12: self-describing icons over words, V3's stem in
+V1's icon-only header button). The queue sheet itself is living paper (§2).
 
 ### 5.5 Block grid — the focus week
 

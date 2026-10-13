@@ -39,6 +39,8 @@ enum Theme {
         static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
         static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
         static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
+        static let actionDayInk = rgb(10, 89, 54)
+        static let actionNightInk = rgb(168, 207, 180)
         static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
         static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
@@ -189,6 +191,7 @@ enum Theme {
         // Text inks
         let textPrimary: Color
         let textSecondary: Color
+        let actionInk: Color
 
         // Stage & branch
         let stem: Color
@@ -506,6 +509,7 @@ extension Theme {
         ),
         textPrimary: Paint.ink,
         textSecondary: Paint.muted,
+        actionInk: Paint.actionDayInk,
         stem: Paint.actionDay,
         leafFill: Paint.actionDay,
         leafRib: Paint.cream.opacity(0.50),
@@ -566,6 +570,7 @@ extension Theme {
         ),
         textPrimary: Paint.inkNight,
         textSecondary: Paint.mutedNight,
+        actionInk: Paint.actionNightInk,
         stem: Paint.foliage,
         leafFill: Paint.foliage,
         leafRib: Paint.cream.opacity(0.55),
