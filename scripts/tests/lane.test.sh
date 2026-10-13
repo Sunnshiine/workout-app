@@ -103,7 +103,10 @@ git -C "$root/other" commit -qm pulled
 c4=$(git -C "$root/other" rev-parse HEAD)
 git -C "$root/other" push -q origin HEAD:refs/pull/7/head
 
-lane up a "${c1:0:8}"
+FAKE_SIM_HELD_FDS="$root/held-fds" lane up a "${c1:0:8}"
+expect "up builds the template with no lane lock (fd 5) on its simctl create or boot" "$(sed 's/ $//' "$root/held-fds")" \
+    "create workout-template-v1-building holds fds:
+boot $P-1 holds fds:"
 expect "up prints the three export lines and leaves the lane's simulator Shutdown" \
     "$status $(cat "$root/out") | $(calls | tail -1) | $(lane_rows)" \
     "0 $(env_lines "$P-2" a) | clone $P-1 workout-lane-a | $P-2 workout-lane-a"
