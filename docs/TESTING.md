@@ -81,16 +81,13 @@ CI runner's preinstalled runtime — the pin moves with the runner image, see AD
 mode, `en_US`, and fixed default Dynamic Type.
 
 Precision is the fraction of pixels that must match. `WorkoutVisualBaseline.precision` is exact
-(`1.0`). An assertion that passes `WorkoutVisualBaseline.labelAntialiasingPrecision` compares at
-`0.999`, so up to 0.1% of the image may differ and the test still passes.
-`grep -rn WorkoutVisualBaseline.labelAntialiasingPrecision Tests/Visual` lists each one.
-`GlassBearingViewsVisualTests` passes it only in `smartValuePillsMatchesVisualBaseline`, and its
-other tests compare at `1.0`. `ExerciseHistorySheetVisualTests` holds
-`exerciseHistoryRaisedVolumeControlMatchesNightVisualBaseline` at `1.0`. Every other test in a
-suite the grep lists compares at `0.999` through that suite's shared snapshot helper. That budget
-absorbs text anti-aliasing, and it also hid a whole missing Settings row from the Block grid
-baselines. For a change to one of those surfaces, open the rendered image and compare it with the
-baseline yourself; a green run does not prove they match.
+(`1.0`). A test compares at `0.999` when its assertion resolves to
+`WorkoutVisualBaseline.labelAntialiasingPrecision`, passed directly or through its suite's
+snapshot helper, so up to 0.1% of the image may differ and the test still passes.
+`grep -rn 'precision' Tests/Visual` shows each helper's precision and every test that passes its
+own. That budget absorbs text anti-aliasing, and it also hid a whole missing Settings row from the
+Block grid baselines. For a change to one of those surfaces, open the rendered image and compare it
+with the baseline yourself; a green run does not prove they match.
 
 Recording recipe (issue #471): the recording switch is the suite trait, not an environment
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
