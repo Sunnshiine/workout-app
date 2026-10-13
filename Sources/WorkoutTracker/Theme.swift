@@ -396,45 +396,18 @@ enum Theme {
     static let logButtonCheckmarkDuration = 0.2
     static let holdToSkipTapMaximumDuration = 0.18
     static let momentumFlowTotalDuration = 0.65
-    static let momentumDropDuration = 0.4
-    static let momentumRiseDuration = 0.5
-    static let momentumRiseDelay = 0.15
     static let skipFadeUpDuration = 0.45
-    static let exerciseCompletionBeatDuration = 0.2
     static let focusMorphDuration = 0.28
     static let stageCompositionDuration = 0.25
-    static let momentumSpringStiffness = 220.0
-    static let momentumSpringDamping = 22.0
-    static let momentumRiseOffset: CGFloat = 44
-    static let exerciseRiseOffset: CGFloat = 36
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
-
-    static var logButtonCheckmarkAnimation: Animation {
-        .easeOut(duration: logButtonCheckmarkDuration)
-    }
 
     static var momentumFlowAnimation: Animation {
         .easeInOut(duration: momentumFlowTotalDuration)
     }
 
-    static var momentumRiseAnimation: Animation {
-        .interpolatingSpring(
-            mass: 1,
-            stiffness: momentumSpringStiffness,
-            damping: momentumSpringDamping,
-            initialVelocity: 0
-        )
-        .delay(momentumRiseDelay)
-    }
-
     static var skipFadeUpAnimation: Animation {
         .easeOut(duration: skipFadeUpDuration)
-    }
-
-    static var exerciseRiseAnimation: Animation {
-        .easeOut(duration: momentumRiseDuration)
-            .delay(exerciseCompletionBeatDuration)
     }
 
     static var focusMorphAnimation: Animation {

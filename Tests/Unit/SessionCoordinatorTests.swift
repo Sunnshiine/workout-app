@@ -81,6 +81,108 @@ private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     }
 }
 
+private enum SessionVerbEntry: Equatable {
+    case began(SessionMotion, focus: ActiveSetID?)
+    case logged
+    case skipped
+    case deleted
+    case liveActivityStarted
+    case liveActivityReconciled
+    case ended(focus: ActiveSetID?)
+    case flushRequested
+    case failureReported
+}
+
+/// Samples a value just before and just after each transaction's change.
+@MainActor
+private final class SampleAroundMotion: SessionMotionPerforming {
+    var around: () -> Int = { 0 }
+    private(set) var firedAroundAnimation: [Int] = []
+    var reducesMotion: Bool { false }
+
+    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
+        firedAroundAnimation.append(around())
+        try change()
+        firedAroundAnimation.append(around())
+    }
+}
+
+@MainActor
+private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, SessionSyncAdapter, SessionLiveActivityAdapter {
+    var reducesMotion = false
+    var writeError: TestLoggingError?
+    weak var coordinator: SessionCoordinator?
+    private(set) var entries: [SessionVerbEntry] = []
+
+    var motions: [SessionMotion] {
+        entries.compactMap { entry in
+            guard case .began(let motion, _) = entry else { return nil }
+            return motion
+        }
+    }
+
+    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
+        entries.append(.began(motion, focus: coordinator?.activeSetID))
+        defer { entries.append(.ended(focus: coordinator?.activeSetID)) }
+        try change()
+    }
+
+    func log(_ set: ExerciseSet, as log: SetLog) throws {
+        if let writeError { throw writeError }
+        entries.append(.logged)
+        set.setLog = log
+        set.state = .logged
+    }
+
+    func skip(_ set: ExerciseSet) throws {
+        entries.append(.skipped)
+        set.setLog = nil
+        set.state = .skipped
+    }
+
+    func deleteLog(for set: ExerciseSet) throws {
+        entries.append(.deleted)
+        set.setLog = nil
+        set.state = .pending
+    }
+
+    func reportLocalWriteFailure(_ error: any Error) {
+        entries.append(.failureReported)
+    }
+
+    func requestPendingWriteFlush() {
+        entries.append(.flushRequested)
+    }
+
+    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
+        entries.append(.liveActivityStarted)
+    }
+
+    func end() {}
+
+    func endIfInvalidated(at liveEdge: LiveEdge) {
+        entries.append(.liveActivityReconciled)
+    }
+}
+
+@MainActor
+private func makeLedgerCoordinator(session: Session, restTimer: RestTimer? = nil) -> (SessionCoordinator, SessionVerbLedger) {
+    let ledger = SessionVerbLedger()
+    let coordinator = SessionCoordinator()
+    coordinator.bind(
+        to: session,
+        logging: ledger,
+        sync: ledger,
+        restTimer: restTimer,
+        standardRestDuration: { 210 },
+        liveActivity: ledger,
+        motion: ledger,
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
+    ledger.coordinator = coordinator
+    return (coordinator, ledger)
+}
+
 @MainActor
 private final class ManualSessionTransitionClock: SessionTransitionClock {
     private(set) var sleptDurations: [Duration] = []
@@ -270,7 +372,6 @@ private struct CoordinatorActionFixture {
     let coordinator: SessionCoordinator
     let logging: SpySessionLoggingAdapter
     let sync: SpySessionSyncAdapter
-    let clock: ManualSessionTransitionClock
 }
 
 private struct CoordinatorRestActionFixture {
@@ -284,19 +385,17 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let clock = ManualSessionTransitionClock()
     let coordinator = SessionCoordinator(
         session: session,
         logging: logging,
         sync: sync,
-        transitionClock: clock
+        transitionClock: ManualSessionTransitionClock()
     )
     return CoordinatorActionFixture(
         session: session,
         coordinator: coordinator,
         logging: logging,
-        sync: sync,
-        clock: clock
+        sync: sync
     )
 }
 
@@ -316,6 +415,7 @@ private func makeRestActionFixture(
         sync: sync,
         restTimer: restTimer,
         liveActivity: liveActivity,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     return CoordinatorRestActionFixture(
@@ -585,6 +685,32 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func coordinatorSupersetSideSwitchCuts() throws {
+    let session = makePlannedPairingSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+
+    #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
+    #expect(coordinator.focusNextSupersetSet(for: bench, in: session))
+
+    let expectedSetID = ActiveSetID(exerciseOrder: 2, setIndex: 0)
+    #expect(ledger.motions == [.cut])
+    #expect(coordinator.activeSetID == expectedSetID)
+}
+
+@MainActor
+@Test func coordinatorFailedSupersetSideSwitchKeepsTheFocus() throws {
+    let session = makePlannedPairingSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
+    let press = try #require(session.exercises.first { $0.order == 0 })
+
+    #expect(!coordinator.focusNextSupersetSet(for: press, in: session))
+
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+}
+
+@MainActor
 @Test func coordinatorMembershipAgreesForPlannedButNotYetActiveSuperset() throws {
     let session = makePlannedPairingSession()
     let coordinator = SessionCoordinator(session: session)
@@ -614,21 +740,17 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func supersetLogRendersThePairBeforeAndAfterTheFocusMove() throws {
+@Test func supersetLogRendersThePairBeforeAndAfterTheLog() throws {
     let session = makeSquatAndRDLSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
     let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    var idsBeforeFocusMove: [String] = []
+    #expect(coordinator.renderItems(in: session).map(\.id) == ["superset-0", "hidden-paired-exercise-1"])
 
-    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven)) { update in
-        idsBeforeFocusMove = coordinator.renderItems(in: session).map(\.id)
-        update()
-    }
+    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
 
-    #expect(idsBeforeFocusMove == ["superset-0", "hidden-paired-exercise-1"])
     #expect(coordinator.renderItems(in: session).map(\.id) == ["superset-0", "hidden-paired-exercise-1"])
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
@@ -686,7 +808,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func loggingSetUsesAdaptersAdvancesFocusStartsTransitionAndFlushes() throws {
+@Test func loggingSetUsesAdaptersAdvancesFocusAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -698,16 +820,6 @@ private func makeRestActionFixture(
     #expect(fixture.logging.loggedSets.first?.set === firstBenchSet)
     #expect(fixture.logging.loggedSets.first?.log == log)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    #expect(
-        transition
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
@@ -844,6 +956,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -881,6 +994,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -915,6 +1029,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -944,6 +1059,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
+        motion: ImmediateSessionMotion(),
         liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: current.session) }
     )
     let bench = try #require(browsed.exercises.first { $0.order == 1 })
@@ -1157,24 +1273,20 @@ private func makeRestActionFixture(
     #expect(fixture.coordinator.expandedLoggedSetID == nil)
     #expect(fixture.coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
     #expect(fixture.coordinator.savedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
 
 @MainActor
-@Test func openingLoggedSetReviewClearsTheTransition() throws {
+@Test func openingTheReviewOfASetJustLoggedRendersItExpanded() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
 
     fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-    #expect(fixture.coordinator.activeSetTransition != nil)
-
     fixture.coordinator.focus(on: firstBenchSet)
 
     #expect(fixture.coordinator.visualFocusOwner == .loggedSetReview(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     let benchConfig = try #require(
         fixture.coordinator.renderItems(in: fixture.session).compactMap(\.exerciseConfig).first { $0.exercise.order == 1 }
     )
@@ -1182,79 +1294,20 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func aSupersetCarriesTheTransitionOfASetLoggedInsideItAndNotOfOneLoggedOutsideIt() throws {
-    let session = makeIntegratedCoordinatorSession()
-    let coordinator = SessionCoordinator(
-        session: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        transitionClock: ManualSessionTransitionClock()
-    )
-    let squat = try #require(session.exercises.first { $0.order == 0 })
+@Test func pendingFocusMorphsForEachRetarget() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
     let bench = try #require(session.exercises.first { $0.order == 1 })
-    let row = try #require(session.exercises.first { $0.order == 2 })
-    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    let firstBenchSet = try #require(bench.sets.first)
-    bench.sets.append(
-        ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
-    )
-    #expect(coordinator.createSuperset(from: bench, to: row, in: session))
-    func supersetTransition() throws -> ActiveSetTransition? {
-        let supersets = coordinator.renderItems(in: session).compactMap { item -> SessionSupersetRenderConfig? in
-            guard case .superset(let config) = item else { return nil }
-            return config
-        }
-        return try #require(supersets.first).activeSetTransition
-    }
-
-    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
-
-    #expect(
-        coordinator.activeSetTransition
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
-    let supersetTransitionAfterOutsideLog = try supersetTransition()
-    #expect(supersetTransitionAfterOutsideLog == nil)
-
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-
-    let supersetTransitionAfterInsideLog = try supersetTransition()
-    #expect(
-        supersetTransitionAfterInsideLog
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 2, setIndex: 0),
-                completedExerciseOrder: nil
-            )
-    )
-}
-
-@MainActor
-@Test func pendingFocusUsesInjectedAnimationForEachRetargetWithoutActiveSetTransition() throws {
-    let fixture = try makeActionFixture()
-    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
-    let rowSet = try #require(fixture.session.exercises.first { $0.order == 2 }?.sets.first)
-    var animationCallCount = 0
-    let animation: SessionFocusAnimation = { update in
-        animationCallCount += 1
-        update()
-    }
+    let rowSet = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
 
-    fixture.coordinator.focus(on: rowSet, animateFocus: animation)
-    fixture.coordinator.focus(on: secondBenchSet, animateFocus: animation)
-    fixture.coordinator.focus(on: firstBenchSet, animateFocus: animation)
+    coordinator.focus(on: rowSet)
+    coordinator.focus(on: secondBenchSet)
+    coordinator.focus(on: firstBenchSet)
 
-    #expect(animationCallCount == 3)
-    #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
+    #expect(ledger.motions == [.focusMorph, .focusMorph, .focusMorph])
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
 
 @MainActor
@@ -1288,7 +1341,7 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func skippingSetUsesAdaptersAdvancesFocusStartsTransitionAndFlushes() throws {
+@Test func skippingSetUsesAdaptersAdvancesFocusAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1298,22 +1351,12 @@ private func makeRestActionFixture(
     #expect(fixture.logging.skippedSets.count == 1)
     #expect(fixture.logging.skippedSets.first === firstBenchSet)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    #expect(
-        transition
-            == ActiveSetTransition(
-                kind: .softFadeUp,
-                outgoingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
     #expect(fixture.sync.flushRequestCount == 1)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
 
 @MainActor
-@Test func deletingSetLogUsesAdaptersFocusesDeletedSetClearsTransitionAndFlushes() throws {
+@Test func deletingSetLogUsesAdaptersFocusesDeletedSetAndFlushes() throws {
     let fixture = try makeActionFixture()
     let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1325,7 +1368,6 @@ private func makeRestActionFixture(
     #expect(fixture.logging.deletedSets.count == 1)
     #expect(fixture.logging.deletedSets.first === firstBenchSet)
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(fixture.sync.flushRequestCount == 2)
     #expect(fixture.sync.reportedErrors.isEmpty)
 }
@@ -1341,7 +1383,6 @@ private func makeRestActionFixture(
     fixture.coordinator.log(firstBenchSet, as: log)
 
     #expect(fixture.coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(fixture.coordinator.activeSetTransition == nil)
     #expect(firstBenchSet.state == .pending)
     #expect(fixture.sync.flushRequestCount == 0)
     #expect(fixture.sync.reportedErrors == ["failed"])
@@ -1362,7 +1403,7 @@ private func makeRestActionFixture(
     #expect(logging.loggedSets.first?.set === new.set)
     #expect(new.set.state == .logged)
     #expect(old.set.state == .pending)
-    #expect(coordinator.activeSetTransition?.outgoingSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    #expect(coordinator.activeSetID == nil)
     #expect(sync.flushRequestCount == 1)
 }
 
@@ -1383,26 +1424,7 @@ private func makeRestActionFixture(
     #expect(new.set.state == .pending)
     #expect(old.set.state == .pending)
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
-    #expect(coordinator.activeSetTransition == nil)
     #expect(sync.flushRequestCount == 1)
-}
-
-@MainActor
-@Test func transitionExpiryUsesInjectedClockWithoutRealSleep() async throws {
-    let fixture = try makeActionFixture()
-    let bench = try #require(fixture.session.exercises.first { $0.order == 1 })
-    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-
-    fixture.coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-    let transition = try #require(fixture.coordinator.activeSetTransition)
-    await fixture.clock.waitForSleep()
-
-    #expect(fixture.clock.sleptDurations == [.nanoseconds(650_000_000)])
-    #expect(fixture.coordinator.activeSetTransition == transition)
-
-    await fixture.clock.advance()
-
-    #expect(fixture.coordinator.activeSetTransition == nil)
 }
 
 @MainActor
@@ -1412,7 +1434,13 @@ private func makeRestActionFixture(
     let sync = SpySessionSyncAdapter()
     let coordinator = SessionCoordinator()
 
-    coordinator.bind(to: session, logging: logging, sync: sync, liveEdge: { .atLiveEdge(currentSession: $0) })
+    coordinator.bind(
+        to: session,
+        logging: logging,
+        sync: sync,
+        motion: ImmediateSessionMotion(),
+        liveEdge: { .atLiveEdge(currentSession: $0) }
+    )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1438,6 +1466,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1463,6 +1492,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1494,6 +1524,7 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         liveActivity: bound,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1523,6 +1554,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1549,6 +1581,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1574,6 +1607,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         standardRestDuration: { 123 },
+        motion: ImmediateSessionMotion(),
         liveEdge: { _ in .browsedAway }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1596,6 +1630,7 @@ private func makeRestActionFixture(
         logging: SpySessionLoggingAdapter(),
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
+        motion: ImmediateSessionMotion(),
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -1631,51 +1666,150 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func switchingSidesRightAfterASupersetLogDropsTheIncomingCardTransition() throws {
+@Test func aSideSwitchALogASkipAndATapEachMoveTheFocusInsideTheirMotion() throws {
     let session = makeSquatAndRDLSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
-    #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
-    let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
-    coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
-    #expect(coordinator.activeSetTransition?.incomingSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-
-    #expect(coordinator.focusNextSupersetSet(for: squat, in: session))
-
-    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-    #expect(coordinator.activeSetTransition == nil)
-}
-
-@MainActor
-@Test func aLogASkipAndATapEachMoveTheFocusInsideTheInjectedAnimation() throws {
-    let session = makeSquatAndRDLSession()
-    let squat = try #require(session.exercises.first { $0.order == 0 })
-    let rdl = try #require(session.exercises.first { $0.order == 1 })
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     let secondSquatSet = try #require(squat.sets.first { $0.index == 1 })
     let firstRDLSet = try #require(rdl.sets.first { $0.index == 0 })
-    var focusMoves: [[ActiveSetID?]] = []
-    let animation: SessionFocusAnimation = { update in
-        let before = coordinator.activeSetID
-        update()
-        focusMoves.append([before, coordinator.activeSetID])
-    }
 
     #expect(coordinator.focusNextSupersetSet(for: rdl, in: session))
-    coordinator.log(firstRDLSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .seven), animateFocus: animation)
-    coordinator.skip(firstSquatSet, animateFocus: animation)
-    coordinator.focus(on: secondSquatSet, animateFocus: animation)
+    coordinator.log(firstRDLSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .seven))
+    coordinator.skip(firstSquatSet)
+    coordinator.focus(on: secondSquatSet)
 
     #expect(
-        focusMoves == [
-            [ActiveSetID(exerciseOrder: 1, setIndex: 0), ActiveSetID(exerciseOrder: 0, setIndex: 0)],
-            [ActiveSetID(exerciseOrder: 0, setIndex: 0), ActiveSetID(exerciseOrder: 1, setIndex: 1)],
-            [ActiveSetID(exerciseOrder: 1, setIndex: 1), ActiveSetID(exerciseOrder: 0, setIndex: 1)]
+        ledger.entries == [
+            .began(.cut, focus: ActiveSetID(exerciseOrder: 0, setIndex: 0)),
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .began(.momentumFlow, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .logged,
+            .liveActivityReconciled,
+            .ended(focus: ActiveSetID(exerciseOrder: 0, setIndex: 0)),
+            .flushRequested,
+            .began(.skipFadeUp, focus: ActiveSetID(exerciseOrder: 0, setIndex: 0)),
+            .skipped,
+            .liveActivityReconciled,
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 1)),
+            .flushRequested,
+            .began(.focusMorph, focus: ActiveSetID(exerciseOrder: 1, setIndex: 1)),
+            .ended(focus: ActiveSetID(exerciseOrder: 0, setIndex: 1))
         ]
     )
+}
+
+@MainActor
+@Test func aLogWritesStartsRestAndAdvancesInsideOneMomentumFlowAndRequestsTheFlushAfter() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let restTimer = RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000)))
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session, restTimer: restTimer)
+    let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    #expect(
+        ledger.entries == [
+            .began(.momentumFlow, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .logged,
+            .liveActivityStarted,
+            .liveActivityReconciled,
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 1)),
+            .flushRequested
+        ]
+    )
+    #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_210))
+}
+
+@MainActor
+@Test func aLogWhoseWriteFailsStartsNoRestOrLiveActivityKeepsFocusAndRequestsNoFlush() throws {
+    let session = makeCoordinatorSession()
+    connectCoordinatorWeek([session])
+    let restTimer = RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000)))
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session, restTimer: restTimer)
+    ledger.writeError = .failed
+    let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    #expect(
+        ledger.entries == [
+            .began(.momentumFlow, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .failureReported
+        ]
+    )
+    #expect(restTimer.interval == nil)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
+@Test func aSkipWritesAndAdvancesInsideOneSkipFadeUp() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
+    let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+
+    coordinator.skip(firstBenchSet)
+
+    #expect(
+        ledger.entries == [
+            .began(.skipFadeUp, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
+            .skipped,
+            .liveActivityReconciled,
+            .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 1)),
+            .flushRequested
+        ]
+    )
+}
+
+@MainActor
+@Test func deletingOrCorrectingALogRunsNoMotion() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
+    let squatSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+
+    coordinator.updateLoggedSet(squatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
+    coordinator.deleteLog(for: squatSet)
+
+    #expect(
+        ledger.entries == [
+            .logged,
+            .liveActivityReconciled,
+            .flushRequested,
+            .deleted,
+            .liveActivityReconciled,
+            .flushRequested
+        ]
+    )
+}
+
+@MainActor
+@Test func focusingMorphsExceptToCollapseAReviewOrLandOnASkippedSetAndYieldsToReduceMotion() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger) = makeLedgerCoordinator(session: session)
+    let squatSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+    let rowSet = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
+    rowSet.state = .skipped
+
+    let motionPerFocus = [secondBenchSet, squatSet, squatSet, rowSet].map { set in
+        let motionsBefore = ledger.motions.count
+        coordinator.focus(on: set)
+        return ledger.motions.dropFirst(motionsBefore).first
+    }
+    #expect(motionPerFocus == [.focusMorph, .focusMorph, nil, nil])
+
+    ledger.reducesMotion = true
+    coordinator.focus(on: squatSet)
+    #expect(coordinator.expandedLoggedSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    #expect(ledger.motions == [.focusMorph, .focusMorph, .momentumFlow])
 }
 
 @MainActor
@@ -1700,6 +1834,7 @@ private func makeRestActionFixture(
     let session = makePlannedPairingSession()
     connectCoordinatorWeek([session])
     let liveActivity = SpySessionLiveActivityAdapter()
+    let motion = SampleAroundMotion()
     let coordinator = SessionCoordinator()
     coordinator.bind(
         to: session,
@@ -1707,6 +1842,7 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
         liveActivity: liveActivity,
+        motion: motion,
         liveEdge: { .atLiveEdge(currentSession: $0) }
     )
     let squat = try #require(session.exercises.first { $0.order == 1 })
@@ -1715,16 +1851,12 @@ private func makeRestActionFixture(
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.canPair(bench, in: session) }
-    var firedAroundAnimation: [Int] = []
+    motion.around = { changes.fired }
 
-    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven)) { update in
-        firedAroundAnimation.append(changes.fired)
-        update()
-        firedAroundAnimation.append(changes.fired)
-    }
+    coordinator.log(lastSquatSet, as: SetLog(weight: .pounds(315), reps: 5, rpe: .seven))
 
     #expect(liveActivity.calls.count == 1)
-    #expect(firedAroundAnimation == [0, 1])
+    #expect(motion.firedAroundAnimation == [0, 1])
     #expect(coordinator.canPair(bench, in: session))
 }
 

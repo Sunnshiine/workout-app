@@ -158,15 +158,6 @@ enum SessionStagePresentation {
         return items.first { !$0.isComplete }
     }
 
-    /// Animation identity for the stage surface — changes exactly when focus
-    /// moves to another Set so the stage transition runs once per move.
-    static func stageIdentity(in items: [SessionStageItem], focusID: ActiveSetID?) -> String {
-        guard let focusID else {
-            return stageItem(in: items, focusID: nil)?.id ?? "complete"
-        }
-        return "\(focusID.exerciseOrder)-\(focusID.setIndex)"
-    }
-
     /// The next incomplete item after the stage item in Session order, wrapping
     /// around to earlier skipped-over items; never the stage item itself.
     static func upNextItem(

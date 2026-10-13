@@ -97,27 +97,6 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func loggingActiveSetRecordsMomentumFlowTransition() throws {
-    let session = makePendingSession()
-    let set = try #require(session.exercises.first?.sets.first { $0.index == 0 })
-    let focus = ActiveSetFocusManager(session: session)
-
-    set.state = .logged
-    focus.advanceAfterLog(set, in: session)
-
-    #expect(
-        focus.activeSetTransition
-            == ActiveSetTransition(
-                kind: .momentumFlow,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
-    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-}
-
-@MainActor
 @Test func loggingActiveSetAdvancesToFirstPendingSetInNextExercise() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
@@ -128,27 +107,6 @@ private func makePlannedSupersetSession() -> Session {
     focus.advanceAfterLog(finalSquatSet, in: session)
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-}
-
-@MainActor
-@Test func loggingFinalPendingSetRecordsCollapseAndRiseTransition() throws {
-    let session = makeMultiExercisePendingSession()
-    let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
-    squatSets.forEach { $0.state = .logged }
-    let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
-    let focus = ActiveSetFocusManager(session: session)
-
-    focus.advanceAfterLog(finalSquatSet, in: session)
-
-    #expect(
-        focus.activeSetTransition
-            == ActiveSetTransition(
-                kind: .collapseAndRise,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                completedExerciseOrder: 0
-            )
-    )
 }
 
 @MainActor
@@ -222,28 +180,7 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func skippingActiveSetRecordsSoftFadeUpTransition() throws {
-    let session = makePendingSession()
-    let set = try #require(session.exercises.first?.sets.first { $0.index == 0 })
-    let focus = ActiveSetFocusManager(session: session)
-
-    set.state = .skipped
-    focus.advanceAfterSkip(set, in: session)
-
-    #expect(
-        focus.activeSetTransition
-            == ActiveSetTransition(
-                kind: .softFadeUp,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                completedExerciseOrder: nil
-            )
-    )
-    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-}
-
-@MainActor
-@Test func skippingFinalPendingSetRecordsCollapseAndRiseTransition() throws {
+@Test func skippingFinalPendingSetAdvancesToFirstPendingSetInNextExercise() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
     squatSets.forEach { $0.state = .skipped }
@@ -252,15 +189,7 @@ private func makePlannedSupersetSession() -> Session {
 
     focus.advanceAfterSkip(finalSquatSet, in: session)
 
-    #expect(
-        focus.activeSetTransition
-            == ActiveSetTransition(
-                kind: .collapseAndRise,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 1),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                completedExerciseOrder: 0
-            )
-    )
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
 
 @MainActor
@@ -332,15 +261,6 @@ private func makePlannedSupersetSession() -> Session {
     focus.advanceAfterLog(rowSet, in: session)
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    #expect(
-        focus.activeSetTransition
-            == ActiveSetTransition(
-                kind: .collapseAndRise,
-                outgoingSetID: ActiveSetID(exerciseOrder: 0, setIndex: 0),
-                incomingSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0),
-                completedExerciseOrder: 0
-            )
-    )
 
     firstSquatSet.state = .logged
     focus.advanceAfterLog(firstSquatSet, in: session)

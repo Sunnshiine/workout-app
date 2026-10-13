@@ -32,8 +32,7 @@ struct GlassBearingViewsVisualTests {
                 set: set,
                 suggestion: .noSuggestion,
                 onLog: { _ in },
-                onSkip: {},
-                onDelete: {}
+                onSkip: {}
             )
             .frame(width: 360)
         }
@@ -53,8 +52,7 @@ struct GlassBearingViewsVisualTests {
                 set: set,
                 suggestion: .prescribedWeight(282.5),
                 onLog: { _ in },
-                onSkip: {},
-                onDelete: {}
+                onSkip: {}
             )
             .frame(width: 360)
         }

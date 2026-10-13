@@ -47,15 +47,16 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
         waitForLabel("Log 240 × 5 @7", on: logButton)
 
-        let restPill = app.descendants(matching: .any)["rest-pill"]
-        XCTAssertTrue(restPill.exists)
-        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
-        XCTAssertLessThanOrEqual(restPill.frame.maxY, try keyboardToolbarTop(in: app))
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
 
         logButton.tap()
 
         XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY, "rest is back in the foot below the card")
     }
 
     @MainActor
@@ -89,12 +90,16 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].appears(within: 3))
 
         openWeightKeyboard(in: app)
-        let restPill = app.descendants(matching: .any)["rest-pill"]
-        XCTAssertTrue(restPill.exists)
-        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, try keyboardToolbarTop(in: app))
 
         XCTAssertFalse(app.staticTexts["stage-exercise-name"].exists, "BB RDL's name is not drawn")
         XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
+
+        app.buttons["weight-keyboard-done"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        let restPill = app.descendants(matching: .any)["rest-pill"]
+        XCTAssertTrue(restPill.exists)
+        XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY, "rest is back in the foot below the card")
     }
 
     @MainActor

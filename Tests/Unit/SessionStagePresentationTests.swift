@@ -44,7 +44,6 @@ private func supersetItem(_ first: Exercise, _ second: Exercise) throws -> Sessi
         SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [first, second],
-            activeSetTransition: nil,
             lastPerformedPresentation: nil
         )
     )
@@ -123,28 +122,6 @@ struct SessionStagePresentationTests {
         let rdl = makeExercise(name: "BB RDL", order: 1, setStates: [.pending, .pending])
 
         #expect(ActiveSupersetPresentation(exercises: [squat, rdl], activeSetID: ActiveSetID(exerciseOrder: 1, setIndex: 0)) == nil)
-    }
-
-    @Test func stageIdentityTracksTheFocusedSet() {
-        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending, .pending])
-        let items = SessionStagePresentation.items([exerciseItem(squat)])
-
-        let identity = SessionStagePresentation.stageIdentity(
-            in: items,
-            focusID: ActiveSetID(exerciseOrder: 0, setIndex: 1)
-        )
-
-        #expect(identity == "0-1")
-    }
-
-    @Test func stageIdentityFallsBackToStageItemThenCompletion() {
-        let logged = makeExercise(name: "Squat", order: 0, setStates: [.logged])
-        let pending = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
-        let inProgress = SessionStagePresentation.items([exerciseItem(logged), exerciseItem(pending)])
-        let complete = SessionStagePresentation.items([exerciseItem(logged)])
-
-        #expect(SessionStagePresentation.stageIdentity(in: inProgress, focusID: nil) == "exercise-1")
-        #expect(SessionStagePresentation.stageIdentity(in: complete, focusID: nil) == "complete")
     }
 
     @Test func upNextReturnsTheNextIncompleteItemAfterTheStage() {

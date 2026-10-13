@@ -141,7 +141,6 @@ struct SupersetStageVisualTests {
         return SessionSupersetRenderConfig(
             presentation: presentation,
             exercises: [press, row],
-            activeSetTransition: nil,
             lastPerformedPresentation: LastPerformedCardPresentation(entry: lastPerformed)
         )
     }

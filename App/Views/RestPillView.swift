@@ -55,8 +55,6 @@ struct RestPillView: View {
                         length * 0.5
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, 8)
-                    .transition(transition)
                     .scaleEffect(restartPulseScale)
                     .brightness(restartPulseBrightness)
                     .opacity(restartPulseOpacity)
@@ -108,16 +106,6 @@ struct RestPillView: View {
             }
         }
         .frame(height: 4)
-    }
-
-    private var transition: AnyTransition {
-        if reduceMotion {
-            .opacity
-        } else {
-            .opacity
-                .combined(with: .scale(scale: 0.92, anchor: .bottom))
-                .combined(with: .offset(y: 16))
-        }
     }
 
     private var restartPulseScale: CGFloat {

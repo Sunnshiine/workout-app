@@ -118,39 +118,46 @@ struct SetRowPresentation: Equatable, Sendable {
     }
 }
 
-/// The one Set card serves two modes: logging the active pending Set, or
-/// reviewing an already-logged one in place. The mode decides the commit
-/// trigger — the Log button when logging, an automatic commit of changed valid
-/// values when the review collapses — and the header chrome around the shared
-/// weight/reps/RPE fields.
 enum SetCardMode: Equatable, Sendable {
     case logging
     case reviewingLogged
 }
 
 struct SetCardPresentation: Equatable, Sendable {
-    /// Original text of an Unstructured Set Log, kept visible as reference
-    /// while its structured replacement is edited.
-    let referenceText: String?
-    let showsLogControls: Bool
+    enum ActionRow: Equatable, Sendable {
+        case log
+        case skipped
+        case logged(line: String)
+        case incompleteDraft
+    }
+
+    static let incompleteDraftHint = "Complete weight, reps, and RPE"
+
+    let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
+    private let row: ActionRow
+    private let incompleteDraftRow: ActionRow
 
     @MainActor
     init(mode: SetCardMode, set: ExerciseSet) {
         switch mode {
         case .logging:
-            referenceText = nil
-            showsLogControls = true
+            showsClearMenu = set.state != .pending
             commitsChangesOnDisappear = false
+            row = set.state == .skipped ? .skipped : .log
+            incompleteDraftRow = row
         case .reviewingLogged:
-            if set.setLog == nil, let unstructuredSetLog = set.unstructuredSetLog {
-                referenceText = unstructuredSetLog
-            } else {
-                referenceText = nil
-            }
-            showsLogControls = false
+            showsClearMenu = false
             commitsChangesOnDisappear = true
+            row = .logged(line: set.displayReps)
+            let isUnstructuredSetLog = set.setLog == nil
+            incompleteDraftRow = isUnstructuredSetLog ? row : .incompleteDraft
         }
+    }
+
+    @MainActor
+    func actionRow(for draft: SmartValuePillsForm) -> ActionRow {
+        draft.hasChanges && !draft.canLog ? incompleteDraftRow : row
     }
 }
 
