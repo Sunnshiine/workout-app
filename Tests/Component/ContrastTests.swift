@@ -82,6 +82,7 @@ private func paperGridAndWashCentres(_ palette: Theme.Palette) -> [UnitPoint] {
 
 private enum Surface: CaseIterable {
     case paper
+    case stageHeading
     case card
     case pill
     case rail
@@ -97,7 +98,7 @@ private enum Surface: CaseIterable {
 
     var fillRoles: [String] {
         switch self {
-        case .paper: []
+        case .paper, .stageHeading: []
         case .card: ["surface"]
         case .pill: ["surface", "pillFill"]
         case .rail: ["surface", "railFill"]
@@ -113,10 +114,16 @@ private enum Surface: CaseIterable {
         }
     }
 
+    /// The stage heading holds the exercise and partner names. The SupersetStage Visual Baselines
+    /// draw the partner name 0.155 to 0.18 down the page; the band leaves room for two more lines.
+    var paperRows: ClosedRange<Double> {
+        self == .stageHeading ? 0.15...0.30 : 0...1
+    }
+
     func samples(_ palette: Theme.Palette) -> [GroundSample] {
         let inks = paletteRoles(palette).inks
         let fills = fillRoles.compactMap { inks[$0] ?? nil }
-        return paperGridAndWashCentres(palette).map { point in
+        return paperGridAndWashCentres(palette).filter { paperRows.contains($0.y) }.map { point in
             let paper = paperGround(palette, at: point)
             return GroundSample(paperPoint: point, ground: Ground(base: paper.base, layers: paper.layers + fills))
         }
@@ -148,12 +155,12 @@ private let uses: [String: Use] = [
     ),
     "textSecondary": .ink(on: [.paper, .card, .pill, .rail, .focusCard, .raisedControl, .weekCard, .carvedChip], .text),
     "actionInk": .textWithGlyphs(text: [.paper, .card], glyphs: [.pill]),
-    "supersetPartnerName": .ink(on: [.paper], .text),
+    "supersetPartnerName": .ink(on: [.stageHeading], .text),
     "actionText": .ink(on: [.action, .actionUnderSkipWash], .text),
     "stepperGlyph": .ink(on: [.pill], .nonText),
     "tileCurrentBorder": .ink(on: [.focusCard, .weekCard], .nonText),
     "danger": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .pill, .rail]),
-    "action": .ink(on: [.paper, .card, .railSelected], .nonText),
+    "action": .ink(on: [.paper, .card, .rail, .railSelected], .nonText),
     "stem": .ink(on: [.paper], .nonText),
     "leafFill": .ink(on: [.paper, .focusCard, .weekCard], .nonText),
     "budStroke": .ink(on: [.paper], .nonText),
@@ -187,6 +194,12 @@ private let uses: [String: Use] = [
     "birdRib": .quiet("a highlight line inside the Sunbird, decorative")
 ]
 
+private let reviewedQuietRoles: Set<String> = [
+    "sheetFill", "tileCurrentFill", "leafRib", "budFill", "budGlow", "futureStroke", "skipStroke",
+    "supersetPartnerBranch", "pillStroke", "queueStroke", "tileGhostStroke", "chipCarveShadow", "chipCarveEdge",
+    "chartLine", "blockSeam", "birdFill", "birdRib"
+]
+
 private struct ParkedPair: Hashable {
     let appearance: Theme.Appearance
     let role: String
@@ -218,6 +231,7 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "danger", .carvedChip, floor: 2.32, dangerCall),
     (.night, "action", .paper, floor: 2.10, nightActionCall),
     (.night, "action", .card, floor: 1.73, nightActionCall),
+    (.night, "action", .rail, floor: 1.48, nightActionCall),
     (.night, "action", .railSelected, floor: 1.06, nightActionCall),
     (.night, "prescriptionTick", .rail, floor: 1.48, "whether the Night prescription tick lightens off the action green"),
     (.night, "prescriptionTick", .railSelected, floor: 1.06, "whether the Night prescription tick lightens off the action green"),
@@ -239,8 +253,8 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .carvedChip, floor: 3.38, nightSecondaryCall),
     (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
     (
-        .day, "supersetPartnerName", .paper, floor: 3.40,
-        "whether the partner name may sit over a wash; UI-14 measured 4.5:1 only where none reaches"
+        .day, "supersetPartnerName", .stageHeading, floor: 4.25,
+        "whether a long partner name may run under the right-hand foliage wash; it reads 4.5:1 left of it"
     )
 ]
 
@@ -312,7 +326,10 @@ func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
     let roles = Set(inks.keys)
     let keyed = Set(uses.keys)
     #expect(unclassified == [], "palette properties that are neither a colour role nor a known non-ink type")
-    #expect(roles.subtracting(keyed).sorted() == [], "palette roles with no Use")
+    #expect(
+        roles.subtracting(keyed).sorted() == [],
+        "palette roles with no Use. The walk sees stored roles only, so a computed Color on Palette escapes it."
+    )
     #expect(keyed.subtracting(roles).sorted() == [], "Use keys that name no palette role")
 }
 
@@ -328,6 +345,29 @@ func everyGroundIsASurfaceFillAndEveryFillResolves(appearance: Theme.Appearance)
     #expect(grounds.subtracting(fillRoles).sorted() == [], "grounds no Surface fills")
     #expect(quietFills.sorted() == [], "Surface fills classed quiet")
     #expect(unresolvedFills.sorted() == [], "Surface fills that resolve to no colour")
+}
+
+@Test func onlyReviewedRolesAreQuiet() {
+    let quiet = uses.compactMap { role, use in if case .quiet(let reason) = use { (role, reason) } else { nil } }
+    let unreviewed = quiet.filter { !reviewedQuietRoles.contains($0.0) }.map { "\($0.0): \($0.1)" }
+    #expect(
+        unreviewed.sorted() == [],
+        """
+        a quiet role is never measured. Add it to reviewedQuietRoles only once review agrees no view draws it \
+        as text or as the only mark of a state
+        """
+    )
+    #expect(reviewedQuietRoles.subtracting(quiet.map(\.0)).sorted() == [], "reviewed quiet roles that are no longer quiet")
+}
+
+@Test func everySurfaceIsADistinctGroundSomeInkIsDrawnOn() {
+    let drawnOn = Set(uses.values.flatMap { $0.requirements.map(\.surface) })
+    let grounds = Dictionary(grouping: Surface.allCases) { "\($0.fillRoles) on page rows \($0.paperRows)" }
+    #expect(Surface.allCases.filter { !drawnOn.contains($0) }.map { "\($0)" } == [], "Surfaces no Use draws an ink on")
+    #expect(
+        grounds.values.filter { $0.count > 1 }.map { $0.map { "\($0)" }.joined(separator: " = ") }.sorted() == [],
+        "Surfaces that measure the same ground"
+    )
 }
 
 @Test func everyParkedPairIsOneTheMatrixMeasures() {

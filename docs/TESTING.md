@@ -51,7 +51,8 @@ tests to assert screenshots.
 
 `Tests/Component/ContrastTests.swift` classifies every palette and lighting colour role and checks
 each ink where views draw it, worst case over the page: 4.5:1 text, 3:1 rims and glyphs. It parks
-a pair failing now with a floor and cannot see a call-site opacity. `system_ink_outside_the_palette`
+a pair failing now with a floor. It cannot see a call-site opacity or a computed `Color` on the
+palette, and it lists the quiet roles it never measures. `system_ink_outside_the_palette`
 flags system .secondary to .quinary and *Label inks in `App/`; exempt a line with a reason on it.
 
 Visual vocabulary:
