@@ -232,26 +232,28 @@ expect_line "skipped" "$out" "==> Clean: 4 docs, 1 launch flags"
 echo "an inline command's substituted path is checked"
 root=$(tree substituted)
 cat >"$root/AGENTS.md" <<'MD'
-Start each call with `env=$(scripts/flake-hunt.sh env <name>) && eval "$env"`.
-Then `out=$(scripts/gone.sh <name>)`.
+Start each call with `env=$(scripts/flake-hunt.sh env <name>) && eval "$env"`, or `"$(scripts/flake-hunt.sh)"`.
+Then `out=$(scripts/gone.sh <name>)` and `$(scripts/gone-bare.sh)`.
 MD
 stage "$root"
 check "$root"
 expect_exit "substituted" "$status" 1
-expect_count "substituted" "$out" 1
+expect_count "substituted" "$out" 2
 expect_line "substituted" "$out" "error: AGENTS.md:2: \`scripts/gone.sh\` is not a path in this tree."
+expect_line "substituted" "$out" "error: AGENTS.md:2: \`scripts/gone-bare.sh\` is not a path in this tree."
 
-echo "a placeholder path passes when git ignores what it names, and fails when nothing matches"
+echo "a placeholder path passes when git ignores the directory it sits in, and fails otherwise"
 root=$(tree ignored-placeholder)
-printf '.claude/worktrees/\n' >>"$root/.gitignore"
+printf '.claude/worktrees/\n*.pyc\n' >>"$root/.gitignore"
 cat >"$root/docs/TESTING.md" <<'MD'
-A lane lives in `.claude/worktrees/<name>`, never in `.claude/worktree/<name>`.
+A lane lives in `.claude/worktrees/<name>`, never in `.claude/worktree/<name>` or `scripts/gone/<name>.pyc`.
 MD
 stage "$root"
 check "$root"
 expect_exit "ignored placeholder" "$status" 1
-expect_count "ignored placeholder" "$out" 1
+expect_count "ignored placeholder" "$out" 2
 expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`.claude/worktree/<name>\` is not a path in this tree."
+expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`scripts/gone/<name>.pyc\` is not a path in this tree."
 
 echo "a tree with no flag table is a usage error"
 root=$(tree no-table)

@@ -16,8 +16,9 @@ commands included, and in every file outside Markdown must be a row of the gener
 table, and the app's sources may spell one only in LaunchFlag.
 
 A symbol is checked only by its camelCase segments, where a lowercase letter or digit meets a
-capital (flushEverything), each as a word anywhere in a Swift, project, or script file. Any other
-segment is never checked, so a stale hairline, Theme.Radius.hairline, or URLSession passes.
+capital (flushEverything), each as a word anywhere in a Swift, project, or script file or as any
+file's name, plus the argument labels of a call that has one. A symbol with no such segment is
+never checked, so a stale hairline, Theme.Radius.hairline, or URLSession passes.
 
 Exits 0 when clean, 1 on findings, 2 on a usage error.
 """
@@ -25,6 +26,7 @@ from __future__ import annotations
 
 import difflib
 import fnmatch
+import itertools
 import os
 import re
 import subprocess
@@ -140,9 +142,9 @@ def is_glob(name: str) -> bool:
     return any(c in name for c in "*?[")
 
 
-def sample(glob: str) -> str:
-    """One path the glob matches, for asking git whether that path is ignored."""
-    return glob.replace("*", "x")
+def literal_prefix(glob: str) -> str:
+    segments = glob.split("/")
+    return "/".join(itertools.takewhile(lambda segment: not is_glob(segment), segments))
 
 
 def through_links(path: str, links: dict[str, str]) -> str:
@@ -169,7 +171,8 @@ def resolve(claim: Claim, tree: Tree) -> tuple[str, ...]:
             patterns = (name, "*/" + name, name[2:] if name.startswith("*/") else name)
             if any(fnmatch.fnmatchcase(p, pattern) for p in tree.paths for pattern in patterns):
                 return ()
-            if sample(name) in tree.ignored:
+            prefix = literal_prefix(name)
+            if prefix and (prefix in tree.ignored or prefix + "/" in tree.ignored):
                 return ()
         elif name in tree.paths or name in tree.ignored or name + "/" in tree.ignored:
             return ()
@@ -240,6 +243,12 @@ def snippets(text: str) -> list[Snippet]:
     return out
 
 
+def command_word(token: str) -> str:
+    if "$(" not in token:
+        return token
+    return token.rsplit("$(", 1)[-1].split(")")[0]
+
+
 def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Claim]]:
     roots = "|".join(re.escape(name) for name in sorted(top))
     repo_path = re.compile(rf"(?<![\w./-])(?:\./)?((?:{roots})/[\w./*<>+-]*)")
@@ -247,7 +256,7 @@ def claims(doc: str, text: str, top: frozenset[str]) -> Iterator[tuple[int, Clai
         if snippet.fenced:
             tokens = repo_path.findall(snippet.text)
         else:
-            tokens = [token.rsplit("$(", 1)[-1] for token in snippet.text.split()]
+            tokens = [command_word(token) for token in snippet.text.split()]
         for token in tokens:
             claim = classify(token, os.path.dirname(doc), top)
             if claim is not None and claim.kind is not Kind.FLAG:
@@ -388,8 +397,8 @@ def main(argv: list[str]) -> int:
             if claim.kind in (Kind.PATH, Kind.FILE):
                 for name in (through_links(n, links) for n in claim.names):
                     if is_glob(name):
-                        name = sample(name)
-                    if not is_glob(name) and not name.startswith(("..", "/")):
+                        name = literal_prefix(name)
+                    if name and not is_glob(name) and not name.startswith(("..", "/")):
                         candidates.update((name, name + "/"))
     ignored = git(root, "check-ignore", "--no-index", "--stdin", stdin="\n".join(sorted(candidates)))
 
