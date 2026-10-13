@@ -13,6 +13,7 @@ struct SessionQueueSheet: View {
     let coordinator: SessionCoordinator
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
+    @State private var movesOnWhenDismissed = false
 
     private var isPairing: Bool {
         queue.isPairing
@@ -41,8 +42,8 @@ struct SessionQueueSheet: View {
 
                 if queue.showsMoveOn, !isPairing {
                     SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
+                        movesOnWhenDismissed = true
                         dismiss()
-                        coordinator.moveOn()
                     }
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -55,7 +56,10 @@ struct SessionQueueSheet: View {
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
-        .onDisappear(perform: coordinator.cancelPairing)
+        .onDisappear {
+            coordinator.cancelPairing()
+            if movesOnWhenDismissed { coordinator.moveOn() }
+        }
     }
 
     private var header: some View {

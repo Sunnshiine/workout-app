@@ -1,16 +1,8 @@
 import SwiftUI
 
-/// The Move On ceremony (DESIGN.md §5.7, picks sunbird-moments-a/-d): the app's
-/// one large celebratory moment, marking the athlete's explicit choice to Move On.
-/// On living paper a Fraunces title names the finished day, a grown branch carries
-/// the perched songbird at its tip (the colophon is absent — the bird replaces
-/// it), the coach's line reads below, the day's stats sit on the shared soft
-/// surface, and a full-width green **Continue** capsule closes it. Completion, not
-/// achievement: no elapsed-time UI, no perfect-Session variant, no confetti.
 struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
 
@@ -72,7 +64,6 @@ struct MoveOnCelebrationView: View {
         }
         .preferredColorScheme(palette.preferredColorScheme)
         .task {
-            guard !reduceMotion else { return }
             HapticPlayer.shared.play(.moveOn)
         }
     }

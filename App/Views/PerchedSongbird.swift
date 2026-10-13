@@ -132,8 +132,31 @@ struct ConnectPerch: View {
 /// colophon. The count is decorative — the ceremony is brand, not a per-Set
 /// ledger (that reading lives on the stage) — so the branch stays byte-stable.
 struct CeremonyBranch: View {
-    @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var leafCount: Int = 8
+    @State private var elapsed: TimeInterval = 0
+
+    var body: some View {
+        GrowingCeremonyBranch(
+            elapsed: reduceMotion ? MoveOnCeremonyFrame.duration : elapsed,
+            leafCount: leafCount
+        )
+        // A withAnimation in onAppear loses to the presenter's 0.18 s .animation over the overlay's
+        // insertion; the nearest .animation wins.
+        .animation(.linear(duration: MoveOnCeremonyFrame.duration), value: elapsed)
+        .onAppear { elapsed = MoveOnCeremonyFrame.duration }
+    }
+}
+
+private struct GrowingCeremonyBranch: View, Animatable {
+    @Environment(\.themePalette) private var palette
+    var elapsed: TimeInterval
+    let leafCount: Int
+
+    nonisolated var animatableData: TimeInterval {
+        get { elapsed }
+        set { elapsed = newValue }
+    }
 
     private enum Metrics {
         static let height: CGFloat = 220
@@ -150,11 +173,15 @@ struct CeremonyBranch: View {
         static let leafTilt: CGFloat = 20
         static let stemWidth: CGFloat = 2.4
         static let birdWidth: CGFloat = 96
+        static let birdDrop: CGFloat = 24
     }
 
     var body: some View {
+        let frame = MoveOnCeremonyFrame(elapsed: elapsed)
         GeometryReader { geo in
             let size = geo.size
+            let curve = stemCurve(in: size)
+            let leafLengthFractions = (0..<max(0, leafCount)).map { curve.lengthFraction(at: leafT($0)) }
             ZStack {
                 StemArc(
                     leadInset: Metrics.leadInset,
@@ -163,13 +190,17 @@ struct CeremonyBranch: View {
                     tipY: Metrics.tipY,
                     bow: Metrics.bow
                 )
+                .trim(from: 0, to: frame.stemTrim)
                 .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
                 ForEach(0..<max(0, leafCount), id: \.self) { index in
                     let point = stemPoint(t: leafT(index), in: size)
                     let angle = stemAngle(t: leafT(index), in: size)
                     let above = index.isMultiple(of: 2)
+                    let ink = frame.leafInk(atLengthFraction: leafLengthFractions[index])
                     BranchLeaf(fill: palette.leafFill, rib: palette.leafRib, size: Metrics.leafSize)
+                        .scaleEffect(0.9 + 0.1 * ink)
+                        .opacity(ink)
                         .rotationEffect(angle + .degrees(above ? -Metrics.leafTilt : Metrics.leafTilt))
                         .offset(y: above ? -Metrics.leafOffset : Metrics.leafOffset)
                         .position(point)
@@ -178,6 +209,8 @@ struct CeremonyBranch: View {
                 let tip = stemPoint(t: 1, in: size)
                 // Seat the plump belly (≈0.92 of the glyph height) on the stem's tip.
                 SongbirdGlyph(width: Metrics.birdWidth, fill: palette.birdFill, rib: palette.birdRib)
+                    .offset(y: -Metrics.birdDrop * (1 - frame.birdLanding))
+                    .opacity(frame.birdLanding)
                     .position(x: tip.x - Metrics.birdWidth * 0.22, y: tip.y - Metrics.birdWidth * 0.6 * 0.42 + 4)
             }
         }

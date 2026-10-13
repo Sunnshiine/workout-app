@@ -51,6 +51,18 @@ import Testing
     #expect(curve.tangent(at: 1).dx > 0)
 }
 
+@Test func quadraticBezierLengthFractionMeasuresPathLengthNotParameter() {
+    let curve = QuadraticBezier(
+        start: CGPoint(x: 10, y: 90),
+        control: CGPoint(x: 55, y: 20),
+        end: CGPoint(x: 100, y: 40)
+    )
+
+    #expect(curve.lengthFraction(at: 0) == 0)
+    #expect(curve.lengthFraction(at: 1) == 1)
+    #expect(abs(curve.lengthFraction(at: 0.5) - 0.584947) < 1e-4)
+}
+
 @Test func branchNodeLayoutSpreadsManyNodesAcrossTheFullSpan() {
     let ts = (0..<5).map {
         BranchNodeLayout.nodeT(index: $0, count: 5, first: 0.16, last: 0.80, maxStep: 0.24)

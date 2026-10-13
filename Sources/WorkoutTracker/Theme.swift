@@ -356,6 +356,7 @@ enum Theme {
         static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
+        static let ceremonyBird = 0.35
         static let holdToSkipReveal = 0.25 // reveal at 250ms
         static let holdToSkipCommit = 0.85 // commit at 850ms
         static let holdToSkipRetreat = 0.2
