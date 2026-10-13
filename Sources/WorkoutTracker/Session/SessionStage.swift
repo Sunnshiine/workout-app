@@ -49,6 +49,16 @@ enum BranchNodeState: Equatable, Sendable {
     case future
 }
 
+enum BranchArm: Equatable, Sendable {
+    case stem
+    case lateral
+}
+
+enum BudExit: Equatable, Sendable {
+    case fold
+    case lift
+}
+
 struct BranchNode: Equatable {
     let set: ExerciseSet
     let state: BranchNodeState
@@ -57,6 +67,17 @@ struct BranchNode: Equatable {
 struct StageBranch: Equatable {
     let nodes: [BranchNode]
     let activeSetID: ActiveSetID?
+
+    var budExit: BudExit { .fold }
+}
+
+struct ForkedBranch: Equatable {
+    let stem: [BranchNode]
+    let lateral: [BranchNode]
+    let focusedArm: BranchArm
+    let activeSetID: ActiveSetID?
+
+    var budExit: BudExit { .lift }
 }
 
 struct SetCardSlot: Equatable {
@@ -82,8 +103,7 @@ struct ExerciseStage: Equatable {
 struct SupersetStage: Equatable {
     let focused: Exercise
     let partner: Exercise
-    let branch: StageBranch
-    let partnerNodes: [BranchNode]
+    let branch: ForkedBranch
     let card: SetCardSlot?
     let lastPerformed: LastPerformedCardPresentation?
 }
@@ -190,16 +210,28 @@ extension SupersetStage {
     fileprivate init(_ superset: Superset, snapshot: SessionFocusSnapshot, lookup: LastPerformedLookupSnapshot) {
         let activeSetID = snapshot.visualFocusOwner.scoped(to: superset.exercises)?.activeSetID
         let focused = superset.exercises.first { $0.order == activeSetID?.exerciseOrder } ?? superset.lowerOrdered
-        let partner = superset.other(than: focused)
         let sets = focused.sortedSets
         self.focused = focused
-        self.partner = partner
-        branch = StageBranch(sets: sets, activeSetID: activeSetID)
-        partnerNodes = StageBranch(sets: partner.sortedSets, activeSetID: nil).nodes.map { node in
-            BranchNode(set: node.set, state: node.state == .bud ? .future : node.state)
-        }
+        partner = superset.other(than: focused)
+        branch = ForkedBranch(superset, focused: focused, activeSetID: activeSetID)
         card = SetCardSlot.supersetCard(in: sets, focused: focused, activeSetID: activeSetID)
         lastPerformed = activeSetID == nil ? nil : LastPerformedCardPresentation(exercise: focused, lookup: lookup)
+    }
+}
+
+@MainActor
+extension ForkedBranch {
+    fileprivate init(_ superset: Superset, focused: Exercise, activeSetID: ActiveSetID?) {
+        let arm = { (exercise: Exercise) in
+            exercise === focused
+                ? StageBranch(sets: exercise.sortedSets, activeSetID: activeSetID).nodes
+                : exercise.sortedSets.map { BranchNode(set: $0, state: BranchNodeState(of: $0, bud: nil)) }
+        }
+        let lower = superset.lowerOrdered
+        stem = arm(lower)
+        lateral = arm(superset.other(than: lower))
+        focusedArm = focused === lower ? .stem : .lateral
+        self.activeSetID = activeSetID
     }
 }
 

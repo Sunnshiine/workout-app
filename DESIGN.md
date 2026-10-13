@@ -453,10 +453,13 @@ dashed stroke — the dashed "empty bed" vocabulary.
 ### 5.4 Superset stage — one plant, two branches
 
 A Superset draws as a **single forked stem** — still the page's one icon.
-The focused Exercise's branch leads at full stroke and alone carries the
-cream-filled active leaf (**the active leaf rides the focus**); the
-partner's branch is a shorter drooping lateral (1.6px). Alternation is one
-active leaf settling and one waking — never a branch redraw.
+The Exercise that comes first in Session order climbs the stem, and the
+other droops off it as a shorter lateral (1.6px). Each Exercise keeps its
+arm for the whole Superset. The focused arm carries full pigment and alone
+carries the cream-filled active leaf (**the active leaf rides the
+focus**). Alternation is one active leaf settling and one waking — never a
+branch redraw. A log inks the leaf in place on its own arm, and the
+partner's bud wakes on the other.
 
 The focus tie is **tone coupling**: by day the partner's whole branch and
 its Fraunces "**& partner**" name line (the manual focus switch) carry
@@ -578,6 +581,9 @@ every piece of chrome — including the Log capsule — rides stock system
 springs.
 
 1. **Leaf inks on log** — 0.42s; a dashed Skip draws in the same language.
+   On a Superset the leaf inks at once under its bud, and the bud lifts
+   off over the 0.26s before the partner's bud wakes, so the logged node
+   never empties and the stage never shows two cream leaves.
 2. **Next leaf wakes** — inside the leaf's tail (starts 0.26s in, runs
    0.34s). **One Log, One Fill:** the transition must read as the cream
    leaf waking (logging then inks it solid), never a second leaf filling.
@@ -589,8 +595,11 @@ floor hits the dud) · one identical swell-and-peak Move On pattern timed to
 the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
 850ms, retreat 0.2s; logged-state hold 900ms, skipped-state hold 1100ms.
 
-**Reduced motion** keeps end states via crossfade — the ceremony fades in
-fully grown. Haptics are unaffected.
+**Reduced motion** turns the leaf ink and the bud wake into 0.2s
+crossfades to their end states, so both appear in place. The bud's
+crossfade starts as the leaf's ends, so the stage never shows two cream
+leaves. A Superset bud lifts off its ink in the same 0.2s, before its
+partner's bud wakes. The ceremony fades in fully grown. Haptics are unaffected.
 
 The Active Set Card has no motion to reduce, so Reduce Motion leaves it
 unchanged (§5.2).

@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct SessionStageBranch: View {
-    let branch: StageBranch
-    var partnerNodes: [BranchNode]?
-    /// Tapping a node focuses its Set — matching the retired dots' behavior. `nil`
-    /// keeps the branch a passive glyph.
-    var onTap: ((ExerciseSet) -> Void)?
+    private let stem: [BranchNode]
+    private let lateral: [BranchNode]?
+    private let focusedArm: BranchArm
+    private let activeSetID: ActiveSetID?
+    private let budExit: BudExit
+    /// A Superset's fork takes no tap, so its branch stays a passive glyph.
+    private let onTap: ((ExerciseSet) -> Void)?
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -29,12 +31,9 @@ struct SessionStageBranch: View {
         static let stemWidth: CGFloat = 2
     }
 
-    /// The partner's drooping lateral (DESIGN.md §5.4): a thinner, shorter stem
-    /// that forks off the focused stem's lower reach and droops down-trailing,
-    /// carrying the partner's leaves but never the active leaf.
-    private enum PartnerMetrics {
+    private enum LateralMetrics {
         static let stemWidth: CGFloat = 1.6
-        static let forkT: CGFloat = 0.30 // where on the focused stem the lateral forks
+        static let forkOnStemT: CGFloat = 0.30
         static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
         static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
         static let droop: CGFloat = 30
@@ -42,32 +41,47 @@ struct SessionStageBranch: View {
         static let lastNodeT: CGFloat = 0.9
         static let maxNodeStep: CGFloat = 0.2
         static let leafLength: CGFloat = 34
-        static let hang: CGFloat = 26
+        static let inkBelowDrawing: CGFloat = 28
         static let clearance: CGFloat = 2
     }
 
-    private var nodes: [BranchNode] { branch.nodes }
-    private var activeSetID: ActiveSetID? { branch.activeSetID }
+    init(branch: StageBranch, onTap: @escaping (ExerciseSet) -> Void) {
+        stem = branch.nodes
+        lateral = nil
+        focusedArm = .stem
+        activeSetID = branch.activeSetID
+        budExit = branch.budExit
+        self.onTap = onTap
+    }
+
+    init(fork: ForkedBranch) {
+        stem = fork.stem
+        lateral = fork.lateral
+        focusedArm = fork.focusedArm
+        activeSetID = fork.activeSetID
+        budExit = fork.budExit
+        onTap = nil
+    }
 
     var body: some View {
         GeometryReader { geo in
             let drawing = CGSize(width: geo.size.width, height: min(geo.size.height, Metrics.fullHeight))
             ZStack {
-                if let partnerNodes {
-                    partnerBranch(
-                        partnerNodes,
+                if let lateral {
+                    lateralBranch(
+                        lateral,
                         in: drawing,
-                        room: geo.size.height - drawing.height + Theme.stageColumnSpacing - PartnerMetrics.clearance
+                        room: geo.size.height - drawing.height + Theme.stageColumnSpacing - LateralMetrics.clearance
                     )
                 }
 
                 CurvePath(curve: stemCurve(in: drawing))
-                    .stroke(palette.stem, style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
+                    .stroke(pigment(.stem, focused: palette.stem), style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
-                ForEach(Array(nodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+                ForEach(Array(stem.enumerated()), id: \.element.set.persistentModelID) { index, node in
                     let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
-                    nodeCell(node.set, state: node.state, above: index.isMultiple(of: 2), angle: angle)
+                    nodeCell(node.set, glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength))
                         .position(point)
                 }
             }
@@ -78,21 +92,15 @@ struct SessionStageBranch: View {
         }
         .frame(minHeight: Metrics.minimumHeight, idealHeight: Metrics.minimumHeight, maxHeight: .infinity)
         .frame(maxWidth: .infinity)
-        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: activeSetID)
-        .animation(reduceMotion ? nil : Theme.wingAnimation(duration: Theme.Motion.leafInk), value: nodes.count)
+        .animation(Theme.branchAnimation(.leafInk, reducingMotion: reduceMotion), value: activeSetID)
+        .animation(Theme.branchAnimation(.relayout, reducingMotion: reduceMotion), value: [stem.count, lateral?.count ?? 0])
         .accessibilityElement(children: onTap == nil ? .ignore : .contain)
     }
 
     // MARK: - Nodes
 
     @ViewBuilder
-    private func nodeCell(
-        _ set: ExerciseSet,
-        state: BranchNodeState,
-        above: Bool,
-        angle: Angle
-    ) -> some View {
-        let glyph = nodeGlyph(state, above: above, angle: angle)
+    private func nodeCell(_ set: ExerciseSet, glyph: some View) -> some View {
         if let onTap {
             Button {
                 onTap(set)
@@ -109,124 +117,113 @@ struct SessionStageBranch: View {
     }
 
     @ViewBuilder
-    private func nodeGlyph(_ state: BranchNodeState, above: Bool, angle: Angle) -> some View {
+    private func glyph(
+        _ state: BranchNodeState,
+        on arm: BranchArm,
+        index: Int,
+        angle: Angle,
+        leafLength: CGFloat
+    ) -> some View {
+        let focused = arm == focusedArm
+        let leansUp = index.isMultiple(of: 2) == (arm == .stem)
+        let tilt = Angle(degrees: leansUp ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
+        let blade = { (style: BranchBladeGlyph.Style, length: CGFloat) in
+            let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
+            return BranchBladeGlyph(style: style, size: size, angle: angle + tilt)
+        }
         switch state {
         case .leaf:
-            blade(.inked(fill: palette.leafFill, rib: palette.leafRib), above: above, angle: angle)
-                .transition(.opacity)
+            blade(.inked(fill: pigment(arm, focused: palette.leafFill), rib: focused ? palette.leafRib : nil), leafLength)
+                .transition(budExitLayers.ink)
         case .dashedLeaf:
-            blade(.dashed(palette.skipStroke), above: above, angle: angle)
-                .transition(.opacity)
-        case .bud:
-            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), above: above, angle: angle)
-                .transition(.scale(scale: 0.3).combined(with: .opacity))
-                .animation(
-                    reduceMotion
-                        ? nil
-                        : Theme.wingAnimation(duration: Theme.Motion.budOpen).delay(Theme.Motion.budOpenDelay),
-                    value: activeSetID
-                )
+            blade(.dashed(pigment(arm, focused: palette.skipStroke)), leafLength)
+                .transition(budExitLayers.ink)
         case .future:
-            blade(.ghost(palette.futureStroke), above: above, angle: angle, length: Metrics.leafLength * Metrics.ghostScale)
+            blade(
+                .ghost(focused ? palette.futureStroke : palette.supersetPartnerBranch.opacity(0.55)),
+                leafLength * Metrics.ghostScale
+            )
+        case .bud:
+            // A removed view draws under the one inserted beside it, so only a zIndex keeps a lifting bud
+            // above its ink.
+            blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
+                .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
+                .zIndex(budExitLayers.budZIndex)
         }
     }
 
-    /// One blade off the stem: its base sits on the node, and it angles up- or
-    /// down-forward off the stem's climb, alternating sides. The pre-rotation
-    /// x-offset moves the base onto the rotation anchor, so the blade pivots
-    /// around where it meets the stem.
-    private func blade(
-        _ style: BranchBladeGlyph.Style,
-        above: Bool,
-        angle: Angle,
-        length: CGFloat = Metrics.leafLength
-    ) -> some View {
-        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-        let tilt = Angle(degrees: above ? -Metrics.leafTiltAbove : Metrics.leafTiltBelow)
-        return BranchBladeGlyph(style: style, size: size)
-            .offset(x: size.width / 2)
-            .rotationEffect(angle + tilt)
+    private var bloom: AnyTransition {
+        reduceMotion ? .opacity : .scale(scale: 0.3).combined(with: .opacity)
     }
 
-    // MARK: - Partner lateral
+    /// The bud wakes on its own delay, which only an animation the transition carries can run; an
+    /// `.animation` keyed on the branch would wake it with the leaf.
+    private var budWake: AnyTransition {
+        bloom.animation(Theme.branchAnimation(.budWake, reducingMotion: reduceMotion))
+    }
+
+    private struct BudExitLayers {
+        let ink: AnyTransition
+        let bud: AnyTransition
+        let budZIndex: Double
+    }
+
+    private var budExitLayers: BudExitLayers {
+        switch budExit {
+        case .fold:
+            BudExitLayers(ink: .opacity, bud: bloom, budZIndex: 0)
+        case .lift:
+            BudExitLayers(
+                ink: .identity,
+                bud: .opacity.animation(Theme.branchAnimation(.budLift, reducingMotion: reduceMotion)),
+                budZIndex: 1
+            )
+        }
+    }
+
+    private func pigment(_ arm: BranchArm, focused: Color) -> Color {
+        arm == focusedArm ? focused : palette.supersetPartnerBranch
+    }
 
     @ViewBuilder
-    private func partnerBranch(_ partnerNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
-        let scale = min(heightScale(size), room / PartnerMetrics.hang)
-        let curve = partnerCurve(in: size, droop: PartnerMetrics.droop * scale)
+    private func lateralBranch(_ lateralNodes: [BranchNode], in size: CGSize, room: CGFloat) -> some View {
+        let scale = min(heightScale(size), room / LateralMetrics.inkBelowDrawing)
+        let curve = lateralCurve(in: size, droop: LateralMetrics.droop * scale)
         ZStack {
             CurvePath(curve: curve)
                 .stroke(
-                    palette.supersetPartnerBranch,
-                    style: StrokeStyle(lineWidth: PartnerMetrics.stemWidth, lineCap: .round)
+                    pigment(.lateral, focused: palette.stem),
+                    style: StrokeStyle(lineWidth: LateralMetrics.stemWidth, lineCap: .round)
                 )
 
-            ForEach(Array(partnerNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
-                let t = partnerNodeT(index, count: partnerNodes.count)
+            ForEach(Array(lateralNodes.enumerated()), id: \.element.set.persistentModelID) { index, node in
+                let t = lateralNodeT(index, count: lateralNodes.count)
                 let tangent = curve.tangent(at: t)
-                partnerGlyph(
+                glyph(
                     node.state,
-                    below: index.isMultiple(of: 2),
+                    on: .lateral,
+                    index: index,
                     angle: Angle(radians: atan2(tangent.dy, tangent.dx)),
-                    leafLength: PartnerMetrics.leafLength * scale
+                    leafLength: LateralMetrics.leafLength * scale
                 )
                 .position(curve.point(at: t))
             }
         }
-        // The partner is a passive lateral — it never receives focus taps (the
-        // "& partner" name line is the manual focus switch, DESIGN.md §5.4).
-        .accessibilityHidden(true)
     }
 
-    @ViewBuilder
-    private func partnerGlyph(_ state: BranchNodeState, below: Bool, angle: Angle, leafLength: CGFloat) -> some View {
-        let pigment = palette.supersetPartnerBranch
-        switch state {
-        case .leaf:
-            partnerBlade(.inked(fill: pigment, rib: nil), below: below, angle: angle, length: leafLength)
-        case .dashedLeaf:
-            partnerBlade(.dashed(pigment), below: below, angle: angle, length: leafLength)
-        case .future:
-            partnerBlade(
-                .ghost(pigment.opacity(0.55)),
-                below: below,
-                angle: angle,
-                length: leafLength * Metrics.ghostScale
-            )
-        case .bud:
-            // The partner never carries the active blade; the seam demotes it to a future.
-            EmptyView()
-        }
-    }
-
-    /// The partner's blades speak the focused stem's vocabulary at a smaller
-    /// scale, with the tilt sides mirrored for the drooping lateral.
-    private func partnerBlade(
-        _ style: BranchBladeGlyph.Style,
-        below: Bool,
-        angle: Angle,
-        length: CGFloat
-    ) -> some View {
-        let size = CGSize(width: length, height: length * LeafShape.aspectRatio)
-        let tilt = Angle(degrees: below ? Metrics.leafTiltBelow : -Metrics.leafTiltAbove)
-        return BranchBladeGlyph(style: style, size: size)
-            .offset(x: size.width / 2)
-            .rotationEffect(angle + tilt)
-    }
-
-    private func partnerNodeT(_ index: Int, count: Int) -> CGFloat {
+    private func lateralNodeT(_ index: Int, count: Int) -> CGFloat {
         BranchNodeLayout.nodeT(
             index: index,
             count: count,
-            first: PartnerMetrics.firstNodeT,
-            last: PartnerMetrics.lastNodeT,
-            maxStep: PartnerMetrics.maxNodeStep
+            first: LateralMetrics.firstNodeT,
+            last: LateralMetrics.lastNodeT,
+            maxStep: LateralMetrics.maxNodeStep
         )
     }
 
-    private func partnerCurve(in size: CGSize, droop: CGFloat) -> QuadraticBezier {
-        let fork = stemPoint(t: PartnerMetrics.forkT, in: size)
-        let tip = CGPoint(x: size.width * PartnerMetrics.endX, y: size.height * PartnerMetrics.endY)
+    private func lateralCurve(in size: CGSize, droop: CGFloat) -> QuadraticBezier {
+        let fork = stemPoint(t: LateralMetrics.forkOnStemT, in: size)
+        let tip = CGPoint(x: size.width * LateralMetrics.endX, y: size.height * LateralMetrics.endY)
         let control = CGPoint(x: (fork.x + tip.x) / 2, y: (fork.y + tip.y) / 2 + droop)
         return QuadraticBezier(start: fork, control: control, end: tip)
     }
@@ -236,7 +233,7 @@ struct SessionStageBranch: View {
     private func nodeT(_ index: Int) -> CGFloat {
         BranchNodeLayout.nodeT(
             index: index,
-            count: nodes.count,
+            count: stem.count,
             first: Metrics.firstNodeT,
             last: Metrics.lastNodeT,
             maxStep: Metrics.maxNodeStep
@@ -318,6 +315,7 @@ private struct BranchBladeGlyph: View {
 
     let style: Style
     let size: CGSize
+    let angle: Angle
 
     var body: some View {
         Group {
@@ -345,6 +343,8 @@ private struct BranchBladeGlyph: View {
             }
         }
         .frame(width: size.width, height: size.height)
+        .offset(x: size.width / 2)
+        .rotationEffect(angle)
     }
 }
 

@@ -19,7 +19,10 @@ struct SessionStageBranchEnvelopeTests {
     func theExerciseBranchStaysInsideTheGapsAroundIt(height: CGFloat) throws {
         for setCount in Self.setCounts {
             let branch = Branch(setCount: setCount, kind: .exercise)
-            let ink = try #require(try branch.inkExtent(height: height), "the branch draws with \(setCount) Sets")
+            let ink = try #require(
+                try branch.inkExtent(height: height, appearance: .day),
+                "the branch draws with \(setCount) Sets"
+            )
             #expect(ink.top >= -Self.inkAbove, "\(setCount) Sets")
             #expect(ink.bottom <= height + Self.inkBelow, "\(setCount) Sets")
 
@@ -30,12 +33,14 @@ struct SessionStageBranchEnvelopeTests {
         }
     }
 
-    @Test(arguments: heights, PartnerEnding.allCases)
-    func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, partnerEnding: PartnerEnding) throws {
-        let branch = Branch(setCount: 3, kind: .superset(partnerEnding: partnerEnding))
-        let ink = try #require(try branch.inkExtent(height: height), "the forked branch draws")
-        #expect(ink.top >= -Self.inkAbove)
-        #expect(ink.bottom <= height + Self.inkBelow)
+    @Test(arguments: heights, SupersetFocus.allCases)
+    func theSupersetBranchKeepsItsLateralInsideTheGapsAroundIt(height: CGFloat, focus: SupersetFocus) throws {
+        let branch = Branch(setCount: 3, kind: .superset(focus))
+        for appearance in Theme.Appearance.allCases {
+            let ink = try #require(try branch.inkExtent(height: height, appearance: appearance), "the forked branch draws")
+            #expect(ink.top >= -Self.inkAbove, "\(appearance)")
+            #expect(ink.bottom <= height + Self.inkBelow, "\(appearance)")
+        }
     }
 
     @Test func theBranchFillsItsRegionAndNeverFallsBelowItsFloor() {
@@ -45,14 +50,15 @@ struct SessionStageBranchEnvelopeTests {
     }
 }
 
-enum PartnerEnding: CaseIterable, Sendable {
-    case logged
-    case skipped
+enum SupersetFocus: CaseIterable, Sendable {
+    case onTheStemWithThePartnerLogged
+    case onTheStemWithThePartnerSkipped
+    case onTheLateral
 }
 
 private enum BranchKind {
     case exercise
-    case superset(partnerEnding: PartnerEnding)
+    case superset(SupersetFocus)
 }
 
 @MainActor
@@ -61,22 +67,20 @@ private struct Branch {
     let kind: BranchKind
 
     var view: SessionStageBranch {
-        let partnerNodes: [BranchNode]? =
-            switch kind {
-            case .exercise: nil
-            case .superset(let ending):
-                Self.sets(count: 3, order: 1, last: ending == .skipped ? .skipped : .logged).map { set in
-                    BranchNode(set: set, state: set.state == .skipped ? .dashedLeaf : .leaf)
-                }
-            }
         let nodes = Self.sets(count: setCount, order: 0, last: .pending).map { set in
             BranchNode(set: set, state: set.state == .pending ? .bud : .leaf)
         }
-        return SessionStageBranch(
-            branch: StageBranch(nodes: nodes, activeSetID: ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1)),
-            partnerNodes: partnerNodes,
-            onTap: partnerNodes == nil ? { _ in } : nil
-        )
+        let activeSetID = ActiveSetID(exerciseOrder: 0, setIndex: setCount - 1)
+        guard case .superset(let focus) = kind else {
+            return SessionStageBranch(branch: StageBranch(nodes: nodes, activeSetID: activeSetID), onTap: { _ in })
+        }
+        let partnerNodes = Self.sets(count: 3, order: 1, last: focus == .onTheStemWithThePartnerSkipped ? .skipped : .logged)
+            .map { set in BranchNode(set: set, state: set.state == .skipped ? .dashedLeaf : .leaf) }
+        let fork =
+            focus == .onTheLateral
+            ? ForkedBranch(stem: partnerNodes, lateral: nodes, focusedArm: .lateral, activeSetID: activeSetID)
+            : ForkedBranch(stem: nodes, lateral: partnerNodes, focusedArm: .stem, activeSetID: activeSetID)
+        return SessionStageBranch(fork: fork)
     }
 
     func height(proposing proposal: CGFloat?) -> CGFloat {
@@ -89,7 +93,7 @@ private struct Branch {
 
     /// Draws through Core Graphics because `cgImage` renders on the GPU, which comes back blank while
     /// a cold machine compiles its first stroke pipeline.
-    func inkExtent(height: CGFloat) throws -> (top: CGFloat, bottom: CGFloat)? {
+    func inkExtent(height: CGFloat, appearance: Theme.Appearance) throws -> (top: CGFloat, bottom: CGFloat)? {
         let margin: CGFloat = 80
         let scale: CGFloat = 3
         let renderer = ImageRenderer(
@@ -97,7 +101,7 @@ private struct Branch {
                 view
                 .frame(width: 370, height: height)
                 .padding(.vertical, margin)
-                .environment(\.themePalette, Theme.palette(for: .day))
+                .environment(\.themePalette, Theme.palette(for: appearance))
         )
         let width = Int(370 * scale)
         let rows = Int((height + 2 * margin) * scale)

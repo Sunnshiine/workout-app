@@ -322,10 +322,38 @@ enum Theme {
         .timingCurve(wingEase.x1, wingEase.y1, wingEase.x2, wingEase.y2, duration: duration)
     }
 
+    enum BranchGrowth {
+        case leafInk
+        case budWake
+        case budLift
+        case relayout
+
+        fileprivate var wing: Animation {
+            switch self {
+            case .leafInk, .relayout: Theme.wingAnimation(duration: Motion.leafInk)
+            case .budWake: Theme.wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
+            case .budLift: Theme.wingAnimation(duration: Motion.budOpenDelay)
+            }
+        }
+
+        fileprivate var crossfade: Animation? {
+            switch self {
+            case .leafInk, .budLift: .easeInOut(duration: Motion.crossfade)
+            case .budWake: .easeInOut(duration: Motion.crossfade).delay(Motion.crossfade)
+            case .relayout: nil
+            }
+        }
+    }
+
+    static func branchAnimation(_ growth: BranchGrowth, reducingMotion: Bool) -> Animation? {
+        reducingMotion ? growth.crossfade : growth.wing
+    }
+
     enum Motion {
         static let leafInk = 0.42 // a leaf inks in
         static let budOpen = 0.34 // the next bud wakes…
         static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
+        static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
         static let holdToSkipReveal = 0.25 // reveal at 250ms

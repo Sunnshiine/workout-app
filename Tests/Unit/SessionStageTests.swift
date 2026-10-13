@@ -214,6 +214,20 @@ struct SessionStageTests {
         #expect(branch.activeSetID == activeSetID)
     }
 
+    @Test func aSingleBranchFoldsItsBudIntoTheInkAndASupersetForkLiftsItOff() throws {
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.pending])
+        let onBench = ActiveSetID(exerciseOrder: 1, setIndex: 0)
+
+        let single = try #require(exerciseStage(makeStage([bench, row], focus: .activeSet(onBench))))
+        let fork = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(onBench), supersets: [Superset(first: bench, second: row)]))
+        )
+
+        #expect(single.branch.budExit == .fold)
+        #expect(fork.branch.budExit == .lift)
+    }
+
     @Test func theBranchIsAllLeavesWhenEverySetIsLogged() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .logged])
 
@@ -224,7 +238,7 @@ struct SessionStageTests {
         #expect(branch.nodes.map(\.state) == [.leaf, .leaf])
     }
 
-    @Test func aSupersetFocusedOnItsLowerSideLeadsWithThatSide() throws {
+    @Test func aSupersetFocusedOnItsLowerOrderedExerciseCarriesTheBudOnTheStem() throws {
         let press = makeExercise(name: "Press", order: 1, setStates: [.logged, .pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.logged, .skipped, .pending, .pending])
 
@@ -238,9 +252,10 @@ struct SessionStageTests {
         let superset = try #require(supersetStage(stage))
         #expect(superset.focused === press)
         #expect(superset.partner === row)
-        #expect(superset.branch.nodes.map(\.state) == [.leaf, .bud])
+        #expect(superset.branch.stem.map(\.state) == [.leaf, .bud])
+        #expect(superset.branch.lateral.map(\.state) == [.leaf, .dashedLeaf, .future, .future])
+        #expect(superset.branch.focusedArm == .stem)
         #expect(superset.branch.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
-        #expect(superset.partnerNodes.map(\.state) == [.leaf, .dashedLeaf, .future, .future])
         let card = try #require(superset.card)
         #expect(card.set === press.sets.first { $0.index == 1 })
         #expect(card.ordinal == 2)
@@ -249,7 +264,7 @@ struct SessionStageTests {
         #expect(card.cardIdentity == "superset-active-1-1")
     }
 
-    @Test func aSupersetFocusedOnItsHigherSideLeadsWithThatSide() throws {
+    @Test func aSupersetFocusedOnItsHigherOrderedExerciseCarriesTheBudOnTheLateral() throws {
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
         let row = makeExercise(name: "Row", order: 2, setStates: [.pending, .pending, .pending])
 
@@ -263,14 +278,41 @@ struct SessionStageTests {
         let superset = try #require(supersetStage(stage))
         #expect(superset.focused === row)
         #expect(superset.partner === bench)
-        #expect(superset.branch.nodes.map(\.state) == [.bud, .future, .future])
-        #expect(superset.partnerNodes.map(\.state) == [.leaf, .future])
+        #expect(superset.branch.stem.map(\.state) == [.leaf, .future])
+        #expect(superset.branch.lateral.map(\.state) == [.bud, .future, .future])
+        #expect(superset.branch.focusedArm == .lateral)
         #expect(superset.card?.cardIdentity == "superset-active-2-0")
         #expect(superset.card?.ordinal == 1)
         #expect(superset.card?.count == 3)
         #expect(superset.lastPerformed == nil)
         #expect(stage.queue.rows.map(\.id) == ["superset-1"])
         #expect(stage.queue.rows[0].isOnStage)
+    }
+
+    @Test func eachSupersetExerciseKeepsItsArmAsFocusMoves() throws {
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 2, setStates: [.logged, .pending])
+        let pairing = [Superset(first: row, second: bench)]
+
+        let onBench = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 1)), supersets: pairing))
+        )
+        let onRow = try #require(
+            supersetStage(makeStage([bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 1)), supersets: pairing))
+        )
+
+        let benchSets = bench.sets.sorted { $0.index < $1.index }
+        let rowSets = row.sets.sorted { $0.index < $1.index }
+        #expect(onBench.branch.stem.map(\.set).elementsEqual(benchSets, by: ===))
+        #expect(onBench.branch.lateral.map(\.set).elementsEqual(rowSets, by: ===))
+        #expect(onBench.branch.focusedArm == .stem)
+        #expect(onBench.branch.stem.map(\.state) == [.leaf, .bud])
+        #expect(onBench.branch.lateral.map(\.state) == [.leaf, .future])
+        #expect(onRow.branch.stem.map(\.set).elementsEqual(benchSets, by: ===))
+        #expect(onRow.branch.lateral.map(\.set).elementsEqual(rowSets, by: ===))
+        #expect(onRow.branch.focusedArm == .lateral)
+        #expect(onRow.branch.stem.map(\.state) == [.leaf, .future])
+        #expect(onRow.branch.lateral.map(\.state) == [.leaf, .bud])
     }
 
     @Test func aSupersetCarriesTheFocusedSidesLastPerformedLine() throws {
@@ -303,7 +345,7 @@ struct SessionStageTests {
         #expect(superset.focused === bench)
         #expect(superset.partner === row)
         #expect(superset.branch.activeSetID == nil)
-        #expect(superset.branch.nodes.map(\.state) == [.leaf, .bud, .future])
+        #expect(superset.branch.stem.map(\.state) == [.leaf, .bud, .future])
         #expect(superset.card?.set === bench.sets.first { $0.index == 1 })
         #expect(superset.card?.cardIdentity == "superset-active-1-1")
         #expect(superset.lastPerformed == nil)
@@ -324,7 +366,7 @@ struct SessionStageTests {
         #expect(superset.card?.set === squat.sets.first { $0.index == 0 })
         #expect(superset.card?.mode == .logging)
         #expect(superset.card?.cardIdentity == "superset-active-0-0")
-        #expect(superset.branch.nodes.map(\.state) == [.leaf, .bud, .future])
+        #expect(superset.branch.stem.map(\.state) == [.leaf, .bud, .future])
         #expect(stage.queue.rows.map(\.id) == ["superset-0"])
     }
 

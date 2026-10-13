@@ -4,23 +4,32 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The Superset stage against picks superset-stage4-a/-b (DESIGN.md §5.4), in both appearances:
-/// the same editorial column as a single Exercise, but the Fraunces name gains a subordinate
-/// "& partner" line (foliage green by Day, translucent foliage at Night — the manual focus switch)
-/// and the branch becomes **one forked stem** — the focused Exercise climbs at full stroke and
-/// alone carries the bud, while the partner grows along a shorter, bud-less drooping lateral.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct SupersetStageVisualTests {
     @Test func supersetStageMatchesVisualBaseline() throws {
-        try assertSupersetSnapshot(appearance: .day, colorScheme: .light)
+        try assertSupersetSnapshot(focus: .press, appearance: .day, colorScheme: .light)
     }
 
     @Test func supersetStageMatchesNightVisualBaseline() throws {
-        try assertSupersetSnapshot(appearance: .night, colorScheme: .dark)
+        try assertSupersetSnapshot(focus: .press, appearance: .night, colorScheme: .dark)
+    }
+
+    @Test func supersetStageFocusedOnTheLateralMatchesVisualBaseline() throws {
+        try assertSupersetSnapshot(focus: .row, appearance: .day, colorScheme: .light)
+    }
+
+    @Test func supersetStageFocusedOnTheLateralMatchesNightVisualBaseline() throws {
+        try assertSupersetSnapshot(focus: .row, appearance: .night, colorScheme: .dark)
+    }
+
+    private enum Focus {
+        case press
+        case row
     }
 
     private func assertSupersetSnapshot(
+        focus: Focus,
         appearance: Theme.Appearance,
         colorScheme: ColorScheme,
         fileID: StaticString = #fileID,
@@ -29,7 +38,7 @@ struct SupersetStageVisualTests {
         line: UInt = #line,
         column: UInt = #column
     ) throws {
-        let (stage, session) = try makeSupersetStage()
+        let (stage, session) = try makeSupersetStage(focus: focus)
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
 
@@ -71,9 +80,7 @@ struct SupersetStageVisualTests {
         )
     }
 
-    /// Reproduces the pick: DB Incline Press (Set 2 of 4, first Set logged 30×10 @8) forked with a
-    /// resting Chest-Supported Row, the focus on the press.
-    private func makeSupersetStage() throws -> (SupersetStage, Session) {
+    private func makeSupersetStage(focus: Focus) throws -> (SupersetStage, Session) {
         // The press is named "bench" and prescribed 20% so %1RM, which outranks the RPE target's
         // estimate, fills 30 from the Block's bench Training Max (150 × 20%) with no Load Basis
         // line, as the pick shows.
@@ -133,7 +140,9 @@ struct SupersetStageVisualTests {
         let stage = SessionStage(
             session: session,
             focus: SessionFocusSnapshot(
-                visualFocusOwner: .activeSet(ActiveSetID(exerciseOrder: press.order, setIndex: 1)),
+                visualFocusOwner: .activeSet(
+                    ActiveSetID(exerciseOrder: focus == .press ? press.order : row.order, setIndex: 1)
+                ),
                 supersets: [Superset(first: press, second: row)],
                 pairableExerciseOrders: []
             ),
