@@ -17,13 +17,17 @@ struct SessionStageSetDots: View {
     @ViewBuilder
     private func dot(for set: ExerciseSet) -> some View {
         Group {
+            // System secondary until a palette role holds 3:1 for these dots. The quiet skipStroke and
+            // futureStroke roles would drop the Night pending ring from 2.9:1 to 1.9:1.
             switch set.state {
             case .logged:
                 Circle().fill(palette.accent)
             case .skipped:
-                Circle().fill(palette.skipStroke)
+                // swiftlint:disable:next system_ink_outside_the_palette
+                Circle().fill(Color.secondary.opacity(0.45))
             case .pending:
-                Circle().strokeBorder(palette.futureStroke, lineWidth: 1)
+                // swiftlint:disable:next system_ink_outside_the_palette
+                Circle().strokeBorder(Color.secondary.opacity(0.6), lineWidth: 1)
             }
         }
         .frame(width: dotSize, height: dotSize)
