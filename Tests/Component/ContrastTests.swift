@@ -94,6 +94,7 @@ private enum Surface: CaseIterable {
     case railSelected
     case foot
     case focusCard
+    case raisedControl
     case weekCard
     case carvedChip
     case action
@@ -112,7 +113,8 @@ private enum Surface: CaseIterable {
     private func opaqueBase(_ palette: Theme.Palette) -> Color? {
         switch self {
         case .action: palette.action
-        case .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .weekCard, .carvedChip: nil
+        case .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .raisedControl, .weekCard, .carvedChip:
+            nil
         }
     }
 
@@ -125,6 +127,7 @@ private enum Surface: CaseIterable {
         case .railSelected: [palette.surface, palette.railFill, palette.railSelectedFill]
         case .foot: [palette.footFill]
         case .focusCard: [palette.lighting.focusCardFill]
+        case .raisedControl: [palette.lighting.raisedControlFill]
         case .weekCard: [palette.weekCardShade]
         case .carvedChip: [palette.chipCarvedFill]
         }
@@ -169,6 +172,8 @@ private let uses: [String: Use] = [
     "chipCarvedFill": .ground,
     "weekCardShade": .ground,
     "tileCurrentFill": .ground,
+    "lighting.focusCardFill": .ground,
+    "lighting.raisedControlFill": .ground,
     "leafRib": .quiet("a highlight line inside the leaf; the leaf's own fill carries the mark"),
     "budFill": .quiet("the bud's body; budStroke draws its rim against the page"),
     "budGlow": .quiet("a glow shadow around the Night bud, not a mark"),
@@ -217,6 +222,7 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "danger", .railSelected, floor: 1.41, dangerCall),
     (.night, "danger", .foot, floor: 2.37, dangerCall),
     (.night, "danger", .focusCard, floor: 2.30, dangerCall),
+    (.night, "danger", .raisedControl, floor: 2.30, dangerCall),
     (.night, "danger", .weekCard, floor: 2.37, dangerCall),
     (.night, "danger", .carvedChip, floor: 2.37, dangerCall),
     (.night, "action", .paper, floor: 2.15, nightActionCall),
@@ -240,6 +246,7 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .railSelected, floor: 2.06, nightSecondaryCall),
     (.night, "textSecondary", .foot, floor: 3.45, nightSecondaryCall),
     (.night, "textSecondary", .focusCard, floor: 3.35, nightSecondaryCall),
+    (.night, "textSecondary", .raisedControl, floor: 3.35, nightSecondaryCall),
     (.night, "textSecondary", .weekCard, floor: 3.45, nightSecondaryCall),
     (.night, "textSecondary", .carvedChip, floor: 3.45, nightSecondaryCall),
     (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
@@ -262,11 +269,14 @@ private let parked: [ParkedPair: (floor: Double, reason: String)] = Dictionary(
 )
 
 private func paletteInks(_ palette: Theme.Palette) -> [String: Color?] {
-    Dictionary(
-        uniqueKeysWithValues: Mirror(reflecting: palette).children.compactMap { child in
+    func inks(of value: Any, labelled prefix: String) -> [(String, Color?)] {
+        Mirror(reflecting: value).children.compactMap { child in
             guard let label = child.label, let ink = child.value as? Color? else { return nil }
-            return (label, ink)
+            return (prefix + label, ink)
         }
+    }
+    return Dictionary(
+        uniqueKeysWithValues: inks(of: palette, labelled: "") + inks(of: palette.lighting, labelled: "lighting.")
     )
 }
 
