@@ -1,39 +1,52 @@
 #!/usr/bin/env bash
 # Remove git worktrees whose pull request has merged or closed, together with
-# their local branches. Dry run by default; --apply is the only thing that
-# deletes.
+# their local branches, and idle lanes through scripts/lane.sh. Dry run by
+# default; --apply is the only thing that deletes.
 #
 # The repo squash-merges, so `git branch --merged` never matches a landed
 # branch. Every branch is resolved through its PR state instead, in one batched
 # `gh` call per run.
 #
-# Usage: prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size]
+# Usage: prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size] [--lane-idle-days N]
 set -uo pipefail
 
 apply=no
 repo=""
 want_size=yes
+lane_idle_days=3
 
 usage() {
     cat <<'USAGE'
-prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size]
+prune-merged-worktrees.sh [--apply] [--repo <path>] [--no-size] [--lane-idle-days N]
 
 Lists every git worktree whose PR has merged or closed and which holds no work
-that removal would lose. Prints the plan and exits without changing anything.
+that removal would lose, and every idle lane. Prints the plan and exits without
+changing anything.
 
-  --apply        remove the listed worktrees and delete their local branches
-  --repo <path>  operate on this repository (default: the repo containing $PWD)
-  --no-size      skip the du pass, which dominates the runtime on large trees
+  --apply               remove the listed worktrees and delete their local branches
+  --repo <path>         operate on this repository (default: the repo containing $PWD)
+  --no-size             skip the du pass, which dominates the runtime on large trees
+  --lane-idle-days N    days without activity before a lane is removed (default 3)
 
 Size is logical size per worktree, so content shared between worktrees by a
 hardlink or an APFS clone is counted once in each.
 
-A worktree is removed only when every one of these holds:
+A worktree on a branch is removed only when every one of these holds:
   it is not the primary checkout and not the one this script runs from
-  it is on a branch (a detached HEAD is always kept)
   it has no uncommitted changes and no untracked files
   its branch has a pull request, and that PR is MERGED or CLOSED
   it has no commits the PR never received
+
+A detached worktree directly under <primary>/.claude/worktrees/ is a lane named
+by its directory. Its verdict and reason come from
+<primary>/scripts/lane.sh assess <name> N, and --apply removes it with
+lane.sh down --if-idle N <name>, which re-checks, saves its work to the lane's
+evidence dir, and deletes its DerivedData and simulator too. A lane that stopped
+being idle since the scan prints SKIPPED. A directory there whose name is not
+a lane name (lane.sh --help) is kept for removal by hand. Any other detached
+HEAD is kept. Idle counts days, not whether the work is finished, so a program
+paused past N days loses its clean lanes; lane.sh up <name> <commit> makes one
+again, and what down saved stays in the lane's evidence dir.
 
 An unresolvable fact keeps the worktree. Nothing unknown is ever removed.
 
@@ -47,6 +60,8 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --apply) apply=yes ;;
         --no-size) want_size=no ;;
+        --lane-idle-days) shift; lane_idle_days="${1:-}"
+            case "$lane_idle_days" in ''|*[!0-9]*) echo "--lane-idle-days needs a whole number of days" >&2; exit 2 ;; esac ;;
         --repo) shift; repo="${1:-}"; [ -z "$repo" ] && { echo "--repo needs a path" >&2; exit 2; } ;;
         -h|--help) usage; exit 0 ;;
         *) echo "unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -75,6 +90,7 @@ cd "$repo" || exit 2
 # The primary checkout holds .git as a real directory; every linked worktree
 # points into it. Deriving it this way does not depend on list ordering.
 primary=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+lane_sh="$primary/scripts/lane.sh"
 
 # True for the main working tree of any repository, including a submodule or a
 # --separate-git-dir checkout, where the dirname above resolves to neither.
@@ -279,8 +295,23 @@ while IFS= read -r -d '' wt && IFS= read -r -d '' branch \
 
         # Ordered decision table. First match wins, and every rule that cannot
         # establish a fact resolves to keep.
-        if [ "$remote" = detached ]; then
+        if [ "$remote" = detached ] && [ "$(dirname "$wt")" != "$primary/.claude/worktrees" ]; then
             reason="detached HEAD: no branch resolves to a PR, and no ref would survive removal"
+        elif [ "$remote" = detached ]; then
+            pr_state=lane
+            if ! [[ $(basename "$wt") =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]; then
+                reason="detached under .claude/worktrees, but '$(basename "$wt")' is not a lane name; remove it by hand"
+            elif [ ! -x "$lane_sh" ]; then
+                reason="lane, but $lane_sh is missing to assess it"
+            elif ! assessed=$("$lane_sh" assess "$(basename "$wt")" "$lane_idle_days" 2>"$work/assess.err"); then
+                reason="lane.sh assess failed: $(head -1 "$work/assess.err")"
+            else
+                IFS=$'\t' read -r lane_verdict lane_reason <<<"$assessed"
+                case "$lane_verdict" in
+                    keep|remove) verdict=$lane_verdict; reason="lane $lane_reason" ;;
+                    *) reason="lane.sh assess printed: $assessed" ;;
+                esac
+            fi
         elif [ "$dirty" = unknown ]; then
             reason="could not read the working tree status"
         elif [ "$dirty" != clean ]; then
@@ -374,7 +405,18 @@ if [ "$apply" != yes ]; then
 fi
 
 fail=0
-while IFS=$'\t' read -r branch scanned_head pr_oid wt; do
+while IFS=$'\t' read -r row_state wt branch scanned_head pr_oid; do
+    if [ "$row_state" = lane ]; then
+        echo "removing lane $wt"
+        lane_rc=0
+        "$lane_sh" down --if-idle "$lane_idle_days" "$(basename "$wt")" >"$work/lane.out" 2>"$work/lane.err" || lane_rc=$?
+        case $lane_rc in
+            0) sed 's/^/  /' "$work/lane.err" ;;
+            1) sed 's/^/  /' "$work/lane.err" >&2; fail=1 ;;
+            *) echo "  FAILED (lane.sh exit $lane_rc): $(cat "$work/lane.err")" >&2; fail=1 ;;
+        esac
+        continue
+    fi
     echo "removing $wt ($branch)"
     # The verdict above was decided when the scan ran, and the scan takes
     # roughly a minute on a large tree. Another agent can commit in that
@@ -411,7 +453,7 @@ while IFS=$'\t' read -r branch scanned_head pr_oid wt; do
         echo "  FAILED to delete branch $branch: $(cat "$work/br.err")" >&2
         fail=1
     fi
-done < <(awk -F '\t' '$1=="remove" { printf "%s\t%s\t%s\t%s\n", $2, $11, $12, $10 }' "$rows")
+done < <(awk -F '\t' '$1=="remove" { printf "%s\t%s\t%s\t%s\t%s\n", $4, $10, $2, $11, $12 }' "$rows")
 
 echo
 echo "git worktree list now:"

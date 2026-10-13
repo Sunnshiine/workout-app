@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""A stateful stand-in for `xcrun simctl`, for the tests of scripts that create and boot simulators.
+
+Copy it to <dir>/xcrun and put <dir> first on PATH. State lives in FAKE_SIM_STORE (a JSON file, created
+on first use), and every call except `list` is appended to FAKE_SIM_CALLS as the words after `simctl`.
+New UDIDs are FAKE_SIM_PREFIX-<n>, counting from 1 per store. Fresh devices read
+AutomaticMinimizationEnabled=1, the value that hides the keyboard (#700).
+
+Knobs: FAKE_SIM_NO_RUNTIME=1 lists no iOS runtime. FAKE_SIM_CLONE_405_ONCE=<file> fails the first clone
+with 405 and creates <file>, as when the source was booted between a check and the clone.
+FAKE_SIM_SLOW_SHUTDOWN=<file> makes each shutdown create <file>, then take two seconds before it
+touches the store. FAKE_SIM_HELD_FDS=<file> appends, for each create and boot, which of fds 4, 5, 7, 8
+and 9 are open; fd 6 is left out because sim-lock.sh reopens it as a copy of stderr.
+"""
+import fcntl
+import json
+import os
+import sys
+import time
+
+RUNTIME = "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+DEVICE_TYPE = {"name": "iPhone 17 Pro", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"}
+SIM_ERROR = "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code={}):\n{}"
+
+
+def fail(code, message, status=149):
+    print(SIM_ERROR.format(code, message), file=sys.stderr)
+    sys.exit(status)
+
+
+def find(store, udid):
+    for device in store["devices"]:
+        if device["udid"] == udid.upper():
+            return device
+    print("Invalid device: " + udid, file=sys.stderr)
+    sys.exit(148)
+
+
+def new_device(store, name, defaults):
+    store["next"] += 1
+    device = {"udid": "{}-{}".format(os.environ["FAKE_SIM_PREFIX"], store["next"]), "name": name,
+              "state": "Shutdown", "defaults": defaults}
+    store["devices"].append(device)
+    return device
+
+
+def listing(store, args):
+    devices = {RUNTIME: [{"udid": d["udid"], "name": d["name"], "state": d["state"], "isAvailable": True,
+                          "deviceTypeIdentifier": DEVICE_TYPE["identifier"]} for d in store["devices"]]}
+    if args[:1] == ["devices"]:
+        return {"devices": devices}
+    runtimes = [] if os.environ.get("FAKE_SIM_NO_RUNTIME") else [
+        {"identifier": RUNTIME, "version": "27.0", "isAvailable": True, "name": "iOS 27.0", "buildversion": "24A434"}]
+    return {"devicetypes": [DEVICE_TYPE], "runtimes": runtimes, "devices": devices, "pairs": {}}
+
+
+def spawn(device, args):
+    if device["state"] != "Booted":
+        print("Unable to spawn: device is not booted.", file=sys.stderr)
+        sys.exit(149)
+    if args[:2] == ["defaults", "read"]:
+        domain, key = args[2], args[3]
+        value = device["defaults"].get(domain, {}).get(key)
+        if value is None:
+            print("The domain/default pair of ({}, {}) does not exist".format(domain, key), file=sys.stderr)
+            sys.exit(1)
+        print(value)
+    elif args[:2] == ["defaults", "write"]:
+        domain, key, kind, value = args[2:6]
+        device["defaults"].setdefault(domain, {})[key] = {"false": "0", "true": "1"}.get(value, value)
+    else:
+        print("fake simctl spawn: unsupported " + " ".join(args), file=sys.stderr)
+        sys.exit(2)
+
+
+def run(store, verb, args):
+    if verb == "list":
+        print(json.dumps(listing(store, [a for a in args if a not in ("available", "-j")])))
+    elif verb == "create":
+        name, kind, runtime = args
+        if kind not in (DEVICE_TYPE["name"], DEVICE_TYPE["identifier"]) or runtime != RUNTIME:
+            fail(161, "Invalid device type or runtime: {} {}".format(kind, runtime), 161)
+        print(new_device(store, name, {"com.apple.keyboard.preferences": {"AutomaticMinimizationEnabled": "1"}})["udid"])
+    elif verb == "clone":
+        source = find(store, args[0])
+        once = os.environ.get("FAKE_SIM_CLONE_405_ONCE")
+        if source["state"] != "Shutdown" or (once and not os.path.exists(once)):
+            if once:
+                open(once, "w").close()
+            fail(405, "Unable to clone device in current state: " + ("Booted" if once else source["state"]))
+        print(new_device(store, args[1], json.loads(json.dumps(source["defaults"])))["udid"])
+    elif verb in ("boot", "bootstatus"):
+        device = find(store, args[0])
+        if verb == "boot" and device["state"] != "Shutdown":
+            fail(405, "Unable to boot device in current state: " + device["state"])
+        device["state"] = "Booted"
+    elif verb == "shutdown":
+        device = find(store, args[0])
+        if device["state"] == "Shutdown":
+            fail(405, "Unable to shutdown device in current state: Shutdown")
+        device["state"] = "Shutdown"
+    elif verb == "rename":
+        find(store, args[0])["name"] = args[1]
+    elif verb == "delete":
+        store["devices"].remove(find(store, args[0]))
+    elif verb == "spawn":
+        spawn(find(store, args[0]), args[1:])
+    else:
+        print("fake simctl: unsupported " + verb, file=sys.stderr)
+        sys.exit(2)
+
+
+def is_open(fd):
+    try:
+        os.fstat(fd)
+        return True
+    except OSError:
+        return False
+
+
+def main():
+    if sys.argv[1:2] != ["simctl"]:
+        print("fake xcrun: only simctl: " + " ".join(sys.argv[1:]), file=sys.stderr)
+        sys.exit(2)
+    verb, args = sys.argv[2], sys.argv[3:]
+    held = os.environ.get("FAKE_SIM_HELD_FDS")
+    if held and verb in ("create", "boot"):
+        fds = "".join(" {}".format(fd) for fd in (4, 5, 7, 8, 9) if is_open(fd))
+        with open(held, "a") as out:
+            out.write("{} {} holds fds:{}\n".format(verb, args[0], fds))
+    path = os.environ["FAKE_SIM_STORE"]
+    slow = os.environ.get("FAKE_SIM_SLOW_SHUTDOWN")
+    if verb == "shutdown" and slow:
+        open(slow, "w").close()
+        time.sleep(2)
+    with open(path + ".lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        if verb != "list":
+            with open(os.environ["FAKE_SIM_CALLS"], "a") as calls:
+                calls.write(" ".join([verb] + args) + "\n")
+        store = {"next": 0, "devices": []}
+        if os.path.exists(path):
+            with open(path) as f:
+                store = json.load(f)
+        try:
+            run(store, verb, args)
+        finally:
+            with open(path, "w") as f:
+                json.dump(store, f)
+
+
+main()

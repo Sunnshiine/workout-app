@@ -171,10 +171,36 @@ Reading a `scripts/test-sim.sh` run:
   load1=<start>/<end> bundle=<path>`. `expected=` counts tests whose only issues were known
   issues, which `passed=` leaves out. `exit=` is the script's status, which a pipe such as `| tee`
   hides.
-- Each run keeps the logs, bundle, and diffs of the five runs written last in `.build/test-sim`
-  and deletes the rest.
+- A run's files in `.build/test-sim` are `<stamp>-build.log`, `<stamp>-test.log`,
+  `<stamp>.xcresult`, and `<stamp>-diffs`, and its test log ends with its result line. Each run
+  keeps the five runs written last. It deletes an older run's files when that run's test log ends
+  with a result line and none of its files changed in the last 30 minutes, so a run still in
+  progress in the same checkout keeps its log and bundle. A run with no result line whose files
+  have not changed for 24 hours was killed (SIGKILL, power loss) and is deleted too. Copy a bundle
+  or diff you cite into your proof directory, because only five runs are kept.
 - After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
   and difference images and prints their paths.
+
+Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh --help` hold the details):
+
+- `scripts/lane.sh up <name> <commit>` makes a lane: a detached worktree at that commit under
+  `.claude/worktrees/<name>` with `Secrets.xcconfig` in place, and its own simulator, cloned from a
+  template `scripts/sim-pool.sh` builds on first use. It prints three `export` lines: `SIM`,
+  `LANE_WORKTREE`, and `VERIFY_EVIDENCE`, an evidence directory in the main checkout that outlives
+  the worktree. The shell forgets them between calls, so start each call with
+  `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
+- The lane's simulator stays Shutdown until something boots it. `scripts/test-sim.sh` and
+  `verify.sh` boot it themselves. Before a raw `xcodebuild` or XcodeBuildMCP call on a lane, run
+  `scripts/sim-pool.sh boot <name>`. All three boot through the same host admission, which waits
+  while the 1-minute load is over `WORKOUT_LOAD_LIMIT` or six other simulators are booted
+  (`WORKOUT_SIM_CAP`).
+- `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
+  touches anything else while a run holds the simulator. It then saves any uncommitted or staged
+  diff, untracked files, commits no branch holds, and the lane's results under `.build` (`test-sim`,
+  `verify`, `crap`, `flake-hunt`, `mutate`, `check-each-commit`) into that evidence directory, and
+  removes the worktree and its DerivedData.
+- `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
+  as a candidate, and `--apply` removes it through `lane.sh down`.
 
 Shared fixture policy:
 
