@@ -95,7 +95,6 @@ private enum Surface: CaseIterable {
     case foot
     case focusCard
     case weekCard
-    case sheet
     case carvedChip
     case action
 
@@ -112,15 +111,14 @@ private enum Surface: CaseIterable {
 
     private func opaqueBase(_ palette: Theme.Palette) -> Color? {
         switch self {
-        case .sheet, .carvedChip: palette.sheetFill
         case .action: palette.action
-        case .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .weekCard: nil
+        case .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .weekCard, .carvedChip: nil
         }
     }
 
     private func fills(_ palette: Theme.Palette) -> [Color] {
         switch self {
-        case .paper, .sheet, .action: []
+        case .paper, .action: []
         case .card: [palette.surface]
         case .pill: [palette.surface, palette.pillFill]
         case .rail: [palette.surface, palette.railFill]
@@ -167,7 +165,7 @@ private let uses: [String: Use] = [
     "railFill": .ground,
     "railSelectedFill": .ground,
     "footFill": .ground,
-    "sheetFill": .ground,
+    "sheetFill": .quiet("the core punched into a chart dot; no ink sits on it"),
     "chipCarvedFill": .ground,
     "weekCardShade": .ground,
     "tileCurrentFill": .ground,
@@ -202,13 +200,16 @@ private let nightBranchCall = "whether Night foliage lightens or the logged bran
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
 
+private let daySecondaryCall =
+    "whether Day muted darkens, or the carved chip fill lightens, where the foot wash reaches a History chip"
+
 private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call: String)] = [
     (.day, "danger", .paper, floor: 1.93, dangerCall),
     (.day, "danger", .card, floor: 2.56, dangerCall),
     (.day, "danger", .rail, floor: 2.92, dangerCall),
     (.day, "danger", .foot, floor: 2.53, dangerCall),
     (.day, "danger", .weekCard, floor: 2.56, dangerCall),
-    (.day, "danger", .carvedChip, floor: 2.84, dangerCall),
+    (.day, "danger", .carvedChip, floor: 1.75, dangerCall),
     (.night, "danger", .paper, floor: 2.81, dangerCall),
     (.night, "danger", .card, floor: 2.30, dangerCall),
     (.night, "danger", .pill, floor: 1.97, dangerCall),
@@ -217,6 +218,7 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "danger", .foot, floor: 2.37, dangerCall),
     (.night, "danger", .focusCard, floor: 2.30, dangerCall),
     (.night, "danger", .weekCard, floor: 2.37, dangerCall),
+    (.night, "danger", .carvedChip, floor: 2.37, dangerCall),
     (.night, "action", .paper, floor: 2.15, nightActionCall),
     (.night, "action", .card, floor: 1.76, nightActionCall),
     (.night, "action", .railSelected, floor: 1.08, nightActionCall),
@@ -239,6 +241,9 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .foot, floor: 3.45, nightSecondaryCall),
     (.night, "textSecondary", .focusCard, floor: 3.35, nightSecondaryCall),
     (.night, "textSecondary", .weekCard, floor: 3.45, nightSecondaryCall),
+    (.night, "textSecondary", .carvedChip, floor: 3.45, nightSecondaryCall),
+    (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
+    (.day, "actionInk", .carvedChip, floor: 4.17, "whether Day actionInk darkens under the foot wash"),
     (
         .day, "supersetPartnerName", .paper, floor: 3.40,
         "whether the partner name may sit over a wash; UI-14 measured 4.5:1 only where none reaches"
