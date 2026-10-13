@@ -20,13 +20,6 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures"
 FRAME = re.compile(r"^@(-?\d+),(-?\d+) (\d+)x(\d+)$")
 
 
-def setUpModule():
-    locks = tempfile.mkdtemp(prefix="workout-host-locks-")
-    unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
-                      WORKOUT_HOST_LOCK_DIR=locks)
-
-
 MINI_TREE = [
     {
         "role": "AXApplication", "AXLabel": "WorkoutTracker", "pid": 4121,
@@ -100,6 +93,10 @@ EVIDENCE_BEFORE = []
 
 
 def setUpModule():
+    locks = tempfile.mkdtemp(prefix="workout-host-locks-")
+    unittest.addModuleCleanup(shutil.rmtree, locks, True)
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
+                      WORKOUT_HOST_LOCK_DIR=locks)
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
 
@@ -1614,6 +1611,8 @@ class SimulatorPick(unittest.TestCase):
         ])
 
 
+SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = "#!/bin/sh\necho '{ 500.00 500.00 500.00 }'\n"
+
 LANE_STUB = """#!/bin/sh
 tool=$(basename "$0")
 printf '%s\\n' "$tool $*" >> "{dir}/calls"
@@ -1672,7 +1671,7 @@ class Lane(unittest.TestCase):
         self.env = dict(os.environ, HOME=str(self.tmp / "home"), PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]),
                         GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"), GIT_CONFIG_NOSYSTEM="1",
                         GIT_AUTHOR_NAME="lane", GIT_AUTHOR_EMAIL="lane@example.com",
-                        GIT_COMMITTER_NAME="lane", GIT_COMMITTER_EMAIL="lane@example.com")
+                        GIT_COMMITTER_NAME="lane", GIT_COMMITTER_EMAIL="lane@example.com", WORKOUT_ADMIT_WAIT="0")
         for name in ["SIM", "VERIFY_RUN", "VERIFY_EVIDENCE", "VERIFY_LIVE_ACTIVITIES"]:
             self.env.pop(name, None)
         self.checkout = self.tmp / "checkout"
@@ -1704,6 +1703,8 @@ class Lane(unittest.TestCase):
                      self.tmp / "bin" / "npm", axe]:
             tool.write_text(stub)
             tool.chmod(0o755)
+        (self.tmp / "bin" / "sysctl").write_text(SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS)
+        (self.tmp / "bin" / "sysctl").chmod(0o755)
         (self.tmp / "describe-ui.json").write_text(MINI)
         self.sim = "LANE-%d" % os.getpid()
         self.other_sim = "LANE-%d-B" % os.getpid()
@@ -1796,6 +1797,19 @@ class InstalledIdentity(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1"), (0, self.launched(
             "app %s commit unknown (not built by verify.sh)" % digest(b"rebuilt by Xcode\n")), ""),
             "the hash is the identity; a stamp that does not describe these bytes vouches for nothing")
+
+    def test_a_runs_own_relaunch_that_would_replace_a_cached_build_refuses_before_it_takes_anything_over(self):
+        self.verify("build")
+        self.assertEqual(self.verify("install", self.a)[0], 0)
+        app = self.own_the_app("ui12")
+        (Path("/tmp/workout-verify-%s" % self.sim) / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION\n")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="ui12"), (65, "", (
+            "{sim} holds {cached}, and this launch would replace it with {wanted}. To run the cached build: launch --at "
+            "{a8} session. To replace it: install, then launch.\n").format(
+                sim=self.sim, cached=self.cached_build(b"v1\n", self.a), wanted=self.worktree_build(b"v2\n", self.b),
+                a8=self.a[:8])), "a run that had Live Activities on is not uninstalled, and no takeover is announced")
+        self.assertEqual([call for call in self.calls() if " install" in call or "uninstall" in call], [])
+        self.assertIsNone(app.poll(), "the run's app still runs")
 
     def test_a_lock_refusal_names_the_app_it_left_installed_and_the_one_it_wanted(self):
         self.verify("build")
@@ -2131,6 +2145,15 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
         self.assertRegex((self.evidence("main", "r1") / "launches.txt").read_text(),
                          r"\n\S+ launch refused: %s\n$" % re.escape(refusal))
+
+    def test_a_cache_build_that_never_gets_a_build_slot_refuses_the_run_until_a_launch_of_it_succeeds(self):
+        self.verify("build")
+        self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
+        refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache" % (
+            self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_LOAD_LIMIT="50")
+        self.assertEqual((code, out, err.splitlines()[-1]), (75, "", refusal))
+        self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
 
     def test_a_drive_that_names_no_run_is_refused_after_a_launch_that_named_none_was_refused(self):
         self.verify("build")

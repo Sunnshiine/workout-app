@@ -337,12 +337,14 @@ worktree_build_note() {
   fi
 }
 
+logged_to() { local log=$1; shift; "$@" > "$log" 2>&1; }
+
 xcodebuild_build() {
   local derived=()
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
   mkdir -p "$(dirname "$3")"
-  with_build_slot xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
-    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$3" 2>&1 \
+  with_build_slot logged_to "$3" xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
+    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO \
     || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
 }
 
@@ -384,7 +386,7 @@ scratch_checkout() {
 
 # Only xcodebuild keeps fd 4, so a killed install's build holds the cache lock until it exits. A process git
 # leaves behind, such as a core.fsmonitor daemon, would hold it for good. The subshell matters: bash 3.2 lets
-# children inherit the copy of fd 4 it saves around a function's own 4>&-. sim-lock.sh holds fds 6 to 9.
+# children inherit the copy of fd 4 it saves around a function's own 4>&-.
 without_cache_lock() { (exec 4>&- && "$@"); }
 
 cached_app_path() { printf '%s/%s/WorkoutTracker.app\n' "$(cache_root)" "$1"; }
@@ -464,12 +466,16 @@ report_unchanged() {
   record_refusal "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
 }
 
+relaunches_the_run_that_owns_sim() { [ -n "${VERIFY_RUN:-}" ] && [ "$VERIFY_RUN" = "$(cat "$state_dir/run" 2>/dev/null)" ]; }
+
 claim_for_install() {
   resolve_sim
   [ -z "$at" ] || at=$(resolve_commit "$at")
   sim_available "$sim" || exit
-  target_app
+  wanted_line="${at:0:8} from the app cache"
   trap report_unchanged EXIT
+  target_app
+  if [ "$cmd" = launch ] && [ -z "$at" ] && relaunches_the_run_that_owns_sim; then refuse_replacing_cache; fi
   claim_sim "$sim" "verify.sh $cmd"
   wait_for_boot
 }

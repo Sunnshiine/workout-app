@@ -146,10 +146,11 @@ host_knob() {
 }
 
 wait_until_clear() {
-  local what=$1 waited said=-60
+  local what=$1 start waited said=-60
   shift
+  start=$(date +%s)
   while ! "$@"; do
-    waited=$(($(date +%s) - host_wait_start))
+    waited=$(($(date +%s) - start))
     if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
@@ -160,7 +161,7 @@ wait_until_clear() {
     fi
     sleep 2 7>&- 8>&- 9>&-
   done
-  [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - host_wait_start)) s" >&6
+  [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
 }
 
 # Linux has no vm.loadavg, so there the load holds no claim.
@@ -311,6 +312,5 @@ host_knob WORKOUT_LOAD_LIMIT 50 1
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
-host_wait_start=$(date +%s)
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

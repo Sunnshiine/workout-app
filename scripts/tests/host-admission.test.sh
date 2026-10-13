@@ -256,12 +256,16 @@ expect "the refusal names the load and the knob" "$(refusal)" \
     "gave up after N s waiting for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)"
 
 reset
-# test-sim.sh reads the load once for its result line before it claims.
 STUB_LOAD=212.40 STUB_BUSY_CALLS=2 WORKOUT_ADMIT_WAIT=30 test_sim --no-build; status=$?
 expect "a claim waits for the load to fall, then goes on" "$status $(builds)" "65 test-without-building"
 expect "the wait is announced, then its end" "$(sed -n '1p;2s/[0-9]* s$/N s/p' "$root/err")" \
     "waiting up to 30 s for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)
 went ahead after N s"
+
+reset
+STUB_LOAD=212.40 STUB_BUSY_CALLS=1 WORKOUT_ADMIT_WAIT=3 bash -c '. "$1/scripts/sim-lock.sh"; sleep 4; wait_until_clear "the load" load_clear 50' _ "$repo" 2>"$root/err"; status=$?
+expect "a wait's budget starts when the wait does, so time spent before it, as on a cache build, is not counted" \
+    "$status $(sed -n '2s/[0-9]* s$/N s/p' "$root/err")" "0 went ahead after N s"
 
 reset
 STUB_LOAD=212.40 WORKOUT_LOAD_LIMIT=300 test_sim --no-build; status=$?
