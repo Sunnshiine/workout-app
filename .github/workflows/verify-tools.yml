@@ -17,6 +17,8 @@ on:
       - "scripts/tests/sim-keyboard.test.sh"
       - "scripts/tests/snapshot-diffs.test.sh"
       - "scripts/tests/flake-hunt.test.sh"
+      - "scripts/wait-load.sh"
+      - "scripts/tests/host-admission.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -36,6 +38,8 @@ on:
       - "scripts/tests/sim-keyboard.test.sh"
       - "scripts/tests/snapshot-diffs.test.sh"
       - "scripts/tests/flake-hunt.test.sh"
+      - "scripts/wait-load.sh"
+      - "scripts/tests/host-admission.test.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 
@@ -65,5 +69,6 @@ jobs:
       - run: scripts/tests/sim-keyboard.test.sh
       - run: scripts/tests/snapshot-diffs.test.sh
       - run: scripts/tests/flake-hunt.test.sh
+      - run: scripts/tests/host-admission.test.sh
       - name: test_evidence.py, with the VerifySheet tests that only run on macOS
         run: python3 .agents/skills/verify/tests/test_evidence.py

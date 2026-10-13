@@ -61,11 +61,25 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
                   alive on SIM, and after this run's launch was refused until one succeeds. Unset,
                   the run is the one the last launch on SIM started, and unless that run was named
-                  a refused launch with VERIFY_RUN unset counts as a refused launch of it),
+                  a refused launch with VERIFY_RUN unset counts as a refused launch of it. After
+                  another launch reclaims your run, a command without it drives that run's app:
+                  name your run on every command),
              VERIFY_EVIDENCE (the parent of the run directories; default
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
-             features/live-activity.md, and its shots carry the activity overlay).
+             features/live-activity.md, and its shots carry the activity overlay),
+             WORKOUT_LEASE_MINUTES (60; a run's lease on its app. Every command but build, install,
+                  diff, sheet and crop renews it, one with no VERIFY_RUN only before it runs out.
+                  Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
+                  the simulator and stops the app, and every later command for that run but build,
+                  install, diff, sheet and crop exits 75 naming who took it, until it launches again),
+             WORKOUT_LOAD_LIMIT (50), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
+             WORKOUT_ADMIT_WAIT (540): launch and install wait while the 1-minute load is over the
+                  limit, and before a boot while WORKOUT_SIM_CAP others are booted; build, and a
+                  build into the app cache, wait for the load and for one of the host's build slots.
+                  A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
+Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
+         refused, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
           app each launch ran.
 EOF
@@ -143,6 +157,7 @@ current_run() {
 
 begin_run() {
   local name=${VERIFY_RUN:-$(date +%Y%m%d-%H%M%S)}
+  rm -f "$state_dir/reclaimed.$name"
   mkdir -p "$state_dir"
   printf '%s\n' "$name" > "$state_dir/run"
   if [ -n "${VERIFY_RUN:-}" ]; then rm -f "$state_dir/unnamed"; else : > "$state_dir/unnamed"; fi
@@ -322,12 +337,14 @@ worktree_build_note() {
   fi
 }
 
+logged_to() { local log=$1; shift; "$@" > "$log" 2>&1; }
+
 xcodebuild_build() {
   local derived=()
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
   mkdir -p "$(dirname "$3")"
-  xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
-    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$3" 2>&1 \
+  with_build_slot logged_to "$3" xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
+    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO \
     || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
 }
 
@@ -367,10 +384,10 @@ scratch_checkout() {
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
-# Only xcodebuild keeps fd 8, so a killed install's build holds the cache lock until it exits. A process git
+# Only xcodebuild keeps fd 4, so a killed install's build holds the cache lock until it exits. A process git
 # leaves behind, such as a core.fsmonitor daemon, would hold it for good. The subshell matters: bash 3.2 lets
-# children inherit the copy of fd 8 it saves around a function's own 8>&-.
-without_cache_lock() { (exec 8>&- && "$@"); }
+# children inherit the copy of fd 4 it saves around a function's own 4>&-.
+without_cache_lock() { (exec 4>&- && "$@"); }
 
 cached_app_path() { printf '%s/%s/WorkoutTracker.app\n' "$(cache_root)" "$1"; }
 
@@ -381,13 +398,13 @@ ensure_cached() {
   cache_hit "$app" && return 0
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
-  exec 8>>"$lock"
+  exec 4>>"$lock"
   python3 -c 'import fcntl, sys
-try: fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
+try: fcntl.flock(4, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
     print(sys.argv[1], file=sys.stderr, flush=True)
-    fcntl.flock(8, fcntl.LOCK_EX)' "waiting for another build of ${sha:0:8} into the app cache (lsof $lock lists it)"
-  if cache_hit "$app"; then exec 8>&-; return 0; fi
+    fcntl.flock(4, fcntl.LOCK_EX)' "waiting for another build of ${sha:0:8} into the app cache (lsof $lock lists it)"
+  if cache_hit "$app"; then exec 4>&-; return 0; fi
   scratch=$root/$sha.build
   tmp=$root/$sha.tmp
   without_cache_lock sweep_cache_scratch "$root" "$sha"
@@ -403,7 +420,7 @@ except BlockingIOError:
   write_stamp "$tmp/WorkoutTracker.app" "$sha" 0 cache
   mv "$tmp" "$root/$sha"
   without_cache_lock drop_cache_scratch "$scratch"
-  exec 8>&-
+  exec 4>&-
 }
 
 target_app() {
@@ -449,12 +466,16 @@ report_unchanged() {
   record_refusal "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
 }
 
+relaunches_the_run_that_owns_sim() { [ -n "${VERIFY_RUN:-}" ] && [ "$VERIFY_RUN" = "$(cat "$state_dir/run" 2>/dev/null)" ]; }
+
 claim_for_install() {
   resolve_sim
   [ -z "$at" ] || at=$(resolve_commit "$at")
   sim_available "$sim" || exit
-  target_app
+  wanted_line="${at:0:8} from the app cache"
   trap report_unchanged EXIT
+  target_app
+  if [ "$cmd" = launch ] && [ -z "$at" ] && relaunches_the_run_that_owns_sim; then refuse_replacing_cache; fi
   claim_sim "$sim" "verify.sh $cmd"
   wait_for_boot
 }
@@ -572,6 +593,7 @@ refuse_another_runs_app() {
 
 require_own_app() {
   local run again
+  require_lease "$sim"
   refuse_another_runs_app
   run=$(current_run)
   [ -n "$run" ] && [ -f "$state_dir/refused.$run" ] || return 0
@@ -690,7 +712,7 @@ case $cmd in
     ;;
 
   doctor)
-    resolve_sim
+    resolve_sim; require_lease "$sim"
     ensure_axe
     rc=0
     booted && echo "ok   simulator $sim booted" || { echo "FAIL simulator $sim not booted"; rc=1; }
@@ -719,14 +741,14 @@ case $cmd in
     ;;
 
   tree)
-    resolve_sim; ensure_axe
+    resolve_sim; require_lease "$sim"; ensure_axe
     all=${1:-}
     [ -z "$all" ] || [ "$all" = --all ] || usage
     describe | python3 "$tree" flat ${all:+--all}
     ;;
 
   find)
-    resolve_sim; ensure_axe
+    resolve_sim; require_lease "$sim"; ensure_axe
     id=${1:-}; [ -n "$id" ] || usage
     describe | python3 "$tree" find "$id"
     ;;
@@ -886,7 +908,7 @@ case $cmd in
     ;;
 
   stop)
-    resolve_sim
+    resolve_sim; require_lease "$sim"
     if [ -f "$state_dir/pid" ]; then
       pid=$(cat "$state_dir/pid")
       alive=
@@ -896,7 +918,7 @@ case $cmd in
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
       # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
       # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
-      if [ -f "$state_dir/args" ] && ! grep -q -- -UITEST_DISABLE_LIVE_ACTIVITIES "$state_dir/args"; then uninstall=1; fi
+      if launched_with_live_activities "$state_dir"; then uninstall=1; fi
       owner=
       [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
       if [ -n "$alive$uninstall" ] && [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
