@@ -68,7 +68,9 @@
 
         static let pendingWrite = LaunchFlag(
             argument: "-UITEST_PENDING_WRITE",
-            meaning: "Seeds one queued Set Log write for Week 1 Day 1's Back Squat on a fresh-block Sheet that Sync now writes it to."
+            meaning:
+                "Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block,"
+                + " so a sync writes it and reloads that Block in place of the Scenario's."
         )
 
         static let slowSync = LaunchFlag(
