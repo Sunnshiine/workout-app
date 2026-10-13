@@ -166,7 +166,7 @@ unique_commits() {
 cwd_holder() {
   local cwds skip=" $$ " p=$$
   while p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ') && [ -n "$p" ] && [ "$p" -gt 1 ]; do skip="$skip$p "; done
-  cwds=$(lsof -a -d cwd -Fpcn 2>/dev/null) || true
+  cwds=$(PATH=$PATH:/usr/sbin lsof -a -d cwd -Fpcn 2>/dev/null) || true
   [ -n "$cwds" ] || return 1
   awk -v w="$wt" -v skip="$skip" '/^p/ { pid = substr($0, 2) } /^c/ { cmd = substr($0, 2) }
     /^n/ && !found { n = substr($0, 2); if ((n == w || index(n, w "/") == 1) && !index(skip, " " pid " ")) { print pid " " cmd; found = 1 } }' <<<"$cwds"
