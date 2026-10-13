@@ -6,6 +6,8 @@ repo=$(cd "$script_dir/../.." && pwd)
 lint=${1:-$repo/scripts/lint.sh}
 resolved="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 violation='let x = 1'
+# The fixture has one commit and no origin, so swift-format checks what changed since it.
+export LINT_FORMAT_BASE=HEAD
 
 root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
@@ -37,7 +39,10 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
-    cp "$repo/scripts/lint-doc-symbols.py" "$fx/scripts/lint-doc-symbols.py"
+    cp "$repo/scripts/lint-doc-symbols.py" "$repo/scripts/lint-workflow-ifs.sh" \
+        "$repo/scripts/swift-format-changed.sh" "$fx/scripts/"
+    mkdir -p "$fx/.github/workflows"
+    printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
     mkdir -p "$fx/.agents/skills/verify"
     printf '| `-UITEST_FIXTURE` | Switch | Runs on fixtures. |\n' >"$fx/.agents/skills/verify/launch-flags.md"
     printf 'Lint with `scripts/lint.sh`.\n' >"$fx/AGENTS.md"
@@ -51,6 +56,7 @@ fresh_fixture() {
     printf 'let helper = 1\n' >"$fx/Tests/Support/Helper.swift"
     git -C "$fx" init -q
     git -C "$fx" add -A
+    git -C "$fx" -c user.name=lint-test -c user.email=lint-test@example.com commit -qm fixture
 }
 
 baseline_config() {
@@ -91,6 +97,29 @@ expect_line "doc symbols" "$err" "error: AGENTS.md:1: \`scripts/lint-gone.sh\` i
 run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
 expect_exit "doc symbols, file run" "$status" 0
 expect_no_text "doc symbols, file run" "$both" "Doc symbols"
+
+echo "workflow guards: a whole-tree run fails on an if: GitHub would make false, and a file run skips it"
+fresh_fixture
+baseline_config
+printf 'on: push\njobs:\n  a:\n    runs-on: x\n    steps:\n      - id: s\n        run: exit 1\n      - if: steps.s.outcome == %s\n        run: echo report\n' \
+    "'failure'" >"$fx/.github/workflows/ci.yml"
+run_lint
+expect_exit "workflow guards" "$status" 1
+expect_text "workflow guards" "$both" ".github/workflows/ci.yml:8: job 'a', step '#2': if: reads a step conclusion or outcome and calls no status check function"
+run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
+expect_exit "workflow guards, file run" "$status" 0
+
+echo "swift-format: a whole-tree run fails on a changed Swift file swift-format rejects, --fix formats it"
+fresh_fixture
+baseline_config
+printf 'let model  =  1\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "swift-format" "$status" 1
+expect_text "swift-format" "$err" "error: format them with: xcrun swift-format format -i Sources/Core/Model.swift"
+run_lint "$fx/scripts/lint.sh" --fix
+expect_exit "swift-format --fix" "$status" 0
+expect_line "swift-format --fix" "$out" "swift-format: 1 changed Swift file(s) clean since $(git -C "$fx" rev-parse --short=7 HEAD)."
+if [ "$(cat "$fx/Sources/Core/Model.swift")" = "let model = 1" ]; then ok "--fix rewrote Model.swift"; else bad "--fix left Model.swift as: $(cat "$fx/Sources/Core/Model.swift")"; fi
 
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture
