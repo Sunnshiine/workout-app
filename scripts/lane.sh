@@ -72,7 +72,7 @@ die() { echo "lane.sh: $2" >&2; exit "$1"; }
 # Not `command git`: bash 3.2 hands a builtin's child its saved copy of the fd.
 git_bin=$(type -P git) || die 2 "git is not on PATH"
 git() { "$git_bin" "$@" 5>&- 6>&-; }
-sim_pool() { "$here/sim-pool.sh" "$@" 5>&- 6>&-; }
+sim_pool() { "$here/sim-pool.sh" "$@" 5>&-; }
 
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -349,7 +349,7 @@ for d in sorted(glob.glob(os.path.join(sys.argv[1], "WorkoutTracker-*"))):
     try:
         with open(os.path.join(d, "info.plist"), "rb") as f: path = plistlib.load(f).get("WorkspacePath")
     except Exception: continue
-    if path == sys.argv[2]: print(d)' "$HOME/Library/Developer/Xcode/DerivedData" "$1"
+    if path == sys.argv[2]: print(d)' ~/Library/Developer/Xcode/DerivedData "$1"
 }
 
 lane_down() {

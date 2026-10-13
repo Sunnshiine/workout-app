@@ -25,7 +25,7 @@ fi
 exec "$real_git" "\$@"
 STUB
 chmod +x "$root/bin/git"
-export PATH="$root/bin:$PATH" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
+export PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
 export WORKOUT_LOAD_LIMIT=1000000
 unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
@@ -187,6 +187,8 @@ expect "assess keeps a lane a process works in" "$(cat "$root/out")" "keep	in us
 
 lane assess a 0
 expect "assess removes a clean lane past the threshold" "$(cat "$root/out")" "remove	idle 0d"
+env -u HOME "$primary/scripts/lane.sh" assess a 0 >"$root/out" 2>"$root/err"
+expect "assess with HOME unset, as env -i leaves it, still reads DerivedData" "$? $(cat "$root/out" "$root/err")" "0 remove	idle 0d"
 hold "/tmp/workout-verify-$P-2/lock" "verify.sh launch (pid 4244)"
 lane assess a 0
 release
