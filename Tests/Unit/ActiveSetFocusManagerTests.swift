@@ -269,7 +269,7 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func activeSupersetSurfaceShowsBothSidesAndFocusesPairedExerciseNextPendingSet() throws {
+@Test func aSupersetSnapshotsBothSidesAndFocusesThePairedExercisesNextPendingSet() throws {
     let session = makeMultiExercisePendingSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -277,15 +277,13 @@ private func makePlannedSupersetSession() -> Session {
 
     #expect(focus.createSuperset(with: [squat, bench], in: session))
 
-    let initialSurface = try #require(focus.activeSupersetPresentation(in: session))
-    #expect(initialSurface.sides.map(\.exerciseOrder) == [0, 1])
-    #expect(initialSurface.sides.map(\.isActive) == [true, false])
+    let initial = focus.snapshot(in: session)
+    #expect(initial.supersets.map { $0.exercises.map(\.order) } == [[0, 1]])
+    #expect(initial.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
 
     #expect(focus.focusNextSupersetSet(for: bench, in: session))
 
-    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
-    let switchedSurface = try #require(focus.activeSupersetPresentation(in: session))
-    #expect(switchedSurface.sides.map(\.isActive) == [false, true])
+    #expect(focus.snapshot(in: session).visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 1, setIndex: 0)))
 }
 
 @MainActor
@@ -314,7 +312,7 @@ private func makePlannedSupersetSession() -> Session {
 }
 
 @MainActor
-@Test func creatingPlannedSupersetFormsSurfaceWithoutChangingFocus() throws {
+@Test func creatingAPlannedSupersetSnapshotsItWithoutChangingFocus() throws {
     let session = makePlannedSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -324,15 +322,14 @@ private func makePlannedSupersetSession() -> Session {
 
     #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 0))
 
-    let surface = try #require(focus.supersetSections(in: session).first?.presentation)
-    #expect(surface.activeSetID == nil)
-    #expect(surface.containerExerciseOrder == 1)
-    #expect(surface.sides.map(\.exerciseOrder) == [1, 2])
-    #expect(surface.sides.map(\.isActive) == [false, false])
+    let snapshot = focus.snapshot(in: session)
+    #expect(snapshot.supersets.map { $0.exercises.map(\.order) } == [[1, 2]])
+    #expect(snapshot.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 0)))
+    #expect(snapshot.pairableExerciseOrders.isEmpty)
 }
 
 @MainActor
-@Test func manualSupersetDismissRemovesSurfaceWithoutChangingSetLogs() throws {
+@Test func manualSupersetDismissRemovesItWithoutChangingSetLogs() throws {
     let session = makeMultiExercisePendingSession()
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
@@ -345,7 +342,7 @@ private func makePlannedSupersetSession() -> Session {
     #expect(focus.createSuperset(from: squat, to: bench, in: session))
     focus.dismissSuperset(containing: squat, in: session)
 
-    #expect(focus.supersetSections(in: session).isEmpty)
+    #expect(focus.snapshot(in: session).supersets.isEmpty)
     #expect(firstSquatSet.setLog == log)
     #expect(firstSquatSet.state == .logged)
 }
@@ -360,7 +357,39 @@ private func makePlannedSupersetSession() -> Session {
 
     let relaunchedFocus = ActiveSetFocusManager(session: session)
 
-    #expect(relaunchedFocus.supersetSections(in: session).isEmpty)
+    #expect(relaunchedFocus.snapshot(in: session).supersets.isEmpty)
+}
+
+@MainActor
+@Test func aSupersetLeavesTheSnapshotOnceEitherExerciseHasNoPendingSet() throws {
+    let session = makeMultiExercisePendingSession()
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let focus = ActiveSetFocusManager(session: session)
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+
+    squat.sets.forEach { $0.state = .skipped }
+
+    #expect(focus.snapshot(in: session).supersets.isEmpty)
+}
+
+@MainActor
+@Test func advancingPastASetOutsideEverySupersetNotifiesNoPairingReader() throws {
+    let session = makePlannedSupersetSession()
+    let row = try #require(session.exercises.first { $0.order == 0 })
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let rowSet = try #require(row.sets.first)
+    let focus = ActiveSetFocusManager(session: session)
+    #expect(focus.createSuperset(from: squat, to: bench, in: session))
+    let changes = ObservedChanges()
+    changes.watch { _ = focus.canPair(bench, in: session) }
+
+    rowSet.state = .logged
+    focus.advanceAfterLog(rowSet, in: session)
+
+    #expect(focus.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(changes.fired == 0)
 }
 
 @MainActor
@@ -369,12 +398,14 @@ private func makePlannedSupersetSession() -> Session {
     let secondSet = try #require(session.exercises.first?.sets.first { $0.index == 1 })
     let coordinator = SessionCoordinator(session: session)
     let changes = ObservedChanges()
-    changes.watch { _ = coordinator.visualFocusOwner?.setID ?? coordinator.activeSetID }
+    changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 
     coordinator.focus(on: secondSet)
 
     #expect(changes.fired == 1)
-    #expect(coordinator.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+    let card: SetCardSlot? =
+        if case .exercise(let stage) = coordinator.stage(in: session, lookup: .empty).focus { stage.card } else { nil }
+    #expect(card?.cardIdentity == "stage-active-0-1")
 }
 
 @MainActor
@@ -384,10 +415,10 @@ private func makePlannedSupersetSession() -> Session {
     let bench = try #require(session.exercises.first { $0.order == 2 })
     let coordinator = SessionCoordinator(session: session)
     let changes = ObservedChanges()
-    changes.watch { _ = coordinator.renderItems(in: session) }
+    changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
 
     #expect(changes.fired == 1)
-    #expect(coordinator.renderItems(in: session).map(\.id) == ["exercise-0", "superset-1", "hidden-paired-exercise-2"])
+    #expect(coordinator.stage(in: session, lookup: .empty).queue.rows.map(\.id) == ["exercise-0", "superset-1"])
 }

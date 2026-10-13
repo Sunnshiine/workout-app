@@ -56,6 +56,11 @@ final class WorkoutStore {
     }
 
     var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: viewedSession, currentSession: currentSession) }
+
+    func liveEdge(for session: Session) -> LiveEdge {
+        LiveEdge.resolve(viewedSession: session, currentSession: currentSession)
+    }
+
     var isViewingLiveEdge: Bool { liveEdge.isAtLiveEdge }
     var openExercises: [Exercise] {
         guard let currentSession else { return [] }

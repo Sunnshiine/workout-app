@@ -29,7 +29,7 @@ struct SupersetStageVisualTests {
         line: UInt = #line,
         column: UInt = #column
     ) throws {
-        let config = try makeSupersetConfig()
+        let (stage, session) = try makeSupersetStage()
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
 
@@ -39,13 +39,11 @@ struct SupersetStageVisualTests {
 
             VStack(spacing: 0) {
                 ActiveSupersetSection(
-                    config: config,
+                    stage: stage,
+                    session: session,
+                    coordinator: SessionCoordinator(session: session),
                     composition: .reading,
-                    onFocusExercise: { _ in },
-                    onShowHistory: { _ in },
-                    onLog: { _, _ in },
-                    onSkip: { _ in },
-                    onDelete: { _ in }
+                    onShowHistory: { _ in }
                 )
                 .padding(.horizontal)
                 .padding(.top, Theme.sectionSpacing)
@@ -75,7 +73,7 @@ struct SupersetStageVisualTests {
 
     /// Reproduces the pick: DB Incline Press (Set 2 of 4, first Set logged 30×10 @8) forked with a
     /// resting Chest-Supported Row, the focus on the press.
-    private func makeSupersetConfig() throws -> SessionSupersetRenderConfig {
+    private func makeSupersetStage() throws -> (SupersetStage, Session) {
         // The press is named "bench" and prescribed 20% so %1RM, which outranks the RPE target's
         // estimate, fills 30 from the Block's bench Training Max (150 × 20%) with no Load Basis
         // line, as the pick shows.
@@ -125,23 +123,26 @@ struct SupersetStageVisualTests {
         let block = Block(tabName: "Block 27", trainingMaxes: [.bench: 150])
         block.weeks = [week]
 
-        let activeSetID = ActiveSetID(exerciseOrder: press.order, setIndex: 1)
-        let presentation = try #require(
-            ActiveSupersetPresentation(exercises: [press, row], activeSetID: activeSetID)
-        )
-
-        let lastPerformed = LastPerformedEntry(
+        let lastPerformed = LastPerformedOccurrence(
             fullName: "Incline Bench Press",
             baseName: "Incline Bench Press",
             resultText: "30×10 @8 · 30×10 @8 · 30×9 @9",
             performedOn: .distantPast,
             source: "W1 D2"
         )
-
-        return SessionSupersetRenderConfig(
-            presentation: presentation,
-            exercises: [press, row],
-            lastPerformedPresentation: LastPerformedCardPresentation(entry: lastPerformed)
+        let stage = SessionStage(
+            session: session,
+            focus: SessionFocusSnapshot(
+                visualFocusOwner: .activeSet(ActiveSetID(exerciseOrder: press.order, setIndex: 1)),
+                supersets: [Superset(first: press, second: row)],
+                pairableExerciseOrders: []
+            ),
+            savedLoggedSetID: nil,
+            pairingMode: .inactive,
+            liveEdge: .browsedAway,
+            lookup: LastPerformedLookupSnapshot(occurrences: [lastPerformed])
         )
+        let superset: SupersetStage? = if case .superset(let superset) = stage.focus { superset } else { nil }
+        return (try #require(superset), session)
     }
 }

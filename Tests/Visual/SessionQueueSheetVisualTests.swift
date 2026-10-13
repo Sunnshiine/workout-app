@@ -34,59 +34,35 @@ struct SessionQueueSheetVisualTests {
     }
 
     private func browsingSheet() -> SessionQueueSheet {
-        let items = queueItems()
-        return SessionQueueSheet(
-            items: items,
-            stageItemID: "exercise-2",
-            showsMoveOn: false,
-            openExercises: [],
-            pairingMode: .inactive,
-            canBeginPairing: { _ in false },
-            onJump: { _ in },
-            onMoveOn: {},
-            onSelectOpenExercise: { _ in },
-            onBeginPairing: { _ in },
-            onPairingTap: { _ in },
-            onCancelPairing: {}
-        )
+        queueSheet(pairable: [], pairingMode: .inactive)
     }
 
     private func pairingSheet() -> SessionQueueSheet {
-        let items = queueItems(pairing: true)
-        return SessionQueueSheet(
-            items: items,
-            stageItemID: "exercise-2",
-            showsMoveOn: false,
-            openExercises: [],
-            pairingMode: .confirming(sourceOrder: 2, targetOrder: 3),
-            canBeginPairing: { _ in false },
-            onJump: { _ in },
-            onMoveOn: {},
-            onSelectOpenExercise: { _ in },
-            onBeginPairing: { _ in },
-            onPairingTap: { _ in },
-            onCancelPairing: {}
-        )
+        queueSheet(pairable: [2, 3, 4], pairingMode: .confirming(sourceOrder: 2, targetOrder: 3))
     }
 
-    private func queueItems(pairing: Bool = false) -> [SessionStageItem] {
-        SessionStagePresentation.items([
-            exerciseItem(makeExercise(name: "Competition Bench Press", order: 0,
-                                      setStates: [.logged, .logged, .logged, .logged, .logged]),
-                         pairingAvailability: pairing ? .unavailable : .inactive),
-            exerciseItem(makeExercise(name: "Larsen Press", order: 1,
-                                      setStates: [.logged, .logged, .logged]),
-                         pairingAvailability: pairing ? .unavailable : .inactive),
-            exerciseItem(makeExercise(name: "DB Incline Press", order: 2,
-                                      setStates: [.logged, .pending, .pending, .pending]),
-                         pairingAvailability: pairing ? .available : .inactive),
-            exerciseItem(makeExercise(name: "Chest-Supported Row", order: 3,
-                                      setStates: [.pending, .pending, .pending]),
-                         pairingAvailability: pairing ? .available : .inactive),
-            exerciseItem(makeExercise(name: "Seated DB OHP", order: 4,
-                                      setStates: [.pending, .pending]),
-                         pairingAvailability: pairing ? .available : .inactive)
-        ])
+    private func queueSheet(pairable: Set<Int>, pairingMode: PairingMode) -> SessionQueueSheet {
+        let session = Session(dayNumber: 1, date: nil)
+        session.exercises = [
+            makeExercise(name: "Competition Bench Press", order: 0, setStates: [.logged, .logged, .logged, .logged, .logged]),
+            makeExercise(name: "Larsen Press", order: 1, setStates: [.logged, .logged, .logged]),
+            makeExercise(name: "DB Incline Press", order: 2, setStates: [.logged, .pending, .pending, .pending]),
+            makeExercise(name: "Chest-Supported Row", order: 3, setStates: [.pending, .pending, .pending]),
+            makeExercise(name: "Seated DB OHP", order: 4, setStates: [.pending, .pending])
+        ]
+        let stage = SessionStage(
+            session: session,
+            focus: SessionFocusSnapshot(
+                visualFocusOwner: nil,
+                supersets: [],
+                pairableExerciseOrders: pairable
+            ),
+            savedLoggedSetID: nil,
+            pairingMode: pairingMode,
+            liveEdge: .browsedAway,
+            lookup: .empty
+        )
+        return SessionQueueSheet(queue: stage.queue, session: session, coordinator: SessionCoordinator(session: session))
     }
 
     private func makeExercise(name: String, order: Int, setStates: [SetState]) -> Exercise {
@@ -95,22 +71,6 @@ struct SessionQueueSheetVisualTests {
             ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: state)
         }
         return exercise
-    }
-
-    private func exerciseItem(
-        _ exercise: Exercise,
-        pairingAvailability: ExercisePairingAvailability
-    ) -> SessionRenderItem {
-        .exercise(
-            SessionExerciseRenderConfig(
-                exercise: exercise,
-                activeSetID: nil,
-                expandedLoggedSetID: nil,
-                savedLoggedSetID: nil,
-                pairingAvailability: pairingAvailability,
-                lastPerformedPresentation: nil
-            )
-        )
     }
 
     private func assertQueueSheet(

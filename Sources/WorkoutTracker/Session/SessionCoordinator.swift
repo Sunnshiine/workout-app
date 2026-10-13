@@ -22,6 +22,15 @@ protocol SessionLiveActivityAdapter {
 }
 
 @MainActor
+protocol SessionNavigationAdapter: AnyObject {
+    var canMoveOn: Bool { get }
+    var openExercises: [Exercise] { get }
+    func liveEdge(for session: Session) -> LiveEdge
+    func requestMoveOnCelebration()
+    func show(_ address: SessionAddress)
+}
+
+@MainActor
 protocol SessionTransitionClock {
     func sleep(for duration: Duration) async
 }
@@ -35,6 +44,13 @@ enum PairingMode: Equatable, Sendable {
     case inactive
     case selecting(sourceOrder: Int)
     case confirming(sourceOrder: Int, targetOrder: Int)
+
+    var sourceOrder: Int? {
+        switch self {
+        case .inactive: nil
+        case .selecting(let sourceOrder), .confirming(let sourceOrder, _): sourceOrder
+        }
+    }
 }
 
 enum PairingTapResult: Equatable, Sendable {
@@ -45,6 +61,8 @@ enum PairingTapResult: Equatable, Sendable {
 }
 
 extension WorkoutStore: SessionLoggingAdapter {}
+
+extension WorkoutStore: SessionNavigationAdapter {}
 
 struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
     let sync: SyncCoordinator
@@ -87,64 +105,17 @@ private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge) {}
 }
 
+private final class NoopSessionNavigationAdapter: SessionNavigationAdapter {
+    var canMoveOn: Bool { false }
+    var openExercises: [Exercise] { [] }
+    func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
+    func requestMoveOnCelebration() {}
+    func show(_ address: SessionAddress) {}
+}
+
 private struct TaskSessionTransitionClock: SessionTransitionClock {
     func sleep(for duration: Duration) async {
         try? await Task.sleep(for: duration)
-    }
-}
-
-enum ExercisePairingAvailability: Equatable, Sendable {
-    case inactive
-    case available
-    case unavailable
-}
-
-struct SessionExerciseRenderConfig {
-    let exercise: Exercise
-    let activeSetID: ActiveSetID?
-    let expandedLoggedSetID: ActiveSetID?
-    let savedLoggedSetID: ActiveSetID?
-    let pairingAvailability: ExercisePairingAvailability
-    let lastPerformedPresentation: LastPerformedCardPresentation?
-}
-
-struct SessionSupersetRenderConfig {
-    let presentation: ActiveSupersetPresentation
-    let exercises: [Exercise]
-    let lastPerformedPresentation: LastPerformedCardPresentation?
-}
-
-struct SessionHiddenPairedExerciseRenderConfig {
-    let exercise: Exercise
-    let containerExerciseOrder: Int
-}
-
-private struct SessionRenderContext {
-    let supersetByContainerOrder: [Int: SupersetSectionState]
-    let containerOrderByPairedExerciseOrder: [Int: Int]
-    let pairingSourceOrder: Int?
-    let lastPerformedLookup: LastPerformedLookupSnapshot?
-}
-
-enum SessionRenderItem {
-    case exercise(SessionExerciseRenderConfig)
-    case superset(SessionSupersetRenderConfig)
-    case hiddenPairedExercise(SessionHiddenPairedExerciseRenderConfig)
-
-    var id: String {
-        switch self {
-        case .exercise(let config):
-            "exercise-\(config.exercise.order)"
-        case .superset(let config):
-            "superset-\(config.presentation.containerExerciseOrder ?? Int.min)"
-        case .hiddenPairedExercise(let config):
-            "hidden-paired-exercise-\(config.exercise.order)"
-        }
-    }
-
-    var exerciseConfig: SessionExerciseRenderConfig? {
-        guard case .exercise(let config) = self else { return nil }
-        return config
     }
 }
 
@@ -159,8 +130,8 @@ final class SessionCoordinator {
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
+    private var navigationAdapter: any SessionNavigationAdapter
     @ObservationIgnored private var motion: any SessionMotionPerforming
-    @ObservationIgnored private var liveEdge: (Session) -> LiveEdge = { _ in .browsedAway }
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
@@ -176,9 +147,11 @@ final class SessionCoordinator {
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
+        navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion()
     ) {
         self.session = session
+        self.navigationAdapter = navigation
         self.motion = motion
         self.focusManager = ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
@@ -192,7 +165,6 @@ final class SessionCoordinator {
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
-    var visualFocusOwner: ActiveSetVisualFocusOwner? { focusManager.visualFocusOwner }
 
     deinit {
         pairingConfirmationTask?.cancel()
@@ -213,9 +185,12 @@ final class SessionCoordinator {
         standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
-        motion: any SessionMotionPerforming,
-        liveEdge: @escaping (Session) -> LiveEdge
+        navigation: any SessionNavigationAdapter,
+        motion: any SessionMotionPerforming
     ) {
+        if navigationAdapter !== navigation {
+            navigationAdapter = navigation
+        }
         self.motion = motion
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
@@ -223,7 +198,6 @@ final class SessionCoordinator {
         if let liveActivity {
             liveActivityAdapter = liveActivity
         }
-        self.liveEdge = liveEdge
         loggingAdapter = logging
         syncAdapter = sync
         bind(to: session)
@@ -256,6 +230,15 @@ final class SessionCoordinator {
             syncAdapter.requestPendingWriteFlush()
         } catch {
             syncAdapter.reportLocalWriteFailure(error)
+        }
+    }
+
+    func log(_ setLog: SetLog, for slot: SetCardSlot) {
+        switch slot.mode {
+        case .logging:
+            log(slot.set, as: setLog)
+        case .reviewingLogged:
+            updateLoggedSet(slot.set, as: setLog)
         }
     }
 
@@ -305,10 +288,6 @@ final class SessionCoordinator {
         }
     }
 
-    func canPair(_ exercise: Exercise, in session: Session) -> Bool {
-        focusManager.canPair(exercise, in: session)
-    }
-
     @discardableResult
     func createSuperset(from source: Exercise, to target: Exercise, in session: Session) -> Bool {
         focusManager.createSuperset(from: source, to: target, in: session)
@@ -317,10 +296,6 @@ final class SessionCoordinator {
     func dismissSuperset(containing exercise: Exercise, in session: Session) {
         cancelPairing()
         focusManager.dismissSuperset(containing: exercise, in: session)
-    }
-
-    func supersetSections(in session: Session) -> [SupersetSectionState] {
-        focusManager.supersetSections(in: session)
     }
 
     @discardableResult
@@ -362,6 +337,33 @@ extension SessionCoordinator {
         restTimer?.dismiss()
         liveActivityAdapter.end()
     }
+
+    func moveOn() {
+        cancelRestForSessionExit()
+        navigationAdapter.requestMoveOnCelebration()
+    }
+
+    func showSourceSession(of exercise: Exercise) {
+        cancelPairing()
+        guard let address = exercise.session?.address else { return }
+        navigationAdapter.show(address)
+    }
+
+    func stage(in session: Session, lookup: LastPerformedLookupSnapshot) -> SessionStage {
+        SessionStage(
+            session: session,
+            focus: focusManager.snapshot(in: session),
+            savedLoggedSetID: savedLoggedSetID,
+            pairingMode: pairingMode,
+            liveEdge: liveEdgeContext(for: session),
+            lookup: lookup
+        )
+    }
+
+    private func liveEdgeContext(for session: Session) -> LiveEdgeContext {
+        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
+        return .atLiveEdge(canMoveOn: navigationAdapter.canMoveOn, openExercises: navigationAdapter.openExercises)
+    }
 }
 
 extension SessionCoordinator {
@@ -401,7 +403,7 @@ extension SessionCoordinator {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
-            sessionScope: liveEdge(session).isAtLiveEdge ? .currentSession : .nonCurrentSession
+            sessionScope: navigationAdapter.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
@@ -424,7 +426,7 @@ extension SessionCoordinator {
     }
 
     fileprivate func reconcileLiveActivity(for session: Session) {
-        liveActivityAdapter.endIfInvalidated(at: liveEdge(session))
+        liveActivityAdapter.endIfInvalidated(at: navigationAdapter.liveEdge(for: session))
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {
@@ -436,148 +438,9 @@ extension SessionCoordinator {
 }
 
 extension SessionCoordinator {
-    func renderItems(
-        in session: Session,
-        lastPerformedLookup: LastPerformedLookupSnapshot? = nil
-    ) -> [SessionRenderItem] {
-        let supersetSections = self.supersetSections(in: session)
-        let context = SessionRenderContext(
-            supersetByContainerOrder: Dictionary(
-                uniqueKeysWithValues: supersetSections.compactMap { section in
-                    section.presentation.containerExerciseOrder.map { ($0, section) }
-                }
-            ),
-            containerOrderByPairedExerciseOrder: Dictionary(
-                uniqueKeysWithValues: supersetSections.flatMap { section in
-                    let containerOrder = section.presentation.containerExerciseOrder ?? Int.min
-                    return section.exercises
-                        .map(\.order)
-                        .filter { $0 != containerOrder }
-                        .map { ($0, containerOrder) }
-                }
-            ),
-            pairingSourceOrder: pairingSourceOrder,
-            lastPerformedLookup: lastPerformedLookup
-        )
-
-        return session.exercises
-            .sorted { $0.order < $1.order }
-            .map { exercise in
-                renderItem(for: exercise, in: session, context: context)
-            }
-    }
-
-    private func renderItem(
-        for exercise: Exercise,
-        in session: Session,
-        context: SessionRenderContext
-    ) -> SessionRenderItem {
-        if let supersetSection = context.supersetByContainerOrder[exercise.order] {
-            return .superset(
-                supersetRenderConfig(
-                    for: supersetSection,
-                    lastPerformedLookup: context.lastPerformedLookup
-                )
-            )
-        }
-
-        if let containerExerciseOrder = context.containerOrderByPairedExerciseOrder[exercise.order] {
-            return .hiddenPairedExercise(
-                SessionHiddenPairedExerciseRenderConfig(
-                    exercise: exercise,
-                    containerExerciseOrder: containerExerciseOrder
-                )
-            )
-        }
-
-        return .exercise(exerciseRenderConfig(for: exercise, in: session, context: context))
-    }
-
-    private func supersetRenderConfig(
-        for section: SupersetSectionState,
-        lastPerformedLookup: LastPerformedLookupSnapshot?
-    ) -> SessionSupersetRenderConfig {
-        let activeExercise = section.exercises.first {
-            $0.order == section.presentation.activeExerciseOrder
-        }
-
-        return SessionSupersetRenderConfig(
-            presentation: section.presentation,
-            exercises: section.exercises,
-            lastPerformedPresentation: lastPerformedPresentation(
-                for: activeExercise,
-                lookup: lastPerformedLookup
-            )
-        )
-    }
-
-    private func exerciseRenderConfig(
-        for exercise: Exercise,
-        in session: Session,
-        context: SessionRenderContext
-    ) -> SessionExerciseRenderConfig {
-        SessionExerciseRenderConfig(
-            exercise: exercise,
-            activeSetID: activeSetID(scopedTo: exercise),
-            expandedLoggedSetID: expandedLoggedSetID(scopedTo: exercise),
-            savedLoggedSetID: savedLoggedSetID(scopedTo: exercise),
-            pairingAvailability: pairingAvailability(
-                for: exercise,
-                in: session,
-                pairingSourceOrder: context.pairingSourceOrder
-            ),
-            lastPerformedPresentation: lastPerformedPresentation(
-                for: exercise,
-                lookup: context.lastPerformedLookup
-            )
-        )
-    }
-
-    private func pairingAvailability(
-        for exercise: Exercise,
-        in session: Session,
-        pairingSourceOrder: Int?
-    ) -> ExercisePairingAvailability {
-        guard let pairingSourceOrder else { return .inactive }
-        if exercise.order == pairingSourceOrder || canPair(exercise, in: session) {
-            return .available
-        }
-        return .unavailable
-    }
-
-    private func activeSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
-        guard case .activeSet(let activeSetID) = visualFocusOwner(scopedTo: exercise) else { return nil }
-        return activeSetID
-    }
-
-    private func expandedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
-        guard case .loggedSetReview(let expandedLoggedSetID) = visualFocusOwner(scopedTo: exercise) else { return nil }
-        return expandedLoggedSetID
-    }
-
-    private func savedLoggedSetID(scopedTo exercise: Exercise) -> ActiveSetID? {
-        guard savedLoggedSetID?.exerciseOrder == exercise.order else { return nil }
-        return savedLoggedSetID
-    }
-
-    private func visualFocusOwner(scopedTo exercise: Exercise) -> ActiveSetVisualFocusOwner? {
-        guard visualFocusOwner?.setID.exerciseOrder == exercise.order else { return nil }
-        return visualFocusOwner
-    }
-
-    private func lastPerformedPresentation(
-        for exercise: Exercise?,
-        lookup: LastPerformedLookupSnapshot?
-    ) -> LastPerformedCardPresentation? {
-        guard let exercise, let lookup else { return nil }
-        return LastPerformedCardPresentation(exercise: exercise, lookup: lookup)
-    }
-}
-
-extension SessionCoordinator {
     @discardableResult
     func beginPairing(from exercise: Exercise, in session: Session) -> Bool {
-        guard canPair(exercise, in: session) else { return false }
+        guard focusManager.canPair(exercise, in: session) else { return false }
         pairingConfirmationTask?.cancel()
         pairingConfirmationTask = nil
         pairingMode = .selecting(sourceOrder: exercise.order)
@@ -593,14 +456,14 @@ extension SessionCoordinator {
 
     @discardableResult
     func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
-        guard let sourceOrder = pairingSourceOrder else {
+        guard let sourceOrder = pairingMode.sourceOrder else {
             return .ignored
         }
         guard exercise.order != sourceOrder else {
             cancelPairing()
             return .cancelled
         }
-        guard canPair(exercise, in: session) else {
+        guard focusManager.canPair(exercise, in: session) else {
             return .unavailable
         }
         guard case .selecting = pairingMode else {
@@ -609,15 +472,6 @@ extension SessionCoordinator {
         pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
         confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
         return .confirming
-    }
-
-    private var pairingSourceOrder: Int? {
-        switch pairingMode {
-        case .inactive:
-            nil
-        case .selecting(let sourceOrder), .confirming(let sourceOrder, _):
-            sourceOrder
-        }
     }
 
     private func confirmPairing(sourceOrder: Int, targetOrder: Int, in session: Session) {
