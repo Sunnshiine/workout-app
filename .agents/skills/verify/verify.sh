@@ -59,7 +59,9 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe failed, or the
                               screen size or the card's frame could not be read from the tree after the
                               take (nothing kept, a VALID take included), 75 nothing ran (simulator held
-                              or load never fell)
+                              or load never fell). A take whose screen never changed after COMMAND began
+                              is INVALID, but any change counts, the rest pill's countdown included, so
+                              VALID does not say COMMAND did anything
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
