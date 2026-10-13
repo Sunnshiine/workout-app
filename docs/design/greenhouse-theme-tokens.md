@@ -40,7 +40,7 @@ are recorded inline.
 
 | Paint | Value | Notes |
 |---|---|---|
-| `ink` | `#152118` | day text; at low opacity: carved chips, scrim, shadows |
+| `ink` | `#152118` | day text; at low opacity: carved chips, shadows |
 | `inkNight` | `#EFF3E3` | night text |
 | `muted` | `#404E44` | day secondary text; at low opacity: `skipStroke`, `skipFillOverlay`, `tileGhostStroke` |
 | `mutedNight` | `#9AAA9B` | night secondary text |
@@ -177,8 +177,6 @@ composition itself are locked by #455.
 | chart line | ink @ 35%, 1.5px |
 | Block seam | ink @ 14%, dotted `1 4` |
 | data dot / approx dot | ink solid r4.5 + paper core / ink outline r4 @ 1.5 |
-| `scrim` | ink @ 32% |
-| `grabber` | ink @ 18% |
 
 ### Bird & colophon (#414)
 
@@ -269,7 +267,6 @@ not rounded to a prettier scale.
 | `tile` | 15 | day tiles |
 | `cell` | 14 | rail chips |
 | `mini` | 6 | week mini-chips |
-| `hairline` | 2–3 | grabber, home bar, prescription tick |
 
 Replaces the 8 / 16 / 28 scale.
 
