@@ -283,14 +283,25 @@ where the tree put it, exits 1 with `no card:` and its reason. A label that swap
 `look=cut` and stays still. A launch take's window opens at the end of iOS's fade-in, the full-screen
 frames in the 0.5 s after the screen leaves black; any later frame that changes three quarters of the
 screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
-take. From the fade's end the window must watch 1.5 s or the take is INVALID. These figures come from
-the app before and after the UI refactor stack (a9d1e20c). Over 19 launch takes with the default 2 s
-`--tail` the window watched 2.21 to 2.92 s. A build whose card slides in 300 pt from the right on first
-appear read `worst_edge_range` 15.0 to 17.0 with `edges=partial`, `look_ms` 1150 to 1167, and `still=no`
-over five takes. Without `--animated` a launch reads `still=unknown`, because animations off hides
-motion. A card that fades in place read `box=still look=changed` and `look_ms` 968 to 990 over four
-takes. `cardstill.py` prints PASS only when the control commit moved the card on one of its eight
-takes and the head held it still on all eight.
+take. From the fade's end the window must watch 1.5 s or the take is INVALID. `cardstill.py` prints PASS
+only when the control commit moved the card on one of its eight takes and the head held it still on all
+eight.
+
+Judge a take by its reads, never by its numbers. The exit codes of `record` and `cardframe.py`, `VALID`
+or `INVALID`, `still=`, `box=`, `look=` and `edges=` are the contract. A first-appear launch take with `--animated` reads as follows:
+
+- A card that slides in reads `still=no box=changed look=changed edges=partial`.
+- A card that fades in place reads `still=no look=changed edges=partial`. Its `box=` can read `changed`
+  by under 1 pt, because the edges shift slightly as the card brightens. `look=changed` decides `still=no`
+  either way, so for a fade read `look=`, not `box=`.
+- A card already in place when the window opens reads `still=yes box=still edges=full`.
+- Without `--animated`, the sliding card reads `still=unknown`, because animations off hides motion.
+
+The numbers vary with the host's load and the build, so take them as rough examples, not limits. They
+come from one Mac at load 4 to 5, on the app before and after the UI refactor stack (717737ad and
+d5e04c65). With the default 2 s `--tail`, the launch window watched about 2.2 to 2.9 s. A card sliding
+in 300 pt from the right read `worst_edge_range` about 13 to 18 and `look_ms` about 1150. A fade read
+`look_ms` just under 1000. A take whose numbers fall outside these, with the reads above, has passed.
 After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
 
 ## Cleanup

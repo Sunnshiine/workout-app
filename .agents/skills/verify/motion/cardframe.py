@@ -25,16 +25,17 @@ each changed by more than 0.5 of mean luminance) and follows a frame darker than
 window opens at the last frame within 0.5 s of that start that changed three quarters of the screen;
 frames between that changed less, as a repeated frame or the app's own motion does, are part of the fade.
 Every recorded launch, animations on or off, fades the springboard out over the whole screen, holds black,
-then fades the app in from black. Over 22 launch takes every full-screen frame of the fade-in fell within
-0.33 s of its start, and no app motion recorded changed more than 0.74 of the screen. The window is
+then fades the app in from black. On one Mac, over 22 launch takes, every full-screen frame of the fade-in
+fell within about 0.33 s of its start, and no app motion recorded changed more than about 0.74 of the
+screen. These and the figures below are rough examples from that host, not limits. The window is
 INVALID when:
   - a launch take has no frame where such a fade starts (rule ramp), because then the window holds the system's fade;
   - a frame after a launch's fade changed three quarters of the screen (rule screen), as a dim does,
     because the card cannot be read through it;
   - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
-    long after the launch returned. Over 19 launch takes the window watched the tail plus 0.21 to
-    0.65 s, so the default 2 s tail clears 1.5 s, and the slowest first-appear motion measured settled
-    1.28 s after its window opened. A tap's window opens at the drive's start and watches the whole tail.
+    long after the launch returned. A launch window watched about the tail plus 0.15 to 0.9 s, so the
+    default 2 s tail clears 1.5 s, and the slowest first-appear motion measured, a 300 pt slide, settled
+    about 1.4 s after its window opened. A tap's window opens at the drive's start and watches the whole tail.
 A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
 
 Box. The card is the longest vertical run of at least 120 pt where the column at --x pt is brighter than
