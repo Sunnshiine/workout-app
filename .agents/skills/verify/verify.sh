@@ -9,11 +9,12 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   install [COMMIT]            install this worktree's build, or COMMIT's build from the app cache every
                               worktree of this repo shares (built once, on first use); prints the app now
                               installed, and the one it replaced
-  launch [--at COMMIT] <fixture> [ARG...]
+  launch [--at COMMIT] [--animated] <fixture> [ARG...]
                               install and launch into a fixture (extra -UITEST_* ARGs pass through); prints
                               the app's hash and the commit it was built from. Without --at it installs
                               this worktree's build and refuses to replace an installed cached build;
-                              --at COMMIT runs COMMIT's cached build. Resets the keyboard
+                              --at COMMIT runs COMMIT's cached build; --animated leaves SwiftUI and UIKit
+                              motion on (no -UITEST_DISABLE_ANIMATIONS). Resets the keyboard
                               preference issue 700 names when it is on, and says so
                               fixtures: session settings onboarding long-session partial-block
                                         completed-open-exercises developer-tools
@@ -50,6 +51,19 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   burst NAME [COMMAND...]     12 frames over about 2 s tiled into one image, labelled with their
                               timing; COMMAND is a drive command fired after the first frame, as in
                               burst log-transition tap --id log-active-set-button
+  record NAME [--tail S] [-- COMMAND...]
+                              NAME.mp4, NAME.take and NAME.end.txt into the run: films from the moment
+                              the recorder captures, runs COMMAND (a drive command, launch included),
+                              then S more seconds (default 2), stamps load, timing, frames and the
+                              verdict, and saves the tree at the take's end as `tree` prints it.
+                              Waits for the host's load first, as launch does. Exit 0 VALID, 3 INVALID
+                              (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe
+                              failed, or the screen size or the card's frame could not be read from the
+                              tree after the take (nothing kept, a VALID take included), 75 nothing ran
+                              (simulator held or load never fell). A take whose screen never changed
+                              after COMMAND began is INVALID, but any change counts, the rest pill's
+                              countdown included, so VALID does not say COMMAND did anything;
+                              NAME.end.txt shows what it did
   stop                        terminate the app this run launched; the simulator stays up, and it
                               says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
@@ -68,15 +82,17 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   <main checkout>/.claude/work/evidence/<branch>),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay),
+             VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing),
              WORKOUT_LEASE_MINUTES (60; a run's lease on its app. Every command but build, install,
                   diff, sheet and crop renews it, one with no VERIFY_RUN only before it runs out.
                   Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
                   the simulator and stops the app, and every later command for that run but build,
                   install, diff, sheet and crop exits 75 naming who took it, until it launches again),
              WORKOUT_LOAD_LIMIT (50), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
-             WORKOUT_ADMIT_WAIT (540): launch and install wait while the 1-minute load is over the
-                  limit, and before a boot while WORKOUT_SIM_CAP others are booted; build, and a
-                  build into the app cache, wait for the load and for one of the host's build slots.
+             WORKOUT_ADMIT_WAIT (540): launch, install and record wait while the 1-minute load is over
+                  the limit, and a take whose load ends over it is INVALID. Launch and install also
+                  wait before a boot while WORKOUT_SIM_CAP others are booted; build, and a build into
+                  the app cache, wait for the load and for one of the host's build slots.
                   A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
 Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
          refused, or a wait for the host ran out.
@@ -492,7 +508,7 @@ refuse_replacing_cache() {
   [ -n "$installed" ] || return 0
   read -r hash commit dirty origin <<< "$(identity_of "$installed")"
   { [ "$origin" = cache ] && [ "$hash" != "$want_hash" ]; } || return 0
-  refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8} $fixture. To replace it: install, then launch." 65
+  refuse "$sim holds $(identity_line "$hash" "$commit" "$dirty" "$origin"), and this launch would replace it with $wanted_line. To run the cached build: launch --at ${commit:0:8}${animated:+ --animated} $fixture. To replace it: install, then launch." 65
 }
 
 simctl_install() {
@@ -519,9 +535,11 @@ install_app() {
 
 launch_parse() {
   at=
+  animated=
   while [ $# -gt 0 ]; do
     case $1 in
       --at) [ -n "${2:-}" ] || usage; at=$2; shift 2 ;;
+      --animated) animated=1; shift ;;
       *) break ;;
     esac
   done
@@ -530,15 +548,18 @@ launch_parse() {
   passthrough=("$@")
   for arg in "$@"; do
     [ "$arg" != --at ] || { echo "--at goes before the fixture: launch --at COMMIT $fixture" >&2; exit 2; }
+    [ "$arg" != --animated ] || { echo "--animated goes before the fixture: launch --animated $fixture" >&2; exit 2; }
   done
 }
 
 launch_args() {
-  local extra activities
+  local extra motion activities
   read -r -a extra <<< "$fixture_flags"
+  motion=(-UITEST_DISABLE_ANIMATIONS)
+  [ -z "$animated" ] || motion=()
   activities=(-UITEST_DISABLE_LIVE_ACTIVITIES)
   [ -z "${VERIFY_LIVE_ACTIVITIES:-}" ] || activities=()
-  args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} -UITEST_DISABLE_ANIMATIONS ${activities[@]+"${activities[@]}"} ${passthrough[@]+"${passthrough[@]}"})
+  args=(-UITEST_FIXTURE ${extra[@]+"${extra[@]}"} ${motion[@]+"${motion[@]}"} ${activities[@]+"${activities[@]}"} ${passthrough[@]+"${passthrough[@]}"})
 }
 
 start_app() {
@@ -553,7 +574,7 @@ start_app() {
 }
 
 record_launch() {
-  printf '%s %s %s on %s from %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture" "$launched_line" "$sim" "$repo" \
+  printf '%s %s %s on %s from %s\n' "$(date +%Y-%m-%dT%H:%M:%S)" "$fixture${animated:+ animated}" "$launched_line" "$sim" "$repo" \
     >> "$(run_dir)/launches.txt"
 }
 
@@ -561,7 +582,7 @@ await_front() {
   for _ in $(seq 1 40); do
     if [ "$(front_pid)" = "$pid" ]; then
       rm -f "$state_dir/refused.$run"
-      echo "launched $fixture as pid $pid on $sim"
+      echo "launched $fixture as pid $pid on $sim${animated:+ (animations on)}"
       echo "$launched_line"
       echo "evidence $(run_dir)"
       exit 0
@@ -587,7 +608,7 @@ refuse_another_runs_app() {
   [ "$owner" != "$VERIFY_RUN" ] || return 0
   pid=$(cat "$state_dir/pid" 2>/dev/null) || return 0
   is_fixture_launch "$pid" || return 0
-  echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 launch <fixture>" >&2
+  echo "the app on $sim belongs to run $owner (pid $pid), not to $VERIFY_RUN, so this would drive another run's app; launch yours first: SIM=$sim VERIFY_RUN=$VERIFY_RUN $0 $relaunch" >&2
   exit 75
 }
 
@@ -598,7 +619,7 @@ require_own_app() {
   run=$(current_run)
   [ -n "$run" ] && [ -f "$state_dir/refused.$run" ] || return 0
   again="SIM=$sim${VERIFY_RUN:+ VERIFY_RUN=$run} $0"
-  echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again launch <fixture>" >&2
+  echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again $relaunch" >&2
   exit 75
 }
 
@@ -615,6 +636,17 @@ reset_minimized_keyboard() {
   else
     echo "AutomaticMinimizationEnabled is 1 on $sim, which hides the software keyboard (issue 700), and resetting it failed" >&2
   fi
+}
+
+decimal() {
+  case $1 in ''|.|*[!0-9.]*|*.*.*) return 1 ;; esac
+}
+
+keep_video_then_stamp() {
+  mv "$1/$3.mp4" "$2/$3.mp4"
+  mv "$1/$3.take" "$2/$3.take"
+  mv "$1/$3.end.txt" "$2/$3.end.txt"
+  rmdir "$1" 2>/dev/null || true
 }
 
 reset_keyboard() {
@@ -666,6 +698,7 @@ doctor_app() {
 cmd=${1:-}
 [ -n "$cmd" ] || usage
 shift
+relaunch="launch <fixture>"
 [ -z "${VERIFY_RUN:-}" ] || valid_name "$VERIFY_RUN"
 
 case $cmd in
@@ -905,6 +938,66 @@ case $cmd in
     paths=()
     while IFS= read -r frame; do paths+=("$frame"); done <<< "$frames"
     "$tiler" "$dir/$name.burst.png" "${paths[@]}"
+    ;;
+
+  record)
+    name=${1:-}
+    valid_name "$name"
+    shift
+    tail=2
+    if [ "${1:-}" = --tail ]; then
+      [ $# -ge 2 ] || usage
+      tail=$2
+      shift 2
+    fi
+    if [ $# -gt 0 ]; then
+      [ "$1" = -- ] || usage
+      shift
+    fi
+    decimal "$tail" || usage
+    resolve_sim
+    command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
+    [ "${1:-}" != launch ] || relaunch="$*"
+    require_sim_free "$sim"; require_own_app
+    wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT before recording" \
+      load_clear "$WORKOUT_LOAD_LIMIT"
+    require_sim_free "$sim"; require_own_app; ensure_axe
+    dir=$(run_dir)
+    pending=$dir/.pending
+    mkdir -p "$pending"
+    rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
+    rc=0
+    python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
+      --tail "$tail" --limit "$WORKOUT_LOAD_LIMIT" -- "$@" > "$pending/$name.take" || rc=$?
+    if [ $rc -ne 0 ] && [ $rc -ne 3 ]; then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      exit $rc
+    fi
+    if ! ui=$(describe) || ! screen=$(printf '%s\n' "$ui" | python3 "$tree" frame); then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      echo "could not read the screen's size in points after the take, so $name.take cannot be scaled; run: $0 doctor" >&2
+      exit 70
+    fi
+    if ! card_pt=$(printf '%s\n' "$ui" | python3 "$tree" frame-of active-set-card); then
+      rm -f "$pending/$name.mp4" "$pending/$name.take"
+      echo "could not read active-set-card's frame from the accessibility tree after the take," \
+        "so $name.take cannot say where the card is; run: $0 doctor" >&2
+      exit 70
+    fi
+    printf '%s\n' "$ui" | python3 "$tree" flat > "$pending/$name.end.txt" 2>/dev/null
+    animations=unknown
+    if [ -f "$state_dir/args" ]; then
+      animations=on
+      if grep -q -- -UITEST_DISABLE_ANIMATIONS "$state_dir/args"; then animations=off; fi
+    fi
+    printf 'screen_pt=%s\ncard_pt=%s\nanimations=%s\napp=%s\n' "${screen/ /x}" "$card_pt" "$animations" \
+      "$(installed_line)" >> "$pending/$name.take"
+    keep_video_then_stamp "$pending" "$dir" "$name"
+    echo "$dir/$name.mp4"
+    echo "$dir/$name.take"
+    echo "$dir/$name.end.txt"
+    python3 "$here/take.py" summary "$dir/$name.take"
+    exit $rc
     ;;
 
   stop)

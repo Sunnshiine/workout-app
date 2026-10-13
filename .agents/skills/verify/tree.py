@@ -8,6 +8,8 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
                          says on stderr when it is off-screen, clipped (its centre outside the frame
                          of an ancestor of nonzero size), or disabled
+  tree.py frame-of <id>  the first such element's frame, as @x,y wxh, or none when the tree has no
+                         such id; exit 0 either way, so any other exit is a tree it could not read
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
                          on it lands, then that hit's line; exit 1 with the same notes find prints when
                          there is no such hit
@@ -309,7 +311,7 @@ def main() -> None:
         if note:
             sys.exit(note)
         return
-    if mode not in ("pid", "frame", "flat", "find", "tappable", "center"):
+    if mode not in ("pid", "frame", "flat", "find", "frame-of", "tappable", "center"):
         sys.exit(__doc__)
     root = json.load(sys.stdin)[0]
     screen = Frame.of(root)
@@ -339,6 +341,9 @@ def main() -> None:
             print(line.text)
         for note in obstacles(found, screen):
             print(note, file=sys.stderr)
+    elif mode == "frame-of":
+        found = by_id(root, sys.argv[2])
+        print(found[0].frame.text if found else "none")
     elif mode == "tappable":
         if sys.argv[2] == "--label":
             label = sys.argv[3]
@@ -372,4 +377,5 @@ def main() -> None:
         sys.exit(1)
 
 
-main()
+if __name__ == "__main__":
+    main()

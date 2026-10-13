@@ -267,6 +267,10 @@ and celebration visibility-ratio checks in the UI Interaction Suite.
 
 Build time is ~30–60 s on first run (Swift packages resolve). Subsequent builds are fast.
 
+Agents drive the app through `.agents/skills/verify/SKILL.md`, which launches with animations off.
+A change to anything that moves needs that skill's Motion section: `verify.sh launch --animated`,
+`verify.sh record`, and `motion/cardframe.py`.
+
 ## First-Run Onboarding
 
 The app opens to **OnboardingView** on a fresh install (no sign-in, no sheet configured):
