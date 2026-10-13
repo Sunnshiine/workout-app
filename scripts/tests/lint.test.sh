@@ -6,8 +6,6 @@ repo=$(cd "$script_dir/../.." && pwd)
 lint=${1:-$repo/scripts/lint.sh}
 resolved="WorkoutTracker.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 violation='let x = 1'
-# The fixture has one commit and no origin, so swift-format checks what changed since it.
-export LINT_FORMAT_BASE=HEAD
 
 root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
@@ -57,6 +55,7 @@ fresh_fixture() {
     git -C "$fx" init -q
     git -C "$fx" add -A
     git -C "$fx" -c user.name=lint-test -c user.email=lint-test@example.com commit -qm fixture
+    git -C "$fx" update-ref refs/remotes/origin/main HEAD
 }
 
 baseline_config() {
@@ -109,17 +108,17 @@ expect_text "workflow guards" "$both" ".github/workflows/ci.yml:8: job 'a', step
 run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
 expect_exit "workflow guards, file run" "$status" 0
 
-echo "swift-format: a whole-tree run fails on a changed Swift file swift-format rejects, --fix formats it"
+echo "swift-format: a whole-tree run fails on a Swift file changed since origin/main that swift-format rejects"
 fresh_fixture
 baseline_config
 printf 'let model  =  1\n' >"$fx/Sources/Core/Model.swift"
 run_lint
 expect_exit "swift-format" "$status" 1
 expect_text "swift-format" "$err" "error: format them with: xcrun swift-format format -i Sources/Core/Model.swift"
-run_lint "$fx/scripts/lint.sh" --fix
-expect_exit "swift-format --fix" "$status" 0
-expect_line "swift-format --fix" "$out" "swift-format: 1 changed Swift file(s) clean since $(git -C "$fx" rev-parse --short=7 HEAD)."
-if [ "$(cat "$fx/Sources/Core/Model.swift")" = "let model = 1" ]; then ok "--fix rewrote Model.swift"; else bad "--fix left Model.swift as: $(cat "$fx/Sources/Core/Model.swift")"; fi
+printf 'let model = 2\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "swift-format, formatted" "$status" 0
+expect_line "swift-format, formatted" "$out" "swift-format: 1 changed Swift file(s) clean since $(git -C "$fx" rev-parse --short=7 HEAD)."
 
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture

@@ -4,13 +4,11 @@
 # The script refuses a directory or a missing path because SwiftLint would swap it for the whole
 # `included:` set and still exit 0.
 #
-#   scripts/lint.sh                      lint, then scripts/lint-doc-symbols.py,
-#                                        scripts/lint-workflow-ifs.sh, and
-#                                        scripts/swift-format-changed.sh "${LINT_FORMAT_BASE:-origin/main}"
-#                                        (what CI runs)
+#   scripts/lint.sh                      lint, check doc spans and workflow if: guards, and
+#                                        swift-format the Swift changed since $LINT_FORMAT_BASE
+#                                        (default origin/main); what CI runs
 #   scripts/lint.sh <file.swift>...      lint those files alone
-#   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, and with no files also
-#                                        swift-format the changed files, then lint
+#   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
 #   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
 #   scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
 set -euo pipefail
@@ -265,6 +263,4 @@ echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"
 
 echo "==> swift-format"
-FORMAT_FIX=()
-[ "$MODE" != "fix" ] || FORMAT_FIX=(--fix)
-"$ROOT/scripts/swift-format-changed.sh" ${FORMAT_FIX[@]+"${FORMAT_FIX[@]}"} "${LINT_FORMAT_BASE:-origin/main}"
+"$ROOT/scripts/swift-format-changed.sh" "${LINT_FORMAT_BASE:-origin/main}"
