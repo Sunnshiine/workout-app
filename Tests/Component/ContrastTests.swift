@@ -49,11 +49,6 @@ private func contrast(of mark: Color, over ground: Ground) -> Double {
     return (max(lighter, darker) + 0.05) / (min(lighter, darker) + 0.05)
 }
 
-/// The base gradient a third of the way down the page, below the partner name, with no wash.
-private func dayUpperStageGround(_ day: Theme.Palette) -> Ground {
-    Ground(base: day.paper.baseTop, layers: [day.paper.baseBottom.opacity(0.35)])
-}
-
 private func paperGround(_ palette: Theme.Palette, at point: UnitPoint) -> Ground {
     let washes = palette.paper.washes.map { wash in
         let reach = 1 - hypot(point.x - wash.center.x, point.y - wash.center.y) / wash.radiusFraction
@@ -115,15 +110,19 @@ private enum Surface: CaseIterable {
     }
 
     /// The stage heading holds the exercise and partner names. The SupersetStage Visual Baselines
-    /// draw the partner name 0.155 to 0.18 down the page; the band leaves room for two more lines.
-    var paperRows: ClosedRange<Double> {
-        self == .stageHeading ? 0.15...0.30 : 0...1
+    /// draw the partner name 0.155 to 0.18 down the page inside a 0.04 margin; the rows leave room
+    /// for two more lines.
+    var pageRegion: (x: ClosedRange<Double>, y: ClosedRange<Double>) {
+        switch self {
+        case .stageHeading: (0.04...0.96, 0.15...0.25)
+        default: (0...1, 0...1)
+        }
     }
 
     func samples(_ palette: Theme.Palette) -> [GroundSample] {
         let inks = paletteRoles(palette).inks
         let fills = fillRoles.compactMap { inks[$0] ?? nil }
-        return paperGridAndWashCentres(palette).filter { paperRows.contains($0.y) }.map { point in
+        return paperGridAndWashCentres(palette).filter { pageRegion.x.contains($0.x) && pageRegion.y.contains($0.y) }.map { point in
             let paper = paperGround(palette, at: point)
             return GroundSample(paperPoint: point, ground: Ground(base: paper.base, layers: paper.layers + fills))
         }
@@ -134,13 +133,12 @@ private enum Use {
     case ink(on: [Surface], Bar)
     case textWithGlyphs(text: [Surface], glyphs: [Surface])
     case ground
-    case quiet(String)
 
     var requirements: [(surface: Surface, bar: Bar)] {
         switch self {
         case .ink(let surfaces, let bar): surfaces.map { ($0, bar) }
         case .textWithGlyphs(let text, let glyphs): text.map { ($0, .text) } + glyphs.map { ($0, .nonText) }
-        case .ground, .quiet: []
+        case .ground: []
         }
     }
 }
@@ -160,7 +158,7 @@ private let uses: [String: Use] = [
     "stepperGlyph": .ink(on: [.pill], .nonText),
     "tileCurrentBorder": .ink(on: [.focusCard, .weekCard], .nonText),
     "danger": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .pill, .rail]),
-    "action": .ink(on: [.paper, .card, .rail, .railSelected], .nonText),
+    "action": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .rail, .railSelected]),
     "stem": .ink(on: [.paper], .nonText),
     "leafFill": .ink(on: [.paper, .focusCard, .weekCard], .nonText),
     "budStroke": .ink(on: [.paper], .nonText),
@@ -170,34 +168,31 @@ private let uses: [String: Use] = [
     "railFill": .ground,
     "railSelectedFill": .ground,
     "footFill": .ground,
-    "sheetFill": .quiet("the core punched into a chart dot; no ink sits on it"),
     "chipCarvedFill": .ground,
     "weekCardShade": .ground,
-    "tileCurrentFill": .quiet("the current tile's body; tileCurrentBorder draws its rim against the card"),
     "lighting.focusCardFill": .ground,
     "lighting.raisedControlFill": .ground,
-    "leafRib": .quiet("a highlight line inside the leaf; the leaf's own fill carries the mark"),
-    "budFill": .quiet("the bud's body; budStroke draws its rim against the page"),
-    "budGlow": .quiet("a glow shadow around the Night bud, not a mark"),
-    "futureStroke": .quiet("a deliberately faint outline for Sets not yet reached"),
-    "skipStroke": .quiet("a deliberately quiet dashed outline for a skipped Set; its label says Skipped"),
-    "supersetPartnerBranch": .quiet("the partner's branch, quieted on purpose so the focused branch leads"),
-    "pillStroke": .quiet("a hairline edge; the pill's fill carries the shape"),
-    "queueStroke": .quiet("a hairline edge; the foot pill's fill carries the shape"),
-    "skipFillOverlay": .ground,
-    "tileGhostStroke": .quiet("the dashed outline of an empty bed, quiet by design"),
-    "chipCarveShadow": .quiet("an inset shadow that carves the chip"),
-    "chipCarveEdge": .quiet("the highlight lip below a carved chip"),
-    "chartLine": .quiet("the line joining the volume chart's dots; the dots carry the data"),
-    "blockSeam": .quiet("a dotted seam between Blocks in the chart, quiet by design"),
-    "birdFill": .quiet("the Sunbird illustration, decorative"),
-    "birdRib": .quiet("a highlight line inside the Sunbird, decorative")
+    "skipFillOverlay": .ground
 ]
 
-private let reviewedQuietRoles: Set<String> = [
-    "sheetFill", "tileCurrentFill", "leafRib", "budFill", "budGlow", "futureStroke", "skipStroke",
-    "supersetPartnerBranch", "pillStroke", "queueStroke", "tileGhostStroke", "chipCarveShadow", "chipCarveEdge",
-    "chartLine", "blockSeam", "birdFill", "birdRib"
+private let quietRoles: [String: String] = [
+    "sheetFill": "the core punched into a chart dot; no ink sits on it",
+    "tileCurrentFill": "the current tile's body; tileCurrentBorder draws its rim against the card",
+    "leafRib": "a highlight line inside the leaf; the leaf's own fill carries the mark",
+    "budFill": "the bud's body; budStroke draws its rim against the page",
+    "budGlow": "a glow shadow around the Night bud, not a mark",
+    "futureStroke": "a deliberately faint outline for Sets not yet reached",
+    "skipStroke": "a deliberately quiet dashed outline for a skipped Set; its label says Skipped",
+    "supersetPartnerBranch": "the partner's branch, quieted on purpose so the focused branch leads",
+    "pillStroke": "a hairline edge; the pill's fill carries the shape",
+    "queueStroke": "a hairline edge; the foot pill's fill carries the shape",
+    "tileGhostStroke": "the dashed outline of an empty bed, quiet by design",
+    "chipCarveShadow": "an inset shadow that carves the chip",
+    "chipCarveEdge": "the highlight lip below a carved chip",
+    "chartLine": "the line joining the volume chart's dots; the dots carry the data",
+    "blockSeam": "a dotted seam between Blocks in the chart, quiet by design",
+    "birdFill": "the Sunbird illustration, decorative",
+    "birdRib": "a highlight line inside the Sunbird, decorative"
 ]
 
 private struct ParkedPair: Hashable {
@@ -209,7 +204,10 @@ private struct ParkedPair: Hashable {
 private let dangerCall =
     "whether danger stays system red or takes a Greenhouse red that holds 4.5:1 as Developer Tools and Live Activity "
     + "lab text and 3:1 as a glyph or rim"
-private let nightActionCall = "whether the Night action green lightens where it marks the page, the card, and the selected chip"
+private let nightActionCall = "whether the Night action green lightens where it marks the page, the rail, and the selected chip"
+private let actionAsTextCall =
+    "whether the rest countdown, the onboarding link, and Developer Tools statuses keep the action green as text "
+    + "or take actionInk; #841 tracks the Night link text"
 private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
@@ -230,7 +228,9 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "danger", .rail, floor: 1.93, dangerCall),
     (.night, "danger", .carvedChip, floor: 2.32, dangerCall),
     (.night, "action", .paper, floor: 2.10, nightActionCall),
-    (.night, "action", .card, floor: 1.73, nightActionCall),
+    (.day, "action", .carvedChip, floor: 3.26, actionAsTextCall),
+    (.night, "action", .card, floor: 1.73, actionAsTextCall),
+    (.night, "action", .carvedChip, floor: 1.78, actionAsTextCall),
     (.night, "action", .rail, floor: 1.48, nightActionCall),
     (.night, "action", .railSelected, floor: 1.06, nightActionCall),
     (.night, "prescriptionTick", .rail, floor: 1.48, "whether the Night prescription tick lightens off the action green"),
@@ -253,7 +253,7 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     (.night, "textSecondary", .carvedChip, floor: 3.38, nightSecondaryCall),
     (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
     (
-        .day, "supersetPartnerName", .stageHeading, floor: 4.25,
+        .day, "supersetPartnerName", .stageHeading, floor: 4.39,
         "whether a long partner name may run under the right-hand foliage wash; it reads 4.5:1 left of it"
     )
 ]
@@ -324,13 +324,21 @@ private func describe(_ sample: GroundSample) -> String {
 func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
     let (inks, unclassified) = paletteRoles(Theme.palette(for: appearance))
     let roles = Set(inks.keys)
-    let keyed = Set(uses.keys)
+    let keyed = Set(uses.keys).union(quietRoles.keys)
+    let unmeasuredInks = uses.filter { _, use in
+        if case .ground = use { false } else { use.requirements.isEmpty }
+    }
     #expect(unclassified == [], "palette properties that are neither a colour role nor a known non-ink type")
     #expect(
         roles.subtracting(keyed).sorted() == [],
-        "palette roles with no Use. The walk sees stored roles only, so a computed Color on Palette escapes it."
+        """
+        palette roles with neither a Use nor a quiet reason. The walk sees stored roles only, so a computed alias \
+        such as accent is measured through the role it returns; list the alias's grounds under that role.
+        """
     )
-    #expect(keyed.subtracting(roles).sorted() == [], "Use keys that name no palette role")
+    #expect(keyed.subtracting(roles).sorted() == [], "Use or quiet keys that name no palette role")
+    #expect(Set(uses.keys).intersection(quietRoles.keys).sorted() == [], "roles both measured and quiet")
+    #expect(unmeasuredInks.keys.sorted() == [], "inks whose Use names no Surface")
 }
 
 @Test(arguments: Theme.Appearance.allCases)
@@ -338,31 +346,16 @@ func everyGroundIsASurfaceFillAndEveryFillResolves(appearance: Theme.Appearance)
     let inks = paletteRoles(Theme.palette(for: appearance)).inks
     let fillRoles = Set(Surface.allCases.flatMap(\.fillRoles))
     let grounds = Set(uses.compactMap { role, use in if case .ground = use { role } else { nil } })
-    let quietFills = fillRoles.filter { role in
-        if case .quiet = uses[role] { true } else { false }
-    }
+    let quietFills = fillRoles.filter { quietRoles[$0] != nil }
     let unresolvedFills = fillRoles.filter { inks[$0] ?? nil == nil }
     #expect(grounds.subtracting(fillRoles).sorted() == [], "grounds no Surface fills")
     #expect(quietFills.sorted() == [], "Surface fills classed quiet")
     #expect(unresolvedFills.sorted() == [], "Surface fills that resolve to no colour")
 }
 
-@Test func onlyReviewedRolesAreQuiet() {
-    let quiet = uses.compactMap { role, use in if case .quiet(let reason) = use { (role, reason) } else { nil } }
-    let unreviewed = quiet.filter { !reviewedQuietRoles.contains($0.0) }.map { "\($0.0): \($0.1)" }
-    #expect(
-        unreviewed.sorted() == [],
-        """
-        a quiet role is never measured. Add it to reviewedQuietRoles only once review agrees no view draws it \
-        as text or as the only mark of a state
-        """
-    )
-    #expect(reviewedQuietRoles.subtracting(quiet.map(\.0)).sorted() == [], "reviewed quiet roles that are no longer quiet")
-}
-
 @Test func everySurfaceIsADistinctGroundSomeInkIsDrawnOn() {
     let drawnOn = Set(uses.values.flatMap { $0.requirements.map(\.surface) })
-    let grounds = Dictionary(grouping: Surface.allCases) { "\($0.fillRoles) on page rows \($0.paperRows)" }
+    let grounds = Dictionary(grouping: Surface.allCases) { "\($0.fillRoles) in \($0.pageRegion)" }
     #expect(Surface.allCases.filter { !drawnOn.contains($0) }.map { "\($0)" } == [], "Surfaces no Use draws an ink on")
     #expect(
         grounds.values.filter { $0.count > 1 }.map { $0.map { "\($0)" }.joined(separator: " = ") }.sorted() == [],
@@ -416,11 +409,6 @@ private enum SettingsSheetAtRestOnIPhone17Pro {
 @Test func paletteTokensResolveToTheirSRGBChannels() {
     let ink = srgbComponents(of: Theme.Paint.ink).rgb
     #expect(abs(ink.red - 21) <= 0.5 && abs(ink.green - 33) <= 0.5 && abs(ink.blue - 24) <= 0.5)
-}
-
-@Test func daySupersetPartnerNameReadsAsTextWhereNoWashReaches() {
-    let day = Theme.palette(for: Theme.Appearance.day)
-    #expect(contrast(of: day.supersetPartnerName, over: dayUpperStageGround(day)) >= 4.5)
 }
 
 private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)
