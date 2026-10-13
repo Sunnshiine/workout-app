@@ -70,7 +70,9 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=27.0' \
   -skipPackagePluginValidation -skipMacroValidation
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
-scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill a mutant; --help for the form
+scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
+scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill one hand-written mutant; --help for the form
+scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
 ```
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
