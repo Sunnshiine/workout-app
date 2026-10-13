@@ -386,5 +386,6 @@ anything else heavy on `scripts/wait-load.sh [limit] [max-wait]` instead of a ha
 After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
 `scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`. Also run
 `scripts/tests/host-admission.test.sh` after an edit to `scripts/sim-lock.sh` or
-`scripts/wait-load.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs all of
-them through `.github/workflows/verify-tools.yml`.
+`scripts/wait-load.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
+`test_evidence.py` through `.github/workflows/verify-tools.yml` and every script test through
+`.github/workflows/script-tests.yml`.

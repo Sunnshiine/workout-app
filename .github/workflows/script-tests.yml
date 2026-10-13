@@ -6,6 +6,7 @@ on:
     paths:
       - "scripts/**"
       - ".sandcastle/**"
+      - ".agents/skills/verify/verify.sh"
       - ".claude/settings.json"
       - ".swiftlint.yml"
       - "Tests/.swiftlint.yml"
@@ -19,6 +20,7 @@ on:
     paths:
       - "scripts/**"
       - ".sandcastle/**"
+      - ".agents/skills/verify/verify.sh"
       - ".claude/settings.json"
       - ".swiftlint.yml"
       - "Tests/.swiftlint.yml"
