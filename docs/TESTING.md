@@ -42,8 +42,9 @@ the same load wait, as in `scripts/wait-load.sh && swift test`. A timing or moti
 taken under load still describes the host, not the app, so record the 1-minute load beside it
 (`test-sim.sh` prints `load1=`) and rerun when it is high. `verify.sh launch` and most UI tests
 turn animations off, so they miss a defect that exists only in motion. The verify `SKILL.md` films
-motion with `verify.sh launch --animated` and `verify.sh record`, and reads the takes with
-`motion/cardframe.py` and `motion/cardstill.py`. A UI test that needs motion launches with
+motion with `verify.sh launch --animated` and `verify.sh record`. Its
+`.agents/skills/verify/motion/cardframe.py` measures a take, and `cardstill.py` beside it films and
+judges a set of takes against a control commit. A UI test that needs motion launches with
 `animated: true`.
 
 ## AI-Generated Code Gate
