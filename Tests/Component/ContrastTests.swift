@@ -202,51 +202,56 @@ private let nightBranchCall = "whether Night foliage lightens or the logged bran
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
 
-private let parkedRows: [(Theme.Appearance, String, Surface, call: String)] = [
-    (.day, "danger", .paper, dangerCall),
-    (.day, "danger", .card, dangerCall),
-    (.day, "danger", .rail, dangerCall),
-    (.day, "danger", .foot, dangerCall),
-    (.day, "danger", .weekCard, dangerCall),
-    (.day, "danger", .carvedChip, dangerCall),
-    (.night, "danger", .paper, dangerCall),
-    (.night, "danger", .card, dangerCall),
-    (.night, "danger", .pill, dangerCall),
-    (.night, "danger", .rail, dangerCall),
-    (.night, "danger", .railSelected, dangerCall),
-    (.night, "danger", .foot, dangerCall),
-    (.night, "danger", .focusCard, dangerCall),
-    (.night, "danger", .weekCard, dangerCall),
-    (.night, "action", .paper, nightActionCall),
-    (.night, "action", .card, nightActionCall),
-    (.night, "action", .railSelected, nightActionCall),
-    (.night, "prescriptionTick", .rail, "whether the Night prescription tick lightens off the action green"),
-    (.night, "prescriptionTick", .railSelected, "whether the Night prescription tick lightens off the action green"),
-    (.night, "actionText", .action, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
-    (.night, "actionInk", .pill, nightActionInkCall),
-    (.night, "actionInk", .rail, nightActionInkCall),
-    (.night, "actionInk", .railSelected, nightActionInkCall),
-    (.night, "textPrimary", .railSelected, "whether the Night selected chip fill dims under the sun wash"),
-    (.night, "stem", .paper, nightBranchCall),
-    (.night, "leafFill", .paper, nightBranchCall),
-    (.night, "leafFill", .focusCard, nightBranchCall),
-    (.night, "leafFill", .weekCard, nightBranchCall),
-    (.night, "textSecondary", .paper, nightSecondaryCall),
-    (.night, "textSecondary", .card, nightSecondaryCall),
-    (.night, "textSecondary", .pill, nightSecondaryCall),
-    (.night, "textSecondary", .rail, nightSecondaryCall),
-    (.night, "textSecondary", .railSelected, nightSecondaryCall),
-    (.night, "textSecondary", .foot, nightSecondaryCall),
-    (.night, "textSecondary", .focusCard, nightSecondaryCall),
-    (.night, "textSecondary", .weekCard, nightSecondaryCall),
-    (.day, "supersetPartnerName", .paper, "whether the partner name may sit over a wash; UI-14 measured 4.5:1 only where none reaches")
+private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call: String)] = [
+    (.day, "danger", .paper, floor: 1.93, dangerCall),
+    (.day, "danger", .card, floor: 2.56, dangerCall),
+    (.day, "danger", .rail, floor: 2.92, dangerCall),
+    (.day, "danger", .foot, floor: 2.53, dangerCall),
+    (.day, "danger", .weekCard, floor: 2.56, dangerCall),
+    (.day, "danger", .carvedChip, floor: 2.84, dangerCall),
+    (.night, "danger", .paper, floor: 2.81, dangerCall),
+    (.night, "danger", .card, floor: 2.30, dangerCall),
+    (.night, "danger", .pill, floor: 1.97, dangerCall),
+    (.night, "danger", .rail, floor: 1.97, dangerCall),
+    (.night, "danger", .railSelected, floor: 1.41, dangerCall),
+    (.night, "danger", .foot, floor: 2.37, dangerCall),
+    (.night, "danger", .focusCard, floor: 2.30, dangerCall),
+    (.night, "danger", .weekCard, floor: 2.37, dangerCall),
+    (.night, "action", .paper, floor: 2.15, nightActionCall),
+    (.night, "action", .card, floor: 1.76, nightActionCall),
+    (.night, "action", .railSelected, floor: 1.08, nightActionCall),
+    (.night, "prescriptionTick", .rail, floor: 1.51, "whether the Night prescription tick lightens off the action green"),
+    (.night, "prescriptionTick", .railSelected, floor: 1.08, "whether the Night prescription tick lightens off the action green"),
+    (.night, "actionText", .action, floor: 4.23, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
+    (.night, "actionInk", .pill, floor: 4.09, nightActionInkCall),
+    (.night, "actionInk", .rail, floor: 4.09, nightActionInkCall),
+    (.night, "actionInk", .railSelected, floor: 2.94, nightActionInkCall),
+    (.night, "textPrimary", .railSelected, floor: 4.46, "whether the Night selected chip fill dims under the sun wash"),
+    (.night, "stem", .paper, floor: 2.68, nightBranchCall),
+    (.night, "leafFill", .paper, floor: 2.68, nightBranchCall),
+    (.night, "leafFill", .focusCard, floor: 2.20, nightBranchCall),
+    (.night, "leafFill", .weekCard, floor: 2.26, nightBranchCall),
+    (.night, "textSecondary", .paper, floor: 4.08, nightSecondaryCall),
+    (.night, "textSecondary", .card, floor: 3.35, nightSecondaryCall),
+    (.night, "textSecondary", .pill, floor: 2.87, nightSecondaryCall),
+    (.night, "textSecondary", .rail, floor: 2.87, nightSecondaryCall),
+    (.night, "textSecondary", .railSelected, floor: 2.06, nightSecondaryCall),
+    (.night, "textSecondary", .foot, floor: 3.45, nightSecondaryCall),
+    (.night, "textSecondary", .focusCard, floor: 3.35, nightSecondaryCall),
+    (.night, "textSecondary", .weekCard, floor: 3.45, nightSecondaryCall),
+    (
+        .day, "supersetPartnerName", .paper, floor: 3.40,
+        "whether the partner name may sit over a wash; UI-14 measured 4.5:1 only where none reaches"
+    )
 ]
 
-private let parked: [ParkedPair: String] = Dictionary(
-    uniqueKeysWithValues: parkedRows.map { appearance, role, surface, call in
+/// A parked pair still fails its bar, so `floor` (its ratio when parked, less 0.01) is what stops it
+/// sinking further unnoticed.
+private let parked: [ParkedPair: (floor: Double, reason: String)] = Dictionary(
+    uniqueKeysWithValues: parkedRows.map { appearance, role, surface, floor, call in
         (
             ParkedPair(appearance: appearance, role: role, surface: surface),
-            "product call: palette value. The operator decides \(call)."
+            (floor, "product call: palette value. The operator decides \(call).")
         )
     }
 )
@@ -306,8 +311,9 @@ func everyBarredInkClearsItsBarOnEverySurfaceItIsDrawnOn(appearance: Theme.Appea
                 \(appearance) \(role) on \(surface): ink \(describe(ink)) over \(describe(worst.sample)) \
                 measures \(measured):1, under \(bar.rawValue):1
                 """
-            if let reason = parked[ParkedPair(appearance: appearance, role: role, surface: surface)] {
-                withKnownIssue(Comment(rawValue: reason)) {
+            if let park = parked[ParkedPair(appearance: appearance, role: role, surface: surface)] {
+                #expect(worst.ratio >= park.floor, "parked below its floor \(park.floor):1: \(comment)")
+                withKnownIssue(Comment(rawValue: park.reason)) {
                     #expect(worst.ratio >= bar.rawValue, comment)
                 }
             } else {
