@@ -34,7 +34,7 @@ usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
   scripts/lint.sh --print-path         fetch the pinned binary if needed, print its path, and exit
 
-Exits 0 when clean and 64 on a usage error. Any other exit is the failing stage's own status.
+Exits 0 when clean, 64 on a usage error, and nonzero when a check fails.
 EOF
 }
 
@@ -270,7 +270,9 @@ echo "==> Workflow if: guards"
 echo "==> swift-format"
 "$ROOT/scripts/swift-format-changed.sh" "${LINT_FORMAT_BASE:-origin/main}" || {
     status=$?
-    if [ "$status" -eq 2 ]; then
+    if [ "$status" -eq 2 ] && [ -n "${LINT_FORMAT_BASE:-}" ]; then
+        echo "       LINT_FORMAT_BASE='$LINT_FORMAT_BASE' is not a commit this branch grew from." >&2
+    elif [ "$status" -eq 2 ]; then
         echo "       Run 'git fetch origin main', or set LINT_FORMAT_BASE to a commit this branch" >&2
         echo "       grew from: LINT_FORMAT_BASE=<base> scripts/lint.sh" >&2
     fi

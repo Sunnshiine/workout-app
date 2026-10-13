@@ -115,6 +115,7 @@ printf 'let model  =  1\n' >"$fx/Sources/Core/Model.swift"
 run_lint
 expect_exit "swift-format" "$status" 1
 expect_text "swift-format" "$err" "error: format them with: xcrun swift-format format -i Sources/Core/Model.swift"
+expect_no_text "swift-format" "$err" "LINT_FORMAT_BASE"
 printf 'let model = 2\n' >"$fx/Sources/Core/Model.swift"
 run_lint
 expect_exit "swift-format, formatted" "$status" 0
@@ -124,15 +125,17 @@ echo "no origin/main: a whole-tree run says how to give swift-format a base"
 fresh_fixture
 baseline_config
 git -C "$fx" update-ref -d refs/remotes/origin/main
-env -u LINT_FORMAT_BASE "$fx/scripts/lint.sh" >"$root/stdout" 2>"$root/stderr"
-status=$?
-err=$(cat "$root/stderr")
+run_lint env -u LINT_FORMAT_BASE "$fx/scripts/lint.sh"
 expect_exit "no origin/main" "$status" 2
 expect_line "no origin/main" "$err" "error: git cannot find where HEAD left 'origin/main'."
 expect_line "no origin/main" "$err" "       Run 'git fetch origin main', or set LINT_FORMAT_BASE to a commit this branch"
 expect_line "no origin/main" "$err" "       grew from: LINT_FORMAT_BASE=<base> scripts/lint.sh"
-LINT_FORMAT_BASE=HEAD "$fx/scripts/lint.sh" >"$root/stdout" 2>"$root/stderr"
-expect_exit "no origin/main, LINT_FORMAT_BASE=HEAD" "$?" 0
+run_lint env LINT_FORMAT_BASE=nosuchref "$fx/scripts/lint.sh"
+expect_exit "LINT_FORMAT_BASE=nosuchref" "$status" 2
+expect_line "LINT_FORMAT_BASE=nosuchref" "$err" "       LINT_FORMAT_BASE='nosuchref' is not a commit this branch grew from."
+expect_no_text "LINT_FORMAT_BASE=nosuchref" "$err" "git fetch origin main"
+run_lint env LINT_FORMAT_BASE=HEAD "$fx/scripts/lint.sh"
+expect_exit "no origin/main, LINT_FORMAT_BASE=HEAD" "$status" 0
 
 echo "help: --help prints usage naming LINT_FORMAT_BASE, and an unknown flag is a usage error"
 fresh_fixture
@@ -140,11 +143,11 @@ baseline_config
 run_lint "$fx/scripts/lint.sh" --help
 expect_exit "--help" "$status" 0
 expect_line "--help" "$out" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
-expect_line "--help, stderr" "$err" ""
+expect_exit "--help, bytes on stderr" "$(wc -c <"$root/stderr" | tr -d ' ')" 0
 run_lint "$fx/scripts/lint.sh" --nope
 expect_exit "--nope" "$status" 64
 expect_line "--nope" "$err" "usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]"
-expect_line "--nope, stdout" "$out" ""
+expect_exit "--nope, bytes on stdout" "$(wc -c <"$root/stdout" | tr -d ' ')" 0
 
 echo "widened: excluded covers the Tests root and the Sources/Tool tree"
 fresh_fixture
