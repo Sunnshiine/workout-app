@@ -1064,7 +1064,9 @@ echo "$VERIFY_RUN $*" >> "{dir}/calls"
 case $1 in
   launch) [ ! -e "{dir}/alive" ] || exit 75; touch "{dir}/alive"; echo "evidence {dir}/$VERIFY_RUN" ;;
   stop) rm -f "{dir}/alive" ;;
-  tree) cat "{dir}/tree"; [ ! -e "{dir}/tree.next" ] || mv "{dir}/tree.next" "{dir}/tree" ;;
+  tree)
+    if [ -e "{dir}/tree.fails" ]; then rm "{dir}/tree.fails"; exit 1; fi
+    cat "{dir}/tree"; [ ! -e "{dir}/tree.next" ] || mv "{dir}/tree.next" "{dir}/tree" ;;
   record)
     [ -e "{dir}/stamp.take" ] || exit 75
     mkdir -p "{dir}/$VERIFY_RUN"
@@ -1112,16 +1114,28 @@ class Film(unittest.TestCase):
             "tap --id stage-queue-row-superset-0",
         ])
 
-    def test_pairing_waits_for_the_queue_sheet_to_show_its_way_in(self):
+    def test_pairing_opens_the_queue_then_reads_the_tree_until_the_sheet_shows_its_way_in(self):
         (self.dir / "tree.next").write_text((FIXTURES / "04-queue-superset.tree.txt").read_text())
         cardstill.PAIR_WAIT_S = 2.0
-        self.assertEqual(self.pair_taps("01-before.tree.txt")[1], "tap --id stage-queue-superset")
+        self.pair_taps("01-before.tree.txt")
+        self.assertEqual((self.dir / "calls").read_text().splitlines()[:4], [
+            "lane-head tap --id stage-queue-button",
+            "lane-head tree",
+            "lane-head tree",
+            "lane-head tap --id stage-queue-superset",
+        ])
+
+    def test_a_failed_tree_read_while_the_sheet_opens_is_read_again(self):
+        (self.dir / "tree.fails").touch()
+        cardstill.PAIR_WAIT_S = 2.0
+        self.assertEqual(self.pair_taps("04-queue-superset.tree.txt")[1], "tap --id stage-queue-superset")
 
     def test_a_queue_with_neither_way_into_pairing_fails_the_setup_after_one_tap(self):
         with self.assertRaises(cardstill.SetupFailed) as raised:
             self.pair_taps("01-before.tree.txt")
         self.assertEqual(str(raised.exception),
-                         "the queue showed neither stage-queue-superset nor stage-queue-pair-exercise-0")
+                         "the queue showed neither stage-queue-superset (since UI-11 (#857)) nor "
+                         "stage-queue-pair-exercise-0 (before UI-11, as every control whose card moves)")
         self.assertEqual([c for c in (self.dir / "calls").read_text().splitlines() if " tap " in c],
                          ["lane-head tap --id stage-queue-button"])
 
