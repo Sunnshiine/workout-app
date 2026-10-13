@@ -71,7 +71,7 @@ struct LiveActivityLabView: View {
 
             Text(controller.isActive ? "Prototype is running." : "Prototype is stopped.")
                 .font(Theme.font(.queuePill))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             if let lastError = controller.lastError {
                 Text(lastError)
@@ -303,6 +303,7 @@ private struct LiveActivityLabSection<Content: View>: View {
 }
 
 private struct LabField: View {
+    @Environment(\.themePalette) private var palette
     let label: String
     let value: String
 
@@ -310,7 +311,7 @@ private struct LabField: View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
                 .font(Theme.font(.queuePill))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
 
             Spacer(minLength: 12)
 

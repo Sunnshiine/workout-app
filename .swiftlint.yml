@@ -67,6 +67,20 @@ custom_rules:
     included: '.*/App/Views/.*'
     severity: error
 
+  system_ink_outside_the_palette:
+    name: "System ink outside the palette"
+    message: >
+      Draw this ink from the palette (palette.textSecondary, palette.textPrimary, or the role the
+      surrounding view uses). System .secondary / .tertiary / .quaternary / .quinary and the UIKit
+      *Label colours ignore the Greenhouse palette, so ContrastTests cannot hold them to WCAG AA.
+    regex: '\.(secondary|tertiary|quaternary|quinary)\b|\.(secondary|tertiary|quaternary)Label\b'
+    included: '.*/App/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
   # The vacuous-test trap (issues #608, #636). `message:` below is the reason a reader gets at the
   # violation; this is the reason the pattern has the shape it has.
   #

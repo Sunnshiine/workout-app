@@ -272,7 +272,7 @@ private struct RowLabel: View {
     let title: String
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
+        Text(title).foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
     }
 }
 
@@ -282,9 +282,13 @@ private struct RowValue: View {
     let text: String
 
     var body: some View {
-        Text(text).foregroundStyle(isEnabled ? palette.textSecondary : Color(.tertiaryLabel))
+        Text(text).foregroundStyle(isEnabled ? palette.textSecondary : inactiveRowInk)
     }
 }
+
+// WCAG 1.4.3 exempts an inactive control from contrast.
+// swiftlint:disable:next system_ink_outside_the_palette
+private let inactiveRowInk = Color(.tertiaryLabel)
 
 /// A Stepper lays out through LabeledContent. Beside its control, an accessibility-size label has
 /// too little width and hyphenates mid-word (`Stan-dard`), so at those sizes the control drops

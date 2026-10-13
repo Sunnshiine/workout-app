@@ -8,12 +8,12 @@ struct EmptyStateView: View {
         VStack(spacing: 16) {
             Image(systemName: "dumbbell")
                 .font(Theme.font(.ceremonyTitle))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
             Text("No session yet")
                 .font(Theme.font(.sheetTitle))
             Text("Automatic sync keeps checking your Sheet. Use Settings for manual recovery.")
                 .font(Theme.font(.coachNote))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
             Button("Open Settings") {
                 onSettings()
