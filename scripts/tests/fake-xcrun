@@ -9,7 +9,8 @@ AutomaticMinimizationEnabled=1, the value that hides the keyboard (#700).
 Knobs: FAKE_SIM_NO_RUNTIME=1 lists no iOS runtime. FAKE_SIM_CLONE_405_ONCE=<file> fails the first clone
 with 405 and creates <file>, as when the source was booted between a check and the clone.
 FAKE_SIM_SLOW_SHUTDOWN=<file> makes each shutdown create <file>, then take two seconds before it
-touches the store.
+touches the store. FAKE_SIM_HELD_FDS=<file> appends, for each create and boot, which of fds 4, 5, 7, 8
+and 9 are open; fd 6 is left out because sim-lock.sh reopens it as a copy of stderr.
 """
 import fcntl
 import json
@@ -124,8 +125,9 @@ def main():
     verb, args = sys.argv[2], sys.argv[3:]
     held = os.environ.get("FAKE_SIM_HELD_FDS")
     if held and verb in ("create", "boot"):
+        fds = "".join(" {}".format(fd) for fd in (4, 5, 7, 8, 9) if is_open(fd))
         with open(held, "a") as out:
-            out.write("{} {} holds fds: {}\n".format(verb, args[0], " ".join(str(fd) for fd in (4, 5, 7, 8, 9) if is_open(fd))))
+            out.write("{} {} holds fds:{}\n".format(verb, args[0], fds))
     path = os.environ["FAKE_SIM_STORE"]
     slow = os.environ.get("FAKE_SIM_SLOW_SHUTDOWN")
     if verb == "shutdown" and slow:

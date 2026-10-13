@@ -82,7 +82,7 @@ expect "create on a fresh Mac builds the template (boot, keyboard, shutdown, ren
     "0 $P-2 | $build_calls
 clone $P-1 workout-lane-a"
 expect "the template's simctl create and boot hold no lock fd, so a boot outliving a killed create holds no pool lock" \
-    "$(sed 's/ $//' "$root/held-fds")" "create workout-template-v1-building holds fds:
+    "$(cat "$root/held-fds")" "create workout-template-v1-building holds fds:
 boot $P-1 holds fds:"
 expect "list shows the lane and the template, and nothing booted" "$(listing)" \
     "UDID	STATE	ROLE	NAME
