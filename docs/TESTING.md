@@ -31,13 +31,20 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 
 ## Parallel Agents
 
-Each concurrent simulator run takes its own worktree and simulator (`AGENTS.md`, Verification).
+Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
+both, cloning the simulator through `scripts/sim-pool.sh` (Running beside other agents, below).
 `scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
-while another run holds that simulator. Nothing yet limits the host: every booted simulator and
-build slows the rest. A timing or motion measurement taken under load describes the host, not the
-app, so record the 1-minute load (`sysctl -n vm.loadavg`) beside it, and rerun when it is high.
-`verify.sh launch` and most UI tests turn animations off, so they miss a defect that exists only in
-motion. A UI test that needs motion launches with `animated: true`.
+while another run holds that simulator. The same script admits a run only onto a quiet host: it
+waits while the 1-minute load is over `WORKOUT_LOAD_LIMIT`, before a boot while `WORKOUT_SIM_CAP`
+other simulators are booted, and before a build while every `WORKOUT_BUILD_SLOTS` slot is taken,
+then exits 75 after `WORKOUT_ADMIT_WAIT` seconds. `scripts/wait-load.sh` gives anything else heavy
+the same load wait, as in `scripts/wait-load.sh && swift test`. A timing or motion measurement
+taken under load still describes the host, not the app, so record the 1-minute load beside it
+(`test-sim.sh` prints `load1=`) and rerun when it is high. `verify.sh launch` and most UI tests
+turn animations off, so they miss a defect that exists only in motion. The verify `SKILL.md` films
+motion with `verify.sh launch --animated` and `verify.sh record`, and reads the takes with
+`motion/cardframe.py` and `motion/cardstill.py`. A UI test that needs motion launches with
+`animated: true`.
 
 ## AI-Generated Code Gate
 
