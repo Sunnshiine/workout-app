@@ -78,7 +78,12 @@ hold() {
     touch "$root/gate$1"
     (cd "$repo" && /bin/bash -c ". '$lib'; scratch_claim 'holder $1'; echo \$\$ >'$root/pid$1'
         (while [ -e '$root/gate$1' ]; do sleep 0.05; done) & echo \$! >'$root/child$1'; wait") 2>/dev/null &
+    holder[$1]=$!
     wait_for "$root/child$1"
+}
+release() {
+    rm "$root/gate$1"
+    wait "${holder[$1]}"
 }
 hold 1
 got=$(in_tree "$repo" 'scratch_claim t; echo "$scratch"')
@@ -102,7 +107,8 @@ $(if kill -0 "$(cat "$root/child1")" 2>/dev/null; then echo "the leftover still 
 "$pool/1
 t (pid SELF)
 the leftover is gone"
-rm "$root/gate1" "$root/gate2"
+release 1
+release 2
 
 sh -c 'exit 0' & dead=$!
 wait $dead
@@ -160,7 +166,7 @@ removed $pool/7 (N MB)
 WorkoutTracker-other
 1
 1"
-rm "$root/gate3"
+release 3
 
 rm -rf "$pool/1"
 got=$(in_tree "$repo" 'scratch_claim t; git -C "$scratch" rev-parse --show-toplevel; ls "$scratch"')
