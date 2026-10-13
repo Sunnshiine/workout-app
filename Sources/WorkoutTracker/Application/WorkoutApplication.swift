@@ -11,6 +11,7 @@ public final class WorkoutApplication {
     let sync: SyncCoordinator
     let lastPerformed: LastPerformedLookupStore
     let historyFill: ExerciseHistoryFill
+    let connection: SheetConnection
     let sheetsClient: any SheetsClient
 
     static let schema = Schema([
@@ -40,6 +41,7 @@ public final class WorkoutApplication {
             lastPerformed: lastPerformed,
             historyFill: historyFill
         )
+        connection = SheetConnection(settings: settings, sync: sync) { [workout] in workout.reload() }
         workout.reload()
     }
 
@@ -61,17 +63,14 @@ public final class WorkoutApplication {
 }
 
 extension WorkoutApplication {
-    /// The onboarding path: `SettingsSheetSwitchStore.requestSwitch`, which syncs, commits the
-    /// selection, and reloads the store.
     public func selectSpreadsheet(id: String, title: String?) async throws -> AppSnapshot {
-        let switcher = SettingsSheetSwitchStore(settings: settings, sync: sync) { [workout] in workout.reload() }
-        switch await switcher.requestSwitch(to: SheetSelection(spreadsheetId: id, title: title)) {
+        switch await connection.requestSwitch(to: SheetSelection(spreadsheetId: id, title: title)) {
         case .switched, .unchanged:
             return try snapshot()
         case .requiresConfirmation:
             throw ApplicationError.sheetSwitchRequiresDiscard
-        case .failed:
-            throw ApplicationError.sheetSwitchFailed(switcher.errorMessage ?? "unknown")
+        case .failed(let failure):
+            throw ApplicationError.sheetSwitchFailed(failure.message)
         }
     }
 
@@ -157,13 +156,13 @@ extension WorkoutApplication {
         )
     }
 
-    /// `SyncCoordinator.sync(spreadsheetId:)` followed by the reload every `onSynced` performs.
     public func sync() async throws -> SyncReport {
-        let spreadsheetId = try configuredSpreadsheetId()
-        let didSync = await sync.sync(spreadsheetId: spreadsheetId)
-        workout.reload()
+        switch await connection.syncNow() {
+        case .synced: break
+        case .noSheet: throw ApplicationError.notConfigured
+        case .syncInProgress, .failed: throw ApplicationError.syncFailed(SyncOutcomeSnapshot(sync.outcome).status)
+        }
         let outcome = SyncOutcomeSnapshot(sync.outcome)
-        guard didSync else { throw ApplicationError.syncFailed(outcome.status) }
         let queued = try queuedWrites()
         return SyncReport(
             syncOutcome: outcome,

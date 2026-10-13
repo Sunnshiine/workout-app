@@ -2,15 +2,13 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
-    @Environment(SyncCoordinator.self) private var sync
-    @Environment(WorkoutStore.self) private var workout
+    @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
-    @State private var syncActivity = SettingsSyncActivity()
-    @State private var manualSyncStore: SettingsManualSyncStore?
-    @State private var sheetSwitchStore: SettingsSheetSwitchStore?
+    @State private var pendingSwitch: SheetSelection?
+    @State private var settingsError: DestructiveTransitionFailure?
 
     var body: some View {
         NavigationStack {
@@ -24,6 +22,7 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("settings-appearance-picker")
                 }
+                .listRowBackground(palette.surface)
 
                 Section("Rest") {
                     Stepper(value: standardRestSeconds, in: restRange, step: RestDurationSetting.stepSeconds) {
@@ -36,26 +35,34 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-superset-rest-stepper")
                 }
+                .labeledContentStyle(StackedAtAccessibilitySizes())
+                .listRowBackground(palette.surface)
 
                 Section {
                     Button {
                         isSheetPickerPresented = true
                     } label: {
-                        LabeledContent("Training Sheet", value: sheetDisplayName)
+                        LabeledContent {
+                            Text(sheetDisplayName)
+                        } label: {
+                            RowLabel(title: "Training Sheet")
+                        }
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-training-sheet-row")
 
                     Button {
-                        syncNow()
+                        Task { await connection.syncNow() }
                     } label: {
-                        LabeledContent("Sync now") {
-                            Text(manualSyncDetail ?? "")
+                        LabeledContent {
+                            Text(connection.syncNowDetail)
+                        } label: {
+                            RowLabel(title: "Sync now")
                         }
                     }
-                    .disabled(isManualSyncDisabled)
+                    .disabled(!connection.canSyncNow)
                     .accessibilityIdentifier("settings-sync-now-button")
-                    .accessibilityValue(manualSyncDetail ?? "")
+                    .accessibilityValue(connection.syncNowDetail)
 
                     NavigationLink {
                         DeveloperToolsView()
@@ -64,6 +71,7 @@ struct SettingsView: View {
                     }
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
+                .listRowBackground(palette.surface)
 
                 Section {
                     Button(role: .destructive) {
@@ -74,6 +82,7 @@ struct SettingsView: View {
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
                 }
+                .listRowBackground(palette.surface)
 
                 Section {
                     BuildIdentityFooter()
@@ -81,6 +90,8 @@ struct SettingsView: View {
                         .listRowBackground(Color.clear)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(palette.paperBackground.ignoresSafeArea())
             .navigationTitle("Settings")
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -91,7 +102,6 @@ struct SettingsView: View {
                 }
             }
         }
-        .onAppear(perform: ensureSettingsStores)
         .sheet(isPresented: $isSheetPickerPresented) {
             sheetPickerSheet
         }
@@ -106,12 +116,10 @@ struct SettingsView: View {
         } message: {
             Text("Pending logs for the current sheet will be discarded.")
         }
-        .alert("Settings Error", isPresented: settingsErrorPresented) {
-            Button("OK", role: .cancel) {
-                clearSettingsError()
-            }
-        } message: {
-            Text(currentSettingsErrorMessage)
+        .alert("Settings Error", isPresented: settingsErrorPresented, presenting: settingsError) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { failure in
+            Text(failure.message)
         }
         .preferredColorScheme(Theme.colorSchemeOverride(for: settings.appearance))
         .toolbarColorScheme(Theme.colorSchemeOverride(for: settings.appearance), for: .navigationBar)
@@ -149,153 +157,127 @@ struct SettingsView: View {
         }
     }
 
-    private var isManualSyncDisabled: Bool {
-        settings.spreadsheetId == nil || isSheetBusy
-    }
-
     private var isSheetBusy: Bool {
-        guard let sheetSwitchStore else { return sync.isSyncing }
-        return !sheetSwitchStore.canBeginDestructiveTransition
-    }
-
-    private var manualSyncDetail: String? {
-        if syncActivity.isSyncInFlight || sync.isSyncing {
-            return "Syncing..."
-        }
-
-        switch sync.outcome {
-        case .clear:
-            return settings.spreadsheetId == nil ? "Connect a sheet first" : "Refresh workout state"
-        case .sheetUnreachable:
-            return "Offline"
-        case .writesQueued(let count):
-            return count == 1 ? "1 unsynced log" : "\(count) unsynced logs"
-        case .localWriteFailed:
-            return "Log not saved"
-        case .writesRefused:
-            return "Log not written"
-        case .noBlockTab:
-            return "No block tab"
-        case .parseWarnings:
-            return "Synced with a note"
-        case .historyFillFailed:
-            return "History incomplete"
-        }
-    }
-
-    private func ensureSettingsStores() {
-        ensureManualSyncStore()
-        ensureSheetSwitchStore()
-    }
-
-    private func ensureManualSyncStore() {
-        guard manualSyncStore == nil else { return }
-        manualSyncStore = SettingsManualSyncStore(settings: settings, sync: sync, syncActivity: syncActivity) {
-            workout.reload()
-        }
-    }
-
-    private func ensureSheetSwitchStore() {
-        guard sheetSwitchStore == nil else { return }
-        sheetSwitchStore = SettingsSheetSwitchStore(settings: settings, sync: sync, syncActivity: syncActivity) {
-            workout.reload()
-        }
-    }
-
-    private func syncNow() {
-        ensureManualSyncStore()
-        Task {
-            await manualSyncStore?.syncNow()
-        }
+        !connection.canBeginDestructiveTransition
     }
 
     private func requestSignOut() {
-        ensureSheetSwitchStore()
-        switch sheetSwitchStore?.requestSignOut() {
+        switch connection.requestSignOut() {
         case .requiresConfirmation:
             isSignOutConfirmationPresented = true
         case .ready:
             Task { await signOutNow() }
-        case .failed, .none:
-            break
+        case .failed(let failure):
+            settingsError = failure
         }
     }
 
     private func signOutNow() async {
-        guard let sheetSwitchStore, await sheetSwitchStore.prepareSignOut() else { return }
-
-        GoogleAuth.signOut()
-        settings.signOut()
-        dismiss()
+        do throws(DestructiveTransitionFailure) {
+            try await connection.signOut()
+            GoogleAuth.signOut()
+            dismiss()
+        } catch {
+            settingsError = error
+        }
     }
 
-    @ViewBuilder
+    private func requestSwitch(to spreadsheet: SpreadsheetFile) async {
+        switch await connection.requestSwitch(to: spreadsheet) {
+        case .switched, .unchanged:
+            isSheetPickerPresented = false
+        case .requiresConfirmation(let selection):
+            pendingSwitch = selection
+        case .failed(let failure):
+            settingsError = failure
+        }
+    }
+
+    private func confirmSwitch(to selection: SheetSelection) async {
+        do throws(DestructiveTransitionFailure) {
+            try await connection.confirmSwitch(to: selection)
+            isSheetPickerPresented = false
+        } catch {
+            settingsError = error
+        }
+    }
+
     private var sheetPickerSheet: some View {
-        if let sheetSwitchStore {
-            NavigationStack {
-                SheetPickerView(
-                    client: GoogleSheetsClient.forCurrentEnvironment(),
-                    onValidatedSelection: { spreadsheet in
-                        let result = await sheetSwitchStore.requestSwitch(to: spreadsheet)
-                        if result == .switched || result == .unchanged {
-                            isSheetPickerPresented = false
-                        }
-                    },
-                    onDone: {
-                        isSheetPickerPresented = false
-                    },
-                    isSelectionDisabled: isSheetBusy
-                )
-                .background(palette.gradient.ignoresSafeArea())
-                .navigationTitle("Training Sheet")
+        NavigationStack {
+            SheetPickerView(
+                client: GoogleSheetsClient.forCurrentEnvironment(),
+                onValidatedSelection: { spreadsheet in
+                    await requestSwitch(to: spreadsheet)
+                },
+                onDone: {
+                    isSheetPickerPresented = false
+                },
+                isSelectionDisabled: isSheetBusy
+            )
+            .background(palette.gradient.ignoresSafeArea())
+            .navigationTitle("Training Sheet")
+        }
+        .alert(
+            "You have unsynced changes. Switch anyway?",
+            isPresented: pendingSwitchConfirmation,
+            presenting: pendingSwitch
+        ) { selection in
+            Button("Cancel", role: .cancel) {}
+            Button("Switch Anyway", role: .destructive) {
+                Task { await confirmSwitch(to: selection) }
             }
-            .alert(
-                "You have unsynced changes. Switch anyway?",
-                isPresented: pendingSwitchConfirmation
-            ) {
-                Button("Cancel", role: .cancel) {
-                    sheetSwitchStore.cancelPendingSwitch()
-                }
-                Button("Switch Anyway", role: .destructive) {
-                    Task {
-                        let didSwitch = await sheetSwitchStore.confirmPendingSwitch()
-                        if didSwitch {
-                            isSheetPickerPresented = false
-                        }
-                    }
-                }
-            } message: {
-                Text("Pending logs for the current sheet will be discarded.")
-            }
-        } else {
-            ProgressView()
-                .task { ensureSheetSwitchStore() }
+        } message: { _ in
+            Text("Pending logs for the current sheet will be discarded.")
         }
     }
 
     private var pendingSwitchConfirmation: Binding<Bool> {
         Binding {
-            sheetSwitchStore?.pendingConfirmation != nil
-        } set: { _ in
-            // Alert buttons own cancellation so "Switch Anyway" can still confirm the pending sheet.
+            pendingSwitch != nil
+        } set: { isPresented in
+            if !isPresented {
+                pendingSwitch = nil
+            }
         }
     }
 
     private var settingsErrorPresented: Binding<Bool> {
         Binding {
-            sheetSwitchStore?.errorMessage != nil
+            settingsError != nil
         } set: { isPresented in
             if !isPresented {
-                clearSettingsError()
+                settingsError = nil
             }
         }
     }
+}
 
-    private var currentSettingsErrorMessage: String {
-        sheetSwitchStore?.errorMessage ?? "Something went wrong."
+/// System blue, named rather than read from the tint, so an app accent colour cannot repaint the
+/// row. A Button whose label is a LabeledContent draws that label in the primary colour once
+/// disabled, where it would read as tappable, so the label dims itself.
+private struct RowLabel: View {
+    @Environment(\.isEnabled) private var isEnabled
+    let title: String
+
+    var body: some View {
+        Text(title).foregroundStyle(isEnabled ? Color.blue : Color(.tertiaryLabel))
     }
+}
 
-    private func clearSettingsError() {
-        sheetSwitchStore?.clearError()
+/// A Stepper lays out through LabeledContent. Beside its control, an accessibility-size label has
+/// too little width and hyphenates mid-word (`Stan-dard`), so at those sizes the control drops
+/// below the label. The other rows already stack on their own.
+private struct StackedAtAccessibilitySizes: LabeledContentStyle {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    func makeBody(configuration: Configuration) -> some View {
+        if dynamicTypeSize.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 2) {
+                configuration.label
+                configuration.content
+            }
+        } else {
+            LabeledContent(configuration)
+        }
     }
 }

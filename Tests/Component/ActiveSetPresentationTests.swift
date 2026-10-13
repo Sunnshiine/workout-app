@@ -316,47 +316,6 @@ struct SetCardPresentationTests {
     #expect(presentation.remainingText == "2 Sets left")
 }
 
-@Test func sessionSettingsOverpullStaysHiddenBelowRevealThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 60)
-
-    #expect(state == .hidden)
-}
-
-@Test func sessionSettingsOverpullRevealsWhenOverpullClearsThreshold() {
-    let state = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 72)
-
-    #expect(state == .pinned)
-}
-
-@Test func sessionSettingsOverpullStaysRevealedWhenSettlingShrinksOverpull() {
-    // The reveal must latch so top-edge geometry settling cannot snap it back to
-    // hidden mid-pull.
-    let revealed = SessionSettingsOverpullState.hidden.tracking(topContentOffset: 80)
-    #expect(revealed == .pinned)
-
-    let afterSettling = revealed.tracking(topContentOffset: 20)
-    #expect(afterSettling == .pinned)
-}
-
-@Test func pinnedSessionSettingsDismissesWhenScrollingIntoContent() {
-    let state = SessionSettingsOverpullState.pinned.tracking(topContentOffset: -20)
-
-    #expect(state == .hidden)
-}
-
-@Test func pinnedSessionSettingsDismissesAfterIdleDelay() {
-    #expect(SessionSettingsOverpullState.pinned.dismissedAfterIdle() == .hidden)
-}
-
-@Test func sessionSettingsOverpullCountsOnlyDistanceBeyondScrolledContent() {
-    let distance = SessionSettingsOverpullState.overpullDistance(
-        startTopContentOffset: -70,
-        translationHeight: 210
-    )
-
-    #expect(distance == 140)
-}
-
 @MainActor
 @Test func lastPerformedCardPresentationShowsLabelSetLogAndSource() {
     let entry = LastPerformedEntry(

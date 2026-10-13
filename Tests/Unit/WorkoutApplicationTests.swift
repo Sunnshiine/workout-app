@@ -212,6 +212,56 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
+    let app = try WorkoutApplication(
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+    )
+    app.settings.setSpreadsheet(id: "held-sheet")
+
+    let first = Task { try await app.sync() }
+    await client.waitUntilHeld()
+    await #expect(throws: ApplicationError.syncFailed(.clear)) { try await app.sync() }
+    client.release()
+
+    #expect(try await first.value.block?.tabName == "Block 27")
+    #expect(client.tabTitleReads == 1)
+}
+
+@MainActor
+@Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
+    let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
+    let app = try WorkoutApplication(
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+    )
+    app.settings.setSpreadsheet(id: "held-sheet")
+
+    let first = Task { try await app.sync() }
+    await client.waitUntilHeld()
+    await #expect(throws: ApplicationError.sheetSwitchFailed("A sync is already in progress.")) {
+        try await app.selectSpreadsheet(id: "other-sheet", title: nil)
+    }
+    client.release()
+
+    _ = try await first.value
+    #expect(try app.snapshot().spreadsheetId == "held-sheet")
+}
+
+@MainActor
+@Test func selectingAnotherSheetOverQueuedSetLogsAsksForTheirDiscard() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+
+    await #expect(throws: ApplicationError.sheetSwitchRequiresDiscard) {
+        try await app.selectSpreadsheet(id: "OTHER", title: nil)
+    }
+
+    let snapshot = try app.snapshot()
+    #expect(snapshot.spreadsheetId == "FIXTURE")
+    #expect(snapshot.pendingWriteCount == 1)
+}
+
+@MainActor
 @Test func aConflictedWriteIsReportedByEveryLaterFlushAndSync() async throws {
     let app = try await makeSelectedApp()
     let client = try #require(app.sheetsClient as? LocalWorkbookSheetsClient)

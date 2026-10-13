@@ -619,6 +619,14 @@ extension Theme {
     }
 }
 
+#if canImport(UIKit)
+    extension Theme {
+        static let selectedSegmentFill = UIColor { traits in
+            traits.userInterfaceStyle == .dark ? UIColor(palette(for: .night).action) : .white
+        }
+    }
+#endif
+
 // MARK: - Type roles (token sheet §4)
 //
 // Every text style is one row of this single role table — no view ever constructs a font (a

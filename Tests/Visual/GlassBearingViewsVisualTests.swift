@@ -70,8 +70,7 @@ struct GlassBearingViewsVisualTests {
             SessionProgressHeader(
                 session: session,
                 block: block,
-                currentSession: session,
-                sessionSettingsOverpullState: .pinned
+                currentSession: session
             )
             .padding(14)
             .frame(width: 360)
@@ -105,6 +104,7 @@ struct GlassBearingViewsVisualTests {
             }
             .environment(scenario.settings)
             .environment(sync)
+            .environment(SheetConnection(settings: scenario.settings, sync: sync) { scenario.store.reload() })
             .environment(scenario.store)
         }
     }

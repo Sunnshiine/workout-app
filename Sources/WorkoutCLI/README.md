@@ -44,7 +44,7 @@ with exit 3; run `init` again.
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
-| `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SyncCoordinator.sync` and `reload` | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
+| `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
 
 `init`, `sync`, and `flush` converge: running them twice gives the same state. `log` twice
 enqueues twice, because that is what the store does; the report shows it.

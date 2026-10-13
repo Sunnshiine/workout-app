@@ -101,7 +101,7 @@ struct GoogleSheetsClient: SheetsClient {
     static func forCurrentEnvironment() -> any SheetsClient {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.makeSheetsClient()
+                return UITestFixture.makeSheetsClient(launch: UITestFixture.launch)
             }
         #endif
         return GoogleSheetsClient()

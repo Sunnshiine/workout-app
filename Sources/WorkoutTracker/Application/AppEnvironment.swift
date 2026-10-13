@@ -59,13 +59,13 @@ public struct AppEnvironment {
     }
 
     #if DEBUG
-        static func uiTestFixture() -> AppEnvironment {
+        static func uiTestFixture(launch: UITestLaunch) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
-                sheetsClient: UITestFixture.makeSheetsClient(),
+                sheetsClient: UITestFixture.makeSheetsClient(launch: launch),
                 defaults: .inMemory(),
                 now: Date.init,
-                seed: { try UITestFixture.seed(into: $0, launch: UITestFixture.launch) }
+                seed: { try UITestFixture.seed(into: $0, launch: launch) }
             )
         }
     #endif

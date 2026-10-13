@@ -2,13 +2,11 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
-    @Environment(SyncCoordinator.self) private var sync
-    @Environment(WorkoutStore.self) private var workout
+    @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
     @State private var urlText = ""
     @State private var urlError = false
     @State private var showsURLFallback = false
-    @State private var switchStore: SettingsSheetSwitchStore?
     @State private var selectionErrorMessage: String?
 
     var body: some View {
@@ -41,11 +39,10 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .onAppear(perform: ensureSwitchStore)
         .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
             Button("OK", role: .cancel) { selectionErrorMessage = nil }
         } message: {
-            Text(selectionErrorMessage ?? "Something went wrong.")
+            Text(selectionErrorMessage ?? "")
         }
     }
 
@@ -176,13 +173,6 @@ struct OnboardingView: View {
         }
     }
 
-    private func ensureSwitchStore() {
-        guard switchStore == nil else { return }
-        switchStore = SettingsSheetSwitchStore(settings: settings, sync: sync) {
-            workout.reload()
-        }
-    }
-
     private func saveURL() {
         guard let id = extractSpreadsheetId(from: urlText) else {
             urlError = true
@@ -191,28 +181,8 @@ struct OnboardingView: View {
         Task { await commitSelection(SheetSelection(spreadsheetId: id, title: nil)) }
     }
 
-    /// Runs every onboarding selection through the same safe switch transaction as Settings:
-    /// sync the newly selected sheet first, then commit the selection. A failed sync leaves the
-    /// app on onboarding (no selection committed) rather than presenting a stale cached Block.
     private func commitSelection(_ selection: SheetSelection) async {
-        ensureSwitchStore()
-        guard let switchStore else { return }
-        switch await switchStore.requestSwitch(to: selection) {
-        case .switched, .unchanged:
-            // Committing the selection flips `destination` away from the picker; nothing else to do.
-            break
-        case .failed:
-            // The store sets a specific message for every failure path; the generic fallback only
-            // guards the invariant that a `.failed` switch always surfaces an alert (matching the
-            // alert body's own fallback), rather than restating the store's wording and drifting.
-            selectionErrorMessage = switchStore.errorMessage ?? "Something went wrong."
-        case .requiresConfirmation:
-            // Onboarding starts with no committed sheet, so a prior sheet's unsynced writes shouldn't
-            // normally reach here. Surface it rather than leaving the picker silently unresponsive;
-            // the full discard-and-confirm flow for pending writes lives in Settings.
-            selectionErrorMessage =
-                "You have unsynced changes from a previous sheet. Review them in Settings before switching."
-        }
+        selectionErrorMessage = await connection.requestSwitch(to: selection).onboardingMessage
     }
 }
 

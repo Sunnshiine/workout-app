@@ -17,8 +17,17 @@
 
         static let disablesAnimations = isEnabled && launch.disablesAnimations
 
-        static func makeSheetsClient() -> any SheetsClient {
-            FixtureSheetsClient(slowsSync: launch.slowsSync)
+        static func makeSheetsClient(launch: UITestLaunch) -> any SheetsClient {
+            var sheets = [
+                WorkoutFixtureScenarios.replacementSheetId: LocalWorkbookSheetsClient(
+                    spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
+                    tabs: [WorkoutFixtureScenarios.blockTab: WorkoutFixtureScenarios.replacementSheetGrid]
+                )
+            ]
+            if launch.startsWithPendingWrite {
+                sheets[WorkoutFixtureScenarios.sheetId] = LocalWorkbookSheetsClient(workbook: WorkoutFixtureScenarios.queuedWriteSheet)
+            }
+            return FixtureSheetsClient(slowsSync: launch.slowsSync, sheets: sheets)
         }
 
         @MainActor
@@ -57,6 +66,7 @@
 
     private struct FixtureSheetsClient: SheetsClient {
         let slowsSync: Bool
+        let sheets: [String: LocalWorkbookSheetsClient]
 
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
             if slowsSync {
@@ -79,24 +89,18 @@
         }
 
         func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-            guard spreadsheetId == WorkoutFixtureScenarios.replacementSheetId else {
+            guard let sheet = sheets[spreadsheetId] else {
                 throw SheetsError.malformedResponse
             }
-
-            return SheetSnapshot(
-                values: gridFromA1(
-                    [
-                        "C12": "Day 1", "S12": "Day 2", "AI12": "Day 3", "AX12": "Day 4",
-                        "C13": "5/1/2026",
-                        "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-                        "C15": "Replacement Squat", "D15": "1", "F15": "5", "H15": "RPE8"
-                    ],
-                    rows: 20,
-                    cols: 60
-                )
-            )
+            return try await sheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
         }
 
-        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+            try await updateCells(spreadsheetId: spreadsheetId, updates: [SheetValueRangeUpdate(range: range, values: values)])
+        }
+
+        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+            try await sheets[spreadsheetId]?.updateCells(spreadsheetId: spreadsheetId, updates: updates)
+        }
     }
 #endif

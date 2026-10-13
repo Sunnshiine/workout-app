@@ -4,13 +4,13 @@ import UIKit
 struct DeveloperToolsView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(SheetConnection.self) private var connection
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @State private var diagnostics: [PendingWriteDiagnostic] = []
     @State private var writeAuditDiagnostics: [WriteTargetAuditDiagnostic] = []
     @State private var diagnosticsErrorMessage: String?
     @State private var writeAuditErrorMessage: String?
-    @State private var isSyncInFlight = false
     @State private var forcedCelebrationSession: Session?
 
     var body: some View {
@@ -146,7 +146,7 @@ struct DeveloperToolsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.bordered)
-            .disabled(isSyncDisabled)
+            .disabled(!connection.canSyncNow)
             .accessibilityIdentifier("developer-tools-sync-button")
 
             SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
@@ -227,20 +227,10 @@ struct DeveloperToolsView: View {
         }
     }
 
-    private var isSyncDisabled: Bool {
-        isSyncInFlight || sync.isSyncing || settings.spreadsheetId == nil
-    }
-
     @MainActor
     private func syncConfiguredSheet() async {
-        guard let id = settings.spreadsheetId, !isSyncDisabled else { return }
-        isSyncInFlight = true
-        defer {
-            isSyncInFlight = false
-            loadDiagnostics()
-        }
-        await sync.sync(spreadsheetId: id)
-        workout.reload()
+        await connection.syncNow()
+        loadDiagnostics()
     }
 
     private func loadDiagnostics() {

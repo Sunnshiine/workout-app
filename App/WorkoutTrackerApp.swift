@@ -13,6 +13,7 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
+        UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG
             #if canImport(UIKit)
                 if UITestFixture.disablesAnimations {
@@ -28,7 +29,7 @@ struct WorkoutTrackerApp: App {
     private static func launchEnvironment() -> AppEnvironment {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return .uiTestFixture()
+                return .uiTestFixture(launch: UITestFixture.launch)
             }
         #endif
         return .device()
@@ -73,6 +74,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.sync)
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
+                .environment(app.connection)
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }

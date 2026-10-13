@@ -9,6 +9,7 @@ struct BlockOverviewView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @State private var isSettingsPresented = false
 
     let block: Block
     let currentSession: Session?
@@ -32,8 +33,12 @@ struct BlockOverviewView: View {
                         collapsedWeek(week)
                     }
                 }
+                settingsRow
             }
             .padding()
+        }
+        .sheet(isPresented: $isSettingsPresented) {
+            SettingsView()
         }
         .background {
             // The living paper under the page sunbeam — the warm morning falling from the
@@ -49,6 +54,21 @@ struct BlockOverviewView: View {
         }
         .navigationTitle(presentation.title)
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Text, not a gear: the Block grid carries zero icons (DESIGN.md §5.5).
+    private var settingsRow: some View {
+        Button {
+            isSettingsPresented = true
+        } label: {
+            Text("Settings")
+                .font(Theme.font(.queuePill))
+                .foregroundStyle(palette.textSecondary)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("block-overview-settings-row")
     }
 
     // MARK: - Focus week — the one week in morning light with the glowing rim

@@ -148,6 +148,22 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
     }
 
     @MainActor
+    func testBlockOverviewSettingsRowOpensSettingsFromTheStage() throws {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        app.buttons["session-location-button"].tap()
+        XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
+
+        tapWhenHittable(app.buttons["block-overview-settings-row"])
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
+
+        app.buttons["settings-done-button"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Block 27"].exists)
+    }
+
+    @MainActor
     func testCompletionStageListsOpenExercisesAndNavigatesToSource() throws {
         let app = launchWorkoutApp(fixture: .completedSessionWithOpenExercises)
 
