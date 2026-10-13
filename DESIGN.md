@@ -138,8 +138,9 @@ one serif voice — never from hype, density, or gamification.
   same room re-lit — never recolored, never neutral black.
 - **One living thing per page.** The Session stage's branch is the app's only
   flora and the stage's one illustrative icon — **maximum one illustrative
-  icon per page**. Control glyphs (back arrow, pin, X, and the queue sheet's
-  pairing stems, §5.4) do not count against it.
+  icon per page**. A control glyph, any glyph on or inside a tappable
+  control (the back arrow, pin, X, chevrons, the clear menu's ellipsis, and
+  the queue sheet's pairing stems, §5.4), does not count against it.
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
