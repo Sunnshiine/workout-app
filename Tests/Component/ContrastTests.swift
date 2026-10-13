@@ -86,8 +86,7 @@ private let paperGrid = (0...20).flatMap { row in
     (0...20).map { column in UnitPoint(x: Double(column) / 20, y: Double(row) / 20) }
 }
 
-/// A wash peaks at its centre, which the grid steps over, so every centre on the page is sampled too.
-private func paperPoints(_ palette: Theme.Palette) -> [UnitPoint] {
+private func paperGridAndWashCentres(_ palette: Theme.Palette) -> [UnitPoint] {
     paperGrid + palette.paper.washes.map(\.center).filter { (0...1).contains($0.x) && (0...1).contains($0.y) }
 }
 
@@ -105,21 +104,13 @@ private enum Surface: CaseIterable {
     case action
 
     func samples(_ palette: Theme.Palette) -> [GroundSample] {
-        let fills = fills(palette)
-        if let base = opaqueBase(palette) {
-            return [GroundSample(paperPoint: nil, ground: Ground(base: base, layers: fills))]
+        if self == .action {
+            return [GroundSample(paperPoint: nil, ground: Ground(base: palette.action, layers: []))]
         }
-        return paperPoints(palette).map { point in
+        let fills = fills(palette)
+        return paperGridAndWashCentres(palette).map { point in
             let paper = paperGround(palette, at: point)
             return GroundSample(paperPoint: point, ground: Ground(base: paper.base, layers: paper.layers + fills))
-        }
-    }
-
-    private func opaqueBase(_ palette: Theme.Palette) -> Color? {
-        switch self {
-        case .action: palette.action
-        case .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .raisedControl, .weekCard, .carvedChip:
-            nil
         }
     }
 
@@ -258,8 +249,6 @@ private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call
     )
 ]
 
-/// A parked pair still fails its bar, so `floor` (its ratio when parked, less 0.01) is what stops it
-/// sinking further unnoticed.
 private let parked: [ParkedPair: (floor: Double, reason: String)] = Dictionary(
     uniqueKeysWithValues: parkedRows.map { appearance, role, surface, floor, call in
         (
@@ -314,7 +303,6 @@ private func describe(_ sample: GroundSample) -> String {
     #expect(keyed.subtracting(roles).sorted() == [], "Use keys that name no palette role")
 }
 
-// withKnownIssue fails only on a row the matrix still measures, so a row whose pair left `uses` needs this.
 @Test func everyParkedPairIsOneTheMatrixMeasures() {
     let measured = Set(
         Theme.Appearance.allCases.flatMap { appearance in
@@ -363,8 +351,7 @@ private enum SettingsSheetAtRestOnIPhone17Pro {
     #expect(abs(ink.red - 21) <= 0.5 && abs(ink.green - 33) <= 0.5 && abs(ink.blue - 24) <= 0.5)
 }
 
-// The matrix parks this pair at the page foot, so this upper-stage ground is its only live guard.
-@Test func daySupersetPartnerNameReadsAsText() {
+@Test func daySupersetPartnerNameReadsAsTextWhereNoWashReaches() {
     let day = Theme.palette(for: Theme.Appearance.day)
     #expect(contrast(of: day.supersetPartnerName, over: dayUpperStageGround(day)) >= 4.5)
 }
@@ -391,7 +378,6 @@ func actionInkReadsAsTextOnItsHardestFill(appearance: Theme.Appearance, fill: Co
     #expect(contrast(of: actionInk, over: Ground(base: fill, layers: [])) >= 4.5)
 }
 
-// The matrix parks Night textSecondary on paper and card, so these drawn points are its only live guard.
 @Test(arguments: Theme.Appearance.allCases)
 func secondaryTextReadsAsTextWhereTheSettingsSheetDrawsIt(appearance: Theme.Appearance) {
     let palette = Theme.palette(for: appearance)

@@ -67,8 +67,6 @@ custom_rules:
     included: '.*/App/Views/.*'
     severity: error
 
-  # System hierarchical inks resolve against UIKit's grey label colours, not the Greenhouse palette,
-  # so ContrastTests cannot measure them (RETRO 8: UI-12 shipped Day text at 3.1:1 this way).
   system_ink_outside_the_palette:
     name: "System ink outside the palette"
     message: >
