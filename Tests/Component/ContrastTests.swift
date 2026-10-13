@@ -114,7 +114,7 @@ private enum Surface: CaseIterable {
     }
 
     func samples(_ palette: Theme.Palette) -> [GroundSample] {
-        let inks = paletteInks(palette)
+        let inks = paletteRoles(palette).inks
         let fills = fillRoles.compactMap { inks[$0] ?? nil }
         return paperGridAndWashCentres(palette).map { point in
             let paper = paperGround(palette, at: point)
@@ -260,8 +260,6 @@ private let nonInkTypes: Set<ObjectIdentifier> = [
     ObjectIdentifier(Theme.RadialLight?.self)
 ]
 
-/// Every Color and Color? property of the palette and its lighting, keyed by role name, and the
-/// labels of properties of any other type the walk does not know, so a new colour group cannot hide.
 private func paletteRoles(_ palette: Theme.Palette) -> (inks: [String: Color?], unclassified: [String]) {
     var inks: [String: Color?] = [:]
     var unclassified: [String] = []
@@ -280,10 +278,6 @@ private func paletteRoles(_ palette: Theme.Palette) -> (inks: [String: Color?], 
     }
     walk(palette, prefix: "")
     return (inks, unclassified)
-}
-
-private func paletteInks(_ palette: Theme.Palette) -> [String: Color?] {
-    paletteRoles(palette).inks
 }
 
 private struct WorstCase {
@@ -324,7 +318,7 @@ func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
 
 @Test(arguments: Theme.Appearance.allCases)
 func everyGroundIsASurfaceFillAndEveryFillResolves(appearance: Theme.Appearance) {
-    let inks = paletteInks(Theme.palette(for: appearance))
+    let inks = paletteRoles(Theme.palette(for: appearance)).inks
     let fillRoles = Set(Surface.allCases.flatMap(\.fillRoles))
     let grounds = Set(uses.compactMap { role, use in if case .ground = use { role } else { nil } })
     let quietFills = fillRoles.filter { role in
@@ -351,7 +345,7 @@ func everyGroundIsASurfaceFillAndEveryFillResolves(appearance: Theme.Appearance)
 @Test(arguments: Theme.Appearance.allCases)
 func everyBarredInkClearsItsBarOnEverySurfaceItIsDrawnOn(appearance: Theme.Appearance) {
     let palette = Theme.palette(for: appearance)
-    let inks = paletteInks(palette)
+    let inks = paletteRoles(palette).inks
     for (role, use) in uses.sorted(by: { $0.key < $1.key }) {
         guard case let ink?? = inks[role] else { continue }
         for (surface, bar) in use.requirements {
