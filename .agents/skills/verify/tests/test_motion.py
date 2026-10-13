@@ -64,12 +64,15 @@ def encode(path, scene, seconds, lossless=True):
     assert proc.wait() == 0, f"ffmpeg could not encode {path}"
 
 
-def around(top, bottom, left, right):
-    """The card's frame as the accessibility tree prints it, 4 pt outside the bright box the frames show."""
-    return f"@{left - 4},{top - 4} {right - left + 8}x{bottom - top + 8}"
+TREE_INSET_PT = 4
 
 
-RESTS = around(*STILL_BOX)
+def tree_frame_around(top, bottom, left, right):
+    i = TREE_INSET_PT
+    return f"@{left - i},{top - i} {right - left + 2 * i}x{bottom - top + 2 * i}"
+
+
+RESTS = tree_frame_around(*STILL_BOX)
 
 
 def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None,
@@ -123,16 +126,15 @@ SPRINGBOARD_FRAMES = 18
 
 
 def launched(app, fade_end=60, fade=20):
-    """The springboard fades out over the whole screen, its icons last, to black, holds black, and the app fades in
-    from it over fade frames ending on frame fade_end."""
+    fading_out, icons_alone = SPRINGBOARD_FRAMES - 6, SPRINGBOARD_FRAMES - 2
     def scene(i):
         icon = (100, 300, 12, 196)
-        if i < SPRINGBOARD_FRAMES - 6:
+        if i < fading_out:
             return PAPER, [icon]
-        if i < SPRINGBOARD_FRAMES - 2:
-            k = (SPRINGBOARD_FRAMES - 2 - i) / 5
+        if i < icons_alone:
+            k = (icons_alone - i) / (icons_alone - fading_out + 1)
             return round(PAPER * k), [icon + (round(CARD * k),)]
-        if i == SPRINGBOARD_FRAMES - 2:
+        if i == icons_alone:
             return 0, [icon + (round(CARD * 0.2),)]
         faded = i - fade_end + fade
         if faded <= 0:
@@ -202,7 +204,7 @@ def run_cardframe(*args):
 
 
 LAUNCH_DRIVE = "launch --animated session"
-SLID = around(200, 350, 16, 186)
+SLID = tree_frame_around(200, 350, 16, 186)
 
 
 class CardFrameOnClips(unittest.TestCase):
@@ -416,7 +418,8 @@ class CardFrameOnClips(unittest.TestCase):
         ])
 
     def test_a_20_pt_jump_in_the_last_two_frames_of_a_launch_reads_20_pt(self):
-        code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 196))
+        code, out, err = self.lines("launch-jump", drive=LAUNCH_DRIVE, drive_end=1.4,
+                                    card_pt=tree_frame_around(100, 280, 16, 196))
         self.assertEqual(code, 0, err)
         self.assertEqual(out, [
             "take=VALID animations=on frames=29 window_frames=3",
@@ -432,7 +435,7 @@ class CardFrameOnClips(unittest.TestCase):
 
     def test_a_20_pt_jump_in_a_launch_s_last_frame_that_brightens_x1_34_reads_edges_partial_and_still_unknown(self):
         video = self.clips["launch-jump-last"]
-        stamped = stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=around(100, 280, 16, 186))
+        stamped = stamp(video, drive=LAUNCH_DRIVE, drive_end=1.4, card_pt=tree_frame_around(100, 280, 16, 186))
         filmed = take.parse(stamped.read_text())
         found = cardframe.samples(video, filmed)
         jump = len(found) - 1
@@ -526,7 +529,7 @@ class CardFrameOnClips(unittest.TestCase):
     def test_a_card_that_jumps_while_faint_and_then_brightens_reads_edges_partial_and_cardstill_calls_it_invalid(self):
         video = self.clips["faint-tap"]
         stamp(video, drive="tap --id log-active-set-button", drive_start=0.3, drive_end=0.4,
-              card_pt=around(140, 300, 16, 186))
+              card_pt=tree_frame_around(140, 300, 16, 186))
         m = cardframe.measure(video)
         box = m.card.box
         self.assertEqual((box.first_seen, box.faint, box.partial, box.worst_edge_range), (0.8, 2, True, 0.0))
@@ -664,18 +667,16 @@ def lum(value, rows=100):
 
 
 def launch_frames(from_black=True, dim=False):
-    """The springboard fades out from mean luminance 120, holds black, and the app fades in from black with one
-    repeated frame mid-fade; the card slides 200 pt, and with dim the whole screen dims 1.3 s after it settles."""
-    found = [Sample(0.0, None, lum(120)), Sample(0.1, None, lum(90)), Sample(0.12, None, lum(60)),
-             Sample(0.14, None, lum(30))]
-    if from_black:
-        found += [Sample(0.16, None, lum(30, rows=60)), Sample(0.18, None, DARK), Sample(0.6, None, DARK)]
-    found += [Sample(0.8, None, lum(40)), Sample(0.85, None, lum(80)), Sample(0.9, None, lum(80)),
-              Sample(0.95, card(100), lum(120)), Sample(0.98, card(100), lum(160)), Sample(1.0, card(100), FLAT)]
-    found += [Sample(round(1.0 + 0.1 * k, 3), card(100 + 50 * k), lit(10 * k)) for k in range(1, 5)]
-    if dim:
-        found += [Sample(round(2.7 + 0.02 * k, 3), card(300), FLAT * (1 - 0.05 * k)) for k in range(1, 5)]
-    return found
+    springboard_fading_out = [Sample(0.0, None, lum(120)), Sample(0.1, None, lum(90)), Sample(0.12, None, lum(60)),
+                              Sample(0.14, None, lum(30))]
+    black = [Sample(0.16, None, lum(30, rows=60)), Sample(0.18, None, DARK), Sample(0.6, None, DARK)]
+    fading_in_with_a_repeat = [Sample(0.8, None, lum(40)), Sample(0.85, None, lum(80)), Sample(0.9, None, lum(80)),
+                               Sample(0.95, card(100), lum(120)), Sample(0.98, card(100), lum(160)),
+                               Sample(1.0, card(100), FLAT)]
+    sliding_200_pt = [Sample(round(1.0 + 0.1 * k, 3), card(100 + 50 * k), lit(10 * k)) for k in range(1, 5)]
+    dimming = [Sample(round(2.7 + 0.02 * k, 3), card(300), FLAT * (1 - 0.05 * k)) for k in range(1, 5)]
+    return (springboard_fading_out + (black if from_black else []) + fading_in_with_a_repeat + sliding_200_pt
+            + (dimming if dim else []))
 
 
 class Summarize(unittest.TestCase):

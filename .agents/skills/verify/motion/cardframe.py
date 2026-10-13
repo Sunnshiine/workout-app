@@ -455,11 +455,11 @@ def look_of(window: Sequence[Sample], settled: Card) -> Look:
     return Look(d, frames, (window[depart].t, window[settle].t))
 
 
-def _fits(settled: Card, card_pt: Frame, moving: bool) -> bool:
+def _fits(settled: Card, card_pt: Frame, tree_holds_destination: bool) -> bool:
     x, y = card_pt.center
     return (abs(settled.bottom - settled.top - card_pt.height) <= HEIGHT_PT
             and abs((settled.left + settled.right) / 2 - x) <= MIDDLE_PT
-            and (moving or abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT))
+            and (tree_holds_destination or abs((settled.top + settled.bottom) / 2 - y) <= MIDDLE_PT))
 
 
 def card_of(card_pt: Union[Frame, Literal["none"]], window: Sequence[Sample], at: float) -> Union[Seen, NoCard]:
@@ -470,9 +470,8 @@ def card_of(card_pt: Union[Frame, Literal["none"]], window: Sequence[Sample], at
         return NoCard(f"none of the {len(window)} frames from {at:.3f} s showed it")
     settled = last.card
     box = box_of(window, settled)
-    # The tree is read after the recorder stops, so it holds where a box still moving then was going.
-    moving = box.motion is not None and box.motion[1] == last.t
-    if not _fits(settled, card_pt, moving):
+    still_moving_at_stop = box.motion is not None and box.motion[1] == last.t
+    if not _fits(settled, card_pt, tree_holds_destination=still_moving_at_stop):
         return NoCard(f"the box read last, {_span(settled.top, settled.bottom)} {_span(settled.left, settled.right)}, "
                       f"is not where the accessibility tree put active-set-card, {card_pt.text}")
     return Seen(box, look_of(window, settled))
