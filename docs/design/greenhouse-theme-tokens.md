@@ -47,9 +47,9 @@ are recorded inline.
 | `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
 | `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
 | `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
-| `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint: the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
+| `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint (not Settings action rows): the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
 | `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
-| `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint: actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
+| `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint (not Settings action rows): actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
 | `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
 | `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
 | `paperDayTop` → `paperDayBottom` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
@@ -139,7 +139,6 @@ composition itself are locked by #455.
 | `actionText` | cream | cream |
 | `actionInk` (green words and glyphs on paper, system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
-| pressed/logged fill | `#0A5936` | — (build) |
 | `skipFillOverlay` | muted @ 30% | — (build) |
 | skipped state | transparent, muted text, `1.5px dashed skipStroke` | same recipe |
 
