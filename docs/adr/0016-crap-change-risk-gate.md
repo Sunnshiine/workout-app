@@ -20,7 +20,7 @@ The gate fails on a new function above 6, on a baselined function that got worse
 baseline row that no longer applies, so the baseline can only shrink.
 
 The measured scope is what `swift test` compiles: the `WorkoutTracker` library target and
-`WorkoutCLI`. `Views/`, `LiveActivity/`, `Sheets/GoogleAuth.swift`, `WorkoutTrackerApp.swift`,
+`WorkoutCLI`. `App/` (Views, the Live Activity controller, Google sign-in, the entry point),
 `WorkoutShared/`, and `WorkoutWidgets/` are unmeasured, about a third of production Swift. Code
 that compiles only on iOS (`#if canImport(UIKit)`) is listed as unmeasured, not scored as
 uncovered. Meeting the target means meeting it across the measured scope; the unmeasured scope

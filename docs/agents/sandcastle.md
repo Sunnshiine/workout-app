@@ -89,7 +89,7 @@ issues are open).
   (XCUITest) remain off-limits in the agent loop — the sighted loop replaces
   the screenshot-tour idea, which was rejected (#469).
 - **Commit prefixes.** CI agents use conventional commits. The local loop
-  uses `SANDCASTLE:` — never `RALPH:`, which is reserved for the Ralph loop.
+  uses `SANDCASTLE:`.
 - **Agent model** is set per script in `.sandcastle/**/*.ts`, as the first argument to
   `sandcastle.claudeCode(...)`.
 
