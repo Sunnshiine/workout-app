@@ -18,31 +18,6 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
 
 Create a GitHub issue.
 
-## Issue body conventions for Ralph
-
-Ralph reads issue bodies before autonomous implementation begins. If a
-`ready-for-agent` issue intentionally requires changes to UI integration tests
-under `Tests/UI/**`, the issue body must include this exact line:
-
-```markdown
-UI integration test edits: authorized
-```
-
-Put it in a dedicated section such as:
-
-```markdown
-## Test authority
-
-UI integration test edits: authorized
-
-Scope: Tests/UI/WorkoutTrackerUITests.swift may be updated to cover the new flow.
-```
-
-Only include this marker when UI integration test edits are an intentional part
-of the issue contract. Do not rely on comments or Agent Briefs for this
-authorization; the body is the durable source Ralph can snapshot before agents
-run.
-
 ## When a skill says "fetch the relevant ticket"
 
 Read the issue as in **Read an issue** above.
