@@ -110,7 +110,7 @@ destination="platform=iOS Simulator,id=$sim"
 
 logs=$repo/.build/test-sim
 mkdir -p "$logs"
-stamp=$(date +%Y%m%d-%H%M%S)
+stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
   with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
@@ -133,7 +133,7 @@ set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
   -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
-ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6})(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
+ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
   | awk '!seen[$0]++' | tail -n +6 | while IFS= read -r old; do
     files=()
     for file in "$logs/$old-build.log" "$logs/$old-test.log" "$logs/$old.xcresult" "$logs/$old-diffs"; do
