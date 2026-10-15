@@ -6,7 +6,7 @@ You are an expert code reviewer. Your job is **not just to comment** — activel
 
 # CONTEXT
 
-Read `CONTEXT.md`, `CODING_STANDARDS.md`, and any relevant ADRs under `docs/adr/` before starting. For UI work, `DESIGN.md` records the design system (Liquid Glass, ADR-0004).
+Read `CONTEXT.md`, `CODING_STANDARDS.md`, and any relevant ADRs under `docs/adr/` before starting. For UI work, `DESIGN.md` records the design system (Greenhouse, ADR-0014).
 
 <linked-issue>
 

@@ -1,7 +1,12 @@
-# ADR 0014: One Set Card, Two Modes
+# ADR 0019: One Set Card, Two Modes
 
 **Status:** Accepted
 **Date:** 2026-07-18
+
+> Amended note, 2026-10-15: this ADR was numbered 0014 alongside the Greenhouse ADR; it is
+> 0019 so each number names one decision. `RPEScaleScroller` has since become the
+> `ValueRail` in `SmartValuePills`, driven by `RPEScalePresentation`, and
+> `SetCardPresentation` lives in `Session/`, not `Progress/`.
 
 ## Context
 

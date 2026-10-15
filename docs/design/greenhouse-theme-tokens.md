@@ -304,10 +304,8 @@ Replaces the 8 / 16 / 28 scale.
 
 ## 9. Carried forward / build flags (no new decisions)
 
-- `danger` stays the current system red pending the DESIGN.md rewrite; no
-  Greenhouse prototype styled an error state.
+- `danger` stays system red pending a danger pass; no Greenhouse prototype
+  styled an error state.
 - Exercise History sheet night values follow the #418 sheet recipe (#434
   flagged: not re-prototyped — validate during the build).
 - Block grid night values follow #419 (foliage tiles, deep-ink text).
-- The SwiftLint font rule and the palette-struct reshaping are
-  implementation work for the /to-spec build, out of scope for this map.

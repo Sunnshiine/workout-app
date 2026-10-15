@@ -3,6 +3,14 @@
 **Status:** Accepted
 **Date:** 2026-06-12
 
+> Amended note, 2026-10-15: the stage still renders one item at a time, but its parts have
+> moved on. The position label and the glass "Up next" bar are gone; the foot shows a plain
+> `Up next ·` preview beside the `N of M` queue pill. `SessionStagePresentation` and
+> `SessionCoordinator.renderItems` were replaced by `SessionCoordinator.stage(in:lookup:)`,
+> which returns a `SessionStage` (c0f7df5). The header is no longer glass and has no
+> overpull-to-Settings gesture. The deferred `SessionExerciseRenderConfig` pruning landed in
+> 9235695. ADR-0019 replaced the Logged Set Review Card.
+
 ## Context
 
 The Session View had grown into a vertical scroll of every Exercise in the

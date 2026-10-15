@@ -74,7 +74,7 @@ load-bearing decisions:
   committed baselines plus all 22 Greenhouse Day/Night renders (paper washes, bundled
   Fraunces/Source Sans 3) byte-identical across a simulator reboot and a clean rebuild —
   exact precision stands. Known exception: the two animation-frame fixtures surfaced by
-  #471 (`moveOnCelebrationView`, `seededSessionView`) remain nondeterministic until their
+  #471 (`seededSessionView`, and `moveOnCelebrationView` until #505 removed it) remain nondeterministic until their
   fixtures freeze animation (ticketed separately).
 - Proposal §3 is superseded. The proposal's "hard adoption gate" (a package must delete
   app-owned code to earn its place) is consciously not applied here: this dependency is

@@ -5,7 +5,7 @@ colors:
   # The paint box (see docs/design/greenhouse-theme-tokens.md for the full role sheet)
   ink: "#152118"
   ink-night: "#EFF3E3"
-  muted: "#526457"
+  muted: "#404E44"
   muted-night: "#9AAA9B"
   cream: "#F2F7E8"
   action-day: "#0D6B40"
