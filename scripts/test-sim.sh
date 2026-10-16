@@ -37,7 +37,8 @@ when none of them changed in the last 24 hours, as for a run killed before its r
 (SIGKILL, power loss). Copy a bundle or diff you cite into your proof directory, since only five
 runs are kept.
 Exits 69 when xcodebuild failed and its log shows a simulator fault rather than a test result, such as
-a launch that returned no process handle or a CoreSimulator SimError. It shuts the simulator down
+a launch that returned no process handle, a CoreSimulator SimError, or a test the simulator's
+shutdown killed with SIGTERM. It shuts the simulator down
 first, so rerunning the same command boots it fresh.
 When a snapshot does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the
 reference, failure, and difference images.
@@ -144,6 +145,10 @@ rc=$?
 # What xcodebuild prints when CoreSimulator or the test runner breaks rather than the app (#537, #908).
 # Not "Early unexpected exit": an app that crashes at launch prints it too.
 fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd' "$log") || true
+# A simulator that shuts down mid-run SIGTERMs the app; xcodebuild restarts past it, and only the
+# result bundle names the signal. An app's own crash is abrt, segv, trap or kill.
+[ $rc = 0 ] || [ -n "$fault" ] || fault=$(xcrun xcresulttool get test-results tests --path "$bundle" --compact 2>/dev/null \
+  | grep -m1 -o 'Test crashed with signal term') || true
 ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
   | awk '!seen[$0]++' | tail -n +6 | while IFS= read -r old; do
     files=()
