@@ -108,6 +108,8 @@ more) starts no run.
   another `test-sim.sh` run or a verify run holds it, or after waiting up to 540 s
   (`WORKOUT_ADMIT_WAIT`) for free memory, a simulator seat (an idle lane's is reclaimed), or a build
   slot, a budget that restarts each time a build slot changes hands; `--help` names each.
+  It exits 69 when the simulator broke rather than a test, as when a launch returns no process
+  handle (#537). It shuts that simulator down first, so rerun the same command; do not debug the app.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

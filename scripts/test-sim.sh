@@ -36,6 +36,9 @@ when its test log ends with a result line and none of them changed in the last 3
 when none of them changed in the last 24 hours, as for a run killed before its result line
 (SIGKILL, power loss). Copy a bundle or diff you cite into your proof directory, since only five
 runs are kept.
+Exits 69 when xcodebuild failed and its log shows a simulator fault rather than a test result, such as
+a launch that returned no process handle or a CoreSimulator SimError. It shuts the simulator down
+first, so rerunning the same command boots it fresh.
 When a snapshot does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the
 reference, failure, and difference images.
 The last line, on every exit after this usage text, is
@@ -138,6 +141,9 @@ set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
   -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
+# What xcodebuild prints when CoreSimulator or the test runner breaks rather than the app (#537, #908).
+# Not "Early unexpected exit": an app that crashes at launch prints it too.
+fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd' "$log") || true
 ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log|\.xcresult|-diffs)$/\1/p' \
   | awk '!seen[$0]++' | tail -n +6 | while IFS= read -r old; do
     files=()
@@ -151,6 +157,11 @@ ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log
     [ -z "$(find "${files[@]}" -maxdepth 0 -mmin -$quiet)" ] && rm -rf "${files[@]}"
   done
 set -e
+if [ -n "$fault" ]; then
+  xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true
+  echo "simulator fault, not a test result: the log says \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first" >&2
+  rc=69
+fi
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2

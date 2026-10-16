@@ -50,6 +50,7 @@ if [ "\$1" = xcresulttool ]; then
     [ "\$4 \$5" = "summary --path" ] && cat "\$6/summary" 2>/dev/null
     exit
 fi
+[ "\$1 \$2" != "simctl shutdown" ] || { echo "\$*" >>"$root/shutdowns"; exit 0; }
 [ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
 echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"},{"udid":"$other_sim","state":"Booted","name":"iPhone 17"}]}}'
 STUB
@@ -117,6 +118,32 @@ check "a failing run fails with xcodebuild's status" 65 \
 ✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
 	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.004) seconds
 ** TEST EXECUTE FAILED **"
+
+fault_advice="simulator fault, not a test result: the log says \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first"
+rm -f "$root/shutdowns"
+check "a launch that returns no process handle is a simulator fault: exit 69, and the simulator is shut down" 69 \
+"✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
+** TEST EXECUTE FAILED **" "$(printf "$fault_advice" "did not return a process handle nor launch error")" 65 \
+"◇ Test run started.
+Failed to get launch progress for <XCUIApplicationImpl: com.sunnypatel.WorkoutTracker>: Error Domain=NSPOSIXErrorDomain Code=3 \"No such process\"
+Application launch for 'com.sunnypatel.WorkoutTracker' did not return a process handle nor launch error.
+✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
+** TEST EXECUTE FAILED **"
+if [ "$(cat "$root/shutdowns" 2>/dev/null)" = "simctl shutdown $sim" ]; then ok "and it shut that simulator down once"
+else bad "and it shut that simulator down once: $(cat "$root/shutdowns" 2>/dev/null)"; fi
+rm -f "$root/shutdowns"
+check "a CoreSimulator error that stops xcodebuild before the run is a simulator fault" 69 \
+"xcodebuild: error: Failed to prepare device for impending launch. (Underlying Error: The operation couldn't be completed. (com.apple.CoreSimulator.SimError error 405.))" "$(printf "$fault_advice" "com.apple.CoreSimulator.SimError")
+xcodebuild exited 69 before the test run finished; the lines above and the log say why" 70 \
+"xcodebuild: error: Failed to prepare device for impending launch. (Underlying Error: The operation couldn't be completed. (com.apple.CoreSimulator.SimError error 405.))"
+rm -f "$root/shutdowns"
+check "a test failure that names no simulator fault keeps xcodebuild's status and leaves the simulator up" 65 \
+"✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
+** TEST EXECUTE FAILED **"
+[ ! -e "$root/shutdowns" ] && ok "and shut nothing down" || bad "and shut nothing down: $(cat "$root/shutdowns")"
 
 check "an XCTest run passes on its Executed line" 0 \
 "	 Executed 12 tests, with 0 failures (0 unexpected) in 41.203 (41.311) seconds
