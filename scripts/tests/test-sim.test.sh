@@ -34,7 +34,7 @@ cat >"$root/bin/xcodebuild" <<'STUB'
 #!/bin/sh
 printf '%s\n' "$@" >"$STUB_ARGS"
 while [ $# -gt 0 ]; do
-    [ "$1" != -resultBundlePath ] || [ -z "${STUB_SUMMARY:-}" ] || mkdir "$2"
+    [ "$1" != -resultBundlePath ] || [ -z "${STUB_SUMMARY:-}" ] || { mkdir -p "$2" && printf '%s\n' "$STUB_SUMMARY" >"$2/summary"; }
     shift
 done
 cat "$STUB_LOG"
@@ -46,7 +46,7 @@ STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
 if [ "\$1" = xcresulttool ]; then
-    [ -n "\${STUB_SUMMARY:-}" ] && [ "\$4 \$5" = "summary --path" ] && [ -d "\$6" ] && printf '%s\n' "\$STUB_SUMMARY"
+    [ "\$4 \$5" = "summary --path" ] && cat "\$6/summary" 2>/dev/null
     exit
 fi
 [ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
@@ -479,12 +479,13 @@ echo notes >"$logs/README.txt"
 mkdir "$logs/unit.xcresult"
 touch -t 202001010000 "$logs/20200101-000000-notes.txt" "$logs/20991231-000002-notes.txt" "$logs/README.txt" "$logs/unit.xcresult"
 rc=0 STUB_STAMP=20991231-000000 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' run --no-build --sim "$sim" unit
+own=$(basename "$(sed -n 's/^bundle: //p' "$root/out")" .xcresult)
 expect "a run deletes every file of a finished run older than the five written last, whatever their stamps sort as" \
     "$(tail -1 "$root/out" | sed 's/ load1=.*bundle=/ bundle=/'; ls "$logs")" \
-"test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/20991231-000000.xcresult
+"test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/$own.xcresult
 20200101-000000-notes.txt
-20991231-000000-test.log
-20991231-000000.xcresult
+$own-test.log
+$own.xcresult
 20991231-000001-notes.txt
 20991231-000002-notes.txt
 20991231-000003-build.log
@@ -513,8 +514,8 @@ expect "a run deletes every file of a finished run older than the five written l
 20991231-000012.xcresult
 README.txt
 unit.xcresult"
-expect "a run's test log ends with its result line" "$(tail -1 "$logs/20991231-000000-test.log")" \
-    "test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=$logs/20991231-000000.xcresult"
+expect "a run's test log ends with its result line" "$(tail -1 "$logs/$own-test.log")" \
+    "test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 load1=1.50/2.50 bundle=$logs/$own.xcresult"
 expect "a file whose name only starts with a stamp, even a deleted run's, and a file with no stamp, survive" \
     "$(cd "$logs" && ls -d 20200101-000000-notes.txt 20991231-000001-notes.txt 20991231-000002-notes.txt README.txt unit.xcresult)" \
 "20200101-000000-notes.txt
@@ -540,11 +541,11 @@ printf '%s\n' "** BUILD FAILED **" >"$root/xcodebuild.log"
 rm -rf "$logs"
 STUB_STAMP=20991231-000009 run --sim "$sim" unit
 expect "a run that fails in the build writes its result line to its test log" \
-    "$(cat "$logs/20991231-000009-test.log")" "$(result unit 65)"
+    "$(cat "$logs"/20991231-000009-*-test.log)" "$(result unit 65)"
 
 printf '%s' "◇ Test run started." >"$root/xcodebuild.log"
 STUB_STAMP=20991231-000010 run --no-build --sim "$sim" unit
-expect "a result line lands on its own line after a log cut off mid-line" "$(tail -1 "$logs/20991231-000010-test.log")" \
+expect "a result line lands on its own line after a log cut off mid-line" "$(tail -1 "$(sed -n 's/^log: //p' "$root/out")")" \
     "$(result unit 65)"
 
 rm -rf "$logs"
@@ -563,10 +564,34 @@ done
 touch "$root/release"
 wait "$pid"
 status=$?
+own=$(basename "$(sed -n 's/^bundle: //p' "$root/in-progress.out")" .xcresult)
 expect "a run still in xcodebuild survives five later runs in its checkout and ends with its bundle" \
     "$status $(tail -1 "$root/in-progress.out" | sed 's/ load1=.*bundle=/ bundle=/') $(cd "$logs" && ls -d 20991231-100000*)" \
-    "0 test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/20991231-100000.xcresult 20991231-100000-test.log
-20991231-100000.xcresult"
+    "0 test-sim: suite=unit passed=1 failed=0 expected=0 exit=0 bundle=$logs/$own.xcresult $own-test.log
+$own.xcresult"
+
+rm -f "$root/release"
+pids=()
+for n in 1 2; do
+    [ $n = 1 ] && udid=$sim || udid=$other_sim
+    STUB_RELEASE=$root/release STUB_STAMP=20991231-200000 STUB_SUMMARY="{\"passedTests\":$n,\"failedTests\":0,\"expectedFailures\":0}" \
+        STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/same-second-$n.out STUB_SEEN=$root/same-second-$n.seen \
+        HOME=$root/home PATH="$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" --no-build --sim "$udid" unit >"$root/same-second-$n.out" 2>"$root/same-second-$n.err" &
+    pids+=($!)
+done
+for _ in $(seq 50); do [ -e "$root/same-second-1.seen" ] && [ -e "$root/same-second-2.seen" ] && break; sleep 0.1; done
+touch "$root/release"
+wait "${pids[@]}"
+for n in 1 2; do
+    out=$root/same-second-$n.out
+    expect "run $n of two started in the same second reports its own counts and bundle in its output and its log" \
+        "$(tail -1 "$out" | sed 's/ load1=.*bundle=/ bundle=/'; tail -1 "$(sed -n 's/^log: //p' "$out")" | sed 's/ load1=.*bundle=/ bundle=/')" \
+        "test-sim: suite=unit passed=$n failed=0 expected=0 exit=0 bundle=$(sed -n 's/^bundle: //p' "$out")
+test-sim: suite=unit passed=$n failed=0 expected=0 exit=0 bundle=$(sed -n 's/^bundle: //p' "$out")"
+done
+expect "two runs started in the same second get distinct log and bundle paths" \
+    "$(grep -hE '^(log|bundle): ' "$root"/same-second-*.out | sort -u | wc -l | tr -d ' ')" 4
 
 STUB_SUMMARY='not json' run --no-build --sim "$sim" unit
 expect "an unreadable summary leaves the counts unknown" "$(tail -1 "$root/out")" \
