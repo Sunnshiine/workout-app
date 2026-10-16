@@ -90,7 +90,7 @@ used() {
     python3 -c 'import os, sys, time; t = time.time() - int(sys.argv[2]) * 60; os.utime(sys.argv[1], (t, t))' "/tmp/workout-verify-$1/lock" "$2"
 }
 minutes_old() { python3 -c 'import os, sys, time; print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))' "$1"; }
-# Six booted at the cap: four other devices last used 60 min ago, and two lanes, $P-5 used 5 min ago
+# Six booted at the cap of six these tests set: four other devices last used 60 min ago, and two lanes, $P-5 used 5 min ago
 # and $P-6 30 min ago, so $P-6 is the least recently used lane. $P-7 is the Shutdown lane to boot.
 crowd() {
     fresh
@@ -115,7 +115,7 @@ expect "list shows the lane and the template, and nothing booted" "$(listing)" \
     "UDID	STATE	ROLE	NAME
 $P-2	Shutdown	lane	workout-lane-a
 $P-1	Shutdown	template	workout-template-v1
-booted: 0 of cap 6"
+booted: 0 of cap 10"
 
 pool create a
 expect "a second create prints the same UDID and clones nothing" "$status $(cat "$root/out") | $(calls)" "0 $P-2 | "
@@ -181,14 +181,15 @@ expect "delete while a verify run's app is live exits 75 and deletes nothing" \
 for n in 1 2 3 4 5 6; do seed "iPhone 17 Pro $n" Booted; done
 xcrun simctl shutdown "$P-2"
 rm -f "$root/calls"
-WORKOUT_ADMIT_WAIT=0 pool boot a
-expect "boot with six others booted exits 75 and boots nothing" "$status $(refusal) | $(calls)" \
+WORKOUT_SIM_CAP=6 WORKOUT_ADMIT_WAIT=0 pool boot a
+expect "boot with six others booted at a cap of six exits 75 and boots nothing" "$status $(refusal) | $(calls)" \
     "75 gave up after N s waiting for the host before booting $P-2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP) | "
-WORKOUT_SIM_CAP=7 pool boot a
-expect "a cap of seven admits it" "$status $(cat "$root/out")" "0 $P-2"
-expect "list counts every booted device on the host" "$(listing | tail -1)" "booted: 7 of cap 6"
+pool boot a
+expect "the default cap of ten admits it" "$status $(cat "$root/out")" "0 $P-2"
+expect "list counts every booted device on the host" "$(listing | tail -1)" "booted: 7 of cap 10"
 
 echo "idle seats"
+export WORKOUT_SIM_CAP=6
 crowd
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "at the cap, boot shuts down the least recently used idle lane, never another device, then boots" \
@@ -271,6 +272,7 @@ expect "boot starts the lane's idle clock, since a raw xcodebuild after it takes
 used "$P-7" 30
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "and restarts it on a lane already booted" "$status $(calls) $(minutes_old "/tmp/workout-verify-$P-7/lock")" "0 bootstatus $P-7 -b 0"
+unset WORKOUT_SIM_CAP
 
 fresh
 seed workout-lane-load
@@ -318,7 +320,7 @@ clone $P-3 workout-lane-a | UDID	STATE	ROLE	NAME
 $P-4	Shutdown	lane	workout-lane-a
 $P-2	Shutdown	lane	workout-lane-old
 $P-3	Shutdown	template	workout-template-v1
-booted: 0 of cap 6"
+booted: 0 of cap 10"
 
 fresh
 seed workout-template-v2
@@ -329,7 +331,7 @@ expect "a newer recipe's template survives an older script, which builds and clo
 $P-3	Shutdown	lane	workout-lane-a
 $P-2	Shutdown	template	workout-template-v1
 $P-1	Shutdown	newer-template	workout-template-v2
-booted: 0 of cap 6"
+booted: 0 of cap 10"
 
 fresh
 seed workout-template-v2
@@ -342,7 +344,7 @@ expect "delete-template deletes this recipe's template and a crashed build, and 
 delete $P-4 | UDID	STATE	ROLE	NAME
 $P-3	Shutdown	lane	workout-lane-a
 $P-1	Shutdown	newer-template	workout-template-v2
-booted: 0 of cap 6"
+booted: 0 of cap 10"
 pool delete-template
 expect "a second delete-template exits 0 with a note" "$status $(cat "$root/err") | $(calls)" \
     "0 sim-pool: no workout-template-v1 to delete | "
@@ -358,7 +360,7 @@ chmod +x "$root/broken/sim-keyboard.sh"
 expect "a template build that fails after booting exits 70 and deletes the booted half-built device" \
     "$? $(tail -1 "$root/err") | $(calls | tail -2 | tr '\n' ' ')| $(listing)" \
     "70 sim-pool: scripts/sim-keyboard.sh ensure $P-1 failed; deleting $P-1, the workout-template-v1-building that failed, so it holds no seat of the cap | shutdown $P-1 delete $P-1 | UDID	STATE	ROLE	NAME
-booted: 0 of cap 6"
+booted: 0 of cap 10"
 
 fresh
 "$scripts/sim-pool.sh" create a >"$root/out-a" 2>&1 &

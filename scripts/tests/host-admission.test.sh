@@ -304,24 +304,24 @@ WORKOUT_MEM_FLOOR=-1 test_sim --no-build; status=$?
 expect "a negative floor is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_MEM_FLOOR must be a whole number: -1"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
-expect "six other booted simulators refuse a claim that would boot a seventh" "$status $(builds)" "75 "
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "ten other booted simulators refuse a claim that would boot an eleventh" "$status $(builds)" "75 "
 expect "the refusal names the count and the knob" "$(refusal)" \
-    "gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 
 reset
-STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a simulator already booted boots nothing, so the cap does not hold it" "$status $(builds)" "65 test-without-building"
 
 reset
 for verb in "launch session" install; do
     read -ra argv <<< "$verb"
-    STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify "${argv[@]}" >"$root/out" 2>"$root/err"; status=$?
+    STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 verify "${argv[@]}" >"$root/out" 2>"$root/err"; status=$?
     expect "verify.sh $verb boots a shut-down simulator only through admission" \
         "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(grep '^gave up' "$root/err" | sed 's/^gave up after [0-9]* s/gave up after N s/')" \
-        "75 0 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+        "75 0 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 done
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify build >"$root/out" 2>"$root/err"; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 verify build >"$root/out" 2>"$root/err"; status=$?
 expect "verify.sh build boots nothing, so the cap does not hold it" "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(builds)" "65 0 build"
 
 reset
@@ -330,11 +330,11 @@ expect "a simulator still shutting down waits, so the cap counts its boot" "$sta
     "75 gave up after N s waiting for the host before taking $sim: $sim is shutting down"
 
 reset
-STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=10 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
 for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
-STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=10 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 wait "$first"
 expect "a build claim waiting at the cap holds no build slot" "$status $(builds)" "65 build-for-testing"
 
@@ -388,16 +388,16 @@ STUB_LIST_WARNING=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a warning simctl prints beside a good listing does not hold the claim" "$status $(builds)" "65 test-without-building"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build unit >"$root/out" 2>"$root/err"; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build unit >"$root/out" 2>"$root/err"; status=$?
 expect "a claim the host refuses boots nothing" "$status $(cat "$root/xcrun-calls" 2>/dev/null)" "75 "
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=5 test_sim --no-build; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=9 test_sim --no-build; status=$?
 expect "an admitted claim boots its shut-down simulator before the run" "$status $(cat "$root/xcrun-calls") $(builds)" \
     "65 simctl boot $sim test-without-building"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >"$root/out" 2>"$root/err"; status=$?
 expect "the next claim counts a simulator the last claim booted" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim2: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 
 reset
 mkdir -p "$root/herd"
@@ -414,33 +414,33 @@ printf '%s\\n' "\$listing"
 STUB
 chmod +x "$root/herd/xcrun"
 rm -f "$root/herd-listed"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
 wait "$first"; status="$? $status"
 expect "two claims that both counted 5 booted boot one simulator between them, not two" \
     "$status $(grep -c 'simctl boot' "$root/xcrun-calls")" "65 75 1"
 
 reset; rm -f "$root/herd-listed"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=5 \
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=5 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 second=$!
 wait "$first"; rm -f "$root/builds"
 for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 wait "$second"
 expect "a build claim the recount turns away gives its build slot back" "$status $(builds)" "65 build-for-testing"
 
 reset
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
 touch "$root/release"; wait "$first"
 expect "a claim holds the admit lock through its boot, so no other boot starts meanwhile" \
@@ -530,9 +530,9 @@ expect "claims that boot a simulator are admitted one at a time" "$status $(refu
     "75 gave up after N s waiting for the host before taking $sim: another claim is booting a simulator (lsof $root/locks/admit lists it)"
 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a booted simulator does not wait behind another claim's boot" "$status $(builds)" "65 test-without-building"
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim the cap refuses never waits for the admit lock" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 kill "$admitting"; wait "$admitting" 2>/dev/null
 
 reset
@@ -540,9 +540,9 @@ STUB_LIST_GARBAGE_FROM_CALL=2 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$
 expect "a simulator listing that is no device list holds the claim" "$status $(refusal | sed 's/device list: .*/device list: .../')" \
     "75 gave up after N s waiting for the host before taking $sim: xcrun simctl list devices printed no device list: ..."
 reset
-PYTHONPROFILEIMPORTTIME=1 STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+PYTHONPROFILEIMPORTTIME=1 STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "what python prints on stderr never reaches the booted count, so the cap still holds" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 reset
 STUB_LIST_OK_CALLS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a simulator listing that fails holds the claim" "$status $(refusal)" \

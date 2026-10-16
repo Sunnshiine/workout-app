@@ -43,7 +43,7 @@ goes to stderr. create holds the pool lock, <WORKOUT_HOST_LOCK_DIR>/sim-pool, an
 written in that file.
 
 Environment:
-  WORKOUT_SIM_CAP        most simulators booted at once host-wide (default 6)
+  WORKOUT_SIM_CAP        most simulators booted at once host-wide (default 10)
   WORKOUT_MEM_FLOOR      lowest free memory, kern.memorystatus_level in percent, a boot starts at
                          (default 25; 0 turns it off)
   WORKOUT_IDLE_MINUTES   minutes a lane's lock goes unwritten before the cap may reclaim it (default 2)

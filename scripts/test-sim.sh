@@ -20,7 +20,7 @@ Refuses (exit 75) while another test-sim.sh run holds that simulator, or a verif
 on it was used in the last WORKOUT_LEASE_MINUTES (60); a verify run idle for longer is reclaimed
 and its app stopped. Refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
 Waits while the host is busy, saying why once a minute: while free memory (kern.memorystatus_level,
-percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), to boot while WORKOUT_SIM_CAP (6) other
+percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), to boot while WORKOUT_SIM_CAP (10) other
 simulators are booted, and to build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are
 taken. Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540). At the cap, a boot first shuts
 down the least recently used booted workout-lane-* simulator that no run holds, that runs no app

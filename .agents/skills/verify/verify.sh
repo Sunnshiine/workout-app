@@ -88,7 +88,7 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
                   the simulator and stops the app, and every later command for that run but build,
                   install, diff, sheet and crop exits 75 naming who took it, until it launches again),
-             WORKOUT_MEM_FLOOR (25), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
+             WORKOUT_MEM_FLOOR (25), WORKOUT_SIM_CAP (10), WORKOUT_BUILD_SLOTS (2) and
              WORKOUT_ADMIT_WAIT (540): launch and install wait while free memory
                   (kern.memorystatus_level, percent) is under the floor, and before a boot while
                   WORKOUT_SIM_CAP others are booted; build, and a build into the app cache, wait for

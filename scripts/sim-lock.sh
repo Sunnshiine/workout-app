@@ -393,7 +393,7 @@ require_sim_free() {
   sim_flock "$1" LOCK_SH 9<"/tmp/workout-verify-$1/lock"
 }
 
-host_knob WORKOUT_SIM_CAP 6 1
+host_knob WORKOUT_SIM_CAP 10 1
 host_knob WORKOUT_MEM_FLOOR 25 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
