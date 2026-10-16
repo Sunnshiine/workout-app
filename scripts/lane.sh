@@ -56,8 +56,8 @@ but its simulator is already gone; lane.sh up <name> <commit> makes a new one);
 75 a test-sim or verify run holds the lane's simulator, the simulator pool or the host is busy (up
 builds the template on first use, and its boot waits for the host as scripts/sim-pool.sh --help
 says), down found another process working inside the lane (stop it or cd out; this script's callers
-do not count), or another up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds
-(default 540).
+and Xcode's helpers orphaned to launchd, such as ibtoold and DTServiceHub, do not count), or another
+up or down of the same lane held it for WORKOUT_ADMIT_WAIT seconds (default 540).
 EOF
 }
 
@@ -163,9 +163,15 @@ unique_commits() {
   git -C "$wt" rev-list $visited --not --branches --tags $base
 }
 
+# Xcode's helpers that a build or a booted simulator leaves orphaned to launchd, such as ibtoold and
+# DTServiceHub, keep working in the lane for minutes; they hold nothing an agent would lose.
 cwd_holder() {
-  local cwds skip=" $$ " p=$$
+  local cwds skip=" $$ " p=$$ xcode
   while p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ') && [ -n "$p" ] && [ "$p" -gt 1 ]; do skip="$skip$p "; done
+  if xcode=$(xcode-select -p 2>/dev/null); then
+    xcode=${xcode%/Contents/Developer}/
+    skip="$skip$(ps -axo pid=,ppid=,comm= | awk -v x="$xcode" '$2 == 1 && index($3, x) == 1 { printf "%s ", $1 }')"
+  fi
   cwds=$(PATH=$PATH:/usr/sbin lsof -a -d cwd -Fpcn 2>/dev/null) || true
   [ -n "$cwds" ] || return 1
   awk -v w="$wt" -v skip="$skip" '/^p/ { pid = substr($0, 2) } /^c/ { cmd = substr($0, 2) }

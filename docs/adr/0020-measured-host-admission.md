@@ -79,9 +79,10 @@ What the numbers say:
   `WORKOUT_ADMIT_WAIT` budget each time a slot changes hands. Exit 75 means one holder kept a slot for
   the whole budget. A claim also waits for a free slot before it reclaims a seat, so it never shuts
   down a lane for a seat it cannot use yet.
-- **`lane.sh down` shuts the lane's simulator down before anything else.** A booted simulator keeps
-  Xcode's `DTServiceHub` working in the lane's worktree until it shuts down, so `down` used to refuse
-  any lane a run had left booted.
+- **`lane.sh down` ignores Xcode's orphaned helpers.** A build leaves `ibtoold`, and a booted
+  simulator leaves `DTServiceHub`, working in the lane's worktree for minutes after the run. Both
+  have launchd for a parent. `down` used to refuse those lanes as in use. A process with a live
+  parent still holds the lane, even when it is an Xcode tool.
 
 ## Considered alternatives
 

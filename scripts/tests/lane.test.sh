@@ -361,6 +361,30 @@ expect "down while another process works in the lane exits 75 and removes nothin
 (cd "$lanes/busy" && "$primary/scripts/lane.sh" down busy >"$root/out" 2>"$root/err")
 expect "down run from a shell inside the lane removes it" "$? $([ -d "$lanes/busy" ] && echo worktree)" "0 "
 
+xcode=$root/Xcode.app/Contents/Developer
+mkdir -p "$xcode/usr/bin"
+cp /bin/sleep "$xcode/usr/bin/ibtoold" && codesign -s - -f "$xcode/usr/bin/ibtoold" 2>/dev/null
+printf '#!/bin/sh\necho %s\n' "$xcode" >"$root/bin/xcode-select"
+chmod +x "$root/bin/xcode-select"
+lane up helper "$c1"
+(cd "$lanes/helper" && exec "$xcode/usr/bin/ibtoold" 60 & echo $! >"$root/helper.pid")
+sleep 0.5
+lane down helper
+kill "$(cat "$root/helper.pid")"
+expect "down removes a lane that only an Xcode helper orphaned to launchd works in, as ibtoold after a build" \
+    "$status $([ -d "$lanes/helper" ] && echo worktree)" "0 "
+lane up tool "$c1"
+(cd "$lanes/tool" && exec "$xcode/usr/bin/ibtoold" 60) &
+tool=$!
+sleep 0.5
+lane down tool
+kill "$tool"
+wait "$tool" 2>/dev/null
+expect "an Xcode tool an agent runs in the lane still holds it" "$status $(cat "$root/err")" \
+    "75 lane.sh: pid $tool (ibtoold) works in $lanes/tool; stop it or cd out"
+lane down tool
+rm "$root/bin/xcode-select"
+
 crash_add() {
     lane up "$1" "$c1"
     echo initializing >"$(git -C "$lanes/$1" rev-parse --absolute-git-dir)/locked"
