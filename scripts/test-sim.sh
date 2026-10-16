@@ -143,8 +143,8 @@ xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destinat
   -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
 rc=$?
 # What xcodebuild prints when CoreSimulator or the test runner breaks rather than the app (#537, #908).
-# Not "Early unexpected exit": an app that crashes at launch prints it too.
-fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd' "$log") || true
+# "Early unexpected exit" only from the XCTest runner; the app crashing at launch prints it too.
+fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd|-Runner \([0-9]+\) encountered an error \(Early unexpected exit' "$log") || true
 # A simulator that shuts down mid-run SIGTERMs the app; xcodebuild restarts past it, and only the
 # result bundle names the signal. An app's own crash is abrt, segv, trap or kill.
 [ $rc = 0 ] || [ -n "$fault" ] || fault=$(xcrun xcresulttool get test-results tests --path "$bundle" --compact 2>/dev/null \

@@ -154,6 +154,15 @@ STUB_TESTS=$(cat "$root/tests.json") check "a test the app crashed with SIGABRT 
 	 Executed 22 tests, with 0 failures (0 unexpected) in 151.370 (151.406) seconds
 ** TEST EXECUTE FAILED **"
 rm -f "$root/shutdowns"
+check "the UI test runner crashing before any test is a simulator fault, though the app crashing at launch is not" 69 \
+"Testing failed:
+	WorkoutTrackerUITests-Runner (3706) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt while preparing to run tests.))
+** TEST EXECUTE FAILED **" "$(printf "$fault_advice" "-Runner (3706) encountered an error (Early unexpected exit")
+xcodebuild exited 69 before the test run finished; the lines above and the log say why" 65 \
+"Testing failed:
+	WorkoutTrackerUITests-Runner (3706) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt while preparing to run tests.))
+** TEST EXECUTE FAILED **"
+rm -f "$root/shutdowns"
 check "a test failure that names no simulator fault keeps xcodebuild's status and leaves the simulator up" 65 \
 "✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
 ** TEST EXECUTE FAILED **" "" 65 \
