@@ -124,7 +124,7 @@
   .v-C .rest-cap > span { position: relative; }
   .v-C .countdown { font-size: 17px; }
   .v-C .queue { border-radius: 17.5px; }
-  .v-C.resting .rest-cap { opacity: 1; transform: none; pointer-events: auto; }
+  .v-C.resting .rest-cap { opacity: 1; transform: none; pointer-events: auto; transition-delay: calc(var(--slow) * 70ms); }
   .v-C .upnext { transition: margin-left calc(var(--slow) * 220ms) var(--ease-out); }
 
   /* D, horizon: progress leaves the pill and becomes a hairline across the whole foot. */
