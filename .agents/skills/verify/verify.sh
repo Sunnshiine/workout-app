@@ -95,7 +95,8 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   the floor and for one of the host's build slots. A floor of 0 turns it off.
                   At the cap, a boot first shuts down one idle workout-lane-* simulator, as
                   scripts/test-sim.sh --help says, unused for WORKOUT_IDLE_MINUTES (2).
-                  A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
+                  A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds,
+                  restarted each time a build slot changes hands.
              WORKOUT_LOAD_LIMIT (50): record waits while the 1-minute load is over it, and a take
                   whose load ends over it is INVALID, since a loaded host films a move as a cut.
 Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was

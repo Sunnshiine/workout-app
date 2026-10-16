@@ -246,6 +246,13 @@ WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "a lane whose run ended inside WORKOUT_IDLE_MINUTES is not reclaimed, though the run took it long before" \
     "$status $(calls | head -1)" "0 shutdown $P-5"
 crowd
+hold "$root/locks/build-1" "xcodebuild (pid 4245)"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 bash -c '. "$1/sim-lock.sh" && claim_sim "$2" "test-sim.sh run" 1' _ "$scripts" "$P-7" \
+    >"$root/out" 2>"$root/err"; status=$?
+release
+expect "a build claim at the cap with every build slot taken shuts no idle lane down for a seat it cannot use yet" \
+    "$status $(calls | grep -c shutdown)" "75 0"
+crowd
 used "$P-5" 1; used "$P-6" 1
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "with every lane used inside WORKOUT_IDLE_MINUTES, boot at the cap still exits 75 and shuts nothing down" \

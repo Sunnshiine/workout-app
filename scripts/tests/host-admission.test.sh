@@ -361,6 +361,34 @@ print(held)' "$root/locks/admit")
 kill "$building"; wait "$building" "$first" 2>/dev/null
 expect "a build claim waiting for a slot never takes the admit lock" "$held" "0"
 
+slot_queue() {
+    python3 -c 'import fcntl, sys, time
+slot = open(sys.argv[1], "a")
+fcntl.flock(slot, fcntl.LOCK_EX)
+for holder in sys.argv[3:]:
+    open(sys.argv[1], "w").write(holder + "\n")
+    open(sys.argv[2], "w").close()
+    time.sleep(2)' "$root/locks/build-1" "$root/holding" "$@" &
+    building=$!
+    for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+}
+reset
+mkdir -p "$root/locks"
+rm -f "$root/holding"
+slot_queue "xcodebuild (pid 1)" "xcodebuild (pid 2)" "xcodebuild (pid 3)"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=3 test_sim; status=$?
+wait "$building"
+expect "a build claim waits past WORKOUT_ADMIT_WAIT while the build slot keeps changing hands" "$status $(builds)" \
+    "65 build-for-testing"
+reset
+mkdir -p "$root/locks"
+rm -f "$root/holding"
+slot_queue "xcodebuild (pid 1)" "xcodebuild (pid 1)" "xcodebuild (pid 1)"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=3 test_sim; status=$?
+wait "$building"
+expect "and gives up once the slot stays with one holder for WORKOUT_ADMIT_WAIT" "$status $(refusal | sed 's/:.*//')" \
+    "75 gave up after N s waiting for the host before taking $sim"
+
 reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
 expect "a boot that fails because another process booted the simulator goes on" "$status $(builds)" "65 test-without-building"

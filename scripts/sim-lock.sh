@@ -151,13 +151,18 @@ host_knob() {
   eval "$name=\$value"
 }
 
+# A build queue that moves is not stuck: the budget restarts each time a build slot changes hands.
 wait_until_clear() {
-  local what=$1 start waited said=-60
+  local what=$1 begun start waited said=-60 holders_seen=
   shift
-  start=$(date +%s)
-  while ! "$@"; do
-    waited=$(($(date +%s) - start))
-    if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
+  begun=$(date +%s) start=$begun
+  while slot_holders=; ! "$@"; do
+    if [ -n "$slot_holders" ] && [ "$slot_holders" != "$holders_seen" ]; then
+      [ -z "$holders_seen" ] || start=$(date +%s)
+      holders_seen=$slot_holders
+    fi
+    waited=$(($(date +%s) - begun))
+    if [ $(($(date +%s) - start)) -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
     fi
@@ -231,12 +236,12 @@ print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["U
 admit_claim() {
   local udid=$1 build=$2 others own rc=1
   mem_clear || return 1
+  [ "$build" = 0 ] || build_slot_free || return 1
   host_room "$udid" || return 1
   if [ "$own" != Shutdown ]; then
     [ "$build" = 0 ] || take_build_slot
     return
   fi
-  [ "$build" = 0 ] || build_slot_free || return 1
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
@@ -367,6 +372,7 @@ slots_taken() {
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     holders="$holders${holders:+, }$(cat "$host_lock_dir/build-$i")"
   done
+  slot_holders=$holders
   busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $host_lock_dir/build-* lists every process holding one"
   return 1
 }
