@@ -30,8 +30,8 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
                  this one never deletes.
 
 Every boot, the template's and boot's, goes through the host admission test-sim.sh and verify.sh use
-(scripts/sim-lock.sh): it waits, saying why once a minute, while the 1-minute load is over
-WORKOUT_LOAD_LIMIT or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
+(scripts/sim-lock.sh): it waits, saying why once a minute, while free memory is under
+WORKOUT_MEM_FLOOR or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
 
 A lane name matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. stdout carries only the output above; progress
 goes to stderr. create holds the pool lock, <WORKOUT_HOST_LOCK_DIR>/sim-pool, and its holder is
@@ -39,14 +39,15 @@ written in that file.
 
 Environment:
   WORKOUT_SIM_CAP        most simulators booted at once host-wide (default 6)
-  WORKOUT_LOAD_LIMIT     highest 1-minute load a boot starts under (default 50)
+  WORKOUT_MEM_FLOOR      lowest free memory, kern.memorystatus_level in percent, a boot starts at
+                         (default 25; 0 turns it off)
   WORKOUT_ADMIT_WAIT     seconds to wait for the pool lock or the host before exit 75 (default 540)
   WORKOUT_HOST_LOCK_DIR  the host-wide lock directory (default /tmp/workout-host-locks)
 
 Exit codes: 0 done, 1 no such lane device (boot), 2 usage or a bad setting, 69 iOS 27.0 runtime or
 iPhone 17 Pro device type missing, 70 simctl failed or two devices share a name, 75 busy: the pool
-lock, the host's load or cap, a test-sim or verify run holding the simulator, or a verify run's app
-still running on it.
+lock, the host's memory floor or cap, a test-sim or verify run holding the simulator, or a verify
+run's app still running on it.
 EOF
 }
 

@@ -15,11 +15,11 @@ mkdir -p "$root/bin" "$root/home"
 cp "$scripts/tests/fake-xcrun" "$root/bin/xcrun"
 cat >"$root/bin/sysctl" <<'STUB'
 #!/bin/bash
-echo "{ ${STUB_LOAD:-1.00} 1.00 1.00 }"
+[ "$2" = kern.memorystatus_level ] && echo "${STUB_MEM_LEVEL:-80}" || echo "{ ${STUB_LOAD:-1.00} 1.00 1.00 }"
 STUB
 chmod +x "$root/bin/sysctl"
 export PATH="$root/bin:$PATH" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
-unset WORKOUT_SIM_CAP WORKOUT_LOAD_LIMIT WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
+unset WORKOUT_SIM_CAP WORKOUT_MEM_FLOOR WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 runtime=com.apple.CoreSimulator.SimRuntime.iOS-27-0
 build_calls="create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime
@@ -163,23 +163,26 @@ expect "list counts every booted device on the host" "$(listing | tail -1)" "boo
 
 fresh
 seed workout-lane-load
-STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool boot load
-expect "boot over the load limit exits 75, names the load, and boots nothing" "$status $(refusal) | $(calls)" \
-    "75 gave up after N s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | "
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 pool boot load
+expect "boot with free memory under the floor exits 75, names it, and boots nothing" "$status $(refusal) | $(calls)" \
+    "75 gave up after N s waiting for the host before booting $P-1: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR) | "
+STUB_LOAD=212.40 STUB_MEM_LEVEL=12 WORKOUT_MEM_FLOOR=10 pool boot load
+expect "the 1-minute load holds no boot, and WORKOUT_MEM_FLOOR lowers the floor" "$status $(cat "$root/out")" "0 $P-1"
+xcrun simctl shutdown "$P-1"
 hold "$root/locks/admit" "test-sim.sh run (pid 4244)"
 WORKOUT_ADMIT_WAIT=0 pool boot load
 release
 expect "boot waits while a test-sim or verify claim holds the host's admit lock" "$status $(refusal) | $(calls)" \
     "75 gave up after N s waiting for the host before booting $P-1: another claim is booting a simulator (lsof $root/locks/admit lists it) | "
 xcrun simctl boot "$P-1"
-STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool boot load
-expect "boot of a lane already booted does not wait for the load" "$status $(cat "$root/out")" "0 $P-1"
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 pool boot load
+expect "boot of a lane already booted does not wait for memory" "$status $(cat "$root/out")" "0 $P-1"
 
 fresh
-STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=50 WORKOUT_ADMIT_WAIT=0 pool create a
-expect "the template build over the load limit exits 75 before its boot, leaving the -building device Shutdown" \
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 pool create a
+expect "the template build under the memory floor exits 75 before its boot, leaving the -building device Shutdown" \
     "$status $(refusal | tail -1) | $(calls) | $(listing | awk -F '\t' '$3 == "building" { print $2 }')" \
-    "75 gave up after N s waiting for the host before booting $P-1: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT) | create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime | Shutdown"
+    "75 gave up after N s waiting for the host before booting $P-1: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR) | create workout-template-v1-building com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro $runtime | Shutdown"
 pool create a
 expect "the next create finishes that Shutdown -building device instead of deleting it" "$status $(cat "$root/out") | $(calls)" \
     "0 $P-2 | ${build_calls#*$'\n'}

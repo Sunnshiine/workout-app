@@ -164,7 +164,23 @@ wait_until_clear() {
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
 }
 
-# Linux has no vm.loadavg, so there the load holds no claim.
+# Linux has neither kern.memorystatus_level nor vm.loadavg, so there neither holds anything.
+mem_clear() {
+  local reading
+  [ "$WORKOUT_MEM_FLOOR" -gt 0 ] || return 0
+  if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n kern.memorystatus_level 2>&1); then
+    [ "$(uname)" = Darwin ] || return 0
+    busy_reason="sysctl -n kern.memorystatus_level failed: $reading"
+    return 1
+  fi
+  case $reading in
+    ''|*[!0-9]*) busy_reason="sysctl -n kern.memorystatus_level printed no free-memory percent: $reading" ;;
+    *) [ "$reading" -lt "$WORKOUT_MEM_FLOOR" ] || return 0
+      busy_reason="free memory is $reading%, under the floor of $WORKOUT_MEM_FLOOR% (WORKOUT_MEM_FLOOR)" ;;
+  esac
+  return 1
+}
+
 load_clear() {
   local reading now rc=0
   if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
@@ -208,7 +224,7 @@ print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["U
 
 admit_claim() {
   local udid=$1 build=$2 others own rc=1
-  load_clear "$WORKOUT_LOAD_LIMIT" || return 1
+  mem_clear || return 1
   host_room "$udid" || return 1
   if [ "$own" != Shutdown ]; then
     [ "$build" = 0 ] || take_build_slot
@@ -290,7 +306,7 @@ drop_build_slot() {
   build_slot=
 }
 
-admit_build() { load_clear "$WORKOUT_LOAD_LIMIT" && take_build_slot; }
+admit_build() { mem_clear && take_build_slot; }
 
 with_build_slot() {
   local rc=0
@@ -308,7 +324,7 @@ require_sim_free() {
 }
 
 host_knob WORKOUT_SIM_CAP 6 1
-host_knob WORKOUT_LOAD_LIMIT 50 1
+host_knob WORKOUT_MEM_FLOOR 25 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1

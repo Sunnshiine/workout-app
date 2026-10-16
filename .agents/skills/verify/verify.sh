@@ -88,12 +88,14 @@ Environment: SIM (the UDID of your own simulator, required by every command that
                   Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
                   the simulator and stops the app, and every later command for that run but build,
                   install, diff, sheet and crop exits 75 naming who took it, until it launches again),
-             WORKOUT_LOAD_LIMIT (50), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
-             WORKOUT_ADMIT_WAIT (540): launch, install and record wait while the 1-minute load is over
-                  the limit, and a take whose load ends over it is INVALID. Launch and install also
-                  wait before a boot while WORKOUT_SIM_CAP others are booted; build, and a build into
-                  the app cache, wait for the load and for one of the host's build slots.
+             WORKOUT_MEM_FLOOR (25), WORKOUT_SIM_CAP (6), WORKOUT_BUILD_SLOTS (2) and
+             WORKOUT_ADMIT_WAIT (540): launch and install wait while free memory
+                  (kern.memorystatus_level, percent) is under the floor, and before a boot while
+                  WORKOUT_SIM_CAP others are booted; build, and a build into the app cache, wait for
+                  the floor and for one of the host's build slots. A floor of 0 turns it off.
                   A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
+             WORKOUT_LOAD_LIMIT (50): record waits while the 1-minute load is over it, and a take
+                  whose load ends over it is INVALID, since a loaded host films a move as a cut.
 Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
          refused, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
@@ -107,6 +109,7 @@ repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
 tiler=$repo/scripts/contact-sheet.swift
 . "$repo/scripts/sim-lock.sh"
+host_knob WORKOUT_LOAD_LIMIT 50 1
 project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify

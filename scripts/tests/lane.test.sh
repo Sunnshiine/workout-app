@@ -26,7 +26,7 @@ exec "$real_git" "\$@"
 STUB
 chmod +x "$root/bin/git"
 export PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
-export WORKOUT_LOAD_LIMIT=1000000
+export WORKOUT_MEM_FLOOR=0
 unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t

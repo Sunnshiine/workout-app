@@ -100,7 +100,7 @@ EVIDENCE_BEFORE = []
 def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
                       WORKOUT_HOST_LOCK_DIR=locks)
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
@@ -1623,7 +1623,9 @@ class SimulatorPick(unittest.TestCase):
         ])
 
 
-SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = "#!/bin/sh\necho '{ 500.00 500.00 500.00 }'\n"
+SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = """#!/bin/sh
+[ "$2" = kern.memorystatus_level ] && echo 5 || echo '{ 500.00 500.00 500.00 }'
+"""
 
 LANE_STUB = """#!/bin/sh
 tool=$(basename "$0")
@@ -2225,7 +2227,7 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
         refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache" % (
             self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
-        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_LOAD_LIMIT="50")
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_MEM_FLOOR="25")
         self.assertEqual((code, out, err.splitlines()[-1]), (75, "", refusal))
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
 

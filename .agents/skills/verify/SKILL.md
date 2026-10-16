@@ -261,8 +261,8 @@ uv run .agents/skills/verify/motion/cardframe.py <run dir>/appear.mp4    # the A
 uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card moves>   # 15 min
 ```
 
-`record` first waits for the 1-minute load the way a claim does (below), because a loaded host films a
-move as a cut. A take whose load ends over `WORKOUT_LOAD_LIMIT` is INVALID. It drives once the recorder
+`record` first waits while the 1-minute load is over `WORKOUT_LOAD_LIMIT` (50), because a loaded host
+films a move as a cut. A take whose load ends over it is INVALID. It drives once the recorder
 is capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons
 on stderr. Exit 70 means the recorder or ffprobe failed, or the screen size or the card's frame could
 not be read from the accessibility tree after the take, and nothing is kept, a VALID take included.
@@ -374,19 +374,20 @@ a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` w
 may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
 
-Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), while the 1-minute
-load is over `WORKOUT_LOAD_LIMIT` (50), and exits 75 with the reason if it never clears. A claim on a
-shut-down simulator also waits while `WORKOUT_SIM_CAP` other simulators are booted (6), and boots it
-once admitted. Each `build`, each build into the app cache (`install COMMIT`, `launch --at`), and each
-`test-sim.sh` build waits for the same load limit and takes one of `WORKOUT_BUILD_SLOTS` host-wide
-build slots (2) the same way. `build` boots nothing. Gate
-anything else heavy on `scripts/wait-load.sh [limit] [max-wait]` instead of a hand-written `uptime` loop.
+Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), while free memory
+(`kern.memorystatus_level`, percent) is under `WORKOUT_MEM_FLOOR` (25), and exits 75 with the reason
+if it never clears. A claim on a shut-down simulator also waits while `WORKOUT_SIM_CAP` other
+simulators are booted (6), and boots it once admitted. Each `build`, each build into the app cache
+(`install COMMIT`, `launch --at`), and each `test-sim.sh` build waits for the same floor and takes
+one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. `build` boots nothing. Admission
+never reads the load. Run anything else heavy as `scripts/build-slot.sh <command>` instead of a
+hand-written `uptime` loop.
 
 ## Changing this skill
 
 After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
 `scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`. Also run
 `scripts/tests/host-admission.test.sh` after an edit to `verify.sh`, `scripts/sim-lock.sh`, or
-`scripts/wait-load.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
+`scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
 `test_evidence.py` through `.github/workflows/verify-tools.yml` and every script test through
 `.github/workflows/script-tests.yml`.

@@ -19,7 +19,7 @@ echo "keyboard: stub"
 exit "${STUB_KEYBOARD_RC:-0}"
 STUB
 chmod +x "$repo/scripts/sim-keyboard.sh"
-export WORKOUT_LOAD_LIMIT=1000000 WORKOUT_HOST_LOCK_DIR=$root/locks
+export WORKOUT_MEM_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 pass=0
 fail=0
 
