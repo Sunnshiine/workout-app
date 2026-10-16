@@ -294,10 +294,12 @@ idle_lane() {
   return 1
 }
 
-# Any app process on the device but the verify app whose lease ran out; a pgrep that fails counts as one.
+# Any app's main executable on the device but the verify app whose lease ran out; a pgrep that fails
+# counts as one. An app extension, such as the widget, outlives its app for minutes, so it is no app.
 app_on() {
   local pids rc=0
-  pids=$(pgrep -f "/Devices/$1/data/Containers/Bundle/" 3>&- 7>&- 8>&- 9>&-) || rc=$?
+  pids=$(pgrep -f "^[^ ]*/Devices/$1/data/Containers/Bundle/Application/[^/]+/[^/]+\.app/[^/ ]+( |\$)" \
+    3>&- 7>&- 8>&- 9>&-) || rc=$?
   [ $rc -le 1 ] || return 0
   [ -n "$pids" ] && printf '%s\n' "$pids" | grep -qvx -- "${2:-}"
 }

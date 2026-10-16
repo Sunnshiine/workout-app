@@ -21,7 +21,11 @@ cat >"$root/bin/pgrep" <<'STUB'
 #!/bin/bash
 [ "$1" = -f ] || exec /usr/bin/pgrep "$@"
 [ -f "${STUB_APPS:-}" ] || exit 1
-grep -F -- "$2" "$STUB_APPS" | cut -d' ' -f1 | grep .
+found=1
+while read -r pid cmd; do
+    printf '%s\n' "$cmd" | grep -qE -- "$2" && { echo "$pid"; found=0; }
+done <"$STUB_APPS"
+exit $found
 STUB
 chmod +x "$root/bin/sysctl" "$root/bin/pgrep"
 export PATH="$root/bin:$PATH" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
@@ -217,6 +221,14 @@ crowd
 printf '4242 /Users/t/Library/Developer/CoreSimulator/Devices/%s/data/Containers/Bundle/Application/A/Other.app/Other\n' "$P-6" >"$root/apps"
 STUB_APPS=$root/apps WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "a lane with an app running on it, as after an XcodeBuildMCP launch, is skipped" "$status $(calls | head -1)" "0 shutdown $P-5"
+crowd
+printf '4243 /Users/t/Library/Developer/CoreSimulator/Devices/%s/data/Containers/Bundle/Application/A/WorkoutTracker.app/PlugIns/WorkoutWidgets.appex/WorkoutWidgets -BSServiceDomains x\n' "$P-6" >"$root/apps"
+STUB_APPS=$root/apps WORKOUT_ADMIT_WAIT=0 pool boot next
+expect "a lane whose only process is a widget extension, which outlives its app, is reclaimed" "$status $(calls | head -1)" "0 shutdown $P-6"
+crowd
+printf '4244 /Users/t/Library/Developer/CoreSimulator/Devices/%s/data/Containers/Bundle/Application/B/WorkoutTrackerUITests-Runner.app/WorkoutTrackerUITests-Runner\n' "$P-6" >"$root/apps"
+STUB_APPS=$root/apps WORKOUT_ADMIT_WAIT=0 pool boot next
+expect "a lane running a UI test runner is skipped" "$status $(calls | head -1)" "0 shutdown $P-5"
 crowd
 rm "/tmp/workout-verify-$P-6/lock"
 WORKOUT_ADMIT_WAIT=0 pool boot next
