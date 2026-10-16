@@ -164,7 +164,7 @@ ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log
 set -e
 if [ -n "$fault" ]; then
   xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true
-  echo "simulator fault, not a test result: the log says \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first" >&2
+  echo "simulator fault, not a test result: xcodebuild reported \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first" >&2
   rc=69
 fi
 if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then

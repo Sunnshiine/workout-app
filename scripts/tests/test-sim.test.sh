@@ -120,7 +120,7 @@ check "a failing run fails with xcodebuild's status" 65 \
 	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.004) seconds
 ** TEST EXECUTE FAILED **"
 
-fault_advice="simulator fault, not a test result: the log says \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first"
+fault_advice="simulator fault, not a test result: xcodebuild reported \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first"
 rm -f "$root/shutdowns"
 check "a launch that returns no process handle is a simulator fault: exit 69, and the simulator is shut down" 69 \
 "✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
