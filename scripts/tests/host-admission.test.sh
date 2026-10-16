@@ -16,7 +16,7 @@ trap cleanup EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
-cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../wait-load.sh" \
+cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
     "$script_dir/../test-log-summary.awk" "$repo/scripts/"
 cp "$script_dir/../../.agents/skills/verify/verify.sh" "$repo/.agents/skills/verify/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
@@ -91,8 +91,13 @@ print(json.dumps({"devices": {"iOS-27-0": others + [
 STUB
 cat >"$root/bin/sysctl" <<STUB
 #!/bin/sh
+[ -z "\${STUB_SYSCTL_FAILS:-}" ] || { echo "sysctl: unknown oid '\$2'" >&2; exit 1; }
+if [ "\$2" = kern.memorystatus_level ]; then
+    echo call >> "$root/mem-calls"
+    if [ "\$(wc -l < "$root/mem-calls")" -gt "\${STUB_LOW_MEM_CALLS:-1000}" ]; then echo 80; else echo "\${STUB_MEM_LEVEL:-80}"; fi
+    exit 0
+fi
 echo call >> "$root/sysctl-calls"
-[ -z "\${STUB_SYSCTL_FAILS:-}" ] || { echo "sysctl: unknown oid 'vm.loadavg'" >&2; exit 1; }
 if [ "\$(wc -l < "$root/sysctl-calls")" -gt "\${STUB_BUSY_CALLS:-1000}" ]; then echo "{ 1.00 1.00 1.00 }"; else echo "{ \${STUB_LOAD:-1.00} 1.00 1.00 }"; fi
 STUB
 cat >"$root/bin/xcodebuild" <<STUB
@@ -109,10 +114,10 @@ STUB
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
 # shellcheck disable=SC2046
-unset VERIFY_RUN SIM $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
+unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
 
 reset() {
-    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/xcrun-calls" "$root/list-calls" \
+    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/xcrun-calls" "$root/list-calls" \
         "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing" \
         "$repo/.claude/work/evidence"
 }
@@ -205,7 +210,7 @@ expect "the takeover says so" "$(head -1 "$root/err")" \
     "taking over the app of your own verify run lane-812 on $sim (pid $app)"
 
 reset; own_the_app lane-812 5
-VERIFY_RUN=lane-812 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+VERIFY_RUN=lane-812 STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a takeover the host refuses leaves the run's app recorded and announces nothing" \
     "$status $(ls "$state" | tr '\n' ' ')$(grep -c "taking over" "$root/err")" "75 args lock pid run 0"
 reset; own_the_app lane-812 5 ""
@@ -218,7 +223,7 @@ expect "a takeover refused at the build slot boots, uninstalls and announces not
     "$status $(cat "$root/xcrun-calls" 2>/dev/null)$(grep -c "taking over" "$root/err") $(ls "$state" | tr '\n' ' ')" \
     "75 0 args lock pid run "
 reset; own_the_app abandoned-run 61
-STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a reclaim the host refuses leaves the abandoned run recorded" "$status $(ls "$state" | tr '\n' ' ')" "75 args lock pid run "
 reset; own_the_app abandoned-run 61
 SIM=$sim2 STUB_SHUTDOWN=$sim2 WORKOUT_BUILD_SLOTS=1 STUB_HOLD=1 "$repo/.agents/skills/verify/verify.sh" build >/dev/null 2>&1 &
@@ -251,46 +256,72 @@ expect "renewing never recreates a stopped run's pid file" "$(ls "$state" | tr '
 echo "admission"
 reset
 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
-expect "a load over the limit refuses after the max wait, before any xcodebuild" "$status $(builds)" "75 "
-expect "the refusal names the load and the knob" "$(refusal)" \
-    "gave up after N s waiting for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)"
+expect "a 1-minute load of 212.40 holds no claim, and the claim prints nothing" "$status $(builds) $(grep -c . "$root/err")" \
+    "65 test-without-building 1"
+reset
+STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 SIM=$sim "$repo/.agents/skills/verify/verify.sh" build >"$root/out" 2>"$root/err"; status=$?
+expect "a 1-minute load of 212.40 holds no build" "$status $(builds)" "65 build"
 
 reset
-STUB_LOAD=212.40 STUB_BUSY_CALLS=2 WORKOUT_ADMIT_WAIT=30 test_sim --no-build; status=$?
-expect "a claim waits for the load to fall, then goes on" "$status $(builds)" "65 test-without-building"
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "free memory under the floor refuses after the max wait, before any xcodebuild" "$status $(builds)" "75 "
+expect "the refusal names the free memory and the knob" "$(refusal)" \
+    "gave up after N s waiting for the host before taking $sim: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR)"
+
+reset
+STUB_MEM_LEVEL=12 STUB_LOW_MEM_CALLS=2 WORKOUT_ADMIT_WAIT=30 test_sim --no-build; status=$?
+expect "a claim waits for memory to free, then goes on" "$status $(builds)" "65 test-without-building"
 expect "the wait is announced, then its end" "$(sed -n '1p;2s/[0-9]* s$/N s/p' "$root/err")" \
-    "waiting up to 30 s for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)
+    "waiting up to 30 s for the host before taking $sim: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR)
 went ahead after N s"
 
 reset
-STUB_LOAD=212.40 STUB_BUSY_CALLS=1 WORKOUT_ADMIT_WAIT=3 bash -c '. "$1/scripts/sim-lock.sh"; sleep 4; wait_until_clear "the load" load_clear 50' _ "$repo" 2>"$root/err"; status=$?
+STUB_MEM_LEVEL=12 STUB_LOW_MEM_CALLS=1 WORKOUT_ADMIT_WAIT=3 bash -c '. "$1/scripts/sim-lock.sh"; sleep 4; wait_until_clear "memory" mem_clear' _ "$repo" 2>"$root/err"; status=$?
 expect "a wait's budget starts when the wait does, so time spent before it, as on a cache build, is not counted" \
     "$status $(sed -n '2s/[0-9]* s$/N s/p' "$root/err")" "0 went ahead after N s"
 
 reset
-STUB_LOAD=212.40 WORKOUT_LOAD_LIMIT=300 test_sim --no-build; status=$?
-expect "WORKOUT_LOAD_LIMIT raises the limit, and a clear claim prints nothing" "$status $(builds) $(grep -c . "$root/err")" \
+STUB_MEM_LEVEL=25 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "free memory exactly at the floor is admitted" "$status $(builds)" "65 test-without-building"
+reset
+STUB_MEM_LEVEL=12 WORKOUT_MEM_FLOOR=10 test_sim --no-build; status=$?
+expect "WORKOUT_MEM_FLOOR lowers the floor, and a clear claim prints nothing" "$status $(builds) $(grep -c . "$root/err")" \
     "65 test-without-building 1"
+reset
+STUB_SYSCTL_FAILS=1 WORKOUT_MEM_FLOOR=0 test_sim --no-build; status=$?
+expect "a floor of 0 never reads memory, so even a failing sysctl holds nothing" "$status $(builds) $(cat "$root/mem-calls" 2>/dev/null)" \
+    "65 test-without-building "
+reset
+STUB_SYSCTL_FAILS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "on macOS a sysctl that fails holds the claim" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: sysctl -n kern.memorystatus_level failed: sysctl: unknown oid 'kern.memorystatus_level'"
+reset
+STUB_MEM_LEVEL=n/a WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a memory reading that is not a whole number holds the claim" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: sysctl -n kern.memorystatus_level printed no free-memory percent: n/a"
+reset
+WORKOUT_MEM_FLOOR=-1 test_sim --no-build; status=$?
+expect "a negative floor is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_MEM_FLOOR must be a whole number: -1"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
-expect "six other booted simulators refuse a claim that would boot a seventh" "$status $(builds)" "75 "
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "ten other booted simulators refuse a claim that would boot an eleventh" "$status $(builds)" "75 "
 expect "the refusal names the count and the knob" "$(refusal)" \
-    "gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 
 reset
-STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a simulator already booted boots nothing, so the cap does not hold it" "$status $(builds)" "65 test-without-building"
 
 reset
 for verb in "launch session" install; do
     read -ra argv <<< "$verb"
-    STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify "${argv[@]}" >"$root/out" 2>"$root/err"; status=$?
+    STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 verify "${argv[@]}" >"$root/out" 2>"$root/err"; status=$?
     expect "verify.sh $verb boots a shut-down simulator only through admission" \
         "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(grep '^gave up' "$root/err" | sed 's/^gave up after [0-9]* s/gave up after N s/')" \
-        "75 0 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+        "75 0 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 done
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 verify build >"$root/out" 2>"$root/err"; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 verify build >"$root/out" 2>"$root/err"; status=$?
 expect "verify.sh build boots nothing, so the cap does not hold it" "$status $(cat "$root/xcrun-calls" 2>/dev/null | grep -c 'simctl boot') $(builds)" "65 0 build"
 
 reset
@@ -299,11 +330,11 @@ expect "a simulator still shutting down waits, so the cap counts its boot" "$sta
     "75 gave up after N s waiting for the host before taking $sim: $sim is shutting down"
 
 reset
-STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=10 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=4 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
 for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
-STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=6 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_SHUTDOWN=$sim2 STUB_BOOTED_OTHERS=10 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 wait "$first"
 expect "a build claim waiting at the cap holds no build slot" "$status $(builds)" "65 build-for-testing"
 
@@ -329,6 +360,34 @@ for _ in range(500):
 print(held)' "$root/locks/admit")
 kill "$building"; wait "$building" "$first" 2>/dev/null
 expect "a build claim waiting for a slot never takes the admit lock" "$held" "0"
+
+slot_queue() {
+    python3 -c 'import fcntl, sys, time
+slot = open(sys.argv[1], "a")
+fcntl.flock(slot, fcntl.LOCK_EX)
+for holder in sys.argv[3:]:
+    open(sys.argv[1], "w").write(holder + "\n")
+    open(sys.argv[2], "w").close()
+    time.sleep(2)' "$root/locks/build-1" "$root/holding" "$@" &
+    building=$!
+    for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+}
+reset
+mkdir -p "$root/locks"
+rm -f "$root/holding"
+slot_queue "xcodebuild (pid 1)" "xcodebuild (pid 2)" "xcodebuild (pid 3)"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=3 test_sim; status=$?
+wait "$building"
+expect "a build claim waits past WORKOUT_ADMIT_WAIT while the build slot keeps changing hands" "$status $(builds)" \
+    "65 build-for-testing"
+reset
+mkdir -p "$root/locks"
+rm -f "$root/holding"
+slot_queue "xcodebuild (pid 1)" "xcodebuild (pid 1)" "xcodebuild (pid 1)"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=3 test_sim; status=$?
+wait "$building"
+expect "and gives up once the slot stays with one holder for WORKOUT_ADMIT_WAIT" "$status $(refusal | sed 's/:.*//')" \
+    "75 gave up after N s waiting for the host before taking $sim"
 
 reset
 STUB_SHUTDOWN=$sim STUB_BOOT_FAILS=raced test_sim --no-build; status=$?
@@ -357,16 +416,16 @@ STUB_LIST_WARNING=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a warning simctl prints beside a good listing does not hold the claim" "$status $(builds)" "65 test-without-building"
 
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build unit >"$root/out" 2>"$root/err"; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/test-sim.sh" --no-build unit >"$root/out" 2>"$root/err"; status=$?
 expect "a claim the host refuses boots nothing" "$status $(cat "$root/xcrun-calls" 2>/dev/null)" "75 "
 reset
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=5 test_sim --no-build; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=9 test_sim --no-build; status=$?
 expect "an admitted claim boots its shut-down simulator before the run" "$status $(cat "$root/xcrun-calls") $(builds)" \
     "65 simctl boot $sim test-without-building"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >"$root/out" 2>"$root/err"; status=$?
 expect "the next claim counts a simulator the last claim booted" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim2: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim2: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 
 reset
 mkdir -p "$root/herd"
@@ -383,33 +442,33 @@ printf '%s\\n' "\$listing"
 STUB
 chmod +x "$root/herd/xcrun"
 rm -f "$root/herd-listed"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
 wait "$first"; status="$? $status"
 expect "two claims that both counted 5 booted boot one simulator between them, not two" \
     "$status $(grep -c 'simctl boot' "$root/xcrun-calls")" "65 75 1"
 
 reset; rm -f "$root/herd-listed"
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=5 \
+PATH="$root/herd:$PATH" STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=5 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 second=$!
 wait "$first"; rm -f "$root/builds"
 for _ in $(seq 1 100); do grep -q "waiting up to" "$root/err2" 2>/dev/null && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 wait "$second"
 expect "a build claim the recount turns away gives its build slot back" "$status $(builds)" "65 build-for-testing"
 
 reset
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 STUB_BOOT_HOLD=1 test_sim --no-build &
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 STUB_BOOT_HOLD=1 test_sim --no-build &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/boot-holding" ] && break; sleep 0.1; done
-STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=5 WORKOUT_ADMIT_WAIT=0 \
+STUB_SHUTDOWN="$sim $sim2" STUB_BOOTED_OTHERS=9 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --no-build --sim "$sim2" unit >/dev/null 2>"$root/err2"; status=$?
 touch "$root/release"; wait "$first"
 expect "a claim holds the admit lock through its boot, so no other boot starts meanwhile" \
@@ -499,9 +558,9 @@ expect "claims that boot a simulator are admitted one at a time" "$status $(refu
     "75 gave up after N s waiting for the host before taking $sim: another claim is booting a simulator (lsof $root/locks/admit lists it)"
 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim on a booted simulator does not wait behind another claim's boot" "$status $(builds)" "65 test-without-building"
-STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a claim the cap refuses never waits for the admit lock" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 kill "$admitting"; wait "$admitting" 2>/dev/null
 
 reset
@@ -509,9 +568,9 @@ STUB_LIST_GARBAGE_FROM_CALL=2 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$
 expect "a simulator listing that is no device list holds the claim" "$status $(refusal | sed 's/device list: .*/device list: .../')" \
     "75 gave up after N s waiting for the host before taking $sim: xcrun simctl list devices printed no device list: ..."
 reset
-PYTHONPROFILEIMPORTTIME=1 STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=6 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+PYTHONPROFILEIMPORTTIME=1 STUB_SHUTDOWN=$sim STUB_BOOTED_OTHERS=10 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "what python prints on stderr never reaches the booted count, so the cap still holds" "$status $(refusal)" \
-    "75 gave up after N s waiting for the host before taking $sim: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP)"
+    "75 gave up after N s waiting for the host before taking $sim: 10 other simulators are booted, at the cap of 10 (WORKOUT_SIM_CAP)"
 reset
 STUB_LIST_OK_CALLS=1 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a simulator listing that fails holds the claim" "$status $(refusal)" \
@@ -557,63 +616,68 @@ expect "verify.sh build takes the second slot beside a test-sim.sh build" "$stat
 touch "$root/release"; wait "$first"
 
 reset
-STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 verify_build >"$root/out" 2>"$root/err"; status=$?
-expect "verify.sh build waits for the load as a claim does, and gives up with 75 before any xcodebuild" "$status $(builds) $(refusal)" \
-    "75  gave up after N s waiting for a build slot: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)"
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 verify_build >"$root/out" 2>"$root/err"; status=$?
+expect "verify.sh build waits for memory as a claim does, and gives up with 75 before any xcodebuild" "$status $(builds) $(refusal)" \
+    "75  gave up after N s waiting for a build slot: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR)"
 reset
-STUB_LOAD=212.40 STUB_BUSY_CALLS=1 WORKOUT_ADMIT_WAIT=30 verify_build >"$root/out" 2>"$root/err"; status=$?
-expect "and builds once the load falls" "$status $(builds)" "65 build"
+STUB_MEM_LEVEL=12 STUB_LOW_MEM_CALLS=1 WORKOUT_ADMIT_WAIT=30 verify_build >"$root/out" 2>"$root/err"; status=$?
+expect "and builds once memory frees" "$status $(builds)" "65 build"
 
-echo "wait-load.sh"
+echo "build-slot.sh"
+build_slot() { "$repo/scripts/build-slot.sh" "$@" >"$root/out" 2>"$root/err"; }
 reset
-STUB_LOAD=80.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-expect "a load over the limit exits 75 after the max wait" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load to fall to 50: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
+build_slot sh -c 'echo ran; exit 3'; status=$?
+expect "it runs the command and exits with the command's status, saying nothing" "$status $(cat "$root/out") $(cat "$root/err")" "3 ran "
 reset
-STUB_LOAD=80.00 "$repo/scripts/wait-load.sh" 100 0 2>"$root/err"; status=$?
-expect "a load under the limit exits 0 and says nothing" "$status $(cat "$root/err")" "0 "
-reset
-STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=100 "$repo/scripts/wait-load.sh" 2>"$root/err"; status=$?
-expect "with no arguments the limit is WORKOUT_LOAD_LIMIT" "$status" "0"
-STUB_LOAD=80.00 WORKOUT_LOAD_LIMIT=0 "$repo/scripts/wait-load.sh" 100 0 2>"$root/err"; status=$?
-expect "an argument overrides WORKOUT_LOAD_LIMIT before it is checked" "$status $(cat "$root/err")" "0 "
-"$repo/scripts/wait-load.sh" fifty 2>"$root/err"; status=$?
-expect "a limit that is not a whole number is a usage error" "$status $(cat "$root/err")" "2 WORKOUT_LOAD_LIMIT must be a whole number: fifty"
-"$repo/scripts/wait-load.sh" --help 2>"$root/err"; status=$?
-expect "--help prints the usage" "$status $(head -1 "$root/err")" "2 Usage: scripts/wait-load.sh [limit] [max-wait]"
+WORKOUT_BUILD_SLOTS=1 "$repo/scripts/build-slot.sh" sh -c 'touch "$1/holding"; while [ ! -f "$1/release" ]; do sleep 0.1; done' _ "$root" &
+first=$!
+for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "the command holds a build slot that test-sim.sh builds wait for" "$status $(builds) $(refusal)" \
+    "75  gave up after N s waiting for the host before taking $sim: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): build-slot.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 build_slot touch "$root/ran"; status=$?
+expect "with every slot taken it exits 75 after the max wait, without running the command" "$status $([ -f "$root/ran" ] && echo ran) $(refusal)" \
+    "75  gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): build-slot.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
+touch "$root/release"; wait "$first"
+rm -f "$root/ran"
+STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 build_slot touch "$root/ran"; status=$?
+expect "with free memory under the floor it exits 75 without running the command" "$status $([ -f "$root/ran" ] && echo ran) $(refusal)" \
+    "75  gave up after N s waiting for a build slot: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR)"
+STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 build_slot true; status=$?
+expect "the 1-minute load holds nothing" "$status" "0"
+build_slot; status=$?
+expect "with no command it prints the usage and exits 2" "$status $(head -1 "$root/err")" "2 Usage: scripts/build-slot.sh <command> [arg...]"
+build_slot --help; status=$?
+expect "--help prints the usage on stdout and exits 0" "$status $(head -1 "$root/out")" "0 Usage: scripts/build-slot.sh <command> [arg...]"
 
-echo "awk"
+echo "load_clear, which judges a verify.sh record take"
+load_wait() { WORKOUT_ADMIT_WAIT=0 bash -c '. "$1/scripts/sim-lock.sh"; wait_until_clear "the load" load_clear "$2"' _ "$repo" "$1" 2>"$root/err"; }
+reset
+STUB_LOAD=80.00 load_wait 50; status=$?
+expect "a load over the limit holds" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
+STUB_LOAD=50.00 load_wait 50; status=$?
+expect "a load exactly at the limit is under it" "$status $(cat "$root/err")" "0 "
 mkdir -p "$root/broken-awk"
 printf '#!/bin/sh\necho "awk: cannot run" >&2\nexit 2\n' > "$root/broken-awk/awk"
 chmod +x "$root/broken-awk/awk"
-reset
-PATH="$root/broken-awk:$PATH" STUB_LOAD=1.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-expect "an awk that cannot compare the load holds the wait, it never admits" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load to fall to 50: awk could not compare the 1-minute load 1.00 with 50 (exit 2)"
-reset
-STUB_LOAD=n/a "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-expect "a load reading that is not a number holds the wait" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load to fall to 50: sysctl -n vm.loadavg printed no 1-minute load: { n/a 1.00 1.00 }"
-reset
-STUB_SYSCTL_FAILS=1 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-expect "on macOS a sysctl that fails holds the wait" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load to fall to 50: sysctl -n vm.loadavg failed: sysctl: unknown oid 'vm.loadavg'"
-reset
-STUB_LOAD=50.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-expect "a load exactly at the limit is under it" "$status $(cat "$root/err")" "0 "
+PATH="$root/broken-awk:$PATH" STUB_LOAD=1.00 load_wait 50; status=$?
+expect "an awk that cannot compare the load holds, it never clears" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load: awk could not compare the 1-minute load 1.00 with 50 (exit 2)"
+STUB_LOAD=n/a load_wait 50; status=$?
+expect "a load reading that is not a number holds" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load: sysctl -n vm.loadavg printed no 1-minute load: { n/a 1.00 1.00 }"
+STUB_SYSCTL_FAILS=1 load_wait 50; status=$?
+expect "on macOS a sysctl that fails holds" "$status $(refusal)" \
+    "75 gave up after N s waiting for the load: sysctl -n vm.loadavg failed: sysctl: unknown oid 'vm.loadavg'"
 if gawk=$(command -v gawk); then
     mkdir -p "$root/gawk"
     ln -s "$gawk" "$root/gawk/awk"
-    reset
-    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 "$repo/scripts/wait-load.sh" 50 0 2>"$root/err"; status=$?
-    expect "under gawk, a load over the limit exits 75 with the load" "$status $(refusal)" \
-        "75 gave up after N s waiting for the load to fall to 50: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
-    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 "$repo/scripts/wait-load.sh" 100 0 2>"$root/err"; status=$?
-    expect "under gawk, a load under the limit exits 0 and says nothing" "$status $(cat "$root/err")" "0 "
-    reset
-    PATH="$root/gawk:$PATH" STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
-    expect "under gawk, a claim over the load limit refuses before any xcodebuild" "$status $(builds) $(refusal)" \
-        "75  gave up after N s waiting for the host before taking $sim: the 1-minute load is 212.40, over 50 (WORKOUT_LOAD_LIMIT)"
+    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 load_wait 50; status=$?
+    expect "under gawk, a load over the limit holds" "$status $(refusal)" \
+        "75 gave up after N s waiting for the load: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
+    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 load_wait 100; status=$?
+    expect "under gawk, a load under the limit clears and says nothing" "$status $(cat "$root/err")" "0 "
 else
     echo "  skip the gawk checks: no gawk on PATH (brew install gawk)"
 fi

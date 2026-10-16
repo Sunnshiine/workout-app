@@ -26,7 +26,7 @@ exec "$real_git" "\$@"
 STUB
 chmod +x "$root/bin/git"
 export PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
-export WORKOUT_LOAD_LIMIT=1000000
+export WORKOUT_MEM_FLOOR=0
 unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -360,6 +360,30 @@ expect "down while another process works in the lane exits 75 and removes nothin
     "75 lane.sh: pid $sleeper (sleep) works in $lanes/busy; stop it or cd out | worktree 1"
 (cd "$lanes/busy" && "$primary/scripts/lane.sh" down busy >"$root/out" 2>"$root/err")
 expect "down run from a shell inside the lane removes it" "$? $([ -d "$lanes/busy" ] && echo worktree)" "0 "
+
+xcode=$root/Xcode.app/Contents/Developer
+mkdir -p "$xcode/usr/bin"
+cp /bin/sleep "$xcode/usr/bin/ibtoold" && codesign -s - -f "$xcode/usr/bin/ibtoold" 2>/dev/null
+printf '#!/bin/sh\necho %s\n' "$xcode" >"$root/bin/xcode-select"
+chmod +x "$root/bin/xcode-select"
+lane up helper "$c1"
+(cd "$lanes/helper" && exec "$xcode/usr/bin/ibtoold" 60 & echo $! >"$root/helper.pid")
+sleep 0.5
+lane down helper
+kill "$(cat "$root/helper.pid")"
+expect "down removes a lane that only an Xcode helper orphaned to launchd works in, as ibtoold after a build" \
+    "$status $([ -d "$lanes/helper" ] && echo worktree)" "0 "
+lane up tool "$c1"
+(cd "$lanes/tool" && exec "$xcode/usr/bin/ibtoold" 60) &
+tool=$!
+sleep 0.5
+lane down tool
+kill "$tool"
+wait "$tool" 2>/dev/null
+expect "an Xcode tool an agent runs in the lane still holds it" "$status $(cat "$root/err")" \
+    "75 lane.sh: pid $tool (ibtoold) works in $lanes/tool; stop it or cd out"
+lane down tool
+rm "$root/bin/xcode-select"
 
 crash_add() {
     lane up "$1" "$c1"

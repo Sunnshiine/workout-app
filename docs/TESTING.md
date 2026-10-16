@@ -34,12 +34,14 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
 both, cloning the simulator through `scripts/sim-pool.sh` (Running beside other agents, below).
 `scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
-while another run holds that simulator. The same script admits a run only onto a quiet host: it
-waits while the 1-minute load is over `WORKOUT_LOAD_LIMIT`, before a boot while `WORKOUT_SIM_CAP`
-other simulators are booted, and before a build while every `WORKOUT_BUILD_SLOTS` slot is taken,
-then exits 75 after `WORKOUT_ADMIT_WAIT` seconds. `scripts/wait-load.sh` gives anything else heavy
-the same load wait, as in `scripts/wait-load.sh && swift test`. A timing or motion measurement
-taken under load still describes the host, not the app, so record the 1-minute load beside it
+while another run holds that simulator. The same script admits a run only while the host has room:
+it waits while free memory (`kern.memorystatus_level`) is under `WORKOUT_MEM_FLOOR` percent, before
+a boot while `WORKOUT_SIM_CAP` other simulators are booted and no lane simulator is idle, and
+before a build while every `WORKOUT_BUILD_SLOTS` slot is taken, then exits 75 after
+`WORKOUT_ADMIT_WAIT` seconds, restarted each time a build slot changes hands. It does not read the
+load, which one build drives past 250 (ADR-0020). `scripts/build-slot.sh` runs anything else heavy
+under a build slot, as in `scripts/build-slot.sh swift test`. A timing or motion measurement taken
+under load still describes the host, not the app, so record the 1-minute load beside it
 (`test-sim.sh` prints `load1=`) and rerun when it is high. `verify.sh launch` and most UI tests
 turn animations off, so they miss a defect that exists only in motion. The verify `SKILL.md` films
 motion with `verify.sh launch --animated` and `verify.sh record`. Its
@@ -207,8 +209,11 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
 - The lane's simulator stays Shutdown until something boots it. `scripts/test-sim.sh` and
   `verify.sh` boot it themselves. Before a raw `xcodebuild` or XcodeBuildMCP call on a lane, run
   `scripts/sim-pool.sh boot <name>`. All three boot through the same host admission, which waits
-  while the 1-minute load is over `WORKOUT_LOAD_LIMIT` or six other simulators are booted
-  (`WORKOUT_SIM_CAP`).
+  while free memory is under `WORKOUT_MEM_FLOOR` or `WORKOUT_SIM_CAP` other simulators are booted.
+  At the cap it first shuts down the least recently used lane simulator that no run holds, that
+  runs no app, and that nobody claimed or booted through `sim-pool.sh boot` for
+  `WORKOUT_IDLE_MINUTES` (2). Its next run boots it again. Stop an app you launched through
+  XcodeBuildMCP when you are done, or its lane never counts as idle.
 - `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
   touches anything else while a run holds the simulator. It then saves any uncommitted or staged
   diff, untracked files, commits no branch holds, and the lane's results under `.build` (`test-sim`,

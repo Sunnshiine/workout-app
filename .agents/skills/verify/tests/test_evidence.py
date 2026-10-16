@@ -100,7 +100,7 @@ EVIDENCE_BEFORE = []
 def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
                       WORKOUT_HOST_LOCK_DIR=locks)
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
@@ -1623,7 +1623,9 @@ class SimulatorPick(unittest.TestCase):
         ])
 
 
-SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = "#!/bin/sh\necho '{ 500.00 500.00 500.00 }'\n"
+SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = """#!/bin/sh
+[ "$2" = kern.memorystatus_level ] && echo 5 || echo '{ 500.00 500.00 500.00 }'
+"""
 
 LANE_STUB = """#!/bin/sh
 tool=$(basename "$0")
@@ -1641,7 +1643,9 @@ case "$tool $1 $2" in
   "xcrun simctl get_app_container")
     [ -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 1
     echo "{dir}/containers/$3/WorkoutTracker.app" ;;
-  "xcrun simctl bootstatus") ;;
+  "xcrun simctl bootstatus")
+    [ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"
+    exit "${STUB_BOOTSTATUS:-0}" ;;
   "xcrun simctl list")
     if [ "$4" = available ]; then echo "{\\"devices\\": {\\"iOS-27-0\\": [{\\"udid\\": \\"${STUB_AVAILABLE:-$SIM}\\"}]}}"
     else echo "    lane ($SIM) (Booted)"
@@ -1808,6 +1812,14 @@ class InstalledIdentity(Lane):
                          r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d session %s on %s from %s\n$" % (
                              re.escape(self.worktree_build(b"v2\n", self.b)), self.sim, re.escape(str(self.checkout))),
                          "the evidence names its binary after the worktree and the simulator are gone")
+
+    def test_a_claims_end_restarts_the_simulators_idle_clock_however_the_command_ends(self):
+        self.verify("build")
+        lock = Path("/tmp/workout-verify-%s/lock" % self.sim)
+        for ending, env, code in [("a launch", {}, 0), ("a refused install", {"STUB_INSTALL_FAIL": "1"}, 70),
+                                  ("a failed boot wait", {"STUB_BOOTSTATUS": "1"}, 70)]:
+            self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_BACKDATE=str(lock), **env)[0], code)
+            self.assertLess(time.time() - lock.stat().st_mtime, 60, "%s restarts the idle clock its claim began" % ending)
 
     def test_only_an_edit_to_what_the_app_compiles_marks_the_build_dirty(self):
         (self.checkout / "decisions.tsv").write_text("an untracked file at the root\n")
@@ -2225,7 +2237,7 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
         refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache" % (
             self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
-        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_LOAD_LIMIT="50")
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_MEM_FLOOR="25")
         self.assertEqual((code, out, err.splitlines()[-1]), (75, "", refusal))
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
 

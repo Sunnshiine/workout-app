@@ -129,10 +129,16 @@ claim_sim() {
   mkdir -p "$dir"
   exec 9>>"$dir/lock"
   sim_flock "$udid" LOCK_EX
+  claimed_sim=$udid
   printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
   settle_run "$udid"
   wait_until_clear "the host before taking $udid" admit_claim "$udid" "$build"
   settle_run "$udid" "$who"
+}
+
+# For the claimer's EXIT trap: an idle lane's clock counts from when its last claim ended.
+end_claim() {
+  [ -z "${claimed_sim:-}" ] || touch -c "/tmp/workout-verify-$claimed_sim/lock"
 }
 
 host_knob() {
@@ -145,13 +151,18 @@ host_knob() {
   eval "$name=\$value"
 }
 
+# A build queue that moves is not stuck: the budget restarts each time a build slot changes hands.
 wait_until_clear() {
-  local what=$1 start waited said=-60
+  local what=$1 begun start waited said=-60 holders_seen=
   shift
-  start=$(date +%s)
-  while ! "$@"; do
-    waited=$(($(date +%s) - start))
-    if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
+  begun=$(date +%s) start=$begun
+  while slot_holders=; ! "$@"; do
+    if [ -n "$slot_holders" ] && [ "$slot_holders" != "$holders_seen" ]; then
+      [ -z "$holders_seen" ] || start=$(date +%s)
+      holders_seen=$slot_holders
+    fi
+    waited=$(($(date +%s) - begun))
+    if [ $(($(date +%s) - start)) -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
     fi
@@ -164,7 +175,23 @@ wait_until_clear() {
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
 }
 
-# Linux has no vm.loadavg, so there the load holds no claim.
+# Linux has neither kern.memorystatus_level nor vm.loadavg, so there neither holds anything.
+mem_clear() {
+  local reading
+  [ "$WORKOUT_MEM_FLOOR" -gt 0 ] || return 0
+  if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n kern.memorystatus_level 2>&1); then
+    [ "$(uname)" = Darwin ] || return 0
+    busy_reason="sysctl -n kern.memorystatus_level failed: $reading"
+    return 1
+  fi
+  case $reading in
+    ''|*[!0-9]*) busy_reason="sysctl -n kern.memorystatus_level printed no free-memory percent: $reading" ;;
+    *) [ "$reading" -lt "$WORKOUT_MEM_FLOOR" ] || return 0
+      busy_reason="free memory is $reading%, under the floor of $WORKOUT_MEM_FLOOR% (WORKOUT_MEM_FLOOR)" ;;
+  esac
+  return 1
+}
+
 load_clear() {
   local reading now rc=0
   if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
@@ -208,13 +235,13 @@ print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["U
 
 admit_claim() {
   local udid=$1 build=$2 others own rc=1
-  load_clear "$WORKOUT_LOAD_LIMIT" || return 1
+  mem_clear || return 1
+  [ "$build" = 0 ] || build_slot_free || return 1
   host_room "$udid" || return 1
   if [ "$own" != Shutdown ]; then
     [ "$build" = 0 ] || take_build_slot
     return
   fi
-  [ "$build" = 0 ] || build_slot_free || return 1
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
@@ -232,9 +259,73 @@ host_room() {
   case ${own:-} in
     "Shutting Down") busy_reason="$1 is shutting down" ;;
     Shutdown) [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
-      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)" ;;
+      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
+      idle_lane && free_seat && return 0 ;;
     *) return 0 ;;
   esac
+  return 1
+}
+
+# Booted workout-lane-* devices whose lock was last written WORKOUT_IDLE_MINUTES or more ago, as
+# "UDID MINUTES NAME", least recently used first. A lane with no lock file has no idle clock.
+stale_lanes() {
+  (exec 3>&- 7>&- 8>&- 9>&-; IDLE=$WORKOUT_IDLE_MINUTES exec python3 -c '
+import json, os, subprocess, time
+listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
+lanes = []
+for d in (d for ds in json.loads(listing.stdout)["devices"].values() for d in ds):
+    if d.get("state") != "Booted" or not d["name"].startswith("workout-lane-"):
+        continue
+    try:
+        idle = int((time.time() - os.stat("/tmp/workout-verify-%s/lock" % d["udid"]).st_mtime) // 60)
+    except FileNotFoundError:
+        continue
+    if idle >= int(os.environ["IDLE"]):
+        lanes.append((idle, d["udid"], d["name"]))
+for idle, udid, name in sorted(lanes, reverse=True):
+    print(udid, idle, name)' 2>/dev/null)
+}
+
+# Leaves fd 3 holding the chosen lane's lock, so no run claims it before free_seat shuts it down.
+idle_lane() {
+  local udid minutes name dir pid
+  while read -r udid minutes name; do
+    dir=/tmp/workout-verify-$udid
+    exec 3>>"$dir/lock"
+    if try_flock 3 LOCK_EX 1; then
+      pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || pid=
+      if { [ -z "$pid" ] || [ "$(idle_minutes "$dir/pid")" -ge "$WORKOUT_LEASE_MINUTES" ] 2>/dev/null; } \
+        && ! app_on "$udid" "$pid"; then
+        idle_udid=$udid idle_for=$minutes idle_name=$name
+        return 0
+      fi
+    fi
+    exec 3>&-
+  done < <(stale_lanes)
+  return 1
+}
+
+# Any app's main executable on the device but the verify app whose lease ran out; a pgrep that fails
+# counts as one. An app extension, such as the widget, outlives its app for minutes, so it is no app.
+app_on() {
+  local pids rc=0
+  pids=$(pgrep -f "^[^ ]*/Devices/$1/data/Containers/Bundle/Application/[^/]+/[^/]+\.app/[^/ ]+( |\$)" \
+    3>&- 7>&- 8>&- 9>&-) || rc=$?
+  [ $rc -le 1 ] || return 0
+  [ -n "$pids" ] && printf '%s\n' "$pids" | grep -qvx -- "${2:-}"
+}
+
+free_seat() {
+  local who="${0##*/}, freeing a seat" err=
+  printf '%s (pid %s)\n' "$who" "$$" > "/tmp/workout-verify-$idle_udid/lock"
+  if (exec 3>&- 7>&-; VERIFY_RUN='' settle_run "$idle_udid" "$who") \
+    && err=$(exec 3>&- 7>&- 8>&- 9>&-; exec xcrun simctl shutdown "$idle_udid" 2>&1 >/dev/null); then
+    exec 3>&-
+    echo "shut down idle lane $idle_name ($idle_udid) to free a seat: $busy_reason, and it held no run or app for $idle_for min (WORKOUT_IDLE_MINUTES is $WORKOUT_IDLE_MINUTES)" >&6
+    return 0
+  fi
+  exec 3>&-
+  busy_reason="could not shut down idle lane $idle_name ($idle_udid) to free a seat${err:+: $err}"
   return 1
 }
 
@@ -281,6 +372,7 @@ slots_taken() {
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
     holders="$holders${holders:+, }$(cat "$host_lock_dir/build-$i")"
   done
+  slot_holders=$holders
   busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $host_lock_dir/build-* lists every process holding one"
   return 1
 }
@@ -290,7 +382,7 @@ drop_build_slot() {
   build_slot=
 }
 
-admit_build() { load_clear "$WORKOUT_LOAD_LIMIT" && take_build_slot; }
+admit_build() { mem_clear && take_build_slot; }
 
 with_build_slot() {
   local rc=0
@@ -307,10 +399,11 @@ require_sim_free() {
   sim_flock "$1" LOCK_SH 9<"/tmp/workout-verify-$1/lock"
 }
 
-host_knob WORKOUT_SIM_CAP 6 1
-host_knob WORKOUT_LOAD_LIMIT 50 1
+host_knob WORKOUT_SIM_CAP 10 1
+host_knob WORKOUT_MEM_FLOOR 25 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
+host_knob WORKOUT_IDLE_MINUTES 2 0
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

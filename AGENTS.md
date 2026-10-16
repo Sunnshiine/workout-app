@@ -106,7 +106,8 @@ more) starts no run.
   `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
   as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
   another `test-sim.sh` run or a verify run holds it, or after waiting up to 540 s
-  (`WORKOUT_ADMIT_WAIT`) for the host's load, booted simulators, or build slots; `--help` names each.
+  (`WORKOUT_ADMIT_WAIT`) for free memory, a simulator seat (an idle lane's is reclaimed), or a build
+  slot, a budget that restarts each time a build slot changes hands; `--help` names each.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

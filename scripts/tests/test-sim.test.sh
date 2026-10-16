@@ -19,7 +19,7 @@ echo "keyboard: stub"
 exit "${STUB_KEYBOARD_RC:-0}"
 STUB
 chmod +x "$repo/scripts/sim-keyboard.sh"
-export WORKOUT_LOAD_LIMIT=1000000 WORKOUT_HOST_LOCK_DIR=$root/locks
+export WORKOUT_MEM_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 pass=0
 fail=0
 
@@ -41,6 +41,7 @@ cat "$STUB_LOG"
 cp "$STUB_OUT" "$STUB_SEEN"
 [ -z "${STUB_RELEASE:-}" ] || while [ ! -e "$STUB_RELEASE" ]; do sleep 0.1; done
 [ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
+[ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"
 exit "$STUB_RC"
 STUB
 cat >"$root/bin/xcrun" <<STUB
@@ -633,6 +634,10 @@ status=$?
 expect "a keyboard step that fails stops the run before xcodebuild with its status" \
     "$status $([ -e "$root/seen" ] && echo xcodebuild-ran || echo xcodebuild-skipped) $(tail -1 "$root/out")" \
     "70 xcodebuild-skipped $(result ui 70)"
+
+STUB_BACKDATE=/tmp/workout-verify-$sim/lock run --no-build --sim "$sim" unit
+expect "a run's end restarts its simulator's idle clock, however long ago it took the lock" \
+    "$(python3 -c 'import os, sys, time; print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))' "/tmp/workout-verify-$sim/lock")" 0
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
