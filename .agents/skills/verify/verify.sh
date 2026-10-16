@@ -56,7 +56,7 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               the recorder captures, runs COMMAND (a drive command, launch included),
                               then S more seconds (default 2), stamps load, timing, frames and the
                               verdict, and saves the tree at the take's end as `tree` prints it.
-                              Waits for the host's load first, as launch does. Exit 0 VALID, 3 INVALID
+                              Waits first while the 1-minute load is over WORKOUT_LOAD_LIMIT. Exit 0 VALID, 3 INVALID
                               (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe
                               failed, or the screen size or the card's frame could not be read from the
                               tree after the take (nothing kept, a VALID take included), 75 nothing ran
