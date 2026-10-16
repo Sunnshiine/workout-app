@@ -129,10 +129,16 @@ claim_sim() {
   mkdir -p "$dir"
   exec 9>>"$dir/lock"
   sim_flock "$udid" LOCK_EX
+  claimed_sim=$udid
   printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
   settle_run "$udid"
   wait_until_clear "the host before taking $udid" admit_claim "$udid" "$build"
   settle_run "$udid" "$who"
+}
+
+# For the claimer's EXIT trap: an idle lane's clock counts from when its last claim ended.
+end_claim() {
+  [ -z "${claimed_sim:-}" ] || touch -c "/tmp/workout-verify-$claimed_sim/lock"
 }
 
 host_knob() {

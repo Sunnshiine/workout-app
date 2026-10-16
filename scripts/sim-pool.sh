@@ -34,8 +34,9 @@ Every boot, the template's and boot's, goes through the host admission test-sim.
 WORKOUT_MEM_FLOOR or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
 At the cap it first shuts down the least recently used booted lane that no run holds, that runs no
 app but a verify app past its lease, and whose /tmp/workout-verify-<UDID>/lock was last written
-WORKOUT_IDLE_MINUTES or more ago. boot touches that file, so a raw xcodebuild or XcodeBuildMCP run
-after it, which takes no lock, still leaves the lane an idle clock.
+WORKOUT_IDLE_MINUTES or more ago. A claim writes that file when it starts and touches it when it
+ends, and boot touches it, so a raw xcodebuild or XcodeBuildMCP run after it, which takes no lock,
+still leaves the lane an idle clock.
 
 A lane name matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. stdout carries only the output above; progress
 goes to stderr. create holds the pool lock, <WORKOUT_HOST_LOCK_DIR>/sim-pool, and its holder is

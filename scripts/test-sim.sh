@@ -24,8 +24,8 @@ percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), to boot while WORKOUT_
 simulators are booted, and to build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are
 taken. Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540). At the cap, a boot first shuts
 down the least recently used booted workout-lane-* simulator that no run holds, that runs no app
-but a verify app past its lease, and whose lock was last taken WORKOUT_IDLE_MINUTES (2) or more
-ago, and says so on stderr.
+but a verify app past its lease, and whose last claim ended WORKOUT_IDLE_MINUTES (2) or more ago,
+and says so on stderr.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
@@ -67,6 +67,7 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
     } 2>/dev/null >>"$logs/$stamp-test.log" || true
   fi
   echo "$result"
+  [ -z "${claimed_sim:-}" ] || end_claim
   exit "$rc"
 }
 

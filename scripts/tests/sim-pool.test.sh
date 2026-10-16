@@ -234,6 +234,17 @@ rm "/tmp/workout-verify-$P-6/lock"
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "a lane with no lock file has no idle clock, so it is skipped" "$status $(calls | head -1)" "0 shutdown $P-5"
 crowd
+mkdir -p "$root/repo/scripts"
+cp "$scripts/test-sim.sh" "$scripts/sim-lock.sh" "$root/repo/scripts/"
+printf '#!/bin/sh\npython3 -c %s "/tmp/workout-verify-%s/lock"\nexit 65\n' \
+    "'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))'" "$P-6" >"$root/bin/xcodebuild"
+chmod +x "$root/bin/xcodebuild"
+"$root/repo/scripts/test-sim.sh" --sim "$P-6" unit >/dev/null 2>&1
+rm "$root/bin/xcodebuild"
+WORKOUT_ADMIT_WAIT=0 pool boot next
+expect "a lane whose run ended inside WORKOUT_IDLE_MINUTES is not reclaimed, though the run took it long before" \
+    "$status $(calls | head -1)" "0 shutdown $P-5"
+crowd
 used "$P-5" 1; used "$P-6" 1
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "with every lane used inside WORKOUT_IDLE_MINUTES, boot at the cap still exits 75 and shuts nothing down" \
