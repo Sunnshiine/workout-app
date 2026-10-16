@@ -1,0 +1,414 @@
+<!doctype html>
+<!--
+  PROTOTYPE (throwaway, never merges). Issue #905, round 2: no Up next during rest.
+  Plan: B and C without Up next, three new variants, and the current design as a baseline, switchable via ?variant=, drawn live
+  in the foot over real simulator screenshots of the Session stage. The page above the foot is a
+  screenshot, so the card cannot move; the readout checks the foot row itself never grows.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rest timer #905 prototype, round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --slow: 1; --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #1b1d1b; color: #ddd;
+    font-family: "Source Sans 3", -apple-system, sans-serif;
+    display: flex; gap: 28px; align-items: flex-start; justify-content: center; padding: 24px 24px 90px;
+  }
+  body.capture { padding: 0; display: block; background: #000; }
+  body.capture .panel, body.capture .switcher { display: none; }
+  body.still * { transition: none !important; }
+
+  .screen {
+    position: relative; overflow: hidden; flex: none;
+    background-size: 100% auto; background-repeat: no-repeat;
+    border-radius: 36px; box-shadow: 0 0 0 10px #000, 0 20px 60px rgba(0,0,0,.5);
+  }
+  body.capture .screen { border-radius: 0; box-shadow: none; }
+  .mask { position: absolute; left: 0; right: 0; bottom: 0; background-size: 100% 100%; }
+
+  .day {
+    --ink: #152118; --muted: #404E44; --accent: #0D6B40;
+    --surface: rgba(242,247,232,.52); --pillStroke: rgba(82,111,90,.34);
+    --track: rgba(13,107,64,.40); --footFill: rgba(242,247,232,.50); --queueStroke: rgba(82,111,90,.38);
+    --wash: rgba(13,107,64,.13); --urgent: #0D6B40;
+  }
+  .night {
+    --ink: #EFF3E3; --muted: #9AAA9B; --accent: #1F8552;
+    --surface: rgba(242,247,232,.07); --pillStroke: rgba(242,247,232,.16);
+    --track: rgba(87,145,104,.45); --footFill: rgba(242,247,232,.06); --queueStroke: rgba(242,247,232,.20);
+    --wash: rgba(87,145,104,.30); --urgent: #A8CFB4;
+  }
+
+  .foot { position: absolute; left: 0; right: 0; height: 55px; padding: 10px 16px; }
+  .foot.editing .slot, .foot.editing .rest-layer { opacity: 0 !important; transition: none !important; pointer-events: none; }
+  .row { display: flex; align-items: center; gap: 12px; height: 35px; }
+  .label { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--muted); }
+  .ink { color: var(--ink); }
+  .upnext { display: flex; gap: 5px; min-width: 0; white-space: nowrap; cursor: pointer; }
+  .upnext .title { overflow: hidden; text-overflow: ellipsis; }
+  .spacer { flex: 1 1 8px; min-width: 8px; }
+  .queue {
+    flex: none; padding: 9px 16px; border-radius: 20px; color: var(--ink);
+    background: var(--footFill); border: 1px solid var(--queueStroke); cursor: pointer;
+  }
+  .countdown { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+  .urgent .countdown { color: var(--urgent); }
+  .pulse-target { transition: transform calc(var(--slow) * 220ms) ease, opacity calc(var(--slow) * 220ms) ease; }
+  .breathe .pulse-target { transform: scale(1.06); }
+  .restart .rest-root { transform: scale(1.025); filter: brightness(1.035); }
+  .rest-root { transition: transform calc(var(--slow) * 180ms) ease; }
+
+  /* Baseline: today's RestPillView, including the 0.65 s momentumFlow ease-in-out crossfade. */
+  .v-now .rest-layer {
+    position: absolute; left: 16px; top: 2.5px; height: 50px; width: calc(50% - 0px);
+    opacity: 0; pointer-events: none;
+    transition: opacity calc(var(--slow) * 650ms) cubic-bezier(.42,0,.58,1);
+  }
+  .v-now .rest-root {
+    height: 50px; border-radius: 25px; background: var(--surface); border: 1px solid var(--pillStroke);
+    padding: 0 16px; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 6px;
+  }
+  .v-now .countdown { font-size: 26px; line-height: 31px; text-align: center; }
+  .v-now .rail { height: 4px; border-radius: 2px; background: var(--track); opacity: .46; position: relative; }
+  .v-now .rail-fill { position: absolute; inset: 0; border-radius: 2px; background: var(--pillStroke); transform-origin: left; }
+  .v-now .urgent .rail-fill { background: var(--accent); }
+  .v-now .upnext { transition: opacity calc(var(--slow) * 650ms) cubic-bezier(.42,0,.58,1); }
+  .v-now.resting .rest-layer { opacity: 1; pointer-events: auto; }
+  .v-now.resting .upnext { opacity: 0; pointer-events: none; }
+
+  /* Shared entrance for round 2: fade, 0.96 scale and a 2 px blur in; a faster exit. */
+  .enter { opacity: 0; transform: scale(.96); filter: blur(2px); pointer-events: none;
+    transition: opacity calc(var(--slow) * 150ms) ease-out, transform calc(var(--slow) * 150ms) ease-out, filter calc(var(--slow) * 150ms) ease-out; }
+  .resting .enter { opacity: 1; transform: none; filter: blur(0); pointer-events: auto;
+    transition-duration: calc(var(--slow) * 220ms); transition-timing-function: var(--ease-out); }
+  .has-idleup.resting .enter { transition-delay: calc(var(--slow) * 110ms); }
+  .idle-up { transition: opacity calc(var(--slow) * 120ms) ease-out; }
+  .resting .idle-up { opacity: 0; pointer-events: none; }
+  .leftslot { position: relative; flex: 1 1 auto; min-width: 0; height: 35px; display: flex; align-items: center; }
+  .leftslot > * { position: absolute; left: 0; top: 50%; translate: 0 -50%; transform-origin: left center; }
+
+  /* B2, plain type + ring. */
+  .v-B2 .rest-inline { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .v-B2 .countdown { font-size: 20px; }
+  .ring { width: 20px; height: 20px; transform: rotate(-90deg); flex: none; overflow: visible; }
+  .ring .trk { stroke: var(--track); opacity: .55; }
+  .ring .arc { stroke: var(--accent); }
+
+  /* C2, matched pair. */
+  .v-C2 .rest-cap { height: 35px; border-radius: 17.5px; border: 1px solid var(--queueStroke); background: var(--footFill);
+    overflow: hidden; display: flex; align-items: baseline; gap: 6px; padding: 0 16px; line-height: 33px; }
+  .v-C2 .rest-cap .fill { position: absolute; inset: 0; background: var(--wash); transform-origin: left; }
+  .v-C2 .rest-cap > span { position: relative; }
+  .v-C2 .countdown { font-size: 18px; }
+  .v-C2 .queue { border-radius: 17.5px; }
+
+  /* E, the queue pill grows a time segment on its left; one control on the right. */
+  .v-E .grow { flex: none; display: flex; align-items: center; height: 35px; border-radius: 17.5px; overflow: hidden; position: relative;
+    border: 1px solid var(--queueStroke); background: var(--footFill); }
+  .v-E .grow .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--wash); transform-origin: left; width: 100%; opacity: 0;
+    transition: opacity calc(var(--slow) * 200ms) ease-out; }
+  .v-E.resting .grow .fill { opacity: 1; }
+  .v-E .seg { position: relative; display: flex; align-items: center; gap: 6px; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+    transition: max-width calc(var(--slow) * 200ms) ease-out, opacity calc(var(--slow) * 120ms) ease-out; }
+  .v-E.resting .seg { max-width: 140px; opacity: 1; transition: max-width calc(var(--slow) * 260ms) var(--ease-out), opacity calc(var(--slow) * 200ms) ease-out calc(var(--slow) * 60ms); }
+  .v-E .seg .countdown { font-size: 18px; padding-left: 16px; }
+  .v-E .seg .div { width: 1px; height: 18px; background: var(--queueStroke); margin-left: 12px; }
+  .v-E .queue { border: 0; background: transparent; position: relative; }
+
+  /* F, big numerals: today's 26 pt countdown as plain type, progress as an underline under the digits. */
+  .v-F .stack { display: flex; align-items: baseline; gap: 8px; }
+  .v-F .digits { position: relative; }
+  .v-F .countdown { font-size: 28px; line-height: 30px; letter-spacing: -.01em; }
+  .v-F .under { position: absolute; left: 0; right: 0; bottom: -3px; height: 2px; border-radius: 1px; background: var(--track); opacity: 1; }
+  .v-F .under .fill { position: absolute; inset: 0; border-radius: 1px; background: var(--accent); transform-origin: left; }
+  .v-F .under .trk { position: absolute; inset: 0; border-radius: 1px; background: var(--track); opacity: .45; }
+
+  /* G, ticks: discrete progress, one tick per tenth of the rest; calmer than a continuous drain. */
+  .v-G .ticks-wrap { display: flex; align-items: center; gap: 12px; white-space: nowrap; }
+  .v-G .countdown { font-size: 20px; }
+  .v-G .ticks { display: flex; gap: 4px; align-items: center; }
+  .v-G .tick { width: 4px; height: 14px; border-radius: 2px; background: var(--track); opacity: .35;
+    transition: opacity calc(var(--slow) * 300ms) ease, background-color calc(var(--slow) * 300ms) ease; }
+  .v-G .tick.on { background: var(--accent); opacity: 1; }
+  .night .v-G .tick.on { background: #579168; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .enter { transform: none !important; filter: none !important; }
+  }
+
+  .panel { width: 330px; font-size: 13px; }
+  .panel h1 { font-size: 15px; margin: 0 0 4px; color: #fff; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: #888; margin: 18px 0 6px; }
+  .panel p { margin: 4px 0; color: #aaa; line-height: 1.4; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btns button { font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #444;
+    background: #2a2d2a; color: #eee; cursor: pointer; transition: transform 120ms ease-out; }
+  .btns button:active { transform: scale(.97); }
+  .btns button.on { background: #0D6B40; border-color: #1F8552; }
+  pre.readout { background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px; font-size: 11.5px; line-height: 1.5; white-space: pre-wrap; margin: 0; color: #cfe; }
+  .bad { color: #ff8a80; }
+
+  .switcher { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 4px;
+    background: #fff; color: #111; border-radius: 999px; padding: 6px; box-shadow: 0 8px 30px rgba(0,0,0,.5); font-size: 13px; font-weight: 600; z-index: 10; }
+  .switcher button { border: 0; background: #eee; border-radius: 999px; width: 30px; height: 30px; font-size: 15px; cursor: pointer; }
+  .switcher span { padding: 0 12px; min-width: 260px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="screen" id="screen">
+  <div class="mask" id="mask"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<div class="panel">
+  <h1>Rest timer redesign, #905 · round 2</h1>
+  <p id="vdesc"></p>
+  <h2>Drive it</h2>
+  <div class="btns">
+    <button data-act="log">Log Set (rest 2:00)</button>
+    <button data-act="mid">Jump to 1:24</button>
+    <button data-act="final">Jump to 0:08</button>
+    <button data-act="restart">Restart rest</button>
+    <button data-act="end">End rest</button>
+  </div>
+  <h2>Conditions</h2>
+  <div class="btns">
+    <button data-tog="editing">Editing weight</button>
+    <button data-tog="idleUp">Up next at idle</button>
+    <button data-tog="night">Night</button>
+    <button data-tog="se">iPhone SE</button>
+    <button data-tog="fast">Timer 6x</button>
+    <button data-tog="slowmo">Transitions 5x slow</button>
+  </div>
+  <h2>Measured live</h2>
+  <pre class="readout" id="readout"></pre>
+  <p>The page above the foot is a simulator screenshot, so the card bottom is fixed by construction. The check that matters is that the foot row stays 55 pt and nothing the rest timer draws leaves it.</p>
+</div>
+
+<div class="switcher">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span id="vlabel"></span>
+  <button id="next" aria-label="Next variant">→</button>
+</div>
+
+<script>
+const variants = ['now', 'B2', 'C2', 'E', 'F', 'G'];
+const names = {
+  now: 'Now (baseline, has Up next)',
+  B2: 'B2 · Plain type + ring',
+  C2: 'C2 · Matched pair',
+  E: 'E · Growing queue pill',
+  F: 'F · Big numerals',
+  G: 'G · Ticks',
+};
+const descs = {
+  now: 'Today’s RestPillView, kept for comparison. It still covers Up next during rest.',
+  B2: 'Round 1’s B with Up next gone. A ring and the countdown sit alone in the left slot, so the countdown grows from 17 to 20 pt.',
+  C2: 'Round 1’s C with Up next gone. A capsule with the queue pill’s exact anatomy, progress washing inside it.',
+  E: 'One control on the right. During rest the N of M pill grows a time segment on its leading side and a wash drains across it. The left of the foot stays empty.',
+  F: 'Readability first. The countdown keeps today’s weight at 28 pt as plain type, with a 2 pt underline under the digits for progress. No container.',
+  G: 'Discrete progress. Ten ticks go out one per tenth of the rest, so nothing moves continuously while you rest. Countdown at 20 pt.',
+};
+const devices = {
+  pro: { w: 402, h: 874, cardBottom: 783.5, maskTop: 785, img: { day: 'img/pro-day.jpg', night: 'img/pro-night.jpg' } },
+  se: { w: 375, h: 667, cardBottom: 609.5, maskTop: 612, img: { day: 'img/se-day.jpg', night: 'img/se-day.jpg' } },
+};
+
+const params = new URLSearchParams(location.search);
+const S = {
+  variant: variants.includes(params.get('variant')) ? params.get('variant') : 'now',
+  phase: 'rest', duration: 120, remaining: 84, holdUntil: 0,
+  editing: params.get('editing') === '1', idleUp: params.get('idleup') === '1',
+  night: params.get('theme') === 'night', se: params.get('device') === 'se',
+  fast: false, slowmo: false,
+};
+const st = params.get('state');
+if (st === 'idle') S.phase = 'idle';
+if (st === 'final') S.remaining = 4.4;
+if (st === 'start') S.remaining = 120;
+if (st === 'expired') { S.phase = 'expired'; S.remaining = 0; S.holdUntil = Infinity; }
+if (params.get('capture') === '1') document.body.classList.add('capture');
+if (params.get('still') === '1') document.body.classList.add('still');
+
+const screen = document.getElementById('screen');
+const foot = document.getElementById('foot');
+const mask = document.getElementById('mask');
+
+function upNextTitle() { return 'BB RDL'; }
+function fmt(sec) { const t = Math.ceil(Math.max(0, sec)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; }
+function fraction() { return Math.max(0, Math.min(1, S.remaining / S.duration)); }
+
+const upNextHTML = (withLead = true) => `
+  <div class="upnext label" id="upnext">${withLead ? '<span class="lead muted">Up next ·</span>' : ''}<span class="title ink">${upNextTitle()}</span></div>`;
+const queueHTML = `<div class="queue label" id="queue">1 of 2</div>`;
+
+const idleUpHTML = () => S.idleUp ? `<div class="upnext label idle-up"><span class="lead muted">Up next ·</span><span class="title ink">${upNextTitle()}</span></div>` : '';
+const ringHTML = `<svg class="ring pulse-target" viewBox="0 0 20 20"><circle class="trk" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5"/>
+  <circle class="arc" id="fill" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/></svg>`;
+const build = {
+  now: () => `
+    <div class="slot row">${upNextHTML()}<div class="spacer"></div>${queueHTML}</div>
+    <div class="rest-layer" id="rest"><div class="rest-root">
+      <div class="countdown pulse-target" id="cd"></div>
+      <div class="rail"><div class="rail-fill pulse-target" id="fill"></div></div>
+    </div></div>`,
+  B2: () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}
+      <div class="rest-inline rest-root enter" id="rest">${ringHTML}<span class="countdown pulse-target" id="cd"></span><span class="label muted">rest</span></div></div>
+      ${queueHTML}</div>`,
+  C2: () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}
+      <div class="rest-cap rest-root label enter" id="rest"><div class="fill" id="fill"></div>
+        <span class="countdown pulse-target" id="cd"></span><span class="muted">rest</span></div></div>
+      ${queueHTML}</div>`,
+  E: () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}</div>
+      <div class="grow rest-root" id="rest"><div class="fill" id="fill"></div>
+        <div class="seg"><span class="countdown pulse-target" id="cd"></span><span class="label muted">rest</span><span class="div"></span></div>
+        <div class="queue label" id="queue">1 of 2</div></div></div>`,
+  F: () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}
+      <div class="stack rest-root enter" id="rest"><span class="digits"><span class="countdown pulse-target" id="cd"></span>
+        <span class="under"><span class="trk"></span><span class="fill" id="fill"></span></span></span><span class="label muted">rest</span></div></div>
+      ${queueHTML}</div>`,
+  G: () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}
+      <div class="ticks-wrap rest-root enter" id="rest"><span class="countdown pulse-target" id="cd"></span>
+        <span class="ticks" id="ticks">${'<span class="tick"></span>'.repeat(10)}</span></div></div>
+      ${queueHTML}</div>`,
+};
+
+function layout() {
+  const d = devices[S.se ? 'se' : 'pro'];
+  const theme = S.night && !S.se ? 'night' : 'day';
+  screen.className = `screen ${theme}`;
+  screen.style.width = d.w + 'px';
+  screen.style.height = d.h + 'px';
+  screen.style.backgroundImage = `url(${d.img[theme]})`;
+  mask.style.top = d.maskTop + 'px';
+  mask.style.backgroundImage = `url(img/strip-${theme}.png)`;
+  foot.style.top = d.cardBottom + 'px';
+}
+
+function render() {
+  layout();
+  foot.className = `foot v-${S.variant}${S.idleUp ? ' has-idleup' : ''}`;
+  foot.innerHTML = build[S.variant]();
+  document.getElementById('vlabel').textContent = names[S.variant];
+  document.getElementById('vdesc').textContent = descs[S.variant];
+  const url = new URL(location);
+  url.searchParams.set('variant', S.variant);
+  history.replaceState(null, '', url);
+  update(true);
+}
+
+let lastSecond = null;
+function update(initial = false) {
+  const resting = S.phase !== 'idle';
+  foot.classList.toggle('resting', resting);
+  foot.classList.toggle('editing', S.editing);
+  const urgent = resting && S.remaining <= 5;
+  foot.classList.toggle('urgent', urgent);
+  const cd = document.getElementById('cd');
+  if (cd) cd.textContent = fmt(S.remaining);
+  const fill = document.getElementById('fill');
+  if (fill) {
+    if (fill.tagName === 'circle') fill.setAttribute('stroke-dasharray', `${fraction() * 100} 100`);
+    else fill.style.transform = `scaleX(${fraction()})`;
+  }
+  const sec = Math.ceil(S.remaining);
+  if (urgent && sec !== lastSecond && !initial) {
+    foot.classList.add('breathe');
+    setTimeout(() => foot.classList.remove('breathe'), 220);
+  }
+  lastSecond = sec;
+  const ticks = document.getElementById('ticks');
+  if (ticks) {
+    const lit = Math.ceil(fraction() * 10 - 1e-9);
+    [...ticks.children].forEach((t, i) => t.classList.toggle('on', i < lit));
+  }
+  readout();
+}
+
+function rel(r) { const s = screen.getBoundingClientRect(); return { top: r.top - s.top, bottom: r.bottom - s.top, left: r.left - s.left, right: r.right - s.left, h: r.height, w: r.width }; }
+function readout() {
+  const d = devices[S.se ? 'se' : 'pro'];
+  const f = rel(foot.getBoundingClientRect());
+  const restEl = foot.querySelector('.rest-root');
+  const r = restEl ? rel(restEl.getBoundingClientRect()) : null;
+  const lines = [];
+  lines.push(`device       ${S.se ? 'iPhone SE (3rd gen) 375×667' : 'iPhone 17 Pro 402×874'}${S.se && S.night ? '  (no SE Night capture; showing Day)' : ''}`);
+  lines.push(`phase        ${S.phase}${S.phase !== 'idle' ? '  ' + fmt(S.remaining) : ''}${S.editing ? '  (editing: foot hidden, still counting)' : ''}`);
+  lines.push(`card bottom  ${d.cardBottom} pt  (fixed)`);
+  lines.push(`foot row     ${f.h.toFixed(1)} pt tall  ${f.h === 55 ? 'ok' : '<- changed'}`);
+  if (r && S.phase !== 'idle') {
+    const over = Math.max(0, f.top - r.top, r.bottom - f.bottom);
+    lines.push(`rest box     ${r.w.toFixed(0)}×${r.h.toFixed(0)} pt, ${(r.top - d.cardBottom).toFixed(1)} pt below card`);
+    lines.push(`             ${(d.h - r.bottom).toFixed(1)} pt above screen bottom${over ? `  <- leaves foot by ${over.toFixed(1)} pt` : ''}`);
+  }
+  const un = document.getElementById('upnext');
+  if (un && S.phase !== 'idle' && !S.editing) {
+    const b = un.querySelector('.title').getBoundingClientRect();
+    const hit = document.elementFromPoint(b.left + Math.min(10, b.width / 2), b.top + b.height / 2);
+    const ok = hit && un.contains(hit) && getComputedStyle(un).opacity > 0.5 && getComputedStyle(un).pointerEvents !== 'none';
+    lines.push(`Up next tap  ${ok ? 'reachable during rest' : 'blocked during rest'}`);
+  }
+  document.getElementById('readout').innerHTML = lines.join('\n').replace(/(<- [^\n]+|blocked during rest)/g, '<span class="bad">$1</span>');
+}
+
+let last = performance.now();
+function tick(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (S.phase === 'rest') {
+    S.remaining -= dt * (S.fast ? 6 : 1);
+    if (S.remaining <= 0) { S.remaining = 0; S.phase = 'expired'; S.holdUntil = now + 900; }
+  } else if (S.phase === 'expired' && now >= S.holdUntil) {
+    S.phase = 'idle';
+  }
+  update();
+  requestAnimationFrame(tick);
+}
+if (params.get('capture') !== '1') requestAnimationFrame(tick);
+
+document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
+  const a = b.dataset.act;
+  if (a === 'log') { S.phase = 'rest'; S.remaining = S.duration; }
+  if (a === 'mid') { S.phase = 'rest'; S.remaining = 84; }
+  if (a === 'final') { S.phase = 'rest'; S.remaining = 8; }
+  if (a === 'end') { S.phase = 'idle'; }
+  if (a === 'restart' && S.phase !== 'idle') {
+    S.remaining = S.duration;
+    foot.classList.add('restart');
+    setTimeout(() => foot.classList.remove('restart'), 160);
+  }
+  update();
+}));
+document.querySelectorAll('[data-tog]').forEach(b => {
+  const k = b.dataset.tog;
+  b.classList.toggle('on', !!S[k]);
+  b.addEventListener('click', () => {
+    S[k] = !S[k]; b.classList.toggle('on', S[k]);
+    document.documentElement.style.setProperty('--slow', S.slowmo ? 5 : 1);
+    if (k === 'idleUp' || k === 'night' || k === 'se') render(); else update();
+  });
+});
+function step(dir) { S.variant = variants[(variants.indexOf(S.variant) + dir + variants.length) % variants.length]; render(); }
+document.getElementById('prev').onclick = () => step(-1);
+document.getElementById('next').onclick = () => step(1);
+addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, [contenteditable]')) return;
+  if (e.key === 'ArrowLeft') step(-1);
+  if (e.key === 'ArrowRight') step(1);
+});
+document.fonts.ready.then(render);
+render();
+</script>
+</body>
+</html>

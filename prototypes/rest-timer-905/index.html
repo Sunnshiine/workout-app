@@ -1,7 +1,7 @@
 <!doctype html>
 <!--
-  PROTOTYPE (throwaway, never merges). Issue #905, round 2: no Up next during rest.
-  Plan: B and C without Up next, three new variants, and the current design as a baseline, switchable via ?variant=, drawn live
+  PROTOTYPE (throwaway, never merges). Issue #905, round 3: B's ring timer intentionally replaces Up next during rest.
+  Plan: the ring timer at 20, 24 and 26 pt, no "rest" label, and the current design as a baseline, switchable via ?variant=, drawn live
   in the foot over real simulator screenshots of the Session stage. The page above the foot is a
   screenshot, so the card cannot move; the readout checks the foot row itself never grows.
 -->
@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Rest timer #905 prototype, round 2</title>
+<title>Rest timer #905 prototype, round 3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
@@ -89,17 +89,20 @@
   .resting .enter { opacity: 1; transform: none; filter: blur(0); pointer-events: auto;
     transition-duration: calc(var(--slow) * 220ms); transition-timing-function: var(--ease-out); }
   .has-idleup.resting .enter { transition-delay: calc(var(--slow) * 110ms); }
-  .idle-up { transition: opacity calc(var(--slow) * 120ms) ease-out; }
+  .idle-up { transition: opacity calc(var(--slow) * 180ms) ease-out calc(var(--slow) * 150ms); }
+  .resting .idle-up { transition: opacity calc(var(--slow) * 120ms) ease-out; }
   .resting .idle-up { opacity: 0; pointer-events: none; }
+  .rest-inline { gap: 8px !important; }
   .leftslot { position: relative; flex: 1 1 auto; min-width: 0; height: 35px; display: flex; align-items: center; }
   .leftslot > * { position: absolute; left: 0; top: 50%; translate: 0 -50%; transform-origin: left center; }
 
   /* B2, plain type + ring. */
-  .v-B2 .rest-inline { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .rest-inline { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
   .v-B2 .countdown { font-size: 20px; }
   .ring { width: 20px; height: 20px; transform: rotate(-90deg); flex: none; overflow: visible; }
   .ring .trk { stroke: var(--track); opacity: .55; }
   .ring .arc { stroke: var(--accent); }
+  .urgent .ring .arc { stroke: var(--urgent); }
 
   /* C2, matched pair. */
   .v-C2 .rest-cap { height: 35px; border-radius: 17.5px; border: 1px solid var(--queueStroke); background: var(--footFill);
@@ -168,7 +171,7 @@
 </div>
 
 <div class="panel">
-  <h1>Rest timer redesign, #905 · round 2</h1>
+  <h1>Rest timer redesign, #905 · round 3</h1>
   <p id="vdesc"></p>
   <h2>Drive it</h2>
   <div class="btns">
@@ -199,22 +202,18 @@
 </div>
 
 <script>
-const variants = ['now', 'B2', 'C2', 'E', 'F', 'G'];
+const variants = ['now', 'B20', 'B24', 'B26'];
 const names = {
-  now: 'Now (baseline, has Up next)',
-  B2: 'B2 · Plain type + ring',
-  C2: 'C2 · Matched pair',
-  E: 'E · Growing queue pill',
-  F: 'F · Big numerals',
-  G: 'G · Ticks',
+  now: 'Now (baseline)',
+  B20: 'B · 20 pt (round 2 size)',
+  B24: 'B · 24 pt',
+  B26: 'B · 26 pt (statsValue, today’s countdown size)',
 };
 const descs = {
-  now: 'Today’s RestPillView, kept for comparison. It still covers Up next during rest.',
-  B2: 'Round 1’s B with Up next gone. A ring and the countdown sit alone in the left slot, so the countdown grows from 17 to 20 pt.',
-  C2: 'Round 1’s C with Up next gone. A capsule with the queue pill’s exact anatomy, progress washing inside it.',
-  E: 'One control on the right. During rest the N of M pill grows a time segment on its leading side and a wash drains across it. The left of the foot stays empty.',
-  F: 'Readability first. The countdown keeps today’s weight at 28 pt as plain type, with a 2 pt underline under the digits for progress. No container.',
-  G: 'Discrete progress. Ten ticks go out one per tenth of the rest, so nothing moves continuously while you rest. Countdown at 20 pt.',
+  now: 'Today’s RestPillView, kept for comparison.',
+  B20: 'Up next at idle. During rest the ring and countdown replace it, then Up next returns when rest ends. Countdown at round 2’s 20 pt.',
+  B24: 'The same swap with the countdown one visual step up, 24 pt, and the ring scaled to 22 pt.',
+  B26: 'The same swap at 26 pt, the existing statsValue token today’s pill uses. Ring at 24 pt.',
 };
 const devices = {
   pro: { w: 402, h: 874, cardBottom: 783.5, maskTop: 785, img: { day: 'img/pro-day.jpg', night: 'img/pro-night.jpg' } },
@@ -225,7 +224,7 @@ const params = new URLSearchParams(location.search);
 const S = {
   variant: variants.includes(params.get('variant')) ? params.get('variant') : 'now',
   phase: 'rest', duration: 120, remaining: 84, holdUntil: 0,
-  editing: params.get('editing') === '1', idleUp: params.get('idleup') === '1',
+  editing: params.get('editing') === '1', idleUp: params.get('idleup') !== '0',
   night: params.get('theme') === 'night', se: params.get('device') === 'se',
   fast: false, slowmo: false,
 };
@@ -252,6 +251,12 @@ const queueHTML = `<div class="queue label" id="queue">1 of 2</div>`;
 const idleUpHTML = () => S.idleUp ? `<div class="upnext label idle-up"><span class="lead muted">Up next ·</span><span class="title ink">${upNextTitle()}</span></div>` : '';
 const ringHTML = `<svg class="ring pulse-target" viewBox="0 0 20 20"><circle class="trk" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5"/>
   <circle class="arc" id="fill" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/></svg>`;
+const ringB = (px) => `<svg class="ring pulse-target" style="width:${px}px;height:${px}px" viewBox="0 0 20 20"><circle class="trk" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5"/>
+  <circle class="arc" id="fill" cx="10" cy="10" r="8.5" fill="none" stroke-width="2.5" stroke-linecap="round" pathLength="100" stroke-dasharray="100 100"/></svg>`;
+const swapB = (pt, ring) => () => `
+    <div class="slot row"><div class="leftslot">${idleUpHTML()}
+      <div class="rest-inline rest-root enter" id="rest">${ringB(ring)}<span class="countdown pulse-target" id="cd" style="font-size:${pt}px"></span></div></div>
+      ${queueHTML}</div>`;
 const build = {
   now: () => `
     <div class="slot row">${upNextHTML()}<div class="spacer"></div>${queueHTML}</div>
@@ -259,30 +264,9 @@ const build = {
       <div class="countdown pulse-target" id="cd"></div>
       <div class="rail"><div class="rail-fill pulse-target" id="fill"></div></div>
     </div></div>`,
-  B2: () => `
-    <div class="slot row"><div class="leftslot">${idleUpHTML()}
-      <div class="rest-inline rest-root enter" id="rest">${ringHTML}<span class="countdown pulse-target" id="cd"></span><span class="label muted">rest</span></div></div>
-      ${queueHTML}</div>`,
-  C2: () => `
-    <div class="slot row"><div class="leftslot">${idleUpHTML()}
-      <div class="rest-cap rest-root label enter" id="rest"><div class="fill" id="fill"></div>
-        <span class="countdown pulse-target" id="cd"></span><span class="muted">rest</span></div></div>
-      ${queueHTML}</div>`,
-  E: () => `
-    <div class="slot row"><div class="leftslot">${idleUpHTML()}</div>
-      <div class="grow rest-root" id="rest"><div class="fill" id="fill"></div>
-        <div class="seg"><span class="countdown pulse-target" id="cd"></span><span class="label muted">rest</span><span class="div"></span></div>
-        <div class="queue label" id="queue">1 of 2</div></div></div>`,
-  F: () => `
-    <div class="slot row"><div class="leftslot">${idleUpHTML()}
-      <div class="stack rest-root enter" id="rest"><span class="digits"><span class="countdown pulse-target" id="cd"></span>
-        <span class="under"><span class="trk"></span><span class="fill" id="fill"></span></span></span><span class="label muted">rest</span></div></div>
-      ${queueHTML}</div>`,
-  G: () => `
-    <div class="slot row"><div class="leftslot">${idleUpHTML()}
-      <div class="ticks-wrap rest-root enter" id="rest"><span class="countdown pulse-target" id="cd"></span>
-        <span class="ticks" id="ticks">${'<span class="tick"></span>'.repeat(10)}</span></div></div>
-      ${queueHTML}</div>`,
+  B20: swapB(20, 20),
+  B24: swapB(24, 22),
+  B26: swapB(26, 24),
 };
 
 function layout() {
