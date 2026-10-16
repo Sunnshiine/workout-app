@@ -377,11 +377,13 @@ may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if eac
 Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), while free memory
 (`kern.memorystatus_level`, percent) is under `WORKOUT_MEM_FLOOR` (25), and exits 75 with the reason
 if it never clears. A claim on a shut-down simulator also waits while `WORKOUT_SIM_CAP` other
-simulators are booted (6), and boots it once admitted. Each `build`, each build into the app cache
-(`install COMMIT`, `launch --at`), and each `test-sim.sh` build waits for the same floor and takes
-one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. `build` boots nothing. Admission
-never reads the load. Run anything else heavy as `scripts/build-slot.sh <command>` instead of a
-hand-written `uptime` loop.
+simulators are booted (6), and boots it once admitted. At the cap it first shuts down the least
+recently used `workout-lane-*` simulator that no run holds, that runs no app but a verify app past
+its lease, and that went unclaimed for `WORKOUT_IDLE_MINUTES` (2), and names it on stderr. Each
+`build`, each build into the app cache (`install COMMIT`, `launch --at`), and each `test-sim.sh`
+build waits for the same floor and takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the
+same way. `build` boots nothing. Admission never reads the load. Run anything else heavy as
+`scripts/build-slot.sh <command>` instead of a hand-written `uptime` loop.
 
 ## Changing this skill
 

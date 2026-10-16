@@ -15,8 +15,8 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
                  step fails. The next create deletes a half-built device a killed build left running,
                  and finishes one left Shutdown, as a build that gave up waiting for the host leaves
                  it. Leaves the clone Shutdown, so it holds no seat of the host cap.
-  boot <lane>    boot it and print its UDID. test-sim.sh and verify.sh boot a lane themselves; run
-                 this before a raw xcodebuild or XcodeBuildMCP call on a lane.
+  boot <lane>    boot it, start its idle clock, and print its UDID. test-sim.sh and verify.sh boot a
+                 lane themselves; run this before a raw xcodebuild or XcodeBuildMCP call on a lane.
   delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
                  directory's lock throughout, so no run can claim the simulator meanwhile. A missing
                  device is a note on stderr and exit 0.
@@ -32,6 +32,10 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
 Every boot, the template's and boot's, goes through the host admission test-sim.sh and verify.sh use
 (scripts/sim-lock.sh): it waits, saying why once a minute, while free memory is under
 WORKOUT_MEM_FLOOR or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
+At the cap it first shuts down the least recently used booted lane that no run holds, that runs no
+app but a verify app past its lease, and whose /tmp/workout-verify-<UDID>/lock was last written
+WORKOUT_IDLE_MINUTES or more ago. boot touches that file, so a raw xcodebuild or XcodeBuildMCP run
+after it, which takes no lock, still leaves the lane an idle clock.
 
 A lane name matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. stdout carries only the output above; progress
 goes to stderr. create holds the pool lock, <WORKOUT_HOST_LOCK_DIR>/sim-pool, and its holder is
@@ -41,6 +45,7 @@ Environment:
   WORKOUT_SIM_CAP        most simulators booted at once host-wide (default 6)
   WORKOUT_MEM_FLOOR      lowest free memory, kern.memorystatus_level in percent, a boot starts at
                          (default 25; 0 turns it off)
+  WORKOUT_IDLE_MINUTES   minutes a lane's lock goes unwritten before the cap may reclaim it (default 2)
   WORKOUT_ADMIT_WAIT     seconds to wait for the pool lock or the host before exit 75 (default 540)
   WORKOUT_HOST_LOCK_DIR  the host-wide lock directory (default /tmp/workout-host-locks)
 
@@ -228,6 +233,8 @@ boot_lane() {
   [ -n "$udid" ] || die 1 "no device is named workout-lane-$1; run scripts/sim-pool.sh create $1"
   boot_admitted "$udid"
   simctl bootstatus "$udid" -b >&2 || die 70 "$udid did not finish booting"
+  mkdir -p "/tmp/workout-verify-$udid"
+  touch "/tmp/workout-verify-$udid/lock"
   printf '%s\n' "$udid"
 }
 
