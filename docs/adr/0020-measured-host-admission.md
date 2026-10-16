@@ -9,7 +9,9 @@ lane's simulator down until the lane was removed, so booted simulators piled up.
 We measured the host on 2026-10-15: a Mac mini with an Apple M6, 12 cores, and 32 GB, on macOS 27.0.1
 and Xcode 27.0. Each trial booted N pool clones and ran N `test-sim.sh` runs at once with the gates
 lifted. Every two seconds it sampled the load, CPU, free memory (`kern.memorystatus_level`), and swap.
-Each trial ran once unless a row says otherwise.
+Each trial ran once unless a row says otherwise. The last two rows ran on 2026-10-16 on the gates
+this ADR chose, in 12 fresh lanes, two more than the cap. Both times booted simulators peaked at 10,
+two waiting runs each reclaimed an idle lane, and swap did not grow.
 
 | Trial | N | Slowest run | Runs with a failure | Lowest free memory |
 |---|---|---|---|---|
@@ -27,6 +29,8 @@ Each trial ran once unless a row says otherwise.
 | | 6, 2 build slots | 230 s | 0 | 69% |
 | | 6, all three gates | 550 s | 0 | 64% |
 | warm build + unit, all three gates | 6 | 359 s | 0 | 71% |
+| cold build, mixed unit, visual and UI smoke, this ADR's gates | 12 | 669 s | 1 (#899) and two exit 75 | 59% |
+| | 12, after the build-queue fix | 769 s | 0 | 50% |
 
 What the numbers say:
 
@@ -71,6 +75,13 @@ What the numbers say:
   `workout-lane-` prefix. `sim-pool.sh boot` starts the idle clock too.
 - **`WORKOUT_BUILD_SLOTS` stays at 2.** `scripts/build-slot.sh <command>` lets `swift test` and other
   heavy commands take a slot. It replaces `scripts/wait-load.sh`, which waited on the load.
+- **A moving build queue is not a stuck one.** A wait for a build slot restarts its
+  `WORKOUT_ADMIT_WAIT` budget each time a slot changes hands. Exit 75 means one holder kept a slot for
+  the whole budget. A claim also waits for a free slot before it reclaims a seat, so it never shuts
+  down a lane for a seat it cannot use yet.
+- **`lane.sh down` shuts the lane's simulator down before anything else.** A booted simulator keeps
+  Xcode's `DTServiceHub` working in the lane's worktree until it shuts down, so `down` used to refuse
+  any lane a run had left booted.
 
 ## Considered alternatives
 
