@@ -374,7 +374,7 @@ private let anyValueTheCardAccepts: [(transcript: String, weight: Weight?, reps:
     ("12 reps at 12 pounds", .pounds(12), 12, nil), ("10 for 45", .pounds(10), 45, nil), ("12 for 95", .pounds(12), 95, nil),
     ("twelve for ninety five", .pounds(12), 95, nil), ("8 four 95", .pounds(8), 95, nil),
     ("135 for 45", .pounds(135), 45, nil), ("135 for forty five", .pounds(135), 45, nil), ("135 for 31", .pounds(135), 31, nil),
-    ("135 for 30", .pounds(135), 30, nil), ("135 for 100", .pounds(135), 100, nil), ("135 for 101", .pounds(135), 101, nil),
+    ("135 for 30", .pounds(135), 30, nil), ("135 for 100 reps", .pounds(135), 100, nil), ("135 for 101 at 8", .pounds(135), 101, .eight),
     ("135 for 49 reps", .pounds(135), 49, nil), ("135 for 49 at 8", .pounds(135), 49, .eight),
     ("RPE 8, 135 for 49", .pounds(135), 49, .eight), ("49 reps", nil, 49, nil), ("bodyweight for 50", .bodyweight, 50, nil),
     ("187.55 for 5", .pounds(187.55), 5, nil), ("135.123456 for 5", .pounds(135.123456), 5, nil),
@@ -487,9 +487,18 @@ func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
 }
 
 /// "4 at 9" can reach the transcript as "49", but "1 at 5" is rarely said, so only a second digit of
-/// 6 to 9 reads two ways.
+/// 6 to 9 reads two ways. Three digits read two ways whatever they are: the recognizer writes "808"
+/// for "8 at an 8", "343" for "3 for 3", and "110" for "1 at 10", and nobody logs 100 reps unlabelled.
 @Test func aRepCountAfterForThatMayBeRepsAtAnRPEIsAmbiguous() {
     #expect(SpokenSet.parse("135 for 49") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 808") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for 343") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("405 for 110") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 100") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("BW for 129") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 100 reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("135 for 808 at 8") == values(.pounds(135), 808, .eight))
+    #expect(SpokenSet.parse("100 reps") == values(nil, 100, nil))
     #expect(SpokenSet.parse("for 16") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 x 15") == values(.pounds(135), 15, nil))
     #expect(SpokenSet.parse("135 for 15") == values(.pounds(135), 15, nil))

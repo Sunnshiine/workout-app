@@ -145,9 +145,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
 - A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
   wrote "40542" for "four oh five for two".
-- A rep count written as two digits right after "for", with no "reps" after it and no RPE said, is
-  `ambiguous` when its second digit is 6 to 9: "135 for 19" may be "135 for 1 at 9". "135 for 19
-  reps", "135 for 15", and "45 for 10" log.
+- A rep count written right after "for", with no "reps" after it and no RPE said, is `ambiguous`
+  as two digits whose second is 6 to 9, and as any three digits: "135 for 19" may be "135 for 1 at
+  9", and "135 for 808" is what the recognizer writes for "135 for 8 at an 8". "135 for 19 reps",
+  "135 for 100 reps", "135 for 15", and "45 for 10" log.
 - "bodyweight", "body weight", and "BW" are the BW weight.
 - "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log
   the Exercise's nearest earlier Set Log in the Session. A command acts on this Set alone, so one
