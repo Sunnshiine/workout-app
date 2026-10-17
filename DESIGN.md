@@ -140,10 +140,11 @@ one serif voice — never from hype, density, or gamification.
   flora and the stage's one illustrative icon — **maximum one illustrative
   icon per page**. A control or status glyph does not count against it: any
   glyph on or inside a tappable control (the back arrow, play, X, chevrons, the
-  steppers' triangles, the clear menu's ellipsis, the queue pill's stack, and
-  the queue sheet's pairing stems, §5.4), one that leads a control's data (the
-  Last Performed clock, the runline's calendar, the Superset partner's fork),
-  or one that marks a state beside its word (the Saved check, the danger mark).
+  steppers' triangles, the clear menu's ellipsis, the card's mic, the queue
+  pill's stack, and the queue sheet's pairing stems, §5.4), one that leads a
+  control's data (the Last Performed clock, the runline's calendar, the
+  Superset partner's fork), or one that marks a state beside its word (the
+  Saved check, the danger mark).
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
@@ -458,12 +459,19 @@ closing, rest, and sync all leave its frame where it was. Its values change
 in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a
 row says, never whether the row is there. Saved and Clear sit in the head's
-trailing slot. A review has no collapse control: tapping its leaf again
-ends it. Inside the card, only what answers
-the athlete's own finger moves: the press, the rail recentring, and the
-hold-to-skip fill. A Superset switch is told above the card, by the Exercise
-name line and the active leaf. While the weight is edited, the card rides
-above the keyboard in one piece at the same size (§5.1).
+trailing slot, as does the mic on a Pending Set being logged. A Set written
+by speech stays on the card with Saved and Clear for four seconds, its values
+and action capsule disabled because only Clear changes it, then the card
+moves on as a log does, at once if the athlete touches it. Its open Clear
+menu stops the four seconds, and closing the menu without a Clear moves the
+card on. While the mic listens, and after a press that wrote nothing, the
+action capsule says what it heard in the Log button's frame, never aloud. A
+review has no collapse control: tapping its leaf again ends it. Inside the
+card, only what answers the athlete's own finger moves: the press, the rail
+recentring, and the hold-to-skip fill. A Superset switch is told above the
+card, by the Exercise name line and the active leaf. While the weight is
+edited, the card rides above the keyboard in one piece at the same size
+(§5.1).
 
 **Inert-Space All-Clear Rule** (carried forward). Tapping inert stage
 background clears transient UI — dismisses keyboard editing and transient

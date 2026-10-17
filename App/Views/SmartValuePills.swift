@@ -9,6 +9,15 @@ struct EditingWeightPreferenceKey: PreferenceKey {
     }
 }
 
+/// The values the card shows, which a Spoken Set fills what it leaves unsaid from.
+struct ShownSetLogDraftKey: PreferenceKey {
+    static let defaultValue = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+
+    static func reduce(value: inout SetLogDraft, nextValue: () -> SetLogDraft) {
+        value = nextValue()
+    }
+}
+
 /// The Active Set Card's input block (DESIGN.md §5.2, pick input-block3-c): weight
 /// leads as the card's biggest number flanked by round ± steppers; Reps and RPE are
 /// side-by-side one-tap scroll rails; a true Log capsule previews the exact Set Log.
@@ -19,6 +28,8 @@ struct SmartValuePills: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let inputDismissalRequestID: Int
+    let dictation: SetCardDictation
+    let onDismissDictation: () -> Void
 
     @State private var form: SmartValuePillsForm
     @State private var weightFieldMount = WeightFieldMount()
@@ -32,7 +43,9 @@ struct SmartValuePills: View {
         suggestion: LoadSuggestion,
         onLog: @escaping (SetLog) -> Void,
         onSkip: @escaping () -> Void,
-        inputDismissalRequestID: Int = 0
+        inputDismissalRequestID: Int = 0,
+        dictation: SetCardDictation = .ready,
+        onDismissDictation: @escaping () -> Void = {}
     ) {
         self.set = set
         self.mode = mode
@@ -40,6 +53,8 @@ struct SmartValuePills: View {
         self.onLog = onLog
         self.onSkip = onSkip
         self.inputDismissalRequestID = inputDismissalRequestID
+        self.dictation = dictation
+        self.onDismissDictation = onDismissDictation
         _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
     }
 
@@ -67,6 +82,7 @@ struct SmartValuePills: View {
 
             actionRow
         }
+        .disabled(!presentation.editsValues)
         .background {
             Color.clear
                 .contentShape(Rectangle())
@@ -77,6 +93,11 @@ struct SmartValuePills: View {
         }
         .onChange(of: suggestion) { _, later in
             form.refreshPrefill(from: later, for: set)
+        }
+        .onChange(of: dictation) { _, later in
+            guard case .filled(let heard) = later else { return }
+            form.fill(heard)
+            onDismissDictation()
         }
         .onChange(of: weightFieldFocused) { _, focused in
             weightFieldMount.focusChanged(to: focused)
@@ -89,6 +110,7 @@ struct SmartValuePills: View {
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
+        .preference(key: ShownSetLogDraftKey.self, value: form.draft)
     }
 
     private var presentation: SetCardPresentation {
@@ -216,7 +238,15 @@ struct SmartValuePills: View {
 
     @ViewBuilder
     private var actionRow: some View {
-        let row = presentation.actionRow(for: form)
+        if let caption = dictation.caption {
+            spokenSetCapsule(caption)
+        } else {
+            logAction(presentation.actionRow(for: form))
+        }
+    }
+
+    @ViewBuilder
+    private func logAction(_ row: SetCardPresentation.ActionRow) -> some View {
         switch row {
         case .logged(let line):
             loggedSetCapsule(line)
@@ -247,6 +277,33 @@ struct SmartValuePills: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(line)
             .accessibilityIdentifier("logged-set-capsule")
+    }
+
+    /// What the mic hears in place of the Log button, in its frame, and what it heard when nothing
+    /// was written until a tap brings the Log button back.
+    private func spokenSetCapsule(_ caption: String) -> some View {
+        let isListening = dictation.isListening
+        return Text(caption)
+            .lineLimit(1)
+            .truncationMode(.head)
+            .padding(.horizontal, 16)
+            .logCapsuleMetrics()
+            .foregroundStyle(isListening ? palette.textPrimary : palette.textSecondary)
+            .background(palette.pillFill, in: .capsule)
+            .overlay {
+                Capsule().strokeBorder(isListening ? palette.action : palette.pillStroke, lineWidth: isListening ? 2 : 1)
+            }
+            .contentShape(.capsule)
+            .onTapGesture {
+                if !isListening { onDismissDictation() }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(caption)
+            .accessibilityHint(isListening ? "" : "Shows the Log button")
+            .accessibilityAction {
+                if !isListening { onDismissDictation() }
+            }
+            .accessibilityIdentifier("spoken-set-capsule")
     }
 
     /// Reviewing an already-logged Set commits silently: any changed, valid draft is written when

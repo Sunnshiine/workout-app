@@ -120,6 +120,36 @@ struct SetRowPresentation: Equatable, Sendable {
 enum SetCardMode: Equatable, Sendable {
     case logging
     case reviewingLogged
+    /// A Set just written by speech, which reads as written: only its Clear menu changes it.
+    case held
+}
+
+/// What the head of the Set card shows at its trailing edge (DESIGN.md §5.2).
+enum SetCardHeadAccessory: Equatable, Sendable {
+    case none
+    case saved
+    case clearMenu
+    /// A Set written by speech: the write and its undo.
+    case savedAndClearMenu
+}
+
+@MainActor
+extension SetCardSlot.Mode {
+    var cardMode: SetCardMode {
+        switch self {
+        case .logging: .logging
+        case .reviewingLogged: .reviewingLogged
+        case .heldAfterSpokenWrite: .held
+        }
+    }
+
+    func headAccessory(for set: ExerciseSet) -> SetCardHeadAccessory {
+        switch self {
+        case .heldAfterSpokenWrite: .savedAndClearMenu
+        case .reviewingLogged(showsSavedConfirmation: true): .saved
+        case .logging, .reviewingLogged: SetCardPresentation(mode: cardMode, set: set).showsClearMenu ? .clearMenu : .none
+        }
+    }
 }
 
 struct SetCardPresentation: Equatable, Sendable {
@@ -128,12 +158,20 @@ struct SetCardPresentation: Equatable, Sendable {
         case skipped
         case logged(line: String)
         case incompleteDraft
+
+        /// A Set as written: Skipped, or its logged line.
+        @MainActor
+        static func written(_ set: ExerciseSet) -> ActionRow {
+            set.state == .skipped ? .skipped : .logged(line: set.displayReps)
+        }
     }
 
     static let incompleteDraftHint = "Complete weight, reps, and RPE"
 
     let showsClearMenu: Bool
     let commitsChangesOnDisappear: Bool
+    /// False leaves every value and the action capsule untouchable, for touch and VoiceOver alike.
+    let editsValues: Bool
     private let row: ActionRow
     private let incompleteDraftRow: ActionRow
 
@@ -143,14 +181,22 @@ struct SetCardPresentation: Equatable, Sendable {
         case .logging:
             showsClearMenu = set.state != .pending
             commitsChangesOnDisappear = false
+            editsValues = true
             row = set.state == .skipped ? .skipped : .log
             incompleteDraftRow = row
         case .reviewingLogged:
             showsClearMenu = false
             commitsChangesOnDisappear = true
+            editsValues = true
             row = .logged(line: set.displayReps)
             let isUnstructuredSetLog = set.setLog == nil
             incompleteDraftRow = isUnstructuredSetLog ? row : .incompleteDraft
+        case .held:
+            showsClearMenu = false
+            commitsChangesOnDisappear = false
+            editsValues = false
+            row = .written(set)
+            incompleteDraftRow = row
         }
     }
 

@@ -92,6 +92,12 @@ import Testing
         }
     }
 
+    @Test func dictationLaunchArgumentGivesTheCardTheTranscriptAfterIt() {
+        #expect(UITestLaunch(arguments: ["WorkoutTracker"]).dictatedTranscript == nil)
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION", "185 for 5 at 8"]).dictatedTranscript == "185 for 5 at 8")
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION"]).dictatedTranscript == "")
+    }
+
     @MainActor
     @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() throws {
         let seeded = try seed(arguments: ["-UITEST_FULL_BLOCK"])

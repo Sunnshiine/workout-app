@@ -33,16 +33,19 @@ enum WorkoutUITestFixtureOption: String {
 
 extension XCTestCase {
     @MainActor
+    /// `transcript` is what the Active Set Card's mic hears on every press; nil leaves the mic off.
     func launchWorkoutApp(
         fixture: WorkoutUITestFixture,
         options: [WorkoutUITestFixtureOption] = [],
-        animated: Bool = false
+        animated: Bool = false,
+        dictating transcript: String? = nil
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments =
             fixture.launchArguments + options.map(\.rawValue)
             + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
+            + (transcript.map { ["-UITEST_DICTATION", $0] } ?? [])
         app.launch()
         return app
     }
