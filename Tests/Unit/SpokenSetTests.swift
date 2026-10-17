@@ -551,6 +551,16 @@ func orAnywhereIsAmbiguous(transcript: String) {
     #expect(SpokenSet.parse("10:35 for 5") == .failure(.fusedNumber))
 }
 
+@Test func aMinusSignBeforeANumberIsKeptAndUnrecognizedButADashIsDropped() {
+    #expect(SpokenSet.parse("135 for -5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 for 5 at -8") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("-135 for 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 for 5 − 8") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 for 5 - at 8") == values(.pounds(135), 5, .eight))
+    #expect(SpokenSet.parse("two twenty-five for five") == values(.pounds(225), 5, nil))
+    #expect(SpokenSet.parse("405-4209") == .failure(.fusedNumber))
+}
+
 @Test func aHalfWrittenAsOneOverTwoAddsAHalfOnlyAfterANumber() {
     #expect(SpokenSet.parse("at 9 1/2") == values(nil, nil, .ninePointFive))
     #expect(SpokenSet.parse("at 1/2") == .failure(.unrecognized))

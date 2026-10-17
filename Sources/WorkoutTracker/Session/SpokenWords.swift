@@ -4,8 +4,8 @@ import Foundation
 enum SpokenTranscript {
     /// Lowercased words, digit runs, a written "1/2", and every other symbol on its own, with
     /// punctuation dropped and spelled-out abbreviations ("r p e", "b w", "body weight") joined into
-    /// one word. A pound sign is the "pounds" after its number, "½" is "1/2", and a clock time is the
-    /// number its digits spell ("1:35").
+    /// one word. A pound sign is the "pounds" after its number, "½" is "1/2", a clock time is the
+    /// number its digits spell ("1:35"), and a "-" that starts a number is a minus sign, never dropped.
     static func words(in transcript: String) -> [String] {
         let tokens = transcript.lowercased()
             .replacing("×", with: " x ")
@@ -13,6 +13,7 @@ enum SpokenTranscript {
             .replacing(/['‘’]/, with: "")
             .replacing(/£\s*([0-9]+(?:\.[0-9]+)?)/) { "\($0.1) pounds" }
             .replacing(/([0-9]{1,2}):([0-9]{2})/) { "\($0.1)\($0.2)" }
+            .replacing(/(^|\s)-(?=[0-9])/) { "\($0.1)−" }
             .matches(of: /1\/2|[0-9]+(?:\.[0-9]+)?|bw(?=x)|[a-z]+|[^\s.,!?;:"“”()\-–—…]/)
             .map { String($0.output) }
         return joiningPhrases(tokens)
