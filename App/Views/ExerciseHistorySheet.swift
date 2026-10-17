@@ -84,7 +84,7 @@ struct ExerciseHistorySheet: View {
         Button {
             withAnimation(toggleAnimation) { showVolume.toggle() }
         } label: {
-            Text("Volume")
+            Image(systemName: "chart.xyaxis.line")
                 .font(Theme.font(.queuePill))
                 .foregroundStyle(showVolume ? palette.textPrimary : palette.textSecondary)
                 .padding(.horizontal, 12)
@@ -96,12 +96,13 @@ struct ExerciseHistorySheet: View {
                         volumeControlRaisedBackground
                     }
                 }
-                .contentShape(Capsule())
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("history-volume-toggle")
         .accessibilityLabel("Volume")
-        .accessibilityValue(showVolume ? "on" : "off")
+        .accessibilityAddTraits(showVolume ? .isSelected : [])
     }
 
     private var volumeControlRaisedBackground: some View {

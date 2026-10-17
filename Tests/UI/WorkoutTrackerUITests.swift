@@ -270,6 +270,43 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertEqual(app.textFields.count, 0, "a folded weight exposes no text field")
     }
 
+    /// A switch that would discard pending Set Logs waits on the confirmation card. A swipe on the
+    /// picker under it once closed both and left the selection pending, so reopening the picker
+    /// showed the card again with nothing chosen, one tap from discarding the Set Logs.
+    @MainActor
+    func testSwipingThePickerUnderASwitchConfirmationLeavesNoSwitchPending() throws {
+        let app = launchSettingsFixtureApp(options: [.pendingWrite])
+
+        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        tapWhenHittable(trainingSheetRow)
+        let replacementRow = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")
+        ).firstMatch
+        tapWhenHittable(replacementRow)
+        let confirmSwitch = app.buttons["switch-sheet-confirm-button"]
+        XCTAssertTrue(confirmSwitch.appears(within: 3))
+
+        // A drag that starts on an element under the card makes XCTest's interruption handler tap
+        // the card's Cancel first, so the drag starts from a screen coordinate.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)),
+            withVelocity: .fast,
+            thenHoldForDuration: 0
+        )
+        XCTAssertFalse(confirmSwitch.waitForNonExistence(timeout: 2), "the swipe closed the picker under the card")
+
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(confirmSwitch.waitForNonExistence(timeout: 2))
+        tapWhenHittable(app.buttons["sheet-picker-done-button"])
+        XCTAssertTrue(app.navigationBars["Training Sheet"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
+
+        tapWhenHittable(trainingSheetRow)
+        XCTAssertTrue(replacementRow.appears(within: 3))
+        XCTAssertFalse(confirmSwitch.appears(within: 1), "reopening the picker brought back a pending switch")
+    }
+
     @MainActor
     private func launchFixtureApp(options: [WorkoutUITestFixtureOption] = [], animated: Bool = false) -> XCUIApplication {
         launchWorkoutApp(fixture: .currentSession, options: options, animated: animated)

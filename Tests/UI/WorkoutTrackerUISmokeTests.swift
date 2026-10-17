@@ -56,16 +56,19 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         XCTAssertTrue(trainingSheetRow.appears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
+        let confirmSignOut = app.buttons["sign-out-confirm-button"]
         app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
-        app.alerts.buttons["Cancel"].tap()
+        XCTAssertTrue(app.staticTexts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
+        XCTAssertEqual(confirmSignOut.label, "Sign Out")
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(confirmSignOut.appears(within: 1))
 
-        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
         app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
-        app.alerts.buttons["Sign Out"].tap()
+        XCTAssertTrue(confirmSignOut.appears(within: 3))
+        confirmSignOut.tap()
 
-        XCTAssertFalse(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 1))
+        XCTAssertFalse(confirmSignOut.appears(within: 1))
+        waitForLabel("Training Sheet, Google Sheet", on: trainingSheetRow)
     }
 
     @MainActor

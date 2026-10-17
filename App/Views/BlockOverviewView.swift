@@ -44,18 +44,18 @@ struct BlockOverviewView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Text, not a gear: the Block grid carries zero icons (DESIGN.md §5.5).
     private var settingsRow: some View {
         Button {
             isSettingsPresented = true
         } label: {
-            Text("Settings")
+            Image(systemName: "gearshape")
                 .font(Theme.font(.queuePill))
                 .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Settings")
         .accessibilityIdentifier("block-overview-settings-row")
     }
 
