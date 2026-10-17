@@ -79,7 +79,7 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. A bounded poll records a failure when it runs out, as
-  `HeldCall` in `Tests/Support/` does. A continuation ignores the time limit's cancellation, so a
+  `waitUntil` and `HeldCall` in `Tests/Support/` do. A continuation ignores the time limit's cancellation, so a
   wait on one with no bound hangs the run instead of failing it (#746). The poll, the state it
   reads, and the work that sets it share one actor, so each yield gives that work a turn. A poll on
   another actor can exhaust its count before a loaded main actor runs the work. (#548,

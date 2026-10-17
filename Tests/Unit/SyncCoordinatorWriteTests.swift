@@ -43,29 +43,30 @@ private final class PlanningIndexBuildCounter: @unchecked Sendable {
     }
 }
 
-private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
-    private let coordinator = ControlledFlushCoordinator()
+@MainActor
+private final class ControlledFlushClient: SheetsClient {
+    private(set) var updates: [(String, [[String]])] = []
+    private var grid: SheetGrid = []
+    private let fetch = HeldCall()
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        try await coordinator.fetchTabSnapshot()
+        await fetch.hold()
+        return SheetSnapshot(values: grid)
     }
 
     func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        await coordinator.recordUpdate(range: range, values: values)
+        updates.append((range, values))
     }
 
     func waitForFetch() async {
-        await coordinator.waitForFetch()
+        await fetch.waitUntilHeld(orRecord: "the flush never fetched the tab snapshot this client holds")
     }
 
-    func completeFetch(with grid: SheetGrid) async {
-        await coordinator.completeFetch(with: grid)
-    }
-
-    func updates() async -> [(String, [[String]])] {
-        await coordinator.updates
+    func completeFetch(with grid: SheetGrid) {
+        self.grid = grid
+        fetch.release()
     }
 }
 
@@ -128,7 +129,7 @@ private func pendingWrite(
         try await sync.discardPendingWrites()
     }
 
-    await client.completeFetch(
+    client.completeFetch(
         with: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
@@ -142,7 +143,7 @@ private func pendingWrite(
 
     await flushTask.value
 
-    #expect(await client.updates().count == 1)
+    #expect(client.updates.count == 1)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -452,41 +453,6 @@ private func pendingWrite(
     let set = try #require(exercise.sets.first { $0.index == 0 })
     #expect(set.state == .logged)
     #expect(set.setLog?.formatted == "185x5@8")
-}
-
-private actor ControlledFlushCoordinator {
-    private var fetchContinuation: CheckedContinuation<SheetSnapshot, Error>?
-    private var hasFetchStarted = false
-    private var fetchWaiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var updates: [(String, [[String]])] = []
-
-    func fetchTabSnapshot() async throws -> SheetSnapshot {
-        hasFetchStarted = true
-        for waiter in fetchWaiters {
-            waiter.resume()
-        }
-        fetchWaiters = []
-
-        return try await withCheckedThrowingContinuation { continuation in
-            fetchContinuation = continuation
-        }
-    }
-
-    func waitForFetch() async {
-        if hasFetchStarted { return }
-        await withCheckedContinuation { continuation in
-            fetchWaiters.append(continuation)
-        }
-    }
-
-    func completeFetch(with grid: SheetGrid) {
-        fetchContinuation?.resume(returning: SheetSnapshot(values: grid))
-        fetchContinuation = nil
-    }
-
-    func recordUpdate(range: String, values: [[String]]) {
-        updates.append((range, values))
-    }
 }
 
 extension SyncOutcome {
