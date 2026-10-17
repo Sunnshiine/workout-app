@@ -19,7 +19,7 @@ enum SpokenSet: Equatable, Sendable {
         /// Numbers the recognizer ran together, as "40542" for "405 for 2": a whole number of four or
         /// more digits, which no Set holds.
         case fusedNumber
-        /// Two readings: "135 for 49" may be "135 for 4 at 9".
+        /// Two readings: "135 for 49" may be "135 for 4 at 9", and alternatives may disagree.
         case ambiguous
         /// Two different numbers for one value: the 4 and the 8 of "135 for 4, 8 reps".
         case conflicting(SetLogDraft.Field)
@@ -66,6 +66,34 @@ enum SpokenSet: Equatable, Sendable {
 
     private static func couldBeRepsAtAnRPE(_ reps: Int) -> Bool {
         (10...99).contains(reps) && RPE(rawValue: Double(reps % 10)) != nil
+    }
+}
+
+extension SpokenSet {
+    enum Source: Equatable, Sendable {
+        case top
+        case alternative
+    }
+
+    struct Chosen: Equatable, Sendable {
+        let spokenSet: SpokenSet
+        let source: Source
+    }
+
+    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. The
+    /// alternatives are read only when the top is rejected, and stand in for it only when every one
+    /// that reads agrees, because two readings of one Set are two different Set Logs.
+    static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
+        guard let top = candidates.first else { return .failure(.nothingHeard) }
+        return parse(top).map { Chosen(spokenSet: $0, source: .top) }
+            .flatMapError { agreed(candidates.dropFirst(), else: $0) }
+    }
+
+    private static func agreed(_ alternatives: ArraySlice<String>, else rejection: Rejection) -> Result<Chosen, Rejection> {
+        let readings = alternatives.compactMap { try? parse($0).get() }
+        guard let reading = readings.first else { return .failure(rejection) }
+        guard readings.allSatisfy({ $0 == reading }) else { return .failure(.ambiguous) }
+        return .success(Chosen(spokenSet: reading, source: .alternative))
     }
 }
 

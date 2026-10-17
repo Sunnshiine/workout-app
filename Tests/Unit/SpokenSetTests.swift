@@ -252,3 +252,32 @@ func aWholeNumberOfFourOrMoreDigitsIsFused(transcript: String) {
     #expect(SpokenSet.parse("at 9 1/2") == values(nil, nil, .ninePointFive))
     #expect(SpokenSet.parse("at 1/2") == .failure(.unrecognized))
 }
+
+private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Result<SpokenSet.Chosen, SpokenSet.Rejection> {
+    .success(SpokenSet.Chosen(spokenSet: spokenSet, source: source))
+}
+
+@Test func aTopCandidateThatReadsIsTheSpokenSetWhateverTheAlternativesSay() {
+    #expect(SpokenSet.parse(candidates: ["Same again.", "Same again.", "Play again."]) == chosen(.sameAgain, from: .top))
+    #expect(
+        SpokenSet.parse(candidates: ["185 for 5 at 8", "185 for 5 at 9"])
+            == chosen(.values(SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight)), from: .top)
+    )
+}
+
+@Test func alternativesThatAgreeStandInForARejectedTopCandidate() {
+    #expect(
+        SpokenSet.parse(candidates: ["31541", "31541", "315 for one", "315 or one"])
+            == chosen(.values(SetLogDraft(weight: .pounds(315), reps: 1, rpe: nil)), from: .alternative)
+    )
+}
+
+@Test func alternativesThatDisagreeAreAmbiguous() {
+    #expect(SpokenSet.parse(candidates: ["18545 at", "18545 at", "185 or 5 at", "18545, at", "185, 45, at"]) == .failure(.ambiguous))
+}
+
+@Test func withNoAlternativeThatReadsTheTopCandidatesRejectionStands() {
+    #expect(SpokenSet.parse(candidates: ["40542 at nine.", "40542 of nine.", "40542 is known."]) == .failure(.fusedNumber))
+    #expect(SpokenSet.parse(candidates: ["135 for 49"]) == .failure(.ambiguous))
+    #expect(SpokenSet.parse(candidates: []) == .failure(.nothingHeard))
+}
