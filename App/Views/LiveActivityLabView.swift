@@ -140,54 +140,36 @@ struct LiveActivityLabView: View {
 
     private var controlsSection: some View {
         LiveActivityLabSection(title: "Controls") {
-            Button {
-                startPrototype()
-            } label: {
-                Label("Start", systemImage: "play.fill")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .disabled(!controller.areActivitiesEnabled)
-            .accessibilityIdentifier("live-activity-lab-start-button")
+            HStack(spacing: 10) {
+                BorderedCircleIconButton(label: "Start", systemImage: "play.fill") {
+                    startPrototype()
+                }
+                .disabled(!controller.areActivitiesEnabled)
+                .accessibilityIdentifier("live-activity-lab-start-button")
 
-            Button {
-                Task { await controller.update(state: currentState) }
-            } label: {
-                Label("Update", systemImage: "arrow.clockwise")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .disabled(!controller.isActive)
-            .accessibilityIdentifier("live-activity-lab-update-button")
+                BorderedCircleIconButton(label: "Update", systemImage: "arrow.clockwise") {
+                    Task { await controller.update(state: currentState) }
+                }
+                .disabled(!controller.isActive)
+                .accessibilityIdentifier("live-activity-lab-update-button")
 
-            Button {
-                restartRestTimer()
-            } label: {
-                Label("Restart rest", systemImage: "timer")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("live-activity-lab-restart-rest-button")
+                BorderedCircleIconButton(label: "Restart rest", systemImage: "timer") {
+                    restartRestTimer()
+                }
+                .accessibilityIdentifier("live-activity-lab-restart-rest-button")
 
-            Button {
-                logSet()
-            } label: {
-                Label("Log a set", systemImage: "checkmark.circle.fill")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .disabled(!controller.isActive || setsDone >= setsTotal)
-            .accessibilityIdentifier("live-activity-lab-log-set-button")
+                BorderedCircleIconButton(label: "Log a set", systemImage: "checkmark.circle.fill") {
+                    logSet()
+                }
+                .disabled(!controller.isActive || setsDone >= setsTotal)
+                .accessibilityIdentifier("live-activity-lab-log-set-button")
 
-            Button(role: .destructive) {
-                Task { await controller.end() }
-            } label: {
-                Label("End", systemImage: "stop.fill")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                BorderedCircleIconButton(label: "End", systemImage: "stop.fill", role: .destructive) {
+                    Task { await controller.end() }
+                }
+                .disabled(!controller.isActive)
+                .accessibilityIdentifier("live-activity-lab-end-button")
             }
-            .buttonStyle(.bordered)
-            .disabled(!controller.isActive)
-            .accessibilityIdentifier("live-activity-lab-end-button")
         }
     }
 

@@ -127,13 +127,10 @@ struct OnboardingView: View {
         let fieldName = "Google Sheet URL"
         return VStack(spacing: 20) {
             HStack {
-                Button {
+                BorderedCircleIconButton(label: "Back", systemImage: "chevron.left") {
                     urlError = false
                     withAnimation { showsURLFallback = false }
-                } label: {
-                    Label("Back", systemImage: "chevron.left")
                 }
-                .buttonStyle(.bordered)
                 .accessibilityIdentifier("onboarding-url-back-button")
 
                 Spacer()
