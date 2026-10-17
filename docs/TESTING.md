@@ -40,8 +40,10 @@ a boot while `WORKOUT_SIM_CAP` other simulators are booted and no lane simulator
 before a build while every `WORKOUT_BUILD_SLOTS` slot is taken, then exits 75 after
 `WORKOUT_ADMIT_WAIT` seconds, restarted each time a build slot changes hands. It does not read the
 load, which one build drives past 250 (ADR-0020). `scripts/build-slot.sh` runs anything else heavy
-under a build slot, as in `scripts/build-slot.sh swift test`. A timing or motion measurement taken
-under load still describes the host, not the app, so record the 1-minute load beside it
+under a build slot, as in `scripts/build-slot.sh swift test`. Before trusting `WORKOUT_SIM_CAP` on
+a new Mac or Xcode, run `scripts/measure-host.sh 10 unit` and compare its line with ADR-0020. A
+timing or motion measurement taken under load still describes the host, not the app, so record the
+1-minute load beside it
 (`test-sim.sh` prints `load1=`) and rerun when it is high. `verify.sh launch` and most UI tests
 turn animations off, so they miss a defect that exists only in motion. The verify `SKILL.md` films
 motion with `verify.sh launch --animated` and `verify.sh record`. Its
