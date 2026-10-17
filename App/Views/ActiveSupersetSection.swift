@@ -41,11 +41,12 @@ struct ActiveSupersetSection: View {
             Button {
                 coordinator.focusNextSupersetSet(for: stage.partner, in: session)
             } label: {
-                Text("& \(stage.partner.baseName)")
-                    .font(Theme.font(.supersetPartner))
-                    .foregroundStyle(palette.supersetPartnerName)
+                Text("\(Image(systemName: "arrow.triangle.branch"))\(Text("\u{00A0}").tracking(2))\(stage.partner.baseName)")
+                    .imageScale(.small)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .font(Theme.font(.supersetPartner))
+                    .foregroundStyle(palette.supersetPartnerName)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

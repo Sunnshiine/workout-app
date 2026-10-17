@@ -141,11 +141,12 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
 
 /// Reads Set `setIndex`'s raw Notes token from wherever the placement query resolves it — the one
 /// addressing decision the write path also consumes (ADR-0010), so display and write targeting
-/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, or
-/// a multi-line Prescription Line) reads the token at the Set's list position via the shared
-/// `SetLogList` codec; a whole-cell placement reads the cell. An unresolved placement — a protected
-/// header with no safe writable row, a Set row out of the Exercise's span, or a missing Notes
-/// column — reads empty, leaving the Set Pending unless a Legacy Log later marks it complete.
+/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, a
+/// multi-line Prescription Line, or its Coach Note's spare row) reads the token at the Set's list
+/// position via the shared `SetLogList` codec; a whole-cell placement reads the cell. An
+/// unresolved placement — a protected header with no safe writable row, a Set row out of the
+/// Exercise's span, or a missing Notes column — reads empty, leaving the Set Pending unless a
+/// Legacy Log later marks it complete.
 private func rawSetLog(
     for setIndex: Int,
     anchor: SheetLayoutExerciseAnchor,
@@ -161,9 +162,9 @@ private func rawSetLog(
 
 /// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
 /// positionally (repeating the last token), and each Set's Set Log is read from the placement query
-/// (the Line's own Notes cell at the Set's list position — the same cell the write path targets). A
-/// protected Line Notes cell (a Coach Note or Legacy Log, ADR-0005) leaves the Line's Sets Pending
-/// rather than reading its coach content out as Set Logs.
+/// (the Line's own Notes cell at the Set's list position, or the spare row a Coach Note sends it to:
+/// the same cell the write path targets). A Legacy Log keeps its Line's cell as the placement, so
+/// that Line's Sets stay Pending rather than read the Legacy Log out as Set Logs (ADR-0005).
 private func parsedSetsForLine(
     snapshot: SheetSnapshot,
     cols: DayColumns,
@@ -174,11 +175,11 @@ private func parsedSetsForLine(
     let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
-    let lineHoldsSetLogs = line.notesRole(in: grid, cols: cols).holdsSetLogs
+    let lineHoldsLegacyLog = line.notesRole(in: grid, cols: cols).legacyLog != nil
 
     return (0..<line.setCount).map { position in
         let setIndex = line.firstSetIndex + position
-        let rawLog = lineHoldsSetLogs ? rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols) : ""
+        let rawLog = lineHoldsLegacyLog ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: setIndex,

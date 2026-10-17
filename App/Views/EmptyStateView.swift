@@ -15,8 +15,11 @@ struct EmptyStateView: View {
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
-            Button("Open Settings") {
-                onSettings()
+            Button(action: onSettings) {
+                Label("Open Settings", systemImage: "gearshape")
+                    .labelStyle(.iconOnly)
+                    .font(Theme.font(.logCapsule))
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)
             .padding(.top, 4)

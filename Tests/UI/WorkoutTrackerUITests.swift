@@ -92,9 +92,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertEqual(
             app.buttons["weight-keyboard-done"].frame.width,
-            62,
+            38,
             accuracy: 2,
-            "at the default text size, Done in the weight font measures 75"
+            "at the default text size, the Done glyph in the system font measures 38"
         )
     }
 
@@ -422,7 +422,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         let queueButton = app.buttons["stage-queue-button"]
-        waitForLabel("Queue, 2 of 8", on: queueButton)
+        waitForValue("2 of 8", on: queueButton)
         queueButton.tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))

@@ -7,7 +7,7 @@ struct LastPerformedCard: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        line
+        Text("\(Image(systemName: "clock.arrow.circlepath")) \(line)")
             .font(Theme.font(.lastPerformed))
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
@@ -15,16 +15,14 @@ struct LastPerformedCard: View {
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
+            .accessibilityLabel(line)
             .accessibilityHint("Opens Exercise History")
             .accessibilityIdentifier("last-performed-line")
             .onTapGesture(perform: onTap)
     }
 
     private var line: Text {
-        Text(presentation.sourceText)
-            + Text(" — ")
-            + Text(presentation.resultText)
-            + matchedNameText
+        Text("\(presentation.sourceText) — \(presentation.resultText)\(matchedNameText)")
     }
 
     // A tier-3 (Movement-level) line names the differently-spelled entry it matched (ADR-0013).

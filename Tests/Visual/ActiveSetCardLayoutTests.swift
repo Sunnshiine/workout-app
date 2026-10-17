@@ -17,7 +17,6 @@ struct ActiveSetCardLayoutTests {
             action: CGRect(x: 32, y: 298, width: 338, height: 58)
         )
         let clearMenu = ["Clear menu": CGRect(x: 338, y: 68, width: 44, height: 44)]
-        let chevron = ["chevron": CGRect(x: 338, y: 68, width: 44, height: 44)]
 
         let drawn = try CardHost.drawings(of: [
             "logging a pending Set": CardHost.Scene(state: .pending, mode: .logging),
@@ -48,17 +47,17 @@ struct ActiveSetCardLayoutTests {
                 "reviewing a logged Set": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: chevron
+                    headControls: [:]
                 ),
                 "reviewing a logged Set just saved": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: chevron.merging(["Saved": CGRect(x: 278, y: 80, width: 60, height: 20)]) { $1 }
+                    headControls: ["Saved": CGRect(x: 310, y: 80, width: 60, height: 20)]
                 ),
                 "reviewing an Unstructured Set Log": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: chevron
+                    headControls: [:]
                 )
             ]
         )
@@ -139,7 +138,6 @@ private enum CardHost {
     private static let actionControls = ["log-active-set-button", "logged-set-capsule"]
     private static let headControlNames = [
         "clear-logged-set-menu": "Clear menu",
-        "Collapse logged set": "chevron",
         "Saved": "Saved"
     ]
 
@@ -172,10 +170,10 @@ private enum CardHost {
             set.state = .logged
             set.unstructuredSetLog = "185 for 5, belt on the last rep, then two paused back-off singles at 205 with straps"
         }
-        let mode: ActiveSetCard.Mode =
+        let mode: SetCardSlot.Mode =
             switch scene.mode {
             case .logging: .logging
-            case .reviewing(let showsSaved): .reviewingLogged(showsSavedConfirmation: showsSaved, onCollapse: {})
+            case .reviewing(let showsSaved): .reviewingLogged(showsSavedConfirmation: showsSaved)
             }
 
         let view = VStack(spacing: 0) {

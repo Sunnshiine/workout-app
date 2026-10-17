@@ -183,8 +183,11 @@ struct SmartValuePills: View {
                 if weightFieldMount.showsDone {
                     ToolbarItemGroup(placement: .keyboard) {
                         Spacer()
-                        Button("Done", action: dismissFieldUI)
-                            .accessibilityIdentifier("weight-keyboard-done")
+                        Button(action: dismissFieldUI) {
+                            Label("Done", systemImage: "keyboard.chevron.compact.down")
+                                .labelStyle(.iconOnly)
+                        }
+                        .accessibilityIdentifier("weight-keyboard-done")
                     }
                 }
             }
@@ -415,9 +418,8 @@ private struct ValueRail: View {
 
 // MARK: - Weight ± stepper
 
-/// A ~54pt round stepper flanking the weight value. Its ± is a drawn glyph, not an SF Symbol, so
-/// the control carries no inline font (token sheet §4 choke point) and the thin round-cap strokes
-/// match pick input-block3-c.
+/// A ~54pt round stepper flanking the weight value. Its triangle is sized by frame, not font, so
+/// the control carries no inline font (token sheet §4 choke point).
 struct WeightStepperButton: View {
     enum Direction: Equatable { case decrement, increment }
 
@@ -428,10 +430,11 @@ struct WeightStepperButton: View {
 
     var body: some View {
         Button(action: action) {
-            StepperGlyph(direction: direction)
-                .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+            Image(systemName: direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill")
+                .resizable()
+                .scaledToFit()
                 .foregroundStyle(palette.stepperGlyph)
-                .frame(width: 22, height: 22)
+                .frame(width: 16, height: 16)
                 .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
                 .background(palette.pillFill, in: .circle)
                 .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
@@ -439,21 +442,6 @@ struct WeightStepperButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(direction == .decrement ? "Decrease weight" : "Increase weight")
         .accessibilityIdentifier(accessibilityIdentifier)
-    }
-}
-
-private struct StepperGlyph: Shape {
-    let direction: WeightStepperButton.Direction
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
-        if direction == .increment {
-            path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
-        }
-        return path
     }
 }
 
