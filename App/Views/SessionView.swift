@@ -8,7 +8,7 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
-    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
+    @Environment(AppEntryInbox.self) private var entry
     @State private var coordinator: SessionCoordinator
     #if canImport(UserNotifications)
         @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
@@ -99,7 +99,7 @@ struct SessionView: View {
         .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
             reconcileLiveActivity()
         }
-        .onChange(of: entry?.arrivals) {
+        .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
         }
     }

@@ -145,7 +145,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let dictation: SetDictation?
     @ObservationIgnored private var dictatingSession: Session?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
-    /// Nil leaves the stage deaf to the Action button, Siri, and the Live Activity.
+    /// Nil until the Session screen binds the stage, which hears no request before then.
     private var entry: AppEntryInbox?
 
     init(
@@ -193,7 +193,8 @@ final class SessionCoordinator {
         answerEntry()
     }
 
-    func bind(
+    /// The Session screen hands over everything without a default here, so it cannot forget one.
+    func bind(  // swiftlint:disable:this function_parameter_count
         to session: Session?,
         logging: any SessionLoggingAdapter,
         sync: any SessionSyncAdapter,
@@ -203,7 +204,7 @@ final class SessionCoordinator {
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
         navigation: any SessionNavigationAdapter,
         motion: any SessionMotionPerforming,
-        entry: AppEntryInbox? = nil
+        entry: AppEntryInbox
     ) {
         if navigationAdapter !== navigation {
             navigationAdapter = navigation

@@ -5,7 +5,7 @@ struct RootView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
+    @Environment(AppEntryInbox.self) private var entry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
@@ -47,10 +47,10 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .background else { return }
-            entry?.discard()
+            entry.discard()
         }
         .onChange(of: settings.needsOnboarding, initial: true) { _, needsOnboarding in
-            entry?.reportOnboarding(isShown: needsOnboarding)
+            entry.reportOnboarding(isShown: needsOnboarding)
         }
         .onChange(of: settings.spreadsheetId) { oldValue, newValue in
             guard oldValue != newValue else { return }

@@ -423,7 +423,8 @@ private func boundCoordinator(to session: Session, store: WorkoutStore) -> Sessi
         logging: store,
         sync: InertSessionSync(),
         navigation: store,
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     return coordinator
 }
@@ -518,6 +519,7 @@ private enum SessionPageHost {
             page
             .environment(scenario.store)
             .environment(lastPerformedLookup)
+            .environment(AppEntryInbox())
             .environment(
                 ExerciseHistoryFill(client: VisualNoopSheetsClient(), context: scenario.context, index: lastPerformedLookup)
             )
