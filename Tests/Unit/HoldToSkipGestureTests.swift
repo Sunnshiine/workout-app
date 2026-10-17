@@ -80,6 +80,56 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
     #expect(gesture.pressEnded(at: at(130)) == [])
 }
 
+@Test func holdToSkipGestureCancelsAPressWhoseFingerSlidesOffTheCapsule() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.deadlineReached(at: at(250))
+
+    #expect(gesture.pressMoved(by: CGSize(width: 30, height: 31)) == [])
+    #expect(gesture.isPressing)
+    #expect(gesture.pressMoved(by: CGSize(width: 0, height: 45)) == [.retreatFill])
+    #expect(!gesture.isPressing)
+    #expect(gesture.nextDeadline == nil)
+    #expect(gesture.pressMoved(by: CGSize(width: 0, height: 130)) == [])
+    #expect(gesture.deadlineReached(at: at(850)) == [])
+    #expect(gesture.tapped(at: at(1_500)) == [])
+    #expect(gesture.pressEnded(at: at(2_000)) == [])
+    #expect(gesture.tapped(at: at(2_010)) == [])
+    #expect(gesture.tapped(at: at(2_300)) == [.log])
+}
+
+@Test func holdToSkipGestureStartsNoNewPressUntilTheSlidOffFingerLifts() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.pressMoved(by: CGSize(width: 60, height: 0))
+
+    #expect(gesture.pressBegan(at: at(100), policy: .forSet(in: .pending)) == [])
+    #expect(gesture.nextDeadline == nil)
+    #expect(gesture.pressEnded(at: at(1_000)) == [])
+    #expect(gesture.pressBegan(at: at(1_500), policy: .forSet(in: .pending)) == [.clearFill])
+    #expect(gesture.nextDeadline == at(1_750))
+}
+
+@Test func holdToSkipGestureIgnoresAFingerThatSlidesAfterTheSkipCommits() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(gesture.deadlineReached(at: at(850)) == [.skip])
+    #expect(gesture.pressMoved(by: CGSize(width: 0, height: 130)) == [])
+    #expect(gesture.pressEnded(at: at(1_200)) == [])
+    #expect(gesture.tapped(at: at(1_210)) == [])
+}
+
+@Test func holdToSkipGestureForgetsASlidOffPressWhenTheCapsuleDisappears() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.pressMoved(by: CGSize(width: 60, height: 0))
+
+    gesture.disappeared()
+
+    #expect(gesture.pressBegan(at: at(500), policy: .forSet(in: .pending)) == [.clearFill])
+}
+
 @Test func holdToSkipGestureReleasedBeforeCommitRetreatsAndSwallowsTheTap() {
     var gesture = HoldToSkipGesture()
     _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
