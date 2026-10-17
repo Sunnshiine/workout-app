@@ -517,6 +517,58 @@ func aRejectedTranscriptQueuesNoWrite(transcript: String) async throws {
     #expect(try app.sync.fetchPendingWriteRecords().count == 1)
 }
 
+/// Each of these once wrote a Set Log the lifter did not say: a value no Set Log holds, sets by reps, "or"
+/// between two numbers, a command naming which Set, a value said twice, a dropped minus sign.
+@MainActor
+@Test(
+    "A transcript no Set Log holds or that says a value twice queues no write on a card that holds every value",
+    arguments: [
+        "5 by 5", "5 x 5", "5 times 5", "8 x 8", "10 by 10", "five by five", "five times five", "eight by eight", "10 x 10",
+        "5 by 5 at 8", "8 for 8", "5 for 5", "6 for 6", "9 for 9", "12 for 95", "10 for 45", "12 for 65", "20 for 45",
+        "8 for 95", "6 for 50", "10 by 50", "10 times 45", "8 four 95", "ten for forty five", "twelve for ninety five",
+        "eight for ninety five", "135 for 45", "135 for 35", "135 for 55", "135 for 65", "135 for 75", "135 for 85",
+        "135 for 95", "135 for 58 at 8", "135 for forty five", "ninety four reps", "187.55 for 5", "135.123456 for 5",
+        "30 or 25 reps", "25 or 20 reps", "50 or 40 reps", "twenty five or twenty reps", "thirty or twenty five reps at 8",
+        "60 or 50 reps", "40 or 30", "25 per 30", "20 per 25", "forty four five", "ninety four five", "skip set one",
+        "skip one set", "same as set one", "same as last time", "repeat set one", "one again", "same one", "135 for -5",
+        "135 for 5 at -8", "185 for 5 and 3 at 8", "185 for 5 and 5 at 8", "185 for 5 and 8 at 9", "185 for 5 and 5 RPE 8",
+        "185 for 5 for 5 for 5", "185 for 5 reps, 5 reps, 5 reps", "135 for 3 and 135 at 9", "135 for 5 at 8 at",
+        "135 for 5 at 8 for", "135 for 5 at 8 x", "135 for 5 at 8 of", "135 for 5 at 8 add", "135 for 5 for"
+    ]
+)
+func aTranscriptNoSetLogHoldsQueuesNoWrite(transcript: String) async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .rejected)
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().count == 1)
+}
+
+/// Each of these once logged the card's or the cut-off RPE as if the lifter had finished saying it.
+@MainActor
+@Test(
+    "A transcript cut off after its RPE is missing the RPE and queues no write on a card that holds every value",
+    arguments: [
+        "135 for 5 at eight and a", "135 for 5 at 8 and", "135 for 5 at 8 and a", "135 for 5 at 8 and uh",
+        "135 for 5 rpe 8 and", "135 for 5 reps at 8 and a", "rpe 8 and a", "rpe 8 and", "at 8 and", "135 for 5 at nine and",
+        "135 for 5 at nine and a", "135 for 5 at 9 and a", "135 for 5 at 6 and a", "135 for 5 at 7 and a",
+        "135 for 3 at 9 and", "8 reps at 9 and", "8 reps rpe 9 and", "135 for 5 at 8 and then", "135 for 5 at 8 and then uh",
+        "135 for 5 at 8 so and"
+    ]
+)
+func aTranscriptCutOffAfterItsRPEQueuesNoWrite(transcript: String) async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .missingValues)
+    #expect(report.missing == ["rpe"])
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().count == 1)
+}
+
 @MainActor
 @Test func sayingToAnUnknownSetThrowsTheSameLookupErrorAsLog() async throws {
     let app = try await makeSelectedApp()
