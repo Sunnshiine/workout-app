@@ -2,7 +2,7 @@
 
 Supersedes [ADR-0002](0002-last-performed-local-index.md).
 
-Amended by [ADR-0018](0018-rpe-table-history-load-suggestion.md): when a skip or a deleted Set Log leaves the Viewed Session with no Logged Set of an Exercise, the live path retracts the entry it wrote for that Session. A Set Log removed on the Sheet is not retracted (#812). That is the one exception to append-only.
+Amended by [ADR-0018](0018-rpe-table-history-load-suggestion.md): when a skip or a deleted Set Log leaves the Viewed Session with no Logged Set of an Exercise, the live path retracts the entry it wrote for that Session. A sync retracts the entry of every Exercise and Session in the current Block's tab that holds no completion evidence, unless a Set Log for it still waits in the queue (#812). That is the one exception to append-only.
 
 Athletes need to open an Exercise's history mid-Session — the last ~5 entries, read in seconds at the rack, offline. ADR-0002's `last_performed` index cannot serve this: `LastPerformedIndex.ingest` overwrites the single row per exercise name, destroying every older entry on each sync.
 

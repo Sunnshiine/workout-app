@@ -130,6 +130,7 @@ final class SyncCoordinator {
             if !lastPerformedEntries.isEmpty {
                 try lastPerformed.ingest(lastPerformedEntries)
             }
+            try retractEntriesClearedInTheSheet(parsed.block)
             outcome = .sync(sheetRead: SyncOutcome(parseWarnings: parsed.warnings), flush: flushOutcome)
             syncLogger.info("Done, outcome: \(String(describing: self.outcome), privacy: .public)")
             launchHistoryFill(
@@ -155,6 +156,20 @@ final class SyncCoordinator {
         for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
         context.insert(block)
         try context.save()
+    }
+
+    /// The Sheet no longer holds a Set Log for these Exercises, so their entries go (#812, ADR-0018).
+    /// A Session still waiting on a queued Set Log keeps its entry, since the Sheet has not seen it.
+    private func retractEntriesClearedInTheSheet(_ block: ParsedBlockModel) throws {
+        let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
+        let queued = Set(
+            writes.filter { $0.status == .pending && $0.column == .notes }.map {
+                LastPerformedEntryKey(fullName: $0.exerciseName, source: $0.recordedSession.storageValue)
+            }
+        )
+        for key in LastPerformedExtractor.keysWithoutEntry(from: block).subtracting(queued) {
+            try lastPerformed.retract(fullName: key.fullName, source: key.source)
+        }
     }
 
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {

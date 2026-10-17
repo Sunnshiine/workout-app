@@ -13,8 +13,8 @@ protocol LastPerformedIndexing {
     /// Number of stored entries whose Cadence-stripped base name matches — the coverage-fill
     /// counting unit (ADR-0012).
     func entryCount(baseName: String) -> Int
-    /// Deletes the entry a live edit wrote once its Session holds no Logged Set of that Exercise,
-    /// the one exception to append-only (ADR-0018).
+    /// Deletes the entry once its Session holds no Logged Set of that Exercise, after a live edit or
+    /// a sync that finds the Sheet cleared. The one exception to append-only (ADR-0018).
     func retract(fullName: String, source: String) throws
 }
 
