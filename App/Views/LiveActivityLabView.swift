@@ -14,7 +14,7 @@ struct LiveActivityLabView: View {
     @State private var restEndDate = Date.now.addingTimeInterval(90)
 
     private let sessionLabel = "Week 2 - Day 3"
-    private let exerciseName = "2-3:1:0 BB RDL"
+    private let exerciseName = "BB RDL"
     private let prescribedReps = "3-5"
     private let prescribedLoad = "RPE6"
     private let weightUnit = "lb"
