@@ -215,26 +215,21 @@ private func makeLedgerCoordinator(session: Session, restTimer: RestTimer? = nil
 private final class ManualSessionTransitionClock: SessionTransitionClock {
     private(set) var sleptDurations: [Duration] = []
     private var sleepers: [CheckedContinuation<CheckedContinuation<Void, Never>, Never>] = []
-    private var sleepWaiters: [CheckedContinuation<Void, Never>] = []
 
     func sleep(for duration: Duration) async {
         sleptDurations.append(duration)
-        let waiters = sleepWaiters
-        sleepWaiters = []
-        waiters.forEach { $0.resume() }
-
         let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
             sleepers.append(sleeper)
         }
         returnFromAdvanceAfterCallerRuns.resume()
     }
 
-    func waitForSleep() async {
-        if !sleptDurations.isEmpty { return }
-
-        await withCheckedContinuation { continuation in
-            sleepWaiters.append(continuation)
-        }
+    func waitForSleep(sourceLocation: SourceLocation = #_sourceLocation) async {
+        await waitUntil(
+            { !sleptDurations.isEmpty },
+            orRecord: "the coordinator never slept on the transition clock",
+            sourceLocation: sourceLocation
+        )
     }
 
     func advance() async {
