@@ -47,9 +47,11 @@ STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
 if [ "\$1" = xcresulttool ]; then
+    [ "\$4 \$5" = "tests --path" ] && { printf '%s' "\${STUB_TESTS:-}"; exit; }
     [ "\$4 \$5" = "summary --path" ] && cat "\$6/summary" 2>/dev/null
     exit
 fi
+[ "\$1 \$2" != "simctl shutdown" ] || { echo "\$*" >>"$root/shutdowns"; exit 0; }
 [ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
 echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"},{"udid":"$other_sim","state":"Booted","name":"iPhone 17"}]}}'
 STUB
@@ -117,6 +119,57 @@ check "a failing run fails with xcodebuild's status" 65 \
 ✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
 	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.004) seconds
 ** TEST EXECUTE FAILED **"
+
+fault_advice="simulator fault, not a test result: xcodebuild reported \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first"
+rm -f "$root/shutdowns"
+check "a launch that returns no process handle is a simulator fault: exit 69, and the simulator is shut down" 69 \
+"✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
+** TEST EXECUTE FAILED **" "$(printf "$fault_advice" "did not return a process handle nor launch error")" 65 \
+"◇ Test run started.
+Failed to get launch progress for <XCUIApplicationImpl: com.sunnypatel.WorkoutTracker>: Error Domain=NSPOSIXErrorDomain Code=3 \"No such process\"
+Application launch for 'com.sunnypatel.WorkoutTracker' did not return a process handle nor launch error.
+✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
+** TEST EXECUTE FAILED **"
+if [ "$(cat "$root/shutdowns" 2>/dev/null)" = "simctl shutdown $sim" ]; then ok "and it shut that simulator down once"
+else bad "and it shut that simulator down once: $(cat "$root/shutdowns" 2>/dev/null)"; fi
+rm -f "$root/shutdowns"
+check "a CoreSimulator error that stops xcodebuild before the run is a simulator fault" 69 \
+"xcodebuild: error: Failed to prepare device for impending launch. (Underlying Error: The operation couldn't be completed. (com.apple.CoreSimulator.SimError error 405.))" "$(printf "$fault_advice" "com.apple.CoreSimulator.SimError")
+xcodebuild exited 69 before the test run finished; the lines above and the log say why" 70 \
+"xcodebuild: error: Failed to prepare device for impending launch. (Underlying Error: The operation couldn't be completed. (com.apple.CoreSimulator.SimError error 405.))"
+rm -f "$root/shutdowns"
+printf '{"testNodes":[{"name":"testSettingsAppearancePickerIsReachableAndWired()","result":"Failed","children":[{"name":"Test crashed with signal term."}]}]}' >"$root/tests.json"
+STUB_TESTS=$(cat "$root/tests.json") check "a test killed by SIGTERM, as when its simulator shuts down mid-run, is a simulator fault" 69 \
+"Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+** TEST EXECUTE FAILED **" "$(printf "$fault_advice" "Test crashed with signal term")" 65 \
+"Test Suite 'Selected tests' started at 2026-10-16 16:39:16.000.
+Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+	 Executed 22 tests, with 0 failures (0 unexpected) in 151.370 (151.406) seconds
+** TEST EXECUTE FAILED **"
+printf '{"testNodes":[{"name":"testLaunch()","result":"Failed","children":[{"name":"Test crashed with signal abrt."}]}]}' >"$root/tests.json"
+STUB_TESTS=$(cat "$root/tests.json") check "a test the app crashed with SIGABRT stays a test failure" 65 \
+"Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+** TEST EXECUTE FAILED **" "" 65 \
+"Restarting after unexpected exit, crash, or test timeout; summary will include totals from previous launches.
+	 Executed 22 tests, with 0 failures (0 unexpected) in 151.370 (151.406) seconds
+** TEST EXECUTE FAILED **"
+rm -f "$root/shutdowns"
+check "the UI test runner crashing before any test is a simulator fault, though the app crashing at launch is not" 69 \
+"Testing failed:
+	WorkoutTrackerUITests-Runner (3706) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt while preparing to run tests.))
+** TEST EXECUTE FAILED **" "$(printf "$fault_advice" "-Runner (3706) encountered an error (Early unexpected exit")
+xcodebuild exited 69 before the test run finished; the lines above and the log say why" 65 \
+"Testing failed:
+	WorkoutTrackerUITests-Runner (3706) encountered an error (Early unexpected exit, operation never finished bootstrapping - no restart will be attempted. (Underlying Error: Test crashed with signal abrt while preparing to run tests.))
+** TEST EXECUTE FAILED **"
+rm -f "$root/shutdowns"
+check "a test failure that names no simulator fault keeps xcodebuild's status and leaves the simulator up" 65 \
+"✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
+** TEST EXECUTE FAILED **" "" 65 \
+"◇ Test run started.
+✘ Test run with 1020 tests in 11 suites failed after 2.921 seconds with 1 issue.
+** TEST EXECUTE FAILED **"
+[ ! -e "$root/shutdowns" ] && ok "and shut nothing down" || bad "and shut nothing down: $(cat "$root/shutdowns")"
 
 check "an XCTest run passes on its Executed line" 0 \
 "	 Executed 12 tests, with 0 failures (0 unexpected) in 41.203 (41.311) seconds

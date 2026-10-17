@@ -42,6 +42,7 @@ exit 1
 STUB
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
+[ "\$1" != xcresulttool ] || exit 0
 if [ "\$*" != "simctl list devices available -j" ]; then
     echo "\$*" >> "$root/xcrun-calls"
     case "\$*" in
