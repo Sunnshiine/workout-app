@@ -34,7 +34,11 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Training Max**: The coach's derived working weight for a Main Lift — calculated from the athlete's estimated 1RM. Stored per Block. Avoid: 1RM, working max.
 
-**Prescribed Load**: The coach's intensity instruction for a given Set (e.g. "RPE6", "Drop 17.5%", "BW"). Read-only from the athlete's perspective. Avoid: target load.
+**Prescription**: What the coach asked of one Set: its Prescribed Reps, its Prescribed Load, and its %1RM, read once from those three cells of its Prescription Line. It is derived from the cells each time and never stored, so the Sheet stays the source of truth, and the card's prescription text still shows the cells as the coach typed them. Distinct from Prescription Line, the Sheet row that carries the cells. Avoid: plan, programming.
+
+**Prescribed Reps**: The coach's Reps cell for a Set. It is exactly one of two things: a rep target, either one whole number ("5") or a range whose ends both resolve, low end first ("8-10", "7 – 8"), or text the app does not interpret ("AMRAP", "5+", "40 sec"). Avoid: target reps, rep goal.
+
+**Prescribed Load**: The coach's intensity instruction for a given Set. It is exactly one of four things: bodyweight ("BW"), a Drop of a share off the previous Set's weight ("Drop 17.5%"), an RPE target on one of the ten RPE points ("RPE6"), or text the app does not interpret ("Start conservative", "RPE 5.5"). The %1RM is its own column, not a Prescribed Load. Read-only from the athlete's perspective. Avoid: target load.
 
 **RPE** (Rate of Perceived Exertion): One of ten points of effort: 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10. A `{weight}x{reps}@{RPE}` token whose RPE is any other number is not a Set Log, so the app keeps it as the text it was entered as. Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
 

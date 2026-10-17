@@ -85,7 +85,7 @@ struct SmartValuePillsForm {
     }
 
     init(set: ExerciseSet, suggestion: LoadSuggestion) {
-        prescribedRPE = RPE(prescribedLoad: set.prescribedLoad)
+        prescribedRPE = set.prescription.load.rpeTarget
         if let setLog = set.setLog {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
