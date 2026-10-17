@@ -115,3 +115,16 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
     #expect(segments.heard.isEmpty)
     #expect(segments.candidates.isEmpty)
 }
+
+@Test func anAlternativeUnderAnEmptyTopTranscriptStaysAnAlternativeAndWritesNothing() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("", "185 for 5 at 8."), from: 0, to: 2, isFinal: true)
+
+    #expect(segments.candidates == ["", "185 for 5 at 8."])
+    let unsaid = SpokenSetContext(draft: SetLogDraft(weight: nil, reps: nil, rpe: nil), previous: nil)
+    #expect(
+        SetDictation.outcome(of: segments.candidates, in: unsaid)
+            == .filled(SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight), heard: "")
+    )
+}
