@@ -1,7 +1,7 @@
 import Foundation
 
 #if canImport(UserNotifications)
-    import UserNotifications
+    @preconcurrency import UserNotifications
 #endif
 
 @MainActor
@@ -28,6 +28,11 @@ protocol RestNotificationScheduling: AnyObject {
         private let center: UNUserNotificationCenter
         private let now: () -> Date
         private let foregroundDelegate = RestNotificationForegroundDelegate()
+        /// The center's calls are XPC to the notification daemon, and removing a request waits for
+        /// its reply. A daemon slow to answer, as on a freshly booted simulator, held the main
+        /// thread for minutes (#907). One serial queue keeps a cancel and the schedule after it in
+        /// order.
+        private let queue = DispatchQueue(label: "workout-tracker.rest-notifications")
 
         init(
             center: UNUserNotificationCenter = .current(),
@@ -59,11 +64,15 @@ protocol RestNotificationScheduling: AnyObject {
                 content: content,
                 trigger: trigger
             )
-            center.add(request) { _ in }
+            let center = center
+            queue.async { center.add(request) { _ in } }
         }
 
         func cancel() {
-            center.removePendingNotificationRequests(withIdentifiers: [RestNotificationForegroundPolicy.identifier])
+            let center = center
+            queue.async {
+                center.removePendingNotificationRequests(withIdentifiers: [RestNotificationForegroundPolicy.identifier])
+            }
         }
     }
 
