@@ -84,12 +84,13 @@ struct ActiveSetCard: View {
             Menu {
                 Button("Clear", role: .destructive, action: onDelete)
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
                     .imageScale(.large)
                     .foregroundStyle(palette.textSecondary)
                     .frame(width: Self.headTargetSize, height: Self.headTargetSize)
                     .contentShape(.rect)
             }
+            .accessibilityLabel("More")
             .accessibilityIdentifier("clear-logged-set-menu")
             .padding(.trailing, -Self.headTargetOverhang)
         }

@@ -165,7 +165,7 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Text(stage.queue.position.label)
+                Image(systemName: "square.stack")
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
@@ -175,14 +175,16 @@ struct SessionStageView: View {
                         RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                             .strokeBorder(palette.queueStroke, lineWidth: 1)
                     )
+                    .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(stage.queue.position.accessibilityLabel)
+            .accessibilityLabel("Queue")
+            .accessibilityValue(stage.queue.position.label)
             .accessibilityIdentifier("stage-queue-button")
         }
         .padding(.horizontal)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
     }
 
     @ViewBuilder

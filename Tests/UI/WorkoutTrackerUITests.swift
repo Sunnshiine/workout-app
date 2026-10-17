@@ -422,7 +422,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         let queueButton = app.buttons["stage-queue-button"]
-        waitForLabel("Queue, 2 of 8", on: queueButton)
+        waitForValue("2 of 8", on: queueButton)
         queueButton.tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
