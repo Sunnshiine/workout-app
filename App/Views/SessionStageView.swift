@@ -222,7 +222,9 @@ struct SessionStageView: View {
         if isResting || isRestPillMounted {
             RestPillView(restTimer: restTimer)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .opacity(composition == .reading ? 1 : 0)
+                .animation(composition == .reading && !reduceMotion ? Theme.stageCompositionAnimation : nil) {
+                    $0.opacity(composition == .reading ? 1 : 0)
+                }
                 .accessibilityHidden(composition != .reading)
                 .allowsHitTesting(composition == .reading)
                 .animation(nil, value: composition)
