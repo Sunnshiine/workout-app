@@ -200,7 +200,7 @@ private func loggedSquatGrid() -> SheetGrid {
         ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: lookupStore)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
@@ -242,7 +242,7 @@ private func loggedSquatGrid() -> SheetGrid {
         client: client,
         context: container.mainContext,
         lastPerformed: index,
-        historyFill: ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+        historyFill: makeHistoryFill(client: client, context: container.mainContext, index: index)
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -270,7 +270,7 @@ private func loggedSquatGrid() -> SheetGrid {
         client: client,
         context: container.mainContext,
         lastPerformed: lookupStore,
-        historyFill: ExerciseHistoryFill(client: client, context: container.mainContext, index: lookupStore)
+        historyFill: makeHistoryFill(client: client, context: container.mainContext, index: lookupStore)
     )
 
     await sync.sync(spreadsheetId: "sid")
