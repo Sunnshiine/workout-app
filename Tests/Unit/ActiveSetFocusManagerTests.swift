@@ -100,7 +100,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func loggingActiveSetAdvancesToFirstPendingSetInNextExercise() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
-    squatSets.forEach { $0.state = .logged }
+    for set in squatSets { set.state = .logged }
     let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
     let focus = ActiveSetFocusManager(session: session)
 
@@ -113,7 +113,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func focusingACompletedExercisesLoggedSetPreservesCurrentFocusAndTogglesItsReview() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
-    squatSets.forEach { $0.state = .logged }
+    for set in squatSets { set.state = .logged }
     let firstSquatSet = try #require(squatSets.first { $0.index == 0 })
     let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
     let focus = ActiveSetFocusManager(session: session)
@@ -183,7 +183,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func skippingFinalPendingSetAdvancesToFirstPendingSetInNextExercise() throws {
     let session = makeMultiExercisePendingSession()
     let squatSets = try #require(session.exercises.first { $0.order == 0 }?.sets)
-    squatSets.forEach { $0.state = .skipped }
+    for set in squatSets { set.state = .skipped }
     let finalSquatSet = try #require(squatSets.first { $0.index == 1 })
     let focus = ActiveSetFocusManager(session: session)
 
@@ -207,7 +207,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func completingSessionClearsActiveSet() throws {
     let session = makePendingSession()
     let sets = try #require(session.exercises.first?.sets)
-    sets.forEach { $0.state = .logged }
+    for set in sets { set.state = .logged }
     let finalSet = try #require(sets.first { $0.index == 1 })
     let focus = ActiveSetFocusManager(session: session)
 
@@ -304,7 +304,7 @@ private func makePlannedSupersetSession() -> Session {
     #expect(!focus.canPair(bench, in: session))
 
     focus.dismissSuperset(containing: squat, in: session)
-    bench.sets.forEach { $0.state = .logged }
+    for set in bench.sets { set.state = .logged }
 
     #expect(focus.canPair(row, in: session))
     #expect(focus.canPair(squat, in: session))
@@ -368,7 +368,7 @@ private func makePlannedSupersetSession() -> Session {
     let focus = ActiveSetFocusManager(session: session)
     #expect(focus.createSuperset(from: squat, to: bench, in: session))
 
-    squat.sets.forEach { $0.state = .skipped }
+    for set in squat.sets { set.state = .skipped }
 
     #expect(focus.snapshot(in: session).supersets.isEmpty)
 }
@@ -396,7 +396,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func focusingASetNotifiesAReaderOfTheStageFocus() throws {
     let session = makePendingSession()
     let secondSet = try #require(session.exercises.first?.sets.first { $0.index == 1 })
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 
@@ -413,7 +413,7 @@ private func makePlannedSupersetSession() -> Session {
     let session = makePlannedSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 

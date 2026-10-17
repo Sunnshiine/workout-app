@@ -67,7 +67,11 @@ struct SessionQueueSheetVisualTests {
             liveEdge: .browsedAway,
             lookup: .empty
         )
-        return SessionQueueSheet(queue: stage.queue, session: session, coordinator: SessionCoordinator(session: session))
+        return SessionQueueSheet(
+            queue: stage.queue,
+            session: session,
+            coordinator: SessionCoordinator(session: session, wiring: .fixture())
+        )
     }
 
     private func makeExercise(name: String, order: Int, setStates: [SetState]) -> Exercise {
