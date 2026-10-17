@@ -162,7 +162,7 @@ extension WorkoutActivityAttributes.ContentState {
         guard !reps.isEmpty else { return "" }
         guard reps.localizedCaseInsensitiveContains("rep") == false else { return reps }
         guard reps.caseInsensitiveCompare("AMRAP") != .orderedSame else { return reps }
-        return "\(reps) reps"
+        return reps == "1" ? "1 rep" : "\(reps) reps"
     }
 
     var prescriptionText: String {
