@@ -251,7 +251,7 @@ private func makeStore(
 
 @MainActor
 @Test func ignoresLegacyOrderOverrideKeyFromBeforeStrideChange() throws {
-    // A pre-V2 build persisted the manual Current Session override under "advancedToOrder_<tab>"
+    // A pre-V2 build persisted the Current Session Pin under "advancedToOrder_<tab>"
     // with the old stride-4 encoding. Under the new stride-7 encoding that same integer can map
     // to a DIFFERENT Session, so the new key must ignore the legacy value and fall back to the
     // derived Current Session rather than silently resolving to the wrong one.
@@ -297,7 +297,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoManualOverride() throws {
+@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoPin() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -314,13 +314,13 @@ private func makeStore(
     #expect(info.pinnedSession == "None")
     #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 3")
-    #expect(info.reason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(info.reason == "No Current Session Pin is set, so Sheet-derived progress wins.")
     #expect(info.localOnlyNote == nil)
     #expect(info.copyText.contains("Sheet-derived Session: Week 1, Day 3"))
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsLocalOnlyManualOverrideWhenPresent() throws {
+@Test func currentSessionDebugInfoShowsLocalOnlyPinWhenPresent() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -340,6 +340,7 @@ private func makeStore(
     #expect(info.reason == "The athlete made this Session current, so it wins over Sheet-derived progress.")
     #expect(info.localOnlyNote == "The Current Session Pin is local-only and is not Sheet data.")
     #expect(info.canClearPin)
+    #expect(info.copyText.contains("Current Session Pin: Week 1, Day 1 (Make current)"))
     #expect(info.copyText.contains("The Current Session Pin is local-only and is not Sheet data."))
 }
 
