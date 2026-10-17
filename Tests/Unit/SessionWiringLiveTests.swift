@@ -13,7 +13,7 @@ private struct OfflineSheetsClient: SheetsClient {
         throw URLError(.notConnectedToInternet)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 /// The app's assembly, built the way `RootView` builds it. `swift test` reaches it (ADR-0017)
