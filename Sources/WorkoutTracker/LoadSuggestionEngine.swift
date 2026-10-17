@@ -41,24 +41,23 @@ enum LoadSuggestionEngine {
     }
 
     private static func bodyweight(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        Weight(text: inputs.prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)) == .bodyweight
-            ? .bodyweight : nil
+        inputs.prescription.load == .bodyweight ? .bodyweight : nil
     }
 
     private static func drop(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard let dropPercent = dropPercent(from: inputs.prescribedLoad), let previous = previousSetPounds(inputs)
+        guard case .drop(let dropPercent) = inputs.prescription.load, let previous = previousSetPounds(inputs)
         else { return nil }
         return .prescribedWeight(roundToNearestPlateIncrement(previous * (1 - dropPercent / 100)))
     }
 
     private static func percentOneRM(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard let percent = percentOneRMValue(from: inputs.percentOneRM), let trainingMax = inputs.trainingMax
+        guard let percent = inputs.prescription.percentOneRM, let trainingMax = inputs.trainingMax
         else { return nil }
         return .prescribedWeight(roundToNearestPlateIncrement(trainingMax * percent / 100))
     }
 
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard let reps = repRange(from: inputs.prescribedReps), let rpe = RPE(prescribedLoad: inputs.prescribedLoad),
+        guard case .target(let reps) = inputs.prescription.reps, let rpe = inputs.prescription.load.rpeTarget,
             let targetShare = RPETable.share(reps: reps, rpe: rpe),
             let basis = todayBasis(inputs) ?? inputs.lastPerformed.flatMap(historyBasis)
         else { return nil }
@@ -91,40 +90,6 @@ enum LoadSuggestionEngine {
                 return pounds
             }
             .first
-    }
-
-    private static func repRange(from prescribedReps: String) -> ClosedRange<Int>? {
-        let trimmed = prescribedReps.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let match = trimmed.wholeMatch(of: /(\d+)(?:\s*[-–]\s*(\d+))?/), let low = Int(match.1) else { return nil }
-        let high = match.2.flatMap { Int($0) } ?? low
-        return low <= high ? low...high : nil
-    }
-
-    private static func dropPercent(from prescribedLoad: String) -> Double? {
-        let trimmed = prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard
-            trimmed.range(
-                of: #"^Drop\s+([0-9]+(?:\.[0-9]+)?)%$"#,
-                options: [.regularExpression, .caseInsensitive]
-            ) != nil
-        else {
-            return nil
-        }
-
-        let percentText =
-            trimmed
-            .replacing(/^Drop\s+/.ignoresCase(), with: "")
-            .replacing("%", with: "")
-        return Double(percentText)
-    }
-
-    /// The `%1RM` prescription is stored structured as a `%`-suffixed string
-    /// (e.g. `"75%"`, `ExerciseSet.percentOneRM`); parse it to a number once here.
-    private static func percentOneRMValue(from percentOneRM: String?) -> Double? {
-        guard let percentOneRM else { return nil }
-        let trimmed = percentOneRM.trimmingCharacters(in: .whitespacesAndNewlines)
-        let numberText = trimmed.hasSuffix("%") ? String(trimmed.dropLast()) : trimmed
-        return Double(numberText)
     }
 
     private static func roundToNearestPlateIncrement(_ weight: Double) -> Double {
