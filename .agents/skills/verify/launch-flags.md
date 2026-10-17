@@ -9,7 +9,7 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 
 | Flag | Kind | Meaning |
 | --- | --- | --- |
-| `-UITEST_FIXTURE` | Switch | Runs on an in-memory store with a fixture Block, a faked sign-in, and a Sheets client that never reaches Google. |
+| `-UITEST_FIXTURE` | Switch | Runs on an in-memory store, synced from the Scenario's local workbook at boot, with a faked sign-in and a Sheets client that never reaches Google. The fixture Sheet then reads as Offline, so a log stays queued. |
 | `-UITEST_SESSION` | Screen | Leaves Block Overview closed, so the app opens on the Current Session. |
 | `-UITEST_DEVELOPER_TOOLS` | Screen | Opens Developer Tools in place of the Session screen. |
 | `-UITEST_SETTINGS` | Screen | Opens Settings in place of the Session screen. |
@@ -21,8 +21,8 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
-| `-UITEST_PENDING_WRITE` | Switch | Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block, so a sync writes it and reloads that Block in place of the Scenario's. |
-| `-UITEST_SLOW_SYNC` | Switch | Makes the fixture Sheets client wait 20 seconds before it lists tabs, so a sync stays in flight. |
+| `-UITEST_PENDING_WRITE` | Switch | Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, and keeps the fixture Sheet reachable, so a sync writes it to the Scenario's own workbook and reloads the Block from it. |
+| `-UITEST_SLOW_SYNC` | Switch | Makes every tab list after the boot wait 20 seconds, so a sync stays in flight. |
 | `-UITEST_LATE_SIGN_IN` | Switch | Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device. |
 | `-UITEST_CURRENT_SESSION_OVERRIDE` | Switch | Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays. |
 | `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration, which shows only when the Current Session offers Move On. |

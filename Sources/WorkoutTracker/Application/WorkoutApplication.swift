@@ -21,7 +21,6 @@ public final class WorkoutApplication {
     public init(environment: AppEnvironment) throws {
         container = try ModelContainer(for: Self.schema, configurations: Self.configuration(for: environment.storage))
         let context = container.mainContext
-        try environment.seed?(context)
         sheetsClient = environment.sheetsClient
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(

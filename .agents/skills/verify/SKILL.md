@@ -230,9 +230,9 @@ after. The second `shot` prints the tree lines that changed with positions ignor
 only moved is not a change; quote those lines verbatim. Prove side effects alongside the screen.
 After a log, the header reads `Sync status: 1 unsynced` and the branch gains a `Set 1, 237.5x5@6`
 button. For store or sync effects with no UI question, run the same operation through the CLI and
-quote its JSON, or run the covering `swift test --filter` suite. The fixture sheets client accepts
-every write and never reaches the network, so a green flush in fixture mode proves the queue, not
-Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
+quote its JSON, or run the covering `swift test --filter` suite. The fixture sheet is a local workbook
+that reads as Offline after the boot, so a log stays queued, unless `-UITEST_PENDING_WRITE` keeps
+it reachable. A green flush in fixture mode proves the queue and the cells, not Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
 jumps to the end state.
 
 Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. The read is

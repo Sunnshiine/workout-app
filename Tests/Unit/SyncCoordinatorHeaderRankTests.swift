@@ -570,8 +570,7 @@ private func openWithThisBuild(_ store: URL, client: HeaderRankStubClient) throw
             storage: .file(store),
             sheetsClient: client,
             defaults: .inMemory(),
-            now: { Date(timeIntervalSince1970: 2) },
-            seed: nil
+            now: { Date(timeIntervalSince1970: 2) }
         )
     )
 }

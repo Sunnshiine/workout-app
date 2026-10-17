@@ -11,6 +11,8 @@ import Testing
 // one launch scenario's hand-built graph with a workbook of its own, records what the cells cannot
 // express, then seeds the scenario from the workbook and deletes the graph. From then on the
 // row's drift is empty, and the row pins that the scenario seeds that workbook and no other.
+// The seeded side is the Block `UITestFixture.boot` leaves in a fresh application's store, the
+// path the app takes at launch, so a converted row compares a real sync against the bare parse.
 //
 // Pairing is by structural address and nothing else: the Block, then Week number, then Day
 // number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
@@ -246,8 +248,9 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
 
 @MainActor
 @Test(arguments: pairedScenarios)
-private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws {
-    let actual = drift(seeded: UITestFixture.block(for: pair.launch), parsed: parsedBlock(pair.workbook))
+private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) async throws {
+    let booted = try await BootedFixture.boot(pair.launch)
+    let actual = drift(seeded: try booted.block(), parsed: parsedBlock(pair.workbook))
     let expected = try #require(recordedDrift[pair.workbook])
 
     let unrecorded = actual.filter { !expected.contains($0) }
@@ -266,8 +269,9 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws
 /// instants are the ones the graphs used to hand over. Both four-Week scenarios share the cells.
 @MainActor
 @Test(arguments: [UITestLaunch.Scenario.partialUpload, .fullBlock])
-func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Scenario) throws {
-    let seeded = sessionsByAddress(UITestFixture.block(for: scenario))
+func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Scenario) async throws {
+    let booted = try await BootedFixture.boot(scenario)
+    let seeded = sessionsByAddress(try booted.block())
     // Keyed by address and checked for coverage below, because the walk does not compare `date`:
     // this table is the only thing watching it, so a newly added Session must not slip past.
     let expected: [String: String] = [
