@@ -7,6 +7,7 @@ struct ExerciseHistorySheet: View {
     var fillProgress: HistoryFillProgressPresentation?
 
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showVolume: Bool
     @State private var expandedWells: Set<String> = []
 
@@ -42,6 +43,7 @@ struct ExerciseHistorySheet: View {
                 } else {
                     if showVolume {
                         volumeChart
+                            .transition(.opacity)
                     }
                     ForEach(Array(presentation.blocks.enumerated()), id: \.offset) { _, block in
                         blockSection(block)
@@ -80,7 +82,7 @@ struct ExerciseHistorySheet: View {
 
     private var volumeControl: some View {
         Button {
-            showVolume.toggle()
+            withAnimation(toggleAnimation) { showVolume.toggle() }
         } label: {
             Text("Volume")
                 .font(Theme.font(.queuePill))
@@ -154,11 +156,17 @@ struct ExerciseHistorySheet: View {
     }
 
     private func toggle(_ key: String) {
-        if expandedWells.contains(key) {
-            expandedWells.remove(key)
-        } else {
-            expandedWells.insert(key)
+        withAnimation(toggleAnimation) {
+            if expandedWells.contains(key) {
+                expandedWells.remove(key)
+            } else {
+                expandedWells.insert(key)
+            }
         }
+    }
+
+    private var toggleAnimation: Animation? {
+        reduceMotion ? nil : .snappy(duration: 0.22)
     }
 }
 
@@ -189,6 +197,7 @@ private struct ExerciseHistoryRow: View {
             if row.hasWell, isWellExpanded {
                 well
                     .padding(.leading, 64)
+                    .transition(.opacity)
             }
         }
     }
