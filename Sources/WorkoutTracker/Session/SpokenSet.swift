@@ -3,8 +3,8 @@ import Foundation
 /// A Set as the athlete said it, read from a speech transcript before it meets the Set it is for:
 /// some of a Set Log's values, the previous Set again, or a skip.
 enum SpokenSet: Equatable, Sendable {
-    /// At least one value is present.
-    case values(SetLogDraft)
+    /// At least one value is heard.
+    case values(weight: SpokenValue<Weight>, reps: SpokenValue<Int>, rpe: SpokenValue<RPE>)
     case sameAgain
     case skip
 
@@ -50,15 +50,15 @@ enum SpokenSet: Equatable, Sendable {
             guard command.vocabulary.isSuperset(of: meaningful) else { throw .unrecognized }
             return command.spokenSet
         }
-        return .values(try values(in: words))
+        return try values(in: words)
     }
 
     /// "4 at 9" can reach the transcript as "49", so a two-digit rep count said last after "for",
     /// with no RPE, whose second digit is an RPE point reads two ways. "49 reps" reads one way.
-    private static func values(in words: [String]) throws(Rejection) -> SetLogDraft {
+    private static func values(in words: [String]) throws(Rejection) -> SpokenSet {
         let lexemes = try Lexemes(words[...]).lexemes
-        let values = try Slots(Claims(lexemes)).draft()
-        guard values.rpe == nil, let reps = values.reps, couldBeRepsAtAnRPE(reps),
+        let values = try Slots(Claims(lexemes), cutOff: lexemes.last?.fieldAskedFor).spokenSet()
+        guard case .values(_, .heard(let reps), .notSaid) = values, couldBeRepsAtAnRPE(reps),
             lexemes.suffix(2).elementsEqual([.marker(.by), .value(.number(Double(reps)))])
         else { return values }
         throw .ambiguous
@@ -66,6 +66,24 @@ enum SpokenSet: Equatable, Sendable {
 
     private static func couldBeRepsAtAnRPE(_ reps: Int) -> Bool {
         (10...99).contains(reps) && RPE(rawValue: Double(reps % 10)) != nil
+    }
+}
+
+/// One of a Spoken Set's values.
+enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
+    case notSaid
+    case heard(Value)
+    /// Its marker was said last and the recognizer cut off the number after it, as the RPE of
+    /// "185 for 5 at" or the reps of "185 for".
+    case cutOff
+
+    /// A value not said keeps the pre-fill. A value cut off was said, so the pre-fill is not it.
+    func over(_ prefilled: Value?) -> Value? {
+        switch self {
+        case .notSaid: prefilled
+        case .heard(let value): value
+        case .cutOff: nil
+        }
     }
 }
 
@@ -112,10 +130,14 @@ enum SpokenSetOutcome: Equatable, Sendable {
 
 extension SpokenSet {
     /// `draft` is what the Set's card pre-fills and `previous` is the Exercise's nearest earlier
-    /// structured Set Log in the Session. A value the athlete did not say comes only from the draft.
+    /// structured Set Log in the Session. A value the athlete did not say comes only from the draft,
+    /// and a value cut off is missing whatever the draft holds.
     func resolved(against draft: SetLogDraft, previous: SetLog?) -> Result<SpokenSetOutcome, Rejection> {
         switch self {
-        case .values(let spoken): .success(SpokenSetOutcome(draft.overridden(by: spoken)))
+        case .values(let weight, let reps, let rpe):
+            .success(
+                SpokenSetOutcome(SetLogDraft(weight: weight.over(draft.weight), reps: reps.over(draft.reps), rpe: rpe.over(draft.rpe)))
+            )
         case .sameAgain: previous.map { .success(.log($0)) } ?? .failure(.nothingToRepeat)
         case .skip: .success(.skip)
         }
@@ -201,9 +223,9 @@ private enum Lexeme: Equatable {
     case value(Value)
     case marker(Marker)
 
-    var asksForTheNumberAfter: Bool {
-        guard case .marker(let marker) = self else { return false }
-        return marker.asksForTheNumberAfter
+    var fieldAskedFor: SetLogDraft.Field? {
+        guard case .marker(let marker) = self else { return nil }
+        return marker.fieldAskedFor
     }
 }
 
@@ -245,10 +267,13 @@ private enum Marker: Equatable {
         }
     }
 
-    var asksForTheNumberAfter: Bool {
+    /// The field of the number this marker asks for next. A dangling "at" may have named the weight,
+    /// as in "8 reps at", and reads as the RPE, because either way the Set is missing a value.
+    var fieldAskedFor: SetLogDraft.Field? {
         switch self {
-        case .rpe, .at, .by: true
-        case .pounds, .reps: false
+        case .rpe, .at: .rpe
+        case .by: .reps
+        case .pounds, .reps: nil
         }
     }
 }
@@ -281,17 +306,17 @@ private struct Lexemes {
 
     /// "four", "per", and "or" between a value and a number are the "for" of "135 four 5". "to" and
     /// "too" are 2 only where a number is asked for: "315 for to", "to reps". "and", "of", and "add"
-    /// before the last number are the "at" of "185 for 5 and 8".
+    /// before the last number, or last of all, are the "at" of "185 for 5 and 8" and "185 for 5 and".
     private func homophone(_ word: String, before next: ArraySlice<String>) -> Lexeme? {
         switch word {
         case "four", "per", "or": theFor(before: next)
         case "to", "too": theTwo(before: next)
-        case "and", "of", "add": Self.theAt(before: next)
+        case "and", "of", "add": theAt(before: next)
         default: nil
         }
     }
 
-    private var asksForANumber: Bool { lexemes.last?.asksForTheNumberAfter ?? false }
+    private var asksForANumber: Bool { lexemes.last?.fieldAskedFor != nil }
 
     private func theFor(before next: ArraySlice<String>) -> Lexeme? {
         guard !lexemes.isEmpty, !asksForANumber, SpokenNumber.read(next) != nil else { return nil }
@@ -303,10 +328,11 @@ private struct Lexemes {
         return .value(.number(2))
     }
 
-    private static func theAt(before next: ArraySlice<String>) -> Lexeme? {
-        guard let number = SpokenNumber.read(next),
-            !number.rest.indices.contains(where: { SpokenNumber.read(number.rest[$0...]) != nil })
-        else { return nil }
+    private func theAt(before next: ArraySlice<String>) -> Lexeme? {
+        guard let number = SpokenNumber.read(next) else {
+            return !lexemes.isEmpty && next.allSatisfy(Lexicon.fillers.contains) ? .marker(.at) : nil
+        }
+        guard !number.rest.indices.contains(where: { SpokenNumber.read(number.rest[$0...]) != nil }) else { return nil }
         return .marker(.at)
     }
 
@@ -350,11 +376,14 @@ private struct Claims {
 }
 
 /// Weight, reps, and RPE as the claims fill them: labeled values first, then unlabeled ones into
-/// whatever is left in weight, reps, RPE order.
+/// whatever is left in weight, reps, RPE order. `cutOff` is the field the last word asked a number
+/// for, which is cut off unless a value filled it, as the RPE of "at 9 RPE" is not.
 private struct Slots {
     private var values: [SetLogDraft.Field: Value] = [:]
+    private let cutOff: SetLogDraft.Field?
 
-    init(_ claims: Claims) throws(SpokenSet.Rejection) {
+    init(_ claims: Claims, cutOff: SetLogDraft.Field?) throws(SpokenSet.Rejection) {
+        self.cutOff = cutOff
         for (field, value) in claims.labeled { try claim(field, value) }
         try fill(claims.unlabeled)
         guard !values.isEmpty else { throw .unrecognized }
@@ -372,8 +401,17 @@ private struct Slots {
         for (field, value) in zip(free, unlabeled) { values[field] = value }
     }
 
-    func draft() throws(SpokenSet.Rejection) -> SetLogDraft {
-        SetLogDraft(weight: try Self.weight(values[.weight]), reps: try Self.reps(values[.reps]), rpe: try Self.rpe(values[.rpe]))
+    func spokenSet() throws(SpokenSet.Rejection) -> SpokenSet {
+        .values(
+            weight: spoken(.weight, try Self.weight(values[.weight])),
+            reps: spoken(.reps, try Self.reps(values[.reps])),
+            rpe: spoken(.rpe, try Self.rpe(values[.rpe]))
+        )
+    }
+
+    private func spoken<V: Equatable & Sendable>(_ field: SetLogDraft.Field, _ value: V?) -> SpokenValue<V> {
+        if let value { return .heard(value) }
+        return field == cutOff ? .cutOff : .notSaid
     }
 
     private static func weight(_ value: Value?) throws(SpokenSet.Rejection) -> Weight? {

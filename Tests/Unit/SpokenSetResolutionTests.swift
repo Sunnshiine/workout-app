@@ -20,12 +20,29 @@ private let squatDraft = SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight)
         ("at 9", SetLog(weight: .pounds(185), reps: 5, rpe: .nine)),
         ("190", SetLog(weight: .pounds(190), reps: 5, rpe: .eight)),
         ("for 3", SetLog(weight: .pounds(185), reps: 3, rpe: .eight)),
+        ("185 for 5", SetLog(weight: .pounds(185), reps: 5, rpe: .eight)),
+        ("185 for 5 at 9 RPE", SetLog(weight: .pounds(185), reps: 5, rpe: .nine)),
         ("4 reps at 9.5", SetLog(weight: .pounds(185), reps: 4, rpe: .ninePointFive)),
         ("bodyweight", SetLog(weight: .bodyweight, reps: 5, rpe: .eight))
     ]
 )
 func eachValueSaidReplacesTheDraftsAndTheRestKeepIt(transcript: String, logged: SetLog) {
     #expect(outcome(of: transcript, draft: squatDraft) == .success(.log(logged)))
+}
+
+@Test(
+    "A value whose number the recognizer cut off after its marker is missing whatever the draft holds",
+    arguments: [
+        ("185 or 5 at", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
+        ("185 for 5 RPE", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
+        ("185 for 5 at RPE", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
+        ("185 for 5 and", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
+        ("185 for", SetLogDraft(weight: .pounds(185), reps: nil, rpe: .eight)),
+        ("185 x", SetLogDraft(weight: .pounds(185), reps: nil, rpe: .eight))
+    ]
+)
+func aValueCutOffAfterItsMarkerIsMissingWhateverTheDraftHolds(transcript: String, values: SetLogDraft) {
+    #expect(outcome(of: transcript, draft: squatDraft) == .success(.missingValues(values)))
 }
 
 @Test func aFreshBlocksFirstSetHasNoWeightToKeepSoAnRPEAloneIsMissingTheWeight() {

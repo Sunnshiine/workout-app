@@ -5,8 +5,12 @@ import Testing
 
 private typealias Heard = Result<SpokenSet, SpokenSet.Rejection>
 
+private func spoken<Value>(_ value: Value?) -> SpokenValue<Value> {
+    value.map(SpokenValue.heard) ?? .notSaid
+}
+
 private func values(_ weight: Weight?, _ reps: Int?, _ rpe: RPE?) -> Heard {
-    .success(.values(SetLogDraft(weight: weight, reps: reps, rpe: rpe)))
+    .success(.values(weight: spoken(weight), reps: spoken(reps), rpe: spoken(rpe)))
 }
 
 @Test(
@@ -230,6 +234,18 @@ func aWholeNumberOfFourOrMoreDigitsIsFused(transcript: String) {
     #expect(SpokenSet.parse("185 and 5") == values(.pounds(185), nil, .five))
 }
 
+@Test func aMarkerSaidLastCutsOffTheValueItAskedForUnlessThatValueWasHeard() {
+    let cutOffRPE: Heard = .success(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff))
+    #expect(SpokenSet.parse("185 for 5 at") == cutOffRPE)
+    #expect(SpokenSet.parse("185 for 5 RTE") == cutOffRPE)
+    #expect(SpokenSet.parse("185 for 5 of") == cutOffRPE)
+    #expect(SpokenSet.parse("185 for 5 add um") == cutOffRPE)
+    #expect(SpokenSet.parse("185 by") == .success(.values(weight: .heard(.pounds(185)), reps: .cutOff, rpe: .notSaid)))
+    #expect(SpokenSet.parse("185 for 5 at 8 RPE") == values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("185 pounds") == values(.pounds(185), nil, nil))
+    #expect(SpokenSet.parse("at") == .failure(.unrecognized))
+}
+
 @Test func rteRtdAndRtvAreAMisheardRPE() {
     #expect(SpokenSet.parse("135 for 4 RTD 9") == values(.pounds(135), 4, .nine))
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
@@ -261,14 +277,18 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
     #expect(SpokenSet.parse(candidates: ["Same again.", "Same again.", "Play again."]) == chosen(.sameAgain, from: .top))
     #expect(
         SpokenSet.parse(candidates: ["185 for 5 at 8", "185 for 5 at 9"])
-            == chosen(.values(SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight)), from: .top)
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .heard(.eight)), from: .top)
     )
 }
 
 @Test func alternativesThatAgreeStandInForARejectedTopCandidate() {
     #expect(
         SpokenSet.parse(candidates: ["31541", "31541", "315 for one", "315 or one"])
-            == chosen(.values(SetLogDraft(weight: .pounds(315), reps: 1, rpe: nil)), from: .alternative)
+            == chosen(.values(weight: .heard(.pounds(315)), reps: .heard(1), rpe: .notSaid), from: .alternative)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["18545 at", "185 or 5 at", "185 for 5 at"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff), from: .alternative)
     )
 }
 
