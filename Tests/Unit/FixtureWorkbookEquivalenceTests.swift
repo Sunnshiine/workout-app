@@ -3,16 +3,14 @@ import Testing
 
 @testable import WorkoutTracker
 
-// Pins the Block a UI launch scenario seeds against the parse of the workbook paired with it.
-// `Fixtures/WorkoutFixtureScenarios.swift` authors Block graphs by hand while
-// `Fixtures/WorkbookScenarios.swift` authors cells the real parser reads, and until this file
-// nothing compared the two — so a disagreement reached the Visual gate (ADR-0007) and was
-// recorded there as intended appearance. Slice 1 of #571 built the harness. Each later slice pairs
-// one launch scenario's hand-built graph with a workbook of its own, records what the cells cannot
-// express, then seeds the scenario from the workbook and deletes the graph. From then on the
-// row's drift is empty, and the row pins that the scenario seeds that workbook and no other.
-// The seeded side is the Block `UITestFixture.boot` leaves in a fresh application's store, the
-// path the app takes at launch, so a converted row compares a real sync against the bare parse.
+// Pins the Block each UI launch scenario boots into against the bare parse of its workbook. Until
+// #571 the fixture's Blocks were graphs built by hand in `Fixtures/WorkoutFixtureScenarios.swift`,
+// and nothing compared them with cells the real parser reads, so a disagreement reached the Visual
+// gate (ADR-0007) and was recorded there as intended appearance. Each slice of #571 paired one
+// scenario's graph with a workbook, recorded what the cells could not express, then seeded the
+// scenario from the workbook and deleted the graph; #970 deleted the last. The seeded side is the
+// Block `UITestFixture.boot` leaves in a fresh application's store, so each row now pins that the
+// scenario seeds that workbook and no other, and that only `unwritableSetLogs` lie over it.
 //
 // Pairing is by structural address and nothing else: the Block, then Week number, then Day
 // number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
@@ -101,11 +99,10 @@ private func drift(seeded: Block, parsed: Block) -> [Drift] {
             log.note(.onlyInSeeded(address.description))
             continue
         }
-        // `Session.date` is deliberately not walked. A hand-built graph authors an instant and a
-        // workbook authors a calendar day that `SheetParser.parseDate` resolves in the machine's
-        // time zone, so a recorded pair of instants passes in EDT and fails on a UTC runner. A
-        // seeded workbook's dates are pinned instead, machine-independently, by
-        // `theSeededFourWeekDatesAreTheirWorkbooksDateCells`.
+        // `Session.date` is deliberately not walked. A workbook authors a calendar day that
+        // `SheetParser.parseDate` resolves in the machine's time zone, so a recorded instant
+        // passes in EDT and fails on a UTC runner. The dates are pinned instead,
+        // machine-independently, by `theSeededFourWeekDatesAreTheirWorkbooksDateCells`.
         noteExerciseDrift(seeded: seededSession, parsed: parsedSession, at: address, into: log)
     }
     return log.drift
@@ -216,18 +213,8 @@ private let pairedScenarios: [PairedScenario] = [
     PairedScenario(workbook: .perfectMoveOnCelebration, launch: .perfectMoveOnCelebration)
 ]
 
-/// Workbooks that stand in for a hand-built Block only `Tests/Support/WorkoutScenarios.swift`
-/// reads, so no launch boots them. Each pairs with the graph it replaces.
-@MainActor
-private func supportBlock(_ workbook: WorkbookScenario) -> Block? {
-    switch workbook {
-    case .currentSessionWithPendingSets: WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock()
-    case .partiallyLoggedSession: WorkoutFixtureScenarios.partiallyLoggedSessionBlock()
-    case .blockOverviewWithMixedSessionStates: WorkoutFixtureScenarios.blockOverviewWithMixedSessionStatesBlock()
-    default: nil
-    }
-}
-
+/// Workbooks only `Tests/Support/WorkoutScenarios.swift` reads, so no launch boots them. #970
+/// paired each with the hand-built graph it replaced, with no drift beyond `unwritableSetLogs`.
 private let supportWorkbooks: [WorkbookScenario] = [
     .currentSessionWithPendingSets, .partiallyLoggedSession, .blockOverviewWithMixedSessionStates
 ]
@@ -237,11 +224,6 @@ private let supportWorkbooks: [WorkbookScenario] = [
 /// `Tests/Unit/WorkbookScenarioTests.swift`, `Sources/WorkoutCLI/README.md`,
 /// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`, not by a graph.
 private let workbooksWithoutALaunchScenario = Set<WorkbookScenario>([.freshBlock]).union(supportWorkbooks)
-
-/// Launch scenarios with no workbook to compare against. `Tests/Unit/UITestFixtureBlockTests.swift`
-/// still pins each one's `BlockShape`; what is missing is anything that checks that shape against
-/// cells a coach could have typed. Each moves into `pairedScenarios` as its slice of #571 lands.
-private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = []
 
 /// Every difference between the two sides today, in address order, with the side that is wrong
 /// named per entry.
@@ -254,16 +236,13 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
     // Seeded from its own workbook (#968). Its last entries were thirteen Accessory names, dropped
     // for the reason `partial-upload`'s two were.
     .fullBlock: [],
-    // The rest pair with the graphs #970 converts. The only drift left is the first Set of each
-    // two-Line lift: Logged in the graph, but its Line's Notes cell holds the Coach Note, so no cell
-    // can hold the log until #942. The workbook's `unwritableSetLogs` carries each one.
+    // Seeded from their own workbooks (#970). The drift left is the first Set of each two-Line
+    // lift, Logged at boot but Pending in the parse: its Line's Notes cell holds the Coach Note, so
+    // no cell can hold the log until #942, and `unwritableSetLogs` logs it over the parse instead.
     .openExercises: firstSetLogged("w1d1", "235x5@6") + firstSetLogged("w1d2", "155x5@6") + firstSetLogged("w1d3", "305x3@6"),
     .completedOpenExercises: firstSetLogged("w1d1", "235x5@6"),
     .longSession: [],
-    .perfectMoveOnCelebration: [],
-    .currentSessionWithPendingSets: [],
-    .partiallyLoggedSession: firstSetLogged("w1d1", "235x5@6"),
-    .blockOverviewWithMixedSessionStates: []
+    .perfectMoveOnCelebration: []
 ]
 
 /// The two fields an unwritable Set Log drifts in: the first Set of the Session's first Exercise.
@@ -288,20 +267,6 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) async 
 
     #expect(unrecorded.isEmpty, "\(pair) drifts in ways nothing records:\n\(list(unrecorded))")
     #expect(stale.isEmpty, "\(pair) no longer drifts here, so delete these entries:\n\(list(stale))")
-}
-
-@MainActor
-@Test(arguments: supportWorkbooks)
-private func aSupportWorkbookDriftsOnlyWhereRecorded(workbook: WorkbookScenario) throws {
-    let seeded = try #require(supportBlock(workbook))
-    let actual = drift(seeded: seeded, parsed: parsedBlock(workbook))
-    let expected = try #require(recordedDrift[workbook])
-
-    let unrecorded = actual.filter { !expected.contains($0) }
-    let stale = expected.filter { !actual.contains($0) }
-
-    #expect(unrecorded.isEmpty, "\(workbook.rawValue) drifts in ways nothing records:\n\(list(unrecorded))")
-    #expect(stale.isEmpty, "\(workbook.rawValue) no longer drifts here, so delete these entries:\n\(list(stale))")
 }
 
 /// The one field the walk does not compare, pinned here instead.
@@ -335,14 +300,13 @@ func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Sce
     }
 }
 
-@Test func everyScenarioIsEitherPairedOrRecordedAsAwaitingAWorkbook() {
+@Test func everyScenarioIsPairedAndEveryWorkbookAccountedFor() {
     let paired = Set(pairedScenarios.map(\.launch))
     let pairedWorkbooks = Set(pairedScenarios.map(\.workbook))
     #expect(pairedWorkbooks.isDisjoint(with: workbooksWithoutALaunchScenario))
     #expect(pairedWorkbooks.union(workbooksWithoutALaunchScenario) == Set(WorkbookScenario.allCases))
-    #expect(Set(recordedDrift.keys) == pairedWorkbooks.union(supportWorkbooks))
-    #expect(paired.isDisjoint(with: scenariosAwaitingAWorkbook))
-    #expect(paired.union(scenariosAwaitingAWorkbook) == Set(UITestLaunch.Scenario.allCases))
+    #expect(Set(recordedDrift.keys) == pairedWorkbooks)
+    #expect(paired == Set(UITestLaunch.Scenario.allCases))
 }
 
 private func list(_ drift: [Drift]) -> String {

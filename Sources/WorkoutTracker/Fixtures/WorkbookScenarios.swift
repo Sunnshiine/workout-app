@@ -41,36 +41,38 @@
         case blockOverviewWithMixedSessionStates = "block-overview-with-mixed-session-states"
 
         public func workbook() -> LocalWorkbook {
-            switch self {
-            case .freshBlock:
-                Self.freshBlock()
-            case .partialUpload:
-                Self.partialUpload()
-            case .fullBlock:
-                Self.fullBlock()
-            case .currentSessionWithPendingSets:
-                Self.block(daysPerWeek: [1], prescriptions: [Self.weekOneDayOne()])
-            case .partiallyLoggedSession:
-                Self.block(daysPerWeek: [1], prescriptions: [Self.twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1))])
-            case .openExercises:
-                Self.block(
+            guard let build = Self.builders[self] else {
+                preconditionFailure("\(rawValue) has no workbook builder")
+            }
+            return build()
+        }
+
+        /// One builder per scenario. A table has no compiler exhaustiveness check, so
+        /// `everyScenarioParsesCleanlyWithAnAvailableSession` in `Tests/Unit/WorkbookScenarioTests.swift`,
+        /// which builds every case, is what keeps a new scenario from shipping without a row.
+        private static let builders: [Self: @Sendable () -> LocalWorkbook] = [
+            .freshBlock: freshBlock,
+            .partialUpload: partialUpload,
+            .fullBlock: fullBlock,
+            .currentSessionWithPendingSets: { block(daysPerWeek: [1], prescriptions: [weekOneDayOne()]) },
+            .partiallyLoggedSession: {
+                block(daysPerWeek: [1], prescriptions: [twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1))])
+            },
+            .openExercises: {
+                block(
                     daysPerWeek: [3],
                     prescriptions: [
-                        Self.twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
-                        Self.twoLineLift(.benchPress, at: SessionAddress(week: 1, day: 2)),
-                        Self.twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
+                        twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
+                        twoLineLift(.benchPress, at: SessionAddress(week: 1, day: 2)),
+                        twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
                     ]
                 )
-            case .completedOpenExercises:
-                Self.completedOpenExercises()
-            case .longSession:
-                Self.longSession()
-            case .perfectMoveOnCelebration:
-                Self.perfectMoveOnCelebration()
-            case .blockOverviewWithMixedSessionStates:
-                Self.blockOverviewWithMixedSessionStates()
-            }
-        }
+            },
+            .completedOpenExercises: completedOpenExercises,
+            .longSession: longSession,
+            .perfectMoveOnCelebration: perfectMoveOnCelebration,
+            .blockOverviewWithMixedSessionStates: blockOverviewWithMixedSessionStates
+        ]
 
         static let spreadsheetId = "FIXTURE"
         static let title = "Fixture Training Log"
@@ -500,8 +502,9 @@
         }
 
         /// Set Logs on the first Line of a two-Line lift, whose Notes cell holds the Coach Note, so
-        /// the Sheet has no cell for them until #942 gives that Line a spare row. Each scenario that
-        /// needs one logs it over the parse instead, as the app holds a log the Sheet has not taken.
+        /// the Sheet has no cell for them until #942 gives that Line a spare row, and #1000 writes
+        /// them there. Each scenario that needs one logs it over the parse instead, as the app holds
+        /// a log the Sheet has not taken.
         var unwritableSetLogs: [SetAddress: String] {
             let firstSet = { (day: Int) in
                 SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: day), order: 0), index: 0)
