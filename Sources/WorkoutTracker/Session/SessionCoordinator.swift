@@ -25,6 +25,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
     @ObservationIgnored private let wiring: SessionWiring
+    @ObservationIgnored private var liveEdgeReconcile: Task<Void, Never>?
 
     init(
         session: Session? = nil,
@@ -37,6 +38,10 @@ final class SessionCoordinator {
         self.focusManager = focusManager
         self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
         reconcileOnEachLiveEdgeChange()
+    }
+
+    deinit {
+        liveEdgeReconcile?.cancel()
     }
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
@@ -68,9 +73,7 @@ final class SessionCoordinator {
         } onChange: { [weak self] in
             // The navigation adapter changes only on the main actor, so its change notice runs there.
             MainActor.assumeIsolated {
-                // Holds the coordinator weakly, so a reconcile it outlives does nothing.
-                // swiftlint:disable:next unstructured_task_is_held
-                Task { [weak self] in
+                self?.liveEdgeReconcile = Task { [weak self] in
                     guard let self else { return }
                     reconcileOnEachLiveEdgeChange()
                     reconcileLiveActivity()
