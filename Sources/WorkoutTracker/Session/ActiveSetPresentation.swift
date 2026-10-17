@@ -122,6 +122,36 @@ enum SetCardMode: Equatable, Sendable {
     case reviewingLogged
 }
 
+/// What the head of the Set card shows at its trailing edge (DESIGN.md §5.2).
+enum SetCardHeadAccessory: Equatable, Sendable {
+    case none
+    case saved
+    case clearMenu
+    /// A Set written by speech: the write and its undo.
+    case savedAndClearMenu
+}
+
+@MainActor
+extension SetCardSlot.Mode {
+    /// A Set held after a spoken write behaves as its own card: a logged one as a review, a skipped
+    /// one as the skipped card.
+    func cardMode(for set: ExerciseSet) -> SetCardMode {
+        switch self {
+        case .logging: .logging
+        case .reviewingLogged: .reviewingLogged
+        case .heldAfterSpokenWrite: set.state == .logged ? .reviewingLogged : .logging
+        }
+    }
+
+    func headAccessory(for set: ExerciseSet) -> SetCardHeadAccessory {
+        switch self {
+        case .heldAfterSpokenWrite: .savedAndClearMenu
+        case .reviewingLogged(showsSavedConfirmation: true): .saved
+        case .logging, .reviewingLogged: SetCardPresentation(mode: cardMode(for: set), set: set).showsClearMenu ? .clearMenu : .none
+        }
+    }
+}
+
 struct SetCardPresentation: Equatable, Sendable {
     enum ActionRow: Equatable, Sendable {
         case log

@@ -83,6 +83,20 @@ import Testing
 }
 
 @MainActor
+@Test func theFormsDraftIsWhatTheCardShowsWithAnUnreadableValueLeftOut() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(185)
+    )
+    #expect(form.draft == SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight))
+
+    form.weightText = "190"
+    form.repsText = "five"
+
+    #expect(form.draft == SetLogDraft(weight: .pounds(190), reps: nil, rpe: .eight))
+}
+
+@MainActor
 @Test func fineWeightIncrementIsTwoAndAHalfUnderThresholdAndFiveAtOrAboveIt() {
     var form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),

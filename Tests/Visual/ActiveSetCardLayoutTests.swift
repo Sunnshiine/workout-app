@@ -17,6 +17,7 @@ struct ActiveSetCardLayoutTests {
             action: CGRect(x: 32, y: 298, width: 338, height: 58)
         )
         let clearMenu = ["Clear menu": CGRect(x: 338, y: 68, width: 44, height: 44)]
+        let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 278, y: 80, width: 60, height: 20)]) { $1 }
 
         let drawn = try CardHost.drawings(of: [
             "logging a pending Set": CardHost.Scene(state: .pending, mode: .logging),
@@ -24,7 +25,9 @@ struct ActiveSetCardLayoutTests {
             "logging a logged Set": CardHost.Scene(state: .logged, mode: .logging),
             "reviewing a logged Set": CardHost.Scene(state: .logged, mode: .reviewing(showsSaved: false)),
             "reviewing a logged Set just saved": CardHost.Scene(state: .logged, mode: .reviewing(showsSaved: true)),
-            "reviewing an Unstructured Set Log": CardHost.Scene(state: .loggedUnstructured, mode: .reviewing(showsSaved: false))
+            "reviewing an Unstructured Set Log": CardHost.Scene(state: .loggedUnstructured, mode: .reviewing(showsSaved: false)),
+            "holding a Set logged by speech": CardHost.Scene(state: .logged, mode: .heldAfterSpokenWrite),
+            "holding a Set skipped by speech": CardHost.Scene(state: .skipped, mode: .heldAfterSpokenWrite)
         ])
 
         #expect(
@@ -58,6 +61,16 @@ struct ActiveSetCardLayoutTests {
                     rows: rows,
                     actionControl: "logged-set-capsule",
                     headControls: [:]
+                ),
+                "holding a Set logged by speech": CardDrawing(
+                    rows: rows,
+                    actionControl: "logged-set-capsule",
+                    headControls: savedAndClearMenu
+                ),
+                "holding a Set skipped by speech": CardDrawing(
+                    rows: rows,
+                    actionControl: "log-active-set-button",
+                    headControls: savedAndClearMenu
                 )
             ]
         )
@@ -120,6 +133,7 @@ private enum CardHost {
     enum Mode {
         case logging
         case reviewing(showsSaved: Bool)
+        case heldAfterSpokenWrite
     }
 
     enum SetFill {
@@ -174,6 +188,7 @@ private enum CardHost {
             switch scene.mode {
             case .logging: .logging
             case .reviewing(let showsSaved): .reviewingLogged(showsSavedConfirmation: showsSaved)
+            case .heldAfterSpokenWrite: .heldAfterSpokenWrite
             }
 
         let view = VStack(spacing: 0) {

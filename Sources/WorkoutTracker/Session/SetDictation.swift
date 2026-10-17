@@ -23,19 +23,23 @@ protocol SetTranscriber: AnyObject {
 
 /// What the Spoken Set for one Set resolves against.
 struct SpokenSetContext: Equatable, Sendable {
-    /// What the Set's card pre-fills.
+    /// What the Set's card shows, which fills what the athlete leaves unsaid.
     let draft: SetLogDraft
     /// The Exercise's nearest earlier structured Set Log in the Session, which "same again" logs.
     let previous: SetLog?
 }
 
 extension SpokenSetContext {
+    /// A Set as its card first shows it.
     @MainActor
     init(for set: ExerciseSet, history: LastPerformedLookupSnapshot) {
-        self.init(
-            draft: SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history)),
-            previous: set.earlierSetLogs.first?.setLog
-        )
+        self.init(for: set, showing: SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history)))
+    }
+
+    /// A Set whose card shows `draft`, which the athlete may have changed.
+    @MainActor
+    init(for set: ExerciseSet, showing draft: SetLogDraft) {
+        self.init(draft: draft, previous: set.earlierSetLogs.first?.setLog)
     }
 }
 
@@ -161,5 +165,35 @@ extension SetDictation.State {
     fileprivate var heard: String {
         guard case .listening(_, let heard) = self else { return "" }
         return heard
+    }
+}
+
+/// What the Set card's mic and action capsule show of a press for the card's Set.
+enum SetCardDictation: Equatable {
+    case ready
+    /// The capsule shows what is heard in place of the Log button.
+    case listening(caption: String)
+    /// The capsule shows what was heard, or why nothing was, until the athlete taps it.
+    case rejected(caption: String)
+    /// The card's values become these, with nothing written.
+    case filled(SetLogDraft)
+
+    init(_ state: SetDictation.State, for setID: ActiveSetID) {
+        switch state {
+        case .preparing(setID): self = .listening(caption: "Listening")
+        case .listening(setID, let heard): self = .listening(caption: heard.isEmpty ? "Listening" : heard)
+        case .finished(setID, .rejected(let rejection, let heard)): self = .rejected(caption: Self.caption(rejection, heard: heard))
+        case .finished(setID, .filled(let values, _)): self = .filled(values)
+        case .idle, .preparing, .listening, .finished: self = .ready
+        }
+    }
+
+    private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
+        switch rejection {
+        case .transcriber(.microphoneDenied): "Microphone is off in Settings"
+        case .transcriber(.unavailable): "Speech isn’t available"
+        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
+        case .spokenSet, .transcriber(.failed): heard.isEmpty ? "Nothing heard" : "“\(heard)”"
+        }
     }
 }
