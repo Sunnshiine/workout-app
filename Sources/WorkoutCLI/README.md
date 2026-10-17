@@ -180,7 +180,9 @@ speech assets from Apple, free and with no account, and prints each whole percen
 `{"installingSpeechAssets":{"percent":42}}`. A recording with no speech in it is `rejected` as
 `nothingHeard`. A path that is not an audio file is `unreadable_recording` (exit 1), a model that
 fails partway through is `listening_failed` (exit 3), and a Mac without the model, or whose assets
-would not install, is `speech_unavailable` (exit 69).
+would not install, is `speech_unavailable` (exit 69). `scripts/prove-dictation.sh` speaks a table
+of phrases in two macOS voices, runs each through `hear`, flushes, and prints what landed in the
+Sheet.
 
 ## Sync outcome
 
