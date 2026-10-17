@@ -56,33 +56,34 @@ struct SessionWiring {
     let motion: any SessionMotionPerforming
 }
 
+/// The Session collaborators only the app can build, because each reaches an iOS-only API: the
+/// rest Live Activity, SwiftUI's motion, and the rest notifications. The app passes them in so
+/// nothing in `Sources/` reaches the notification center, which aborts a process with no app
+/// bundle, as `swift test` is (#1006).
+@MainActor
+struct SessionPlatform {
+    let liveActivity: any SessionLiveActivityAdapter
+    let motion: any SessionMotionPerforming
+    let restNotifications: any RestNotificationScheduling
+}
+
 extension SessionWiring {
-    /// The app's wiring. The Live Activity and the motion are the platform's; every other
-    /// collaborator is a store the app already holds, or the rest timer chosen here.
+    /// The app's wiring. Every collaborator not on `platform` is a store the app already holds.
     static func live(
         workout: WorkoutStore,
         sync: SyncCoordinator,
         settings: SettingsStore,
-        liveActivity: any SessionLiveActivityAdapter,
-        motion: any SessionMotionPerforming
+        platform: SessionPlatform
     ) -> SessionWiring {
         SessionWiring(
             logging: workout,
             navigation: workout,
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
-            restTimer: liveRestTimer(),
+            restTimer: RestTimer(notificationScheduler: platform.restNotifications),
             restDurations: settings,
-            liveActivity: liveActivity,
-            motion: motion
+            liveActivity: platform.liveActivity,
+            motion: platform.motion
         )
-    }
-
-    private static func liveRestTimer() -> RestTimer {
-        #if canImport(UserNotifications)
-            RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
-        #else
-            RestTimer()
-        #endif
     }
 }
 
