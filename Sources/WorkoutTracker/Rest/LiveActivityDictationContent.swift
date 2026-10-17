@@ -23,6 +23,15 @@ struct LiveActivityDictationContent: Equatable, Sendable {
     let subject: Subject
 }
 
+/// What the Live Activity says when the athlete asked to log a Set and there was none to listen
+/// for, so the press never reads as doing nothing.
+enum LiveActivityNoSetReadback: Equatable, Sendable {
+    /// The Current Session, by its Live Activity label, has no Pending Set: each is logged or skipped.
+    case noSetLeft(session: String)
+    /// No Sheet is chosen, or the Block it loaded has no Session to log into.
+    case noCurrentSession
+}
+
 /// A Set with no rest running: what the Live Activity shows while a headless Dictation listens
 /// for it, and when nothing was written.
 struct LiveActivitySetContent: Equatable, Sendable {

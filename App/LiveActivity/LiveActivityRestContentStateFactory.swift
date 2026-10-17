@@ -43,9 +43,34 @@ extension WorkoutActivityAttributes.ContentState {
             dictation: dictation
         )
     }
+
+    /// A readback about the Session with no rest running, so it carries no Set.
+    init(noSetToLog dictation: LiveActivityDictation, appearance: LiveActivityAppearance = .dark) {
+        self.init(
+            exerciseName: "",
+            prescribedReps: "",
+            prescribedLoad: "",
+            weightValue: "",
+            weightUnit: "lbs",
+            setsDone: 0,
+            setsTotal: 0,
+            variant: .restTimerSetsLeft,
+            appearance: appearance,
+            restStartDate: nil,
+            restEndDate: nil,
+            dictation: dictation
+        )
+    }
 }
 
 extension LiveActivityDictation {
+    init(_ noSet: LiveActivityNoSetReadback) {
+        switch noSet {
+        case .noSetLeft(let session): self = .noSetLeft(session: session)
+        case .noCurrentSession: self = .noCurrentSession
+        }
+    }
+
     init(_ readback: LiveActivityDictationContent.Readback) {
         switch readback {
         case .listening: self = .listening

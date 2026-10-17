@@ -31,16 +31,36 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     case skipped
     /// Why nothing was written.
     case notLogged(String)
+    /// The named Session has no Pending Set, so nothing listened.
+    case noSetLeft(session: String)
+    /// No Session to log into, so nothing listened.
+    case noCurrentSession
 
     var isListening: Bool {
         self == .listening
     }
 
+    /// False when the readback is about the Session rather than a Set: nothing listened, and the
+    /// content names no Exercise and no prescription.
+    var isAboutASet: Bool {
+        switch self {
+        case .listening, .logged, .skipped, .notLogged: true
+        case .noSetLeft, .noCurrentSession: false
+        }
+    }
+
+    /// The Session a readback about it names.
+    var sessionName: String? {
+        guard case .noSetLeft(let session) = self else { return nil }
+        return session
+    }
+
     var symbolName: String {
         switch self {
         case .listening: "mic.fill"
-        case .logged, .skipped: "checkmark.circle.fill"
+        case .logged, .skipped, .noSetLeft: "checkmark.circle.fill"
         case .notLogged: "mic.slash.fill"
+        case .noCurrentSession: "exclamationmark.circle.fill"
         }
     }
 
@@ -50,6 +70,8 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         case .logged(let setLog): "Logged \(setLog)"
         case .skipped: "Skipped"
         case .notLogged: "Not logged"
+        case .noSetLeft: "No Set left to log"
+        case .noCurrentSession: "No Session"
         }
     }
 
@@ -60,12 +82,17 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         case .logged(let setLog): setLog
         case .skipped: "Skipped"
         case .notLogged: "Not logged"
+        case .noSetLeft: "No Set left"
+        case .noCurrentSession: "No Session"
         }
     }
 
     var detail: String? {
-        guard case .notLogged(let reason) = self else { return nil }
-        return reason
+        switch self {
+        case .notLogged(let reason): reason
+        case .noCurrentSession: "Open WorkoutTracker to choose a Sheet"
+        case .listening, .logged, .skipped, .noSetLeft: nil
+        }
     }
 }
 

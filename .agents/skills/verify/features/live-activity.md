@@ -6,7 +6,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 
 - `live-activity-rest-timer` raises a rest-timer activity when a set is logged, counting down outside the app.
 - `live-activity-say-set` opens the app from the activity's mic on the Current Session's active Set, already listening (`log-a-set.md`, `log-speak-handsfree`).
-- `live-activity-dictation-readback` shows `Listening…` and then `Logged 235×5 @7`, `Skipped`, or `Not logged` with why, on the Lock Screen card and the island, when the Action button, a control, Siri, or Shortcuts logs a Set with the app behind (`log-a-set.md`, `log-speak-locked`). It updates the rest activity when one is running and raises one otherwise, and the readback sits over the rest the write started.
+- `live-activity-dictation-readback` shows `Listening…` and then `Logged 235×5 @7`, `Skipped`, or `Not logged` with why, on the Lock Screen card and the island, when the Action button, a control, Siri, or Shortcuts logs a Set with the app behind (`log-a-set.md`, `log-speak-locked`). It updates the rest activity when one is running and raises one otherwise, and the readback sits over the rest the write started. A press that finds no Pending Set reads `No Set left to log` under the Session (`Week 1 - Day 1`), and one with no Current Session reads `No Session` over `Open WorkoutTracker to choose a Sheet`; neither listens.
 - `live-activity-lab-start` raises a prototype activity from the Lab's sample workout state.
 - `live-activity-lab-update` pushes the Lab's changed sample state into the running activity.
 - `live-activity-lab-end` ends the running activity from the Lab.

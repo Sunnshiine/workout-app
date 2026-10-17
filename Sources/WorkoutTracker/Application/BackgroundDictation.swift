@@ -6,6 +6,8 @@ protocol DictationLiveActivityAdapter: AnyObject {
     /// Shows `content`, starting a Live Activity for the Set when none is up. Returns once it
     /// shows, because the system stops a recording that has no Live Activity up.
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async
+    /// Shows why there was no Set to listen for, over a running rest when one is up.
+    func show(_ noSet: LiveActivityNoSetReadback) async
 }
 
 /// Restores the Google sign-in that a launch with no scene never did.
@@ -78,8 +80,14 @@ final class BackgroundDictation {
     }
 
     func run() async -> Outcome {
-        guard let session = app.workout.currentSession else { return .noSetToLog(.noCurrentSession) }
-        guard let position = SessionSetOrder.firstPendingSet(in: session) else { return .noSetToLog(.everythingLogged) }
+        guard let session = app.workout.currentSession else {
+            await liveActivity.show(.noCurrentSession)
+            return .noSetToLog(.noCurrentSession)
+        }
+        guard let position = SessionSetOrder.firstPendingSet(in: session) else {
+            await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
+            return .noSetToLog(.everythingLogged)
+        }
         guard dictation.state.listeningSetID == nil else { return .noSetToLog(.micBusy) }
         let shown = LiveActivitySetContent(position)
         let label = session.liveActivityLabel

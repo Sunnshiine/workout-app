@@ -136,17 +136,21 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
 }
 
 @MainActor
-@Test func withNoCurrentSessionThereIsNoSetToLogAndNoLiveActivity() async throws {
+@Test func withNoCurrentSessionTheLiveActivitySaysToChooseASheetAndNothingListens() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"], selectingSpreadsheet: false)
 
     let outcome = await harness.background.run()
 
     #expect(outcome == .noSetToLog(.noCurrentSession))
-    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.noSets == [.noCurrentSession])
+    #expect(harness.liveActivity.readbacks.isEmpty, "nothing listened")
+    #expect(harness.dictation.state == .idle)
+    #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
+    #expect(harness.signIn.restores == 0, "nothing to flush")
 }
 
 @MainActor
-@Test func aCurrentSessionWithEverySetSettledHasNoSetToLog() async throws {
+@Test func aCurrentSessionWithNoPendingSetSaysSoOnTheLiveActivity() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"])
     let session = try #require(harness.app.workout.currentSession)
     for position in SessionSetOrder.orderedSets(in: session) {
@@ -154,11 +158,16 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     }
     harness.app.workout.show(SessionAddress(week: 1, day: 1))
     harness.app.workout.makeViewedSessionCurrent()
+    let queued = try harness.app.sync.fetchPendingWriteRecords().count
 
     let outcome = await harness.background.run()
 
     #expect(outcome == .noSetToLog(.everythingLogged))
-    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.noSets == [.noSetLeft(session: "Week 1 - Day 1")])
+    #expect(harness.liveActivity.readbacks.isEmpty, "nothing listened")
+    #expect(harness.dictation.state == .idle)
+    #expect(try harness.app.sync.fetchPendingWriteRecords().count == queued, "nothing written")
+    #expect(harness.signIn.restores == 0, "nothing to flush")
 }
 
 @MainActor
@@ -169,7 +178,8 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     let outcome = await harness.background.run()
 
     #expect(outcome == .noSetToLog(.micBusy))
-    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.readbacks.isEmpty, "the card shows its own listening")
+    #expect(harness.liveActivity.noSets.isEmpty)
     await harness.dictation.cancel()
     try harness.expectNothingWritten()
 }
@@ -274,9 +284,14 @@ private final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     var readbacks: [LiveActivityDictationContent.Readback] { shown.map(\.content.readback) }
     var subjects: [LiveActivityDictationContent.Subject] { shown.map(\.content.subject) }
     var sessionLabels: [String] { shown.map(\.sessionLabel) }
+    private(set) var noSets: [LiveActivityNoSetReadback] = []
 
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async {
         shown.append((content, sessionLabel))
+    }
+
+    func show(_ noSet: LiveActivityNoSetReadback) async {
+        noSets.append(noSet)
     }
 }
 

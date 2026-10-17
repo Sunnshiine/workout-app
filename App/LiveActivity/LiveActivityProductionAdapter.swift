@@ -147,15 +147,38 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
             startOrUpdate(restContent: rest, dictation: readback, sessionLabel: sessionLabel)
             await startUpdateTask?.value
         case .set(let set):
-            controller.refreshAuthorizationStatus()
-            let state: WorkoutActivityAttributes.ContentState
-            if let currentRestContent, controller.isActive {
-                state = WorkoutActivityAttributes.ContentState(restContent: currentRestContent, dictation: readback)
-            } else {
-                state = WorkoutActivityAttributes.ContentState(setContent: set, dictation: readback)
-            }
-            await show(state, sessionLabel: sessionLabel, isFinal: !readback.isListening)
+            await show(
+                readback,
+                else: WorkoutActivityAttributes.ContentState(setContent: set, dictation: readback),
+                sessionLabel: sessionLabel
+            )
         }
+    }
+
+    /// A press with no Set to listen for reads back like a result, so it ends what it started.
+    func show(_ noSet: LiveActivityNoSetReadback) async {
+        let readback = LiveActivityDictation(noSet)
+        let alone = WorkoutActivityAttributes.ContentState(noSetToLog: readback)
+        switch noSet {
+        case .noSetLeft(let session): await show(readback, else: alone, sessionLabel: session)
+        case .noCurrentSession: await show(readback, else: alone, sessionLabel: "")
+        }
+    }
+
+    /// `readback` over the running rest, keeping its countdown, else over `alone`.
+    private func show(
+        _ readback: LiveActivityDictation,
+        else alone: WorkoutActivityAttributes.ContentState,
+        sessionLabel: String
+    ) async {
+        controller.refreshAuthorizationStatus()
+        let state: WorkoutActivityAttributes.ContentState
+        if let currentRestContent, controller.isActive {
+            state = WorkoutActivityAttributes.ContentState(restContent: currentRestContent, dictation: readback)
+        } else {
+            state = alone
+        }
+        await show(state, sessionLabel: sessionLabel, isFinal: !readback.isListening)
     }
 
     private func show(_ state: WorkoutActivityAttributes.ContentState, sessionLabel: String, isFinal: Bool) async {

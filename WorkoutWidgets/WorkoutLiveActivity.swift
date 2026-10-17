@@ -44,9 +44,11 @@ struct WorkoutLiveActivity: Widget {
 
     @ViewBuilder
     private func expandedLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        if state.dictation != nil {
-            PrescriptionStack(state: state)
-                .lineLimit(1)
+        if let dictation = state.dictation {
+            if dictation.isAboutASet {
+                PrescriptionStack(state: state)
+                    .lineLimit(1)
+            }
         } else {
             switch state.variant {
             case .setProgress:
@@ -66,7 +68,7 @@ struct WorkoutLiveActivity: Widget {
         if let dictation = state.dictation {
             if dictation.isListening {
                 DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 40)
-            } else {
+            } else if dictation.isAboutASet {
                 SaySetLink(state: state, diameter: 40)
             }
         } else {
@@ -103,9 +105,11 @@ struct WorkoutLiveActivity: Widget {
     private func expandedBottom(
         for context: ActivityViewContext<WorkoutActivityAttributes>
     ) -> some View {
-        if context.state.dictation != nil {
-            DictationProgress(state: context.state, style: .island)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        if let dictation = context.state.dictation {
+            if dictation.isAboutASet || context.state.restEndDate != nil {
+                DictationProgress(state: context.state, style: .island)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         } else {
             switch context.state.variant {
             case .setProgress:
@@ -202,7 +206,11 @@ private struct LockScreenWorkoutView: View {
 
     var body: some View {
         if let dictation = state.dictation {
-            DictationLockScreenView(state: state, dictation: dictation)
+            if dictation.isAboutASet {
+                DictationLockScreenView(state: state, dictation: dictation)
+            } else {
+                NoSetLockScreenView(state: state, dictation: dictation)
+            }
         } else {
             restOrProgress
         }
@@ -296,6 +304,36 @@ private struct DictationLockScreenView: View {
             }
 
             DictationProgress(state: state, style: .lockScreen)
+        }
+        .padding(16)
+    }
+}
+
+/// The Lock Screen when a press found no Set to listen for: the Session it looked in, if any, over
+/// why, and the rest countdown when one is running.
+private struct NoSetLockScreenView: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
+
+    var body: some View {
+        let colors = state.liveActivityColors
+
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                if let session = dictation.sessionName {
+                    Text(session)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
+                }
+
+                DictationReadback(dictation: dictation, colors: colors, style: .lockScreen)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if state.restEndDate != nil {
+                DictationProgress(state: state, style: .lockScreen)
+            }
         }
         .padding(16)
     }
