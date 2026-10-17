@@ -7,11 +7,18 @@
         /// One Block tab, two logged-nothing Weeks, and an Unavailable Day 3 in Week 2 (a Partially
         /// Uploaded Block). The Coach Note on the RDL exercises the Visible Writable Row rule.
         case freshBlock = "fresh-block"
+        /// The Block the app's UI fixture boots into when a launch names no scenario: four Weeks of
+        /// four Days, eleven of them Unavailable Sessions with no prescription rows (a Partially
+        /// Uploaded Block). It carries a `%1RM` per Set on the main lifts and a Drop Load on the RDL,
+        /// so both of those Load Suggestion arms are reachable from cells a coach could have typed.
+        case partialUpload = "partial-upload"
 
         public func workbook() -> LocalWorkbook {
             switch self {
             case .freshBlock:
                 Self.freshBlock()
+            case .partialUpload:
+                Self.partialUpload()
             }
         }
 
@@ -25,7 +32,7 @@
             (1, "Sets"), (3, "Reps"), (4, "%1RM"), (5, "Load"), (6, "Last set RPE"), (8, "Notes")
         ]
 
-        private static let dayStartColumns = [2, 18, 34]
+        private static let dayStartColumns = [2, 18, 34, 50]
 
         private static func freshBlock() -> LocalWorkbook {
             var cells: [String: String] = [
@@ -44,7 +51,7 @@
             for start in dayStartColumns.prefix(2) {
                 add(roleHeaders(row: 14, dayStart: start))
             }
-            for start in dayStartColumns {
+            for start in dayStartColumns.prefix(3) {
                 add(roleHeaders(row: 39, dayStart: start))
             }
             let (day1, day2) = (dayStartColumns[0], dayStartColumns[1])
@@ -71,32 +78,160 @@
             )
         }
 
+        /// Rows between one Week's `Day N` header row and the next, as `fresh-block` lays them out.
+        private static let weekRowStride = 25
+
+        private static func partialUpload() -> LocalWorkbook {
+            var cells: [String: String] = [
+                "E6": "Training Max",
+                "C7": "Squat", "E7": "315",
+                "C8": "Bench Press", "E8": "225",
+                "C9": "Deadlift", "E9": "405"
+            ]
+            let parts = (1...4).map(fourDayWeekHeaders) + [partialUploadWeekOne(), partialUploadLaterWeeks()]
+            for part in parts {
+                cells.merge(part) { _, new in new }
+            }
+            return LocalWorkbook(
+                spreadsheetId: spreadsheetId,
+                title: title,
+                tabs: [blockTab: LocalWorkbook.Tab(rows: 110, cols: 60, cells: cells)]
+            )
+        }
+
+        /// Week `week`'s `Day 1` to `Day 4` headers, their date cells, and their role headers. A Day
+        /// with no prescription rows under its headers is an Unavailable Session.
+        private static func fourDayWeekHeaders(week: Int) -> [String: String] {
+            let headerRow = 12 + (week - 1) * weekRowStride
+            var cells: [String: String] = [:]
+            for (index, start) in dayStartColumns.enumerated() {
+                cells["\(columnName(start))\(headerRow)"] = "Day \(index + 1)"
+                cells["\(columnName(start))\(headerRow + 1)"] = strideDate(week: week, day: index + 1)
+                cells.merge(roleHeaders(row: headerRow + 2, dayStart: start)) { _, new in new }
+            }
+            return cells
+        }
+
+        private static func partialUploadWeekOne() -> [String: String] {
+            let (day1, day2) = (dayStartColumns[0], dayStartColumns[1])
+            // Back Squat varies its `%1RM` per Set, and a `%1RM` cell prescribes every Set of its
+            // Line, so each Set is its own Prescription Line.
+            let lines = [
+                prescription(
+                    row: 15,
+                    dayStart: day1,
+                    name: "Back Squat",
+                    sets: 1,
+                    reps: "5",
+                    percentOneRM: "75%",
+                    load: "RPE6",
+                    notes: "Brace hard off the floor, controlled descent."
+                ),
+                prescription(row: 16, dayStart: day1, name: nil, sets: 1, reps: "5", percentOneRM: "80%", load: "RPE7"),
+                prescription(row: 17, dayStart: day1, name: nil, sets: 1, reps: "5", percentOneRM: "85%", load: "RPE8"),
+                prescription(
+                    row: 19,
+                    dayStart: day1,
+                    name: "2-3:1:0 BB RDL",
+                    sets: 2,
+                    reps: "8",
+                    load: "Drop 17.5%",
+                    notes: "Start w/ 10 sec hold, proceed to rep range."
+                ),
+                prescription(
+                    row: 15,
+                    dayStart: day2,
+                    name: "Bench Press",
+                    sets: 2,
+                    reps: "5",
+                    load: "RPE6, RPE7",
+                    notes: "Pause every rep."
+                ),
+                prescription(row: 19, dayStart: day2, name: "Pull-Up", sets: 2, reps: "8", load: "BW", notes: "Use full range.")
+            ]
+            return lines.reduce(into: [:]) { cells, line in cells.merge(line) { _, new in new } }
+        }
+
+        /// Day 1 of Weeks 2 to 4; every other Day of those Weeks is Unavailable.
+        private static func partialUploadLaterWeeks() -> [String: String] {
+            let day1 = dayStartColumns[0]
+            let lines = [
+                prescription(
+                    row: 40,
+                    dayStart: day1,
+                    name: "Deadlift",
+                    sets: 1,
+                    reps: "3",
+                    percentOneRM: "75%",
+                    load: "RPE6",
+                    notes: "Pull fast from the floor."
+                ),
+                prescription(row: 41, dayStart: day1, name: nil, sets: 1, reps: "3", percentOneRM: "80%", load: "RPE7")
+            ]
+            let accessories = [65, 90].map { row in
+                prescription(row: row, dayStart: day1, name: "Accessory", sets: 1, reps: "10", load: "RPE6", notes: "Controlled reps.")
+            }
+            return (lines + accessories).reduce(into: [:]) { cells, line in cells.merge(line) { _, new in new } }
+        }
+
+        /// The Session's calendar day on a 7-day stride from 1 January 2001, the reference date, so
+        /// Day `d` of Week `w` falls on day `(w - 1) * 7 + d` after it.
+        private static func strideDate(week: Int, day: Int) -> String {
+            "1/\(1 + (week - 1) * 7 + day)/2001"
+        }
+
         private static func roleHeaders(row: Int, dayStart: Int) -> [String: String] {
             Dictionary(uniqueKeysWithValues: roleHeaderOffsets.map { ("\(columnName(dayStart + $0.offset))\(row)", $0.label) })
         }
 
         // One parameter per spreadsheet column the prescription writes. A struct here would carry
-        // the same six values one call further out and name the columns twice.
+        // the same values one call further out and name the columns twice. A nil name is a
+        // continuation row: another Prescription Line of the Exercise above it (ADR-0010).
         // swiftlint:disable:next function_parameter_count
         private static func prescription(
             row: Int,
             dayStart: Int,
-            name: String,
+            name: String?,
             sets: Int,
             reps: String,
+            percentOneRM: String? = nil,
             load: String,
             notes: String? = nil
         ) -> [String: String] {
             var cells = [
-                "\(columnName(dayStart))\(row)": name,
                 "\(columnName(dayStart + 1))\(row)": String(sets),
                 "\(columnName(dayStart + 3))\(row)": reps,
                 "\(columnName(dayStart + 5))\(row)": load
             ]
+            if let name {
+                cells["\(columnName(dayStart))\(row)"] = name
+            }
+            if let percentOneRM {
+                cells["\(columnName(dayStart + 4))\(row)"] = percentOneRM
+            }
             if let notes {
                 cells["\(columnName(dayStart + 8))\(row)"] = notes
             }
             return cells
+        }
+    }
+
+    extension WorkbookScenario {
+        /// The scenario's Block tab as a sync reads it: `SheetParser.parse`, the first of the two
+        /// calls `SyncCoordinator.sync` makes. Every scenario has the one tab.
+        func parsedBlockTab() -> ParsedBlock {
+            guard let tab = workbook().tabs[Self.blockTab] else {
+                preconditionFailure("\(rawValue) has no \(Self.blockTab) tab")
+            }
+            return SheetParser().parse(snapshot: tab.snapshot, tabName: Self.blockTab)
+        }
+
+        /// The Block a sync of this scenario would persist: the parse, then `BlockBuilder.makeBlock`,
+        /// the second call. It stops before the overlays `SyncCoordinator.replacePersistedBlock`
+        /// applies, which only matter once local athlete state exists.
+        @MainActor
+        func block() -> Block {
+            BlockBuilder.makeBlock(from: parsedBlockTab().block)
         }
     }
 #endif
