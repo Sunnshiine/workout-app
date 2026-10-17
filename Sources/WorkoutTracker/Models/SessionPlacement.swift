@@ -14,6 +14,17 @@ enum SessionPlacement: Hashable, Sendable {
         guard case .inBlock(let coordinate) = self else { return nil }
         return coordinate
     }
+
+    /// `Week 2 · Day 3` with the surface's own `separator`, or `Day 3` for a Detached Session, so
+    /// no surface reads a Week it no longer knows as `Week 0`.
+    func locationText(separator: String) -> String {
+        switch self {
+        case .inBlock(let coordinate):
+            "Week \(coordinate.address.week)\(separator)Day \(coordinate.address.day)"
+        case .detached(let dayNumber):
+            "Day \(dayNumber)"
+        }
+    }
 }
 
 extension Session {

@@ -301,6 +301,7 @@ struct SetCardPresentationTests {
 @MainActor
 @Test func sessionProgressHeaderRunlineDropsTheBlockPrefixWhenNoBlockIsKnown() {
     let week = Week(number: 4)
+    week.block = Block(tabName: "Block 27")
     let session = Session(dayNumber: 1, date: nil)
     let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
     exercise.sets = [
@@ -314,6 +315,17 @@ struct SetCardPresentationTests {
 
     #expect(presentation.runlineText == "Week 4 · Day 1")
     #expect(presentation.remainingText == "2 Sets left")
+}
+
+/// A Session the sync took out of its Block reads as its Day, never `Week 0 · Day 3` (#897).
+@MainActor
+@Test func sessionProgressHeaderForADetachedSessionReadsAsItsDay() {
+    let session = Session(dayNumber: 3, date: nil)
+
+    let presentation = SessionProgressHeaderPresentation(session: session)
+
+    #expect(presentation.runlineText == "Day 3")
+    #expect(presentation.locationActionAccessibilityLabel == "Open Block Overview for Day 3")
 }
 
 @MainActor
