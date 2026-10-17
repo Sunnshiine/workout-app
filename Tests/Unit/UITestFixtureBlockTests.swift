@@ -2,9 +2,8 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// `UITestFixture.sources` is a table, so the compiler cannot tell a new scenario that it needs a
-/// row. These expectations do: every scenario must boot, and each must boot into its own
-/// distinctly shaped Block, so a missing or swapped row fails here rather than in a UI run. The
+/// Every launch Scenario must boot, and each into its own distinctly shaped Block, so a missing or
+/// swapped row of `UITestLaunch.scenarioFlags` fails here rather than in a UI run. The
 /// shape also lists every seeded `loggedAt`. The Sheet never carries one, so no fixture Set does.
 
 private struct BlockShape: Hashable {
@@ -34,7 +33,7 @@ private func shape(of block: Block) -> BlockShape {
     )
 }
 
-private let expectedShapes: [UITestLaunch.Scenario: BlockShape] = [
+private let expectedShapes: [WorkbookScenario: BlockShape] = [
     .perfectMoveOnCelebration: BlockShape(
         tabName: "Block 27",
         weeks: 1,
@@ -88,7 +87,8 @@ private let expectedShapes: [UITestLaunch.Scenario: BlockShape] = [
 @MainActor
 @Test func everyScenarioSeedsItsOwnFixtureBlock() async throws {
     #expect(Set(expectedShapes.values).count == expectedShapes.count)
-    for scenario in UITestLaunch.Scenario.allCases {
+    #expect(Set(expectedShapes.keys) == Set(UITestLaunch.scenarioFlags.map(\.scenario)))
+    for scenario in UITestLaunch.scenarioFlags.map(\.scenario) {
         let booted = try await BootedFixture.boot(scenario)
         #expect(shape(of: try booted.block()) == expectedShapes[scenario], "\(scenario) seeded the wrong Block")
     }

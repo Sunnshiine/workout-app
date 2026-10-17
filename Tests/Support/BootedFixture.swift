@@ -22,7 +22,7 @@
 
         /// Boots `scenario` by passing the flag that selects it, or no scenario flag for the one a
         /// launch falls back to.
-        static func boot(_ scenario: UITestLaunch.Scenario, plus arguments: [String] = []) async throws -> BootedFixture {
+        static func boot(_ scenario: WorkbookScenario, plus arguments: [String] = []) async throws -> BootedFixture {
             let flag = UITestLaunch.scenarioFlags.first { $0.scenario == scenario }?.flag
             return try await boot((flag.map { [$0.argument] } ?? []) + arguments)
         }
