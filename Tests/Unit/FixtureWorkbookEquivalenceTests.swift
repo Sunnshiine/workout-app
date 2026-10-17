@@ -195,23 +195,8 @@ private func parsedBlock(_ scenario: WorkbookScenario) -> Block {
 
 // MARK: - The declared pairs
 
-/// A `WorkbookScenario` and the launch scenario that fills the same fixture role. The workbook is
-/// authored to reproduce what the scenario renders, so the two describe one workout.
-private struct PairedScenario: Sendable, CustomStringConvertible {
-    let workbook: WorkbookScenario
-    let launch: UITestLaunch.Scenario
-
-    var description: String { workbook.rawValue }
-}
-
-private let pairedScenarios: [PairedScenario] = [
-    PairedScenario(workbook: .partialUpload, launch: .partialUpload),
-    PairedScenario(workbook: .fullBlock, launch: .fullBlock),
-    PairedScenario(workbook: .openExercises, launch: .openExercises),
-    PairedScenario(workbook: .completedOpenExercises, launch: .completedOpenExercises),
-    PairedScenario(workbook: .longSession, launch: .longSession),
-    PairedScenario(workbook: .perfectMoveOnCelebration, launch: .perfectMoveOnCelebration)
-]
+/// Every workbook a launch Scenario flag boots, in the flags' order.
+private let pairedScenarios: [WorkbookScenario] = UITestLaunch.scenarioFlags.map(\.scenario)
 
 /// Workbooks only `Tests/Support/WorkoutScenarios.swift` reads, so no launch boots them. #970
 /// paired each with the hand-built graph it replaced, with no drift beyond `unwritableSetLogs`.
@@ -257,16 +242,16 @@ private func firstSetLogged(_ session: String, _ log: String) -> [Drift] {
 
 @MainActor
 @Test(arguments: pairedScenarios)
-private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) async throws {
-    let booted = try await BootedFixture.boot(pair.launch)
-    let actual = drift(seeded: try booted.block(), parsed: parsedBlock(pair.workbook))
-    let expected = try #require(recordedDrift[pair.workbook])
+private func aPairedScenarioDriftsOnlyWhereRecorded(pair: WorkbookScenario) async throws {
+    let booted = try await BootedFixture.boot(pair)
+    let actual = drift(seeded: try booted.block(), parsed: parsedBlock(pair))
+    let expected = try #require(recordedDrift[pair])
 
     let unrecorded = actual.filter { !expected.contains($0) }
     let stale = expected.filter { !actual.contains($0) }
 
-    #expect(unrecorded.isEmpty, "\(pair) drifts in ways nothing records:\n\(list(unrecorded))")
-    #expect(stale.isEmpty, "\(pair) no longer drifts here, so delete these entries:\n\(list(stale))")
+    #expect(unrecorded.isEmpty, "\(pair.rawValue) drifts in ways nothing records:\n\(list(unrecorded))")
+    #expect(stale.isEmpty, "\(pair.rawValue) no longer drifts here, so delete these entries:\n\(list(stale))")
 }
 
 /// The one field the walk does not compare, pinned here instead.
@@ -277,8 +262,8 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) async 
 /// keep the hand-built graphs' 7-day stride from the reference date, so under `TZ=UTC` the seeded
 /// instants are the ones the graphs used to hand over. Both four-Week scenarios share the cells.
 @MainActor
-@Test(arguments: [UITestLaunch.Scenario.partialUpload, .fullBlock])
-func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Scenario) async throws {
+@Test(arguments: [WorkbookScenario.partialUpload, .fullBlock])
+func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: WorkbookScenario) async throws {
     let booted = try await BootedFixture.boot(scenario)
     let seeded = sessionsByAddress(try booted.block())
     // Keyed by address and checked for coverage below, because the walk does not compare `date`:
@@ -300,13 +285,11 @@ func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Sce
     }
 }
 
-@Test func everyScenarioIsPairedAndEveryWorkbookAccountedFor() {
-    let paired = Set(pairedScenarios.map(\.launch))
-    let pairedWorkbooks = Set(pairedScenarios.map(\.workbook))
-    #expect(pairedWorkbooks.isDisjoint(with: workbooksWithoutALaunchScenario))
-    #expect(pairedWorkbooks.union(workbooksWithoutALaunchScenario) == Set(WorkbookScenario.allCases))
-    #expect(Set(recordedDrift.keys) == pairedWorkbooks)
-    #expect(paired == Set(UITestLaunch.Scenario.allCases))
+@Test func everyWorkbookIsBootedByALaunchOrRecordedAsNot() {
+    let paired = Set(pairedScenarios)
+    #expect(paired.isDisjoint(with: workbooksWithoutALaunchScenario))
+    #expect(paired.union(workbooksWithoutALaunchScenario) == Set(WorkbookScenario.allCases))
+    #expect(Set(recordedDrift.keys) == paired)
 }
 
 private func list(_ drift: [Drift]) -> String {

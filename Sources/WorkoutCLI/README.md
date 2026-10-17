@@ -143,10 +143,10 @@ file and the manifest before an application exists, and it is the only command t
 line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.moveOn`),
 `pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
 (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
-`WorkbookScenario`; the scenario test requires it to parse with no warnings. `partial-upload` is
-the Block the app's UI fixture seeds when a launch names no Scenario flag, and every other launch
-Scenario seeds the workbook of the same name (`full-block` for `-UITEST_FULL_BLOCK`), so the CLI and
-the UI suites read the same cells. The one exception is a scenario's `unwritableSetLogs`: Set Logs
+`WorkbookScenario`; the scenario test requires it to parse with no warnings. Every UI launch
+Scenario flag is its workbook's name in upper snake case (`-UITEST_FULL_BLOCK` boots `full-block`),
+and a launch that names none boots `partial-upload`, so the CLI and the UI suites read the same
+cells under the same names. A misspelt flag stops the UI boot. The one exception is a scenario's `unwritableSetLogs`: Set Logs
 on a Coach Note Line, which have no cell until #942. The UI fixture logs them over the parse, but
 `init` does not, so those Sets read Pending here.
 

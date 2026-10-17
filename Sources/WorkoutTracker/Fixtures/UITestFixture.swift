@@ -20,29 +20,10 @@
         /// picker lists the spreadsheets the application syncs and both meet the same faults.
         @MainActor static let sheets = makeSheets(launch: launch)
 
-        /// One workbook per scenario. A table has no compiler exhaustiveness check, so
-        /// `everyScenarioSeedsItsOwnFixtureBlock` in `Tests/Unit/UITestFixtureBlockTests.swift` is
-        /// what keeps a new scenario from reaching `boot` without a row.
-        private static let workbooks: [UITestLaunch.Scenario: WorkbookScenario] = [
-            .perfectMoveOnCelebration: .perfectMoveOnCelebration,
-            .completedOpenExercises: .completedOpenExercises,
-            .openExercises: .openExercises,
-            .longSession: .longSession,
-            .fullBlock: .fullBlock,
-            .partialUpload: .partialUpload
-        ]
-
-        static func workbook(for scenario: UITestLaunch.Scenario) -> WorkbookScenario {
-            guard let workbook = workbooks[scenario] else {
-                preconditionFailure("No fixture workbook for \(scenario)")
-            }
-            return workbook
-        }
-
         /// The REPLACEMENT spreadsheet, and the scenario's workbook as FIXTURE.
         @MainActor
         static func makeSheets(launch: UITestLaunch) -> LocalDrive {
-            LocalDrive([WorkoutFixtureScenarios.replacementWorkbook, workbook(for: launch.scenario).workbook()])
+            LocalDrive([WorkoutFixtureScenarios.replacementWorkbook, launch.scenario.workbook()])
         }
 
         /// The set the pending-write launch logs at boot and leaves unflushed: Week 1 Day 1's BB RDL,
@@ -64,9 +45,10 @@
         /// list. The faults wait for the boot, so it never stalls on them.
         @MainActor
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
+            try launch.checkFlags()
             app.settings.setAppearance(try launch.appearance)
             app.settings.isSignedIn = !launch.signsInLate
-            try await load(workbook(for: launch.scenario), into: app)
+            try await load(launch.scenario, into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()
             try await queueOrDisconnect(app: app, launch: launch, sheets: sheets)
