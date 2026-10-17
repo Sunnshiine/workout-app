@@ -1,3 +1,4 @@
+import AVFoundation
 import Speech
 
 /// The on-device speech-to-text every Dictation hears through, from the mic or from a recording.
@@ -76,7 +77,8 @@ enum OnDeviceSpeech: Equatable {
     }
 }
 
-/// One speech model reading one analyzer's input into the phrases it heard.
+/// One speech model reading one analyzer's input, from the mic or a recording, into the phrases
+/// it heard.
 @available(iOS 26, macOS 26, *)
 @MainActor
 struct SpeechListening {
@@ -102,6 +104,15 @@ struct SpeechListening {
         return listening
     }
 
+    /// The transcripts heard in a recording, the most likely first, by the model and configuration
+    /// the mic listens with; none when nothing was said.
+    static func transcripts(
+        of recording: AVAudioFile,
+        installing: @escaping @Sendable (Double) -> Void
+    ) async throws(SetTranscriberError) -> [String] {
+        try await start(hearing: { _ in }, installing: installing).transcripts(of: recording)
+    }
+
     func cancel() async {
         await analyzer.cancelAndFinishNow()
         segments.cancel()
@@ -117,6 +128,26 @@ struct SpeechListening {
             await cancel()
             throw .unavailable
         }
+    }
+
+    private func transcripts(of recording: AVAudioFile) async throws(SetTranscriberError) -> [String] {
+        do {
+            return try await segments(of: recording).candidates
+        } catch {
+            await cancel()
+            throw .failed
+        }
+    }
+
+    private func segments(of recording: AVAudioFile) async throws -> TranscriptSegments {
+        guard let end = try await analyzer.analyzeSequence(from: recording) else {
+            // A recording with no audio leaves nothing to finalize, and the results of an analyzer
+            // cancelled after it never end until their task is cancelled too (measured on macOS 27).
+            await cancel()
+            return TranscriptSegments()
+        }
+        try await analyzer.finalizeAndFinish(through: end)
+        return try await segments.value
     }
 }
 

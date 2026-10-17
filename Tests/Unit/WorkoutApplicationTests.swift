@@ -631,6 +631,37 @@ func aTranscriptCutOffAfterItsRPEQueuesNoWrite(transcript: String) async throws 
     #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
 }
 
+@available(iOS 26, macOS 26, *)
+@MainActor
+@Test func hearingRefusesAnUnknownSetAndAFileThatIsNotAudioBeforeItListens() async throws {
+    let app = try await makeSelectedApp()
+    let notAudio = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).aiff")
+    try Data("185 for 5 at 8".utf8).write(to: notAudio)
+    defer { try? FileManager.default.removeItem(at: notAudio) }
+
+    await #expect(throws: ApplicationError.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0", "w1d1.e0.s1", "w1d1.e0.s2"])) {
+        try await app.hear(notAudio, at: address("w1d1.e0.s9")) { _ in }
+    }
+    await #expect(throws: ApplicationError.unreadableRecording(notAudio.path)) {
+        try await app.hear(notAudio, at: address("w1d1.e0.s0")) { _ in }
+    }
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func aHeardSetReportsEveryTranscriptBesideWhatTheMostLikelyOneDid() async throws {
+    let app = try await makeSelectedApp()
+    let candidates = ["135 for 5 at 8.", "135 four 5 at 8."]
+    let report = HearReport(candidates: candidates, report: try app.dictate(candidates, at: address("w1d1.e0.s0")))
+
+    let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any])
+
+    #expect(json["candidates"] as? [String] == candidates)
+    #expect(json["heard"] as? String == "135 for 5 at 8.")
+    #expect(json["outcome"] as? String == "logged")
+    #expect(json["setLog"] as? String == "135x5@8")
+}
+
 @MainActor
 @Test func dictatingAWholeSetFromTheMostLikelyTranscriptLogsIt() async throws {
     let app = try await makeSelectedApp()
