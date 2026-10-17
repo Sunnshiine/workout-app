@@ -24,7 +24,7 @@ struct ExerciseHistorySheetVisualTests {
 
     private var historyPresentation: ExerciseHistorySheetPresentation {
         ExerciseHistorySheetPresentation(
-            anchorBaseName: "Bench Press",
+            anchor: "Bench Press",
             entries: [
                 historyEntry(
                     name: "Bench Press",
@@ -90,7 +90,7 @@ struct ExerciseHistorySheetVisualTests {
     /// per-tab detail shown above readable entries — never mint, never a dead spinner (#366).
     @Test func exerciseHistorySheetFillInProgressMatchesVisualBaseline() {
         let presentation = ExerciseHistorySheetPresentation(
-            anchorBaseName: "Bench Press",
+            anchor: "Bench Press",
             entries: [
                 historyEntry(
                     name: "Bench Press",

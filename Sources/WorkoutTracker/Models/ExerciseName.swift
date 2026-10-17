@@ -28,4 +28,22 @@ struct ExerciseName: Hashable, Sendable, ExpressibleByStringLiteral {
     init(stringLiteral entered: String) {
         self.init(entered: entered)
     }
+
+    /// The Movement-level question (ADR-0013, Last Performed's third tier and Exercise History):
+    /// whether the two Base Names canonicalize to the same text or fuzzy-match at
+    /// `MovementMatching.threshold`. Coarser than equality, so "Standing Calve Raises" and
+    /// "Standing Calf Raise" are one Movement while "Paused Bench Press" and "Bench Press" are two.
+    func isSameMovement(as other: ExerciseName) -> Bool {
+        let left = MovementMatching.canonicalize(base)
+        let right = MovementMatching.canonicalize(other.base)
+        if left == right { return true }
+        return MovementMatching.similarity(left, right) >= MovementMatching.threshold
+    }
+
+    /// Whether an Exercise History entry spells its Base Name differently from the viewed
+    /// Exercise's beyond letter case, which is when the entry shows its own name *as "…"*
+    /// (ADR-0013). A Cadence difference alone never annotates.
+    func differsBeyondCase(from other: ExerciseName) -> Bool {
+        base.lowercased() != other.base.lowercased()
+    }
 }
