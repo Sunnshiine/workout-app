@@ -1,24 +1,19 @@
 import SwiftUI
-import UIKit
 
 struct SessionView: View {
-    let liveActivityAdapter: LiveActivityProductionAdapter
+    private let liveActivity: any SessionLiveActivityAdapter
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
-    @State private var coordinator = SessionCoordinator(session: nil)
-    #if canImport(UserNotifications)
-        @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
-    #else
-        @State private var restTimer = RestTimer()
-    #endif
+    @State private var coordinator: SessionCoordinator
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
-    init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
-        self.liveActivityAdapter = liveActivityAdapter
+    init(wiring: SessionWiring) {
+        liveActivity = wiring.liveActivity
+        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring))
     }
 
     var body: some View {
@@ -96,22 +91,12 @@ struct SessionView: View {
     }
 
     private func bindCoordinator(to session: Session) {
-        coordinator.bind(
-            to: session,
-            logging: workout,
-            sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
-            restTimer: restTimer,
-            standardRestDuration: { settings.standardRestDuration.timeInterval },
-            supersetRestDuration: { settings.supersetRestDuration.timeInterval },
-            liveActivity: liveActivityAdapter,
-            navigation: workout,
-            motion: SwiftUISessionMotion()
-        )
+        coordinator.bind(to: session)
         reconcileLiveActivity()
     }
 
     private func reconcileLiveActivity() {
-        liveActivityAdapter.endIfInvalidated(at: workout.liveEdge)
+        liveActivity.endIfInvalidated(at: workout.liveEdge)
     }
 }
 
@@ -121,7 +106,7 @@ extension SessionView {
             session: session,
             coordinator: coordinator,
             composition: stageComposition,
-            restTimer: restTimer
+            restTimer: coordinator.restTimer
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
@@ -168,17 +153,6 @@ extension SessionView {
                 workout.clearBlockOverviewRequest()
             }
         }
-    }
-}
-
-private struct SwiftUISessionMotion: SessionMotionPerforming {
-    var reducesMotion: Bool { UIAccessibility.isReduceMotionEnabled }
-
-    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
-        guard let animation = motion.animation else {
-            return try withTransaction(\.disablesAnimations, true, change)
-        }
-        try withAnimation(animation, change)
     }
 }
 
