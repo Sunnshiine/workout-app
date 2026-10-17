@@ -21,7 +21,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -61,7 +61,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
-        let app = launchFixtureApp(animated: true)
+        let app = launchFixtureApp(options: [.offline], animated: true)
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         let card = app.otherElements["active-set-card"]
@@ -92,15 +92,15 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertEqual(
             app.buttons["weight-keyboard-done"].frame.width,
-            62,
+            38,
             accuracy: 2,
-            "at the default text size, Done in the weight font measures 75"
+            "at the default text size, the Done glyph in the system font measures 38"
         )
     }
 
     @MainActor
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)
@@ -119,7 +119,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)
@@ -422,7 +422,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         let queueButton = app.buttons["stage-queue-button"]
-        waitForLabel("Queue, 2 of 8", on: queueButton)
+        waitForValue("2 of 8", on: queueButton)
         queueButton.tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))

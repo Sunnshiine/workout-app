@@ -139,9 +139,11 @@ one serif voice — never from hype, density, or gamification.
 - **One living thing per page.** The Session stage's branch is the app's only
   flora and the stage's one illustrative icon — **maximum one illustrative
   icon per page**. A control or status glyph does not count against it: any
-  glyph on or inside a tappable control (the back arrow, pin, X, chevrons, the
-  clear menu's ellipsis, and the queue sheet's pairing stems, §5.4), or one
-  that marks a state beside its word (the Saved check, the danger mark).
+  glyph on or inside a tappable control (the back arrow, play, X, chevrons, the
+  steppers' triangles, the clear menu's ellipsis, the queue pill's stack, and
+  the queue sheet's pairing stems, §5.4), one that leads a control's data (the
+  Last Performed clock, the runline's calendar, the Superset partner's fork),
+  or one that marks a state beside its word (the Saved check, the danger mark).
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.
@@ -352,15 +354,18 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
   pressure valve — under extreme content the words still carry the page.
 - **Last Performed** is a quiet muted runline anchored to the Active Set
   Card — `Block 26 · W4 D3 — 245x5@6, 255x5@7` — no "Last performed" label
-  (the Set-Log shape says what it is). It shrinks then truncates, never wraps. A
+  (the Set-Log shape says what it is), led on the left by a history clock
+  (`clock.arrow.circlepath`) on its text baseline. It shrinks then truncates, never wraps. A
   Movement-level fallback match labels itself with the matched entry's own
   entered name in muted italic (*as "Standing Calve Raises"*). Tapping it
   opens the Exercise History sheet, with at most the subtlest disclosure
   hint. It is the sheet's only entry point, so while a short page has shed
   it the sheet is out of reach from the stage.
-- **The stage foot:** an `N of M` **queue pill** owns position and opens the
-  day's Exercise queue sheet; beside it, a plain `Up next · ` preview. The
-  old glass up-next bar and the position label above the name are gone.
+- **The stage foot:** a **queue pill** drawn as a `square.stack` glyph opens
+  the day's Exercise queue sheet. It carries no count on screen; VoiceOver
+  reads its `N of M` position as the pill's value. Beside it sits a plain
+  `Up next · ` preview. The old glass up-next bar and the position label
+  above the name are gone.
   While rest runs, the rest timer takes the `Up next` slot in the foot. It
   is a 24pt progress ring that drains, then the countdown in `statsValue`,
   with no container and no label. In the final five seconds both ink in
@@ -413,7 +418,10 @@ actual entry — weight deliberate before the lift, reps and RPE reported
 after:
 
 - **Weight leads as the card's biggest number** — open, centered, ~54pt
-  round ± steppers flanking it; tap-to-type raises the keyboard.
+  round steppers flanking it, a filled down triangle to step down and a
+  filled up triangle to step up; tap-to-type raises the keyboard, whose
+  toolbar dismisses it with a `keyboard.chevron.compact.down` glyph labelled
+  Done.
 - **Reps (1–100) and RPE (5–10) are side-by-side one-tap scroll rails**,
   labels below; selected chips take a cream fill with an inset action ring.
 - **The weight pre-fills from the coach's number** when there is one: BW, a
@@ -448,8 +456,9 @@ log, a skip, a Superset switch, a branch-node tap, a review opening or
 closing, rest, and sync all leave its frame where it was. Its values change
 in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a
-row says, never whether the row is there. The review chevron, Saved, and
-Clear sit in the head's trailing slot. Inside the card, only what answers
+row says, never whether the row is there. Saved and Clear sit in the head's
+trailing slot. A review has no collapse control: tapping its leaf again
+ends it. Inside the card, only what answers
 the athlete's own finger moves: the press, the rail recentring, and the
 hold-to-skip fill. A Superset switch is told above the card, by the Exercise
 name line and the active leaf. While the weight is edited, the card rides
@@ -483,7 +492,8 @@ branch redraw. A log inks the leaf in place on its own arm, and the
 partner's bud wakes on the other.
 
 The focus tie is **tone coupling**: by day the partner's whole branch and
-its Fraunces "**& partner**" name line (the manual focus switch) carry
+its Fraunces **partner name line** (the manual focus switch), led by a fork
+glyph (`arrow.triangle.branch`) on the name's first baseline, carry
 foliage green while full pigment stays with the focus; at night — where
 foliage *is* the leaf pigment — the partner subordinates by **translucency**
 instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
@@ -654,8 +664,8 @@ still, and what moves inside it answers the athlete's own finger.
 - **Do** keep coach-authored spreadsheet structure hidden behind Sessions,
   Exercises, Sets, and Set Logs.
 - **Do** present one Exercise (or Superset) at a time on the stage; keep
-  orientation in the plain `Set N of M` head, the queue pill, and the queue
-  sheet.
+  orientation in the plain `Set N of M` head and the queue sheet the queue
+  pill opens.
 - **Do** make the next logging action obvious and reachable with one hand —
   a chalky thumb is the benchmark; affordances stay visible, never
   chrome-on-demand.
@@ -670,7 +680,7 @@ still, and what moves inside it answers the athlete's own finger.
   bold + tabular.
 - **Do** spend at most one illustrative icon per page, and let the branch be
   it on the stage.
-- **Do** prefer a self-describing glyph (X, back arrow, pin, a pairing stem) to an
+- **Do** prefer a self-describing glyph (X, back arrow, play, a pairing stem) to an
   action spelled out in words, give each icon-only control an accessibility
   label, and keep on-screen text to a minimum (operator ruling 2026-10-11).
 - **Do** use exact domain language from CONTEXT.md: Block, Week, Session,

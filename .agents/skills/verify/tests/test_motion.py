@@ -1024,7 +1024,7 @@ class Takes(unittest.TestCase):
             ("single-log-rest-start", 3, "LAUNCH"),
             ("node-tap", 2, "NONE"),
             ("review-open", 2, "NONE"),
-            ("review-collapse", 2, "NONE"),
+            ("review-close", 2, "NONE"),
             ("superset-log-switch", 3, "LAUNCH_AND_PAIR"),
             ("partner-tap", 2, "NONE"),
             ("partner-tap-back", 2, "NONE"),
@@ -1036,7 +1036,7 @@ class Takes(unittest.TestCase):
             ("tap", "--id", "log-active-set-button"),
             ("tap", "--label", cardstill.SetNode(3)),
             ("tap", "--label", cardstill.SetNode(1)),
-            ("tap", "--label", "Collapse logged set"),
+            ("tap", "--label", cardstill.SetNode(1)),
             ("tap", "--id", "log-active-set-button"),
             ("tap", "--id", "superset-partner-name"),
             ("tap", "--id", "superset-partner-name"),
@@ -1071,8 +1071,8 @@ class Takes(unittest.TestCase):
         self.assertEqual(stayed, [
             'the take ended without "Set 2 of 3"',
             'the take ended without "Set 3 of 3"',
-            'the take ended without "Collapse logged set"',
-            'the take ended with "Collapse logged set" still on screen',
+            "the take ended without logged-set-capsule",
+            "the take ended with logged-set-capsule still on screen",
             'the take ended without stage-exercise-name "BB RDL"',
             'the take ended without stage-exercise-name "Back Squat"',
             'the take ended without stage-exercise-name "BB RDL"',
@@ -1105,7 +1105,7 @@ LAUNCHED = screen(SQUAT, card_heading(1, 3), ("AXButton", "log-active-set-button
                                               "@32,712 338x58"))
 LOGGED = screen(SQUAT, card_heading(2, 3), RESTING)
 NODE_3 = screen(SQUAT, card_heading(3, 3), RESTING)
-REVIEW = screen(SQUAT, ("AXButton", "chevron.up", "Collapse logged set", "", "@338,481 44x44"), card_heading(1, 3),
+REVIEW = screen(SQUAT, card_heading(1, 3),
                 ("AXGenericElement", "logged-set-capsule", "237.5x5@6", "", "@32,712 338x58"), RESTING)
 COLLAPSED = NODE_3
 PAIRED = screen(SQUAT, ("AXButton", "superset-partner-name", "& BB RDL", "", "@16,177 94x25"), card_heading(1, 3))

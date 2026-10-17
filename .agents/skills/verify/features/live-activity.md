@@ -20,7 +20,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 Preconditions:
 
 - Every launch in this file takes `VERIFY_LIVE_ACTIVITIES=1`, which is the only way the app requests an activity. Without it the Lab's status row reads `Live Activities disabled` and `verify.sh tap --id live-activity-lab-start-button` exits 1 saying `disabled`.
-- `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` shows the stage with `log-active-set-button` labeled `Log 237.5 × 5 @6`.
+- `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session -UITEST_OFFLINE` shows the stage with `log-active-set-button` labeled `Log 237.5 × 5 @6`. `-UITEST_OFFLINE` keeps the log queued, so `rest-after-log` carries `1 unsynced`.
 
 - **Log a set.** Run `verify.sh shot rest-before-log`, `verify.sh tap --id log-active-set-button`, `verify.sh shot rest-after-log`. The changed lines carry `AXGenericElement rest-pill Rest, 1 minute 57 seconds remaining` and relabel the button to `Log 252.5 × 5 @7`. That pill is the app's own; the activity is not in this tree.
 - **Leave the app.** Run `verify.sh axe button home`, then `verify.sh shot rest-activity-home`. `verify.sh tree --all | grep WidgetRenderer-Activities` prints one `AXGroup jindo-container-view:1,client-identifier:com.apple.chrono.WidgetRenderer-Activities,element-identifier:activity:<uuid>` at `@37,14 329x37`, and the line under it reads `AXGenericElement regular.view Timer, 1:56`. Those two lines are the whole handle on a Live Activity from outside the app.
