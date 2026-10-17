@@ -361,16 +361,20 @@ foliage with cream ribs, and the active leaf carries the page's one glow.
 - **The stage foot:** an `N of M` **queue pill** owns position and opens the
   day's Exercise queue sheet; beside it, a plain `Up next · ` preview. The
   old glass up-next bar and the position label above the name are gone.
-  While rest runs, the rest pill takes the `Up next` slot in the foot, so
-  rest starting and ending never moves the card. Measured on iPhone 17 Pro,
-  13 mini, and SE (3rd gen), the Log capsule held its y through a log, rest,
-  and rest end, where an inset above the foot moved it 58pt each way.
+  While rest runs, the rest timer takes the `Up next` slot in the foot. It
+  is a 24pt progress ring that drains, then the countdown in `statsValue`,
+  with no container and no label. In the final five seconds both ink in
+  `actionInk`. `Up next` fades out before the timer fades in, and back in
+  after it leaves, so the two are never drawn at once. Rest starting and
+  ending never moves the card. Measured on iPhone 17 Pro, 13 mini, and SE
+  (3rd gen), the Log capsule held its y through a log, rest, and rest end,
+  where an inset above the foot moved it 58pt each way.
 - **While the weight is being edited** the page switches composition. The
   Active Set Card pins above the keyboard's Done toolbar with a 10pt gap, so
   the Log capsule stays in reach. The HUD, Cadence line, coach note, branch,
   and stage foot step aside. The Exercise name and Last Performed stay above
   the card only while they fit, and anything that does not fit leaves from
-  the top. The rest pill steps aside with the foot and keeps counting, so the
+  the top. The rest timer steps aside with the foot and keeps counting, so the
   card's editing frame is the same with or without rest. The page returns
   when the weight field folds.
 - **When the page runs short** (a sync banner, a small phone), what does not
