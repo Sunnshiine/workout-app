@@ -11,6 +11,9 @@
         /// four Days, eleven of them Unavailable Sessions with no prescription rows (a Partially
         /// Uploaded Block). It carries a `%1RM` per Set on the main lifts and a Drop Load on the RDL,
         /// so both of those Load Suggestion arms are reachable from cells a coach could have typed.
+        /// The first Set of Back Squat and of Deadlift cannot flush: each sits on a Prescription Line
+        /// whose Notes cell holds the Coach Note, and the write conflicts rather than overwrite it
+        /// (#942).
         case partialUpload = "partial-upload"
 
         public func workbook() -> LocalWorkbook {
