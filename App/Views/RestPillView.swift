@@ -36,6 +36,9 @@ struct RestPillView: View {
                     }
             }
             .id(restTimer.interval?.start)
+            // A restart swaps this identity inside the log's animation. Without the opaque capsule,
+            // a cross-fade would draw both countdowns at once, so the swap is instant.
+            .transition(.identity)
         }
     }
 
@@ -51,9 +54,6 @@ struct RestPillView: View {
         return ZStack {
             if interval != nil {
                 pill(remaining: remaining, presentation: presentation)
-                    .containerRelativeFrame(.horizontal) { length, _ in
-                        length * 0.5
-                    }
                     .padding(.horizontal)
                     .scaleEffect(restartPulseScale)
                     .brightness(restartPulseBrightness)
@@ -66,45 +66,37 @@ struct RestPillView: View {
     private func pill(remaining: TimeInterval, presentation: RestPillPresentation) -> some View {
         let cue = RestPillUrgencyCue(remaining: remaining, reduceMotion: reduceMotion)
 
-        return VStack(spacing: 6) {
+        return HStack(spacing: 8) {
+            ring(presentation: presentation, cue: cue)
+
             Text(presentation.countdownText)
                 .font(Theme.font(.statsValue))
                 .foregroundStyle(countdownColor(for: cue))
                 .opacity(countdownOpacity(for: cue))
-                .scaleEffect(finalFiveScale(for: cue))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .contentTransition(.numericText())
-                .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
-                .accessibilityHidden(true)
-
-            hairline(presentation: presentation, cue: cue)
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, minHeight: 50)
-        .overlay {
-            Capsule()
-                .stroke(palette.pillStroke.opacity(0.54), lineWidth: 1)
-        }
-        .background(palette.surface, in: .capsule)
+        .scaleEffect(finalFiveScale(for: cue), anchor: .leading)
+        .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
         .accessibilityIdentifier("rest-pill")
     }
 
-    private func hairline(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
-        GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(palette.progressTrack.opacity(0.46))
-                Capsule()
-                    .fill(railColor(for: cue).opacity(countdownOpacity(for: cue)))
-                    .frame(width: proxy.size.width * CGFloat(presentation.progressFraction))
-                    .scaleEffect(x: 1, y: finalFiveScale(for: cue), anchor: .center)
-                    .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
-            }
+    private func ring(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
+        ZStack {
+            Circle()
+                .stroke(palette.progressTrack.opacity(0.55), lineWidth: 3)
+            Circle()
+                .trim(from: 0, to: CGFloat(presentation.progressFraction))
+                .stroke(
+                    arcColor(for: cue).opacity(countdownOpacity(for: cue)),
+                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
         }
-        .frame(height: 4)
+        .frame(width: 24, height: 24)
     }
 
     private var restartPulseScale: CGFloat {
@@ -175,11 +167,11 @@ struct RestPillView: View {
     }
 
     private func countdownColor(for cue: RestPillUrgencyCue) -> Color {
-        cue.isActive ? palette.accent : palette.valueText
+        cue.isActive ? palette.actionInk : palette.valueText
     }
 
-    private func railColor(for cue: RestPillUrgencyCue) -> Color {
-        cue.isActive ? palette.accent : palette.pillStroke
+    private func arcColor(for cue: RestPillUrgencyCue) -> Color {
+        cue.isActive ? palette.actionInk : palette.accent
     }
 
     private func countdownOpacity(for cue: RestPillUrgencyCue) -> Double {

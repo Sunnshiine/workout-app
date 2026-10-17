@@ -12,6 +12,7 @@ struct SessionStageView: View {
     @Environment(LastPerformedLookupStore.self) private var lastPerformedLookup
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
@@ -53,7 +54,10 @@ struct SessionStageView: View {
                     Color.clear.frame(height: Theme.editingWeightFootGap)
                 }
             }
-            .overlay(alignment: composition == .reading ? .leading : .topLeading) { restPill }
+            .overlay(alignment: composition == .reading ? .leading : .topLeading) {
+                restPill
+                    .animation(restPillSwapAnimation, value: isRestPillMounted)
+            }
         }
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
@@ -148,30 +152,8 @@ struct SessionStageView: View {
     // up-next bar and its uppercase label + arrow icon are gone.
     private func queueBar(_ stage: SessionStage) -> some View {
         HStack(spacing: 12) {
-            if let upNext = stage.upNext {
-                Button {
-                    if let target = upNext.target {
-                        coordinator.focus(on: target)
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Text("Up next ·")
-                            .font(Theme.font(.queuePill))
-                            .foregroundStyle(palette.textSecondary)
-
-                        Text(upNext.title)
-                            .font(Theme.font(.queuePill))
-                            .foregroundStyle(palette.textPrimary)
-                            .lineLimit(1)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("stage-up-next")
-                .opacity(isRestPillMounted ? 0 : 1)
-                .accessibilityHidden(isRestPillMounted)
-                .allowsHitTesting(!isRestPillMounted)
-            }
+            upNextButton(stage.upNext)
+                .animation(upNextSwapAnimation, value: isRestPillMounted)
 
             Spacer(minLength: 8)
 
@@ -198,6 +180,34 @@ struct SessionStageView: View {
         .padding(.vertical, 10)
     }
 
+    @ViewBuilder
+    private func upNextButton(_ upNext: UpNext?) -> some View {
+        if let upNext {
+            Button {
+                if let target = upNext.target {
+                    coordinator.focus(on: target)
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Text("Up next ·")
+                        .font(Theme.font(.queuePill))
+                        .foregroundStyle(palette.textSecondary)
+
+                    Text(upNext.title)
+                        .font(Theme.font(.queuePill))
+                        .foregroundStyle(palette.textPrimary)
+                        .lineLimit(1)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("stage-up-next")
+            .opacity(isRestPillMounted ? 0 : 1)
+            .accessibilityHidden(isRestPillMounted)
+            .allowsHitTesting(!isRestPillMounted)
+        }
+    }
+
     private var isRestPillMounted: Bool {
         restTimer.interval != nil
     }
@@ -211,7 +221,24 @@ struct SessionStageView: View {
                 .accessibilityHidden(composition != .reading)
                 .allowsHitTesting(composition == .reading)
                 .animation(nil, value: composition)
+                .transition(restPillTransition)
         }
+    }
+
+    // A log starts rest inside the coordinator's 0.65 s momentumFlow, which would cross-fade the
+    // timer over Up next. These overrides sequence the swap so the two are never drawn at once.
+    private var upNextSwapAnimation: Animation {
+        isRestPillMounted ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
+    }
+
+    private var restPillSwapAnimation: Animation {
+        isRestPillMounted ? .smooth(duration: 0.22).delay(0.11) : .smooth(duration: 0.15)
+    }
+
+    private var restPillTransition: AnyTransition {
+        let insertion: AnyTransition =
+            reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .leading))
+        return .asymmetric(insertion: insertion, removal: .opacity)
     }
 
     // UIKit hands the first responder back when a sheet closes, so the weight keyboard would reopen
@@ -223,7 +250,10 @@ struct SessionStageView: View {
 
     private func dismissKeyboard() {
         UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
         )
     }
 }
