@@ -29,7 +29,7 @@ extension LoadSuggestionInputs {
 
 extension Exercise {
     var trainingMax: Double? {
-        guard let block = session?.week?.block, let lift = MainLift(claimedBy: exerciseName)
+        guard let block = session?.block, let lift = MainLift(claimedBy: exerciseName)
         else { return nil }
         return block.trainingMaxes[lift]
     }

@@ -42,7 +42,7 @@ enum LiveActivityRestContentVariant: Equatable, Sendable {
 }
 
 struct LiveActivityRestTarget: Equatable, Sendable {
-    let session: SessionReparseIdentity
+    let session: SessionCoordinate
     let setID: ActiveSetID
 }
 
@@ -115,7 +115,7 @@ enum LiveActivityInvalidationPolicy {
         guard let target = content.target else { return true }
         guard
             let targetSession = SessionProgressTracker().sessionsInCurrentWeek(for: currentSession).first(where: {
-                $0.reparseIdentity == target.session
+                $0.placement.coordinate == target.session
             })
         else {
             return true
@@ -162,10 +162,12 @@ enum LiveActivityRestContentBuilder {
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            target: LiveActivityRestTarget(
-                session: target.session.reparseIdentity,
-                setID: ActiveSetID(exerciseOrder: target.exercise.order, setIndex: target.set.index)
-            )
+            target: target.session.placement.coordinate.map {
+                LiveActivityRestTarget(
+                    session: $0,
+                    setID: ActiveSetID(exerciseOrder: target.exercise.order, setIndex: target.set.index)
+                )
+            }
         )
     }
 
