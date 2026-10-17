@@ -417,9 +417,7 @@ private struct SessionPage: View {
 
 @MainActor
 private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
-    let coordinator = SessionCoordinator(wiring: .fixture(logging: store, navigation: store))
-    coordinator.bind(to: session)
-    return coordinator
+    SessionCoordinator(session: session, wiring: .fixture(logging: store, navigation: store))
 }
 
 @MainActor

@@ -239,7 +239,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(coordinator.stage(in: firstBlock, lookup: .empty).queue.rows.map(\.id) == ["superset-0", "exercise-2"])
 
     let secondBlock = makeSupersetSession(blockTab: "Block 30")
-    coordinator.bind(to: secondBlock)
+    coordinator.view(secondBlock)
 
     let rows = coordinator.stage(in: secondBlock, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
