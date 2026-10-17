@@ -131,9 +131,12 @@ Target elements by accessibility identifier (`tap --id`) first, by label second,
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
 element that contains it. A container with a zero width or height holds no point, so it is skipped.
-The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
-centre. The answer must belong to the app in front and be the element or something inside its
-frame, and then it taps that centre. A system prompt over the app is covered. The pid file that
+The keyboard toolbar wraps `Done` in a 0x0 group. The tap point is the centre of the part of the
+element that the screen and those containers show, rounded to a whole point inside that part, so a
+row half below the fold is tapped in its visible half. When no point of it is left, the tap is
+refused as `off-screen` or `clipped`. Last, `tap --id` asks axe what is on top at that point. The
+answer must belong to the app in front and be the element or something inside its frame, and then
+it taps that point. A system prompt over the app is covered. The pid file that
 `launch` writes decides when this check runs:
 
 - While the app `launch` started is in front, the check runs.
