@@ -371,8 +371,12 @@ private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> Sheet
     )
 }
 
-private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: String, expected: String = "")
-    -> SheetWriteRequest {
+private func multiLineNotesRequest(
+    _ name: String,
+    _ setIndex: Int,
+    value: String,
+    expected: String = ""
+) -> SheetWriteRequest {
     SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: name,
@@ -421,6 +425,44 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
         Issue.record("Expected the Legacy-Log line write to conflict")
     } catch let error as SheetWriterError {
         #expect(error == .unexpectedCurrentValue(expected: "", actual: "70@10"))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
+}
+
+@Test func aCoachNoteLineLogsToTheSpareRowAndReadsBackLogged() throws {
+    // #942: the anchor Line's Notes cell holds a Coach Note, so Set 1 lands on the first spare row
+    // of the Exercise (row 18 here, below Comp BP's two Lines) and the Coach Note stays as written.
+    let parser = SheetParser()
+    let planner = SheetWritePlanner()
+    let coachNote = "Brace hard, controlled descent"
+    let snapshot = planner.snapshot(
+        for: multiLinePrescriptionGrid(["J17": coachNote, "C19": "", "D19": "", "C20": "Hip Thrust", "D20": "2"])
+    )
+
+    let update = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: snapshot)
+    #expect(update.range == "'Block 27'!J19")
+    #expect(update.value == "95x5@6")
+
+    let after = planner.applying(update, to: snapshot)
+    #expect(after.grid.cell(row: 16, col: 9) == coachNote)
+    let compBP = try #require(parser.parse(grid: after.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1])
+    #expect(compBP.coachNote == coachNote)
+    #expect(compBP.sets.map(\.state) == [.logged, .pending, .pending])
+    #expect(compBP.sets[0].setLog == SetLog(weight: .pounds(95), reps: 5, rpe: .six))
+}
+
+@Test func aCoachNoteLineWithoutASpareRowNamesTheProtectedNotes() throws {
+    // Comp BP's Lines fill its span, so the Coach Note leaves its first Set nowhere to go. The
+    // refusal names the Exercise and the protected Notes, not the Coach Note's first comma fragment.
+    let planner = SheetWritePlanner()
+    let grid = multiLinePrescriptionGrid(["J17": "Brace hard, controlled descent"])
+
+    do {
+        _ = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid)
+        Issue.record("Expected the Coach Note Line write to be refused")
+    } catch let error as SheetWriterError {
+        #expect(error == .headerNotesBlockSetRow(exerciseName: "Comp BP", setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

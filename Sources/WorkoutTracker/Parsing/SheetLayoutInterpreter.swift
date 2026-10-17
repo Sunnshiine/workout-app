@@ -173,13 +173,16 @@ extension Array where Element == PrescriptionLine {
     }
 }
 
-/// Which rule decided where Set N's Set Log lives — the four leaves of the Visible Writable Row
+/// Which rule decided where Set N's Set Log lives — the five leaves of the Visible Writable Row
 /// addressing tree (`CONTEXT.md`, ADR-0003, ADR-0010). Naming the outcome lets read, write, and
 /// audit consume one decision instead of re-branching the tree apiece.
 enum SetLogPlacementKind: Sendable, Equatable {
     /// Coach J. Alarcon's per-row template: the Set belongs to a multi-line Prescription Line and
     /// its log lives comma-separated in that Line's own Notes cell.
     case multiLinePrescriptionLine
+    /// The Set's multi-line Prescription Line holds a Coach Note in its Notes cell, so the Line's
+    /// Set Logs move to a Visible Writable Row in the Exercise's span that is not itself a Line.
+    case protectedLineVisibleWritableRow
     /// Kevin's compact template: the Exercise stores its Set Logs comma-separated in the one header
     /// Notes cell (compact Set-One / aggregate header).
     case compactHeaderList
@@ -288,8 +291,9 @@ struct SheetLayoutExerciseAnchor: Sendable {
     }
 
     /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
-    /// Row addressing tree in one place — multi-line Prescription Line → compact-header list →
-    /// protected-header Visible Writable Row → visible Set-log row — honouring Coach Note / Legacy
+    /// Row addressing tree in one place — multi-line Prescription Line (or the spare row its Coach
+    /// Note sends it to) → compact-header list → protected-header Visible Writable Row → visible
+    /// Set-log row — honouring Coach Note / Legacy
     /// Log protection and never crossing the Session boundary (ADR-0003, ADR-0010). Set-Log placement
     /// is a Notes-column concern; Last Set RPE targeting stays on the Exercise anchor row and is not
     /// resolved here. This is the one query the read, write, and audit paths ask, so display and
@@ -300,7 +304,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
         let lines = prescriptionLines(in: snapshot, setsColumn: cols.sets)
         if lines.isMultiLine {
-            return multiLinePlacement(for: setIndex, lines: lines, col: col)
+            return multiLinePlacement(for: setIndex, lines: lines, in: snapshot, cols: cols, col: col)
         }
 
         let line = lines[0]
@@ -353,19 +357,35 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
     /// Coach J. Alarcon's per-row template (ADR-0010): each Prescription Line keeps its own Sets'
     /// logs comma-separated in that Line's Notes cell, so a Set is addressed by the Line that
-    /// prescribes it and its position within that Line.
+    /// prescribes it and its position within that Line. A Line whose Notes cell holds a Coach Note
+    /// keeps that list on a spare row instead. A Legacy Log keeps its Line's cell, so the writer's
+    /// value check refuses the write rather than log the Line a second time elsewhere.
     private func multiLinePlacement(
         for setIndex: Int,
         lines: [PrescriptionLine],
+        in snapshot: SheetSnapshot,
+        cols: DayColumns,
         col: Int
     ) -> SetLogPlacementResolution {
-        guard let line = lines.line(containing: setIndex) else { return .setRowNotFound }
+        guard let line = lines.line(containing: setIndex), let position = line.position(of: setIndex) else {
+            return .setRowNotFound
+        }
+        let coachNoteLines = lines.filter { $0.notesRole(in: snapshot.values, cols: cols).coachNote != nil }
+        guard let rank = coachNoteLines.firstIndex(of: line) else {
+            return .placed(
+                SetLogPlacement(kind: .multiLinePrescriptionLine, row: line.row, col: col, listPosition: position)
+            )
+        }
+        let spareRows = visibleSetLogRows(headerHoldsSetLogs: false, in: snapshot).filter { row in
+            !lines.contains { $0.row == row }
+        }
+        guard spareRows.indices.contains(rank) else { return .protectedHeaderBlocksSetRow }
         return .placed(
             SetLogPlacement(
-                kind: .multiLinePrescriptionLine,
-                row: line.row,
+                kind: .protectedLineVisibleWritableRow,
+                row: spareRows[rank],
                 col: col,
-                listPosition: line.position(of: setIndex)
+                listPosition: SetLogPlacement.listPosition(ofSet: position, amongPrescribed: line.setCount)
             )
         )
     }
