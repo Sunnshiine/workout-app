@@ -33,7 +33,7 @@ func eachValueSaidReplacesTheDraftsAndTheRestKeepIt(transcript: String, logged: 
 @Test(
     "A value whose number the recognizer cut off after its marker is missing whatever the draft holds",
     arguments: [
-        ("185 or 5 at", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
+        ("185 times 5 at", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
         ("185 for 5 RPE", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
         ("185 for 5 at RPE", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),
         ("185 for 5 and", SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil)),

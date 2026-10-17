@@ -364,13 +364,10 @@ func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: We
         ("95 pounds per six of RPE 7.", values(.pounds(95), 6, .seven)),
         ("95 pounds for six and RPE seven", values(.pounds(95), 6, .seven)),
         ("135 for four of nine.", rpeCutOff(.pounds(135), 4)),
-        ("225 or 3 at 8.5 .", values(.pounds(225), 3, .eightPointFive)),
         ("135 for four at RPE nine", values(.pounds(135), 4, .nine)),
         ("135 for four RTE nine", values(.pounds(135), 4, .nine)),
         ("225 for three at 8 1/2", values(.pounds(225), 3, .eightPointFive)),
         ("Bodyweight for 12 at seven", values(.bodyweight, 12, .seven)),
-        ("45 or 10.", values(.pounds(45), 10, nil)),
-        ("135 or 4 at 9.", values(.pounds(135), 4, .nine)),
         ("1:35 for 5 at 8", values(.pounds(135), 5, .eight))
     ]
 )
@@ -391,7 +388,8 @@ func whatTheTranscribersWroteReadsAsTheSetSaid(transcript: String, heard: Result
         ("Play again", .unrecognized), ("Yes", .nothingHeard), ("Two.", .ambiguous), ("245 for three 8 1/2", .ambiguous),
         ("315 for 19.5", .outOfRange(.reps)), ("4510", .fusedNumber), ("95 pounds to 67", .unrecognized),
         ("40542 is known.", .fusedNumber), ("135 for 49", .ambiguous), ("135 for four of mine.", .unrecognized),
-        ("135 for mom", .unrecognized), ("13548 representatives RPE line.", .fusedNumber),
+        ("135 for mom", .unrecognized), ("13548 representatives RPE line.", .fusedNumber), ("225 or 3 at 8.5 .", .ambiguous),
+        ("45 or 10.", .ambiguous), ("135 or 4 at 9.", .ambiguous),
         ("He waits for as well, match seven.", .unrecognized)
     ]
 )
@@ -496,27 +494,33 @@ func aFractionStartedLastCutsItsNumberOff(transcript: String) {
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
 }
 
-@Test func perAfterAWeightOfAtLeast20AndOrAfterOneHeavierThanTheRepsAreTheForOfWeightForReps() {
-    #expect(SpokenSet.parse("45 or 10") == values(.pounds(45), 10, nil))
-    #expect(SpokenSet.parse("20 or 5") == values(.pounds(20), 5, nil))
-    #expect(SpokenSet.parse("bodyweight or 12") == values(.bodyweight, 12, nil))
+/// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight of at
+/// least 20 and fewer reps is its "for". Between any other two numbers it may be a rate or a range.
+@Test func perAfterBodyweightOrAWeightOf20HeavierThanTheRepsIsTheForOfWeightForReps() {
     #expect(SpokenSet.parse("95 pounds per six") == values(.pounds(95), 6, nil))
     #expect(SpokenSet.parse("bodyweight per 12") == values(.bodyweight, 12, nil))
-    #expect(SpokenSet.parse("19 per 5") == .failure(.unrecognized))
-    #expect(SpokenSet.parse("or 5") == .failure(.unrecognized))
-    #expect(SpokenSet.parse("185 for or 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("45 per 10") == values(.pounds(45), 10, nil))
+    #expect(SpokenSet.parse("21 per 20") == values(.pounds(21), 20, nil))
+    #expect(SpokenSet.parse("19 per 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("25 per 30") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("20 per 25") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("20 per 20") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("per 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("185 per") == .failure(.unrecognized))
 }
 
-/// A weight for reps falls from the weight to the reps, and a range such as "20 or 25" climbs.
+/// "or" offers a choice, as in "20 or 25 reps", and the recognizer's "or" for "for" reads the same,
+/// so it is never the "for" of a weight for reps.
 @Test(
-    "Or between two numbers where it can't be the for of a weight for reps is ambiguous",
+    "Or anywhere is ambiguous",
     arguments: [
-        "19 or 5", "five or six reps at eight", "20 or 25 reps", "twenty or twenty five reps", "30 or 40 reps", "20 or 20",
+        "45 or 10", "20 or 5", "bodyweight or 12", "225 or 3 at 8.5", "135 or 4 at 9", "30 or 25 reps", "40 or 30", "19 or 5",
+        "five or six reps at eight", "20 or 25 reps", "twenty or twenty five reps", "30 or 40 reps", "20 or 20",
         "twenty five or thirty reps at eight", "45 or 50 pounds for 10", "45 pounds or 50 pounds", "for 20 or 25 at 8",
-        "bodyweight for 20 or 25"
+        "bodyweight for 20 or 25", "or 5", "185 for or 5"
     ]
 )
-func orBetweenTwoNumbersItCannotSeparateIsAmbiguous(transcript: String) {
+func orAnywhereIsAmbiguous(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
 }
 
@@ -551,12 +555,12 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
 @Test func alternativesThatAgreeStandInForARejectedTopCandidate() {
     let cutOffRPE = SpokenSet.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff)
     #expect(
-        SpokenSet.parse(candidates: ["31541", "31541", "315 for one", "315 or one"])
+        SpokenSet.parse(candidates: ["31541", "31541", "315 for one", "315 by one"])
             == chosen(.values(weight: .heard(.pounds(315)), reps: .heard(1), rpe: .notSaid), from: .alternative)
     )
-    #expect(SpokenSet.parse(candidates: ["18545 at", "185 or 5 at", "185 for 5 at"]) == chosen(cutOffRPE, from: .alternative))
+    #expect(SpokenSet.parse(candidates: ["18545 at", "185 x 5 at", "185 for 5 at"]) == chosen(cutOffRPE, from: .alternative))
     #expect(
-        SpokenSet.parse(candidates: ["18545 at", "18545 at", "185 or 5 at", "18545, at", "185, 45, at"])
+        SpokenSet.parse(candidates: ["18545 at", "18545 at", "185 x 5 at", "18545, at", "185, 45, at"])
             == chosen(cutOffRPE, from: .alternative)
     )
 }

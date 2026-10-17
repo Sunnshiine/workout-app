@@ -56,9 +56,9 @@ enum SpokenWord: Equatable, Sendable {
     /// A written "1/2".
     case halfSign
     case token(SpokenToken)
-    /// The "for" of "135 or 5" after bodyweight or a weight of at least 20 heavier than the reps.
+    /// A choice, as in "20 or 25 reps", though the recognizer writes it for the "for" of "135 or 5".
     case or
-    /// The "for" of "95 pounds per six" after bodyweight or a weight of at least 20.
+    /// The "for" of "95 pounds per six" after bodyweight or a weight of at least 20 heavier than the reps.
     case per
     /// "to" and "too", the 2 of "185 for to" and "to reps".
     case to
@@ -288,8 +288,8 @@ extension SpokenNumber {
 
 /// The transcript's words read into numbers, bodyweight, and the markers that label them.
 struct SpokenTokens {
-    /// The lightest weight an "or" or "per" is the "for" after, above the reps of "five or six reps".
-    static let lightestWeightBeforeOr = 20.0
+    /// The lightest weight a "per" is the "for" after, above the reps of "10 per 20".
+    static let lightestWeightBeforePer = 20.0
 
     private(set) var tokens: [SpokenToken] = []
 
@@ -312,41 +312,32 @@ struct SpokenTokens {
         return words.dropFirst()
     }
 
-    /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is the same
-    /// after a weight of at least 20. "or" is too when that weight is heavier than the number after
-    /// it. "to" and "too" are 2 only where a number is asked for: "315 for to", "to reps".
+    /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is too before
+    /// fewer reps. "or" sounds like "for" but offers a choice, so it is ambiguous. "to" and "too" are
+    /// 2 only where a number is asked for: "315 for to", "to reps".
     private func homophone(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         switch word {
-        case .four: separator(afterAWeightOfAtLeast: 0, before: next)
-        case .per: separator(afterAWeightOfAtLeast: Self.lightestWeightBeforeOr, before: next)
-        case .or: try separatorOrRange(before: next)
+        case .four: separator(before: next)
+        case .per: try separatorBeforeFewerReps(next)
+        case .or: throw .ambiguous
         case .to: two(before: next)
         default: nil
         }
     }
 
-    private func separator(afterAWeightOfAtLeast lightest: Double, before next: SpokenNumber.Words) -> SpokenToken? {
-        guard followsAWeight(ofAtLeast: lightest), SpokenNumber.read(next) != nil else { return nil }
+    private func separator(before next: SpokenNumber.Words) -> SpokenToken? {
+        guard lastValue?.amount != nil, SpokenNumber.read(next) != nil else { return nil }
         return .marker(.separator)
     }
 
-    /// A weight for reps falls from the weight to the reps, so "or" between bodyweight or a weight of
-    /// at least 20 and fewer reps is its "for". Between any other two numbers it is a range or a
-    /// choice, as in "20 or 25 reps" and "five or six reps", and ambiguous.
-    private func separatorOrRange(before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
+    /// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight of
+    /// at least 20 and fewer reps is its "for". Between any other two numbers it may be a rate or a
+    /// range, as in "25 per 30", and ambiguous.
+    private func separatorBeforeFewerReps(_ next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         guard let reps = SpokenNumber.read(next)?.number.value, let weight = lastValue?.amount else { return nil }
         guard case .number(let pounds) = weight else { return .marker(.separator) }
-        guard pounds >= Self.lightestWeightBeforeOr, pounds > reps else { throw .ambiguous }
+        guard pounds >= Self.lightestWeightBeforePer, pounds > reps else { throw .ambiguous }
         return .marker(.separator)
-    }
-
-    /// The last value said, before any "pounds" after it, is bodyweight or a number of at least `lightest`.
-    private func followsAWeight(ofAtLeast lightest: Double) -> Bool {
-        switch lastValue {
-        case .number(let number)?: number.value >= lightest
-        case .bodyweight?: true
-        default: false
-        }
     }
 
     private var lastValue: SpokenToken? {
