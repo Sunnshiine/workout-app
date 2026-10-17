@@ -65,6 +65,19 @@ func aHalfOrDecimalRPEReadsAsItsHalfPoint(transcript: String) {
     #expect(SpokenSet.parse(transcript) == values(nil, nil, .eightPointFive))
 }
 
+@Test(
+    "Every number word reads as its number",
+    arguments: [
+        ("one", 1), ("two", 2), ("three", 3), ("four", 4), ("five", 5), ("six", 6), ("seven", 7), ("eight", 8), ("nine", 9),
+        ("ten", 10), ("eleven", 11), ("twelve", 12), ("thirteen", 13), ("fourteen", 14), ("fifteen", 15), ("sixteen", 16),
+        ("seventeen", 17), ("eighteen", 18), ("nineteen", 19), ("twenty", 20), ("thirty", 30), ("forty", 40), ("fifty", 50),
+        ("sixty", 60), ("seventy", 70), ("eighty", 80), ("ninety", 90)
+    ]
+)
+func everyNumberWordReadsAsItsNumber(word: String, reps: Int) {
+    #expect(SpokenSet.parse("135 for \(word)") == values(.pounds(135), reps, nil))
+}
+
 @Test func oneThirtyFiveForEightAtNineReadsEveryNumberAsWords() {
     #expect(SpokenSet.parse("one thirty five for eight at nine") == values(.pounds(135), 8, .nine))
 }
@@ -236,13 +249,14 @@ func twoSetsSaidInOneBreathConflictOnTheWeight(transcript: String) {
 }
 
 @Test func silenceAndFillerAreNothingHeard() {
-    for transcript in ["", "   ", "um", "Uh, um.", "okay so", "yeah", "thank you", "okay thanks", "please"] {
+    for transcript in ["", "   ", "um", "Uh, um.", "okay so", "yeah", "thank you", "okay thanks", "please", "and", "of", "with", "um and"] {
         #expect(SpokenSet.parse(transcript) == .failure(.nothingHeard), "\(transcript)")
     }
 }
 
 @Test func valuesOutsideWhatAnySetHoldsAreOutOfRange() {
     #expect(SpokenSet.parse("135 for 0") == .failure(.outOfRange(.reps)))
+    #expect(SpokenSet.parse("135 for zero") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 101") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 8.5") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 1e20") == .failure(.unrecognized))
@@ -411,6 +425,8 @@ func orBetweenTwoNumbersItCannotSeparateIsAmbiguous(transcript: String) {
     #expect(SpokenSet.parse("8 reps £135") == values(.pounds(135), 8, nil))
     #expect(SpokenSet.parse("for 5 at £8") == values(.pounds(8), 5, nil))
     #expect(SpokenSet.parse("2:25 for 3") == values(.pounds(225), 3, nil))
+    #expect(SpokenSet.parse("£105 for 6") == values(.pounds(105), 6, nil))
+    #expect(SpokenSet.parse("10:35 for 5") == .failure(.fusedNumber))
 }
 
 @Test func aHalfWrittenAsOneOverTwoAddsAHalfOnlyAfterANumber() {
