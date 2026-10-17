@@ -3,20 +3,21 @@ import Testing
 
 @testable import WorkoutTracker
 
+/// A Session the sync took out of its Block reads as its Day, never `Week 0 · Day 3` (#897).
 @MainActor
-@Test func moveOnCelebrationPresentationDescribesClosedSession() {
+@Test func moveOnCelebrationForADetachedSessionReadsAsItsDay() {
     let session = makeMoveOnSession(
-        weekNumber: 2,
+        blockTab: nil,
         dayNumber: 3,
         exercises: [
-            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending, .skipped]),
-            makeMoveOnExercise(name: "Bench Press", order: 1, states: [.pending, .logged])
+            makeMoveOnExercise(name: "Back Squat", order: 0, states: [.logged, .pending, .skipped])
         ]
     )
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.contextText == "Week 2 · Day 3")
+    #expect(presentation.contextText == "Day 3")
+    #expect(presentation.accessibilityLabel == "Day 3")
     #expect(presentation.titleText == "Day 3, done.")
 }
 
@@ -146,22 +147,22 @@ import Testing
     #expect(presentation.accessibilityValue.contains(MoveOnCelebrationPresentation.longQuoteFixture))
 }
 
+/// `blockTab: nil` makes a Detached Session, one no Week or Block holds.
 @MainActor
 private func makeMoveOnSession(
-    blockTab: String? = nil,
+    blockTab: String? = "Block 27",
     weekNumber: Int = 1,
     dayNumber: Int = 1,
     exercises: [Exercise]
 ) -> Session {
-    let week = Week(number: weekNumber)
-    if let blockTab {
-        let block = Block(tabName: blockTab)
-        week.block = block
-        block.weeks = [week]
-    }
     let session = Session(dayNumber: dayNumber, date: nil)
     session.exercises = exercises
-    week.sessions = [session]
+    if let blockTab {
+        let week = Week(number: weekNumber)
+        week.sessions = [session]
+        let block = Block(tabName: blockTab)
+        block.weeks = [week]
+    }
     return session
 }
 
