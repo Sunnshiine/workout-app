@@ -7,7 +7,7 @@ struct Prescription: Equatable, Sendable {
     let reps: PrescribedReps
     let load: PrescribedLoad
     /// The %1RM cell as a percentage, so `75%` and `75` are both 75. Nil when the cell is blank
-    /// or holds anything but a number.
+    /// or holds anything but a finite number.
     let percentOneRM: Double?
 
     init(reps: String, load: String, percentOneRM: String?) {
@@ -19,7 +19,8 @@ struct Prescription: Equatable, Sendable {
     private static func percent(from cell: String) -> Double? {
         let trimmed = cell.trimmingCharacters(in: .whitespacesAndNewlines)
         let numberText = trimmed.hasSuffix("%") ? String(trimmed.dropLast()) : trimmed
-        return Double(numberText)
+        guard let percent = Double(numberText), percent.isFinite else { return nil }
+        return percent
     }
 }
 

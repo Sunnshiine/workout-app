@@ -62,8 +62,8 @@ func aPercentOneRMCellReadsAsAPercentage(cell: String, expected: Double) {
     #expect(Prescription(reps: "5", load: "RPE8", percentOneRM: cell).percentOneRM == expected)
 }
 
-@Test(arguments: [nil, "", "%", "seventy"] as [String?])
-func aPercentOneRMCellThatIsNotANumberReadsAsNone(cell: String?) {
+@Test(arguments: [nil, "", "%", "seventy", "inf%", "nan", "Infinity", "1e400%"] as [String?])
+func aPercentOneRMCellThatIsNotAFiniteNumberReadsAsNone(cell: String?) {
     #expect(Prescription(reps: "5", load: "RPE8", percentOneRM: cell).percentOneRM == nil)
 }
 

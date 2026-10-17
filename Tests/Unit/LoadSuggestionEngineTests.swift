@@ -39,6 +39,13 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     #expect(suggest(load: "RPE6", percentOneRM: "75%") == .noSuggestion)
 }
 
+@Test func aNonFinitePercentOneRMFallsThroughToHistory() throws {
+    #expect(
+        suggest(percentOneRM: "inf%", trainingMax: 400, history: "315x5@7")
+            == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2, matchedName: nil)))
+    )
+}
+
 @Test func dropReadsTheNearestEarlierSet() {
     #expect(
         suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
