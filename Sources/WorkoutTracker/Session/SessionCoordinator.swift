@@ -40,26 +40,6 @@ enum SessionCoordinatorError: Error {
     case missingLoggingAdapter
 }
 
-enum PairingMode: Equatable, Sendable {
-    case inactive
-    case selecting(sourceOrder: Int)
-    case confirming(sourceOrder: Int, targetOrder: Int)
-
-    var sourceOrder: Int? {
-        switch self {
-        case .inactive: nil
-        case .selecting(let sourceOrder), .confirming(let sourceOrder, _): sourceOrder
-        }
-    }
-}
-
-enum PairingTapResult: Equatable, Sendable {
-    case ignored
-    case cancelled
-    case unavailable
-    case confirming
-}
-
 extension WorkoutStore: SessionLoggingAdapter {}
 
 extension WorkoutStore: SessionNavigationAdapter {}
@@ -124,19 +104,17 @@ private struct TaskSessionTransitionClock: SessionTransitionClock {
 final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var savedLoggedSetID: ActiveSetID?
-    private(set) var pairingMode: PairingMode = .inactive
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
+    @ObservationIgnored private let pairing: SupersetPairing
     @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
     @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
     @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
     private var navigationAdapter: any SessionNavigationAdapter
     @ObservationIgnored private var motion: any SessionMotionPerforming
-    @ObservationIgnored private let transitionClock: any SessionTransitionClock
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
     @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
-    @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
 
     init(
         session: Session? = nil,
@@ -153,11 +131,12 @@ final class SessionCoordinator {
         self.session = session
         self.navigationAdapter = navigation
         self.motion = motion
-        self.focusManager = ActiveSetFocusManager(session: session)
+        let focusManager = ActiveSetFocusManager(session: session)
+        self.focusManager = focusManager
+        self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
         self.loggingAdapter = logging
         self.syncAdapter = sync
         self.liveActivityAdapter = liveActivity
-        self.transitionClock = transitionClock
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
         self.supersetRestDuration = supersetRestDuration
@@ -165,10 +144,7 @@ final class SessionCoordinator {
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
-
-    deinit {
-        pairingConfirmationTask?.cancel()
-    }
+    var pairingMode: PairingMode { pairing.mode }
 
     func bind(to session: Session?) {
         self.session = session
@@ -440,69 +416,15 @@ extension SessionCoordinator {
 extension SessionCoordinator {
     @discardableResult
     func beginPairing(from exercise: Exercise, in session: Session) -> Bool {
-        guard focusManager.canPair(exercise, in: session) else { return false }
-        pairingConfirmationTask?.cancel()
-        pairingConfirmationTask = nil
-        pairingMode = .selecting(sourceOrder: exercise.order)
-        return true
+        pairing.begin(from: exercise, in: session)
     }
 
     func cancelPairing() {
-        pairingConfirmationTask?.cancel()
-        pairingConfirmationTask = nil
-        guard pairingMode != .inactive else { return }
-        pairingMode = .inactive
+        pairing.cancel()
     }
 
     @discardableResult
     func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
-        guard let sourceOrder = pairingMode.sourceOrder else {
-            return .ignored
-        }
-        guard exercise.order != sourceOrder else {
-            cancelPairing()
-            return .cancelled
-        }
-        guard focusManager.canPair(exercise, in: session) else {
-            return .unavailable
-        }
-        guard case .selecting = pairingMode else {
-            return .ignored
-        }
-        pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
-        confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
-        return .confirming
-    }
-
-    private func confirmPairing(sourceOrder: Int, targetOrder: Int, in session: Session) {
-        pairingConfirmationTask?.cancel()
-        let expectedMode = PairingMode.confirming(sourceOrder: sourceOrder, targetOrder: targetOrder)
-        let clock = transitionClock
-        let duration = pairingConfirmationDuration()
-
-        pairingConfirmationTask = Task { @MainActor [weak self] in
-            await clock.sleep(for: duration)
-            guard
-                !Task.isCancelled,
-                let self,
-                self.pairingMode == expectedMode
-            else { return }
-
-            guard
-                let source = session.exercises.first(where: { $0.order == sourceOrder }),
-                let target = session.exercises.first(where: { $0.order == targetOrder })
-            else {
-                self.cancelPairing()
-                return
-            }
-
-            _ = self.createSuperset(from: source, to: target, in: session)
-            self.pairingMode = .inactive
-            self.pairingConfirmationTask = nil
-        }
-    }
-
-    private func pairingConfirmationDuration() -> Duration {
-        .nanoseconds(Int64((Theme.pairingConfirmationDuration * 1_000_000_000).rounded()))
+        pairing.handleTap(on: exercise, in: session)
     }
 }
