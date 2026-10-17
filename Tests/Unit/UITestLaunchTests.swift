@@ -36,15 +36,44 @@ import Testing
         #expect(UITestLaunch(arguments: ["-UITEST_PERFECT_MOVE_ON_CELEBRATION"]).startsWithPerfectMoveOnCelebration)
     }
 
-    @Test func scenarioFallsBackToPartialUploadAndEachArgumentSelectsItsScenario() {
-        #expect(UITestLaunch(arguments: ["WorkoutTracker"]).scenario == .partialUpload)
+    @Test func eachScenarioFlagIsSpelledAfterItsWorkbookAndSelectsIt() {
+        for (flag, scenario) in UITestLaunch.scenarioFlags {
+            let spelled = LaunchFlag.prefix + scenario.rawValue.uppercased().replacingOccurrences(of: "-", with: "_")
+            #expect(flag.argument == spelled, "\(scenario.rawValue)")
+            #expect(UITestLaunch(arguments: [flag.argument]).scenario == scenario)
+        }
         #expect(UITestLaunch(arguments: ["-UITEST_FULL_BLOCK"]).scenario == .fullBlock)
-        #expect(UITestLaunch(arguments: ["-UITEST_LONG_SESSION"]).scenario == .longSession)
-        #expect(UITestLaunch(arguments: ["-UITEST_OPEN_EXERCISES"]).scenario == .openExercises)
-        #expect(UITestLaunch(arguments: ["-UITEST_COMPLETED_OPEN_EXERCISES"]).scenario == .completedOpenExercises)
-        #expect(
-            UITestLaunch(arguments: ["-UITEST_PERFECT_MOVE_ON_CELEBRATION"]).scenario == .perfectMoveOnCelebration
-        )
+        #expect(UITestLaunch(arguments: ["-UITEST_PARTIAL_UPLOAD"]).scenario == .partialUpload)
+    }
+
+    @Test func theScenarioTableHasOneFlagPerWorkbook() {
+        let flags = UITestLaunch.scenarioFlags.map(\.flag)
+        let scenarios = UITestLaunch.scenarioFlags.map(\.scenario)
+        #expect(Set(flags).count == flags.count)
+        #expect(Set(scenarios).count == scenarios.count)
+        #expect(Set(flags).isSubset(of: Set(LaunchFlag.all)))
+        #expect(scenarios.contains(UITestLaunch.defaultScenario))
+    }
+
+    @Test func aLaunchNamingNoScenarioFlagBootsTheDefault() {
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_FIXTURE"]).scenario == .partialUpload)
+    }
+
+    // Spelled from the prefix, because a literal misspelt flag is exactly what the docs lint refuses.
+    private let misspeltFullBlock = LaunchFlag.prefix + "FULLBLOCK"
+
+    @Test func aMisspeltFlagFailsTheFlagCheckAndEveryKnownFlagPassesIt() throws {
+        #expect(throws: UITestLaunch.UnknownLaunchFlag(argument: misspeltFullBlock)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", misspeltFullBlock]).checkFlags()
+        }
+        try UITestLaunch(arguments: LaunchFlag.all.map(\.argument) + ["dark", "WorkoutTracker"]).checkFlags()
+    }
+
+    @MainActor
+    @Test func aMisspeltScenarioFlagFailsTheBootInsteadOfBootingTheDefault() async {
+        await #expect(throws: UITestLaunch.UnknownLaunchFlag.self) {
+            _ = try await BootedFixture.boot([misspeltFullBlock])
+        }
     }
 
     @Test func scenarioPriorityPicksTheEarlierArgumentWhenALaunchNamesTwo() {
