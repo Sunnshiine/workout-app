@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 import Testing
 
@@ -65,6 +66,7 @@ private final class SpySessionSyncAdapter: SessionSyncAdapter {
 }
 
 @MainActor
+@Observable
 private final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var canMoveOn = false
     var openExercises: [Exercise] = []
@@ -1729,23 +1731,79 @@ private func makeRestActionFixture(
     #expect(liveActivity.invalidationCalls.map(\.isAtLiveEdge) == [true])
 }
 
-/// A sync replaces every Session model, so the Session the coordinator is bound to can be a stale
+/// The real stores over the fresh-block workbook, with the coordinator built on the store the app
+/// hands it. Only the Live Activity is a spy, so a reconcile is visible.
+@MainActor
+private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, SessionCoordinator, SpySessionLiveActivityAdapter) {
+    let app = try WorkoutApplication(
+        environment: .inMemory(
+            workbook: WorkbookScenario.freshBlock.workbook(),
+            now: { Date(timeIntervalSince1970: 1_780_000_000) }
+        )
+    )
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let coordinator = SessionCoordinator(
+        session: app.workout.viewedSession,
+        wiring: .fixture(logging: app.workout, navigation: app.workout, liveActivity: liveActivity)
+    )
+    return (app, coordinator, liveActivity)
+}
+
+/// Polls on the main actor, where the store's change and the coordinator's reconcile both run.
+@MainActor
+private func waitForReconciles(
+    _ count: Int,
+    on liveActivity: SpySessionLiveActivityAdapter,
+    sourceLocation: SourceLocation = #_sourceLocation
+) async {
+    for _ in 0..<10_000 {
+        if liveActivity.invalidationCalls.count >= count { return }
+        await Task.yield()
+    }
+    Issue.record("Expected \(count) reconciles, saw \(liveActivity.invalidationCalls.count)", sourceLocation: sourceLocation)
+}
+
+/// A sync replaces every Session model, so the Session the coordinator is bound to is a stale
 /// instance whose own live edge reads browsed away while the athlete is still at the live edge.
 @MainActor
-@Test func theRestLiveActivityIsReconciledAtTheViewedSessionsLiveEdgeNotTheBoundSessions() throws {
-    let session = makeCoordinatorSession()
-    let replacement = makeCoordinatorSession()
-    let liveActivity = SpySessionLiveActivityAdapter()
-    let navigation = SpySessionNavigationAdapter(liveEdge: { _ in .browsedAway })
-    navigation.liveEdge = .atLiveEdge(currentSession: replacement)
-    let coordinator = SessionCoordinator(
-        session: session,
-        wiring: .fixture(navigation: navigation, liveActivity: liveActivity)
-    )
+@Test func aSyncThatReplacesTheBlockReconcilesTheRestLiveActivityAtTheReplacementsLiveEdge() async throws {
+    let (app, coordinator, liveActivity) = try await makeStoreDrivenCoordinator()
+    let stale = try #require(coordinator.session)
 
-    coordinator.reconcileLiveActivity()
+    _ = try await app.sync()
+    await waitForReconciles(1, on: liveActivity)
 
+    let replacement = try #require(app.workout.currentSession)
+    #expect(replacement !== stale)
+    #expect(!app.workout.liveEdge(for: stale).isAtLiveEdge)
     #expect(liveActivity.invalidationCalls == [.atLiveEdge(currentSession: replacement)])
+}
+
+/// Each Make Current moves the Current Session. Every change in one main-actor turn lands in one
+/// reconcile, and the coordinator keeps listening after it.
+@MainActor
+@Test func eachMakeCurrentReconcilesTheRestLiveActivityAtTheNewCurrentSession() async throws {
+    let (app, coordinator, liveActivity) = try await makeStoreDrivenCoordinator()
+    defer { withExtendedLifetime(coordinator) {} }
+
+    app.workout.show(SessionAddress(week: 1, day: 2))
+    app.workout.makeViewedSessionCurrent()
+    await waitForReconciles(1, on: liveActivity)
+    let firstCurrent = try #require(app.workout.currentSession)
+
+    app.workout.show(SessionAddress(week: 2, day: 1))
+    app.workout.makeViewedSessionCurrent()
+    await waitForReconciles(2, on: liveActivity)
+    let secondCurrent = try #require(app.workout.currentSession)
+
+    #expect(firstCurrent.address == SessionAddress(week: 1, day: 2))
+    #expect(secondCurrent.address == SessionAddress(week: 2, day: 1))
+    #expect(
+        liveActivity.invalidationCalls == [
+            .atLiveEdge(currentSession: firstCurrent), .atLiveEdge(currentSession: secondCurrent)
+        ]
+    )
 }
 
 @MainActor
