@@ -25,7 +25,7 @@ enum MovementMatching {
     /// Deterministic canonical form: strip the Cadence prefix, lowercase, map punctuation to
     /// spaces, collapse whitespace, then expand each token through the abbreviation table.
     static func canonicalize(_ name: String) -> String {
-        let base = splitCadence(name).base
+        let base = ExerciseName(entered: name).base
         let spaced = base.lowercased().map { character -> Character in
             character.isLetter || character.isNumber ? character : " "
         }

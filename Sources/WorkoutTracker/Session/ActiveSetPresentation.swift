@@ -215,7 +215,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     }
 
     init?(exercise: Exercise, lookup: LastPerformedLookupSnapshot) {
-        guard let entry = lookup.lookup(for: exercise.name) else {
+        guard let entry = lookup.lookup(for: exercise.exerciseName.entered) else {
             return nil
         }
         resultText = entry.resultText

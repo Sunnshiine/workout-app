@@ -86,8 +86,6 @@ struct SupersetStageVisualTests {
         // line, as the pick shows.
         let press = Exercise(
             name: "Incline Bench Press",
-            baseName: "Incline Bench Press",
-            cadence: nil,
             coachNote: "Keep the dumbbells honest at the bottom — full stretch, no rush.",
             order: 3
         )
@@ -107,8 +105,6 @@ struct SupersetStageVisualTests {
 
         let row = Exercise(
             name: "Chest-Supported Row",
-            baseName: "Chest-Supported Row",
-            cadence: nil,
             coachNote: nil,
             order: 4
         )

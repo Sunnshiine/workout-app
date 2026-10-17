@@ -71,7 +71,7 @@ struct SessionQueueSheetVisualTests {
     }
 
     private func makeExercise(name: String, order: Int, setStates: [SetState]) -> Exercise {
-        let exercise = Exercise(name: name, baseName: name, cadence: nil, coachNote: nil, order: order)
+        let exercise = Exercise(name: ExerciseName(entered: name), coachNote: nil, order: order)
         exercise.sets = setStates.enumerated().map { index, state in
             ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: state)
         }

@@ -10,8 +10,8 @@ struct SupersetExerciseIdentity: Hashable, Sendable {
 
     init(exercise: Exercise) {
         session = exercise.session?.reparseIdentity ?? .weekless(dayNumber: 0)
-        exerciseName = exercise.name
-        baseName = exercise.baseName
+        exerciseName = exercise.exerciseName.entered
+        baseName = exercise.exerciseName.base
     }
 }
 

@@ -10,7 +10,7 @@ struct OpenExerciseRowPresentation {
 
     @MainActor
     init(exercise: Exercise) {
-        name = exercise.baseName
+        name = exercise.exerciseName.base
 
         let pendingSetCount = exercise.pendingSetCount
         pendingSetLabel = pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"

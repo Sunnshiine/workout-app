@@ -167,7 +167,7 @@ private func makeMoveOnSession(
 
 @MainActor
 private func makeMoveOnExercise(name: String, order: Int, states: [SetState]) -> Exercise {
-    let exercise = Exercise(name: name, baseName: name, cadence: nil, coachNote: nil, order: order)
+    let exercise = Exercise(name: ExerciseName(entered: name), coachNote: nil, order: order)
     exercise.sets = states.enumerated().map { index, state in
         ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: state)
     }

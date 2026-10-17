@@ -448,7 +448,7 @@ private func pendingWrite(
     let block = try #require(try ctx.fetch(FetchDescriptor<Block>()).first)
     let week = try #require(block.weeks.first { $0.number == 1 })
     let session = try #require(week.sessions.first { $0.dayNumber == 1 })
-    let exercise = try #require(session.exercises.first { $0.name == "Squat" })
+    let exercise = try #require(session.exercises.first { $0.exerciseName == "Squat" })
     let set = try #require(exercise.sets.first { $0.index == 0 })
     #expect(set.state == .logged)
     #expect(set.setLog?.formatted == "185x5@8")
@@ -640,6 +640,6 @@ private func overlaidSquatSet(index: Int, in ctx: ModelContext) throws -> Exerci
     try ctx.fetch(FetchDescriptor<Block>()).first?
         .weeks.first { $0.number == 1 }?
         .sessions.first { $0.dayNumber == 1 }?
-        .exercises.first { $0.name == "Squat" }?
+        .exercises.first { $0.exerciseName == "Squat" }?
         .sets.first { $0.index == index }
 }

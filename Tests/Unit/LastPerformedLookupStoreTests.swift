@@ -338,8 +338,6 @@ private func lastPerformedContainer() throws -> ModelContainer {
                         exercises: [
                             ParsedExercise(
                                 name: "Standing Calve Raises",
-                                baseName: "Standing Calve Raises",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [
                                     ParsedSet(

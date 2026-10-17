@@ -17,8 +17,6 @@ private func makeBlock() -> Block {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
                             )
@@ -45,8 +43,6 @@ private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
                             )
@@ -67,8 +63,10 @@ private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
     let tracker = SessionProgressTracker()
     let sessions = sortedSessions(in: block)
 
-    #expect(sessions.map { "\($0.week?.number ?? 0).\($0.dayNumber)" }
-        == ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"])
+    #expect(
+        sessions.map { "\($0.week?.number ?? 0).\($0.dayNumber)" }
+            == ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"]
+    )
 
     let week1Day6 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 6 })
     let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
@@ -190,8 +188,10 @@ private func sortedSessions(in block: Block) -> [Session] {
     // Namespaced so a legacy pre-V2 value under `advancedToOrder_*` is orphaned, and
     // one Block's override never leaks into another's.
     #expect(tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27") == "advancedToOrderV2_Block 27")
-    #expect(tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27")
-        != tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 28"))
+    #expect(
+        tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27")
+            != tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 28")
+    )
 }
 
 @MainActor
@@ -370,7 +370,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let current = try #require(SessionProgressTracker().currentSession(in: block))
     let openExercises = SessionProgressTracker().openExercises(for: current)
 
-    #expect(openExercises.map(\.exercise.baseName) == ["Squat", "Squat"])
+    #expect(openExercises.map(\.exercise.exerciseName.base) == ["Squat", "Squat"])
     #expect(openExercises.map(\.session.dayNumber) == [1, 2])
 }
 
@@ -505,7 +505,8 @@ private func sortedSessions(in block: Block) -> [Session] {
 
     #expect(
         Set(members.map(\.persistentModelID))
-            == Set([sessionA1, sessionA2].map(\.persistentModelID)))
+            == Set([sessionA1, sessionA2].map(\.persistentModelID))
+    )
     #expect(!members.map(\.persistentModelID).contains(sessionB1.persistentModelID))
 }
 

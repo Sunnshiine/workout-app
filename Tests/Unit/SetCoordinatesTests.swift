@@ -10,7 +10,7 @@ private func makeSet() -> ExerciseSet {
 
 @MainActor
 private func makeExercise() -> Exercise {
-    Exercise(name: "Back Squat - Comp", baseName: "Back Squat", cadence: nil, coachNote: nil)
+    Exercise(name: "3:1:0 Back Squat", coachNote: nil)
 }
 
 @MainActor
@@ -31,7 +31,7 @@ private func makeExercise() -> Exercise {
         #expect(coordinates.session.blockTab == "Block 27")
         #expect(coordinates.session.address.week == 3)
         #expect(coordinates.session.address.day == 4)
-        #expect(coordinates.exerciseName == "Back Squat - Comp")
+        #expect(coordinates.exerciseName == "3:1:0 Back Squat")
         #expect(coordinates.exerciseBaseName == "Back Squat")
         #expect(coordinates.setIndex == 2)
         #expect(coordinates.sessionDate == Date(timeIntervalSinceReferenceDate: 100))

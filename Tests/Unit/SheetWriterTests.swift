@@ -371,8 +371,12 @@ private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> Sheet
     )
 }
 
-private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: String, expected: String = "")
-    -> SheetWriteRequest {
+private func multiLineNotesRequest(
+    _ name: String,
+    _ setIndex: Int,
+    value: String,
+    expected: String = ""
+) -> SheetWriteRequest {
     SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: name,
@@ -434,7 +438,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let compBP = try #require(
         parser.parse(grid: snapshot.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1]
     )
-    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.exerciseName.base == "Comp BP")
     #expect(compBP.sets.count == 3)
 
     let afterSetTwo = planner.applying(
