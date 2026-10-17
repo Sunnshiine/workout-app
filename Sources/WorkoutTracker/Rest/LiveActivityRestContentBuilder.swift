@@ -152,7 +152,7 @@ enum LiveActivityRestContentBuilder {
         let pendingCount = target.exercise.pendingSetCount
         let totalCount = target.exercise.sets.count
         return LiveActivityRestContent(
-            exerciseName: target.exercise.name,
+            exerciseName: target.exercise.baseName,
             prescribedReps: target.set.prescribedReps,
             prescribedLoad: target.set.prescribedLoad,
             weightValue: "",
