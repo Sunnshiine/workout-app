@@ -206,7 +206,8 @@ private struct PairedScenario: Sendable, CustomStringConvertible {
 }
 
 private let pairedScenarios: [PairedScenario] = [
-    PairedScenario(workbook: .partialUpload, launch: .partialUpload)
+    PairedScenario(workbook: .partialUpload, launch: .partialUpload),
+    PairedScenario(workbook: .fullBlock, launch: .fullBlock)
 ]
 
 /// Workbooks no launch scenario seeds from. `fresh-block` is the CLI's default scenario
@@ -222,8 +223,7 @@ private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = [
     .perfectMoveOnCelebration,
     .completedOpenExercises,
     .openExercises,
-    .longSession,
-    .fullBlock
+    .longSession
 ]
 
 /// Every difference between the two sides today, in address order, with the side that is wrong
@@ -236,7 +236,25 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
     // last entries: the hand-built graph named each Accessory after its Session while asserting
     // the base name "Accessory", a pair no name cell yields, and the workbook authors the name the
     // Stage renders.
-    .partialUpload: []
+    .partialUpload: [],
+    // The hand-built graph names each Accessory after its Session while asserting the base name
+    // "Accessory", a pair no name cell yields. The workbook authors the name the Stage renders, as
+    // `partial-upload` does.
+    .fullBlock: [
+        .field("w1d4.e0", "name", seeded: "Accessory W1 D4", parsed: "Accessory"),
+        .field("w2d1.e0", "name", seeded: "Accessory W2 D1", parsed: "Accessory"),
+        .field("w2d2.e0", "name", seeded: "Accessory W2 D2", parsed: "Accessory"),
+        .field("w2d3.e0", "name", seeded: "Accessory W2 D3", parsed: "Accessory"),
+        .field("w2d4.e0", "name", seeded: "Accessory W2 D4", parsed: "Accessory"),
+        .field("w3d1.e0", "name", seeded: "Accessory W3 D1", parsed: "Accessory"),
+        .field("w3d2.e0", "name", seeded: "Accessory W3 D2", parsed: "Accessory"),
+        .field("w3d3.e0", "name", seeded: "Accessory W3 D3", parsed: "Accessory"),
+        .field("w3d4.e0", "name", seeded: "Accessory W3 D4", parsed: "Accessory"),
+        .field("w4d1.e0", "name", seeded: "Accessory W4 D1", parsed: "Accessory"),
+        .field("w4d2.e0", "name", seeded: "Accessory W4 D2", parsed: "Accessory"),
+        .field("w4d3.e0", "name", seeded: "Accessory W4 D3", parsed: "Accessory"),
+        .field("w4d4.e0", "name", seeded: "Accessory W4 D4", parsed: "Accessory")
+    ]
 ]
 
 // MARK: - The gate
