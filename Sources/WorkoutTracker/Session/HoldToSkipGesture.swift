@@ -30,6 +30,11 @@ struct HoldToSkipGesture: Equatable, Sendable {
     private var phase: Phase = .idle
     private var suppressTapsUntil: ContinuousClock.Instant?
 
+    var isPressing: Bool {
+        if case .pressing = phase { return true }
+        return false
+    }
+
     var nextDeadline: ContinuousClock.Instant? {
         guard case .pressing(let since, let policy, let revealed) = phase else { return nil }
         let deadlines = Self.deadlines(since: since, policy: policy)

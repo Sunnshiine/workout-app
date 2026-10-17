@@ -180,7 +180,8 @@ change on their own while rest runs. Every rest after the first on the Session s
 the rest pill about 3% larger and brighter for about 150 ms; a burst caught that on a log while
 rest ran. Each second from `0:05` to `0:00` the countdown digits grow about 3% for about 230 ms. A
 skip hold's fill jumps to a full `Skipped` 250 ms into the press, and the skip lands about 900 ms
-in, so a shot in between shows a skip that has not happened. In the history sheet the Volume chip
+in, so a shot in between shows a skip that has not happened. The Log capsule jumps to 0.97 scale at
+touch-down and sits there until the finger lifts or the skip lands. In the history sheet the Volume chip
 still fades for about 250 ms after a tap (issue 739).
 
 `burst` takes its first frame before the drive command runs and the other eleven after it returns,
@@ -287,7 +288,8 @@ recorder stops and holds where the card was going. `still=unknown` covers the re
 has animations off, or has `edges=partial`; or something moved on a take INVALID for any other reason,
 such as a launch with no fade from black. A take whose tree held no `active-set-card`, or whose box is not
 where the tree put it, exits 1 with `no card:` and its reason. A label that swaps in one frame reads
-`look=cut` and stays still. A launch take's window opens at the end of iOS's fade-in, the full-screen
+`look=cut` and stays still. A take that presses the Log capsule reads `look=changed` from the press's
+0.97 scale, so judge the card there by `box=`. A launch take's window opens at the end of iOS's fade-in, the full-screen
 frames in the 0.5 s after the screen leaves black; any later frame that changes three quarters of the
 screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
 take. From the fade's end the window must watch 1.5 s or the take is INVALID. `cardstill.py` prints PASS

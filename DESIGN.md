@@ -459,7 +459,10 @@ utility state — without swallowing real controls.
 
 A full-capsule action button: green fill (`actionDay` / `actionNight`),
 cream text, previewing the exact Set Log about to be written. Day carries a
-soft green drop shadow; night a soft green light. **Hold-to-skip** fills
+soft green drop shadow; night a soft green light. **The press** scales the
+capsule to 0.97 on a system snappy spring (0.16s) from touch-down until the
+finger lifts or the skip commits; only the scale moves, so the title still
+cuts to the next Set. **Hold-to-skip** fills
 with a muted overlay and reveals the Skip affordance (reveal 250ms, commit
 850ms); a skipped state renders transparent with muted text and a 1.5px
 dashed stroke — the dashed "empty bed" vocabulary.
@@ -637,8 +640,8 @@ crossfade starts as the leaf's ends, so the stage never shows two cream
 leaves. A Superset bud lifts off its ink in the same 0.2s, before its
 partner's bud wakes. The ceremony fades in fully grown. Haptics are unaffected.
 
-The Active Set Card has no motion to reduce, so Reduce Motion leaves it
-unchanged (§5.2).
+Reduce Motion leaves the Active Set Card unchanged (§5.2). Its box holds
+still, and what moves inside it answers the athlete's own finger.
 
 ## 8. Do's and Don'ts
 
