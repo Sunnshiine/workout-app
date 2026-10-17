@@ -92,7 +92,7 @@
 
         static let moveOnCelebration = LaunchFlag(
             argument: "-UITEST_MOVE_ON_CELEBRATION",
-            meaning: "Requests the Move On Celebration, which shows only when the Current Session offers Move On."
+            meaning: "Requests the Move On Celebration for the Current Session."
         )
 
         static let appearance = LaunchFlag(

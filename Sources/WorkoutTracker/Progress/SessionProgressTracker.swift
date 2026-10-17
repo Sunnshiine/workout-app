@@ -20,23 +20,15 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
     }
 }
 
-/// The single outcome of a Move On, encoding the full `CONTEXT.md` Move On table
-/// as one value so callers ask for the decision instead of re-deriving it from the
-/// `hasSessionAhead` (Available *and* Unavailable) / `nextSession` (Available only)
-/// asymmetry.
+/// The single outcome of a Move On, encoding the `CONTEXT.md` Move On rule as one
+/// value so callers ask for the decision instead of re-deriving it.
 enum MoveOnDestination: Equatable {
     /// Advance to the next Available Session, skipping any Unavailable Sessions in between.
     case advance(to: Session)
-    /// No Available Session remains ahead, but the Block still holds Unavailable
-    /// Sessions ahead — Move On returns the athlete to the Block grid.
+    /// No Available Session lies ahead, either because only Unavailable Sessions
+    /// remain or because the Block is finished, so Move On returns the athlete to
+    /// the Block grid.
     case returnToBlockOverview
-    /// Nothing lies ahead — Move On is not offered.
-    case notOffered
-
-    /// Whether Move On is offered from here — true unless nothing lies ahead. Lets a
-    /// caller gating a control ask the decision directly instead of comparing against a
-    /// case (and avoids the `Optional.none` footgun a `.none` case would invite).
-    var isOffered: Bool { self != .notOffered }
 }
 
 /// A Session's identity as persisted for the manual Current-Session override.
@@ -97,17 +89,10 @@ struct SessionProgressTracker {
         }
     }
 
-    func hasSessionAhead(after session: Session, in block: Block) -> Bool {
-        let currentOrder = order(of: session)
-        return allSessions(block).contains { order(of: $0) > currentOrder }
-    }
-
     /// Where a Move On from `session` lands, per the `CONTEXT.md` Move On rule:
-    /// advance to the next Available Session (skipping Unavailable ones), or — when
-    /// no Available Session remains ahead but the Block still holds Unavailable
-    /// Sessions ahead — return to the Block grid; otherwise nothing lies ahead.
+    /// advance to the next Available Session (skipping Unavailable ones), or return
+    /// to the Block grid when no Available Session remains ahead.
     func moveOnDestination(from session: Session, in block: Block) -> MoveOnDestination {
-        guard hasSessionAhead(after: session, in: block) else { return .notOffered }
         if let nextSession = nextSession(after: session, in: block) {
             return .advance(to: nextSession)
         }

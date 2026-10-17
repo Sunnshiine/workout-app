@@ -50,10 +50,7 @@ final class WorkoutStore {
         self.now = now
     }
 
-    var canMoveOn: Bool {
-        guard let block, let currentSession else { return false }
-        return tracker.moveOnDestination(from: currentSession, in: block).isOffered
-    }
+    var canMoveOn: Bool { block != nil && currentSession != nil }
 
     var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: viewedSession, currentSession: currentSession) }
 
@@ -146,11 +143,7 @@ final class WorkoutStore {
     func clearBlockOverviewRequest() { pendingBlockOverviewRequest = nil }
 
     func requestMoveOnCelebration() {
-        guard
-            let block,
-            let currentSession,
-            tracker.moveOnDestination(from: currentSession, in: block).isOffered
-        else { return }
+        guard canMoveOn, let currentSession else { return }
 
         moveOnCelebrationSession = currentSession
         moveOnCelebrationRequestedAt = now()
@@ -173,8 +166,6 @@ final class WorkoutStore {
         guard let block else { return }
 
         switch tracker.moveOnDestination(from: session, in: block) {
-        case .notOffered:
-            return
         case .returnToBlockOverview:
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):

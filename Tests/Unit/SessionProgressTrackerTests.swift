@@ -143,20 +143,6 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func hasSessionAheadIncludesUnavailableSessions() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[1].exercises = []
-    sessions[2].exercises = []
-    sessions[3].exercises = []
-
-    let tracker = SessionProgressTracker()
-
-    #expect(tracker.hasSessionAhead(after: sessions[0], in: block))
-    #expect(!tracker.hasSessionAhead(after: sessions[7], in: block))
-}
-
-@MainActor
 @Test func persistedIdentityRoundTripsToSameSessionAcrossBlock() throws {
     let block = makeBlock()
     let tracker = SessionProgressTracker()
@@ -430,7 +416,6 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .advance(to: sessions[1]))
-    #expect(destination.isOffered)
 }
 
 @MainActor
@@ -459,7 +444,6 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .returnToBlockOverview)
-    #expect(destination.isOffered)
 }
 
 @MainActor
