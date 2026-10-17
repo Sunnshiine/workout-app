@@ -45,6 +45,8 @@ MINI_TREE = [
     }
 ]
 MINI = json.dumps(MINI_TREE)
+NAMELESS_FIELD = json.dumps([dict(MINI_TREE[0], children=MINI_TREE[0]["children"] + [
+    {"role": "AXTextField", "AXValue": "Google Sheet URL", "frame": {"x": 32, "y": 459, "width": 338, "height": 34}}])])
 
 
 def tree_py(*args, stdin=""):
@@ -203,23 +205,45 @@ class Flat(unittest.TestCase):
             self.assertEqual(len(line.split("\t")), 5, line)
         self.assertIn("Rest 1:58 remaining", out, "a tab and a newline in a label become spaces")
 
-    def test_all_prints_an_element_with_neither_id_nor_label_by_its_role_value_and_frame(self):
-        nameless = json.loads(MINI)
-        nameless[0]["children"].append(
-            {"role": "AXTextField", "AXValue": "Google Sheet URL", "frame": {"x": 32, "y": 459, "width": 338, "height": 34}})
-        payload = json.dumps(nameless)
-        code, out, err = tree_py("flat", "--all", stdin=payload)
+    def test_an_unnamed_field_prints_with_empty_id_and_label_columns(self):
+        code, out, err = tree_py("flat", stdin=NAMELESS_FIELD)
+        self.assertEqual(code, 0, err)
+        self.assertIn("AXTextField\t\t\tGoogle Sheet URL\t@32,459 338x34", out.splitlines(),
+                      "issue 666: a field with no name is still on the screen, so the plain tree shows it")
+        self.assertNotIn("AXGroup\t\t\t\t@0,0 402x874", out.splitlines(), "a bare layout group stays out")
+        self.assertEqual(err, (
+            "2 off-screen elements hidden; `verify.sh tree --all` lists them\n"
+            "1 unnamed layout element with no value hidden; `verify.sh tree --all` lists them\n"
+        ), "each kind of drop is counted, so a missing line is never read as a missing element")
+
+    def test_all_prints_every_unnamed_node(self):
+        code, out, err = tree_py("flat", "--all", stdin=NAMELESS_FIELD)
         self.assertEqual(code, 0, err)
         self.assertEqual(out.splitlines()[-2:], [
             "AXGroup\t\t\t\t@0,0 402x874",
             "AXTextField\t\t\tGoogle Sheet URL\t@32,459 338x34",
-        ], "issue 666: a field with no name is still on the screen, so --all shows it")
-        code, out, err = tree_py("flat", stdin=payload)
-        self.assertNotIn("Google Sheet URL", out, "the plain tree stays the named elements a shot saves")
-        self.assertEqual(err, (
-            "2 off-screen elements hidden; `verify.sh tree --all` lists them\n"
-            "2 elements with neither id nor label hidden; `verify.sh tree --all` lists them\n"
-        ), "each kind of drop is counted, so a missing line is never read as a missing element")
+        ])
+        self.assertEqual(err, "")
+
+    def test_unnamed_readable_roles_print_and_unnamed_groups_with_a_value_print(self):
+        tree = json.loads(MINI)
+        tree[0]["children"] = [
+            {"role": role, "frame": {"x": 10, "y": 10 + 40 * n, "width": 30, "height": 30}}
+            for n, role in enumerate(["AXButton", "AXStaticText", "AXImage", "AXSwitch", "AXSlider", "AXOther"])
+        ] + [{"role": "AXGroup", "AXValue": "50%", "frame": {"x": 10, "y": 300, "width": 30, "height": 30}}]
+        code, out, err = tree_py("flat", stdin=json.dumps(tree))
+        self.assertEqual([line.split("\t")[0] for line in out.splitlines()[1:]],
+                         ["AXButton", "AXStaticText", "AXImage", "AXSwitch", "AXSlider", "AXGroup"])
+        self.assertEqual(err, "1 unnamed layout element with no value hidden; `verify.sh tree --all` lists them\n")
+
+    def test_find_and_tap_never_resolve_an_unnamed_line(self):
+        self.assertEqual(tree_py("find", "Google Sheet URL", stdin=NAMELESS_FIELD), (1, "", ""))
+        self.assertEqual(tree_py("find", "", stdin=NAMELESS_FIELD)[0], 1, "an empty id is not the unnamed field's id")
+        self.assertEqual(tree_py("center", "", stdin=NAMELESS_FIELD)[0], 1)
+        self.assertEqual(tree_py("frame-of", "", stdin=NAMELESS_FIELD), (0, "none\n", ""))
+        self.assertEqual(tree_py("tappable", "--label", "Google Sheet URL", stdin=NAMELESS_FIELD),
+                         (1, "", "no element with label Google Sheet URL\n"))
+        self.assertEqual(tree_py("tappable", "", stdin=NAMELESS_FIELD), (1, "", "no element with id \n"))
 
     def test_all_on_the_captured_settings_screen_prints_every_node(self):
         payload = (FIXTURES / "settings.describe-ui.json").read_text()

@@ -2,9 +2,10 @@
 """The accessibility tree as text, and the owner of the tree line format.
 
 Reads an `axe describe-ui` JSON tree on stdin:
-  tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
-                         on-screen elements only; --all keeps the off-screen ones and the elements
-                         with neither id nor label too
+  tree.py flat [--all]   one line per element: role, id, label, value, @x,y wxh
+                         on-screen elements only, and of those with neither id nor label only the
+                         ones with a value or a control, text, or image role, with empty id and
+                         label columns; --all keeps the off-screen ones and the unnamed layout too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
                          says on stderr when it is off-screen, clipped (its centre outside the frame
                          of an ancestor of nonzero size), or disabled
@@ -137,6 +138,10 @@ class TreeLine(NamedTuple):
         return bool(self.ident or self.label)
 
     @property
+    def readable(self) -> bool:
+        return self.named or bool(self.value) or self.role in READABLE_ROLES
+
+    @property
     def text(self) -> str:
         return f"{self.role}\t{self.ident}\t{self.label}\t{self.value}\t{self.frame.text}"
 
@@ -170,6 +175,8 @@ def on_screen(all_lines: List[TreeLine], screen: Frame) -> List[TreeLine]:
 
 
 def by_id(root: dict, ident: str) -> List[TreeLine]:
+    if not ident:
+        return []
     return [line for line in lines(root) if line.ident == ident]
 
 
@@ -185,6 +192,7 @@ AXE_ACTIONABLE_ROLES = frozenset({
     "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
     "AXTextField", "AXToggle",
 })
+READABLE_ROLES = AXE_ACTIONABLE_ROLES | {"AXImage", "AXStaticText"}
 
 
 def tap_candidates(matches: List[TreeLine]) -> List[TreeLine]:
@@ -325,14 +333,15 @@ def main() -> None:
             for line in every:
                 print(line.text)
             return
-        named = [line for line in every if line.named]
-        shown = on_screen(named, screen)
+        readable = [line for line in every if line.readable]
+        shown = on_screen(readable, screen)
         for line in shown:
             print(line.text)
-        for count, kind in [(len(named) - len(shown), "off-screen elements"),
-                            (len(every) - len(named), "elements with neither id nor label")]:
+        for count, kind in [(len(readable) - len(shown), "off-screen element"),
+                            (len(every) - len(readable), "unnamed layout element with no value")]:
             if count:
-                print(f"{count} {kind} hidden; `verify.sh tree --all` lists them", file=sys.stderr)
+                kinds = kind.replace("element", "elements") if count > 1 else kind
+                print(f"{count} {kinds} hidden; `verify.sh tree --all` lists them", file=sys.stderr)
     elif mode == "find":
         found = by_id(root, sys.argv[2])
         if not found:
@@ -369,12 +378,11 @@ def main() -> None:
                 return
         sys.exit("\n".join(obstacles(found, screen)))
     elif mode == "center":
-        for line in lines(root):
-            if line.ident == sys.argv[2]:
-                x, y = line.frame.center
-                print(f"{x:.0f} {y:.0f}")
-                return
-        sys.exit(1)
+        found = by_id(root, sys.argv[2])
+        if not found:
+            sys.exit(1)
+        x, y = found[0].frame.center
+        print(f"{x:.0f} {y:.0f}")
 
 
 if __name__ == "__main__":
