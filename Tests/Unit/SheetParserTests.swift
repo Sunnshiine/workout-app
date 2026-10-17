@@ -153,6 +153,34 @@ import Testing
     #expect(twoValues[.squat] == 365)
 }
 
+@Test(
+    "A Training Max that is not a finite number is absent, as a non-numeric cell is",
+    arguments: ["inf", "nan", "Infinity", "1e400", "-nan", "snan"]
+)
+func aNonFiniteTrainingMaxIsAbsent(cell: String) {
+    let tm = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": cell, "C8": "Bench Press", "E8": "365"],
+            rows: 20,
+            cols: 10
+        )
+    )
+
+    #expect(tm == [.bench: 365])
+}
+
+@Test func aRepeatedTrainingMaxLabelPassesOverANonFiniteValue() {
+    let tm = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": "inf", "C8": "Squat", "E8": "365"],
+            rows: 20,
+            cols: 10
+        )
+    )
+
+    #expect(tm == [.squat: 365])
+}
+
 @Test func parsesAnchorAndContinuationRows() {
     // Real rows: C15 anchor "0:3:0 Standing Calve Raises", D15 Sets=2, F15 Reps=12,
     // H15 Load "RPE9, RPE10", K15 coach/log "Superset cue". Next anchor C22.
