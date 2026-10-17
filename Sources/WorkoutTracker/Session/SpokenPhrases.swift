@@ -223,7 +223,7 @@ struct SpokenPhrase: Sendable {
         SpokenPhrase(.marker(.at), .value(.weight), .marker(.pounds)),
         SpokenPhrase(.marker(.at), .value(.rpeAfterAt), .optional(.marker(.rpe))),
         SpokenPhrase(.marker(.at), .value(.weightAfterAt)),
-        SpokenPhrase(.marker(.with), .value(.weightAfterAt))
+        SpokenPhrase(.marker(.with), .value(.weightAfterAt), .optional(.marker(.pounds)))
     ]
 
     /// The match of every step from the tokens' start, or nil when a step is not there. A step cut off

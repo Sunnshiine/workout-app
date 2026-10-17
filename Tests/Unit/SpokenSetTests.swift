@@ -240,6 +240,13 @@ func fillerAroundASetIsDropped(transcript: String) {
     #expect(SpokenSet.parse("185 for 5 with") == values(.pounds(185), 5, nil))
 }
 
+@Test func poundsAfterTheWeightAfterWithLabelsIt() {
+    #expect(SpokenSet.parse("5 reps with 185 pounds") == values(.pounds(185), 5, nil))
+    #expect(SpokenSet.parse("with 185 pounds for 5") == values(.pounds(185), 5, nil))
+    #expect(SpokenSet.parse("with 185 pounds for 5 at 8") == values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("eight reps with one thirty five pounds") == values(.pounds(135), 8, nil))
+}
+
 @Test func twoDifferentNumbersForOneValueConflict() {
     #expect(SpokenSet.parse("135 for 4, 8 reps, RPE 9") == .failure(.conflicting(.reps)))
     #expect(SpokenSet.parse("135 pounds 185 for 5") == .failure(.conflicting(.weight)))
