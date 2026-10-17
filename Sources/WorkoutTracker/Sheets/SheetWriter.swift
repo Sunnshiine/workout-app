@@ -146,10 +146,11 @@ extension SetLogPlacementResolution {
 
 extension SetLogList {
     /// Overwrites the Set's token, refusing when the slot no longer holds the value the write was
-    /// planned against so a concurrent edit conflicts rather than gets clobbered (ADR-0003).
+    /// planned against so a concurrent edit conflicts rather than gets clobbered. The slot matches
+    /// by meaning, so a coach's spelling of the expected Set Log is not a conflict (ADR-0003).
     mutating func replaceToken(at position: Int, expecting expected: String, with value: String) throws {
         let current = token(at: position)
-        guard current == expected else {
+        guard SetLogToken.matches(current, expected) else {
             throw SheetWriterError.unexpectedCurrentValue(expected: expected, actual: current)
         }
         setToken(value, at: position)
@@ -210,7 +211,7 @@ struct SheetWritePlanner: Sendable {
             return SheetCellWrite(tabName: target.tabName, row: target.row, col: target.col, value: listValue)
         }
 
-        guard actual == request.expectedCurrentValue else {
+        guard SetLogToken.matches(actual, request.expectedCurrentValue) else {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
 
