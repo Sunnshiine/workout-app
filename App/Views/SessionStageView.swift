@@ -76,8 +76,8 @@ struct SessionStageView: View {
         .sheet(item: $historyExercise) { exercise in
             ExerciseHistorySheet(
                 presentation: ExerciseHistorySheetPresentation(
-                    anchorBaseName: exercise.exerciseName.base,
-                    entries: lastPerformedLookup.snapshot.history(baseName: exercise.exerciseName.base)
+                    anchor: exercise.exerciseName,
+                    entries: lastPerformedLookup.snapshot.history(for: exercise.exerciseName)
                 ),
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )

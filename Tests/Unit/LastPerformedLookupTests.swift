@@ -71,3 +71,26 @@ import Testing
     #expect(match?.resultText == "185x7@7")
     #expect(match?.sourceText == "Block 26 · W3 D1")
 }
+
+@Test func theExactEnteredNameBeatsANewerSessionUnderAnotherCadence() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        LastPerformedEntry(
+            exerciseName: "1:0:1 BB RDL",
+            resultText: "175x7@6",
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 25 · W4 D1"
+        ),
+        LastPerformedEntry(
+            exerciseName: "2-3:1:0 BB RDL",
+            resultText: "185x7@7",
+            performedOn: Date(timeIntervalSinceReferenceDate: 200),
+            source: "Block 26 · W3 D1"
+        )
+    ])
+
+    // Tier 1 keys on the whole Entered Name, so the older Session under this exact Cadence wins
+    // over the newer one that shares only the Base Name.
+    let match = snapshot.lookup(for: "1:0:1 BB RDL")
+    #expect(match?.resultText == "175x7@6")
+    #expect(match?.sourceText == "Block 25 · W4 D1")
+}

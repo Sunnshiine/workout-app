@@ -25,7 +25,7 @@ extension LoadSuggestionInputs {
                 .sorted { $0.index > $1.index }
                 .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } },
             lastPerformed: coordinates.flatMap {
-                history.excluding(session: $0.session).lookup(for: $0.exerciseName.entered)
+                history.excluding(session: $0.session).lookup(for: $0.exerciseName)
             }
         )
     }
@@ -33,7 +33,7 @@ extension LoadSuggestionInputs {
 
 extension Exercise {
     var trainingMax: Double? {
-        guard let block = session?.week?.block, let lift = MainLift(matchingBaseName: exerciseName.base)
+        guard let block = session?.week?.block, let lift = MainLift(claimedBy: exerciseName)
         else { return nil }
         return block.trainingMaxes[lift]
     }
