@@ -96,7 +96,7 @@ struct SmartValuePills: View {
     }
 
     private var repsPresentation: RepsScalePresentation {
-        RepsScalePresentation(prescribedReps: set.prescribedReps, selection: form.repsText)
+        RepsScalePresentation(prescribedReps: form.prescribedReps, selection: form.repsText)
     }
 
     private var rpePresentation: RPEScalePresentation {
