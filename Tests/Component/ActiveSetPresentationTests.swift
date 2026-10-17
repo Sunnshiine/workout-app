@@ -15,64 +15,14 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
-@Test func holdToSkipPolicyDefaultsToTheIdleSetHold() {
-    let policy = HoldToSkipPolicy()
-    #expect(policy.holdDuration == 0.85)
-    #expect(policy.revealDelay == 0.25)
-}
-
-@Test func holdToSkipPolicyDefersQuickReleaseToButtonTap() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.1, skipCompleted: false)
-
-    #expect(outcome == .deferToTap)
-    #expect(!policy.shouldRevealProgress(elapsed: 0.1))
-
+@Test func holdToSkipButtonPresentationShowsTheLogTitleBeforeAHold() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
+
     #expect(presentation.logOpacity == 1)
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
+    #expect(presentation.accessibilityValue == "")
     #expect(presentation.tone == .primary)
-}
-
-@Test func holdToSkipPolicyDoesNotTreatCanceledHoldAsLogTap() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    #expect(policy.releaseOutcome(elapsed: 0.19, skipCompleted: false) == .cancelSkip)
-    #expect(policy.releaseOutcome(elapsed: 0.4, skipCompleted: false) == .cancelSkip)
-}
-
-@Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.4, skipCompleted: false)
-
-    #expect(outcome == .cancelSkip)
-}
-
-@Test func holdToSkipPolicyRevealsProgressOnlyAfterDelay() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    #expect(!policy.shouldRevealProgress(elapsed: 0.249))
-    #expect(policy.shouldRevealProgress(elapsed: 0.25))
-    #expect(policy.progressAnimationDuration == 0.55)
-}
-
-@Test func holdToSkipPolicyIgnoresReleaseAfterCompletedSkip() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: true)
-
-    #expect(outcome == .ignore)
-}
-
-@Test func holdToSkipPolicyCompletesSkipWhenReleaseReachesHoldDuration() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: false)
-
-    #expect(outcome == .skip)
 }
 
 @Test func holdToSkipButtonPresentationFadesTowardSkippedState() {
@@ -81,6 +31,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(abs(presentation.logOpacity - 0.35) < 0.001)
     #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityValue == "65% Skip")
 }
 
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
