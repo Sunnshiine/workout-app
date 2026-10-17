@@ -406,8 +406,7 @@ private func benchHistory(_ entries: [(resultText: String, source: String)]) -> 
     LastPerformedLookupSnapshot(
         occurrences: entries.map {
             LastPerformedOccurrence(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                exerciseName: "Bench Press",
                 resultText: $0.resultText,
                 performedOn: Date(timeIntervalSinceReferenceDate: 0),
                 source: $0.source
@@ -446,11 +445,10 @@ private func competitionBenchPress() -> Exercise {
     makeBenchPress(named: "Competition Bench Press", loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
 }
 
-private func competitionBenchHistory(fullName: String, baseName: String) -> LastPerformedLookupSnapshot {
+private func competitionBenchHistory(name: ExerciseName) -> LastPerformedLookupSnapshot {
     LastPerformedLookupSnapshot(occurrences: [
         LastPerformedOccurrence(
-            fullName: fullName,
-            baseName: baseName,
+            exerciseName: name,
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
             source: "Block 27 · W1 D2"
@@ -465,7 +463,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 
 @MainActor
 @Test func anEstimateFromAMovementLevelMatchNamesTheEntryItCameFrom() {
-    let history = competitionBenchHistory(fullName: "Comp Bench Press", baseName: "Comp Bench Press")
+    let history = competitionBenchHistory(name: "Comp Bench Press")
 
     let form = estimateForm(competitionBenchPress(), history: history)
 
@@ -476,7 +474,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 @MainActor
 @Test func aCaseOnlyMovementLevelMatchNamesTheEntryAsLastPerformedDoes() {
     let exercise = competitionBenchPress()
-    let history = competitionBenchHistory(fullName: "competition bench press", baseName: "competition bench press")
+    let history = competitionBenchHistory(name: "competition bench press")
 
     let form = estimateForm(exercise, history: history)
 
@@ -487,7 +485,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 
 @MainActor
 @Test func anEstimateFromAnEntryWithTheExercisesBaseNameNamesNoEntry() {
-    let history = competitionBenchHistory(fullName: "2-0:1:0 Competition Bench Press", baseName: "Competition Bench Press")
+    let history = competitionBenchHistory(name: "2-0:1:0 Competition Bench Press")
 
     let form = estimateForm(competitionBenchPress(), history: history)
 

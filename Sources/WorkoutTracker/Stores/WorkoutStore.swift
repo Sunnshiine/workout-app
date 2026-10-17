@@ -220,7 +220,7 @@ final class WorkoutStore {
             PendingWrite(
                 session: coordinates.session,
                 dayNumbering: coordinates.dayNumbering,
-                exerciseName: coordinates.exerciseName,
+                exerciseName: coordinates.exerciseName.entered,
                 setIndex: coordinates.setIndex,
                 column: column,
                 operation: operation,
@@ -233,13 +233,12 @@ final class WorkoutStore {
     private func refreshLastPerformed(for set: ExerciseSet) throws {
         let coordinates = try SetCoordinates(of: set)
         guard let resultText = set.exercise?.setLevelCompletionEvidence.resultText else {
-            try lastPerformed.retract(fullName: coordinates.exerciseName, source: coordinates.session.storageValue)
+            try lastPerformed.retract(fullName: coordinates.exerciseName.entered, source: coordinates.session.storageValue)
             return
         }
         try lastPerformed.ingest([
             LastPerformedEntry(
-                fullName: coordinates.exerciseName,
-                baseName: coordinates.exerciseBaseName,
+                exerciseName: coordinates.exerciseName,
                 resultText: resultText,
                 performedOn: coordinates.sessionDate ?? Date(),
                 source: coordinates.session.storageValue

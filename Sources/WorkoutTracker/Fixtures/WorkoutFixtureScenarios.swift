@@ -85,8 +85,7 @@
 
         static func lastPerformedBackSquat() -> LastPerformedEntry {
             LastPerformedEntry(
-                fullName: "Back Squat",
-                baseName: "Back Squat",
+                exerciseName: "Back Squat",
                 resultText: "245x5@6, 255x5@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
@@ -99,15 +98,13 @@
             [
                 lastPerformedBackSquat(),
                 LastPerformedEntry(
-                    fullName: "Back Squat",
-                    baseName: "Back Squat",
+                    exerciseName: "Back Squat",
                     resultText: "235x5@6, 245x5@7",
                     performedOn: Date(timeIntervalSinceReferenceDate: 60),
                     source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 2, day: 3)).storageValue
                 ),
                 LastPerformedEntry(
-                    fullName: "Back Squat",
-                    baseName: "Back Squat",
+                    exerciseName: "Back Squat",
                     resultText: "225x5@7",
                     performedOn: Date(timeIntervalSinceReferenceDate: 30),
                     source: SessionCoordinate(blockTab: "Block 25", address: SessionAddress(week: 3, day: 1)).storageValue
@@ -118,8 +115,7 @@
         static func benchPressHistory() -> [LastPerformedEntry] {
             [
                 LastPerformedEntry(
-                    fullName: "Bench Press",
-                    baseName: "Bench Press",
+                    exerciseName: "Bench Press",
                     resultText: "185x5@7, 195x5@8",
                     performedOn: Date(timeIntervalSinceReferenceDate: 90),
                     source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 1)).storageValue

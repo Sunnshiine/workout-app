@@ -42,8 +42,7 @@ import Testing
     // History carries the coach's misspelling; the viewed Exercise uses a different spelling.
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "Standing Calve Raises",
-            baseName: "Standing Calve Raises",
+            exerciseName: "Standing Calve Raises",
             resultText: "25x12, 12",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"
@@ -61,8 +60,7 @@ import Testing
 @Test func snapshotTierOneAndTwoCarryNoMatchedName() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
@@ -78,15 +76,13 @@ import Testing
 @Test func snapshotTierThreePicksNewestMatchingEntry() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "Standing Calve Raise",
-            baseName: "Standing Calve Raise",
+            exerciseName: "Standing Calve Raise",
             resultText: "20x12",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W1 D1"
         ),
         LastPerformedEntry(
-            fullName: "Standing Calve Raises",
-            baseName: "Standing Calve Raises",
+            exerciseName: "Standing Calve Raises",
             resultText: "25x12",
             performedOn: Date(timeIntervalSinceReferenceDate: 300),
             source: "Block 27 · W1 D1"
@@ -101,8 +97,7 @@ import Testing
 @Test func snapshotTierThreeStaysBlankForUnrelatedMovements() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "Paused Bench Press",
-            baseName: "Paused Bench Press",
+            exerciseName: "Paused Bench Press",
             resultText: "225x5",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"

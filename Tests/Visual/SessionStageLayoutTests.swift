@@ -297,8 +297,7 @@ private enum History {
     static func backSquatAndBBRDL() -> [LastPerformedEntry] {
         WorkoutFixtureScenarios.backSquatHistory() + [
             LastPerformedEntry(
-                fullName: "2-3:1:0 BB RDL",
-                baseName: "BB RDL",
+                exerciseName: "2-3:1:0 BB RDL",
                 resultText: "185x8, 195x8",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue

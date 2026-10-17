@@ -134,12 +134,12 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         header: String,
         anchorBaseName: String
     ) -> (row: Row, volumePoint: VolumePoint?) {
-        let cadence = ExerciseName(entered: entry.fullName).cadence
+        let cadence = entry.exerciseName.cadence
         let parsed = parse(entry.resultText)
 
         var annotations: [Annotation] = []
-        if entry.baseName.lowercased() != anchorBaseName.lowercased() {
-            annotations.append(.asName(entry.baseName))
+        if entry.exerciseName.base.lowercased() != anchorBaseName.lowercased() {
+            annotations.append(.asName(entry.exerciseName.base))
         }
         if parsed.skipCount > 0 {
             annotations.append(.skipped(parsed.skipCount))
