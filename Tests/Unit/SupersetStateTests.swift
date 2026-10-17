@@ -234,7 +234,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let firstBlock = makeSupersetSession(blockTab: "Block 29")
     let squat = try #require(firstBlock.exercises.first { $0.exerciseName == "Squat" })
     let bench = try #require(firstBlock.exercises.first { $0.exerciseName == "Bench Press" })
-    let coordinator = SessionCoordinator(session: firstBlock)
+    let coordinator = SessionCoordinator(session: firstBlock, wiring: .fixture())
     #expect(coordinator.createSuperset(from: squat, to: bench, in: firstBlock))
     #expect(coordinator.stage(in: firstBlock, lookup: .empty).queue.rows.map(\.id) == ["superset-0", "exercise-2"])
 

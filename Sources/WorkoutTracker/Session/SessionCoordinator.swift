@@ -2,95 +2,12 @@ import Foundation
 import Observation
 
 @MainActor
-protocol SessionLoggingAdapter {
-    func log(_ set: ExerciseSet, as log: SetLog) throws
-    func skip(_ set: ExerciseSet) throws
-    func deleteLog(for set: ExerciseSet) throws
-}
-
-@MainActor
-protocol SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error)
-    func requestPendingWriteFlush()
-}
-
-@MainActor
-protocol SessionLiveActivityAdapter {
-    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
-    func end()
-    func endIfInvalidated(at liveEdge: LiveEdge)
-}
-
-@MainActor
-protocol SessionNavigationAdapter: AnyObject {
-    var canMoveOn: Bool { get }
-    var openExercises: [Exercise] { get }
-    func liveEdge(for session: Session) -> LiveEdge
-    func requestMoveOnCelebration()
-    func show(_ address: SessionAddress)
-}
-
-@MainActor
 protocol SessionTransitionClock {
     func sleep(for duration: Duration) async
 }
 
 enum SessionCoordinatorError: Error {
     case missingSession
-    case missingLoggingAdapter
-}
-
-extension WorkoutStore: SessionLoggingAdapter {}
-
-extension WorkoutStore: SessionNavigationAdapter {}
-
-struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
-    let sync: SyncCoordinator
-    let settings: SettingsStore
-
-    func reportLocalWriteFailure(_ error: any Error) {
-        sync.reportLocalWriteFailure(error)
-    }
-
-    func requestPendingWriteFlush() {
-        guard let id = settings.spreadsheetId else { return }
-        // Awaiting it would keep flushes apart, which changes when Set Logs are flushed (#702).
-        // swiftlint:disable:next unstructured_task_is_held
-        Task { await sync.flushPending(spreadsheetId: id) }
-    }
-}
-
-private struct MissingSessionLoggingAdapter: SessionLoggingAdapter {
-    func log(_ set: ExerciseSet, as log: SetLog) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-
-    func skip(_ set: ExerciseSet) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-
-    func deleteLog(for set: ExerciseSet) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-}
-
-private struct NoopSessionSyncAdapter: SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error) {}
-    func requestPendingWriteFlush() {}
-}
-
-private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
-    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
-    func end() {}
-    func endIfInvalidated(at liveEdge: LiveEdge) {}
-}
-
-private final class NoopSessionNavigationAdapter: SessionNavigationAdapter {
-    var canMoveOn: Bool { false }
-    var openExercises: [Exercise] { [] }
-    func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
-    func requestMoveOnCelebration() {}
-    func show(_ address: SessionAddress) {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -107,42 +24,22 @@ final class SessionCoordinator {
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
-    @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
-    @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
-    @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
-    private var navigationAdapter: any SessionNavigationAdapter
-    @ObservationIgnored private var motion: any SessionMotionPerforming
-    @ObservationIgnored private var restTimer: RestTimer?
-    @ObservationIgnored private var standardRestDuration: () -> TimeInterval
-    @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
+    @ObservationIgnored private let wiring: SessionWiring
 
     init(
         session: Session? = nil,
-        logging: any SessionLoggingAdapter = MissingSessionLoggingAdapter(),
-        sync: any SessionSyncAdapter = NoopSessionSyncAdapter(),
-        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
-        restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
-        navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
-        motion: any SessionMotionPerforming = ImmediateSessionMotion()
+        wiring: SessionWiring,
+        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock()
     ) {
         self.session = session
-        self.navigationAdapter = navigation
-        self.motion = motion
+        self.wiring = wiring
         let focusManager = ActiveSetFocusManager(session: session)
         self.focusManager = focusManager
         self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
-        self.loggingAdapter = logging
-        self.syncAdapter = sync
-        self.liveActivityAdapter = liveActivity
-        self.restTimer = restTimer
-        self.standardRestDuration = standardRestDuration
-        self.supersetRestDuration = supersetRestDuration
     }
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
+    var restTimer: RestTimer { wiring.restTimer }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
     var pairingMode: PairingMode { pairing.mode }
 
@@ -151,32 +48,6 @@ final class SessionCoordinator {
         savedLoggedSetID = nil
         cancelPairing()
         focusManager.reset(to: session)
-    }
-
-    func bind(
-        to session: Session?,
-        logging: any SessionLoggingAdapter,
-        sync: any SessionSyncAdapter,
-        restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: (any SessionLiveActivityAdapter)? = nil,
-        navigation: any SessionNavigationAdapter,
-        motion: any SessionMotionPerforming
-    ) {
-        if navigationAdapter !== navigation {
-            navigationAdapter = navigation
-        }
-        self.motion = motion
-        self.restTimer = restTimer
-        self.standardRestDuration = standardRestDuration
-        self.supersetRestDuration = supersetRestDuration
-        if let liveActivity {
-            liveActivityAdapter = liveActivity
-        }
-        loggingAdapter = logging
-        syncAdapter = sync
-        bind(to: session)
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -198,14 +69,14 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set)
             try perform(.momentumFlow) {
-                try loggingAdapter.log(set, as: log)
+                try wiring.logging.log(set, as: log)
                 startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
                 reconcileLiveActivity(for: session)
                 advanceAfterLog(set, in: session)
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -222,29 +93,29 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try perform(.skipFadeUp) {
-                try loggingAdapter.skip(set)
+                try wiring.logging.skip(set)
                 reconcileLiveActivity(for: session)
                 advanceAfterSkip(set, in: session)
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
     func deleteLog(for set: ExerciseSet) {
         do {
             let session = try actionSession(for: set)
-            try loggingAdapter.deleteLog(for: set)
-            restTimer?.cancel(
+            try wiring.logging.deleteLog(for: set)
+            wiring.restTimer.cancel(
                 ifOriginMatches: Self.activeSetID(for: set),
                 originSetObjectID: ObjectIdentifier(set)
             )
             reconcileLiveActivity(for: session)
             focusManager.focus(on: set)
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -252,15 +123,15 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             let updatedSetID = Self.activeSetID(for: set)
-            try loggingAdapter.log(set, as: log)
+            try wiring.logging.log(set, as: log)
             savedLoggedSetID = updatedSetID
             reconcileLiveActivity(for: session)
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -288,11 +159,11 @@ final class SessionCoordinator {
     }
 
     private func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
-        guard let requested, requested.runs(reducingMotion: motion.reducesMotion) else {
+        guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
             return
         }
-        try motion.animate(requested, change)
+        try wiring.motion.animate(requested, change)
     }
 
     private func actionSession(for set: ExerciseSet) throws -> Session {
@@ -310,19 +181,19 @@ final class SessionCoordinator {
 
 extension SessionCoordinator {
     func cancelRestForSessionExit() {
-        restTimer?.dismiss()
-        liveActivityAdapter.end()
+        wiring.restTimer.dismiss()
+        wiring.liveActivity.end()
     }
 
     func moveOn() {
         cancelRestForSessionExit()
-        navigationAdapter.requestMoveOnCelebration()
+        wiring.navigation.requestMoveOnCelebration()
     }
 
     func showSourceSession(of exercise: Exercise) {
         cancelPairing()
         guard let address = exercise.session?.address else { return }
-        navigationAdapter.show(address)
+        wiring.navigation.show(address)
     }
 
     func stage(in session: Session, lookup: LastPerformedLookupSnapshot) -> SessionStage {
@@ -337,8 +208,8 @@ extension SessionCoordinator {
     }
 
     private func liveEdgeContext(for session: Session) -> LiveEdgeContext {
-        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
-        return .atLiveEdge(canMoveOn: navigationAdapter.canMoveOn, openExercises: navigationAdapter.openExercises)
+        guard wiring.navigation.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
+        return .atLiveEdge(canMoveOn: wiring.navigation.canMoveOn, openExercises: wiring.navigation.openExercises)
     }
 }
 
@@ -348,26 +219,17 @@ extension SessionCoordinator {
         return focusManager.isPaired(exercise)
     }
 
-    fileprivate func restDuration(for kind: RestKind) -> TimeInterval {
-        switch kind {
-        case .standard:
-            standardRestDuration()
-        case .superset:
-            supersetRestDuration()
-        }
-    }
-
     fileprivate func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
         guard
             let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
                 in: session,
                 isSupersetMember: wasSupersetMember,
-                isRestRunning: restTimer?.isRunning ?? false
+                isRestRunning: wiring.restTimer.isRunning
             )
         else { return }
-        restTimer?.start(
-            duration: restDuration(for: restKind),
+        wiring.restTimer.start(
+            duration: wiring.restDurations.restDuration(for: restKind),
             origin: Self.activeSetID(for: set),
             originSetObjectID: ObjectIdentifier(set),
             kind: restKind
@@ -379,11 +241,11 @@ extension SessionCoordinator {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
-            sessionScope: navigationAdapter.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
+            sessionScope: wiring.navigation.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
-            let restInterval = restTimer?.interval
+            let restInterval = wiring.restTimer.interval
         else { return }
 
         guard
@@ -395,14 +257,14 @@ extension SessionCoordinator {
             )
         else { return }
 
-        liveActivityAdapter.startOrUpdate(
+        wiring.liveActivity.startOrUpdate(
             restContent: content,
             sessionLabel: liveActivitySessionLabel(for: session)
         )
     }
 
     fileprivate func reconcileLiveActivity(for session: Session) {
-        liveActivityAdapter.endIfInvalidated(at: navigationAdapter.liveEdge(for: session))
+        wiring.liveActivity.endIfInvalidated(at: wiring.navigation.liveEdge(for: session))
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {

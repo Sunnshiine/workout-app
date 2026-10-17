@@ -50,7 +50,7 @@ struct SupersetStageVisualTests {
                 ActiveSupersetSection(
                     stage: stage,
                     session: session,
-                    coordinator: SessionCoordinator(session: session),
+                    coordinator: SessionCoordinator(session: session, wiring: .fixture()),
                     composition: .reading,
                     onShowHistory: { _ in }
                 )

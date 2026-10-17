@@ -396,7 +396,7 @@ private func makePlannedSupersetSession() -> Session {
 @Test func focusingASetNotifiesAReaderOfTheStageFocus() throws {
     let session = makePendingSession()
     let secondSet = try #require(session.exercises.first?.sets.first { $0.index == 1 })
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 
@@ -413,7 +413,7 @@ private func makePlannedSupersetSession() -> Session {
     let session = makePlannedSupersetSession()
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let changes = ObservedChanges()
     changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 

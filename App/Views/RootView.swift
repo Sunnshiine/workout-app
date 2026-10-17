@@ -2,6 +2,8 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(SettingsStore.self) private var settings
+    @Environment(WorkoutStore.self) private var workout
+    @Environment(SyncCoordinator.self) private var sync
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -59,7 +61,15 @@ struct RootView: View {
 
     private var sessionDestination: some View {
         NavigationStack {
-            SessionView(liveActivityAdapter: liveActivityAdapter)
+            SessionView(
+                wiring: .live(
+                    workout: workout,
+                    sync: sync,
+                    settings: settings,
+                    liveActivity: liveActivityAdapter,
+                    motion: SwiftUISessionMotion()
+                )
+            )
         }
         .transition(handoff)
     }
