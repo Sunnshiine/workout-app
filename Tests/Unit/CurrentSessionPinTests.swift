@@ -150,6 +150,20 @@ private func session(_ week: Int, _ day: Int, in block: Block) throws -> Session
 }
 
 @MainActor
+@Test func aMoveOnOntoTheSessionMadeCurrentReadsAsAMoveOn() throws {
+    // Make current W1 D3, then the coach empties it: Move On skips it. Once it is Available
+    // again a Move On can land on it, and that advance is not the athlete's choice.
+    let block = makeBlock()
+    let pin = CurrentSessionPin(defaults: .inMemory())
+    let day3 = try session(1, 3, in: block)
+    pin.pin(day3, in: block, by: .madeCurrent)
+
+    pin.pin(day3, in: block, by: .moveOn)
+
+    #expect(pin.resolve(in: block).pin == .inForce(.moveOn))
+}
+
+@MainActor
 @Test func anOrderRewrittenWithoutItsMarkerReadsAsAMoveOn() throws {
     // A build that predates the Made Current marker writes only the order on Move On.
     let block = makeBlock()
