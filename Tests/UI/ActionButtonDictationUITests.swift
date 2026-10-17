@@ -55,6 +55,36 @@ final class ActionButtonDictationUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Sync status: 4 unsynced"].exists, "two card logs, and the last Set with its Last Set RPE")
     }
 
+    /// The presses log Back Squat's last Set and both of BB RDL's. The rest the second press raised
+    /// led to the Session's last Set, so the third press's readback leaves that rest rather than
+    /// read "Next:" toward the Set it just wrote.
+    @MainActor
+    func testActionButtonOnTheSessionsLastSetLogsItWithTheAppBehind() throws {
+        let app = try launchForTheActionButton()
+        for _ in 0..<2 {
+            app.buttons["log-active-set-button"].tap()
+        }
+        XCTAssertTrue(app.staticTexts["Set 3 of 3"].appears(within: 5), "the card reached Back Squat's last Set")
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        for _ in 0..<3 {
+            XCUIDevice.shared.press(.action)
+            RunLoop.current.run(until: Date().addingTimeInterval(7))
+        }
+        XCTAssertEqual(app.state, .runningBackground, "the Sets log without the app coming forward")
+
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        let status = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Sync status:'")).firstMatch
+        XCTAssertTrue(status.appears(within: 5))
+        XCTAssertEqual(status.label, "Sync status: 7 unsynced", "two card logs, three spoken Sets, and each Exercise's Last Set RPE")
+    }
+
     @MainActor
     func testActionButtonWithTheAppInFrontListensOnTheCard() throws {
         let app = try launchForTheActionButton()
