@@ -12,6 +12,7 @@ import Testing
         #expect(launch.disablesAnimations == false)
         #expect(launch.disablesLiveActivities == false)
         #expect(launch.startsWithPendingWrite == false)
+        #expect(launch.startsOffline == false)
         #expect(launch.slowsSync == false)
         #expect(launch.signsInLate == false)
         #expect(launch.startsInDeveloperTools == false)
@@ -26,6 +27,7 @@ import Testing
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_ANIMATIONS"]).disablesAnimations)
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_LIVE_ACTIVITIES"]).disablesLiveActivities)
         #expect(UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"]).startsWithPendingWrite)
+        #expect(UITestLaunch(arguments: ["-UITEST_OFFLINE"]).startsOffline)
         #expect(UITestLaunch(arguments: ["-UITEST_SLOW_SYNC"]).slowsSync)
         #expect(UITestLaunch(arguments: ["-UITEST_LATE_SIGN_IN"]).signsInLate)
         #expect(UITestLaunch(arguments: ["-UITEST_DEVELOPER_TOOLS"]).startsInDeveloperTools)
@@ -198,14 +200,21 @@ import Testing
     }
 
     @MainActor
-    @Test func onlyThePendingWriteLaunchLeavesTheFixtureSheetReachable() async throws {
-        let plain = try await BootedFixture.boot([])
-        await #expect(throws: URLError.self) {
-            try await plain.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId)
+    @Test func onlyTheOfflineLaunchLeavesTheFixtureSheetUnreachable() async throws {
+        for arguments in [[], ["-UITEST_PENDING_WRITE"]] {
+            let reachable = try await BootedFixture.boot(arguments)
+            #expect(
+                try await reachable.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) == ["Block 27"],
+                "\(arguments)"
+            )
         }
 
-        let pending = try await BootedFixture.boot(["-UITEST_PENDING_WRITE"])
-        #expect(try await pending.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) == ["Block 27"])
+        for arguments in [["-UITEST_OFFLINE"], ["-UITEST_OFFLINE", "-UITEST_PENDING_WRITE"]] {
+            let offline = try await BootedFixture.boot(arguments)
+            await #expect(throws: URLError.self, "\(arguments)") {
+                try await offline.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId)
+            }
+        }
     }
 
     @MainActor

@@ -38,10 +38,10 @@
 
         /// Brings a fresh fixture application to the state `launch` names, through the calls a
         /// phone makes: a sync of the fixture Sheet, the Exercise History its earlier fills left, and
-        /// for a pending-write launch a log that was never flushed. Then the drive's faults are
-        /// armed: unless a pending write wants a sync to land, FIXTURE disconnects, so a log stays
-        /// queued as it always has in the fixture, and a slow-sync launch holds every later tab
-        /// list. The faults wait for the boot, so it never stalls on them.
+        /// for a pending-write launch a log that was never flushed. Then the faults the launch asks
+        /// for are armed: an offline launch disconnects FIXTURE, so a log stays queued, and a
+        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
+        /// stalls on them.
         @MainActor
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             try launch.checkFlags()
@@ -50,7 +50,12 @@
             try await syncFixtureSheet(into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()
-            try await queueOrDisconnect(app: app, launch: launch, sheets: sheets)
+            if launch.startsWithPendingWrite {
+                _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
+            }
+            if launch.startsOffline {
+                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
+            }
             if launch.slowsSync {
                 await sheets.holdTabListings(for: .seconds(20))
             }
@@ -69,17 +74,6 @@
             guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
                 throw BootSyncFailed(outcome: app.sync.outcome)
             }
-        }
-
-        /// A pending-write launch logs and leaves FIXTURE reachable for the sync that lands it;
-        /// every other launch disconnects FIXTURE.
-        @MainActor
-        private static func queueOrDisconnect(app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
-            guard launch.startsWithPendingWrite else {
-                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
-                return
-            }
-            _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
         }
 
         @MainActor
