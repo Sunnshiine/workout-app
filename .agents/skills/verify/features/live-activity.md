@@ -13,7 +13,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 ## How to get to it (user POV)
 
 - Log a set on the session stage, leave the app, and read the Dynamic Island. Long press it for the whole card.
-- Open the app into the `developer-tools` fixture, then Open Live Activity Lab and Start. The longer way in, from the stage through Block Overview's `Settings` row and then `settings-developer-tools-row`, is driven in `settings.md`.
+- Open the app into the `developer-tools` fixture, then Open Live Activity Lab and Start. The longer way in, from the stage through the gear at Block Overview's foot and then `settings-developer-tools-row`, is driven in `settings.md`.
 
 ## Driving it with verify.sh
 
