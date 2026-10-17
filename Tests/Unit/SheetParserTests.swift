@@ -133,6 +133,28 @@ import Testing
     #expect(blankValues[.deadlift] == nil)
 }
 
+@Test(
+    "A Training Max cell that is not a finite number is absent, as a non-numeric cell is",
+    arguments: [
+        "inf", "nan", "Infinity", "1e400", "-nan", "snan"
+    ]
+)
+func nonFiniteTrainingMaxIsAbsent(cell: String) {
+    let tm = parseTrainingMax(
+        from: gridFromA1(
+            [
+                "E6": "Training Max",
+                "C7": "Squat", "E7": cell,
+                "C8": "Bench Press", "E8": "245",
+                "C9": "Deadlift", "E9": "455"
+            ],
+            rows: 20,
+            cols: 10
+        )
+    )
+    #expect(tm == [.bench: 245, .deadlift: 455])
+}
+
 @Test func aRepeatedTrainingMaxLabelTakesTheFirstParsableValue() {
     let blankThenValue = parseTrainingMax(
         from: gridFromA1(

@@ -39,6 +39,11 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     #expect(suggest(load: "RPE6", percentOneRM: "75%") == .noSuggestion)
 }
 
+@Test("A %1RM that is not a finite number is absent", arguments: ["inf%", "nan%", "Infinity%", "1e400%"])
+func nonFinitePercentOneRMReturnsNoSuggestion(percentOneRM: String) {
+    #expect(suggest(load: "RPE6", percentOneRM: percentOneRM, trainingMax: 265) == .noSuggestion)
+}
+
 @Test func dropReadsTheNearestEarlierSet() {
     #expect(
         suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
