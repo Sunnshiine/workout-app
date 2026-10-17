@@ -159,8 +159,8 @@ what it changed.
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
 carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
-its centre. With the sign-out alert up, `tap --label "Sign Out"` lists the Settings row and the
-alert's own button, so tap the alert's button at its centre with `-x -y`. `tap -x -y` resolves no
+its centre. With the sign-out confirmation up, `tap --label "Sign Out"` lists the Settings row and the
+confirmation's own button, so tap that button by its id, `sign-out-confirm-button`. `tap -x -y` resolves no
 element, so it still reports success whatever is under the point.
 
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
