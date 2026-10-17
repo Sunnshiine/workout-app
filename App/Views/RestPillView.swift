@@ -20,7 +20,7 @@ struct RestPillView: View {
             pillContainer(at: visualBaselineDate)
         } else {
             TimelineView(.periodic(from: shownInterval?.start ?? .now, by: 1)) { context in
-                let remaining = restTimer.remaining(at: context.date)
+                let remaining = shownInterval?.remaining(at: context.date) ?? 0
                 pillContainer(at: context.date)
                     .task(id: restTimer.restartRevision) {
                         finalFivePulse = false
@@ -85,7 +85,8 @@ struct RestPillView: View {
                 .opacity(countdownOpacity(for: cue))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .contentTransition(.numericText())
+                .contentTransition(.numericText(countsDown: true))
+                .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: presentation.countdownText)
         }
         .scaleEffect(finalFiveScale(for: cue), anchor: .leading)
         .animation(finalFiveAnimation(for: cue), value: finalFivePulse)
@@ -106,6 +107,8 @@ struct RestPillView: View {
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                // Ticks land once a second, so a one-second linear segment drains the arc continuously.
+                .animation(reduceMotion ? nil : .linear(duration: 1), value: presentation.progressFraction)
         }
         .frame(width: 24, height: 24)
     }

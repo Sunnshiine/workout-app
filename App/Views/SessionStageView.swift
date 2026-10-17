@@ -230,6 +230,8 @@ struct SessionStageView: View {
                 .animation(nil, value: composition)
                 .modifier(RestPillReveal(reduceMotion: reduceMotion))
                 .opacity(isRestPillFaded ? 0 : 1)
+                .accessibilityHidden(isRestPillFaded)
+                .allowsHitTesting(!isRestPillFaded)
                 .transition(.identity)
         }
     }
@@ -244,15 +246,22 @@ struct SessionStageView: View {
     // own fade and unmounts when the fade completes.
     private func updateRestPillMount(isResting: Bool) {
         guard !isResting else {
-            isRestPillFaded = false
-            isRestPillMounted = true
+            withTransaction(\.disablesAnimations, true) {
+                isRestPillFaded = false
+                isRestPillMounted = true
+            }
             return
         }
         withAnimation(.smooth(duration: 0.15)) {
             isRestPillFaded = true
         } completion: {
             guard !self.isResting else { return }
-            isRestPillMounted = false
+            // Clearing the fade while unmounted lets the next rest mount at full strength, so
+            // RestPillReveal alone drives its entrance.
+            withTransaction(\.disablesAnimations, true) {
+                isRestPillMounted = false
+                isRestPillFaded = false
+            }
         }
     }
 
