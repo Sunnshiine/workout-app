@@ -89,7 +89,7 @@ struct SunbirdMomentsVisualTests {
         VisualFixtureRetainer.retain(scenario)
         let sync = SyncCoordinator(client: VisualNoopSheetsClient(), context: scenario.context)
 
-        let view = OnboardingView()
+        let view = OnboardingView(isSignedIn: false)
             .environment(settings)
             .environment(sync)
             .environment(SheetConnection(settings: settings, sync: sync) { scenario.store.reload() })

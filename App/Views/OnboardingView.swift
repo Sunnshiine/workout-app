@@ -10,17 +10,21 @@ struct OnboardingView: View {
     @State private var showsURLFallback = false
     @State private var selectionErrorMessage: String?
 
+    // A value, not a SettingsStore read. While a removed view fades out, SwiftUI keeps the last
+    // value its parent built, so a launch that restores sign-in fades the connect screen out
+    // instead of swapping it for the sheet picker mid-fade.
+    let isSignedIn: Bool
+
     var body: some View {
         Group {
-            switch destination {
+            switch step {
             case .signIn:
                 // The flat-calm connect screen renders full-bleed on living paper —
                 // no glass card in the flow (DESIGN.md §5.8).
                 connectScreen
-            case .sheetPicker, .urlEntry, .session:
+            case .sheetPicker, .urlEntry:
                 VStack(spacing: 0) {
-                    switch destination {
-                    case .sheetPicker:
+                    if step == .sheetPicker {
                         SheetPickerView(
                             client: GoogleSheetsClient.forCurrentEnvironment(),
                             onValidatedSelection: { spreadsheet in
@@ -30,10 +34,8 @@ struct OnboardingView: View {
                                 withAnimation { showsURLFallback = true }
                             }
                         )
-                    case .urlEntry:
+                    } else {
                         urlEntryCard
-                    default:
-                        EmptyView()
                     }
                 }
                 .padding()
@@ -47,12 +49,8 @@ struct OnboardingView: View {
         }
     }
 
-    private var destination: AppEntryDestination {
-        AppEntryDestination(
-            isSignedIn: settings.isSignedIn,
-            hasSpreadsheet: settings.spreadsheetId != nil,
-            showsURLFallback: showsURLFallback
-        )
+    private var step: OnboardingStep {
+        OnboardingStep(isSignedIn: isSignedIn, showsURLFallback: showsURLFallback)
     }
 
     // MARK: - Phase 1: Connect screen (flat calm)

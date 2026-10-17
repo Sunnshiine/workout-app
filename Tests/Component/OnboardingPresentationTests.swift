@@ -3,43 +3,11 @@ import Testing
 @testable import WorkoutTracker
 
 @Test func onboardingShowsSignInBeforeGoogleAuth() {
-    let destination = AppEntryDestination(
-        isSignedIn: false,
-        hasSpreadsheet: false,
-        showsURLFallback: false
-    )
-
-    #expect(destination == .signIn)
+    #expect(OnboardingStep(isSignedIn: false, showsURLFallback: false) == .signIn)
+    #expect(OnboardingStep(isSignedIn: false, showsURLFallback: true) == .signIn)
 }
 
 @Test func onboardingFlowsFromSheetPickerToURLFallbackAndBack() {
-    let picker = AppEntryDestination(
-        isSignedIn: true,
-        hasSpreadsheet: false,
-        showsURLFallback: false
-    )
-    let urlEntry = AppEntryDestination(
-        isSignedIn: true,
-        hasSpreadsheet: false,
-        showsURLFallback: true
-    )
-
-    #expect(picker == .sheetPicker)
-    #expect(urlEntry == .urlEntry)
-}
-
-@Test func onboardingSkipsPickerWhenSpreadsheetAlreadyConfigured() {
-    let destination = AppEntryDestination(
-        isSignedIn: true,
-        hasSpreadsheet: true,
-        showsURLFallback: false
-    )
-    let fallbackDestination = AppEntryDestination(
-        isSignedIn: true,
-        hasSpreadsheet: true,
-        showsURLFallback: true
-    )
-
-    #expect(destination == .session)
-    #expect(fallbackDestination == .session)
+    #expect(OnboardingStep(isSignedIn: true, showsURLFallback: false) == .sheetPicker)
+    #expect(OnboardingStep(isSignedIn: true, showsURLFallback: true) == .urlEntry)
 }

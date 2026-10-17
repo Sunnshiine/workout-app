@@ -1,18 +1,15 @@
-enum AppEntryDestination: Equatable {
+enum OnboardingStep: Equatable {
     case signIn
     case sheetPicker
     case urlEntry
-    case session
 
-    init(isSignedIn: Bool, hasSpreadsheet: Bool, showsURLFallback: Bool) {
-        if isSignedIn, hasSpreadsheet {
-            self = .session
-        } else if isSignedIn, showsURLFallback {
-            self = .urlEntry
-        } else if isSignedIn {
-            self = .sheetPicker
-        } else {
+    init(isSignedIn: Bool, showsURLFallback: Bool) {
+        if !isSignedIn {
             self = .signIn
+        } else if showsURLFallback {
+            self = .urlEntry
+        } else {
+            self = .sheetPicker
         }
     }
 }
