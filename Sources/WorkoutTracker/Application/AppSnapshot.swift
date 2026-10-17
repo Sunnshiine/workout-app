@@ -200,9 +200,9 @@ public struct ExerciseSnapshot: Encodable, Equatable, Sendable {
     init(_ exercise: Exercise, id: ExerciseAddress, history: LastPerformedLookupSnapshot) {
         self.id = id
         order = exercise.order
-        name = exercise.name
-        baseName = exercise.baseName
-        cadence = exercise.cadence
+        name = exercise.exerciseName.entered
+        baseName = exercise.exerciseName.base
+        cadence = exercise.exerciseName.cadence
         coachNote = exercise.coachNote
         legacyLog = exercise.legacyLog
         isComplete = exercise.isComplete

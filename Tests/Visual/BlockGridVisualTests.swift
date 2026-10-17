@@ -73,10 +73,10 @@ struct BlockGridVisualTests {
 /// pick shows without threading logged Sets by hand.
 private enum FixtureDay {
     case complete
-    case partial // two logged Sets of four → a half-risen foot
-    case available // uploaded, untouched — a quiet available tile / empty mini bar
-    case current // the Current Session — the cream-bud current tile with the sunlit rim
-    case unavailable // an un-uploaded day — the dashed empty bed
+    case partial  // two logged Sets of four → a half-risen foot
+    case available  // uploaded, untouched — a quiet available tile / empty mini bar
+    case current  // the Current Session — the cream-bud current tile with the sunlit rim
+    case unavailable  // an un-uploaded day — the dashed empty bed
 }
 
 private enum GridFixture {
@@ -130,17 +130,17 @@ private enum GridFixture {
     private func makeSession(dayNumber: Int, day: FixtureDay) -> Session {
         let session = Session(dayNumber: dayNumber, date: nil)
         guard day != .unavailable else {
-            session.exercises = [] // an un-uploaded day carries no Exercises
+            session.exercises = []  // an un-uploaded day carries no Exercises
             return session
         }
-        let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+        let exercise = Exercise(name: "Squat", coachNote: nil, order: 0)
         exercise.sets = (0..<4).map { index in
             let state: SetState
             switch day {
             case .complete:
                 state = .logged
             case .partial:
-                state = index < 2 ? .logged : .pending // two settled of four → half-risen
+                state = index < 2 ? .logged : .pending  // two settled of four → half-risen
             case .available, .current, .unavailable:
                 state = .pending
             }

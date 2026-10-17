@@ -70,7 +70,7 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
     /// The base name is derived here by Cadence-stripping the exercise name, so callers pass only
     /// the exercise. This is the single owner of the two-tier rule (PRD #330).
     func lookup(for exerciseName: String) -> LastPerformedLookupEntry? {
-        let baseName = splitCadence(exerciseName).base
+        let baseName = ExerciseName(entered: exerciseName).base
         if let exact = exactMatches[exerciseName] { return LastPerformedLookupEntry(occurrence: exact) }
         if let fallback = fallbackMatches[baseName] { return LastPerformedLookupEntry(occurrence: fallback) }
         return movementMatch(baseName: baseName)

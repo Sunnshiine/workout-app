@@ -2,15 +2,6 @@ import Foundation
 
 private let trainingMaxHeaderScanRowLimit = 15
 
-/// Splits a leading tempo prefix (e.g. "2-3:1-2:0") from the base exercise name.
-func splitCadence(_ name: String) -> (cadence: String?, base: String) {
-    let pattern = /^(\d+(?:-\d+)?:\d+(?:-\d+)?:\d+(?:-\d+)?)\s+(.+)$/
-    if let m = name.wholeMatch(of: pattern) {
-        return (String(m.1), String(m.2))
-    }
-    return (nil, name)
-}
-
 private func splitLoadValues(_ load: String) -> [String] {
     let values = load.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
     guard
@@ -84,24 +75,13 @@ struct ParsedSet {
 }
 
 struct ParsedExercise {
-    var name: String
-    var baseName: String
-    var cadence: String?
+    var exerciseName: ExerciseName
     var coachNote: String?
     var legacyLog: String?
     var sets: [ParsedSet]
 
-    init(
-        name: String,
-        baseName: String,
-        cadence: String?,
-        coachNote: String?,
-        legacyLog: String? = nil,
-        sets: [ParsedSet]
-    ) {
-        self.name = name
-        self.baseName = baseName
-        self.cadence = cadence
+    init(name: ExerciseName, coachNote: String?, legacyLog: String? = nil, sets: [ParsedSet]) {
+        self.exerciseName = name
         self.coachNote = coachNote
         self.legacyLog = legacyLog
         self.sets = sets
@@ -199,13 +179,10 @@ private func parsedMultiLineExercise(
     lines: [PrescriptionLine]
 ) -> ParsedExercise {
     let grid = snapshot.values
-    let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
-    let (cadence, base) = splitCadence(rawName)
+    let name = ExerciseName(entered: grid.cell(row: anchor.row, col: cols.name).trimmed)
     let sets = lines.flatMap { parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0) }
     return ParsedExercise(
-        name: rawName,
-        baseName: base,
-        cadence: cadence,
+        name: name,
         coachNote: anchor.headerNotesRole(in: grid, cols: cols).coachNote,
         sets: sets
     )
@@ -222,8 +199,7 @@ private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor
 private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let grid = snapshot.values
     let anchorRow = anchor.row
-    let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
-    let (cadence, base) = splitCadence(rawName)
+    let name = ExerciseName(entered: grid.cell(row: anchorRow, col: cols.name).trimmed)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
     let sets = parsedSets(
@@ -239,9 +215,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     )
 
     return ParsedExercise(
-        name: rawName,
-        baseName: base,
-        cadence: cadence,
+        name: name,
         coachNote: role.coachNote,
         legacyLog: role.legacyLog,
         sets: sets
@@ -318,7 +292,7 @@ struct ParsedBlockModel {
 
     /// Every Exercise's Cadence-stripped base name: the unit Exercise History coverage counts in (ADR-0012).
     var exerciseBaseNames: Set<String> {
-        Set(weeks.flatMap(\.days).flatMap(\.exercises).map(\.baseName))
+        Set(weeks.flatMap(\.days).flatMap(\.exercises).map(\.exerciseName.base))
     }
 }
 struct ParsedBlock {

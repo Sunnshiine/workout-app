@@ -443,10 +443,7 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 
 @MainActor
 private func competitionBenchPress() -> Exercise {
-    let exercise = makeBenchPress(loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
-    exercise.name = "Competition Bench Press"
-    exercise.baseName = "Competition Bench Press"
-    return exercise
+    makeBenchPress(named: "Competition Bench Press", loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
 }
 
 private func competitionBenchHistory(fullName: String, baseName: String) -> LastPerformedLookupSnapshot {

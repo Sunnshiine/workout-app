@@ -221,7 +221,7 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
         sleptDurations.append(duration)
         let waiters = sleepWaiters
         sleepWaiters = []
-        waiters.forEach { $0.resume() }
+        for waiter in waiters { waiter.resume() }
 
         let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
             sleepers.append(sleeper)
@@ -260,17 +260,17 @@ private final class ManualCoordinatorRestClock: RestClock {
 private func makeCoordinatorSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
-    let completedSquat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let completedSquat = Exercise(name: "Squat", coachNote: nil, order: 0)
     completedSquat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
     ]
 
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 1)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
     let firstBenchSet = ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     let secondBenchSet = ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     bench.sets = [firstBenchSet, secondBenchSet]
 
-    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 2)
+    let row = Exercise(name: "DB Row", coachNote: nil, order: 2)
     row.sets = [
         ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -282,17 +282,17 @@ private func makeCoordinatorSession() -> Session {
 private func makePlannedPairingSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
-    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 0)
+    let press = Exercise(name: "Press", coachNote: nil, order: 0)
     press.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 1)
+    let squat = Exercise(name: "Squat", coachNote: nil, order: 1)
     squat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 2)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 2)
     bench.sets = [
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -303,8 +303,8 @@ private func makePlannedPairingSession() -> Session {
 
 private func makeSquatAndRDLSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
-    let squat = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: 0)
-    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+    let squat = Exercise(name: "Back Squat", coachNote: nil, order: 0)
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", coachNote: nil, order: 1)
     for exercise in [squat, rdl] {
         exercise.sets = (0..<2).map {
             ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
@@ -317,22 +317,22 @@ private func makeSquatAndRDLSession() -> Session {
 private func makeFourExercisePairingSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
-    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 0)
+    let press = Exercise(name: "Press", coachNote: nil, order: 0)
     press.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 1)
+    let squat = Exercise(name: "Squat", coachNote: nil, order: 1)
     squat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 2)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 2)
     bench.sets = [
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 3)
+    let row = Exercise(name: "DB Row", coachNote: nil, order: 3)
     row.sets = [
         ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -344,7 +344,7 @@ private func makeFourExercisePairingSession() -> Session {
 private func makeIntegratedCoordinatorSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let squat = Exercise(name: "Squat", coachNote: nil, order: 0)
     let firstSquatSet = ExerciseSet(
         index: 0,
         prescribedReps: "5",
@@ -361,17 +361,17 @@ private func makeIntegratedCoordinatorSession() -> Session {
     )
     squat.sets = [firstSquatSet, secondSquatSet]
 
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 1)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
     bench.sets = [
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 2)
+    let row = Exercise(name: "DB Row", coachNote: nil, order: 2)
     row.sets = [
         ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
 
-    let pulldown = Exercise(name: "Lat Pulldown", baseName: "Lat Pulldown", cadence: nil, coachNote: nil, order: 3)
+    let pulldown = Exercise(name: "Lat Pulldown", coachNote: nil, order: 3)
     pulldown.sets = [
         ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -382,7 +382,7 @@ private func makeIntegratedCoordinatorSession() -> Session {
 
 private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: ExerciseSet) {
     let session = Session(dayNumber: dayNumber, date: nil)
-    let exercise = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: "Bench Press", coachNote: nil, order: 0)
     let set = ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     exercise.sets = [set]
     session.exercises = [exercise]
@@ -1217,7 +1217,7 @@ private func makeRestActionFixture(
 @Test func showingAnOpenExercisesSessionCancelsPairingAndShowsItsAddress() throws {
     let session = makeCoordinatorSession()
     let earlier = Session(dayNumber: 1, date: nil)
-    let makeup = Exercise(name: "Front Squat", baseName: "Front Squat", cadence: nil, coachNote: nil, order: 0)
+    let makeup = Exercise(name: "Front Squat", coachNote: nil, order: 0)
     earlier.exercises = [makeup]
     connectCoordinatorWeek([earlier, session])
     let navigation = SpySessionNavigationAdapter()
@@ -1234,7 +1234,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func theStageOffersMoveOnAndOpenExercisesOnlyAtTheLiveEdge() throws {
     let session = makeCoordinatorSession()
-    let makeup = Exercise(name: "Front Squat", baseName: "Front Squat", cadence: nil, coachNote: nil, order: 0)
+    let makeup = Exercise(name: "Front Squat", coachNote: nil, order: 0)
     let navigation = SpySessionNavigationAdapter()
     navigation.canMoveOn = true
     navigation.openExercises = [makeup]
@@ -2053,7 +2053,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func rebindingAfterASupersetLogKeepsTheFocusOnThePartner() throws {
     let session = makeSquatAndRDLSession()
-    let press = Exercise(name: "Press", baseName: "Press", cadence: nil, coachNote: nil, order: 2)
+    let press = Exercise(name: "Press", coachNote: nil, order: 2)
     press.sets = [ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)]
     session.exercises.append(press)
     let squat = try #require(session.exercises.first { $0.order == 0 })

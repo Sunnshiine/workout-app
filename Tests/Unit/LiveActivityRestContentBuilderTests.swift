@@ -245,8 +245,8 @@ import Testing
         )
     )
 
-    #expect(makeupQueue.map(\.exercise.name) == ["DB Row", "Curl"])
-    #expect(content.exerciseName == firstOpen.exercise.name)
+    #expect(makeupQueue.map(\.exercise.exerciseName.entered) == ["DB Row", "Curl"])
+    #expect(content.exerciseName == firstOpen.exercise.exerciseName.entered)
     #expect(
         content.target?.setID
             == ActiveSetID(exerciseOrder: firstOpen.exercise.order, setIndex: firstPending.index)
@@ -508,8 +508,6 @@ private func makeStoredWeek() throws -> ModelContainer {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: (0...1).map { index in
                                     ParsedSet(

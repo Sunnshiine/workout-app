@@ -134,7 +134,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         header: String,
         anchorBaseName: String
     ) -> (row: Row, volumePoint: VolumePoint?) {
-        let cadence = splitCadence(entry.fullName).cadence
+        let cadence = ExerciseName(entered: entry.fullName).cadence
         let parsed = parse(entry.resultText)
 
         var annotations: [Annotation] = []

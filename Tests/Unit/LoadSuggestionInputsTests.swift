@@ -4,8 +4,8 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-private func exercise(named baseName: String, inBlockWithTrainingMaxes: Bool = true) -> Exercise {
-    let exercise = Exercise(name: baseName, baseName: baseName, cadence: nil, coachNote: nil)
+private func exercise(named name: ExerciseName, inBlockWithTrainingMaxes: Bool = true) -> Exercise {
+    let exercise = Exercise(name: name, coachNote: nil)
     guard inBlockWithTrainingMaxes else { return exercise }
     let block = Block(tabName: "Block 27", trainingMaxes: [.squat: 405, .bench: 265, .deadlift: 500])
     let week = Week(number: 1)
@@ -17,8 +17,8 @@ private func exercise(named baseName: String, inBlockWithTrainingMaxes: Bool = t
 }
 
 @MainActor
-private func exercise(name: String, baseName: String, in block: Block) -> Exercise {
-    let exercise = Exercise(name: name, baseName: baseName, cadence: nil, coachNote: nil)
+private func exercise(name: ExerciseName, in block: Block) -> Exercise {
+    let exercise = Exercise(name: name, coachNote: nil)
     let week = Week(number: 1)
     week.block = block
     let session = Session(dayNumber: 1, date: nil)
@@ -70,14 +70,13 @@ private func exercise(name: String, baseName: String, in block: Block) -> Exerci
     @Test func aBlankTrainingMaxOnThePresentBlockResolvesToNothing() {
         let block = Block(tabName: "Block 27", trainingMaxes: [.bench: 265, .deadlift: 500])
 
-        #expect(exercise(name: "Back Squat", baseName: "Back Squat", in: block).trainingMax == nil)
+        #expect(exercise(name: "Back Squat", in: block).trainingMax == nil)
     }
 
-    @Test func matchingReadsTheBaseNameNotTheFullName() {
+    @Test func aCadencePrefixedExerciseClaimsTheMainLiftItsBaseNameNames() {
         let block = Block(tabName: "Block 27", trainingMaxes: [.squat: 405, .bench: 265, .deadlift: 500])
 
-        #expect(exercise(name: "0:3:0 Back Squat", baseName: "Back Squat", in: block).trainingMax == 405)
-        #expect(exercise(name: "Bench Press", baseName: "RDL", in: block).trainingMax == nil)
+        #expect(exercise(name: "0:3:0 Back Squat", in: block).trainingMax == 405)
     }
 }
 

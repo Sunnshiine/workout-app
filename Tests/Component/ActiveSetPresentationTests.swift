@@ -278,7 +278,7 @@ struct SetCardPresentationTests {
     let block = Block(tabName: "Block 27")
     let week = Week(number: 2)
     let session = Session(dayNumber: 3, date: nil)
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
+    let exercise = Exercise(name: "Squat", coachNote: nil)
     exercise.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged),
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .skipped),
@@ -302,7 +302,7 @@ struct SetCardPresentationTests {
 @Test func sessionProgressHeaderRunlineDropsTheBlockPrefixWhenNoBlockIsKnown() {
     let week = Week(number: 4)
     let session = Session(dayNumber: 1, date: nil)
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
+    let exercise = Exercise(name: "Squat", coachNote: nil)
     exercise.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
@@ -364,8 +364,6 @@ struct SetCardPresentationTests {
     try context.save()
     let exercise = Exercise(
         name: "2-3:1:0 BB RDL",
-        baseName: "BB RDL",
-        cadence: "2-3:1:0",
         coachNote: nil
     )
 
@@ -386,8 +384,6 @@ struct SetCardPresentationTests {
     let container = try activeSetPresentationContainer()
     let exercise = Exercise(
         name: "Bench Press",
-        baseName: "Bench Press",
-        cadence: nil,
         coachNote: nil
     )
 
@@ -412,8 +408,6 @@ struct SetCardPresentationTests {
     ])
     let exercise = Exercise(
         name: "Standing Calf Raise",
-        baseName: "Standing Calf Raise",
-        cadence: nil,
         coachNote: nil,
         order: 0
     )
@@ -433,7 +427,7 @@ struct SetCardPresentationTests {
             source: "Block 27 · W1 D1"
         )
     ])
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: "Squat", coachNote: nil, order: 0)
 
     let presentation = LastPerformedCardPresentation(exercise: exercise, lookup: snapshot)
     #expect(presentation?.matchedName == nil)

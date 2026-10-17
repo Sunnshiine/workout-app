@@ -28,7 +28,7 @@ private func shape(of scenario: UITestLaunch.Scenario) -> BlockShape {
         sessions: sessions.count,
         exercises: exercises.count,
         sets: exercises.flatMap(\.sets).count,
-        firstExercise: exercises.first?.name ?? "",
+        firstExercise: exercises.first?.exerciseName.entered ?? "",
         loggedAt: exercises.flatMap(\.sets).compactMap { $0.loggedAt?.ISO8601Format() }
     )
 }

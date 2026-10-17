@@ -19,8 +19,8 @@ struct SetCoordinates: Equatable {
         guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
         self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
         self.dayNumbering = block.dayNumbering
-        self.exerciseName = exercise.name
-        self.exerciseBaseName = exercise.baseName
+        self.exerciseName = exercise.exerciseName.entered
+        self.exerciseBaseName = exercise.exerciseName.base
         self.setIndex = set.index
         self.sessionDate = session.date
     }
@@ -56,7 +56,7 @@ extension Block {
                     for set in exercise.sets {
                         let id = SetCoordinates.ID(
                             session: SessionCoordinate(blockTab: tabName, address: week.address(of: session)),
-                            exerciseName: exercise.name,
+                            exerciseName: exercise.exerciseName.entered,
                             setIndex: set.index
                         )
                         sets[id] = set

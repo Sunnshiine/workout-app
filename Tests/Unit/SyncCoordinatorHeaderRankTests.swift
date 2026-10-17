@@ -95,7 +95,7 @@ private func loggedSquatSets(in ctx: ModelContext) throws -> [String] {
     let week = try ctx.fetch(FetchDescriptor<Block>()).first?.weeks.first { $0.number == 1 }
     var logged: [String] = []
     for session in (week?.sessions ?? []).sorted(by: { $0.dayNumber < $1.dayNumber }) {
-        let sets: [ExerciseSet] = session.exercises.filter { $0.name == "Squat" }.flatMap(\.sets)
+        let sets: [ExerciseSet] = session.exercises.filter { $0.exerciseName == "Squat" }.flatMap(\.sets)
         for set in sets.sorted(by: { $0.index < $1.index }) where set.state == .logged {
             logged.append("w1d\(session.dayNumber) s\(set.index)=\(set.setLog?.formatted ?? "")")
         }
