@@ -81,7 +81,7 @@ enum WorkoutScenarios {
 
     @MainActor
     static func partiallyUploadedBlock() -> BlockScenario {
-        scenario(from: WorkoutFixtureScenarios.partiallyUploadedBlock())
+        scenario(from: WorkbookScenario.partialUpload.block())
     }
 
     @MainActor
