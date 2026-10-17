@@ -70,11 +70,26 @@ private final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var openExercises: [Exercise] = []
     var liveEdge: (Session) -> LiveEdge
     var readAtCelebrationRequest: () -> Bool = { false }
+    var currentSession: Session?
     private(set) var celebrationRequests: [Bool] = []
     private(set) var shownAddresses: [SessionAddress] = []
+    private(set) var currentSessionShows = 0
 
     init(liveEdge: @escaping (Session) -> LiveEdge = { _ in .browsedAway }) {
         self.liveEdge = liveEdge
+    }
+
+    /// The live edge is `current`, as the store resolves it.
+    convenience init(current: Session?) {
+        self.init { session in
+            guard let current, session === current else { return .browsedAway }
+            return .atLiveEdge(currentSession: current)
+        }
+        currentSession = current
+    }
+
+    func showCurrent() {
+        currentSessionShows += 1
     }
 
     func liveEdge(for session: Session) -> LiveEdge {
@@ -2626,4 +2641,309 @@ private func letGoOfTheMic(
     coordinator.startDictation(for: slot.set)
 
     #expect(coordinator.cardDictation(for: slot) == .listening(caption: "Listening"))
+}
+
+@MainActor
+private struct HandsFreeFixture {
+    let coordinator: SessionCoordinator
+    let ledger: SessionVerbLedger
+    let navigation: SpySessionNavigationAdapter
+    let entry: AppEntryInbox
+    let dictation: SetDictation?
+    let clock: ManualListeningClock
+
+    /// Binds as the Session screen does when it shows `session`.
+    func show(_ session: Session?) {
+        coordinator.bind(
+            to: session,
+            logging: ledger,
+            sync: ledger,
+            liveActivity: ledger,
+            navigation: navigation,
+            motion: ledger,
+            entry: entry
+        )
+    }
+
+    func card(in session: Session) throws -> SetCardSlot {
+        try #require(exerciseStage(coordinator, in: session)?.card)
+    }
+
+    /// Lets the card's listen run until the athlete has been quiet a silence window.
+    func listenUntilQuiet(on slot: SetCardSlot, showing shown: @escaping @MainActor () -> SetLogDraft) async -> SetDictation.Outcome? {
+        let listening = Task { await coordinator.listenHandsFree(to: slot.set, showing: shown) }
+        await clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+        clock.advance(by: SetDictation.silenceWindow)
+        return await listening.value
+    }
+}
+
+/// `requested` delivers a request before the stage binds, as a cold launch from the Action button does.
+@MainActor
+private func makeHandsFreeFixture(
+    showing session: Session?,
+    current: Session?,
+    saying candidates: [String]? = ["185 for 6 at 7"],
+    requested: Bool = true
+) -> HandsFreeFixture {
+    let clock = ManualListeningClock()
+    let dictation = candidates.map { SetDictation(transcriber: CannedSetTranscriber(candidates: $0), clock: clock) }
+    let entry = AppEntryInbox()
+    if requested {
+        entry.deliver(.dictateCurrentSet)
+    }
+    let fixture = HandsFreeFixture(
+        coordinator: SessionCoordinator(transitionClock: ManualSessionTransitionClock(), dictation: dictation),
+        ledger: SessionVerbLedger(),
+        navigation: SpySessionNavigationAdapter(current: current),
+        entry: entry,
+        dictation: dictation,
+        clock: clock
+    )
+    fixture.ledger.coordinator = fixture.coordinator
+    fixture.show(session)
+    return fixture
+}
+
+@MainActor
+@Test func aRequestOnTheCurrentSessionListensForItsActiveSetAndWritesWhatIsSaidOnce() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+    #expect(fixture.coordinator.startsHandsFree(slot))
+
+    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+
+    let logged = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
+    #expect(outcome == .logged(logged, heard: "185 for 6 at 7"))
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.count == 1)
+    #expect(fixture.entry.pending == nil)
+    let held = try fixture.card(in: session)
+    #expect(held.mode == .heldAfterSpokenWrite)
+    #expect(held.set.setLog == logged)
+    #expect(!fixture.coordinator.startsHandsFree(held))
+}
+
+@MainActor
+@Test func aRequestIsTakenOnceTheCardListensSoTheCardDoesNotListenTwice() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+
+    #expect(fixture.entry.pending == nil)
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+    _ = await listening.value
+}
+
+@MainActor
+@Test func handsFreeListeningFillsWhatIsLeftUnsaidFromWhatTheCardShowsWhenItEnds() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, saying: ["for 5 at 8"])
+    let slot = try fixture.card(in: session)
+    var shown = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { shown } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+    shown = SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+
+    #expect(await listening.value == .logged(SetLog(weight: .pounds(190), reps: 5, rpe: .eight), heard: "for 5 at 8"))
+}
+
+@MainActor
+@Test func aRequestWhileAnotherSessionIsViewedShowsTheCurrentSessionThenListensThere() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current)
+
+    #expect(fixture.navigation.currentSessionShows == 1)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: viewed)))
+    #expect(fixture.entry.pending == .dictateCurrentSet)
+
+    fixture.show(current)
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+    #expect(fixture.navigation.currentSessionShows == 1)
+}
+
+@MainActor
+@Test func aRequestWithNoPendingSetOpensTheCurrentSessionAndEndsThere() throws {
+    let (current, done) = makeSingleSetSession(dayNumber: 1)
+    done.state = .logged
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current)
+
+    fixture.show(current)
+
+    #expect(fixture.navigation.currentSessionShows == 1)
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.ledger.entries.isEmpty)
+}
+
+@MainActor
+@Test func aRequestWithNoCurrentSessionEndsWhereTheStageIs() throws {
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: nil)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.pending == nil)
+}
+
+@MainActor
+@Test func aRequestWithNoMicOpensTheActiveSetAndEndsThere() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, saying: nil)
+
+    #expect(fixture.entry.pending == nil)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+}
+
+@MainActor
+@Test func aRequestWaitsWhileTheStageHasNoSession() {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    #expect(fixture.entry.pending == .dictateCurrentSet)
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestThatArrivesWhileTheStageShowsTheCurrentSessionIsAnsweredWhenItArrives() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+}
+
+@MainActor
+@Test func aSecondRequestWhileListeningDoesNothing() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+    let prefill = SpokenSetContext(for: slot.set, history: .empty).draft
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { prefill } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+    _ = await listening.value
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.count == 1)
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestWhileTheMicIsHeldDoesNothing() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let slot = try fixture.card(in: session)
+    #expect(fixture.coordinator.startDictation(for: slot.set))
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.dictation?.state.listeningSetID == firstBench)
+}
+
+@MainActor
+@Test func aRequestWhileTheCardHoldsASpokenSetMovesTheCardOnAndListensForTheNextSet() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    _ = await fixture.listenUntilQuiet(on: try fixture.card(in: session)) { SetLogDraft(weight: nil, reps: nil, rpe: nil) }
+    #expect(try fixture.card(in: session).mode == .heldAfterSpokenWrite)
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    let next = try fixture.card(in: session)
+    #expect(next.mode == .logging)
+    #expect(SessionCoordinator.activeSetID(for: next.set) == secondBench)
+    #expect(fixture.coordinator.startsHandsFree(next))
+}
+
+@MainActor
+@Test func aRequestWhileTheCardReviewsALoggedSetClosesTheReviewAndListensForTheActiveSet() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+    fixture.coordinator.focus(on: squat)
+    #expect(try fixture.card(in: session).mode == .reviewingLogged(showsSavedConfirmation: false))
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    let active = try fixture.card(in: session)
+    #expect(active.mode == .logging)
+    #expect(SessionCoordinator.activeSetID(for: active.set) == firstBench)
+    #expect(fixture.coordinator.startsHandsFree(active))
+}
+
+@MainActor
+@Test func aCardLeavingForAnotherSetLeavesThePressOfTheCardThatReplacedItRunning() async throws {
+    let (current, currentSet) = makeSingleSetSession(dayNumber: 1)
+    let (_, otherSessionsSet) = makeSingleSetSession(dayNumber: 3)
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let dictation = SetDictation(transcriber: transcriber)
+    let coordinator = SessionCoordinator(dictation: dictation)
+    coordinator.bind(to: current)
+    #expect(coordinator.startDictation(for: currentSet))
+
+    await coordinator.cancelDictation(of: otherSessionsSet)
+
+    #expect(dictation.state.listeningSetID == SessionCoordinator.activeSetID(for: currentSet))
+    let cancelling = Task { await coordinator.cancelDictation(of: currentSet) }
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    await cancelling.value
+    #expect(transcriber.wasCancelled)
+    #expect(dictation.state == .idle)
+}
+
+@MainActor
+@Test func aCardLeavingForAnotherSetOfTheSameSessionLeavesThePressRunning() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    #expect(coordinator.startDictation(for: try #require(bench.sets.first { $0.index == 0 })))
+
+    await coordinator.cancelDictation(of: try #require(bench.sets.first { $0.index == 1 }))
+
+    #expect(coordinator.cardDictation(for: try card(coordinator, in: session)) == .listening(caption: "Listening"))
+}
+
+@MainActor
+@Test func aRequestForAnActiveSetThatIsNotPendingEndsThere() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let skipped = try fixture.card(in: session).set
+    fixture.coordinator.skip(skipped)
+    fixture.coordinator.focus(on: skipped)
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+}
+
+@MainActor
+@Test func onlyTheCardOfTheSetARequestWaitsForCanTakeIt() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let other = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 })
+
+    #expect(await fixture.coordinator.listenHandsFree(to: other) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(fixture.entry.pending == .dictateCurrentSet)
 }

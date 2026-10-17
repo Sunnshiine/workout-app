@@ -382,7 +382,7 @@ extension ActiveSetCard {
                     dictation: dictation,
                     start: { coordinator.startDictation(for: slot.set) },
                     finish: { await coordinator.finishDictation(of: slot.set, resolvingAgainst: $0) },
-                    cancel: { await coordinator.cancelDictation() },
+                    cancel: { await coordinator.cancelDictation(of: slot.set) },
                     dismiss: { coordinator.dismissDictation() }
                 )
             },
