@@ -150,8 +150,8 @@ func numberWordsThatMakeNoOneNumberAreAmbiguous(transcript: String) {
 @Test(
     "Same again in any phrasing repeats the last Set",
     arguments: [
-        "same again", "Same.", "same as last", "the same as last time", "repeat", "repeat that", "again", "same as before",
-        "do the same"
+        "same again", "Same.", "same as last", "repeat", "repeat that", "again", "same as before", "do the same",
+        "repeat last set"
     ]
 )
 func sameAgainInAnyPhrasing(transcript: String) {
@@ -160,15 +160,26 @@ func sameAgainInAnyPhrasing(transcript: String) {
 
 @Test(
     "Skip in any phrasing skips the Set",
-    arguments: ["skip", "Skip it.", "skip set", "skip this set", "skip this one", "skipped", "I skipped it"]
+    arguments: ["skip", "Skip it.", "skip set", "skip this set", "skip this one", "skip that one", "skipped", "I skipped it"]
 )
 func skipInAnyPhrasing(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .success(.skip))
 }
 
-@Test func aCommandMixedWithNumbersIsUnrecognized() {
-    #expect(SpokenSet.parse("skip 185 for 5") == .failure(.unrecognized))
-    #expect(SpokenSet.parse("same again at 9") == .failure(.unrecognized))
+/// A command acts on this Set or the one before it, so a number or a time in one may name another.
+@Test(
+    "A command that names which Set or Session is ambiguous",
+    arguments: [
+        "skip set one", "skip one set", "skip set 2", "same as set one", "repeat set one", "repeat set two", "same as last time",
+        "the same as last time", "same as last week", "repeat that one time", "one again", "same one", "skip 185 for 5",
+        "same again at 9"
+    ]
+)
+func aCommandThatNamesWhichSetIsAmbiguous(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
+}
+
+@Test func aCommandWithAWordOutsideItsOwnIsUnrecognized() {
     #expect(SpokenSet.parse("skip again") == .failure(.unrecognized))
     #expect(SpokenSet.parse("same weight") == .failure(.unrecognized))
 }

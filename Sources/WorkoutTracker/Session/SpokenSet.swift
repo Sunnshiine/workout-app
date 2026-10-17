@@ -12,7 +12,7 @@ enum SpokenSet: Equatable, Sendable {
     enum Rejection: Error, Equatable, Sendable {
         /// Silence, or only filler such as "um".
         case nothingHeard
-        /// A word outside the grammar, a command mixed with numbers, or a word that labels no number.
+        /// A word outside the grammar, or a word that labels no number.
         case unrecognized
         /// Every Set Log is in pounds.
         case kilograms
@@ -21,8 +21,9 @@ enum SpokenSet: Equatable, Sendable {
         case fusedNumber
         /// A number no word places, as both numbers of "185, 5"; number words in a row that make no
         /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; a weight of 12 or
-        /// under for as many reps, as "5 by 5", the shorthand for Sets by reps; or alternatives that
-        /// disagree.
+        /// under for as many reps, as "5 by 5", the shorthand for Sets by reps; "or", a choice; a
+        /// command that names a Set or a Session, as "skip set one" or "same as last time"; or
+        /// alternatives that disagree.
         case ambiguous
         /// A value said twice, even as the same number or once cut off: the 4 and the 8 of "135 for 4,
         /// 8 reps", or a second Set, as in "185 for 5, 185 for 5" and "185 for 5 for 5".
@@ -52,8 +53,7 @@ enum SpokenSet: Equatable, Sendable {
         let meaningful = words.filter { !SpokenWord($0).isFiller }
         guard !meaningful.isEmpty else { throw .nothingHeard }
         if let command = SpokenCommand.all.first(where: { !$0.triggers.isDisjoint(with: meaningful) }) {
-            guard command.vocabulary.isSuperset(of: meaningful) else { throw .unrecognized }
-            return command.spokenSet
+            return try command.read(meaningful)
         }
         return try SpokenPhrase.values(in: SpokenTokens(words.map(SpokenWord.init)).tokens)
     }

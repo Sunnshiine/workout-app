@@ -162,10 +162,27 @@ struct SpokenCommand {
         ),
         SpokenCommand(
             triggers: ["same", "again", "repeat"],
-            vocabulary: ["same", "again", "repeat", "as", "last", "time", "before", "do", "set", "one", "that", "it", "previous"],
+            vocabulary: ["same", "again", "repeat", "as", "last", "before", "do", "set", "one", "that", "it", "previous"],
             spokenSet: .sameAgain
         )
     ]
+
+    /// The words that name a Session, as in "same as last time".
+    static let sessionWords: Set<String> = ["time", "week"]
+
+    /// The command, unless its words name which Set or Session, as "skip set one" and "same as last
+    /// time" do, because a command acts only on this Set and the one before it. The "one" of "this
+    /// one" and "that one" is this Set.
+    func read(_ words: [String]) throws(SpokenSet.Rejection) -> SpokenSet {
+        guard !zip([""] + words, words).contains(where: Self.namesASetOrSession) else { throw .ambiguous }
+        guard vocabulary.isSuperset(of: words) else { throw .unrecognized }
+        return spokenSet
+    }
+
+    private static func namesASetOrSession(after previous: String, _ word: String) -> Bool {
+        guard !sessionWords.contains(word) else { return true }
+        return SpokenNumber.read([SpokenWord(word)][...]) != nil && !(word == "one" && ["this", "that"].contains(previous))
+    }
 }
 
 /// One number as an athlete says it: "185", "one thirty five", "a hundred and eighty five",
