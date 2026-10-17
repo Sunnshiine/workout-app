@@ -26,3 +26,4 @@ than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST
 | `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration, which shows only when the Current Session offers Move On. |
 | `-UITEST_APPEARANCE` | Switch | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
 | `-UITEST_LONG_CELEBRATION_QUOTE` | Switch | Shows a long fixture quote in the Move On Celebration in place of a random approved one. |
+| `-UITEST_DICTATION` | Switch | Takes a transcript as the next argument and gives the Active Set Card a mic that hears it, in place of SpeechAnalyzer, which does not run in the Simulator. |

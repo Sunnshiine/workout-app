@@ -554,25 +554,43 @@ extension SessionCoordinator {
     }
 
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
-    /// they left unsaid read from `shown`, the card's values. A press begun on another Session, or
-    /// for a Set no longer Pending once the transcript is in, writes nothing.
-    func finishDictation(resolvingAgainst shown: SetLogDraft) async -> SetDictation.Outcome? {
+    /// they left unsaid read from `shown`, the values of `set`'s card. A press begun on another
+    /// Session or for another Set, or for a Set no longer Pending once the transcript is in, writes
+    /// nothing.
+    func finishDictation(of set: ExerciseSet, resolvingAgainst shown: SetLogDraft) async -> SetDictation.Outcome? {
         guard let dictation, let setID = dictation.state.listeningSetID else { return nil }
-        guard let session, session === dictatingSession, let set = session.set(at: setID) else {
+        guard let session = sessionOfPress(for: setID, releasedOn: set) else {
             await dictation.cancel()
             return nil
         }
         guard let outcome = await dictation.finish(for: setID, in: SpokenSetContext(for: set, showing: shown)) else { return nil }
-        guard self.session === session, let set = session.set(at: setID), set.isPending else {
+        guard let set = pendingSet(at: setID, in: session) else {
             dictation.dismiss()
             return nil
         }
+        write(outcome, to: set)
+        return outcome
+    }
+
+    /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
+    private func sessionOfPress(for setID: ActiveSetID, releasedOn set: ExerciseSet) -> Session? {
+        guard let session, session === dictatingSession, Self.activeSetID(for: set) == setID, set.exercise?.session === session else {
+            return nil
+        }
+        return session
+    }
+
+    private func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
+        guard self.session === session, let set = session.set(at: setID), set.isPending else { return nil }
+        return set
+    }
+
+    private func write(_ outcome: SetDictation.Outcome, to set: ExerciseSet) {
         switch outcome {
         case .logged(let setLog, _): log(set, as: setLog, from: .speech)
         case .skipped: skip(set, from: .speech)
         case .filled, .rejected: break
         }
-        return outcome
     }
 
     /// Stops a press whose control left the screen, writing nothing.

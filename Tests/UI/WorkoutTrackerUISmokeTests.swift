@@ -72,6 +72,54 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
+    func testSayingASetLogsItAndHoldsItOnTheCardWithClearBeforeMovingOn() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+
+        app.buttons["say-set-button"].press(forDuration: 1)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists, "the card holds the Set it just logged")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
+        XCTAssertTrue(app.buttons["clear-logged-set-menu"].exists)
+        XCTAssertFalse(app.buttons["say-set-button"].exists)
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 8), "the hold ends and the card moves on")
+        XCTAssertTrue(app.buttons["say-set-button"].exists)
+    }
+
+    @MainActor
+    func testATouchOnTheHeldCardMovesOnWithoutChangingTheSetItWrote() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        app.buttons["say-set-button"].press(forDuration: 1)
+        XCTAssertTrue(app.buttons["clear-logged-set-menu"].appears(within: 3))
+
+        app.buttons["rpe-7.5"].tap()
+
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].exists, "the touch only moves the card on")
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists)
+    }
+
+    @MainActor
+    func testASpokenSetThatDoesNotReadWritesNothingAndShowsWhatWasHeard() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "100 kilos for 5")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+
+        app.buttons["say-set-button"].press(forDuration: 1)
+
+        let heard = app.descendants(matching: .any)["spoken-set-capsule"]
+        waitForLabel("“100 kilos for 5”", on: heard)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        let banner = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Sync status:")).firstMatch
+        XCTAssertFalse(banner.appears(within: 1), "nothing was queued for the Sheet")
+
+        heard.tap()
+
+        waitForLabel("Log 237.5 × 5 @6", on: app.buttons["log-active-set-button"])
+    }
+
+    @MainActor
     private func launchCurrentSessionSmokeApp() -> XCUIApplication {
         launchWorkoutApp(fixture: .currentSession)
     }

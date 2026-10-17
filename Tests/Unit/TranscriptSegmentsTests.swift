@@ -71,6 +71,15 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
     #expect(segments.heard == "135 for 4")
 }
 
+@Test func phrasesReportedWithNoLengthOfAudioReadInTheOrderHeard() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("185 for 5"), from: 0, to: 0, isFinal: true)
+    segments.receive(segment(" at 8."), from: 0, to: 0, isFinal: false)
+
+    #expect(segments.heard == "185 for 5 at 8.")
+}
+
 @Test func aTranscriberThatNeverFinishesKeepsEachPhraseItHeardWithASpaceBetween() {
     var segments = TranscriptSegments()
 

@@ -2076,12 +2076,22 @@ private func makeDictationCoordinator(
     saying candidates: [String],
     restTimer: RestTimer? = nil
 ) -> (coordinator: SessionCoordinator, ledger: SessionVerbLedger, clock: ManualSessionTransitionClock) {
+    makeDictationCoordinator(
+        session: session,
+        dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: candidates)),
+        restTimer: restTimer
+    )
+}
+
+@MainActor
+private func makeDictationCoordinator(
+    session: Session,
+    dictation: SetDictation,
+    restTimer: RestTimer? = nil
+) -> (coordinator: SessionCoordinator, ledger: SessionVerbLedger, clock: ManualSessionTransitionClock) {
     let ledger = SessionVerbLedger()
     let clock = ManualSessionTransitionClock()
-    let coordinator = SessionCoordinator(
-        transitionClock: clock,
-        dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: candidates))
-    )
+    let coordinator = SessionCoordinator(transitionClock: clock, dictation: dictation)
     coordinator.bind(
         to: session,
         logging: ledger,
@@ -2105,7 +2115,7 @@ private func card(_ coordinator: SessionCoordinator, in session: Session) throws
 private func sayIntoTheCard(_ coordinator: SessionCoordinator, in session: Session) async throws -> SetDictation.Outcome? {
     let set = try card(coordinator, in: session).set
     coordinator.startDictation(for: set)
-    return await coordinator.finishDictation(resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+    return await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
 }
 
 private let firstBench = ActiveSetID(exerciseOrder: 1, setIndex: 0)
@@ -2146,7 +2156,7 @@ private let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
     let set = try card(coordinator, in: session).set
     coordinator.startDictation(for: set)
 
-    let outcome = await coordinator.finishDictation(resolvingAgainst: SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven))
+    let outcome = await coordinator.finishDictation(of: set, resolvingAgainst: SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven))
 
     let logged = SetLog(weight: .pounds(190), reps: 5, rpe: .eight)
     #expect(outcome == .logged(logged, heard: "for 5 at 8"))
@@ -2296,7 +2306,7 @@ private let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
     let slot = try #require(supersetStage(coordinator, in: session)?.card)
 
     coordinator.startDictation(for: slot.set)
-    _ = await coordinator.finishDictation(resolvingAgainst: SpokenSetContext(for: slot.set, history: .empty).draft)
+    _ = await coordinator.finishDictation(of: slot.set, resolvingAgainst: SpokenSetContext(for: slot.set, history: .empty).draft)
 
     let next = try #require(supersetStage(coordinator, in: session)?.card)
     #expect(next.mode == .logging)
@@ -2376,12 +2386,79 @@ private let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
     coordinator.startDictation(for: firstSet)
 
     coordinator.bind(to: second)
-    let outcome = await coordinator.finishDictation(resolvingAgainst: SpokenSetContext(for: firstSet, history: .empty).draft)
+    let outcome = await coordinator.finishDictation(of: firstSet, resolvingAgainst: SpokenSetContext(for: firstSet, history: .empty).draft)
 
     #expect(outcome == nil)
     #expect(ledger.entries.isEmpty)
     #expect(secondSet.isPending)
     #expect(coordinator.cardDictation(for: try card(coordinator, in: second)) == .ready)
+}
+
+@MainActor
+@Test func aReleaseOnACardNowShowingAnotherSetWritesNothingAndFreesTheMic() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let pressed = try card(coordinator, in: session).set
+    let next = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 })
+    coordinator.startDictation(for: pressed)
+    let entriesBeforeTheRelease = ledger.entries.count
+
+    let outcome = await coordinator.finishDictation(of: next, resolvingAgainst: SpokenSetContext(for: next, history: .empty).draft)
+
+    #expect(outcome == nil)
+    #expect(ledger.entries.count == entriesBeforeTheRelease)
+    #expect(pressed.isPending && next.isPending)
+    #expect(coordinator.cardDictation(for: try card(coordinator, in: session)) == .ready)
+}
+
+@MainActor
+@Test func aSetLoggedByTapWhileItsTranscriptCameInIsWrittenOnceAndThePressLetGo() async throws {
+    let session = makeCoordinatorSession()
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let dictation = SetDictation(transcriber: transcriber)
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)
+    let set = try card(coordinator, in: session).set
+    coordinator.startDictation(for: set)
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    let releasing = Task {
+        await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+    }
+    await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
+
+    let tapped = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+    coordinator.log(set, as: tapped)
+    let entriesAfterTheTap = ledger.entries.count
+    transcriber.finishing.release()
+
+    #expect(await releasing.value == nil)
+    #expect(ledger.entries.count == entriesAfterTheTap)
+    #expect(set.setLog == tapped)
+    #expect(dictation.state == .idle)
+}
+
+@MainActor
+@Test func aSessionChangedWhileTheTranscriptCameInGetsNothingWrittenAndThePressLetGo() async throws {
+    let (first, firstSet) = makeSingleSetSession(dayNumber: 1)
+    let (second, secondSet) = makeSingleSetSession(dayNumber: 2)
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let dictation = SetDictation(transcriber: transcriber)
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: first, dictation: dictation)
+    coordinator.startDictation(for: firstSet)
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    let releasing = Task {
+        await coordinator.finishDictation(of: firstSet, resolvingAgainst: SpokenSetContext(for: firstSet, history: .empty).draft)
+    }
+    await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
+
+    coordinator.bind(to: second)
+    transcriber.finishing.release()
+
+    #expect(await releasing.value == nil)
+    #expect(ledger.entries.isEmpty)
+    #expect(firstSet.isPending && secondSet.isPending)
+    #expect(dictation.state == .idle)
 }
 
 @MainActor

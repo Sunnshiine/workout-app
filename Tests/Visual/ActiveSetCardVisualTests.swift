@@ -18,6 +18,19 @@ struct ActiveSetCardVisualTests {
         try assertCardSnapshot(makeCardScenario(), setOrdinal: 3, history: [], appearance: .night, colorScheme: .dark)
     }
 
+    /// The one card render with a transcriber: every other suite runs without one, so the mic
+    /// leaves their baselines alone.
+    @Test func activeSetCardWithTheMicMatchesVisualBaseline() throws {
+        try assertCardSnapshot(
+            makeCardScenario(),
+            setOrdinal: 3,
+            history: [],
+            appearance: .day,
+            colorScheme: .light,
+            mic: SetCardMic(dictation: .ready, start: {}, finish: { _ in nil }, cancel: {}, dismiss: {})
+        )
+    }
+
     @Test func activeSetCardWithAHistoryEstimateMatchesVisualBaseline() throws {
         let lastBlock = LastPerformedEntry(
             fullName: "Competition Bench Press",
@@ -60,6 +73,7 @@ struct ActiveSetCardVisualTests {
         history: [LastPerformedEntry],
         appearance: Theme.Appearance,
         colorScheme: ColorScheme,
+        mic: SetCardMic? = nil,
         fileID: StaticString = #fileID,
         file: StaticString = #filePath,
         testName: String = #function,
@@ -81,6 +95,7 @@ struct ActiveSetCardVisualTests {
                     set: card.set,
                     setOrdinal: setOrdinal,
                     setCount: 5,
+                    mic: mic,
                     onLog: { _ in },
                     onSkip: {},
                     onDelete: {}

@@ -8,7 +8,7 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
-    @State private var coordinator = SessionCoordinator(session: nil)
+    @State private var coordinator: SessionCoordinator
     #if canImport(UserNotifications)
         @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
     #else
@@ -17,8 +17,13 @@ struct SessionView: View {
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
-    init(liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter()) {
+    /// No transcriber leaves the mic off every card.
+    init(
+        liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter(),
+        transcriber: (any SetTranscriber)? = nil
+    ) {
         self.liveActivityAdapter = liveActivityAdapter
+        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: transcriber.map { SetDictation(transcriber: $0) }))
     }
 
     var body: some View {

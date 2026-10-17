@@ -145,12 +145,17 @@ final class SetDictation {
             chosen.spokenSet.resolved(against: context.draft, previous: context.previous).map { (chosen.source, $0) }
         }
         switch resolved {
-        case .success((.top, .log(let setLog))): return .logged(setLog, heard: heard)
-        case .success((.alternative, .log(let setLog))): return .filled(SetLogDraft(setLog), heard: heard)
-        case .success((.top, .skip)): return .skipped(heard: heard)
-        case .success((.alternative, .skip)): return .rejected(.spokenSet(.ambiguous), heard: heard)
-        case .success((_, .missingValues(let values))): return .filled(values, heard: heard)
+        case .success((let source, let resolution)): return outcome(of: resolution, from: source, heard: heard)
         case .failure(let rejection): return .rejected(.spokenSet(rejection), heard: heard)
+        }
+    }
+
+    private nonisolated static func outcome(of resolution: SpokenSetOutcome, from source: SpokenSet.Source, heard: String) -> Outcome {
+        let writes = source == .top
+        switch resolution {
+        case .log(let setLog): return writes ? .logged(setLog, heard: heard) : .filled(SetLogDraft(setLog), heard: heard)
+        case .skip: return writes ? .skipped(heard: heard) : .rejected(.spokenSet(.ambiguous), heard: heard)
+        case .missingValues(let values): return .filled(values, heard: heard)
         }
     }
 }
@@ -182,12 +187,24 @@ enum SetCardDictation: Equatable {
 
     init(_ state: SetDictation.State, for setID: ActiveSetID) {
         switch state {
-        case .preparing(setID): self = .listening(caption: "Listening")
-        case .listening(setID, let heard): self = .listening(caption: heard.isEmpty ? "Listening" : heard)
+        case .preparing(setID), .listening(setID, _): self = .listening(caption: state.heard.isEmpty ? "Listening" : state.heard)
         case .finished(setID, .rejected(let rejection, let heard)): self = .rejected(caption: Self.caption(rejection, heard: heard))
         case .finished(setID, .filled(let values, _)): self = .filled(values)
         case .idle, .preparing, .listening, .finished: self = .ready
         }
+    }
+
+    /// What the capsule says in place of the Log button; nil leaves the Log button.
+    var caption: String? {
+        switch self {
+        case .listening(let caption), .rejected(let caption): caption
+        case .ready, .filled: nil
+        }
+    }
+
+    var isListening: Bool {
+        guard case .listening = self else { return false }
+        return true
     }
 
     private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
@@ -196,6 +213,22 @@ enum SetCardDictation: Equatable {
         case .transcriber(.unavailable): "Speech isn’t available"
         case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
         case .spokenSet, .transcriber(.failed): heard.isEmpty ? "Nothing heard" : "“\(heard)”"
+        }
+    }
+}
+
+extension SetDictation {
+    /// The mic's press, as a weight step answers a tap.
+    nonisolated static let startHaptic = Haptic.input(Theme.Haptics.stepperTick)
+}
+
+extension SetDictation.Outcome {
+    /// A write feels like the tap it stands in for; anything the athlete still has to act on warns.
+    var haptic: Haptic {
+        switch self {
+        case .logged: .input(Theme.Haptics.logTap)
+        case .skipped: .input(Theme.Haptics.skipDud)
+        case .filled, .rejected: .warning
         }
     }
 }
