@@ -104,7 +104,7 @@ private func drift(seeded: Block, parsed: Block) -> [Drift] {
         // workbook authors a calendar day that `SheetParser.parseDate` resolves in the machine's
         // time zone, so a recorded pair of instants passes in EDT and fails on a UTC runner. A
         // seeded workbook's dates are pinned instead, machine-independently, by
-        // `theSeededPartialUploadDatesAreItsWorkbooksDateCells`.
+        // `theSeededFourWeekDatesAreTheirWorkbooksDateCells`.
         noteExerciseDrift(seeded: seededSession, parsed: parsedSession, at: address, into: log)
     }
     return log.drift
@@ -227,7 +227,7 @@ private let scenariosAwaitingAWorkbook: Set<UITestLaunch.Scenario> = [
 ]
 
 /// Every difference between the two sides today, in address order, with the side that is wrong
-/// named per entry. Three of the eight hand-built Block factories — `currentSessionWithPendingSetsBlock`,
+/// named per entry. Three of the seven hand-built Block factories — `currentSessionWithPendingSetsBlock`,
 /// `partiallyLoggedSessionBlock`, `blockOverviewWithMixedSessionStatesBlock` — reach no launch
 /// scenario and are used only by `Tests/Support/WorkoutScenarios.swift`, so they are out of this
 /// list until #571 item 5 points that file at the same source.
@@ -237,24 +237,9 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
     // the base name "Accessory", a pair no name cell yields, and the workbook authors the name the
     // Stage renders.
     .partialUpload: [],
-    // The hand-built graph names each Accessory after its Session while asserting the base name
-    // "Accessory", a pair no name cell yields. The workbook authors the name the Stage renders, as
-    // `partial-upload` does.
-    .fullBlock: [
-        .field("w1d4.e0", "name", seeded: "Accessory W1 D4", parsed: "Accessory"),
-        .field("w2d1.e0", "name", seeded: "Accessory W2 D1", parsed: "Accessory"),
-        .field("w2d2.e0", "name", seeded: "Accessory W2 D2", parsed: "Accessory"),
-        .field("w2d3.e0", "name", seeded: "Accessory W2 D3", parsed: "Accessory"),
-        .field("w2d4.e0", "name", seeded: "Accessory W2 D4", parsed: "Accessory"),
-        .field("w3d1.e0", "name", seeded: "Accessory W3 D1", parsed: "Accessory"),
-        .field("w3d2.e0", "name", seeded: "Accessory W3 D2", parsed: "Accessory"),
-        .field("w3d3.e0", "name", seeded: "Accessory W3 D3", parsed: "Accessory"),
-        .field("w3d4.e0", "name", seeded: "Accessory W3 D4", parsed: "Accessory"),
-        .field("w4d1.e0", "name", seeded: "Accessory W4 D1", parsed: "Accessory"),
-        .field("w4d2.e0", "name", seeded: "Accessory W4 D2", parsed: "Accessory"),
-        .field("w4d3.e0", "name", seeded: "Accessory W4 D3", parsed: "Accessory"),
-        .field("w4d4.e0", "name", seeded: "Accessory W4 D4", parsed: "Accessory")
-    ]
+    // Seeded from its own workbook (#968). Its last entries were thirteen Accessory names, dropped
+    // for the reason `partial-upload`'s two were.
+    .fullBlock: []
 ]
 
 // MARK: - The gate
@@ -277,11 +262,12 @@ private func aPairedScenarioDriftsOnlyWhereRecorded(pair: PairedScenario) throws
 /// The workbook authors a calendar day and `SheetParser.parseDate` resolves it as local midnight,
 /// so a recorded instant would read EDT on this machine and something else on a UTC runner. Each
 /// seeded Session's local calendar day must be its date cell, which holds in every zone. The cells
-/// keep the hand-built graph's 7-day stride from the reference date, so under `TZ=UTC` the seeded
-/// instants are the ones the graph used to hand over.
+/// keep the hand-built graphs' 7-day stride from the reference date, so under `TZ=UTC` the seeded
+/// instants are the ones the graphs used to hand over. Both four-Week scenarios share the cells.
 @MainActor
-@Test func theSeededPartialUploadDatesAreItsWorkbooksDateCells() throws {
-    let seeded = sessionsByAddress(UITestFixture.block(for: .partialUpload))
+@Test(arguments: [UITestLaunch.Scenario.partialUpload, .fullBlock])
+func theSeededFourWeekDatesAreTheirWorkbooksDateCells(scenario: UITestLaunch.Scenario) throws {
+    let seeded = sessionsByAddress(UITestFixture.block(for: scenario))
     // Keyed by address and checked for coverage below, because the walk does not compare `date`:
     // this table is the only thing watching it, so a newly added Session must not slip past.
     let expected: [String: String] = [

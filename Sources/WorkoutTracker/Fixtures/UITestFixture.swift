@@ -39,8 +39,8 @@
             try context.save()
         }
 
-        /// One Block factory per scenario. `.partialUpload` parses its workbook the way a sync does;
-        /// the rest still hand-build a graph until their slice of #571 lands. A table has no
+        /// One Block factory per scenario. `.partialUpload` and `.fullBlock` parse their workbooks the
+        /// way a sync does; the rest still hand-build a graph until their slice of #571 lands. A table has no
         /// compiler exhaustiveness check, so `everyScenarioSeedsItsOwnFixtureBlock` in
         /// `Tests/Unit/UITestFixtureBlockTests.swift` is what keeps a new scenario from reaching
         /// `seed` without a row.
@@ -50,7 +50,7 @@
             .completedOpenExercises: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock,
             .openExercises: WorkoutFixtureScenarios.openExercisesBlock,
             .longSession: WorkoutFixtureScenarios.longSessionBlock,
-            .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock,
+            .fullBlock: WorkbookScenario.fullBlock.block,
             .partialUpload: WorkbookScenario.partialUpload.block
         ]
 

@@ -18,7 +18,7 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_COMPLETED_OPEN_EXERCISES` | Scenario 2 | Seeds one Week whose Day 2 has every Set Logged while Day 1's Back Squat still has a Pending Set. |
 | `-UITEST_OPEN_EXERCISES` | Scenario 3 | Seeds one Week whose Days 1 to 3 each hold one Open Exercise with some Sets Logged. |
 | `-UITEST_LONG_SESSION` | Scenario 4 | Seeds one Session of eight Exercises with only the first logged. |
-| `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds four Weeks of four Sessions, every one an Available Session. |
+| `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
 | `-UITEST_PENDING_WRITE` | Switch | Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block, so a sync writes it and reloads that Block in place of the Scenario's. |
