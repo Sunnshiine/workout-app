@@ -44,11 +44,6 @@
         }
 
         @MainActor
-        static func partiallyUploadedBlock() -> Block {
-            WorkoutFixtureBlocks.partiallyUploadedBlock()
-        }
-
-        @MainActor
         static func perfectMoveOnCelebrationBlock() -> Block {
             WorkoutFixtureBlocks.perfectMoveOnCelebrationBlock()
         }
@@ -124,9 +119,6 @@
         }
     }
 
-    // Fixture data, not behavior: every line is one literal Block graph a scenario reads. Extracting
-    // half of it to a second enum would only move literals, so the count is not measuring anything.
-    // swiftlint:disable:next type_body_length
     private enum WorkoutFixtureBlocks {
         typealias Factory = WorkoutFixtureFactory
 
@@ -213,20 +205,6 @@
                     ),
                     Factory.week(2, sessions: [upcomingOverviewSession()])
                 ]
-            )
-        }
-
-        @MainActor
-        static func partiallyUploadedBlock() -> Block {
-            Factory.block(
-                weeks: (1...4).map { weekNumber in
-                    Factory.week(
-                        weekNumber,
-                        sessions: (1...4).map { dayNumber in
-                            partialUploadSession(at: SessionAddress(week: weekNumber, day: dayNumber))
-                        }
-                    )
-                }
             )
         }
 
@@ -336,23 +314,6 @@
                     [Factory.deadlift()]
                 default:
                     [Factory.accessory(named: ExerciseName(entered: "Accessory W\(address.week) D\(address.day)"))]
-                }
-            return Factory.session(at: address, exercises: exercises)
-        }
-
-        private static func partialUploadSession(at address: SessionAddress) -> Session {
-            let exercises: [Exercise] =
-                switch (address.week, address.day) {
-                case (1, 1):
-                    [Factory.backSquat(), Factory.rdl()]
-                case (1, 2):
-                    [Factory.benchPress(), Factory.pullUp()]
-                case (2, 1):
-                    [Factory.deadlift()]
-                case (3, 1), (4, 1):
-                    [Factory.accessory(named: "Accessory")]
-                default:
-                    []
                 }
             return Factory.session(at: address, exercises: exercises)
         }

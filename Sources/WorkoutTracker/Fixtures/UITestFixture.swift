@@ -39,9 +39,11 @@
             try context.save()
         }
 
-        /// One Block factory per scenario. A table has no compiler exhaustiveness check, so
-        /// `everyScenarioSeedsItsOwnFixtureBlock` in `Tests/Unit/UITestFixtureBlockTests.swift`
-        /// is what keeps a new scenario from reaching `seed` without a row.
+        /// One Block factory per scenario. `.partialUpload` parses its workbook the way a sync does;
+        /// the rest still hand-build a graph until their slice of #571 lands. A table has no
+        /// compiler exhaustiveness check, so `everyScenarioSeedsItsOwnFixtureBlock` in
+        /// `Tests/Unit/UITestFixtureBlockTests.swift` is what keeps a new scenario from reaching
+        /// `seed` without a row.
         @MainActor
         private static let blocks: [UITestLaunch.Scenario: @MainActor () -> Block] = [
             .perfectMoveOnCelebration: WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock,
@@ -49,7 +51,7 @@
             .openExercises: WorkoutFixtureScenarios.openExercisesBlock,
             .longSession: WorkoutFixtureScenarios.longSessionBlock,
             .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock,
-            .partialUpload: WorkoutFixtureScenarios.partiallyUploadedBlock
+            .partialUpload: WorkbookScenario.partialUpload.block
         ]
 
         @MainActor
