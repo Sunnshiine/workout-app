@@ -248,6 +248,18 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test func selectingASheetWithNoBlockTabIsRefusedWithThatReason() async throws {
+    let workbook = LocalWorkbook(spreadsheetId: "NOTES", title: "Notes", tabs: ["Intro": .init(cells: ["A1": "Hello"])])
+    let app = try WorkoutApplication(environment: .inMemory(workbook: workbook, now: { frozenNow }))
+
+    await #expect(throws: ApplicationError.sheetSwitchFailed("No training blocks found in this sheet")) {
+        try await app.selectSpreadsheet(id: "NOTES", title: "Notes")
+    }
+
+    #expect(try app.snapshot().spreadsheetId == nil)
+}
+
+@MainActor
 @Test func selectingAnotherSheetOverQueuedSetLogsAsksForTheirDiscard() async throws {
     let app = try await makeSelectedApp()
     _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")

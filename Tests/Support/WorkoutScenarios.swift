@@ -40,7 +40,7 @@ enum WorkoutScenarios {
 
         let settings = SettingsStore(defaults: .inMemory())
         settings.isSignedIn = true
-        settings.setSheetURL(WorkoutFixtureScenarios.sheetURL)
+        settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId)
 
         let store = WorkoutStore(context: context, defaults: .inMemory())
         store.reload()
