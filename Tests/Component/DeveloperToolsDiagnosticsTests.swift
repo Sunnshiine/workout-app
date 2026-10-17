@@ -337,5 +337,5 @@ private struct DiagnosticStubClient: SheetsClient {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         SheetSnapshot(values: [])
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }

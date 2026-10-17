@@ -143,8 +143,13 @@ private func assertVisibleWritableParsedState(_ parsed: ParsedBlock) throws {
     #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
     #expect(batches.count == 2)
-    #expect(batches[0].map(\.range) == ["'Block 27'!K43"])
-    #expect(batches[1].map(\.range) == ["'Block 27'!K43", "'Block 27'!I41", "'Block 27'!K48", "'Block 27'!I46"])
+    #expect(batches[0].map(\.target) == [SheetWriteTarget(tabName: "Block 27", a1: "K43")])
+    #expect(
+        batches[1].map(\.target) == [
+            SheetWriteTarget(tabName: "Block 27", a1: "K43"), SheetWriteTarget(tabName: "Block 27", a1: "I41"),
+            SheetWriteTarget(tabName: "Block 27", a1: "K48"), SheetWriteTarget(tabName: "Block 27", a1: "I46")
+        ]
+    )
 }
 
 @MainActor

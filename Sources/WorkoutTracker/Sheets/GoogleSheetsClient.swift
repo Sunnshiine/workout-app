@@ -163,15 +163,8 @@ struct GoogleSheetsClient: SheetsClient {
         return Self.snapshot(from: response)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        try await updateCells(
-            spreadsheetId: spreadsheetId,
-            updates: [SheetValueRangeUpdate(range: range, values: values)]
-        )
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        guard !updates.isEmpty else { return }
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        guard !cells.isEmpty else { return }
         guard
             let url = URL(
                 string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate"
@@ -186,8 +179,12 @@ struct GoogleSheetsClient: SheetsClient {
         req.httpBody = try JSONEncoder().encode(
             GoogleSheetsBatchUpdateBody(
                 valueInputOption: "USER_ENTERED",
-                data: updates.map { update in
-                    GoogleSheetsValueRange(range: update.range, majorDimension: "ROWS", values: update.values)
+                data: cells.map { cell in
+                    GoogleSheetsValueRange(
+                        range: singleCellRange(tabName: cell.tabName, row: cell.row, col: cell.col),
+                        majorDimension: "ROWS",
+                        values: [[cell.value]]
+                    )
                 }
             )
         )

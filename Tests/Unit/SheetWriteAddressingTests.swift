@@ -135,6 +135,5 @@ private func planError(
     let planner = SheetWritePlanner()
     let update = try planner.plan(addressingRequest(column: .lastSetRPE), in: addressingGrid())
 
-    #expect(update.range == "'Block 27'!I15")
-    #expect(update.value == "185x5@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "I15", value: "185x5@8"))
 }

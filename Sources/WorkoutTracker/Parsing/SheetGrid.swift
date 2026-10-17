@@ -63,43 +63,6 @@ func a1CellIndex(_ reference: String) -> (row: Int, col: Int)? {
     return (row: rowNumber - 1, col: colNumber - 1)
 }
 
-/// A rectangle of cells by zero-based origin and extent.
-struct SheetCellRange: Equatable, Sendable {
-    let row: Int
-    let col: Int
-    let rowCount: Int
-    let colCount: Int
-}
-
-/// The zero-based origin and extent an A1 cell range names, or nil when it is not one
-/// ("K15:L16" starts at (14, 10) and spans 2 by 2).
-///
-/// A lone cell reference is a 1 by 1 range. Uppercase only, like `a1CellIndex`.
-func a1CellRange(_ reference: String) -> SheetCellRange? {
-    let endpoints = reference.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
-    guard
-        let start = a1CellIndex(String(endpoints[0])),
-        let end = a1CellIndex(String(endpoints[endpoints.count - 1])),
-        end.row >= start.row,
-        end.col >= start.col
-    else {
-        return nil
-    }
-    return SheetCellRange(row: start.row, col: start.col, rowCount: end.row - start.row + 1, colCount: end.col - start.col + 1)
-}
-
-/// Splits an A1 range such as `'Coach''s Block'!K15:L16` into its tab name and its cell reference.
-///
-/// A quoted tab name may contain `!` and spells an apostrophe `''`; a bare one may contain neither.
-func splitA1Range(_ range: String) -> (tabName: String, reference: String)? {
-    if let quoted = range.wholeMatch(of: /'((?:[^']|'')*)'!(.+)/) {
-        let tabName = String(quoted.1).replacingOccurrences(of: "''", with: "'")
-        return tabName.isEmpty ? nil : (tabName, String(quoted.2))
-    }
-    guard let bare = range.wholeMatch(of: /([^'!]+)!(.+)/) else { return nil }
-    return (tabName: String(bare.1), reference: String(bare.2))
-}
-
 extension Array where Element == [String] {
     func cell(row: Int, col: Int) -> String {
         guard row >= 0, row < count, col >= 0, col < self[row].count else { return "" }

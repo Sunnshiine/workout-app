@@ -7,7 +7,7 @@ import Testing
 private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var fetches: [String] = []
-    var updates: [(String, [[String]])] = []
+    var writes: [SheetCellWrite] = []
     var shouldThrowOffline = false
     var shouldFailUpdates = false
 
@@ -21,14 +21,9 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
         fetches.append(tabName)
         return SheetSnapshot(values: grid)
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         if shouldFailUpdates { throw URLError(.timedOut) }
-        updates.append((range, values))
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        if shouldFailUpdates { throw URLError(.timedOut) }
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -52,8 +47,8 @@ private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
         try await coordinator.fetchTabSnapshot()
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        await coordinator.recordUpdate(range: range, values: values)
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        await coordinator.record(cells)
     }
 
     func waitForFetch() async {
@@ -64,8 +59,8 @@ private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
         await coordinator.completeFetch(with: grid)
     }
 
-    func updates() async -> [(String, [[String]])] {
-        await coordinator.updates
+    func writes() async -> [SheetCellWrite] {
+        await coordinator.writes
     }
 }
 
@@ -142,7 +137,7 @@ private func pendingWrite(
 
     await flushTask.value
 
-    #expect(await client.updates().count == 1)
+    #expect(await client.writes().count == 1)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -194,8 +189,12 @@ private func pendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.fetches == ["Block 27"])
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x6@8")
+        ]
+    )
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -227,8 +226,13 @@ private func pendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(counter.count == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@8"]], [["8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8, 195x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "I15", value: "8")
+        ]
+    )
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -264,7 +268,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
+    #expect(client.writes.map(\.target) == [SheetWriteTarget(tabName: "Block 27", a1: "K15")])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -304,7 +308,7 @@ private func pendingWrite(
     #expect(client.fetches == ["Block 27"])
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(write.status == .conflict)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome.isWritesRefused)
 }
 
@@ -331,8 +335,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8")])
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.count == 1)
     let conflict = try #require(writes.first)
@@ -362,7 +365,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome == .writesRefused(["Squat: Day 1 was not found in the sheet"]))
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
@@ -458,7 +461,7 @@ private actor ControlledFlushCoordinator {
     private var fetchContinuation: CheckedContinuation<SheetSnapshot, Error>?
     private var hasFetchStarted = false
     private var fetchWaiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var updates: [(String, [[String]])] = []
+    private(set) var writes: [SheetCellWrite] = []
 
     func fetchTabSnapshot() async throws -> SheetSnapshot {
         hasFetchStarted = true
@@ -484,8 +487,8 @@ private actor ControlledFlushCoordinator {
         fetchContinuation = nil
     }
 
-    func recordUpdate(range: String, values: [[String]]) {
-        updates.append((range, values))
+    func record(_ cells: [SheetCellWrite]) {
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -511,7 +514,7 @@ extension SyncOutcome {
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(sync.outcome == .writesQueued(2))
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })
     #expect(writes.sorted { $0.createdAt < $1.createdAt }.map(\.retryCount) == [1, 0])

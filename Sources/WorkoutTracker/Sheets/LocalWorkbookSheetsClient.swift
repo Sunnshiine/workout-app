@@ -156,8 +156,6 @@
     enum LocalWorkbookSheetsClientError: Error, Equatable, Sendable, CustomStringConvertible {
         case unknownTab(String)
         case writeFailed(Int)
-        case malformedRange(String)
-        case unsupportedValues(String)
 
         var description: String {
             switch self {
@@ -165,10 +163,6 @@
                 "Unknown tab: \(tab)"
             case .writeFailed(let requestNumber):
                 "Write request \(requestNumber) failed"
-            case .malformedRange(let range):
-                "Malformed A1 range: \(range)"
-            case .unsupportedValues(let details):
-                "Unsupported values: \(details)"
             }
         }
     }
@@ -180,7 +174,7 @@
         private let persistTo: URL?
         private let failedUpdateRequestNumbers: Set<Int>
         private var updateRequestCount = 0
-        private(set) var recordedBatches: [[SheetValueRangeUpdate]] = []
+        private(set) var recordedBatches: [[SheetCellWrite]] = []
 
         init(workbook: LocalWorkbook, persistTo: URL? = nil, failedUpdateRequestNumbers: Set<Int> = []) {
             self.spreadsheetId = workbook.spreadsheetId
@@ -236,91 +230,38 @@
             return snapshot
         }
 
-        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-            try await updateCells(
-                spreadsheetId: spreadsheetId,
-                updates: [SheetValueRangeUpdate(range: range, values: values)]
-            )
-        }
-
-        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-            guard !updates.isEmpty else { return }
+        func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+            guard !cells.isEmpty else { return }
             updateRequestCount += 1
             if failedUpdateRequestNumbers.contains(updateRequestCount) {
                 throw LocalWorkbookSheetsClientError.writeFailed(updateRequestCount)
             }
-            let staged = try Self.applying(updates, to: tabs)
+            let staged = try Self.applying(cells, to: tabs)
             if let persistTo {
                 try LocalWorkbook(spreadsheetId: self.spreadsheetId, title: title, snapshots: staged).write(to: persistTo)
             }
-            recordedBatches.append(updates)
+            recordedBatches.append(cells)
             tabs = staged
         }
     }
 
     extension LocalWorkbookSheetsClient {
-        fileprivate struct ParsedRange {
-            let tabName: String
-            let startRow: Int
-            let startCol: Int
-            let rowCount: Int
-            let colCount: Int
-        }
-
+        /// The workbook with every cell written, or the first unknown tab's error and no cell
+        /// written, so a batch lands whole or not at all (ADR-0006).
         fileprivate static func applying(
-            _ updates: [SheetValueRangeUpdate],
+            _ cells: [SheetCellWrite],
             to workbook: [String: SheetSnapshot]
         ) throws -> [String: SheetSnapshot] {
             var staged = workbook
-            for update in updates {
-                let range = try parseRange(update.range)
-                guard let snapshot = staged[range.tabName] else {
-                    throw LocalWorkbookSheetsClientError.unknownTab(range.tabName)
+            for cell in cells {
+                guard let snapshot = staged[cell.tabName] else {
+                    throw LocalWorkbookSheetsClientError.unknownTab(cell.tabName)
                 }
-                staged[range.tabName] = SheetSnapshot(
-                    values: try applying(update.values, to: snapshot.values, range: range),
-                    rowVisibility: snapshot.rowVisibility
-                )
+                var values = snapshot.values
+                values.write([[cell.value]], atRow: cell.row, col: cell.col)
+                staged[cell.tabName] = SheetSnapshot(values: values, rowVisibility: snapshot.rowVisibility)
             }
             return staged
-        }
-
-        fileprivate static func applying(
-            _ values: [[String]],
-            to grid: SheetGrid,
-            range: ParsedRange
-        ) throws -> SheetGrid {
-            guard values.count == range.rowCount else {
-                throw LocalWorkbookSheetsClientError.unsupportedValues(
-                    "Expected \(range.rowCount) row(s), got \(values.count)"
-                )
-            }
-            guard values.allSatisfy({ $0.count == range.colCount }) else {
-                throw LocalWorkbookSheetsClientError.unsupportedValues(
-                    "Expected every row to contain \(range.colCount) value(s)"
-                )
-            }
-
-            var updated = grid
-            updated.write(values, atRow: range.startRow, col: range.startCol)
-            return updated
-        }
-
-        fileprivate static func parseRange(_ range: String) throws -> ParsedRange {
-            guard
-                let split = splitA1Range(range),
-                let cells = a1CellRange(split.reference.uppercased())
-            else {
-                throw LocalWorkbookSheetsClientError.malformedRange(range)
-            }
-
-            return ParsedRange(
-                tabName: split.tabName,
-                startRow: cells.row,
-                startCol: cells.col,
-                rowCount: cells.rowCount,
-                colCount: cells.colCount
-            )
         }
     }
 

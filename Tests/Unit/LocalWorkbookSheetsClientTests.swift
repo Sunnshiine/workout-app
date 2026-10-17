@@ -24,11 +24,7 @@ import Testing
         tabs: ["Block 27": gridFromA1(["A1": "seed"], rows: 1, cols: 1)]
     )
 
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        range: "'Block 27'!C3",
-        values: [["grown"]]
-    )
+    try await client.write([SheetCellWrite(tabName: "Block 27", row: 2, col: 2, value: "grown")], spreadsheetId: "sid")
 
     let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
     #expect(fetched.cell(row: 0, col: 0) == "seed")
@@ -48,11 +44,7 @@ import Testing
         ]
     )
 
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        range: "'Block 27'!B2",
-        values: [["changed"]]
-    )
+    try await client.write([SheetCellWrite(tabName: "Block 27", row: 1, col: 1, value: "changed")], spreadsheetId: "sid")
 
     let snapshot = try await client.fetchTabSnapshot(spreadsheetId: "sid", tabName: "Block 27")
     let valuesOnly = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
@@ -68,29 +60,10 @@ import Testing
         tabs: ["Block 27": gridFromA1(["K15": "185x5@8"], rows: 20, cols: 12)]
     )
 
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        range: "'Block 27'!K15",
-        values: [[""]]
-    )
+    try await client.write([SheetCellWrite(tabName: "Block 27", row: 14, col: 10, value: "")], spreadsheetId: "sid")
 
     let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
     #expect(fetched.cell(row: 14, col: 10) == "")
-}
-
-@Test func localWorkbookParsesQuotedTabNameWithEscapedApostrophe() async throws {
-    let client = LocalWorkbookSheetsClient(
-        tabs: ["Coach's Block": gridFromA1([:], rows: 1, cols: 1)]
-    )
-
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        range: "'Coach''s Block'!B2",
-        values: [["quoted"]]
-    )
-
-    let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Coach's Block")
-    #expect(fetched.cell(row: 1, col: 1) == "quoted")
 }
 
 @Test func localWorkbookBatchWriteCommitsEveryUpdateAndRecordsTheBatch() async throws {
@@ -107,53 +80,29 @@ import Testing
         ]
     )
 
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        updates: [
-            SheetValueRangeUpdate(range: "'Block 27'!A1", values: [["new A"]]),
-            SheetValueRangeUpdate(range: "'Block 27'!B1", values: [["new B"]])
-        ]
-    )
+    let cells = [
+        SheetCellWrite(tabName: "Block 27", row: 0, col: 0, value: "new A"),
+        SheetCellWrite(tabName: "Block 27", row: 0, col: 1, value: "new B")
+    ]
+    try await client.write(cells, spreadsheetId: "sid")
 
     let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
     let batches = await client.recordedBatches
 
     #expect(fetched.cell(row: 0, col: 0) == "new A")
     #expect(fetched.cell(row: 0, col: 1) == "new B")
-    #expect(batches.count == 1)
-    #expect(batches[0].map(\.range) == ["'Block 27'!A1", "'Block 27'!B1"])
+    #expect(batches == [cells])
 }
 
 @Test func localWorkbookEmptyBatchWriteIsNoOpAndUnrecorded() async throws {
     let original = gridFromA1(["A1": "original"], rows: 1, cols: 1)
     let client = LocalWorkbookSheetsClient(tabs: ["Block 27": original])
 
-    try await client.updateCells(spreadsheetId: "sid", updates: [])
+    try await client.write([], spreadsheetId: "sid")
 
     let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
     #expect(fetched == original)
     #expect(await client.recordedBatches.isEmpty)
-}
-
-@Test func localWorkbookRectangularWritePersistsEveryCell() async throws {
-    let client = LocalWorkbookSheetsClient(
-        tabs: ["Block 27": gridFromA1([:], rows: 1, cols: 1)]
-    )
-
-    try await client.updateCells(
-        spreadsheetId: "sid",
-        range: "'Block 27'!B2:C3",
-        values: [
-            ["B2", "C2"],
-            ["B3", "C3"]
-        ]
-    )
-
-    let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
-    #expect(fetched.cell(row: 1, col: 1) == "B2")
-    #expect(fetched.cell(row: 1, col: 2) == "C2")
-    #expect(fetched.cell(row: 2, col: 1) == "B3")
-    #expect(fetched.cell(row: 2, col: 2) == "C3")
 }
 
 @Test func localWorkbookFailedBatchLeavesWorkbookUnchangedAndUnrecorded() async throws {
@@ -161,12 +110,12 @@ import Testing
     let client = LocalWorkbookSheetsClient(tabs: ["Block 27": original])
 
     await #expect(throws: LocalWorkbookSheetsClientError.unknownTab("Missing")) {
-        try await client.updateCells(
-            spreadsheetId: "sid",
-            updates: [
-                SheetValueRangeUpdate(range: "'Block 27'!A1", values: [["changed"]]),
-                SheetValueRangeUpdate(range: "'Missing'!A1", values: [["should throw"]])
-            ]
+        try await client.write(
+            [
+                SheetCellWrite(tabName: "Block 27", row: 0, col: 0, value: "changed"),
+                SheetCellWrite(tabName: "Missing", row: 0, col: 0, value: "should throw")
+            ],
+            spreadsheetId: "sid"
         )
     }
 
@@ -174,41 +123,4 @@ import Testing
     let batches = await client.recordedBatches
     #expect(fetched == original)
     #expect(batches.isEmpty)
-}
-
-@Test func localWorkbookRejectsValueDimensionsWithoutMutatingWorkbook() async throws {
-    let original = gridFromA1(["A1": "original"], rows: 1, cols: 1)
-    let client = LocalWorkbookSheetsClient(tabs: ["Block 27": original])
-
-    await #expect(
-        throws: LocalWorkbookSheetsClientError.unsupportedValues("Expected every row to contain 2 value(s)")
-    ) {
-        try await client.updateCells(
-            spreadsheetId: "sid",
-            range: "'Block 27'!A1:B1",
-            values: [["only one value"]]
-        )
-    }
-
-    let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
-    let batches = await client.recordedBatches
-    #expect(fetched == original)
-    #expect(batches.isEmpty)
-}
-
-@Test func localWorkbookRejectsMalformedRangeWithoutMutatingWorkbook() async throws {
-    let original = gridFromA1(["A1": "original"], rows: 1, cols: 1)
-    let client = LocalWorkbookSheetsClient(tabs: ["Block 27": original])
-
-    await #expect(throws: LocalWorkbookSheetsClientError.malformedRange("Block 27")) {
-        try await client.updateCells(
-            spreadsheetId: "sid",
-            range: "Block 27",
-            values: [["changed"]]
-        )
-    }
-
-    let fetched = try await client.fetchTab(spreadsheetId: "sid", tabName: "Block 27")
-    #expect(fetched == original)
-    #expect(await client.recordedBatches.isEmpty)
 }
