@@ -83,7 +83,8 @@ struct RepsScalePresentation: Equatable, Sendable {
     /// Every value of a prescribed range carries the prescription tick, and the rail centers on
     /// its low end, the value the form pre-fills.
     init(prescribedReps: PrescribedReps, selection: String) {
-        let prescribed = prescribedReps.target.map(Array.init) ?? []
+        // Only the rail's own values: a range is Sheet text and can reach Int.max.
+        let prescribed = prescribedReps.target.map { reps in Self.values.filter(reps.contains) } ?? []
         let selected = Int(selection.trimmingCharacters(in: .whitespacesAndNewlines))
         let centerValue = selected ?? prescribed.first ?? Self.defaultSelection
 

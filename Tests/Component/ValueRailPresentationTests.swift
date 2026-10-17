@@ -53,6 +53,14 @@ import Testing
 }
 
 @MainActor
+@Test func repsRailTicksOnlyItsOwnValuesForARangeReachingPastThem() {
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("1-9223372036854775807"), selection: "")
+
+    #expect(rail.chips.filter(\.isPrescribed).count == 100)
+    #expect(rail.selectedIndex == 0)
+}
+
+@MainActor
 @Test(arguments: ["AMRAP", "12-8", "5+"])
 func repsRailTicksNothingForRepsTextItDoesNotInterpret(prescribedReps: String) {
     let rail = RepsScalePresentation(prescribedReps: PrescribedReps(prescribedReps), selection: "")
