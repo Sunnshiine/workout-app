@@ -2849,7 +2849,8 @@ private func makeHandsFreeFixture(
     let session = makeCoordinatorSession()
     let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
     let slot = try fixture.card(in: session)
-    #expect(fixture.coordinator.startDictation(for: slot.set))
+    fixture.coordinator.startDictation(for: slot.set)
+    #expect(fixture.dictation?.state.listeningSetID == firstBench)
 
     fixture.entry.deliver(.dictateCurrentSet)
     fixture.coordinator.answerEntry()
@@ -2899,7 +2900,7 @@ private func makeHandsFreeFixture(
     let dictation = SetDictation(transcriber: transcriber)
     let coordinator = SessionCoordinator(dictation: dictation)
     coordinator.bind(to: current)
-    #expect(coordinator.startDictation(for: currentSet))
+    coordinator.startDictation(for: currentSet)
 
     await coordinator.cancelDictation(of: otherSessionsSet)
 
@@ -2917,7 +2918,7 @@ private func makeHandsFreeFixture(
     let session = makeCoordinatorSession()
     let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
     let bench = try #require(session.exercises.first { $0.order == 1 })
-    #expect(coordinator.startDictation(for: try #require(bench.sets.first { $0.index == 0 })))
+    coordinator.startDictation(for: try #require(bench.sets.first { $0.index == 0 }))
 
     await coordinator.cancelDictation(of: try #require(bench.sets.first { $0.index == 1 }))
 
