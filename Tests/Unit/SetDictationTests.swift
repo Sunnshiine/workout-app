@@ -240,3 +240,28 @@ private final class FailingSetTranscriber: SetTranscriber {
 
     func cancel() async {}
 }
+
+@Test(
+    "The card's caption for a rejected press says what was heard, or why nothing was",
+    arguments: [
+        (SetDictation.Rejection.spokenSet(.kilograms), "100 kilos for 5", "“100 kilos for 5”"),
+        (.spokenSet(.nothingHeard), "", "Nothing heard"),
+        (.transcriber(.nothingHeard), "", "Nothing heard"),
+        (.transcriber(.failed), "135 for", "“135 for”"),
+        (.transcriber(.failed), "", "Nothing heard"),
+        (.transcriber(.microphoneDenied), "", "Microphone is off in Settings"),
+        (.transcriber(.unavailable), "", "Speech isn’t available")
+    ]
+)
+func theCardsCaptionForARejectedPress(rejection: SetDictation.Rejection, heard: String, caption: String) {
+    let state = SetDictation.State.finished(firstSet, .rejected(rejection, heard: heard))
+
+    #expect(SetCardDictation(state, for: firstSet) == .rejected(caption: caption))
+}
+
+@Test func theCardShowsThePressOnlyForItsOwnSet() {
+    let secondSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
+
+    #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: firstSet) == .listening(caption: "135 for"))
+    #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: secondSet) == .ready)
+}

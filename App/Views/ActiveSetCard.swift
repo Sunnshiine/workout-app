@@ -22,14 +22,7 @@ struct ActiveSetCard: View {
     private static let headTargetOverhang: CGFloat = 12
 
     private var setCardMode: SetCardMode {
-        switch mode {
-        case .logging: .logging
-        case .reviewingLogged: .reviewingLogged
-        }
-    }
-
-    private var presentation: SetCardPresentation {
-        SetCardPresentation(mode: setCardMode, set: set)
+        mode.cardMode(for: set)
     }
 
     var body: some View {
@@ -76,24 +69,40 @@ struct ActiveSetCard: View {
 
     @ViewBuilder
     private var headTrailingSlot: some View {
-        if mode == .reviewingLogged(showsSavedConfirmation: true) {
-            Label("Saved", systemImage: "checkmark.circle.fill")
-                .font(Theme.font(.setOf))
-                .foregroundStyle(palette.action)
-        } else if presentation.showsClearMenu {
-            Menu {
-                Button("Clear", role: .destructive, action: onDelete)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .imageScale(.large)
-                    .foregroundStyle(palette.textSecondary)
-                    .frame(width: Self.headTargetSize, height: Self.headTargetSize)
-                    .contentShape(.rect)
+        switch mode.headAccessory(for: set) {
+        case .none:
+            EmptyView()
+        case .saved:
+            savedConfirmation
+        case .clearMenu:
+            clearMenu
+        case .savedAndClearMenu:
+            HStack(spacing: 0) {
+                savedConfirmation
+                clearMenu
             }
-            .accessibilityLabel("More")
-            .accessibilityIdentifier("clear-logged-set-menu")
-            .padding(.trailing, -Self.headTargetOverhang)
         }
+    }
+
+    private var savedConfirmation: some View {
+        Label("Saved", systemImage: "checkmark.circle.fill")
+            .font(Theme.font(.setOf))
+            .foregroundStyle(palette.action)
+    }
+
+    private var clearMenu: some View {
+        Menu {
+            Button("Clear", role: .destructive, action: onDelete)
+        } label: {
+            Image(systemName: "ellipsis")
+                .imageScale(.large)
+                .foregroundStyle(palette.textSecondary)
+                .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+                .contentShape(.rect)
+        }
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("clear-logged-set-menu")
+        .padding(.trailing, -Self.headTargetOverhang)
     }
 
     private func dismissInputIfLogging() {

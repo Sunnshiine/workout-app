@@ -4,10 +4,13 @@ import Observation
 enum ActiveSetVisualFocusOwner: Equatable, Sendable {
     case activeSet(ActiveSetID)
     case loggedSetReview(ActiveSetID)
+    /// A Set just written by speech, which the card keeps until the hold ends. The Active Set has
+    /// already moved on.
+    case heldAfterSpokenWrite(ActiveSetID)
 
     var setID: ActiveSetID {
         switch self {
-        case .activeSet(let setID), .loggedSetReview(let setID):
+        case .activeSet(let setID), .loggedSetReview(let setID), .heldAfterSpokenWrite(let setID):
             setID
         }
     }
@@ -16,19 +19,37 @@ enum ActiveSetVisualFocusOwner: Equatable, Sendable {
 @MainActor
 @Observable
 final class ActiveSetFocusManager {
+    /// A Set the card shows in place of the Active Set.
+    private enum ShownInstead: Equatable {
+        case review(ActiveSetID)
+        case heldAfterSpokenWrite(ActiveSetID)
+
+        var setID: ActiveSetID {
+            switch self {
+            case .review(let setID), .heldAfterSpokenWrite(let setID): setID
+            }
+        }
+    }
+
     private(set) var activeSetID: ActiveSetID?
-    private(set) var expandedLoggedSetID: ActiveSetID?
+    private var shownInstead: ShownInstead?
     private let supersetState = SupersetState()
 
     init(session: Session?) {
         activeSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
     }
 
+    var expandedLoggedSetID: ActiveSetID? {
+        guard case .review(let setID) = shownInstead else { return nil }
+        return setID
+    }
+
     var visualFocusOwner: ActiveSetVisualFocusOwner? {
-        if let expandedLoggedSetID {
-            return .loggedSetReview(expandedLoggedSetID)
+        switch shownInstead {
+        case .review(let setID): .loggedSetReview(setID)
+        case .heldAfterSpokenWrite(let setID): .heldAfterSpokenWrite(setID)
+        case nil: activeSetID.map(ActiveSetVisualFocusOwner.activeSet)
         }
-        return activeSetID.map(ActiveSetVisualFocusOwner.activeSet)
     }
 
     func reset(to session: Session?) {
@@ -39,27 +60,44 @@ final class ActiveSetFocusManager {
         } else {
             activeSetID = nil
         }
-        expandedLoggedSetID = nil
+        shownInstead = nil
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
-        expandedLoggedSetID = nil
+        shownInstead = nil
         activeSetID = nextActiveSetID(after: set, in: session)
     }
 
     func advanceAfterSkip(_ set: ExerciseSet, in session: Session) {
-        expandedLoggedSetID = nil
+        shownInstead = nil
         activeSetID = nextActiveSetID(after: set, in: session)
     }
 
+    /// Keeps `set` on the card after the Active Set advanced past it.
+    func holdAfterSpokenWrite(_ set: ExerciseSet) {
+        guard let setID = Self.id(for: set) else { return }
+        shownInstead = .heldAfterSpokenWrite(setID)
+    }
+
+    var isHoldingSpokenWrite: Bool {
+        guard case .heldAfterSpokenWrite = shownInstead else { return false }
+        return true
+    }
+
+    func endHoldAfterSpokenWrite() {
+        guard isHoldingSpokenWrite else { return }
+        shownInstead = nil
+    }
+
+    /// A logged Set's leaf toggles its review, and closes whatever the card shows of it instead.
     func focus(on set: ExerciseSet) {
         guard let setID = Self.id(for: set) else { return }
         if set.state == .logged {
-            expandedLoggedSetID = expandedLoggedSetID == setID ? nil : setID
+            shownInstead = shownInstead?.setID == setID ? nil : .review(setID)
             return
         }
 
-        expandedLoggedSetID = nil
+        shownInstead = nil
         activeSetID = setID
     }
 
@@ -70,12 +108,13 @@ final class ActiveSetFocusManager {
         case .skipped:
             nil
         case .logged:
-            Self.id(for: set) == expandedLoggedSetID ? nil : .focusMorph
+            Self.id(for: set) == shownInstead?.setID ? nil : .focusMorph
         }
     }
 
     func collapseLoggedSetReview() {
-        expandedLoggedSetID = nil
+        guard expandedLoggedSetID != nil else { return }
+        shownInstead = nil
     }
 
     func canPair(_ exercise: Exercise, in session: Session) -> Bool {

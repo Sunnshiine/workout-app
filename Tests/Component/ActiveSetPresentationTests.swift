@@ -257,6 +257,43 @@ struct SetCardPresentationTests {
             ]
         )
     }
+
+    @Test func aSetHeldAfterASpokenWriteDrawsAsItsOwnCardWithSavedAndClearInItsHead() {
+        let slots: KeyValuePairs<String, (SetCardSlot.Mode, ExerciseSet)> = [
+            "logging a pending Set": (.logging, Self.structuredSet(.pending)),
+            "logging a skipped Set": (.logging, Self.structuredSet(.skipped)),
+            "reviewing a Set Log": (.reviewingLogged(showsSavedConfirmation: false), Self.structuredSet(.logged)),
+            "reviewing a Set Log just saved": (.reviewingLogged(showsSavedConfirmation: true), Self.structuredSet(.logged)),
+            "holding a Set logged by speech": (.heldAfterSpokenWrite, Self.structuredSet(.logged)),
+            "holding a Set skipped by speech": (.heldAfterSpokenWrite, Self.structuredSet(.skipped))
+        ]
+
+        let drawn = Dictionary(
+            uniqueKeysWithValues: slots.map { name, slot in
+                (name, Pair(slot.0.cardMode(for: slot.1), slot.0.headAccessory(for: slot.1)))
+            }
+        )
+
+        #expect(
+            drawn == [
+                "logging a pending Set": Pair(.logging, .none),
+                "logging a skipped Set": Pair(.logging, .clearMenu),
+                "reviewing a Set Log": Pair(.reviewingLogged, .none),
+                "reviewing a Set Log just saved": Pair(.reviewingLogged, .saved),
+                "holding a Set logged by speech": Pair(.reviewingLogged, .savedAndClearMenu),
+                "holding a Set skipped by speech": Pair(.logging, .savedAndClearMenu)
+            ]
+        )
+    }
+
+    private struct Pair: Equatable {
+        let mode: SetCardMode
+        let head: SetCardHeadAccessory
+
+        init(_ mode: SetCardMode, _ head: SetCardHeadAccessory) {
+            (self.mode, self.head) = (mode, head)
+        }
+    }
 }
 
 @Test func onlyTheFocusMorphYieldsToReduceMotion() {
