@@ -24,12 +24,30 @@ extension AppEntryRequest {
 @MainActor
 @Observable
 final class AppEntryInbox {
-    private(set) var pending: AppEntryRequest?
-    /// Counts every request, taken or not, so whatever covers the stage closes for each one.
+    /// How long a request waits for the stage: long enough for a cold launch to show the Current
+    /// Session, short enough that a later visit to the stage never starts the mic unasked.
+    static let requestLifetime = Duration.seconds(10)
+
+    private var arrival: (request: AppEntryRequest, at: Duration)?
+    /// Counts every request the inbox holds, so the stage answers each one.
     private(set) var arrivals = 0
+    /// Onboarding has no Session to listen on, so a request that meets it ends there.
+    private var showsOnboarding = false
+    @ObservationIgnored private let clock: any ListeningClock
+
+    init(clock: any ListeningClock = ContinuousListeningClock()) {
+        self.clock = clock
+    }
+
+    /// Nil once the request has waited `requestLifetime`.
+    var pending: AppEntryRequest? {
+        guard let arrival, clock.now - arrival.at < Self.requestLifetime else { return nil }
+        return arrival.request
+    }
 
     func deliver(_ request: AppEntryRequest) {
-        pending = request
+        guard !showsOnboarding else { return }
+        arrival = (request, clock.now)
         arrivals += 1
     }
 
@@ -41,13 +59,22 @@ final class AppEntryInbox {
     }
 
     func take() -> AppEntryRequest? {
-        defer { pending = nil }
+        defer { arrival = nil }
         return pending
     }
 
     /// A request still waiting when the app leaves the screen would otherwise open the mic long
     /// after the athlete asked.
     func discard() {
-        pending = nil
+        arrival = nil
+    }
+
+    /// The app reports each time onboarding shows or goes. A request onboarding meets stays
+    /// ended once a Sheet is chosen.
+    func reportOnboarding(isShown: Bool) {
+        showsOnboarding = isShown
+        if isShown {
+            discard()
+        }
     }
 }

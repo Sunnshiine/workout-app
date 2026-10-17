@@ -49,6 +49,9 @@ struct RootView: View {
             guard newPhase == .background else { return }
             entry?.discard()
         }
+        .onChange(of: settings.needsOnboarding, initial: true) { _, needsOnboarding in
+            entry?.reportOnboarding(isShown: needsOnboarding)
+        }
         .onChange(of: settings.spreadsheetId) { oldValue, newValue in
             guard oldValue != newValue else { return }
             liveActivityAdapter.end()
