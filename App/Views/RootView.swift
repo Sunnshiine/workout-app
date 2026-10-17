@@ -66,8 +66,11 @@ struct RootView: View {
                     workout: workout,
                     sync: sync,
                     settings: settings,
-                    liveActivity: liveActivityAdapter,
-                    motion: SwiftUISessionMotion()
+                    platform: SessionPlatform(
+                        liveActivity: liveActivityAdapter,
+                        motion: SwiftUISessionMotion(),
+                        restNotifications: RestNotificationCenterScheduler.shared
+                    )
                 )
             )
         }
