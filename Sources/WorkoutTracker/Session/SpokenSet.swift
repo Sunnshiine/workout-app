@@ -20,13 +20,14 @@ enum SpokenSet: Equatable, Sendable {
         /// has four or more digits, which no Set holds.
         case fusedNumber
         /// A number no word places, as both numbers of "185, 5"; number words in a row that make no
-        /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; or alternatives
-        /// that disagree.
+        /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; a weight of 12 or
+        /// under for as many reps, as "5 by 5", the shorthand for Sets by reps; or alternatives that
+        /// disagree.
         case ambiguous
         /// A value said twice, even as the same number or once cut off: the 4 and the 8 of "135 for 4,
         /// 8 reps", or a second Set, as in "185 for 5, 185 for 5" and "185 for 5 for 5".
         case conflicting(SetLogDraft.Field)
-        /// Reps outside 1 to 100 or not whole, or a weight under 5 pounds.
+        /// Reps outside 1 to 30 or not whole, or a weight under 5 pounds or finer than a quarter pound.
         case outOfRange(SetLogDraft.Field)
         /// The number heard for the RPE is not one of the ten RPE points.
         case offLadderRPE(Double)

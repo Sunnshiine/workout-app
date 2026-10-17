@@ -74,8 +74,8 @@ func aHalfOrDecimalRPEReadsAsItsHalfPoint(transcript: String) {
         ("sixty", 60), ("seventy", 70), ("eighty", 80), ("ninety", 90)
     ]
 )
-func everyNumberWordReadsAsItsNumber(word: String, reps: Int) {
-    #expect(SpokenSet.parse("135 for \(word)") == values(.pounds(135), reps, nil))
+func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
+    #expect(SpokenSet.parse("one hundred \(word) pounds") == values(.pounds(Double(100 + number)), nil, nil))
 }
 
 @Test func oneThirtyFiveForEightAtNineReadsEveryNumberAsWords() {
@@ -282,9 +282,58 @@ func twoSetsSaidInOneBreathConflict(transcript: String, field: SetLogDraft.Field
     #expect(SpokenSet.parse("0 for 5") == .failure(.outOfRange(.weight)))
     #expect(SpokenSet.parse("4 for 5") == .failure(.outOfRange(.weight)))
     #expect(SpokenSet.parse("4.5 pounds") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("5 for 5") == values(.pounds(5), 5, nil))
     #expect(SpokenSet.parse("999 for 1 at 10") == values(.pounds(999), 1, .ten))
-    #expect(SpokenSet.parse("135 for 100") == values(.pounds(135), 100, nil))
+}
+
+/// No Set Log holds more than 30 reps or a weight finer than a quarter pound, and "5 by 5" is the
+/// shorthand for five Sets of five, so each is a Set misheard or not one Set.
+@Test(
+    "A Spoken Set no Set Log holds is rejected",
+    arguments: [
+        ("10 for 45", SpokenSet.Rejection.outOfRange(.reps)), ("12 for 95", .outOfRange(.reps)),
+        ("twelve for ninety five", .outOfRange(.reps)), ("8 four 95", .outOfRange(.reps)), ("135 for 45", .outOfRange(.reps)),
+        ("135 for forty five", .outOfRange(.reps)), ("135 for 31", .outOfRange(.reps)), ("135 for 49 reps", .outOfRange(.reps)),
+        ("135 for 49 at 8", .outOfRange(.reps)), ("RPE 8, 135 for 49", .outOfRange(.reps)), ("49 reps", .outOfRange(.reps)),
+        ("135 for 100", .outOfRange(.reps)), ("187.55 for 5", .outOfRange(.weight)), ("135.123456 for 5", .outOfRange(.weight)),
+        ("185.1 pounds", .outOfRange(.weight)), ("5 by 5", .ambiguous), ("5 x 5", .ambiguous), ("five by five", .ambiguous),
+        ("8 x 8", .ambiguous), ("10 by 10", .ambiguous), ("5 for 5", .ambiguous), ("12 times 12 at 8", .ambiguous),
+        ("5 by 5 at 8", .ambiguous), ("12 reps at 12 pounds", .ambiguous)
+    ]
+)
+func aSpokenSetNoSetLogHoldsIsRejected(transcript: String, rejection: SpokenSet.Rejection) {
+    #expect(SpokenSet.parse(transcript) == .failure(rejection))
+}
+
+@Test func valuesAtTheBoundsOfASetLogAreHeard() {
+    #expect(SpokenSet.parse("135 for 30") == values(.pounds(135), 30, nil))
+    #expect(SpokenSet.parse("187.25 for 5") == values(.pounds(187.25), 5, nil))
+    #expect(SpokenSet.parse("13 for 13") == values(.pounds(13), 13, nil))
+    #expect(SpokenSet.parse("bodyweight for 5") == values(.bodyweight, 5, nil))
+}
+
+/// Every weight, separator, rep count, and RPE below, crossed, reads as the Set it says.
+private let setGrid: [(transcript: String, weight: Weight, reps: Int, rpe: RPE?)] = {
+    let weights: [(String, Weight)] = [
+        ("45", .pounds(45)), ("135", .pounds(135)), ("185.5", .pounds(185.5)), ("225", .pounds(225)), ("BW", .bodyweight)
+    ]
+    let rpes: [(String, RPE?)] = [(" at 8", .eight), (" RPE 9.5", .ninePointFive), ("", nil)]
+    return weights.flatMap { said, weight in
+        ["for", "x", "by", "times"].flatMap { separator in
+            [1, 5, 12].flatMap { reps in rpes.map { ("\(said) \(separator) \(reps)\($0.0)", weight, reps, $0.1) } }
+        }
+    }
+}()
+
+@Test(
+    "Every weight for reps in the grid reads as the Set said",
+    arguments: setGrid
+)
+func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: Weight, reps: Int, rpe: RPE?) {
+    #expect(SpokenSet.parse(transcript) == values(weight, reps, rpe))
+}
+
+@Test func theGridCrossesEveryWeightSeparatorRepCountAndRPE() {
+    #expect(Set(setGrid.map(\.transcript)).count == 5 * 4 * 3 * 3)
 }
 
 @Test func anythingElseIsUnrecognized() {
@@ -370,11 +419,12 @@ func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
     #expect(SpokenSet.parse("135 for 15") == values(.pounds(135), 15, nil))
     #expect(SpokenSet.parse("for 25") == values(nil, 25, nil))
     #expect(SpokenSet.parse("135 for sixteen") == values(.pounds(135), 16, nil))
-    #expect(SpokenSet.parse("135 for 49 reps") == values(.pounds(135), 49, nil))
-    #expect(SpokenSet.parse("135 for 49 at 8") == values(.pounds(135), 49, .eight))
-    #expect(SpokenSet.parse("RPE 8, 135 for 49") == values(.pounds(135), 49, .eight))
+    #expect(SpokenSet.parse("135 for 19") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 19 reps") == values(.pounds(135), 19, nil))
+    #expect(SpokenSet.parse("135 for 19 at 8") == values(.pounds(135), 19, .eight))
+    #expect(SpokenSet.parse("RPE 8, 135 for 19") == values(.pounds(135), 19, .eight))
     #expect(SpokenSet.parse("bodyweight for 12") == values(.bodyweight, 12, nil))
-    #expect(SpokenSet.parse("49 reps") == values(nil, 49, nil))
+    #expect(SpokenSet.parse("19 reps") == values(nil, 19, nil))
 }
 
 /// The transcriber writes "and" for "at", but "185 for 5 and 5" may be five Sets of five, so the
@@ -512,7 +562,14 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
 }
 
 @Test func alternativesThatDisagreeAreAmbiguous() {
-    #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 45 at 8"]) == .failure(.ambiguous))
+    #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 4 at 8"]) == .failure(.ambiguous))
+}
+
+@Test func anAlternativeNoSetLogHoldsDisagreesWithNone() {
+    #expect(
+        SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 45 at 8"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .heard(.eight)), from: .alternative)
+    )
 }
 
 @Test func withNoAlternativeThatReadsTheTopCandidatesRejectionStands() {

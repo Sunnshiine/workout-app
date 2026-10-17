@@ -243,11 +243,9 @@ struct SpokenPhrase: Sendable {
     /// because "4 at 9" can reach the transcript as "49".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
-        let values = try SpokenSlots(claims(in: tokens)).spokenSet()
-        guard case .values(_, _, .notSaid) = values, tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else {
-            return values
-        }
-        throw .ambiguous
+        let slots = try SpokenSlots(claims(in: tokens))
+        guard slots.said(.rpe) || !tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else { throw .ambiguous }
+        return try slots.spokenSet()
     }
 
     private static func claims(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> [SpokenClaim] {
@@ -287,10 +285,17 @@ struct SpokenPhrase: Sendable {
     }
 }
 
-/// Weight, reps, and RPE as the phrases claim them, each claimed once.
+/// Weight, reps, and RPE as the phrases claim them, each claimed once, and read only as values a
+/// Set Log holds.
 struct SpokenSlots {
     /// Under it, as the 4 of "4 for 5", a weight is a rep count misheard.
     static let lightestWeight = 5.0
+    /// Plates and dumbbells step by a quarter pound at the finest, so "187.55" is a number misheard.
+    static let weightStep = 0.25
+    /// Over it, as the 45 of "135 for 45" or "10 for 45", a rep count is a weight or two numbers misheard.
+    static let mostReps = 30
+    /// At or under it, a weight for as many reps, as "5 by 5", is the shorthand for Sets by reps.
+    static let heaviestSetsByReps = 12.0
 
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
     private var cutOff: Set<SetLogDraft.Field> = []
@@ -302,19 +307,27 @@ struct SpokenSlots {
     /// A value claimed twice, even as the same number or once cut off, may be two Sets: "185 for 5,
     /// 185 for 5", "185 for 5 for 5 for 5", or "185 for 5 and 3 at 8".
     private mutating func claim(_ claim: SpokenClaim) throws(SpokenSet.Rejection) {
-        guard amounts[claim.field] == nil, !cutOff.contains(claim.field) else { throw .conflicting(claim.field) }
+        guard !said(claim.field) else { throw .conflicting(claim.field) }
         switch claim {
         case .value(let field, let amount): amounts[field] = amount
         case .cutOff(let field): cutOff.insert(field)
         }
     }
 
+    func said(_ field: SetLogDraft.Field) -> Bool {
+        amounts[field] != nil || cutOff.contains(field)
+    }
+
     func spokenSet() throws(SpokenSet.Rejection) -> SpokenSet {
-        .values(
-            weight: spoken(.weight, try Self.weight(amounts[.weight])),
-            reps: spoken(.reps, try Self.reps(amounts[.reps])),
-            rpe: spoken(.rpe, try Self.rpe(amounts[.rpe]))
-        )
+        let weight = try Self.weight(amounts[.weight])
+        let reps = try Self.reps(amounts[.reps])
+        guard !Self.isSetsByReps(weight, reps) else { throw .ambiguous }
+        return .values(weight: spoken(.weight, weight), reps: spoken(.reps, reps), rpe: spoken(.rpe, try Self.rpe(amounts[.rpe])))
+    }
+
+    private static func isSetsByReps(_ weight: Weight?, _ reps: Int?) -> Bool {
+        guard case .pounds(let pounds)? = weight, let reps else { return false }
+        return pounds == Double(reps) && pounds <= heaviestSetsByReps
     }
 
     private func spoken<Value: Equatable & Sendable>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {
@@ -324,13 +337,14 @@ struct SpokenSlots {
 
     private static func weight(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Weight? {
         guard case .number(let pounds) = amount else { return amount.map { _ in .bodyweight } }
-        guard pounds >= lightestWeight else { throw .outOfRange(.weight) }
+        let steps = pounds / weightStep
+        guard pounds >= lightestWeight, steps.rounded() == steps else { throw .outOfRange(.weight) }
         return .pounds(pounds)
     }
 
     private static func reps(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Int? {
         guard case .number(let count) = amount else { return nil }
-        guard let reps = Int(exactly: count), (1...100).contains(reps) else { throw .outOfRange(.reps) }
+        guard let reps = Int(exactly: count), (1...mostReps).contains(reps) else { throw .outOfRange(.reps) }
         return reps
     }
 
