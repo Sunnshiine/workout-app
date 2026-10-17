@@ -446,10 +446,8 @@ extension SessionStageTests {
         ).queue.position
 
         #expect(first.label == "1 of 3")
-        #expect(first.accessibilityLabel == "Queue, 1 of 3")
         #expect(second.label == "3 of 3")
         #expect(superset.label == "2 of 2")
-        #expect(superset.accessibilityLabel == "Queue, 2 of 2")
     }
 
     @Test func thePillOfACompleteSessionReadsAsTheLastPlace() {

@@ -39,7 +39,7 @@ struct SessionStageLayoutTests {
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
                     cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
                     name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
@@ -116,7 +116,7 @@ struct SessionStageLayoutTests {
                     stage: CGRect(x: 0, y: 62, width: 402, height: 731),
                     cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
                     name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
@@ -183,7 +183,7 @@ struct SessionStageLadderTransitionTests {
                     note: CGRect(x: 16, y: 188, width: 270, height: 22),
                     leaves: [
                         CGRect(x: 272, y: 231, width: 44, height: 44),
-                        CGRect(x: 196, y: 240, width: 44, height: 44),
+                        CGRect(x: 196, y: 241, width: 44, height: 44),
                         CGRect(x: 120, y: 254, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
@@ -224,7 +224,7 @@ struct SessionStageLadderTransitionTests {
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
                     cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
                     name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
@@ -236,7 +236,7 @@ struct SessionStageLadderTransitionTests {
                     stage: CGRect(x: 0, y: 62, width: 402, height: 731),
                     cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
                     name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 125, height: 25),
+                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
@@ -248,7 +248,7 @@ struct SessionStageLadderTransitionTests {
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
                     name: CGRect(x: 16, y: 133, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 177, width: 125, height: 25),
+                    partner: CGRect(x: 16, y: 177, width: 131, height: 25),
                     note: CGRect(x: 16, y: 216, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
@@ -266,9 +266,9 @@ struct SessionStageLadderTransitionTests {
             pages.map(\.labels) == [
                 [
                     "Session complete", "1 set done across 1 exercise", "Open Exercises",
-                    "Back Squat, 1 pending set, W1 D1", "Move On", "Queue, 1 of 1"
+                    "Back Squat, 1 pending set, W1 D1", "Move On", "Queue"
                 ],
-                ["Session complete", "1 set done across 1 exercise", "Move On", "Queue, 1 of 1"]
+                ["Session complete", "1 set done across 1 exercise", "Move On", "Queue"]
             ]
         )
         for (page, height) in zip(pages, heights) {

@@ -205,7 +205,7 @@ private struct OffLiveEdgeControls: View {
 
     private var goBackButton: some View {
         Button(action: onGoBack) {
-            Label("Go back", systemImage: "arrow.uturn.left")
+            Label("Go back", systemImage: "arrow.backward")
                 .labelStyle(.iconOnly)
                 .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)
@@ -217,7 +217,7 @@ private struct OffLiveEdgeControls: View {
 
     private var makeCurrentButton: some View {
         Button(action: onMakeCurrent) {
-            Label("Make current", systemImage: "pin.fill")
+            Label("Make current", systemImage: "play.fill")
                 .labelStyle(.iconOnly)
                 .font(Theme.font(.logCapsule))
                 .frame(width: 44, height: 44)

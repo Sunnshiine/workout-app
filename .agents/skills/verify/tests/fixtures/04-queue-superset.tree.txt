@@ -35,7 +35,7 @@ AXButton	rpe-7	RPE 7		@361,619 48x44
 AXStaticText		RPE		@278,678 21x17
 AXButton	log-active-set-button	Log 237.5 × 5 @6		@32,712 338x58
 AXStaticText		Log 237.5 × 5 @6		@32,712 338x58
-AXButton	stage-queue-button	Queue, 1 of 2		@324,793 62x37
+AXButton	stage-queue-button	Queue	1 of 2	@339,790 47x44
 AXButton	stage-up-next	Up next ·, BB RDL		@16,802 95x19
 AXStaticText		Up next ·		@16,802 49x19
 AXStaticText		BB RDL		@70,802 41x19
