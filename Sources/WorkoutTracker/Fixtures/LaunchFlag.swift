@@ -52,7 +52,7 @@
 
         static let fullBlock = LaunchFlag(
             argument: "-UITEST_FULL_BLOCK",
-            meaning: "Seeds four Weeks of four Sessions, every one an Available Session."
+            meaning: "Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session."
         )
 
         static let disableAnimations = LaunchFlag(

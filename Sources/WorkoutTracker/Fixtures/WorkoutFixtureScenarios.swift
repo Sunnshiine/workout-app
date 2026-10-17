@@ -50,11 +50,6 @@
         }
 
         @MainActor
-        static func uiLaunchBlock() -> Block {
-            WorkoutFixtureBlocks.uiLaunchBlock()
-        }
-
-        @MainActor
         static func longSessionBlock() -> Block {
             WorkoutFixtureBlocks.longSessionBlock()
         }
@@ -246,20 +241,6 @@
         }
 
         @MainActor
-        static func uiLaunchBlock() -> Block {
-            Factory.block(
-                weeks: (1...4).map { weekNumber in
-                    Factory.week(
-                        weekNumber,
-                        sessions: (1...4).map { dayNumber in
-                            uiLaunchSession(at: SessionAddress(week: weekNumber, day: dayNumber))
-                        }
-                    )
-                }
-            )
-        }
-
-        @MainActor
         static func longSessionBlock() -> Block {
             Factory.block(
                 weeks: [
@@ -309,21 +290,6 @@
                 order: order,
                 sets: [Factory.set(0, reps: reps, load: load)]
             )
-        }
-
-        private static func uiLaunchSession(at address: SessionAddress) -> Session {
-            let exercises: [Exercise] =
-                switch (address.week, address.day) {
-                case (1, 1):
-                    [Factory.backSquat(), Factory.rdl()]
-                case (1, 2):
-                    [Factory.benchPress(), Factory.pullUp()]
-                case (1, 3):
-                    [Factory.deadlift()]
-                default:
-                    [Factory.accessory(at: address)]
-                }
-            return Factory.session(at: address, exercises: exercises)
         }
 
         private static func openBackSquatSession() -> Session {
@@ -531,19 +497,6 @@
             exercise(name: "Bench Press", baseName: "Bench Press", coachNote: "Pause every rep.", order: 0, sets: sets)
         }
 
-        static func pullUp() -> Exercise {
-            exercise(
-                name: "Pull-Up",
-                baseName: "Pull-Up",
-                coachNote: "Use full range.",
-                order: 1,
-                sets: [
-                    set(0, reps: "8", load: "BW"),
-                    set(1, reps: "8", load: "BW")
-                ]
-            )
-        }
-
         static func deadlift(
             sets: [ExerciseSet] = [
                 set(0, reps: "3", load: "RPE6", percentOneRM: "75%"),
@@ -551,16 +504,6 @@
             ]
         ) -> Exercise {
             exercise(name: "Deadlift", baseName: "Deadlift", coachNote: "Pull fast from the floor.", order: 0, sets: sets)
-        }
-
-        static func accessory(at address: SessionAddress) -> Exercise {
-            exercise(
-                name: "Accessory W\(address.week) D\(address.day)",
-                baseName: "Accessory",
-                coachNote: "Controlled reps.",
-                order: 0,
-                sets: [set(0, reps: "10", load: "RPE6")]
-            )
         }
 
         static func exercise(
