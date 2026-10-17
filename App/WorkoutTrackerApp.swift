@@ -35,13 +35,17 @@ struct WorkoutTrackerApp: App {
         return .device()
     }
 
-    /// Returns nil when there is nothing to restore. A fixture launch signs in up front unless it
-    /// asks to sign in late.
+    /// Returns nil when there is no sign-in to write. A fixture launch already set it at init
+    /// unless it asks to sign in late, and a late sign-in cancelled during its wait writes nothing.
     private static func restoreSignIn() async -> Bool? {
         #if DEBUG
             if UITestFixture.isEnabled {
                 guard UITestFixture.launch.signsInLate else { return nil }
-                try? await Task.sleep(for: .seconds(3))
+                do {
+                    try await Task.sleep(for: .seconds(3))
+                } catch {
+                    return nil
+                }
                 return true
             }
         #endif
@@ -100,8 +104,9 @@ struct WorkoutTrackerApp: App {
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
                     guard let isSignedIn = await Self.restoreSignIn() else { return }
-                    // A restore hands back a sign-in the athlete already had, so RootView cuts to
-                    // where they were. Only their own sheet commit plays the onboarding handoff.
+                    // A restore hands back a sign-in the athlete already had, so it must not
+                    // animate. Only the athlete's own actions (a sheet commit, a manual sign-in,
+                    // Sign Out) play the onboarding handoff.
                     withTransaction(\.disablesAnimations, true) {
                         app.settings.isSignedIn = isSignedIn
                     }

@@ -69,6 +69,8 @@ struct RootView: View {
             .transition(handoff)
     }
 
+    // On the transitions, not an .animation(_:value:) on the Group, which would animate every
+    // change under the Group in that transaction, not only the branch swap.
     private var handoff: AnyTransition {
         .opacity.animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35))
     }
