@@ -18,6 +18,7 @@ struct ActiveSetCardLayoutTests {
         )
         let clearMenu = ["Clear menu": CGRect(x: 338, y: 68, width: 44, height: 44)]
         let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 278, y: 80, width: 60, height: 20)]) { $1 }
+        let mic = ["Mic": CGRect(x: 338, y: 68, width: 44, height: 44)]
 
         let drawn = try CardHost.drawings(of: [
             "logging a pending Set": CardHost.Scene(state: .pending, mode: .logging),
@@ -27,7 +28,18 @@ struct ActiveSetCardLayoutTests {
             "reviewing a logged Set just saved": CardHost.Scene(state: .logged, mode: .reviewing(showsSaved: true)),
             "reviewing an Unstructured Set Log": CardHost.Scene(state: .loggedUnstructured, mode: .reviewing(showsSaved: false)),
             "holding a Set logged by speech": CardHost.Scene(state: .logged, mode: .heldAfterSpokenWrite),
-            "holding a Set skipped by speech": CardHost.Scene(state: .skipped, mode: .heldAfterSpokenWrite)
+            "holding a Set skipped by speech": CardHost.Scene(state: .skipped, mode: .heldAfterSpokenWrite),
+            "logging a pending Set with the mic": CardHost.Scene(state: .pending, mode: .logging, mic: .ready),
+            "listening for a pending Set": CardHost.Scene(
+                state: .pending,
+                mode: .logging,
+                mic: .listening(caption: "135 for 4 at RPE 9, and that last rep was a grinder")
+            ),
+            "showing a press that wrote nothing": CardHost.Scene(
+                state: .pending,
+                mode: .logging,
+                mic: .rejected(caption: "“100 kilos for 5”")
+            )
         ])
 
         #expect(
@@ -71,6 +83,21 @@ struct ActiveSetCardLayoutTests {
                     rows: rows,
                     actionControl: "log-active-set-button",
                     headControls: savedAndClearMenu
+                ),
+                "logging a pending Set with the mic": CardDrawing(
+                    rows: rows,
+                    actionControl: "log-active-set-button",
+                    headControls: mic
+                ),
+                "listening for a pending Set": CardDrawing(
+                    rows: rows,
+                    actionControl: "spoken-set-capsule",
+                    headControls: mic
+                ),
+                "showing a press that wrote nothing": CardDrawing(
+                    rows: rows,
+                    actionControl: "spoken-set-capsule",
+                    headControls: mic
                 )
             ]
         )
@@ -146,13 +173,15 @@ private enum CardHost {
     struct Scene {
         let state: SetFill
         let mode: Mode
+        var mic: SetCardDictation?
     }
 
     private static let windowSize = CGSize(width: 402, height: 874)
-    private static let actionControls = ["log-active-set-button", "logged-set-capsule"]
+    private static let actionControls = ["log-active-set-button", "logged-set-capsule", "spoken-set-capsule"]
     private static let headControlNames = [
         "clear-logged-set-menu": "Clear menu",
-        "Saved": "Saved"
+        "Saved": "Saved",
+        "say-set-button": "Mic"
     ]
 
     static func drawings(of scenes: KeyValuePairs<String, Scene>) throws -> [String: CardDrawing] {
@@ -192,8 +221,17 @@ private enum CardHost {
             }
 
         let view = VStack(spacing: 0) {
-            ActiveSetCard(set: set, setOrdinal: 3, setCount: 5, mode: mode, onLog: { _ in }, onSkip: {}, onDelete: {})
-                .padding(.horizontal, 16)
+            ActiveSetCard(
+                set: set,
+                setOrdinal: 3,
+                setCount: 5,
+                mode: mode,
+                mic: scene.mic.map { SetCardMic(dictation: $0, start: {}, finish: { _ in nil }, cancel: {}, dismiss: {}) },
+                onLog: { _ in },
+                onSkip: {},
+                onDelete: {}
+            )
+            .padding(.horizontal, 16)
             Spacer(minLength: 0)
         }
         .environment(lastPerformed)

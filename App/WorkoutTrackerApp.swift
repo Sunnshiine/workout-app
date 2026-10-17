@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
+    @State private var transcriber = Self.setTranscriber()
 
     init() {
         #if canImport(UserNotifications)
@@ -33,6 +34,21 @@ struct WorkoutTrackerApp: App {
             }
         #endif
         return .device()
+    }
+
+    /// SpeechAnalyzer does not run in the Simulator, so a Simulator card has a mic only when a
+    /// fixture launch names what it hears.
+    private static func setTranscriber() -> (any SetTranscriber)? {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                return UITestFixture.launch.dictatedTranscript.map { CannedSetTranscriber(candidates: [$0]) }
+            }
+        #endif
+        #if targetEnvironment(simulator)
+            return nil
+        #else
+            return SpeechAnalyzerSetTranscriber()
+        #endif
     }
 
     /// Returns nil when there is no sign-in to write. A fixture launch already set it at init
@@ -85,7 +101,7 @@ struct WorkoutTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(transcriber: transcriber)
                 .environment(app.settings)
                 .environment(app.workout)
                 .environment(app.sync)

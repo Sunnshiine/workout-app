@@ -298,6 +298,20 @@ extension SetCardSlot {
         owner: ActiveSetVisualFocusOwner?,
         savedLoggedSetID: ActiveSetID?
     ) -> SetCardSlot? {
+        if let shownInstead = cardShownInstead(in: sets, exerciseOrder: exerciseOrder, owner: owner, savedLoggedSetID: savedLoggedSetID) {
+            return shownInstead
+        }
+        guard let set = sets.first(matching: owner?.activeSetID) ?? sets.first(where: \.isPending) else { return nil }
+        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "stage-active-\(exerciseOrder)-\(set.index)")
+    }
+
+    /// A logged Set under review, or a Set held after a spoken write, in place of the Active Set.
+    private static func cardShownInstead(
+        in sets: [ExerciseSet],
+        exerciseOrder: Int,
+        owner: ActiveSetVisualFocusOwner?,
+        savedLoggedSetID: ActiveSetID?
+    ) -> SetCardSlot? {
         if case .loggedSetReview(let reviewedSetID) = owner, let reviewed = sets.first(matching: reviewedSetID) {
             return SetCardSlot(
                 reviewed,
@@ -309,8 +323,7 @@ extension SetCardSlot {
         if case .heldAfterSpokenWrite(let heldSetID) = owner, let held = sets.first(matching: heldSetID) {
             return SetCardSlot(held, in: sets, mode: .heldAfterSpokenWrite, cardIdentity: "stage-held-\(exerciseOrder)-\(held.index)")
         }
-        guard let set = sets.first(matching: owner?.activeSetID) ?? sets.first(where: \.isPending) else { return nil }
-        return SetCardSlot(set, in: sets, mode: .logging, cardIdentity: "stage-active-\(exerciseOrder)-\(set.index)")
+        return nil
     }
 
     fileprivate static func supersetCard(

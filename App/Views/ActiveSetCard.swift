@@ -1,6 +1,16 @@
 import SwiftData
 import SwiftUI
 
+/// The card's mic, present only while its Set can be said.
+struct SetCardMic {
+    let dictation: SetCardDictation
+    let start: () -> Void
+    /// Takes what the card shows, which fills what the athlete leaves unsaid.
+    let finish: (SetLogDraft) async -> SetDictation.Outcome?
+    let cancel: () async -> Void
+    let dismiss: () -> Void
+}
+
 struct ActiveSetCard: View {
     private struct PillsIdentity: Hashable {
         let set: PersistentIdentifier
@@ -11,12 +21,16 @@ struct ActiveSetCard: View {
     let setOrdinal: Int
     let setCount: Int
     var mode: SetCardSlot.Mode = .logging
+    var mic: SetCardMic?
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    var onTouchWhileHeld: () -> Void = {}
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
+    @State private var shownDraft = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+    @GestureState private var isPressingMic = false
 
     private static let headTargetSize: CGFloat = 44
     private static let headTargetOverhang: CGFloat = 12
@@ -35,9 +49,18 @@ struct ActiveSetCard: View {
                 suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
-                inputDismissalRequestID: inputDismissalRequestID
+                inputDismissalRequestID: inputDismissalRequestID,
+                dictation: mic?.dictation ?? .ready,
+                onDismissDictation: { mic?.dismiss() }
             )
             .id(PillsIdentity(set: set.persistentModelID, mode: setCardMode))
+            .overlay {
+                if mode == .heldAfterSpokenWrite { heldValuesCover }
+            }
+        }
+        .onPreferenceChange(ShownSetLogDraftKey.self) { shownDraft = $0 }
+        .onChange(of: isPressingMic) { _, isPressing in
+            if isPressing { beginPress() } else { endPress() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
@@ -62,16 +85,37 @@ struct ActiveSetCard: View {
             Color.clear
                 .contentShape(.rect)
                 .onTapGesture(perform: dismissInputIfLogging)
+                .simultaneousGesture(touchWhileHeld, including: touchMask)
                 .accessibilityHidden(true)
         }
         .overlay(alignment: .trailing) { headTrailingSlot }
+    }
+
+    /// A touch on the held card moves it on; the Clear menu sits outside it, so undo stays a touch away.
+    private var touchWhileHeld: some Gesture {
+        DragGesture(minimumDistance: 0).onChanged { _ in onTouchWhileHeld() }
+    }
+
+    private var touchMask: GestureMask {
+        mode == .heldAfterSpokenWrite ? .all : .subviews
+    }
+
+    /// The held Set shows as a review, which saves an edit when its card moves on, so a touch on its
+    /// values must reach only `touchWhileHeld`.
+    private var heldValuesCover: some View {
+        Color.clear
+            .contentShape(.rect)
+            .gesture(touchWhileHeld)
+            .accessibilityHidden(true)
     }
 
     @ViewBuilder
     private var headTrailingSlot: some View {
         switch mode.headAccessory(for: set) {
         case .none:
-            EmptyView()
+            if let mic {
+                micControl(mic.dictation)
+            }
         case .saved:
             savedConfirmation
         case .clearMenu:
@@ -103,6 +147,49 @@ struct ActiveSetCard: View {
         .accessibilityLabel("More")
         .accessibilityIdentifier("clear-logged-set-menu")
         .padding(.trailing, -Self.headTargetOverhang)
+    }
+
+    /// Press and hold to talk. VoiceOver's activation starts listening and the next one finishes.
+    private func micControl(_ dictation: SetCardDictation) -> some View {
+        Image(systemName: dictation.isListening ? "mic.fill" : "mic")
+            .imageScale(.large)
+            .foregroundStyle(dictation.isListening ? palette.action : palette.textSecondary)
+            .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+            .contentShape(.rect)
+            .gesture(DragGesture(minimumDistance: 0).updating($isPressingMic) { _, isPressing, _ in isPressing = true })
+            .onDisappear(perform: cancelPress)
+            .accessibilityElement()
+            .accessibilityLabel("Say Set")
+            .accessibilityValue(dictation.isListening ? "Listening" : "")
+            .accessibilityHint("Hold and say your Set, like 185 for 5 at 8")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                if dictation.isListening { endPress() } else { beginPress() }
+            }
+            .accessibilityIdentifier("say-set-button")
+            .padding(.trailing, -Self.headTargetOverhang)
+    }
+
+    private func beginPress() {
+        guard let mic else { return }
+        dismissInputIfLogging()
+        HapticPlayer.shared.play(SetDictation.startHaptic)
+        mic.start()
+    }
+
+    private func endPress() {
+        guard let mic else { return }
+        let shown = shownDraft
+        Task {
+            guard let outcome = await mic.finish(shown) else { return }
+            HapticPlayer.shared.play(outcome.haptic)
+        }
+    }
+
+    /// A press whose mic leaves the screen writes nothing.
+    private func cancelPress() {
+        guard let mic else { return }
+        Task { await mic.cancel() }
     }
 
     private func dismissInputIfLogging() {

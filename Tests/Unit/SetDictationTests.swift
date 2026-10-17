@@ -189,32 +189,6 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 }
 
 @MainActor
-private final class HeldSetTranscriber: SetTranscriber {
-    let starting = HeldCall()
-    let finishing = HeldCall()
-    private(set) var wasCancelled = false
-    private let candidates: [String]
-
-    init(candidates: [String]) {
-        self.candidates = candidates
-    }
-
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
-        await starting.hold()
-        hearing(candidates.first ?? "")
-    }
-
-    func finish() async throws(SetTranscriberError) -> [String] {
-        await finishing.hold()
-        return candidates
-    }
-
-    func cancel() async {
-        wasCancelled = true
-    }
-}
-
-@MainActor
 private final class FailingSetTranscriber: SetTranscriber {
     private let heard: String
     private let startFailure: SetTranscriberError?
@@ -264,4 +238,29 @@ func theCardsCaptionForARejectedPress(rejection: SetDictation.Rejection, heard: 
 
     #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: firstSet) == .listening(caption: "135 for"))
     #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: secondSet) == .ready)
+}
+
+@Test func theCapsuleCaptionsAPressInFlightOrRejectedAndTheMicShowsItIsListening() {
+    let cases: [(SetCardDictation, String?, Bool)] = [
+        (.ready, nil, false),
+        (.listening(caption: "135 for"), "135 for", true),
+        (.rejected(caption: "Nothing heard"), "Nothing heard", false),
+        (.filled(SetLogDraft(weight: nil, reps: 4, rpe: .nine)), nil, false)
+    ]
+
+    for (dictation, caption, isListening) in cases {
+        #expect(dictation.caption == caption)
+        #expect(dictation.isListening == isListening)
+    }
+}
+
+@Test func aPressFeelsLikeTheTapItStandsInForAndAnythingUnwrittenWarns() {
+    let logged = SetDictation.Outcome.logged(SetLog(weight: .pounds(135), reps: 4, rpe: .nine), heard: "135 for 4 at 9")
+    let filled = SetDictation.Outcome.filled(SetLogDraft(weight: nil, reps: 4, rpe: .nine), heard: "for 4 at 9")
+
+    #expect(SetDictation.startHaptic == .input(Theme.Haptics.stepperTick))
+    #expect(logged.haptic == .input(Theme.Haptics.logTap))
+    #expect(SetDictation.Outcome.skipped(heard: "skip").haptic == .input(Theme.Haptics.skipDud))
+    #expect(filled.haptic == .warning)
+    #expect(SetDictation.Outcome.rejected(.spokenSet(.kilograms), heard: "100 kilos").haptic == .warning)
 }

@@ -149,6 +149,15 @@ struct SmartValuePillsForm {
         return log
     }
 
+    /// Shows values heard from a Spoken Set for the athlete to log with a tap, marking any it left
+    /// missing.
+    mutating func fill(_ heard: SetLogDraft) {
+        weightText = heard.weight?.label ?? ""
+        repsText = heard.reps.map(String.init) ?? ""
+        rpeText = heard.rpe?.label ?? ""
+        showsInvalidFields = !heard.missingFields.isEmpty
+    }
+
     mutating func cancel() {
         weightText = initialWeightText
         repsText = initialRepsText
