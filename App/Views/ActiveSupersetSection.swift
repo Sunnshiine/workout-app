@@ -41,16 +41,13 @@ struct ActiveSupersetSection: View {
             Button {
                 coordinator.focusNextSupersetSet(for: stage.partner, in: session)
             } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "arrow.triangle.branch")
-                        .imageScale(.small)
-                    Text(stage.partner.baseName)
-                        .lineSpacing(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .font(Theme.font(.supersetPartner))
-                .foregroundStyle(palette.supersetPartnerName)
-                .contentShape(Rectangle())
+                Text("\(Image(systemName: "arrow.triangle.branch"))\(Text("\u{00A0}").tracking(2))\(stage.partner.baseName)")
+                    .imageScale(.small)
+                    .lineSpacing(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .font(Theme.font(.supersetPartner))
+                    .foregroundStyle(palette.supersetPartnerName)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("& \(stage.partner.baseName)")
