@@ -3,7 +3,13 @@ import Observation
 @MainActor
 @Observable
 final class SettingsStore {
-    var isSignedIn = false
+    /// A launch restores the athlete's previous Google sign-in before it knows whether they are
+    /// signed in.
+    private enum SignIn {
+        case restoring, signedIn, signedOut
+    }
+
+    private var signIn = SignIn.restoring
     private(set) var appearance: AppearancePreference
     private(set) var standardRestDuration: RestDurationSetting
     private(set) var supersetRestDuration: RestDurationSetting
@@ -32,7 +38,17 @@ final class SettingsStore {
         self.showsLoadBasis = defaults.integer(forKey: Self.showsLoadBasisKey) == 1
     }
 
+    /// Writing it, as the launch's restore, a sign-in, or Sign Out does, ends the restore.
+    var isSignedIn: Bool {
+        get { signIn == .signedIn }
+        set { signIn = newValue ? .signedIn : .signedOut }
+    }
+
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
+
+    /// False while the launch restores a sign-in that may yet configure the app, though
+    /// onboarding shows in the meantime.
+    var needsOnboarding: Bool { signIn != .restoring && !isConfigured }
 
     /// Stores the spreadsheet id parsed from a pasted Sheet URL. Returns false if unparseable.
     @discardableResult

@@ -190,6 +190,34 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
+    func testTheDictateLinkOnOnboardingEndsThereSoChoosingASheetLogsNothing() throws {
+        let app = launchWorkoutApp(fixture: .onboarding, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
+
+        app.open(dictateLink)
+        let replacementRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")).firstMatch
+        XCTAssertTrue(replacementRow.appears(within: 3))
+        replacementRow.tap()
+
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
+        XCTAssertFalse(app.staticTexts["Session complete"].appears(within: 5), "the request onboarding met never logs the Set")
+        XCTAssertEqual(app.staticTexts["session-remaining-count"].label, "1 Set left")
+        XCTAssertFalse(app.staticTexts["Saved"].exists)
+    }
+
+    @MainActor
+    func testTheDictateLinkWhileTheSignInRestoresLogsTheSetOnceTheRestoreSignsIn() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, options: [.lateSignIn], dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.buttons["onboarding-connect-button"].appears(within: 3))
+
+        app.open(dictateLink)
+
+        XCTAssertTrue(app.buttons["onboarding-connect-button"].appears(within: 2), "the link lands while the sign-in restores")
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 10), "the Set logs once the restore signs the athlete in")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
+    }
+
+    @MainActor
     private func launchCurrentSessionSmokeApp() -> XCUIApplication {
         launchWorkoutApp(fixture: .currentSession)
     }

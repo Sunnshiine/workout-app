@@ -70,3 +70,56 @@ func noOtherURLAsksTheAppForAnything(url: String) {
 
     #expect(entry.take() == nil)
 }
+
+@MainActor
+@Test func aRequestIsGoodForItsLifetimeFromArrivalAndNoLonger() {
+    let clock = ManualListeningClock()
+    let entry = AppEntryInbox(clock: clock)
+    entry.deliver(.dictateCurrentSet)
+
+    clock.advance(by: AppEntryInbox.requestLifetime - .milliseconds(1))
+    #expect(entry.pending == .dictateCurrentSet)
+
+    clock.advance(by: .milliseconds(1))
+    #expect(entry.pending == nil)
+    #expect(entry.take() == nil)
+}
+
+@MainActor
+@Test func aRequestThatArrivesAgainStartsItsLifetimeAgain() {
+    let clock = ManualListeningClock()
+    let entry = AppEntryInbox(clock: clock)
+    entry.deliver(.dictateCurrentSet)
+    clock.advance(by: .seconds(8))
+
+    entry.deliver(.dictateCurrentSet)
+    clock.advance(by: .seconds(8))
+
+    #expect(entry.take() == .dictateCurrentSet)
+}
+
+@MainActor
+@Test func aRequestWaitingWhenOnboardingShowsEndsThereAndStaysEndedOnceASheetIsChosen() {
+    let entry = AppEntryInbox(clock: ManualListeningClock())
+    entry.deliver(.dictateCurrentSet)
+
+    entry.reportOnboarding(isShown: true)
+    #expect(entry.pending == nil)
+
+    entry.reportOnboarding(isShown: false)
+    #expect(entry.take() == nil)
+}
+
+@MainActor
+@Test func aRequestThatArrivesDuringOnboardingIsNeverHeld() {
+    let entry = AppEntryInbox(clock: ManualListeningClock())
+    entry.reportOnboarding(isShown: true)
+
+    entry.deliver(.dictateCurrentSet)
+    #expect(entry.pending == nil)
+
+    entry.reportOnboarding(isShown: false)
+    #expect(entry.pending == nil)
+    entry.deliver(.dictateCurrentSet)
+    #expect(entry.take() == .dictateCurrentSet)
+}

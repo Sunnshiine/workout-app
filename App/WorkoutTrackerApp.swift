@@ -83,7 +83,10 @@ struct WorkoutTrackerApp: App {
             } catch {
                 fatalError("\(error)")
             }
-            settings.isSignedIn = !UITestFixture.launch.signsInLate
+            // A late sign-in leaves the restore running, as a device does, until the launch task ends it.
+            if !UITestFixture.launch.signsInLate {
+                settings.isSignedIn = true
+            }
             // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
             // while the seeded (stale) Block stays in the store to prove it is never shown for the
             // newly selected sheet.

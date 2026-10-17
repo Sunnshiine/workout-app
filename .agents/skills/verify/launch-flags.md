@@ -21,7 +21,7 @@ than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
 | `-UITEST_PENDING_WRITE` | Switch | Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block, so a sync writes it and reloads that Block in place of the Scenario's. |
 | `-UITEST_SLOW_SYNC` | Switch | Makes the fixture Sheets client wait 20 seconds before it lists tabs, so a sync stays in flight. |
-| `-UITEST_LATE_SIGN_IN` | Switch | Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device. |
+| `-UITEST_LATE_SIGN_IN` | Switch | Restores the sign-in for 3 seconds after launch, showing onboarding meanwhile, then signs in, as restoring a Google sign-in does on a device. |
 | `-UITEST_CURRENT_SESSION_OVERRIDE` | Switch | Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays. |
 | `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration, which shows only when the Current Session offers Move On. |
 | `-UITEST_APPEARANCE` | Switch | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |

@@ -23,7 +23,8 @@ protocol SetTranscriber: AnyObject {
     func cancel() async
 }
 
-/// The time hands-free listening reads to decide when the athlete has stopped talking.
+/// The time hands-free Dictation reads: how long a request to listen waits for the stage, and
+/// when the athlete has stopped talking.
 @MainActor
 protocol ListeningClock: AnyObject {
     /// The time since a fixed origin.

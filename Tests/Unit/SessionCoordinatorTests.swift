@@ -2688,7 +2688,7 @@ private func makeHandsFreeFixture(
 ) -> HandsFreeFixture {
     let clock = ManualListeningClock()
     let dictation = candidates.map { SetDictation(transcriber: CannedSetTranscriber(candidates: $0), clock: clock) }
-    let entry = AppEntryInbox()
+    let entry = AppEntryInbox(clock: clock)
     if requested {
         entry.deliver(.dictateCurrentSet)
     }
@@ -2827,6 +2827,52 @@ private func makeHandsFreeFixture(
 
     #expect(fixture.entry.pending == .dictateCurrentSet)
     #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestStillWaitingWhenItsLifetimeEndsIsNeverAnswered() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    fixture.clock.advance(by: AppEntryInbox.requestLifetime)
+    fixture.show(viewed)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    fixture.show(current)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+    #expect(fixture.entry.pending == nil, "no card can take the request")
+}
+
+@MainActor
+@Test func aRequestThatHasWaitedJustUnderItsLifetimeIsAnsweredWhenTheStageShows() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    fixture.clock.advance(by: AppEntryInbox.requestLifetime - .milliseconds(1))
+    fixture.show(current)
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+}
+
+@MainActor
+@Test func aRequestThatArrivesWhileTheSignInRestoresListensAndLogsOnceTheRestoreSignsIn() async throws {
+    let settings = SettingsStore(defaults: .inMemory())
+    settings.setSpreadsheet(id: "SHEET123", title: "Training Log")
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: nil, current: session, requested: false)
+    let reportOnboardingAsRootViewDoes = { fixture.entry.reportOnboarding(isShown: settings.needsOnboarding) }
+    reportOnboardingAsRootViewDoes()
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    settings.isSignedIn = true
+    reportOnboardingAsRootViewDoes()
+    fixture.show(session)
+
+    let slot = try fixture.card(in: session)
+    #expect(fixture.coordinator.startsHandsFree(slot))
+    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+    #expect(outcome == .logged(SetLog(weight: .pounds(185), reps: 6, rpe: .seven), heard: "185 for 6 at 7"))
 }
 
 @MainActor
