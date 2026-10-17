@@ -51,6 +51,16 @@ extension SetLogPlacementNarration {
         )
     }
 
+    static func protectedLineVisibleWritableRow(row: Int) -> Self {
+        .row(
+            row,
+            selection: """
+                visible writable row below the Exercise's Prescription Lines, taken because this Line's \
+                Notes hold a Coach Note.
+                """
+        )
+    }
+
     static func compactHeaderList(anchor: SheetLayoutExerciseAnchor) -> Self {
         .row(anchor.row, selection: "compact header Notes row stores Set logs as a comma-separated list.")
     }
@@ -85,6 +95,8 @@ extension SetLogPlacement {
         switch kind {
         case .multiLinePrescriptionLine:
             .multiLinePrescriptionLine(row: row, listPosition: listPosition)
+        case .protectedLineVisibleWritableRow:
+            .protectedLineVisibleWritableRow(row: row)
         case .compactHeaderList:
             .compactHeaderList(anchor: anchor)
         case .protectedHeaderVisibleWritableRow:

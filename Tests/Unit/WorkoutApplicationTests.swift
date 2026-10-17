@@ -151,6 +151,30 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test func aCoachNoteOnAMultiLineAnchorRedirectsItsFirstLineToTheSpareRow() async throws {
+    // #942: Back Squat becomes a 1-Set anchor Line carrying a Coach Note plus a 2-Set Line on row
+    // 16, leaving rows 17 and 18 spare before the RDL on row 19.
+    let coachNote = "Brace hard off the floor, controlled descent."
+    var workbook = WorkbookScenario.freshBlock.workbook()
+    workbook.tabs["Block 27"]?.cells.merge(["D15": "1", "K15": coachNote, "D16": "2", "F16": "5", "H16": "RPE8"]) { _, new in new }
+    let app = try WorkoutApplication(environment: .inMemory(workbook: workbook, now: { frozenNow }))
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
+
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "235x5@6")
+    let flush = try await app.flush()
+    #expect(flush.conflictedWrites == [])
+    #expect(flush.written == 1)
+
+    let sheet = try await app.sheet(tab: nil)
+    #expect(sheet.cells["K15"] == coachNote)
+    #expect(sheet.cells["K17"] == "235x5@6")
+    _ = try await app.sync()
+    let squat = try app.session(SessionAddress(week: 1, day: 1)).exercises[0]
+    #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
+    #expect(squat.sets[0].setLog == "235x5@6")
+}
+
+@MainActor
 @Test func loggingTheSameSetTwiceEnqueuesTwice() async throws {
     let app = try await makeSelectedApp()
 
