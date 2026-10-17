@@ -353,15 +353,28 @@ func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, rep
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
 }
 
-@Test func perAndOrAfterAWeightOfAtLeast20AreTheForOfWeightForReps() {
+@Test func perAfterAWeightOfAtLeast20AndOrAfterOneHeavierThanTheRepsAreTheForOfWeightForReps() {
     #expect(SpokenSet.parse("45 or 10") == values(.pounds(45), 10, nil))
     #expect(SpokenSet.parse("20 or 5") == values(.pounds(20), 5, nil))
+    #expect(SpokenSet.parse("bodyweight or 12") == values(.bodyweight, 12, nil))
     #expect(SpokenSet.parse("95 pounds per six") == values(.pounds(95), 6, nil))
     #expect(SpokenSet.parse("bodyweight per 12") == values(.bodyweight, 12, nil))
-    #expect(SpokenSet.parse("19 or 5") == .failure(.unrecognized))
-    #expect(SpokenSet.parse("five or six reps at eight") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("19 per 5") == .failure(.unrecognized))
     #expect(SpokenSet.parse("or 5") == .failure(.unrecognized))
     #expect(SpokenSet.parse("185 for or 5") == .failure(.unrecognized))
+}
+
+/// A weight for reps falls from the weight to the reps, and a range such as "20 or 25" climbs.
+@Test(
+    "Or between two numbers where it can't be the for of a weight for reps is ambiguous",
+    arguments: [
+        "19 or 5", "five or six reps at eight", "20 or 25 reps", "twenty or twenty five reps", "30 or 40 reps", "20 or 20",
+        "twenty five or thirty reps at eight", "45 or 50 pounds for 10", "45 pounds or 50 pounds", "for 20 or 25 at 8",
+        "bodyweight for 20 or 25"
+    ]
+)
+func orBetweenTwoNumbersItCannotSeparateIsAmbiguous(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
 }
 
 @Test func aPoundSignOrAClockReadsAsTheWeightItWrote() {

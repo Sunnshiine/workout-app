@@ -98,7 +98,9 @@ where a word next to it, or the phrase around it, says which, never by its place
 
 - "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
   and said first they label the reps ("for 5"). "four" between a weight and a number is "for" too
-  ("185 four 5"), and so are "or" and "per" after bodyweight or a weight of at least 20 ("225 or 3").
+  ("185 four 5"), and so is "per" after bodyweight or a weight of at least 20 ("95 pounds per 6").
+  "or" is "for" after bodyweight or a weight of at least 20 heavier than the reps ("225 or 3").
+  Between any other two numbers "or" is a range, as in "20 or 25 reps", and `ambiguous`.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
   number after it. "reps" labels the number before or after it ("8 reps", "reps 8").
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and

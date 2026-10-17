@@ -56,8 +56,10 @@ enum SpokenWord: Equatable, Sendable {
     /// A written "1/2".
     case halfSign
     case token(SpokenToken)
-    /// "or" and "per", the "for" of "135 or 5" after a weight of at least 20.
-    case orPer
+    /// The "for" of "135 or 5" after bodyweight or a weight of at least 20 heavier than the reps.
+    case or
+    /// The "for" of "95 pounds per six" after bodyweight or a weight of at least 20.
+    case per
     /// "to" and "too", the 2 of "185 for to" and "to reps".
     case to
     case kilograms
@@ -127,7 +129,7 @@ enum SpokenWord: Equatable, Sendable {
         (["bw", "bodyweight"], .token(.bodyweight)),
         (["of"], .token(.misheardAt(isFiller: true))),
         (["add"], .token(.misheardAt(isFiller: false))),
-        (["or", "per"], .orPer),
+        (["or"], .or), (["per"], .per),
         (["to", "too"], .to),
         (["kg", "kgs", "kilo", "kilos", "kilogram", "kilograms"], .kilograms),
         (
@@ -262,7 +264,7 @@ struct SpokenTokens {
     }
 
     private mutating func read(_ word: SpokenWord, _ words: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenNumber.Words {
-        if let homophone = homophone(word, before: words.dropFirst()) {
+        if let homophone = try homophone(word, before: words.dropFirst()) {
             tokens.append(homophone)
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
@@ -273,13 +275,14 @@ struct SpokenTokens {
         return words.dropFirst()
     }
 
-    /// "four" between a weight and a number is the "for" of "135 four 5", and "or" and "per" are
-    /// the same after a weight of at least 20. "to" and "too" are 2 only where a number is asked
-    /// for: "315 for to", "to reps".
-    private func homophone(_ word: SpokenWord, before next: SpokenNumber.Words) -> SpokenToken? {
+    /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is the same
+    /// after a weight of at least 20. "or" is too when that weight is heavier than the number after
+    /// it. "to" and "too" are 2 only where a number is asked for: "315 for to", "to reps".
+    private func homophone(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         switch word {
         case .four: separator(afterAWeightOfAtLeast: 0, before: next)
-        case .orPer: separator(afterAWeightOfAtLeast: Self.lightestWeightBeforeOr, before: next)
+        case .per: separator(afterAWeightOfAtLeast: Self.lightestWeightBeforeOr, before: next)
+        case .or: try separatorOrRange(before: next)
         case .to: two(before: next)
         default: nil
         }
@@ -290,13 +293,27 @@ struct SpokenTokens {
         return .marker(.separator)
     }
 
+    /// A weight for reps falls from the weight to the reps, so "or" between bodyweight or a weight of
+    /// at least 20 and fewer reps is its "for". Between any other two numbers it is a range or a
+    /// choice, as in "20 or 25 reps" and "five or six reps", and ambiguous.
+    private func separatorOrRange(before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
+        guard let reps = SpokenNumber.read(next)?.number.value, let weight = lastValue?.amount else { return nil }
+        guard case .number(let pounds) = weight else { return .marker(.separator) }
+        guard pounds >= Self.lightestWeightBeforeOr, pounds > reps else { throw .ambiguous }
+        return .marker(.separator)
+    }
+
     /// The last value said, before any "pounds" after it, is bodyweight or a number of at least `lightest`.
     private func followsAWeight(ofAtLeast lightest: Double) -> Bool {
-        switch tokens.last(where: { $0 != .marker(.pounds) }) {
+        switch lastValue {
         case .number(let number)?: number.value >= lightest
         case .bodyweight?: true
         default: false
         }
+    }
+
+    private var lastValue: SpokenToken? {
+        tokens.last { $0 != .marker(.pounds) }
     }
 
     private func two(before next: SpokenNumber.Words) -> SpokenToken? {
