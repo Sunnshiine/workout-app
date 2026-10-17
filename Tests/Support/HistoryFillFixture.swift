@@ -1,6 +1,21 @@
 import Foundation
+import SwiftData
 
 @testable import WorkoutTracker
+
+/// An Exercise History fill whose tab scans run at `.userInitiated`, above the default-priority
+/// busy loops of `scripts/flake-hunt.sh` and parallel lanes. At the app's `.background`, a host at
+/// load ~970 left every fill test in `SyncCoordinatorTests` unfinished after 8 minutes while each
+/// other test in the file ran 1000 times (#899).
+@MainActor
+func makeHistoryFill(
+    client: any SheetsClient,
+    context: ModelContext,
+    index: any LastPerformedIndexing,
+    backoff: SheetsBackoff = SheetsBackoff()
+) -> ExerciseHistoryFill {
+    ExerciseHistoryFill(client: client, context: context, index: index, backoff: backoff, scanPriority: .userInitiated)
+}
 
 /// Serves one grid per tab, and can fail or throttle a named tab so a test can drive every
 /// arm of the Exercise History fill's halt rule. Records the tabs it was asked for, in order.
