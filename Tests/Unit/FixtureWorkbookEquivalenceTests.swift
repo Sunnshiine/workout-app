@@ -10,7 +10,7 @@ import Testing
 // scenario's graph with a workbook, recorded what the cells could not express, then seeded the
 // scenario from the workbook and deleted the graph; #970 deleted the last. The seeded side is the
 // Block `UITestFixture.boot` leaves in a fresh application's store, so each row now pins that the
-// scenario seeds that workbook and no other, and that only `unwritableSetLogs` lie over it.
+// scenario seeds that workbook and no other, and that nothing lies over it.
 //
 // Pairing is by structural address and nothing else: the Block, then Week number, then Day
 // number, then `Exercise.order`, then `ExerciseSet.index`. A name is compared data, never a
@@ -179,11 +179,9 @@ private func setsByAddress(_ exercise: Exercise, in address: ExerciseAddress) ->
 }
 
 /// The parse and build a sync makes, so the comparison runs against the real interpretation rather
-/// than a second one written here. It leaves out `WorkbookScenario.unwritableSetLogs`, which no cell
-/// holds, so each of those shows as recorded drift until #942 gives it a cell. It stops where
-/// `SyncCoordinator.replacePersistedBlock` begins: the overlays that follow, which re-apply pending
-/// writes and preserve local `loggedAt`, are outside the harness and would matter the moment a
-/// scenario holding athlete state is paired.
+/// than a second one written here. It stops where `SyncCoordinator.replacePersistedBlock` begins:
+/// the overlays that follow, which re-apply pending writes and preserve local `loggedAt`, are
+/// outside the harness and would matter the moment a scenario holding athlete state is paired.
 @MainActor
 private func parsedBlock(_ scenario: WorkbookScenario) -> Block {
     // One tab, so "the Block tab" needs no selection rule here. A scenario that gains the
@@ -199,7 +197,8 @@ private func parsedBlock(_ scenario: WorkbookScenario) -> Block {
 private let pairedScenarios: [WorkbookScenario] = UITestLaunch.scenarioFlags.map(\.scenario)
 
 /// Workbooks only `Tests/Support/WorkoutScenarios.swift` reads, so no launch boots them. #970
-/// paired each with the hand-built graph it replaced, with no drift beyond `unwritableSetLogs`.
+/// paired each with the hand-built graph it replaced, with no drift beyond Set Logs no cell held
+/// until #942, which #1000 wrote as cells.
 private let supportWorkbooks: [WorkbookScenario] = [
     .currentSessionWithPendingSets, .partiallyLoggedSession, .blockOverviewWithMixedSessionStates
 ]
@@ -221,22 +220,14 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
     // Seeded from its own workbook (#968). Its last entries were thirteen Accessory names, dropped
     // for the reason `partial-upload`'s two were.
     .fullBlock: [],
-    // Seeded from their own workbooks (#970). The drift left is the first Set of each two-Line
-    // lift, Logged at boot but Pending in the parse: its Line's Notes cell holds the Coach Note, so
-    // no cell can hold the log until #942, and `unwritableSetLogs` logs it over the parse instead.
-    .openExercises: firstSetLogged("w1d1", "235x5@6") + firstSetLogged("w1d2", "155x5@6") + firstSetLogged("w1d3", "305x3@6"),
-    .completedOpenExercises: firstSetLogged("w1d1", "235x5@6"),
+    // Seeded from their own workbooks (#970). Their last entries were the first Set of each
+    // two-Line lift, logged over the parse until #942 gave a Coach Note Line's Set Logs the
+    // Exercise's spare row and #1000 wrote them there.
+    .openExercises: [],
+    .completedOpenExercises: [],
     .longSession: [],
     .perfectMoveOnCelebration: []
 ]
-
-/// The two fields an unwritable Set Log drifts in: the first Set of the Session's first Exercise.
-private func firstSetLogged(_ session: String, _ log: String) -> [Drift] {
-    [
-        .field("\(session).e0.s0", "state", seeded: "logged", parsed: "pending"),
-        .field("\(session).e0.s0", "setLog", seeded: log, parsed: nil)
-    ]
-}
 
 // MARK: - The gate
 

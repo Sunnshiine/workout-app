@@ -1,6 +1,5 @@
 #if DEBUG
     import Foundation
-    import SwiftData
 
     /// Boots the app into a deterministic, populated `SessionView` for unattended UI verification.
     ///
@@ -48,7 +47,7 @@
             try launch.checkFlags()
             app.settings.setAppearance(try launch.appearance)
             app.settings.isSignedIn = !launch.signsInLate
-            try await load(launch.scenario, into: app)
+            try await syncFixtureSheet(into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()
             try await queueOrDisconnect(app: app, launch: launch, sheets: sheets)
@@ -64,19 +63,12 @@
             present(launch, on: app.workout)
         }
 
-        /// Syncs the scenario's workbook, then logs its `unwritableSetLogs` over the stored Block, as
-        /// the app holds a log the Sheet has not taken.
+        /// Syncs the scenario's workbook, which the drive already holds as FIXTURE.
         @MainActor
-        private static func load(_ workbook: WorkbookScenario, into app: WorkoutApplication) async throws {
+        private static func syncFixtureSheet(into app: WorkoutApplication) async throws {
             guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
                 throw BootSyncFailed(outcome: app.sync.outcome)
             }
-            guard !workbook.unwritableSetLogs.isEmpty else { return }
-            let context = app.container.mainContext
-            for block in try context.fetch(FetchDescriptor<Block>()) {
-                workbook.applyUnwritableSetLogs(to: block)
-            }
-            try context.save()
         }
 
         /// A pending-write launch logs and leaves FIXTURE reachable for the sync that lands it;
