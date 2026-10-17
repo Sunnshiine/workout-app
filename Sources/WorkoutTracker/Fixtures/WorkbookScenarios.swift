@@ -12,9 +12,8 @@
         /// four Days, eleven of them Unavailable Sessions with no prescription rows (a Partially
         /// Uploaded Block). It carries a `%1RM` per Set on the main lifts and a Drop Load on the RDL,
         /// so both of those Load Suggestion arms are reachable from cells a coach could have typed.
-        /// The first Set of Back Squat and of Deadlift cannot flush: each sits on a Prescription Line
-        /// whose Notes cell holds the Coach Note, and the write conflicts rather than overwrite it
-        /// (#942).
+        /// The first Set of Back Squat and of Deadlift each sits on a Prescription Line whose Notes
+        /// cell holds the Coach Note, so its Set Log flushes to the Exercise's spare row (#942).
         case partialUpload = "partial-upload"
         /// The Block the UI fixture boots into for the Full Block scenario: `partial-upload`'s Week 1
         /// Days 1 and 2, a Deadlift on Week 1 Day 3, and an Accessory on every other Day, so all
@@ -56,15 +55,18 @@
             .fullBlock: fullBlock,
             .currentSessionWithPendingSets: { block(daysPerWeek: [1], prescriptions: [weekOneDayOne()]) },
             .partiallyLoggedSession: {
-                block(daysPerWeek: [1], prescriptions: [twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1))])
+                block(
+                    daysPerWeek: [1],
+                    prescriptions: [twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1), firstLineLogs: "235x5@6")]
+                )
             },
             .openExercises: {
                 block(
                     daysPerWeek: [3],
                     prescriptions: [
-                        twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
-                        twoLineLift(.benchPress, at: SessionAddress(week: 1, day: 2)),
-                        twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
+                        twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1), firstLineLogs: "235x5@6"),
+                        twoLineLift(.benchPress, at: SessionAddress(week: 1, day: 2), firstLineLogs: "155x5@6"),
+                        twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3), firstLineLogs: "305x3@6")
                     ]
                 )
             },
@@ -270,8 +272,14 @@
             )
         }
 
-        /// `lift` as the only Exercise of the Session at `address`: Lines at RPE 6 and 7.
-        private static func twoLineLift(_ lift: TwoLineLift, at address: SessionAddress) -> [String: String] {
+        /// `lift` as the only Exercise of the Session at `address`: Lines at RPE 6 and 7. The first
+        /// Line's Notes cell holds the Coach Note, so `firstLineLogs` go to the Exercise's spare row,
+        /// the row under the second Line, as the app writes them (#942).
+        private static func twoLineLift(
+            _ lift: TwoLineLift,
+            at address: SessionAddress,
+            firstLineLogs: String? = nil
+        ) -> [String: String] {
             let (row, dayStart) = (firstPrescriptionRow(of: address), dayStartColumns[address.day - 1])
             return merged([
                 prescription(
@@ -292,7 +300,8 @@
                     reps: lift.reps,
                     percentOneRM: lift.percentsOneRM.1,
                     load: "RPE7"
-                )
+                ),
+                firstLineLogs.map { ["\(columnName(dayStart + 8))\(row + 2)": $0] } ?? [:]
             ])
         }
 
@@ -341,7 +350,7 @@
             return block(
                 daysPerWeek: [3],
                 prescriptions: [
-                    twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
+                    twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1), firstLineLogs: "235x5@6"),
                     cells(of: bench, at: SessionAddress(week: 1, day: 2)),
                     twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
                 ]
@@ -491,51 +500,11 @@
         }
 
         /// The Block a sync of this scenario would persist: the parse, then `BlockBuilder.makeBlock`,
-        /// the second call, then the scenario's `unwritableSetLogs`. It stops before the overlays
-        /// `SyncCoordinator.replacePersistedBlock` applies, which only matter once local athlete
-        /// state exists.
+        /// the second call. It stops before the overlays `SyncCoordinator.replacePersistedBlock`
+        /// applies, which only matter once local athlete state exists.
         @MainActor
         func block() -> Block {
-            let block = BlockBuilder.makeBlock(from: parsedBlockTab().block)
-            applyUnwritableSetLogs(to: block)
-            return block
-        }
-
-        /// Set Logs on the first Line of a two-Line lift, whose Notes cell holds the Coach Note, so
-        /// the Sheet has no cell for them until #942 gives that Line a spare row, and #1000 writes
-        /// them there. Each scenario that needs one logs it over the parse instead, as the app holds
-        /// a log the Sheet has not taken.
-        var unwritableSetLogs: [SetAddress: String] {
-            let firstSet = { (day: Int) in
-                SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: day), order: 0), index: 0)
-            }
-            switch self {
-            case .partiallyLoggedSession, .completedOpenExercises:
-                return [firstSet(1): "235x5@6"]
-            case .openExercises:
-                return [firstSet(1): "235x5@6", firstSet(2): "155x5@6", firstSet(3): "305x3@6"]
-            case .freshBlock, .partialUpload, .fullBlock, .currentSessionWithPendingSets, .longSession, .perfectMoveOnCelebration,
-                .blockOverviewWithMixedSessionStates:
-                return [:]
-            }
-        }
-
-        /// Marks each of `unwritableSetLogs` Logged in `block` the way a parsed Set Log cell reads:
-        /// the log and the state, with no `loggedAt`, because the Sheet never carries one.
-        @MainActor
-        func applyUnwritableSetLogs(to block: Block) {
-            for (address, text) in unwritableSetLogs {
-                guard
-                    let set = block.session(at: address.exercise.session)?
-                        .exercises.first(where: { $0.order == address.exercise.order })?
-                        .sets.first(where: { $0.index == address.index }),
-                    let log = SetLog(formatted: text)
-                else {
-                    preconditionFailure("\(rawValue) has no Set \(address) to log \(text) on")
-                }
-                set.setLog = log
-                set.state = .logged
-            }
+            BlockBuilder.makeBlock(from: parsedBlockTab().block)
         }
     }
 #endif
