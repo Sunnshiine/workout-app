@@ -117,10 +117,41 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
 
 @Test(
     "Bodyweight in any spelling is the BW weight",
-    arguments: ["bodyweight for 12 at 7", "body weight for 12 at 7", "BW for 12 at 7", "B.W. for 12 at 7", "BWx12@7"]
+    arguments: [
+        "bodyweight for 12 at 7", "body weight for 12 at 7", "BW for 12 at 7", "B.W. for 12 at 7", "BWx12@7",
+        "Body weights for 12 at 7", "Body waits for 12 at 7", "Body wait for 12 at 7", "Bobby waits for 12 at 7",
+        "Bobby, wait for 12 at 7"
+    ]
 )
 func bodyweightInAnySpellingIsBW(transcript: String) {
     #expect(SpokenSet.parse(transcript) == values(.bodyweight, 12, .seven))
+}
+
+/// Verbatim from the matrix of voices: what the recognizer writes for "reps" and "RPE" said fast.
+@Test(
+    "The words the recognizer writes for reps and RPE label the number as those do",
+    arguments: [
+        "5 ribs with 185 pounds, RPE 9", "185 for 5 rips at 9", "185 for 5 representatives at 9", "185, 5 representatives, RPE 9",
+        "185 for 5 RPA 9", "185 for 5 reps, 9 PE", "185 for 5 reps, 9 are fee", "185 for five, our fee 9", "185 for 5 at our fee 9",
+        "185 for 5 at 9 are fee", "185 for 5 R fee 9", "185 for 5 reps at our pe 9"
+    ]
+)
+func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == values(.pounds(185), 5, .nine))
+}
+
+/// "135, a representative, RP9" says 135 reps at RPE 9 with no weight, and a Set missing a value is
+/// never written, so the recognizer dropping the rep count costs the athlete a tap, not a wrong Set.
+@Test func aRecognizerThatDropsTheRepCountLeavesAPartialSet() {
+    #expect(SpokenSet.parse("135, a representative, RP9") == values(nil, 135, .nine))
+    #expect(SpokenSet.parse("225 for 3 RPA") == rpeCutOff(.pounds(225), 3))
+}
+
+@Test func aSingleADoubleAndATripleAreOneTwoAndThreeReps() {
+    #expect(SpokenSet.parse("225 for a triple at 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("315 for a single at 9") == values(.pounds(315), 1, .nine))
+    #expect(SpokenSet.parse("225 for a double RPE 8") == values(.pounds(225), 2, .eight))
+    #expect(SpokenSet.parse("225 for a triple 8") == .failure(.ambiguous))
 }
 
 @Test func aPartialSetHearsOnlyWhatWasSaid() {

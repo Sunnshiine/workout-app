@@ -19,9 +19,13 @@ enum SpokenTranscript {
         return joiningPhrases(tokens)
     }
 
+    /// The joined words include what the recognizer writes for "RPE" ("our fee") and "body weight"
+    /// ("Bobby waits") when a lifter says them fast.
     private static let phrases: [(words: [String], word: String)] = [
-        (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"), (["k", "g"], "kg"),
-        (["thank", "you"], "thanks")
+        (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["our", "pe"], "rpe"), (["are", "pe"], "rpe"), (["our", "fee"], "rpe"),
+        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
+        (["body", "weights"], "bw"), (["body", "wait"], "bw"), (["body", "waits"], "bw"), (["bobby", "wait"], "bw"),
+        (["bobby", "waits"], "bw"), (["k", "g"], "kg"), (["thank", "you"], "thanks")
     ]
 
     private static func joiningPhrases(_ tokens: [String]) -> [String] {
@@ -116,7 +120,8 @@ enum SpokenWord: Equatable, Sendable {
     )
 
     private static let entries: [(words: [String], word: SpokenWord)] = [
-        (["zero"], .unit(0)), (["one"], .unit(1)), (["two"], .unit(2)), (["three"], .unit(3)), (["four"], .four),
+        (["zero"], .unit(0)), (["one", "single"], .unit(1)), (["two", "double"], .unit(2)), (["three", "triple"], .unit(3)),
+        (["four"], .four),
         (["five"], .unit(5)), (["six"], .unit(6)), (["seven"], .unit(7)), (["eight", "ate"], .unit(8)), (["nine"], .unit(9)),
         (["ten"], .teen(10)), (["eleven"], .teen(11)), (["twelve"], .teen(12)), (["thirteen"], .teen(13)),
         (["fourteen"], .teen(14)), (["fifteen"], .teen(15)), (["sixteen"], .teen(16)), (["seventeen"], .teen(17)),
@@ -127,8 +132,8 @@ enum SpokenWord: Equatable, Sendable {
         (["1/2"], .halfSign),
         (["for", "x", "by", "times"], .token(.marker(.separator))),
         (["pound", "pounds", "lb", "lbs"], .token(.marker(.pounds))),
-        (["rep", "reps"], .token(.marker(.reps))),
-        (["rpe", "rp", "@", "rte", "rtd", "rtv"], .token(.marker(.rpe))),
+        (["rep", "reps", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
+        (["rpe", "rp", "@", "rte", "rtd", "rtv", "rpa", "pe"], .token(.marker(.rpe))),
         (["at"], .token(.marker(.at))),
         (["with"], .token(.marker(.with))),
         (["bw", "bodyweight"], .token(.bodyweight)),

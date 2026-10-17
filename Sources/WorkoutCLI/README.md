@@ -112,11 +112,12 @@ where a word next to it, or the phrase around it, says which, never by its place
   "225 or 3" may be "225 for 3", and "20 or 25 reps" is a range.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
   number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
-  after it ("8 reps", "reps 8"). "with" labels bodyweight or a number off the RPE ladder after it
+  after it ("8 reps", "reps 8"), as do the "ribs", "rips", and "representatives" the recognizer
+  writes for it. "with" labels bodyweight or a number off the RPE ladder after it
   as the weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else,
   so "for 5 with 8" is `ambiguous`.
-- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
-  "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
+- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "PE", "our fee", and "@" label the number after
+  them as the RPE, and "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
   ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
 - Right after a whole weight for reps, "and", "of", "add", or "to" before a number is the "at" the
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" and "225 for 3 to
@@ -140,7 +141,8 @@ where a word next to it, or the phrase around it, says which, never by its place
   `ambiguous`.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
-  "ate" is 8, and "to" or "too" is 2 only where a number is asked for. Number words in a row that
+  "ate" is 8, "single", "double", and "triple" are 1, 2, and 3 ("225 for a triple at 8"), and "to"
+  or "too" is 2 only where a number is asked for. Number words in a row that
   make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
 - A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
@@ -149,7 +151,8 @@ where a word next to it, or the phrase around it, says which, never by its place
   as two digits whose second is 6 to 9, and as any three digits: "135 for 19" may be "135 for 1 at
   9", and "135 for 808" is what the recognizer writes for "135 for 8 at an 8". "135 for 19 reps",
   "135 for 100 reps", "135 for 15", and "45 for 10" log.
-- "bodyweight", "body weight", and "BW" are the BW weight.
+- "bodyweight", "body weight", and "BW" are the BW weight, as are the "body waits" and "Bobby waits"
+  the recognizer writes for it.
 - "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log
   the Exercise's nearest earlier Set Log in the Session. A command acts on this Set alone, so one
   that names a Set or Session, as "skip set one", "same as set one", and "same as last time" do, is
