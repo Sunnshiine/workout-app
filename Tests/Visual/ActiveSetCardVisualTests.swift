@@ -20,8 +20,7 @@ struct ActiveSetCardVisualTests {
 
     @Test func activeSetCardWithAHistoryEstimateMatchesVisualBaseline() throws {
         let lastBlock = LastPerformedEntry(
-            fullName: "Competition Bench Press",
-            baseName: "Competition Bench Press",
+            exerciseName: "Competition Bench Press",
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
             source: "Block 26 · W4 D1"
@@ -38,8 +37,7 @@ struct ActiveSetCardVisualTests {
 
     @Test func activeSetCardWithAMovementLevelEstimateMatchesVisualBaseline() throws {
         let differentlyNamedEntry = LastPerformedEntry(
-            fullName: "Comp Bench Press",
-            baseName: "Comp Bench Press",
+            exerciseName: "Comp Bench Press",
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
             source: "Block 26 · W4 D1"

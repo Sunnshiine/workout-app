@@ -9,8 +9,7 @@ import Testing
 
 @Test func lastPerformedEntryRoundTripsThroughTheCanonicalOccurrence() {
     let occurrence = LastPerformedOccurrence(
-        fullName: "2-3:1:0 BB RDL",
-        baseName: "BB RDL",
+        exerciseName: "2-3:1:0 BB RDL",
         resultText: "185x7@7",
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "Block 26 · W3 D1"
@@ -37,8 +36,7 @@ import Testing
 
     let occurrence = try #require(LastPerformedExtractor.occurrences(from: block).first)
 
-    #expect(occurrence.fullName == "Squat")
-    #expect(occurrence.baseName == "Squat")
+    #expect(occurrence.exerciseName == "Squat")
     #expect(occurrence.resultText == "185x5@7, 195x5@8")
     #expect(occurrence.source == "Block 27 · W1 D1")
 }
@@ -126,8 +124,7 @@ private func occurrenceSkippedSet(index: Int) -> ParsedSet {
 
 private func occurrence(resultText: String) -> LastPerformedOccurrence {
     LastPerformedOccurrence(
-        fullName: "Back Squat",
-        baseName: "Back Squat",
+        exerciseName: "Back Squat",
         resultText: resultText,
         performedOn: Date(timeIntervalSinceReferenceDate: 0),
         source: "Block 27 · W1 D2"

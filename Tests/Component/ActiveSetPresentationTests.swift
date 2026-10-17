@@ -319,8 +319,7 @@ struct SetCardPresentationTests {
 @MainActor
 @Test func lastPerformedCardPresentationShowsLabelSetLogAndSource() {
     let entry = LastPerformedEntry(
-        fullName: "DB Fly",
-        baseName: "DB Fly",
+        exerciseName: "DB Fly",
         resultText: "25x12@9",
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "W4 D3"
@@ -335,8 +334,7 @@ struct SetCardPresentationTests {
 @MainActor
 @Test func lastPerformedCardPresentationShowsRawLegacyResultText() {
     let entry = LastPerformedEntry(
-        fullName: "Standing Calve Raises",
-        baseName: "Standing Calve Raises",
+        exerciseName: "Standing Calve Raises",
         resultText: "25x12, 12",
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "W4 D3"
@@ -354,8 +352,7 @@ struct SetCardPresentationTests {
     let context = container.mainContext
     context.insert(
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D1"
@@ -399,8 +396,7 @@ struct SetCardPresentationTests {
 @Test func lastPerformedCardPresentationCarriesTierThreeMatchedName() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "Standing Calve Raises",
-            baseName: "Standing Calve Raises",
+            exerciseName: "Standing Calve Raises",
             resultText: "25x12",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"
@@ -420,8 +416,7 @@ struct SetCardPresentationTests {
 @Test func lastPerformedCardPresentationHasNoMatchedNameForExactMatch() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "205x5",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"

@@ -61,8 +61,7 @@ private let block27W1D2 = SessionCoordinate(blockTab: "Block 27", address: Sessi
 
 private func entry(_ resultText: String) -> LastPerformedOccurrence {
     LastPerformedOccurrence(
-        fullName: "Back Squat",
-        baseName: "Back Squat",
+        exerciseName: "Back Squat",
         resultText: resultText,
         performedOn: Date(timeIntervalSinceReferenceDate: 0),
         source: block27W1D2.storageValue
@@ -209,8 +208,7 @@ func aTargetTheRPETableCannotPlaceSuggestsNothing(reps: String, load: String) {
 
 @Test func anEntryFromAnUnrecognizedSourceSuggestsNothing() {
     let legacySource = LastPerformedOccurrence(
-        fullName: "Back Squat",
-        baseName: "Back Squat",
+        exerciseName: "Back Squat",
         resultText: "315x5@7",
         performedOn: Date(timeIntervalSinceReferenceDate: 0),
         source: "W1 D2"

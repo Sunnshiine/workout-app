@@ -82,8 +82,7 @@ private func exercise(name: ExerciseName, in block: Block) -> Exercise {
 
 private func benchEntry(_ resultText: String, at source: String, performedOn: Double) -> LastPerformedOccurrence {
     LastPerformedOccurrence(
-        fullName: "Bench Press",
-        baseName: "Bench Press",
+        exerciseName: "Bench Press",
         resultText: resultText,
         performedOn: Date(timeIntervalSinceReferenceDate: performedOn),
         source: source

@@ -35,8 +35,8 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
         var exactMatches: [String: LastPerformedOccurrence] = [:]
         var fallbackMatches: [String: LastPerformedOccurrence] = [:]
         for occurrence in occurrences {
-            Self.keepingNewest(&exactMatches, occurrence.fullName, occurrence)
-            Self.keepingNewest(&fallbackMatches, occurrence.baseName, occurrence)
+            Self.keepingNewest(&exactMatches, occurrence.exerciseName.entered, occurrence)
+            Self.keepingNewest(&fallbackMatches, occurrence.exerciseName.base, occurrence)
         }
         self.exactMatches = exactMatches
         self.fallbackMatches = fallbackMatches
@@ -82,7 +82,7 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
     /// filter over the in-memory snapshot, no fetch.
     func history(baseName: String) -> [LastPerformedOccurrence] {
         occurrences
-            .filter { MovementMatching.areSameMovement(baseName, $0.baseName) }
+            .filter { MovementMatching.areSameMovement(baseName, $0.exerciseName.base) }
             .sorted { $0.performedOn > $1.performedOn }
     }
 
@@ -97,6 +97,6 @@ struct LastPerformedLookupSnapshot: Equatable, Sendable {
             best = occurrence
         }
         guard let best else { return nil }
-        return LastPerformedLookupEntry(occurrence: best, matchedName: best.baseName)
+        return LastPerformedLookupEntry(occurrence: best, matchedName: best.exerciseName.base)
     }
 }
