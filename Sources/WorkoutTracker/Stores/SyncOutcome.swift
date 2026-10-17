@@ -11,7 +11,8 @@ enum SyncOutcome: Equatable, Sendable {
     /// That Set Log is gone.
     case localWriteFailed(String)
     case sheetUnreachable
-    /// The next flush attempts them again.
+    /// The next flush attempts them again. A flush that refused a write before it stopped reports
+    /// `writesRefused` instead, because no later flush reports that refusal (#784).
     case writesQueued(Int)
     /// The Sheet cell no longer held what the app expected, so the write was refused rather than
     /// overwrite the coach (ADR-0003). `markConflict` takes it off the flush queue, which fetches

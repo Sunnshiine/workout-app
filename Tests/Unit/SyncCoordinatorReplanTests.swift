@@ -689,9 +689,7 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
 
     #expect(client.cell("K15") == "185x5@8")
     #expect(client.fetchCount == 2)
-    withKnownIssue("#744: the outcome counts the write the interim flush already landed") {
-        #expect(sync.outcome == .writesQueued(1))
-    }
+    #expect(sync.outcome == .writesQueued(1))
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(remaining.map(\.status) == [.pending])
     #expect(remaining.map(\.lastError) == [#"Error Domain=NSURLErrorDomain Code=-1009 "(null)""#])
