@@ -294,6 +294,60 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
 }
 
 @MainActor
+@Test func theCardTakingTheMicWhileListeningShowsTakesTheReadbackOff() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    harness.liveActivity.whileShowing = { readback in
+        if readback == .listening { harness.dictation.start(for: firstSet) }
+    }
+
+    let outcome = await harness.background.run()
+
+    #expect(outcome == .noSetToLog(.micBusy))
+    #expect(harness.liveActivity.readbacks == [.listening])
+    #expect(harness.liveActivity.withdrawals == 1, "Listening… does not outlive the press")
+    #expect(harness.liveActivity.finalReadback == nil)
+    await harness.dictation.cancel()
+    try harness.expectNothingWritten()
+}
+
+@MainActor
+@Test func aPressCancelledWhileListeningTakesTheReadbackOff() async throws {
+    let transcriber = HeldSetTranscriber(candidates: ["235 for 5 at 7"])
+    let harness = try await Harness(transcriber: transcriber)
+
+    let run = Task { await harness.background.run() }
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    await harness.dictation.cancel()
+    harness.clock.advance(by: window)
+
+    #expect(await run.value == .noSetToLog(.micBusy))
+    #expect(harness.liveActivity.withdrawals == 1, "Listening… does not outlive the press")
+    #expect(harness.liveActivity.finalReadback == nil)
+    try harness.expectNothingWritten()
+}
+
+@MainActor
+@Test func aSetLoggedElsewhereWhileListeningTakesNothingAndSaysSo() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let set = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    let onTheCard = SetLog(weight: .pounds(225), reps: 5, rpe: .six)
+
+    let run = Task { await harness.background.run() }
+    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    try harness.app.workout.log(set, as: onTheCard)
+    harness.clock.advance(by: window)
+
+    #expect(await run.value == .notLogged(.setChanged, at: firstSet))
+    #expect(harness.liveActivity.finalReadback == .notLogged("The Set changed while listening"))
+    #expect(set.setLog == onTheCard, "what was heard does not overwrite the Set")
+    #expect(try harness.app.sync.fetchPendingWriteRecords().count == 1, "only the card's write is queued")
+    #expect(harness.signIn.restores == 0, "nothing of this press to flush")
+}
+
+@MainActor
 @Test func theSignInIsRestoredBeforeTheFlushOnlyWhenNoSceneDid() async throws {
     let cold = try await Harness(hearing: ["235 for 5 at 7"])
     _ = await cold.runUntilQuiet()
@@ -401,13 +455,26 @@ private final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     var subjects: [LiveActivityDictationContent.Subject] { shown.map(\.content.subject) }
     var sessionLabels: [String] { shown.map(\.sessionLabel) }
     private(set) var noSets: [LiveActivityNoSetReadback] = []
+    private(set) var withdrawals = 0
+    /// Runs as a readback shows, as the app can come forward while the system draws it.
+    var whileShowing: (LiveActivityDictationContent.Readback) -> Void = { _ in }
+
+    /// What the Live Activity reads once the run is over; nil when nothing is left on it.
+    var finalReadback: LiveActivityDictationContent.Readback? {
+        withdrawals > 0 ? nil : readbacks.last
+    }
 
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async {
         shown.append((content, sessionLabel))
+        whileShowing(content.readback)
     }
 
     func show(_ noSet: LiveActivityNoSetReadback) async {
         noSets.append(noSet)
+    }
+
+    func withdrawReadback() async {
+        withdrawals += 1
     }
 }
 

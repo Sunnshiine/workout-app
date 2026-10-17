@@ -165,6 +165,21 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
+    func withdrawReadback() async {
+        switch owner {
+        case .rest(let rest) where controller.isActive:
+            await controller.update(
+                state: WorkoutActivityAttributes.ContentState(restContent: rest, dictation: nil),
+                staleDate: LiveActivityInvalidationPolicy.postRestCapEndDate(for: rest)
+            )
+        case .rest:
+            break
+        case .dictation, .nobody:
+            await controller.end()
+            owner = .nobody
+        }
+    }
+
     /// `readback` over the running rest, keeping its countdown, else over `alone`.
     private func show(
         _ readback: LiveActivityDictation,

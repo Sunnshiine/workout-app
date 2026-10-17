@@ -8,6 +8,9 @@ protocol DictationLiveActivityAdapter: AnyObject {
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async
     /// Shows why there was no Set to listen for, over a running rest when one is up.
     func show(_ noSet: LiveActivityNoSetReadback) async
+    /// Takes the readback off once the card has the Set: a Live Activity started for it ends now,
+    /// and a rest it rode on shows as the stage left it.
+    func withdrawReadback() async
 }
 
 /// Restores the Google sign-in that a launch with no scene never did.
@@ -38,12 +41,15 @@ final class BackgroundDictation {
         case rejected(SetDictation.Rejection, heard: String)
         /// The store refused the write.
         case writeFailed
+        /// While this listened, the Set was logged or skipped elsewhere, or a sync replaced the
+        /// Session, so what was heard has no Set to go to.
+        case setChanged
     }
 
     enum NoSet: Equatable, Sendable {
         case noCurrentSession
         case everythingLogged
-        /// The card's mic is listening, so the Set is the card's.
+        /// The card's mic is listening, or took the press from this one, so the Set is the card's.
         case micBusy
     }
 
@@ -82,36 +88,73 @@ final class BackgroundDictation {
     }
 
     func run() async -> Outcome {
-        guard let session = app.workout.currentSession else {
-            await liveActivity.show(.noCurrentSession)
-            return .noSetToLog(.noCurrentSession)
+        let (position, session): (SessionSetPosition, Session)
+        switch await target() {
+        case .noSet(let outcome): return outcome
+        case .set(let target, let current): (position, session) = (target, current)
         }
-        guard let position = focus.activeSet(in: session) else {
-            await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
-            return .noSetToLog(.everythingLogged)
-        }
-        guard dictation.state.listeningSetID == nil else { return .noSetToLog(.micBusy) }
         let shown = LiveActivitySetContent(position)
         let label = session.liveActivityLabel
         await liveActivity.show(LiveActivityDictationContent(readback: .listening, subject: .set(shown)), sessionLabel: label)
-        let set = position.set
-        let history = app.lastPerformed.snapshot
-        guard let heard = await dictation.listenUntilQuiet(for: position.setID, in: { SpokenSetContext(for: set, history: history) }) else {
-            return .noSetToLog(.micBusy)
+        switch await listen(for: position, in: session, shown: shown) {
+        case .withdrawn(let outcome):
+            await liveActivity.withdrawReadback()
+            return outcome
+        case .settled(let settled):
+            await liveActivity.show(settled.content, sessionLabel: label)
+            guard settled.wrote else { return settled.outcome }
+            focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
+            dictation.dismiss()
+            await flush()
+            return settled.outcome
         }
-        let settled = settle(heard, for: position, in: session, shown: shown)
-        await liveActivity.show(settled.content, sessionLabel: label)
-        guard settled.wrote else { return settled.outcome }
-        focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
-        dictation.dismiss()
-        await flush()
-        return settled.outcome
+    }
+
+    private enum Target {
+        case set(SessionSetPosition, in: Session)
+        case noSet(Outcome)
+    }
+
+    /// The Set to listen for. A press with none says why on the Live Activity, unless the card's
+    /// mic is listening, which the card shows itself.
+    private func target() async -> Target {
+        guard let session = app.workout.currentSession else {
+            await liveActivity.show(.noCurrentSession)
+            return .noSet(.noSetToLog(.noCurrentSession))
+        }
+        guard let position = focus.activeSet(in: session) else {
+            await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
+            return .noSet(.noSetToLog(.everythingLogged))
+        }
+        guard dictation.state.listeningSetID == nil else { return .noSet(.noSetToLog(.micBusy)) }
+        return .set(position, in: session)
+    }
+
+    /// How a press ends once "Listening…" shows. Every end replaces it: a result reads back, and
+    /// a press the card took withdraws the readback.
+    private enum Ending {
+        case settled(Settled)
+        case withdrawn(Outcome)
     }
 
     private struct Settled {
         let outcome: Outcome
         let content: LiveActivityDictationContent
         let wrote: Bool
+    }
+
+    private func listen(for position: SessionSetPosition, in session: Session, shown: LiveActivitySetContent) async -> Ending {
+        let set = position.set
+        let history = app.lastPerformed.snapshot
+        guard let heard = await dictation.listenUntilQuiet(for: position.setID, in: { SpokenSetContext(for: set, history: history) }) else {
+            return .withdrawn(.noSetToLog(.micBusy))
+        }
+        // The card refuses a write to a Set no longer Pending once the transcript is in; so does this.
+        guard app.workout.currentSession === session, set.isPending else {
+            dictation.dismiss()
+            return .settled(Self.notLogged(.setChanged, at: position.setID, shown: shown))
+        }
+        return .settled(settle(heard, for: position, in: session, shown: shown))
     }
 
     private func settle(
@@ -228,6 +271,8 @@ extension BackgroundDictation.NotLogged {
             return Self.caption(rejection, heard: heard)
         case .writeFailed:
             return "Couldn’t save. Unlock to log"
+        case .setChanged:
+            return "The Set changed while listening"
         }
     }
 
