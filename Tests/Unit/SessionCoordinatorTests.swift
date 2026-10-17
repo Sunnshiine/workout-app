@@ -2731,6 +2731,7 @@ private func makeHandsFreeFixture(
     let fixture = makeHandsFreeFixture(showing: session, current: session)
     let slot = try fixture.card(in: session)
     #expect(fixture.coordinator.startsHandsFree(slot))
+    #expect(fixture.entry.coverClosings > 0, "whatever covers the stage closes so the card can listen")
 
     let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
 
@@ -2782,6 +2783,7 @@ private func makeHandsFreeFixture(
     let fixture = makeHandsFreeFixture(showing: viewed, current: current)
 
     #expect(fixture.navigation.currentSessionShows == 1)
+    #expect(fixture.entry.coverClosings > 0)
     #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: viewed)))
     #expect(fixture.entry.pending == .dictateCurrentSet)
 
@@ -2809,15 +2811,14 @@ private func makeHandsFreeFixture(
 }
 
 @MainActor
-@Test func aRequestWithNoPendingSetOpensTheCurrentSessionAndEndsThere() throws {
+@Test func aRequestWhoseCurrentSessionHasNoPendingSetEndsWhereTheStageIs() throws {
     let (current, done) = makeSingleSetSession(dayNumber: 1)
     done.state = .logged
     let (viewed, _) = makeSingleSetSession(dayNumber: 3)
     let fixture = makeHandsFreeFixture(showing: viewed, current: current)
 
-    fixture.show(current)
-
-    #expect(fixture.navigation.currentSessionShows == 1)
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
     #expect(fixture.entry.pending == nil)
     #expect(fixture.ledger.entries.isEmpty)
 }
@@ -2828,16 +2829,21 @@ private func makeHandsFreeFixture(
     let fixture = makeHandsFreeFixture(showing: viewed, current: nil)
 
     #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
     #expect(fixture.entry.pending == nil)
 }
 
 @MainActor
-@Test func aRequestWithNoMicOpensTheActiveSetAndEndsThere() throws {
-    let session = makeCoordinatorSession()
-    let fixture = makeHandsFreeFixture(showing: session, current: session, saying: nil)
+@Test func aRequestWithNoMicEndsWhereTheStageIs() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current, saying: nil)
 
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
     #expect(fixture.entry.pending == nil)
-    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+    fixture.show(current)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
 }
 
 @MainActor
@@ -2915,11 +2921,13 @@ private func makeHandsFreeFixture(
     let prefill = SpokenSetContext(for: slot.set, history: .empty).draft
     let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { prefill } }
     await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+    let closings = fixture.entry.coverClosings
 
     fixture.entry.deliver(.dictateCurrentSet)
     fixture.coordinator.answerEntry()
 
     #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == closings)
     #expect(!fixture.coordinator.startsHandsFree(slot))
     fixture.clock.advance(by: SetDictation.silenceWindow)
     _ = await listening.value
@@ -2939,6 +2947,7 @@ private func makeHandsFreeFixture(
     fixture.coordinator.answerEntry()
 
     #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == 0)
     #expect(fixture.dictation?.state.listeningSetID == firstBench)
 }
 
@@ -2973,6 +2982,7 @@ private func makeHandsFreeFixture(
     #expect(active.mode == .logging)
     #expect(SessionCoordinator.activeSetID(for: active.set) == firstBench)
     #expect(fixture.coordinator.startsHandsFree(active))
+    #expect(fixture.entry.coverClosings > 0)
 }
 
 @MainActor
@@ -3020,6 +3030,7 @@ private func makeHandsFreeFixture(
     fixture.coordinator.answerEntry()
 
     #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == 0)
 }
 
 @MainActor

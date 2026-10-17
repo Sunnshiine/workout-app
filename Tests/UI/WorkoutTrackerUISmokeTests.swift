@@ -2,6 +2,17 @@ import XCTest
 
 private let dictateLink = URL(string: "workouttracker://dictate")!
 
+/// Opens the dictate link in the app already running, as Siri and the Live Activity do.
+/// `XCUIApplication.open(_:)` relaunches the app instead, which drops whatever covered the stage.
+@MainActor
+private func openDictateLinkInTheRunningApp() {
+    XCUIDevice.shared.system.open(dictateLink)
+    let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+    if confirm.appears(within: 2) {
+        confirm.tap()
+    }
+}
+
 final class WorkoutTrackerUISmokeTests: XCTestCase {
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
@@ -181,12 +192,26 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         tapWhenHittable(app.buttons["block-overview-settings-row"])
         XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
 
-        app.open(dictateLink)
+        openDictateLinkInTheRunningApp()
 
         XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 8), "the Current Session's first Set logs")
         XCTAssertFalse(app.navigationBars["Settings"].exists)
         XCTAssertFalse(app.navigationBars["Block 27"].exists)
         waitForLabel("Open Block Overview for Week 1, Day 1", on: app.buttons["session-location-button"])
+    }
+
+    @MainActor
+    func testTheDictateLinkWithNothingToLogLeavesSettingsAndTheBlockGridOpen() throws {
+        let app = launchWorkoutApp(fixture: .completedSessionWithOpenExercises, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Session complete"].appears(within: 3))
+        app.buttons["session-location-button"].tap()
+        tapWhenHittable(app.buttons["block-overview-settings-row"])
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
+
+        openDictateLinkInTheRunningApp()
+
+        XCTAssertFalse(app.staticTexts["Session complete"].appears(within: 3), "a request with nothing to log closes nothing")
+        XCTAssertTrue(app.navigationBars["Settings"].exists)
     }
 
     @MainActor

@@ -31,6 +31,8 @@ final class AppEntryInbox {
     private var arrival: (request: AppEntryRequest, at: Duration)?
     /// Counts every request the inbox holds, so the stage answers each one.
     private(set) var arrivals = 0
+    /// Counts each answer that heads for the mic, which closes whatever covers the stage.
+    private(set) var coverClosings = 0
     /// Onboarding has no Session to listen on, so a request that meets it ends there.
     private var showsOnboarding = false
     @ObservationIgnored private let clock: any ListeningClock
@@ -61,6 +63,10 @@ final class AppEntryInbox {
     func take() -> AppEntryRequest? {
         defer { arrival = nil }
         return pending
+    }
+
+    func closeCovers() {
+        coverClosings += 1
     }
 
     /// A request still waiting when the app leaves the screen would otherwise open the mic long

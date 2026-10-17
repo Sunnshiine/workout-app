@@ -36,7 +36,7 @@ struct BlockOverviewView: View {
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
         }
-        .onChange(of: entry.arrivals) {
+        .onChange(of: entry.coverClosings) {
             isSettingsPresented = false
             dismiss()
         }
