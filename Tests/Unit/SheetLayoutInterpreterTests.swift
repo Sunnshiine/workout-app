@@ -364,6 +364,84 @@ private enum PlacementTestError: Error { case notPlaced }
     #expect(bpSetThree.listPosition == 1)
 }
 
+/// Comp SQ is a 1-Set anchor Line (row 15) whose Notes cell holds `line0Notes`, then a 2-Set Line
+/// (row 16) whose Notes cell holds `line1Notes`. Rows 17 and 18 are spare rows and Bench Press
+/// starts on row 19.
+private func coachNoteLineGrid(line0Notes: String = "Brace hard, controlled descent", line1Notes: String = "") -> SheetGrid {
+    gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Notes",
+            "C15": "Comp SQ", "D15": "1", "F15": "5", "J15": line0Notes,
+            "D16": "2", "F16": "5", "J16": line1Notes,
+            "C19": "Bench Press", "D19": "2"
+        ],
+        rows: 26,
+        cols: 30
+    )
+}
+
+@Test func setLogPlacementRedirectsACoachNoteLineToTheExercisesFirstSpareRow() throws {
+    let grid = coachNoteLineGrid()
+
+    let setOne = try placed(placement(grid, exercise: "Comp SQ", setIndex: 0))
+    #expect(setOne.kind == .protectedLineVisibleWritableRow)
+    #expect(setOne.row == 16)  // row 17, the first visible row in the span that is not a Line
+    #expect(setOne.col == 9)
+    #expect(setOne.listPosition == nil)  // a 1-Set Line addresses the cell whole
+
+    let setTwo = try placed(placement(grid, exercise: "Comp SQ", setIndex: 1))
+    #expect(setTwo.kind == .multiLinePrescriptionLine)
+    #expect(setTwo.row == 15)  // the unprotected Line keeps its own Notes cell
+    #expect(setTwo.listPosition == 0)
+}
+
+@Test func setLogPlacementSkipsAHiddenSpareRowForACoachNoteLine() throws {
+    let resolution = try placement(
+        coachNoteLineGrid(),
+        exercise: "Comp SQ",
+        setIndex: 0,
+        rowVisibility: [16: SheetRowVisibility(hiddenByUser: true)]
+    )
+
+    #expect(try placed(resolution).row == 17)
+}
+
+@Test func setLogPlacementGivesEachCoachNoteLineItsOwnSpareRow() throws {
+    let grid = coachNoteLineGrid(line1Notes: "Drop 10%, same bar speed")
+
+    let lineZero = try placed(placement(grid, exercise: "Comp SQ", setIndex: 0))
+    #expect(lineZero.row == 16)
+
+    let lineOneSetOne = try placed(placement(grid, exercise: "Comp SQ", setIndex: 1))
+    let lineOneSetTwo = try placed(placement(grid, exercise: "Comp SQ", setIndex: 2))
+    #expect(lineOneSetOne.kind == .protectedLineVisibleWritableRow)
+    #expect(lineOneSetOne.row == 17)
+    #expect(lineOneSetOne.listPosition == 0)
+    #expect(lineOneSetTwo.row == 17)
+    #expect(lineOneSetTwo.listPosition == 1)
+}
+
+@Test func setLogPlacementBlocksACoachNoteLineWithoutASpareRow() throws {
+    let resolution = try placement(
+        coachNoteLineGrid(),
+        exercise: "Comp SQ",
+        setIndex: 0,
+        rowVisibility: [16: SheetRowVisibility(hiddenByUser: true), 17: SheetRowVisibility(hiddenByFilter: true)]
+    )
+
+    #expect(resolution == .protectedHeaderBlocksSetRow)
+}
+
+@Test func setLogPlacementKeepsALegacyLogLineOnItsOwnNotesCell() throws {
+    // A Legacy Log is completion evidence, not a Coach Note: its Line is not redirected, so the
+    // writer's value check refuses the write instead of logging the Line a second time elsewhere.
+    let placement = try placed(placement(coachNoteLineGrid(line0Notes: "70@10, 80"), exercise: "Comp SQ", setIndex: 0))
+
+    #expect(placement.kind == .multiLinePrescriptionLine)
+    #expect(placement.row == 14)
+}
+
 @Test func setLogPlacementResolvesNotesColumnFromDuplicateRoleHeaders() throws {
     // A stray duplicate "Sets" header must not shift the resolved Notes column.
     let grid = gridFromA1(
