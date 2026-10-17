@@ -49,6 +49,39 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
+@Test func holdToSkipButtonPresentationOffersSkipOnAPendingOrLoggedSet() {
+    for state in [SetState.pending, .logged] {
+        let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8", setState: state)
+
+        #expect(presentation.offersSkip)
+        #expect(!presentation.showsSkippedBed)
+        #expect(presentation.longPressDuration == presentation.holdPolicy?.holdDuration)
+    }
+}
+
+@Test func holdToSkipButtonPresentationReadsASkippedSetsCapsuleAsSkippedWithNoHold() {
+    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Complete Set Log", setState: .skipped)
+
+    #expect(presentation.showsSkippedBed)
+    #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityHint == "Double tap to log.")
+    #expect(!presentation.offersSkip)
+    #expect(presentation.holdPolicy == nil)
+    #expect(presentation.longPressDuration == 0.85)
+}
+
+@Test func holdToSkipButtonPresentationHintsWhatIsMissingOnASkippedSetWithAnIncompleteDraft() {
+    let presentation = HoldToSkipButtonPresentation(
+        progress: 0,
+        logTitle: "Choose RPE to log",
+        canLog: false,
+        setState: .skipped
+    )
+
+    #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityHint == "Double tap to show what is missing.")
+}
+
 @MainActor
 @Test func setRowPresentationShowsLoggedSetLog() {
     let set = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .logged)

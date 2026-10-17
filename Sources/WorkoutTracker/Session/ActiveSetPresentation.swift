@@ -9,11 +9,34 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     let progress: Double
     let logTitle: String
     let canLog: Bool
+    let setState: SetState
 
-    init(progress: Double, logTitle: String, canLog: Bool = true) {
+    init(progress: Double, logTitle: String, canLog: Bool = true, setState: SetState = .pending) {
         self.progress = progress
         self.logTitle = logTitle
         self.canLog = canLog
+        self.setState = setState
+    }
+
+    /// The hold a press on this capsule takes; nil when it takes none.
+    var holdPolicy: HoldToSkipPolicy? {
+        .forSet(in: setState)
+    }
+
+    /// How long SwiftUI's long press runs before it reports the press over. It is never shorter
+    /// than the hold, so the reducer's own commit deadline arrives first.
+    var longPressDuration: TimeInterval {
+        (holdPolicy ?? .standard).holdDuration
+    }
+
+    /// The capsule settles into the dashed empty bed once its Set is Skipped (DESIGN.md §5.3).
+    var showsSkippedBed: Bool {
+        setState == .skipped
+    }
+
+    /// Whether the capsule offers Skip at all, by hold or by the accessibility action.
+    var offersSkip: Bool {
+        holdPolicy != nil
     }
 
     var skipOpacity: Double {
@@ -25,7 +48,7 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     }
 
     var accessibilityLabel: String {
-        clampedProgress > 0 ? "Skipped" : logTitle
+        showsSkippedBed || clampedProgress > 0 ? "Skipped" : logTitle
     }
 
     var accessibilityValue: String {
@@ -33,10 +56,12 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     }
 
     var accessibilityHint: String {
-        if canLog {
-            return "Double tap to log. Press and hold to skip."
+        switch (canLog, offersSkip) {
+        case (true, true): "Double tap to log. Press and hold to skip."
+        case (true, false): "Double tap to log."
+        case (false, true): "Double tap to show what is missing. Press and hold to skip this Set."
+        case (false, false): "Double tap to show what is missing."
         }
-        return "Double tap to show what is missing. Press and hold to skip this Set."
     }
 
     var tone: HoldToSkipButtonTone {

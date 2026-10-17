@@ -15,14 +15,13 @@ struct HoldToSkipPolicy: Equatable, Sendable {
     /// The longer hold a Set already logged must survive before it re-skips (900ms).
     static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
 
-    /// The longest hold, to undo an already-skipped Set (1100ms).
-    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
-
-    static func forSet(in state: SetState) -> HoldToSkipPolicy {
+    /// The hold a Set in `state` takes, or nil when its capsule takes none: a Skipped Set's capsule
+    /// only logs, because a hold could only skip it again (#820). Its More menu clears it.
+    static func forSet(in state: SetState) -> HoldToSkipPolicy? {
         switch state {
         case .pending: .standard
         case .logged: .loggedState
-        case .skipped: .skippedState
+        case .skipped: nil
         }
     }
 
@@ -42,7 +41,7 @@ enum HoldToSkipEffect: Equatable, Sendable {
 struct HoldToSkipGesture: Equatable, Sendable {
     private enum Phase: Equatable, Sendable {
         case idle
-        case pressing(since: ContinuousClock.Instant, policy: HoldToSkipPolicy, revealed: Bool)
+        case pressing(since: ContinuousClock.Instant, policy: HoldToSkipPolicy?, revealed: Bool)
         case skipped(fingerDown: Bool)
     }
 
@@ -58,12 +57,13 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     var nextDeadline: ContinuousClock.Instant? {
-        guard case .pressing(let since, let policy, let revealed) = phase else { return nil }
+        guard case .pressing(let since, let policy?, let revealed) = phase else { return nil }
         let deadlines = Self.deadlines(since: since, policy: policy)
         return revealed ? deadlines.commit : deadlines.reveal
     }
 
-    mutating func pressBegan(at now: ContinuousClock.Instant, policy: HoldToSkipPolicy) -> [HoldToSkipEffect] {
+    /// A nil `policy` is a press on a capsule that takes no hold, so its release only logs or cancels.
+    mutating func pressBegan(at now: ContinuousClock.Instant, policy: HoldToSkipPolicy?) -> [HoldToSkipEffect] {
         switch phase {
         case .pressing, .skipped(fingerDown: true): return []
         case .idle, .skipped(fingerDown: false): break
@@ -73,7 +73,7 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func deadlineReached(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
-        guard case .pressing(let since, let policy, let revealed) = phase else { return [] }
+        guard case .pressing(let since, let policy?, let revealed) = phase else { return [] }
         let deadlines = Self.deadlines(since: since, policy: policy)
         if now >= deadlines.commit {
             return skip(at: now, fingerDown: true)
@@ -92,7 +92,7 @@ struct HoldToSkipGesture: Equatable, Sendable {
             return []
         }
         let held = since.duration(to: now)
-        if held >= Self.milliseconds(policy.holdDuration) {
+        if let policy, held >= Self.milliseconds(policy.holdDuration) {
             return skip(at: now, fingerDown: false)
         }
         phase = .idle
