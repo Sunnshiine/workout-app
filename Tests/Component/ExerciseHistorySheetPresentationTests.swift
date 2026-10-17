@@ -23,7 +23,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historySheetTitleAndSubtitleUseMovementNameAndCap() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -60,7 +60,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     #expect(presentation.blocks.map(\.header) == ["Block 27", "Block 26"])
     // Newest Block first, strict recency within: W2 (3 days ago) before W1 (10 days ago).
@@ -70,7 +70,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historyRowSplitsStructuredSetsIntoChipsWithMutedRPE() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -96,7 +96,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historyRowCarriesCadenceBeneathGutter() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "3-0:1:0 Squat",
@@ -113,7 +113,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func historyRowOmitsSkippedSetsAndCollectsThemInTheWell() {
     // Skipped Sets never render as chips — they hide behind the `*` well (DESIGN.md §5.6).
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -139,7 +139,7 @@ private func date(_ daysAgo: Int) -> Date {
     // A mixed entry (a structured Set Log followed by an Unstructured Set Log): the structured token
     // becomes a chip; the free text hides in the `*` well rather than sitting in the ledger.
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -157,7 +157,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historyChipsLabelHalfPointRPEAndKeepOffScaleEntriesAsEntered() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -177,7 +177,7 @@ private func date(_ daysAgo: Int) -> Date {
     // Raw text hidden in the well must render verbatim — adjacent fragments coalesce back with ", "
     // rather than becoming separate segments (ADR-0005 "never normalized").
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -198,7 +198,7 @@ private func date(_ daysAgo: Int) -> Date {
     // the well (ADR-0005). Nothing is normalized into the ledger.
     let raw = "worked up to 315, felt easy"
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -218,7 +218,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func fullyUnparseableEntrySurfacesItsRawLineInTheWellAndIsNeverChipless() {
     let raw = "gym was packed, did what I could"
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Deadlift",
+        anchor: "Deadlift",
         entries: [
             entry(
                 name: "Deadlift",
@@ -240,7 +240,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historyRowAnnotatesSpellingVariantInTheWell() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Standing Calf Raise",
+        anchor: "Standing Calf Raise",
         entries: [
             entry(
                 name: "Standing Calve Raises",
@@ -258,7 +258,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historyRowDoesNotAnnotateCaseOnlyDifference() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "bench press",
@@ -277,7 +277,7 @@ private func date(_ daysAgo: Int) -> Date {
     // A single entry can carry every annotation kind — the well keeps a stable order so the view can
     // render it deterministically: spelling first, then skips, then the raw text.
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squats",
@@ -307,7 +307,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     }
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     let rowCount = presentation.blocks.reduce(0) { $0 + $1.rows.count }
     #expect(rowCount == 5)
@@ -332,7 +332,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     let rowCount = presentation.blocks.reduce(0) { $0 + $1.rows.count }
     #expect(rowCount == 2)
@@ -350,7 +350,7 @@ private func date(_ daysAgo: Int) -> Date {
             performedOn: date(index)
         )
     }
-    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: belowCap).mayStillDeepen)
+    #expect(ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: belowCap).mayStillDeepen)
 
     let atCap = (0..<5).map { index in
         entry(
@@ -360,17 +360,17 @@ private func date(_ daysAgo: Int) -> Date {
             performedOn: date(index)
         )
     }
-    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: atCap).mayStillDeepen == false)
+    #expect(ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: atCap).mayStillDeepen == false)
 
     // No entries yet — history can certainly still deepen.
-    #expect(ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: []).mayStillDeepen)
+    #expect(ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: []).mayStillDeepen)
 }
 
 // MARK: - Volume points
 
 @Test func volumePointSumsWeightTimesRepsAcrossAnEntrysStructuredSets() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -392,7 +392,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func volumePointExcludesSkippedSetsAndStaysExact() {
     // A Skipped Set contributes no volume and does not make the total approximate.
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -414,7 +414,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func volumePointFlagsLegacyRawnessAsApproximate() {
     // A mixed entry with un-parseable rawness plots its best-effort total as a hollow `≈` dot.
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -437,7 +437,7 @@ private func date(_ daysAgo: Int) -> Date {
     // A fully Legacy Log with no parseable Set contributes no chart point — the total is unknown, not
     // zero, so it is left off the chart rather than plotted misleadingly.
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -475,7 +475,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     let volumes: [Double] = [180 * 5, 185 * 5, 190 * 5]
     #expect(presentation.volumePoints.map(\.gutter) == ["W2 D1", "W1 D1", "W2 D1"])
@@ -515,7 +515,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     #expect(presentation.volumePoints.map(\.blockHeader) == ["Block 26", "Block 26", "Block 27", "Block 27"])
     #expect(presentation.volumeBlockSeamIndices == [2])
@@ -524,7 +524,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func volumeBlockSeamIndicesAreEmptyWithoutTwoPointsOrABoundary() {
     // A single point cannot seam; a whole series inside one Block never seams either.
     let single = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -537,7 +537,7 @@ private func date(_ daysAgo: Int) -> Date {
     #expect(single.volumeBlockSeamIndices.isEmpty)
 
     let sameBlock = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -582,7 +582,7 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     // min (900) → 0, max (950) → 1, the middle (925) exactly halfway; aligned with volumePoints order.
     #expect(presentation.volumeHeightFractions == [0, 0.5, 1])
@@ -606,14 +606,14 @@ private func date(_ daysAgo: Int) -> Date {
         )
     ]
 
-    let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
+    let presentation = ExerciseHistorySheetPresentation(anchor: "Bench Press", entries: entries)
 
     #expect(presentation.volumeHeightFractions == [0.5, 0.5])
 }
 
 @Test func volumeHeightFractionsCenterASinglePointAndAreEmptyWithNoPoints() {
     let single = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -627,7 +627,7 @@ private func date(_ daysAgo: Int) -> Date {
 
     // A fully-unparseable entry plots no point, so there are no fractions to map.
     let none = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Squat",
+        anchor: "Squat",
         entries: [
             entry(
                 name: "Squat",
@@ -644,7 +644,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historySheetRendersABlockLessSourceAsItsOwnHeaderWithoutAGutter() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
@@ -661,7 +661,7 @@ private func date(_ daysAgo: Int) -> Date {
 
 @Test func historySheetKeepsEverythingBeforeTheFinalSeparatorInTheBlockHeader() {
     let presentation = ExerciseHistorySheetPresentation(
-        anchorBaseName: "Bench Press",
+        anchor: "Bench Press",
         entries: [
             entry(
                 name: "Bench Press",
