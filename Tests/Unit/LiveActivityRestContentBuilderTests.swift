@@ -172,7 +172,7 @@ import Testing
 @Test func liveActivityContentNamesTheExerciseByItsBaseNameWithoutTheCadence() throws {
     // PRODUCT.md, Hide the spreadsheet: the lock screen reads the name the stage reads, never the
     // coach's tempo prefix (#987, the twin of #815).
-    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil)
+    let rdl = Exercise(name: ExerciseName(entered: "2-3:1:0 BB RDL"), coachNote: nil)
     rdl.sets = [
         ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .logged),
         ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending)
@@ -269,8 +269,8 @@ import Testing
         )
     )
 
-    #expect(makeupQueue.map(\.exercise.name) == ["DB Row", "Curl"])
-    #expect(content.exerciseName == firstOpen.exercise.baseName)
+    #expect(makeupQueue.map(\.exercise.exerciseName.entered) == ["DB Row", "Curl"])
+    #expect(content.exerciseName == firstOpen.exercise.exerciseName.base)
     #expect(
         content.target?.setID
             == ActiveSetID(exerciseOrder: firstOpen.exercise.order, setIndex: firstPending.index)
@@ -532,8 +532,6 @@ private func makeStoredWeek() throws -> ModelContainer {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: (0...1).map { index in
                                     ParsedSet(

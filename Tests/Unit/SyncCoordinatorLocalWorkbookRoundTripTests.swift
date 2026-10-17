@@ -47,7 +47,7 @@ private func parsedExercise(
         parsed.block.weeks.first { $0.number == week }?
             .days.first { $0.dayNumber == day }?
             .exercises.first {
-                $0.name == name
+                $0.exerciseName.entered == name
             }
     )
 }

@@ -439,7 +439,7 @@ private func multiLineNotesRequest(
     let compBP = try #require(
         parser.parse(grid: snapshot.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1]
     )
-    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.exerciseName.base == "Comp BP")
     #expect(compBP.sets.count == 3)
 
     let afterSetTwo = planner.applying(

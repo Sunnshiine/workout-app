@@ -128,9 +128,9 @@ private func noteExerciseDrift(handBuilt: Session, parsed: Session, at session: 
             continue
         }
         let id = address.description
-        log.compare(id, "name", handBuiltExercise.name, parsedExercise.name)
-        log.compare(id, "baseName", handBuiltExercise.baseName, parsedExercise.baseName)
-        log.compare(id, "cadence", handBuiltExercise.cadence, parsedExercise.cadence)
+        log.compare(id, "name", handBuiltExercise.exerciseName.entered, parsedExercise.exerciseName.entered)
+        log.compare(id, "baseName", handBuiltExercise.exerciseName.base, parsedExercise.exerciseName.base)
+        log.compare(id, "cadence", handBuiltExercise.exerciseName.cadence, parsedExercise.exerciseName.cadence)
         log.compare(id, "coachNote", handBuiltExercise.coachNote, parsedExercise.coachNote)
         log.compare(id, "legacyLog", handBuiltExercise.legacyLog, parsedExercise.legacyLog)
         noteSetDrift(handBuilt: handBuiltExercise, parsed: parsedExercise, at: address, into: log)

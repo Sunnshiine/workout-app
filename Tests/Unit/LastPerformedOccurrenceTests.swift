@@ -24,10 +24,13 @@ import Testing
         tabName: "Block 27",
         weeks: [
             occurrenceWeek(exercises: [
-                occurrenceExercise("Squat", sets: [
-                    occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
-                    occurrenceLoggedSet(index: 1, weight: 195, reps: 5, rpe: .eight)
-                ])
+                occurrenceExercise(
+                    "Squat",
+                    sets: [
+                        occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
+                        occurrenceLoggedSet(index: 1, weight: 195, reps: 5, rpe: .eight)
+                    ]
+                )
             ])
         ]
     )
@@ -53,11 +56,14 @@ import Testing
 
 @Test func occurrenceDerivesMultiSetDisplayTextInSetOrderWithSkipAndUnstructuredTokens() throws {
     let block = occurrenceBlock(
-        occurrenceExercise("Squat", sets: [
-            occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
-            occurrenceSkippedSet(index: 1),
-            occurrenceUnstructuredSet(index: 2, "tweaked back")
-        ])
+        occurrenceExercise(
+            "Squat",
+            sets: [
+                occurrenceLoggedSet(index: 0, weight: 185, reps: 5, rpe: .seven),
+                occurrenceSkippedSet(index: 1),
+                occurrenceUnstructuredSet(index: 2, "tweaked back")
+            ]
+        )
     )
 
     let occurrence = try #require(LastPerformedExtractor.occurrences(from: block).first)
@@ -86,7 +92,7 @@ private func occurrenceWeek(exercises: [ParsedExercise]) -> ParsedWeek {
 }
 
 private func occurrenceExercise(_ name: String, legacyLog: String? = nil, sets: [ParsedSet]) -> ParsedExercise {
-    ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, legacyLog: legacyLog, sets: sets)
+    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets)
 }
 
 private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {
