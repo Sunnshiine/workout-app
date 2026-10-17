@@ -100,21 +100,25 @@ extension SheetWritePlanner {
     }
 }
 
+/// Developer Tools' Current Session rows, and the one place a `CurrentSessionResolution` becomes
+/// English: the CLI's `currentSessionReason` reads `reason` from here too.
 struct CurrentSessionDebugInfo: Equatable, Sendable {
     let currentBlockTab: String
     let sheetDerivedSession: String
-    let manualOverrideSession: String
+    let pinnedSession: String
     let viewedSession: String
     let resolvedCurrentSession: String
     let reason: String
     let localOnlyNote: String?
+    /// Whether a Current Session Pin is stored for this Block, in force or not, for Reset to clear.
+    let canClearPin: Bool
 
     var copyText: String {
         [
             "Current Session Debug Info",
             "Current Block Tab: \(currentBlockTab)",
             "Sheet-derived Session: \(sheetDerivedSession)",
-            "Manual Current Session Override: \(manualOverrideSession)",
+            "Manual Current Session Override: \(pinnedSession)",
             "Displayed Session: \(viewedSession)",
             "Resolved Current Session: \(resolvedCurrentSession)",
             "Reason: \(reason)",
@@ -122,6 +126,77 @@ struct CurrentSessionDebugInfo: Equatable, Sendable {
         ]
         .compactMap { $0 }
         .joined(separator: "\n")
+    }
+}
+
+extension CurrentSessionDebugInfo {
+    /// `resolution` is nil while no Block is loaded.
+    @MainActor
+    init(resolution: CurrentSessionResolution?, viewedSession: Session?) {
+        self.viewedSession = Self.label(for: viewedSession)
+        guard let resolution else {
+            currentBlockTab = "None"
+            sheetDerivedSession = "None"
+            pinnedSession = "None"
+            resolvedCurrentSession = "None"
+            reason = "No Block is loaded, so no Current Session is resolved."
+            localOnlyNote = nil
+            canClearPin = false
+            return
+        }
+
+        currentBlockTab = resolution.blockTab
+        sheetDerivedSession = Self.label(for: resolution.sheetDerivedSession)
+        pinnedSession = Self.pinLabel(for: resolution)
+        resolvedCurrentSession = Self.label(for: resolution.session)
+        reason =
+            resolution.session == nil
+            ? "No Sheet-derived Session is available for this Block."
+            : Self.reason(for: resolution.pin)
+        localOnlyNote = resolution.isPinInForce ? "The Current Session Pin is local-only and is not Sheet data." : nil
+        canClearPin = resolution.hasPin
+    }
+
+    @MainActor
+    private static func pinLabel(for resolution: CurrentSessionResolution) -> String {
+        switch resolution.pin {
+        case .unset:
+            "None"
+        case .inForce(let author):
+            "\(label(for: resolution.session)) (\(label(for: author)))"
+        case .noLongerResolves(let author):
+            "Saved pin no longer matches this Block (\(label(for: author)))"
+        case .unavailable(let session, let author):
+            "\(label(for: session)), Unavailable (\(label(for: author)))"
+        }
+    }
+
+    private static func reason(for pin: CurrentSessionResolution.PinStanding) -> String {
+        switch pin {
+        case .unset:
+            "No manual override is active, so Sheet-derived progress wins."
+        case .inForce(.moveOn):
+            "Move On advanced to this Session, so it wins over Sheet-derived progress."
+        case .inForce(.madeCurrent):
+            "The athlete made this Session current, so it wins over Sheet-derived progress."
+        case .noLongerResolves:
+            "The Current Session Pin no longer matches this Block, so Sheet-derived progress wins."
+        case .unavailable:
+            "The Current Session Pin names an Unavailable Session, so Sheet-derived progress wins."
+        }
+    }
+
+    @MainActor
+    private static func label(for session: Session?) -> String {
+        guard let address = session?.address else { return "None" }
+        return "Week \(address.week), Day \(address.day)"
+    }
+
+    private static func label(for author: CurrentSessionPin.Author) -> String {
+        switch author {
+        case .moveOn: "Move On"
+        case .madeCurrent: "Make current"
+        }
     }
 }
 
