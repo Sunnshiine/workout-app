@@ -147,6 +147,35 @@ func aNumberNoWordPlacesIsAmbiguous(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
 }
 
+/// The recognizer writes the "for" of "135 for 8 reps, RPE 9" as a comma more often than not. With the
+/// reps and the RPE both labelled after it, the weight is the only value left for a number that leads.
+@Test(
+    "A leading number is the weight when words label the reps and the RPE after it",
+    arguments: [
+        "135, 8 reps, RPE 9", "135 8 reps, RPE9.", "135, 8 reps, at 9", "135 8 reps RPE 9", "135, eight reps, RPE nine",
+        "one thirty five, 8 reps, RPE 9"
+    ]
+)
+func aLeadingNumberIsTheWeightWhenWordsLabelTheRepsAndTheRPEAfterIt(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == values(.pounds(135), 8, .nine))
+}
+
+/// "RPE" after a number labels that number, so "135, RPE 9, 8 reps" reads an RPE of 135 and leaves the 9.
+@Test(
+    "A number stays ambiguous unless it leads and both other values are labelled",
+    arguments: [
+        "8 reps, RPE 9, 135", "8 reps, 135, RPE 9", "135, 8 reps", "135, RPE 9", "135, 5, 8 reps, RPE 9",
+        "135, 8 reps, 9", "135 pounds, 8, RPE 9", "9, 8 reps, 135 pounds", "135, 8 reps, at 12", "135, RPE 9, 8 reps"
+    ]
+)
+func aNumberThatDoesNotLeadWithBothOtherValuesLabelledIsAmbiguous(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
+}
+
+@Test func aLeadingWeightNeverExcusesARepCountSaidTwice() {
+    #expect(SpokenSet.parse("135, 8 reps, RPE 9, 5 reps") == .failure(.conflicting(.reps)))
+}
+
 @Test(
     "Number words in a row that make no one number are ambiguous",
     arguments: ["nine five for five", "at nine five for five", "135 for eight nine", "one eighty five five for 5"]

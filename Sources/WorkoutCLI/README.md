@@ -134,7 +134,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   `outOfRange` ("135 for 0", "315 for 19.5", "0 for 5"), because a Set with no load is bodyweight
   and a Set not done is Skipped.
 - A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
-  "for 5, 8", and "eight" alone.
+  "for 5, 8", and "eight" alone. The one exception is a number that leads the transcript when words
+  label both the reps and the RPE after it: "135, 8 reps, RPE 9" logs 135x8@9, because the recognizer
+  writes that "for" as a comma, and the weight is the only value left. "8 reps, RPE 9, 135" stays
+  `ambiguous`.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
   "ate" is 8, and "to" or "too" is 2 only where a number is asked for. Number words in a row that

@@ -241,40 +241,58 @@ struct SpokenPhrase: Sendable {
     /// because "4 at 9" can reach the transcript as "49".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
-        let slots = try SpokenSlots(claims(in: tokens))
+        let (claims, unplaced) = try claims(in: tokens)
+        let slots = try SpokenSlots(claims + placing(unplaced, in: tokens, beside: claims))
         guard slots.said(.rpe) || !tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else { throw .ambiguous }
         return try slots.spokenSet()
     }
 
-    private static func claims(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> [SpokenClaim] {
+    /// The claims the phrases make, and the index of each number no phrase takes.
+    private static func claims(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> (claims: [SpokenClaim], unplaced: [Int]) {
         var claims: [SpokenClaim] = []
+        var unplaced: [Int] = []
         var rest = tokens[...]
         while let token = rest.first {
             if let match = firstMatch(rest) {
                 claims += match.claims
                 rest = match.rest
+            } else if case .number = token {
+                unplaced.append(rest.startIndex)
+                rest = rest.dropFirst()
             } else {
                 claims += try leftover(token, isLast: rest.count == 1)
                 rest = rest.dropFirst()
             }
         }
-        return claims
+        return (claims, unplaced)
     }
 
     private static func firstMatch(_ tokens: ArraySlice<SpokenToken>) -> SpokenMatch? {
         all.lazy.compactMap { $0.match(tokens) }.first
     }
 
-    /// A token no phrase takes. A misheard "at" said last is an RPE cut off and filler anywhere else
-    /// is dropped, but a number no phrase takes is one no word places.
+    /// A word no phrase takes. A misheard "at" said last is an RPE cut off, and filler anywhere else
+    /// is dropped.
     private static func leftover(_ token: SpokenToken, isLast: Bool) throws(SpokenSet.Rejection) -> [SpokenClaim] {
         switch token {
         case .misheardAt where isLast: return [.cutOff(.rpe)]
-        case .number: throw .ambiguous
         default:
             guard token.isFiller else { throw .unrecognized }
             return []
         }
+    }
+
+    /// A number no phrase takes is one no word places, and ambiguous, unless it leads the transcript
+    /// and words label both the reps and the RPE after it, as the 135 of "135, 8 reps, RPE 9": then
+    /// the weight is the only value left for it.
+    private static func placing(
+        _ unplaced: [Int],
+        in tokens: [SpokenToken],
+        beside claims: [SpokenClaim]
+    ) throws(SpokenSet.Rejection) -> [SpokenClaim] {
+        guard !unplaced.isEmpty else { return [] }
+        guard unplaced == [0], let amount = tokens[0].amount, Set(claims.map(\.field)) == [.reps, .rpe] else { throw .ambiguous }
+        return [.value(.weight, amount)]
     }
 
     private static func readsTwoWays(_ tokens: [SpokenToken], at index: Int) -> Bool {
