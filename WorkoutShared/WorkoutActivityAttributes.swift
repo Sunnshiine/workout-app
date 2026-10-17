@@ -15,9 +15,58 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let appearance: LiveActivityAppearance
         let restStartDate: Date?
         let restEndDate: Date?
+        /// Where a Dictation run without opening the app stands; nil when none is showing.
+        let dictation: LiveActivityDictation?
     }
 
     let sessionLabel: String
+}
+
+/// What the Lock Screen and the Dynamic Island read back of a Dictation the athlete ran from the
+/// Action button, a control, or Siri, with the app closed or the phone locked.
+enum LiveActivityDictation: Codable, Hashable, Sendable {
+    case listening
+    /// The Set Log written, as "235×5 @7".
+    case logged(String)
+    case skipped
+    /// Why nothing was written.
+    case notLogged(String)
+
+    var isListening: Bool {
+        self == .listening
+    }
+
+    var symbolName: String {
+        switch self {
+        case .listening: "mic.fill"
+        case .logged, .skipped: "checkmark.circle.fill"
+        case .notLogged: "mic.slash.fill"
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .listening: "Listening…"
+        case .logged(let setLog): "Logged \(setLog)"
+        case .skipped: "Skipped"
+        case .notLogged: "Not logged"
+        }
+    }
+
+    /// The compact island has room for one short line.
+    var compactText: String {
+        switch self {
+        case .listening: "Listening"
+        case .logged(let setLog): setLog
+        case .skipped: "Skipped"
+        case .notLogged: "Not logged"
+        }
+    }
+
+    var detail: String? {
+        guard case .notLogged(let reason) = self else { return nil }
+        return reason
+    }
 }
 
 extension WorkoutActivityAttributes {

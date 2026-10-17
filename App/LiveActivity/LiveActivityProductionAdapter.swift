@@ -2,8 +2,21 @@ import Foundation
 
 @MainActor
 final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
+    /// Whose the running Live Activity is, which decides what ends it.
+    private enum Owner: Equatable {
+        case nobody
+        /// The stage's rest after a logged Set: its dates run the lifecycle.
+        case rest(LiveActivityRestContent)
+        /// A headless Dictation's Set, with no rest: it ends on the Dictation's result, staying on
+        /// the Lock Screen `dictationResultLifetime` for the athlete to read.
+        case dictation
+    }
+
+    /// How long a headless Dictation's result stays on the Lock Screen when no rest took over.
+    static let dictationResultLifetime: TimeInterval = 3 * 60
+
     private let controller: LiveActivityController
-    private var currentRestContent: LiveActivityRestContent?
+    private var owner = Owner.nobody
     private var startUpdateTask: Task<Void, Never>?
     private var startUpdateID: UUID?
     private var readyUpdateTask: Task<Void, Never>?
@@ -13,13 +26,22 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         self.controller = controller
     }
 
+    private var currentRestContent: LiveActivityRestContent? {
+        guard case .rest(let content) = owner else { return nil }
+        return content
+    }
+
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
-        currentRestContent = restContent
+        startOrUpdate(restContent: restContent, dictation: nil, sessionLabel: sessionLabel)
+    }
+
+    private func startOrUpdate(restContent: LiveActivityRestContent, dictation: LiveActivityDictation?, sessionLabel: String) {
+        owner = .rest(restContent)
         startUpdateTask?.cancel()
         let operationID = UUID()
         startUpdateID = operationID
         scheduleLifecycleTasks(for: restContent)
-        let state = WorkoutActivityAttributes.ContentState(restContent: restContent)
+        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: dictation)
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
         startUpdateTask = Task { @MainActor [weak self, controller] in
@@ -45,7 +67,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
 
     func end() {
         clearLifecycleTasks()
-        currentRestContent = nil
+        owner = .nobody
         startUpdateTask?.cancel()
         startUpdateTask = nil
         startUpdateID = nil
@@ -81,7 +103,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
             await Self.sleep(until: content.restEndDate)
             guard !Task.isCancelled, self?.currentRestContent == content else { return }
             await self?.controller.update(
-                state: WorkoutActivityAttributes.ContentState(restContent: content),
+                state: WorkoutActivityAttributes.ContentState(restContent: content, dictation: nil),
                 staleDate: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content)
             )
         }
@@ -111,5 +133,40 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     private static func sleep(until date: Date) async {
         let seconds = max(date.timeIntervalSinceNow, 0)
         try? await Task.sleep(for: .seconds(seconds))
+    }
+}
+
+extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
+    /// A logged Set's rest becomes the stage's rest, readback and all, and runs its lifecycle. Any
+    /// other readback rides on a running rest, keeping the countdown, or on an activity started for
+    /// the Set, which the result ends with a dismissal `dictationResultLifetime` on.
+    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async {
+        let readback = LiveActivityDictation(content.readback)
+        switch content.subject {
+        case .rest(let rest):
+            startOrUpdate(restContent: rest, dictation: readback, sessionLabel: sessionLabel)
+            await startUpdateTask?.value
+        case .set(let set):
+            controller.refreshAuthorizationStatus()
+            let state: WorkoutActivityAttributes.ContentState
+            if let currentRestContent, controller.isActive {
+                state = WorkoutActivityAttributes.ContentState(restContent: currentRestContent, dictation: readback)
+            } else {
+                state = WorkoutActivityAttributes.ContentState(setContent: set, dictation: readback)
+            }
+            await show(state, sessionLabel: sessionLabel, isFinal: !readback.isListening)
+        }
+    }
+
+    private func show(_ state: WorkoutActivityAttributes.ContentState, sessionLabel: String, isFinal: Bool) async {
+        if !controller.isActive {
+            await controller.start(state: state, sessionLabel: sessionLabel, staleDate: nil)
+            owner = .dictation
+        } else if owner != .dictation || !isFinal {
+            await controller.update(state: state, staleDate: nil)
+        }
+        guard isFinal, owner == .dictation else { return }
+        await controller.end(showing: state, dismissingAt: Date().addingTimeInterval(Self.dictationResultLifetime))
+        owner = .nobody
     }
 }

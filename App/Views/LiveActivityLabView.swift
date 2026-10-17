@@ -185,7 +185,8 @@ struct LiveActivityLabView: View {
             variant: variant,
             appearance: appearance,
             restStartDate: restStartDate,
-            restEndDate: restEndDate
+            restEndDate: restEndDate,
+            dictation: nil
         )
     }
 
@@ -255,7 +256,8 @@ struct LiveActivityLabView: View {
             variant: variant,
             appearance: appearance,
             restStartDate: restStartDate,
-            restEndDate: restEndDate
+            restEndDate: restEndDate,
+            dictation: nil
         )
     }
 }
