@@ -35,7 +35,6 @@ private let flushWait = BackgroundDictation.flushWait
     #expect(rest.restStartDate == frozenNow)
     #expect(rest.restEndDate == frozenNow.addingTimeInterval(harness.app.settings.standardRestDuration.timeInterval))
     #expect(try harness.app.session(nil).exercises[0].sets[0].state == "logged")
-    #expect(harness.entry.backgroundWrites == 1)
     #expect(harness.dictation.state == .idle)
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7")
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
@@ -185,6 +184,73 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
 }
 
 @MainActor
+@Test func inASupersetItLogsTheSetTheCardShowsAndAlternatesAsTheCardDoes() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    #expect(stage.createSuperset(from: squat, to: rdl, in: session))
+    stage.log(try #require(squat.sets.first { $0.index == 0 }), as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+    let cardShows = try #require(stage.activeSetID)
+    #expect(cardShows == ActiveSetID(exerciseOrder: rdl.order, setIndex: 0), "the Superset alternates to its other side")
+
+    let first = await harness.runUntilQuiet()
+
+    #expect(first == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: cardShows))
+    #expect(rdl.sets.first { $0.index == 0 }?.state == .logged)
+    #expect(squat.sets.first { $0.index == 1 }?.state == .pending)
+    #expect(stage.activeSetID == ActiveSetID(exerciseOrder: squat.order, setIndex: 1), "the card moved on as a tap would")
+    guard case .rest(let rest) = harness.liveActivity.subjects.last else {
+        Issue.record("Logged showed \(String(describing: harness.liveActivity.subjects.last)), not the rest")
+        return
+    }
+    #expect(rest.target?.setID == ActiveSetID(exerciseOrder: squat.order, setIndex: 1), "the rest leads where the card goes")
+    #expect(rest.restEndDate == frozenNow.addingTimeInterval(harness.app.settings.supersetRestDuration.timeInterval))
+
+    let second = await harness.runUntilQuiet()
+
+    #expect(second == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: ActiveSetID(exerciseOrder: squat.order, setIndex: 1)))
+    #expect(stage.activeSetID == ActiveSetID(exerciseOrder: rdl.order, setIndex: 1))
+}
+
+@MainActor
+@Test func itLogsTheSetTheAthleteFocusedOnTheCard() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let squat = try #require(session.exercises.first { $0.order == 0 })
+    let rdl = try #require(session.exercises.first { $0.order == 1 })
+    let rdlFirst = try #require(rdl.sets.first { $0.index == 0 })
+    stage.focus(on: rdlFirst)
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: ActiveSetID(exerciseOrder: rdl.order, setIndex: 0)))
+    #expect(rdlFirst.state == .logged)
+    #expect(squat.sets.allSatisfy { $0.isPending }, "the first Pending Set was not the card's")
+}
+
+@MainActor
+@Test func withTheStageOnAnotherSessionItLogsTheCurrentSessionsFirstPendingSet() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let current = try #require(harness.app.workout.currentSession)
+    harness.app.workout.show(SessionAddress(week: 1, day: 2))
+    let browsed = try #require(harness.app.workout.viewedSession)
+    #expect(browsed !== current)
+    let stage = harness.stage(on: browsed)
+    let browsedExercise = try #require(browsed.exercises.first { $0.order == 0 })
+    stage.focus(on: try #require(browsedExercise.sets.first { $0.index == 1 }))
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: firstSet))
+    #expect(current.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 }?.state == .logged)
+    #expect(browsed.exercises.allSatisfy { $0.sets.allSatisfy { $0.isPending } }, "the browsed Session took nothing")
+    #expect(stage.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1), "the browsed card stays where it was")
+}
+
+@MainActor
 @Test func theSignInIsRestoredBeforeTheFlushOnlyWhenNoSceneDid() async throws {
     let cold = try await Harness(hearing: ["235 for 5 at 7"])
     _ = await cold.runUntilQuiet()
@@ -225,7 +291,8 @@ private struct Harness {
     let clock = ManualListeningClock()
     let liveActivity = SpyDictationLiveActivity()
     let signIn = FakeSignIn()
-    let entry = AppEntryInbox()
+    /// The process's focus, which a stage binds when a test puts one up.
+    let focus = ActiveSetFocusManager(session: nil)
     let background: BackgroundDictation
 
     init(hearing candidates: [String], selectingSpreadsheet: Bool = true, sheet: HeldWriteSheetsClient? = nil) async throws {
@@ -253,9 +320,9 @@ private struct Harness {
         background = BackgroundDictation(
             app: app,
             dictation: dictation,
+            focus: focus,
             liveActivity: liveActivity,
             signIn: signIn,
-            entry: entry,
             clock: clock,
             now: { frozenNow }
         )
@@ -264,15 +331,21 @@ private struct Harness {
     /// Runs with a transcriber that hears everything at once, so listening ends a silence window on.
     func runUntilQuiet() async -> BackgroundDictation.Outcome {
         let run = Task { await background.run() }
-        await clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+        await clock.waitUntilSleeping(until: clock.now + window, orRecord: "It never started listening")
         clock.advance(by: window)
         return await run.value
+    }
+
+    /// A Session screen up behind the intent, its stage on `session`, as with the app backgrounded.
+    func stage(on session: Session) -> SessionCoordinator {
+        let stage = SessionCoordinator(logging: app.workout, dictation: dictation, focus: focus)
+        stage.bind(to: session)
+        return stage
     }
 
     func expectNothingWritten(sourceLocation: SourceLocation = #_sourceLocation) throws {
         #expect(try app.session(nil).exercises[0].sets[0].state == "pending", sourceLocation: sourceLocation)
         #expect(try app.sync.fetchPendingWriteRecords().isEmpty, sourceLocation: sourceLocation)
-        #expect(entry.backgroundWrites == 0, sourceLocation: sourceLocation)
         #expect(signIn.restores == 0, "nothing to flush", sourceLocation: sourceLocation)
     }
 }

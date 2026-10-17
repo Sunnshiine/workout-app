@@ -21,10 +21,11 @@ struct SessionView: View {
     /// No Dictation leaves the mic off every card.
     init(
         liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter(),
-        dictation: SetDictation? = nil
+        dictation: SetDictation? = nil,
+        focus: ActiveSetFocusManager? = nil
     ) {
         self.liveActivityAdapter = liveActivityAdapter
-        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: dictation))
+        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: dictation, focus: focus))
     }
 
     var body: some View {
@@ -101,12 +102,6 @@ struct SessionView: View {
         }
         .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
-        }
-        .onChange(of: entry.backgroundWrites) {
-            // A Set logged behind the stage leaves its card on the logged Set until the stage
-            // binds again and the focus moves to the next Pending Set.
-            guard let session = workout.viewedSession else { return }
-            bindCoordinator(to: session)
         }
     }
 

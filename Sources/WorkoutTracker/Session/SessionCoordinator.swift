@@ -159,13 +159,17 @@ final class SessionCoordinator {
         liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
         navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion(),
-        dictation: SetDictation? = nil
+        dictation: SetDictation? = nil,
+        focus: ActiveSetFocusManager? = nil
     ) {
         self.session = session
         self.dictation = dictation
         self.navigationAdapter = navigation
         self.motion = motion
-        self.focusManager = ActiveSetFocusManager(session: session)
+        // A focus handed in is the process's, which a headless Dictation reads too. It keeps the
+        // Session it is about until the stage binds, since SwiftUI builds a coordinator it then
+        // throws away on every pass over the Session screen's init.
+        self.focusManager = focus ?? ActiveSetFocusManager(session: session)
         self.loggingAdapter = logging
         self.syncAdapter = sync
         self.liveActivityAdapter = liveActivity

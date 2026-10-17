@@ -8,12 +8,20 @@ import UIKit
 final class LogSetByVoicePerformer: LogSetByVoicePerforming {
     private let app: WorkoutApplication
     private let dictation: SetDictation?
+    private let focus: ActiveSetFocusManager
     private let liveActivity: LiveActivityProductionAdapter
     private let entry: AppEntryInbox
 
-    init(app: WorkoutApplication, dictation: SetDictation?, liveActivity: LiveActivityProductionAdapter, entry: AppEntryInbox) {
+    init(
+        app: WorkoutApplication,
+        dictation: SetDictation?,
+        focus: ActiveSetFocusManager,
+        liveActivity: LiveActivityProductionAdapter,
+        entry: AppEntryInbox
+    ) {
         self.app = app
         self.dictation = dictation
+        self.focus = focus
         self.liveActivity = liveActivity
         self.entry = entry
     }
@@ -28,9 +36,9 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
         let background = BackgroundDictation(
             app: app,
             dictation: dictation,
+            focus: focus,
             liveActivity: liveActivity,
             signIn: GoogleSignInRestorer(),
-            entry: entry,
             clock: ContinuousListeningClock(),
             now: Date.init
         )

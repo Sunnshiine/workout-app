@@ -17,8 +17,9 @@ protocol SignInRestoring: AnyObject {
 }
 
 /// A Dictation run from the Action button, a control, or Siri with the app closed or the phone
-/// locked. It listens for the Current Session's active Set, writes through the facade, reads back
-/// on the Live Activity, and flushes. Every decision lives here; the intent only runs it.
+/// locked. It listens for the Current Session's active Set, the one the card would, writes through
+/// the facade, reads back on the Live Activity, and flushes. Every decision lives here; the intent
+/// only runs it.
 @MainActor
 final class BackgroundDictation {
     enum Outcome: Equatable, Sendable {
@@ -52,9 +53,10 @@ final class BackgroundDictation {
 
     private let app: WorkoutApplication
     private let dictation: SetDictation
+    /// The stage's focus, so this listens on the Set the card shows and moves the card past it.
+    private let focus: ActiveSetFocusManager
     private let liveActivity: any DictationLiveActivityAdapter
     private let signIn: any SignInRestoring
-    private let entry: AppEntryInbox
     private let clock: any ListeningClock
     private let now: () -> Date
     /// Held so the flush outlives `flushWait`; nil until a write asks for one.
@@ -64,17 +66,17 @@ final class BackgroundDictation {
     init(
         app: WorkoutApplication,
         dictation: SetDictation,
+        focus: ActiveSetFocusManager,
         liveActivity: any DictationLiveActivityAdapter,
         signIn: any SignInRestoring,
-        entry: AppEntryInbox,
         clock: any ListeningClock,
         now: @escaping () -> Date
     ) {
         self.app = app
         self.dictation = dictation
+        self.focus = focus
         self.liveActivity = liveActivity
         self.signIn = signIn
-        self.entry = entry
         self.clock = clock
         self.now = now
     }
@@ -84,7 +86,7 @@ final class BackgroundDictation {
             await liveActivity.show(.noCurrentSession)
             return .noSetToLog(.noCurrentSession)
         }
-        guard let position = SessionSetOrder.firstPendingSet(in: session) else {
+        guard let position = focus.activeSet(in: session) else {
             await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
             return .noSetToLog(.everythingLogged)
         }
@@ -100,8 +102,8 @@ final class BackgroundDictation {
         let settled = settle(heard, for: position, in: session, shown: shown)
         await liveActivity.show(settled.content, sessionLabel: label)
         guard settled.wrote else { return settled.outcome }
+        focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
         dictation.dismiss()
-        entry.recordBackgroundWrite()
         await flush()
         return settled.outcome
     }
@@ -118,19 +120,22 @@ final class BackgroundDictation {
         in session: Session,
         shown: LiveActivitySetContent
     ) -> Settled {
+        // Read before the write, which dissolves a Superset when it logs a side's last Set.
+        let wasSupersetMember = focus.isPaired(position.exercise)
         do {
             try app.write(heard, to: position.set)
         } catch {
             return Self.notLogged(.writeFailed, at: position.setID, shown: shown)
         }
-        return settled(heard, for: position, in: session, shown: shown)
+        return settled(heard, for: position, in: session, shown: shown, wasSupersetMember: wasSupersetMember)
     }
 
     private func settled(
         _ heard: SetDictation.Outcome,
         for position: SessionSetPosition,
         in session: Session,
-        shown: LiveActivitySetContent
+        shown: LiveActivitySetContent,
+        wasSupersetMember: Bool
     ) -> Settled {
         let setID = position.setID
         switch heard {
@@ -139,7 +144,7 @@ final class BackgroundDictation {
                 outcome: .logged(setLog, at: setID),
                 content: LiveActivityDictationContent(
                     readback: .logged(setLog.readback),
-                    subject: restSubject(afterLogging: position.set, in: session, else: shown)
+                    subject: restSubject(afterLogging: position.set, in: session, wasSupersetMember: wasSupersetMember, else: shown)
                 ),
                 wrote: true
             )
@@ -164,19 +169,27 @@ final class BackgroundDictation {
         )
     }
 
-    /// The rest the stage would start after this Set, at the standard rest duration. With no Set
-    /// left to rest toward, the Set that was logged.
+    /// The rest the stage would start after this Set, toward the Set it would focus next. With no
+    /// rest to start, the Set that was logged.
     private func restSubject(
         afterLogging set: ExerciseSet,
         in session: Session,
+        wasSupersetMember: Bool,
         else shown: LiveActivitySetContent
     ) -> LiveActivityDictationContent.Subject {
+        let kind = RestTriggerPolicy.restKind(afterLogging: set, in: session, isSupersetMember: wasSupersetMember, isRestRunning: false)
+        guard let kind else { return .set(shown) }
         let start = now()
-        let content = LiveActivityRestContentBuilder.content(
+        let duration =
+            switch kind {
+            case .standard: app.settings.standardRestDuration
+            case .superset: app.settings.supersetRestDuration
+            }
+        let content = focus.liveActivityRestContent(
             afterLogging: set,
             in: session,
             restStartDate: start,
-            restEndDate: start.addingTimeInterval(app.settings.standardRestDuration.timeInterval)
+            restEndDate: start.addingTimeInterval(duration.timeInterval)
         )
         guard let content else { return .set(shown) }
         return .rest(content)

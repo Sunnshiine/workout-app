@@ -7,6 +7,8 @@ struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
     /// One Dictation per process: the card and the headless intent share the mic through it.
     @State private var dictation: SetDictation?
+    /// One active Set per process: the card and the headless intent listen on the same one.
+    @State private var focus: ActiveSetFocusManager
     /// One owner of the Live Activity per process, whichever surface asked for it.
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
@@ -20,6 +22,8 @@ struct WorkoutTrackerApp: App {
         _app = State(initialValue: app)
         let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
         _dictation = State(initialValue: dictation)
+        let focus = ActiveSetFocusManager(session: nil)
+        _focus = State(initialValue: focus)
         let liveActivityAdapter = LiveActivityProductionAdapter()
         _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
@@ -29,6 +33,7 @@ struct WorkoutTrackerApp: App {
         LogSetByVoiceIntent.performer = LogSetByVoicePerformer(
             app: app,
             dictation: dictation,
+            focus: focus,
             liveActivity: liveActivityAdapter,
             entry: entry
         )
@@ -122,7 +127,7 @@ struct WorkoutTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(dictation: dictation, liveActivityAdapter: liveActivityAdapter)
+            RootView(dictation: dictation, focus: focus, liveActivityAdapter: liveActivityAdapter)
                 .environment(app.settings)
                 .environment(app.workout)
                 .environment(app.sync)

@@ -33,9 +33,6 @@ final class AppEntryInbox {
     private(set) var arrivals = 0
     /// Counts each answer that heads for the mic, which closes whatever covers the stage.
     private(set) var coverClosings = 0
-    /// Counts each Set a headless Dictation wrote behind the stage, so a stage already showing
-    /// the Session moves its card on.
-    private(set) var backgroundWrites = 0
     /// Onboarding has no Session to listen on, so a request that meets it ends there.
     private var showsOnboarding = false
     @ObservationIgnored private let clock: any ListeningClock
@@ -70,10 +67,6 @@ final class AppEntryInbox {
 
     func closeCovers() {
         coverClosings += 1
-    }
-
-    func recordBackgroundWrite() {
-        backgroundWrites += 1
     }
 
     /// A request still waiting when the app leaves the screen would otherwise open the mic long
