@@ -100,8 +100,8 @@ What the numbers say:
 
 ## Consequences
 
-- Another host should measure before it trusts these numbers. The harness for this study was a
-  throwaway script outside the repo. Committing a rerunnable version is a follow-up.
+- Another host should measure before it trusts these numbers. `scripts/measure-host.sh N <suite>`
+  reruns a row of the table above on N fresh clones and prints its columns.
 - A test with a wall-clock window sees runs take up to 3.6 times as long at 10 simulators. A test that
   fails only under load gets triaged with `scripts/flake-hunt.sh`, as #907 is. A failing test is not a
   reason to lower the cap.
