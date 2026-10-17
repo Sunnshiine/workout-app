@@ -279,8 +279,9 @@ derived from the **single-page principle**: training surfaces never scroll,
 and every locked composition was validated at fixed proportions. The
 `Theme.type` role table is the single choke point (one row per role; a lint
 rule bans font construction elsewhere), so adopting Dynamic Type later is a
-one-file diff. System-owned surfaces (Settings, alerts, share sheet) keep
-native text styles and scale normally.
+one-file diff. System-owned surfaces (Settings, system alerts, share sheet)
+keep native text styles and scale normally, and so does the app-drawn
+destructive confirmation card (§5.9).
 
 **The Shrink-Then-Truncate Rule.** Reference lines (Last Performed, history
 chips' text, runlines) never wrap: shrink to a dense floor (≈11pt), then
@@ -560,9 +561,9 @@ headers, newest first. Chips may flow to a second line; text never wraps.
   a small carved well. Legacy Logs render best-effort parsed into chips.
 - A **Volume control** (chip-vocabulary pill carrying the
   `chart.xyaxis.line` glyph, no word; raised when off, pressed-in when active,
-  off by default, selected to VoiceOver when active) toggles a **total-volume chart**: weight × reps per session, ink
-  line, hollow `≈` dots where Legacy Logs make totals approximate, a dotted
-  Block seam.
+  off by default, selected to VoiceOver when active) toggles a **total-volume
+  chart**: weight × reps per session, ink line, hollow `≈` dots where Legacy
+  Logs make totals approximate, a dotted Block seam.
 - Night follows the night sheet recipe (flagged for build validation — not
   re-prototyped).
 
@@ -609,9 +610,20 @@ keep system blue and Sign Out keeps system red; no contrast fix retints them
 (operator ruling 2026-10-11). Appearance (System / Light /
 Night) lives here.
 
+**The Destructive Confirmation Card.** Signing out or switching sheets while
+Set Logs are pending asks first, on a card the app draws in place of a system
+alert, because an alert action drops its glyph on iOS 26. The card dims the
+surface under it and carries the question, the line "Pending logs for the
+current sheet will be discarded.", a text Cancel capsule, and a capsule
+holding the red action glyph (`rectangle.portrait.and.arrow.right` to sign
+out, `arrow.left.arrow.right` to switch). It behaves as a system alert does:
+the sheet under it cannot be swiped away until the athlete answers,
+VoiceOver moves to its title when it appears, and the escape gesture cancels
+it.
+
 **Settings Own Manual Sync Rule** (carried forward). Manual sync is a
-Settings row, its glyph labeled **Sync now** to VoiceOver, never a Session control or
-pull-to-refresh affordance. The Session may show sync state honestly, but
+Settings row, its glyph labeled **Sync now** to VoiceOver, never a Session
+control or pull-to-refresh affordance. The Session may show sync state honestly, but
 never teaches the athlete to manage sync mid-Session.
 
 ## 6. The Sunbird
