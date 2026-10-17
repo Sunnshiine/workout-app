@@ -87,12 +87,7 @@ final class SyncCoordinator {
         let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else { return .clear }
 
-        let writer = SheetWriter(client: client)
-        let flushContext = PendingWriteFlushContext(
-            spreadsheetId: spreadsheetId,
-            writer: writer,
-            planner: sheetWritePlanner
-        )
+        let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, planner: sheetWritePlanner)
 
         switch await flushPendingWrites(pending, context: flushContext) {
         case .completed(let conflicts):
@@ -205,7 +200,6 @@ extension SyncCoordinator: SheetSwitchSyncing {
 
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
-    let writer: SheetWriter
     let planner: SheetWritePlanner
 }
 
@@ -216,7 +210,7 @@ private enum PendingWriteFlushResult {
 
 private struct PlannedPendingWrite {
     let write: PendingWrite
-    let update: SheetCellUpdate
+    let cell: SheetCellWrite
     let snapshot: SheetWritePlanningSnapshot
     let auditDetails: SheetWriteAuditDetails
 
@@ -242,7 +236,7 @@ private struct PlannedPendingWrite {
             )
         }
         do {
-            update = try planner.plan(request, target: target, in: snapshot)
+            cell = try planner.plan(request, target: target, in: snapshot)
         } catch let error as SheetWriterError {
             throw PendingWritePlanningConflict(
                 error: error,
@@ -263,8 +257,8 @@ private struct PendingWriteBatch {
         items.isEmpty
     }
 
-    var updates: [SheetCellUpdate] {
-        items.map(\.update)
+    var cells: [SheetCellWrite] {
+        items.map(\.cell)
     }
 
     mutating func append(_ item: PlannedPendingWrite) {
@@ -276,7 +270,7 @@ private struct PendingWriteBatch {
     }
 
     func overlaps(_ target: SheetWriteTarget) -> Bool {
-        items.contains { $0.update.target == target }
+        items.contains { $0.cell.target == target }
     }
 }
 
@@ -366,13 +360,13 @@ extension SyncCoordinator {
         snapshots: inout [String: SheetWritePlanningSnapshot],
         context flushContext: PendingWriteFlushContext
     ) async throws {
-        if batch.overlaps(plannedWrite.update.target) {
+        if batch.overlaps(plannedWrite.cell.target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
         }
         batch.append(plannedWrite)
-        snapshots[plannedWrite.update.tabName] = flushContext.planner.applying(
-            plannedWrite.update,
+        snapshots[plannedWrite.cell.tabName] = flushContext.planner.applying(
+            plannedWrite.cell,
             to: plannedWrite.snapshot
         )
     }
@@ -418,7 +412,7 @@ extension SyncCoordinator {
     ) async throws(PendingWriteBatchFailure) {
         guard !batch.isEmpty else { return }
         do {
-            try await flushContext.writer.write(batch.updates, spreadsheetId: flushContext.spreadsheetId)
+            try await client.write(batch.cells, spreadsheetId: flushContext.spreadsheetId)
         } catch {
             for item in batch.items {
                 item.write.retryCount += 1
@@ -439,7 +433,7 @@ extension SyncCoordinator {
         try? context.save()
     }
 
-    /// The flush's working copy of a tab, which `append` advances with every batched update. A hit
+    /// The flush's working copy of a tab, which `append` advances with every batched cell write. A hit
     /// here is therefore what the batch predicts the Sheet will hold, not what it holds (ADR-0003).
     fileprivate func gridSnapshot(
         for tab: String,

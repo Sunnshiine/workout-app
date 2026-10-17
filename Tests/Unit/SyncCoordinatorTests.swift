@@ -15,7 +15,7 @@ private struct StubClient: SheetsClient {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         SheetSnapshot(values: grid)
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 @MainActor
@@ -327,7 +327,7 @@ struct SyncOutcomeCharacterizationTests {
         await sync.flushPending(spreadsheetId: "sid")
 
         #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
-        #expect(client.updates.isEmpty)
+        #expect(client.writes.isEmpty)
     }
 
     @Test func aSpreadsheetWithNoBlockTabReportsNoBlockTab() async throws {
@@ -394,7 +394,7 @@ struct SyncOutcomeCharacterizationTests {
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
         #expect(write.lastError == "Expected '', found 'coach edited'")
-        #expect(client.updates.isEmpty)
+        #expect(client.writes.isEmpty)
     }
 
     @Test func flushingAnEmptyQueueClearsALocalWriteFailure() async throws {
@@ -424,7 +424,7 @@ struct SyncOutcomeCharacterizationTests {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = OutcomePinClient(grid: writableGrid())
-        client.updatesFail = true
+        client.writesFail = true
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         await sync.sync(spreadsheetId: "sid")
@@ -602,8 +602,8 @@ private struct LocalWriteFailure: LocalizedError {
 private final class OutcomePinClient: SheetsClient {
     var grid: SheetGrid
     var isOffline = false
-    var updatesFail = false
-    private(set) var updates: [String] = []
+    var writesFail = false
+    private(set) var writes: [SheetCellWrite] = []
     private let titles: [String]
 
     init(titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
@@ -621,9 +621,9 @@ private final class OutcomePinClient: SheetsClient {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        if updatesFail { throw URLError(.timedOut) }
-        updates.append(range)
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        if writesFail { throw URLError(.timedOut) }
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -660,7 +660,7 @@ private final class HeldOutcomePinClient: SheetsClient {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 
     func waitUntilHeld() async {
         await held.waitUntilHeld(orRecord: "the coordinator never reached the Sheet call this client holds")

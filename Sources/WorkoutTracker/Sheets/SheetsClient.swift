@@ -1,17 +1,12 @@
 import Foundation
 
-struct SheetValueRangeUpdate: Sendable, Equatable {
-    let range: String
-    let values: [[String]]
-}
-
 protocol SheetsClient: Sendable {
     func listTabTitles(spreadsheetId: String) async throws -> [String]
     func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws
-    /// Throws unless callers can treat every update as applied.
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws
+    /// Writes every cell in one all-or-nothing request, and throws unless callers can treat every
+    /// cell as written (ADR-0006). An empty array writes nothing.
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws
 }
 
 extension SheetsClient {
@@ -37,15 +32,6 @@ extension SheetsClient {
             try await fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
         }
     }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        guard updates.count <= 1 else {
-            throw SheetsError.unsupportedBatchUpdate
-        }
-        if let update = updates.first {
-            try await updateCells(spreadsheetId: spreadsheetId, range: update.range, values: update.values)
-        }
-    }
 }
 
 struct SpreadsheetListPage: Equatable, Sendable {
@@ -63,7 +49,6 @@ enum SheetsError: Error, Equatable {
     case notAuthorized
     case http(Int)
     case malformedResponse
-    case unsupportedBatchUpdate
 }
 
 func extractSpreadsheetId(from url: String) -> String? {

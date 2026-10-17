@@ -18,5 +18,5 @@ actor VisualNoopSheetsClient: SheetsClient {
         SheetSnapshot(values: [], rowVisibility: [:])
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }

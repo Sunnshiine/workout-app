@@ -92,12 +92,11 @@
             return try await sheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
         }
 
-        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-            try await updateCells(spreadsheetId: spreadsheetId, updates: [SheetValueRangeUpdate(range: range, values: values)])
-        }
-
-        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-            try await sheets[spreadsheetId]?.updateCells(spreadsheetId: spreadsheetId, updates: updates)
+        func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+            guard let sheet = sheets[spreadsheetId] else {
+                throw SheetsError.malformedResponse
+            }
+            try await sheet.write(cells, spreadsheetId: spreadsheetId)
         }
     }
 #endif
