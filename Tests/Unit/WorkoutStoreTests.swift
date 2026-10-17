@@ -69,6 +69,40 @@ private func makeStore(
 }
 
 @MainActor
+private func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) async throws {
+    try await withOnDiskStoreFile { url in
+        let container = try ModelContainer(
+            for: Block.self,
+            PendingWrite.self,
+            WriteTargetAuditEntry.self,
+            configurations: ModelConfiguration(url: url)
+        )
+        let context = container.mainContext
+        context.insert(makeStoreBlock(weekCount: weekCount))
+        try context.save()
+        let store = WorkoutStore(context: context, defaults: .inMemory())
+        store.reload()
+        try withExtendedLifetime(container) { try body(store, context) }
+    }
+}
+
+/// `SyncCoordinator.replacePersistedBlock` inlined, then the reload `SheetConnection` runs after
+/// every sync.
+@MainActor
+private func sync(
+    _ store: WorkoutStore,
+    replacingBlockWith block: Block,
+    in context: ModelContext,
+    sourceLocation: SourceLocation = #_sourceLocation
+) throws {
+    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+    context.insert(block)
+    try context.save()
+    store.reload()
+    expectShowsOnlySessionsOfItsBlock(store, sourceLocation: sourceLocation)
+}
+
+@MainActor
 @Test func loadsBlockAndDefaultsViewedToCurrent() throws {
     let container = try ModelContainer(for: Block.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
     let ctx = container.mainContext
@@ -146,42 +180,29 @@ private func makeStore(
 }
 
 @MainActor
-@Test func reloadKeepsTheBrowsedSessionWhenTheSyncReplacesTheWholeBlock() throws {
-    let fixture = try makeStore(weekCount: 2)
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let context = fixture.container.mainContext
+@Test func reloadKeepsTheBrowsedSessionWhenTheSyncReplacesTheWholeBlock() async throws {
+    try await withOnDiskStore(weekCount: 2) { store, context in
+        store.show(SessionAddress(week: 2, day: 3))
+        #expect(store.viewedSession?.week?.number == 2)
 
-    store.show(SessionAddress(week: 2, day: 3))
-    #expect(store.viewedSession?.week?.number == 2)
+        try sync(store, replacingBlockWith: makeStoreBlock(weekCount: 2), in: context)
 
-    // SyncCoordinator.replacePersistedBlock, inlined.
-    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
-    context.insert(makeStoreBlock(weekCount: 2))
-    try context.save()
-    store.reload()
-
-    #expect(store.viewedSession?.week?.number == 2)
-    #expect(store.viewedSession?.dayNumber == 3)
+        #expect(store.viewedSession?.week?.number == 2)
+        #expect(store.viewedSession?.dayNumber == 3)
+    }
 }
 
 @MainActor
-@Test func reloadReturnsToTheCurrentSessionWhenTheBrowsedSessionLeavesTheBlock() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let context = fixture.container.mainContext
+@Test func reloadReturnsToTheCurrentSessionWhenTheBrowsedSessionLeavesTheBlock() async throws {
+    try await withOnDiskStore(weekCount: 1) { store, context in
+        store.show(SessionAddress(week: 1, day: 4))
+        #expect(store.viewedSession?.dayNumber == 4)
 
-    store.show(SessionAddress(week: 1, day: 4))
-    #expect(store.viewedSession?.dayNumber == 4)
+        try sync(store, replacingBlockWith: makeStoreBlock(dayCount: 3), in: context)
 
-    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
-    context.insert(makeStoreBlock(dayCount: 3))
-    try context.save()
-    store.reload()
-
-    #expect(store.viewedSession?.dayNumber == 1)
-    #expect(store.isViewingLiveEdge)
+        #expect(store.viewedSession?.dayNumber == 1)
+        #expect(store.isViewingLiveEdge)
+    }
 }
 
 @MainActor
@@ -538,44 +559,14 @@ private func makeStore(
     #expect(store.viewedSession?.dayNumber == 2)
 }
 
-/// On disk, as on the device: an in-memory store keeps a deleted Session's Week, so it cannot show
-/// a Session held across a sync losing its place.
 @MainActor
-private func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) throws {
-    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("workout-store-\(UUID().uuidString)")
-    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    defer { try? FileManager.default.removeItem(at: directory) }
-    let container = try ModelContainer(
-        for: Block.self,
-        PendingWrite.self,
-        WriteTargetAuditEntry.self,
-        configurations: ModelConfiguration("workout-store", url: directory.appendingPathComponent("store.sqlite"))
-    )
-    let context = container.mainContext
-    context.insert(makeStoreBlock(weekCount: weekCount))
-    try context.save()
-    let store = WorkoutStore(context: context, defaults: .inMemory())
-    store.reload()
-    try withExtendedLifetime(container) { try body(store, context) }
-}
-
-/// `SyncCoordinator.replacePersistedBlock`, inlined.
-@MainActor
-private func replaceBlock(in context: ModelContext, with block: Block) throws {
-    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
-    context.insert(block)
-    try context.save()
-}
-
-@MainActor
-@Test func dismissingMoveOnCelebrationAfterASyncAdvancesFromTheCelebratedSession() throws {
-    try withOnDiskStore(weekCount: 2) { store, context in
+@Test func dismissingMoveOnCelebrationAfterASyncAdvancesFromTheCelebratedSession() async throws {
+    try await withOnDiskStore(weekCount: 2) { store, context in
         store.show(SessionAddress(week: 2, day: 3))
         store.makeViewedSessionCurrent()
         store.requestMoveOnCelebration()
 
-        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2))
-        store.reload()
+        try sync(store, replacingBlockWith: makeStoreBlock(weekCount: 2), in: context)
         #expect(store.moveOnCelebrationSession?.address == SessionAddress(week: 2, day: 3))
         store.dismissMoveOnCelebration()
 
@@ -585,14 +576,13 @@ private func replaceBlock(in context: ModelContext, with block: Block) throws {
 }
 
 @MainActor
-@Test func aSyncThatRemovesTheCelebratedSessionEndsTheCelebrationWithoutMovingOn() throws {
-    try withOnDiskStore(weekCount: 2) { store, context in
+@Test func aSyncThatRemovesTheCelebratedSessionEndsTheCelebrationWithoutMovingOn() async throws {
+    try await withOnDiskStore(weekCount: 2) { store, context in
         store.show(SessionAddress(week: 2, day: 3))
         store.makeViewedSessionCurrent()
         store.requestMoveOnCelebration()
 
-        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2, dayCount: 2))
-        store.reload()
+        try sync(store, replacingBlockWith: makeStoreBlock(weekCount: 2, dayCount: 2), in: context)
         #expect(store.moveOnCelebrationSession == nil)
         #expect(store.moveOnCelebrationRequestedAt == nil)
         store.dismissMoveOnCelebration()
