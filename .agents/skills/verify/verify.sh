@@ -29,8 +29,9 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   tap --id ID | --label TEXT | -x X -y Y
                               --id and --label wait up to 3 s (--wait-timeout N) for that element
                               to be enabled, on screen, with its centre inside every element of
-                              nonzero size containing it, and on top at that centre, then tap the
-                              centre; exit 1 and say which it was not (off-screen, clipped,
+                              nonzero size containing it, and on top at the tap point, then tap
+                              there. The point is the centre of the part of it the screen and those
+                              elements show; exit 1 and say which it was not (off-screen, clipped,
                               disabled, covered). --label is the exact label, a control over a text
                               that shares it; when more than one is left, exit 1 listing each
                               with its centre. -x -y taps the point and reports whatever it hits
@@ -828,7 +829,7 @@ case $cmd in
         return
       fi
       "$axe" describe-ui --udid "$sim" --point "$x,$y" \
-        | python3 "$tree" landing "${resolved#*$'\n'}" "$front"
+        | python3 "$tree" landing "${resolved#*$'\n'}" "$front" "$x" "$y"
     }
     SECONDS=0
     while :; do
