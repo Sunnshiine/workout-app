@@ -18,6 +18,10 @@ struct SetLogDraft: Equatable, Sendable {
         return SetLog(weight: weight, reps: reps, rpe: rpe)
     }
 
+    func overridden(by other: SetLogDraft) -> SetLogDraft {
+        SetLogDraft(weight: other.weight ?? weight, reps: other.reps ?? reps, rpe: other.rpe ?? rpe)
+    }
+
     var missingFields: Set<Field> {
         Set([weight == nil ? .weight : nil, reps == nil ? .reps : nil, rpe == nil ? Field.rpe : nil].compactMap { $0 })
     }

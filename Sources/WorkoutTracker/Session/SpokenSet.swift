@@ -49,6 +49,31 @@ enum SpokenSet: Equatable, Sendable {
     }
 }
 
+/// What a Spoken Set does to the Set it is for.
+enum SpokenSetOutcome: Equatable, Sendable {
+    case log(SetLog)
+    /// The values heard over the draft, with at least one still missing. Nothing is written.
+    case missingValues(SetLogDraft)
+    case skip
+
+    /// Logged once every value is present, never filled in further.
+    init(_ values: SetLogDraft) {
+        self = values.setLog.map(Self.log) ?? .missingValues(values)
+    }
+}
+
+extension SpokenSet {
+    /// `draft` is what the Set's card pre-fills and `previous` is the Exercise's nearest earlier
+    /// structured Set Log in the Session. A value the athlete did not say comes only from the draft.
+    func resolved(against draft: SetLogDraft, previous: SetLog?) -> Result<SpokenSetOutcome, Rejection> {
+        switch self {
+        case .values(let spoken): .success(SpokenSetOutcome(draft.overridden(by: spoken)))
+        case .sameAgain: previous.map { .success(.log($0)) } ?? .failure(.nothingToRepeat)
+        case .skip: .success(.skip)
+        }
+    }
+}
+
 /// Same again and skip, each recognized by a trigger word and allowed only its own vocabulary.
 /// Read before any number, because "skip this one" holds the number word "one".
 private struct Command {
