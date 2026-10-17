@@ -37,7 +37,7 @@ with exit 3; run `init` again.
 
 | Command | Calls | Prints |
 |---|---|---|
-| `init [--scenario fresh-block\|partial-upload\|full-block]` | wipes the home, seeds the workbook, `selectSpreadsheet` (the onboarding path, which syncs) | home, scenario, spreadsheet, Block summary, Current Session |
+| `init [--scenario <name>]` (`init --help` lists every `WorkbookScenario`) | wipes the home, seeds the workbook, `selectSpreadsheet` (the onboarding path, which syncs) | home, scenario, spreadsheet, Block summary, Current Session |
 | `status` | `snapshot()` | sync outcome, pending write count, Current Session and why, Session index |
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
@@ -144,8 +144,11 @@ line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.mo
 `pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
 (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
 `WorkbookScenario`; the scenario test requires it to parse with no warnings. `partial-upload` is
-the Block the app's UI fixture seeds when a launch names no Scenario flag, and `full-block` the one
-it seeds for `-UITEST_FULL_BLOCK`, so the CLI and the UI suites read the same cells.
+the Block the app's UI fixture seeds when a launch names no Scenario flag, and every other launch
+Scenario seeds the workbook of the same name (`full-block` for `-UITEST_FULL_BLOCK`), so the CLI and
+the UI suites read the same cells. The one exception is a scenario's `unwritableSetLogs`: Set Logs
+on a Coach Note Line, which have no cell until #942. The UI fixture logs them over the parse, but
+`init` does not, so those Sets read Pending here.
 
 The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process
 exits before it runs, so scenarios in this slice have one tab. See ADR-0015.
