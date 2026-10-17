@@ -181,7 +181,7 @@ final class BackgroundDictation {
         wasSupersetMember: Bool
     ) -> Settled {
         let setID = position.setID
-        let written = LiveActivityDictationContent.WrittenSet(position)
+        let written = LiveActivityDictationContent.WrittenSet(position, in: session)
         switch heard {
         case .logged(let setLog, _):
             return Settled(

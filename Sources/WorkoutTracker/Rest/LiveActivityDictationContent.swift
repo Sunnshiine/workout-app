@@ -19,6 +19,8 @@ struct LiveActivityDictationContent: Equatable, Sendable {
         /// The Set's place among its Exercise's Sets, from 1, as its card numbers it.
         let setOrdinal: Int
         let setsTotal: Int
+        /// The Set as a rest names the Set it leads to.
+        let target: LiveActivityRestTarget
     }
 
     /// The Set listened for, or the rest a logged Set began toward the next one.
@@ -31,14 +33,35 @@ struct LiveActivityDictationContent: Equatable, Sendable {
     let subject: Subject
 }
 
+extension LiveActivityDictationContent {
+    /// Whether this readback sits over a rest the stage already runs, keeping its countdown. A
+    /// rest this content carries replaces it, and a write uses up a rest that led to the Set it
+    /// wrote, which the card's reconcile ends once that Set is no longer Pending.
+    func rides(_ rest: LiveActivityRestContent) -> Bool {
+        guard case .set = subject else { return false }
+        guard let written = readback.writtenSet else { return true }
+        return rest.target != written.target
+    }
+}
+
+extension LiveActivityDictationContent.Readback {
+    var writtenSet: LiveActivityDictationContent.WrittenSet? {
+        switch self {
+        case .logged(_, let set), .skipped(let set): set
+        case .listening, .notLogged: nil
+        }
+    }
+}
+
 extension LiveActivityDictationContent.WrittenSet {
     @MainActor
-    init(_ position: SessionSetPosition) {
+    init(_ position: SessionSetPosition, in session: Session) {
         let sets = SessionSetOrder.orderedSets(in: [position.exercise])
         self.init(
             exerciseName: position.exercise.name,
             setOrdinal: (sets.firstIndex { $0.set === position.set } ?? position.set.index) + 1,
-            setsTotal: sets.count
+            setsTotal: sets.count,
+            target: LiveActivityRestTarget(session: session.reparseIdentity, setID: position.setID)
         )
     }
 }

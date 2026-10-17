@@ -150,7 +150,8 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
             await show(
                 readback,
                 else: WorkoutActivityAttributes.ContentState(setContent: set, dictation: readback),
-                sessionLabel: sessionLabel
+                sessionLabel: sessionLabel,
+                ridingRestIf: content.rides
             )
         }
     }
@@ -180,18 +181,23 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
-    /// `readback` over the running rest, keeping its countdown, else over `alone`.
+    /// `readback` over the running rest, keeping its countdown, else over `alone`. A rest the
+    /// readback may not ride is over, so the readback takes its activity and ends it as its own.
     private func show(
         _ readback: LiveActivityDictation,
         else alone: WorkoutActivityAttributes.ContentState,
-        sessionLabel: String
+        sessionLabel: String,
+        ridingRestIf rides: (LiveActivityRestContent) -> Bool = { _ in true }
     ) async {
         controller.refreshAuthorizationStatus()
-        let state: WorkoutActivityAttributes.ContentState
+        var state = alone
         if let currentRestContent, controller.isActive {
-            state = WorkoutActivityAttributes.ContentState(restContent: currentRestContent, dictation: readback)
-        } else {
-            state = alone
+            if rides(currentRestContent) {
+                state = WorkoutActivityAttributes.ContentState(restContent: currentRestContent, dictation: readback)
+            } else {
+                clearLifecycleTasks()
+                owner = .dictation
+            }
         }
         await show(state, sessionLabel: sessionLabel, isFinal: !readback.isListening)
     }

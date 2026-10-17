@@ -10,10 +10,6 @@ private let cap = SetDictation.listeningCap
 private let flushWait = BackgroundDictation.flushWait
 private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
-private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet {
-    LiveActivityDictationContent.WrittenSet(exerciseName: "Back Squat", setOrdinal: ordinal, setsTotal: 3)
-}
-
 @MainActor
 @Test func aSpokenSetLogsTheActiveSetReadsItBackOverTheRestAndFlushes() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"])
@@ -22,7 +18,7 @@ private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet 
     let outcome = await harness.runUntilQuiet()
 
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: squat(set: 1))])
+    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: try harness.squat(set: 1))])
     #expect(harness.liveActivity.sessionLabels == ["Week 1 - Day 1", "Week 1 - Day 1"])
     guard case .set(let listenedFor) = harness.liveActivity.subjects.first else {
         Issue.record("Listening showed \(String(describing: harness.liveActivity.subjects.first)), not the Set")
@@ -57,7 +53,7 @@ private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet 
     let outcome = await harness.runUntilQuiet()
 
     #expect(outcome == .logged(logged235, at: ActiveSetID(exerciseOrder: 0, setIndex: 2)))
-    #expect(harness.liveActivity.readbacks.last == .logged("235×5 @7", to: squat(set: 3)))
+    #expect(harness.liveActivity.readbacks.last == .logged("235×5 @7", to: try harness.squat(set: 3)))
     guard case .rest(let rest) = harness.liveActivity.subjects.last else {
         Issue.record("Logged showed \(String(describing: harness.liveActivity.subjects.last)), not the rest")
         return
@@ -78,9 +74,29 @@ private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet 
 
     _ = await harness.runUntilQuiet()
 
-    let rdl = LiveActivityDictationContent.WrittenSet(exerciseName: "2-3:1:0 BB RDL", setOrdinal: 2, setsTotal: 2)
+    let rdl = try harness.written("2-3:1:0 BB RDL", order: 1, set: 2, of: 2)
     #expect(harness.liveActivity.readbacks.last == .logged("235×5 @7", to: rdl))
     #expect(last.set.state == .logged)
+    let result = try #require(harness.liveActivity.shown.last?.content)
+    let restTowardIt = restContent(toward: rdl.target)
+    #expect(!result.rides(restTowardIt), "the stage's rest led to the Set just logged, so it is over")
+    #expect(result.rides(restContent(toward: LiveActivityRestTarget(session: rdl.target.session, setID: firstSet))))
+}
+
+@MainActor
+@Test func listeningAndAResultThatWroteNothingSitOverARunningRestAndALoggedRestReplacesIt() async throws {
+    let harness = try await Harness(hearing: ["RPE 9"])
+
+    _ = await harness.runUntilQuiet()
+
+    let target = try harness.squat(set: 1).target
+    let running = restContent(toward: target)
+    let listening = try #require(harness.liveActivity.shown.first?.content)
+    let notLogged = try #require(harness.liveActivity.shown.last?.content)
+    #expect(listening.rides(running))
+    #expect(notLogged.rides(running), "nothing was written, so the rest toward the Set still stands")
+    let logged = LiveActivityDictationContent(readback: .logged("235×5 @7", to: try harness.squat(set: 1)), subject: .rest(running))
+    #expect(!logged.rides(running), "the rest this write began takes the running one's place")
 }
 
 @MainActor
@@ -99,7 +115,7 @@ private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet 
     transcriber.finishing.release()
 
     #expect(await run.value == .skipped(at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .skipped(squat(set: 1))])
+    #expect(harness.liveActivity.readbacks == [.listening, .skipped(try harness.squat(set: 1))])
     #expect(try harness.app.session(nil).exercises[0].sets[0].state == "skipped")
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "skip")
 }
@@ -370,7 +386,10 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     harness.clock.advance(by: window)
     await harness.clock.waitUntilSleeping(until: window + flushWait, orRecord: "The flush was never bounded")
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: squat(set: 1))], "the result shows before the flush")
+    #expect(
+        harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: try harness.squat(set: 1))],
+        "the result shows before the flush"
+    )
     harness.clock.advance(by: flushWait)
 
     #expect(await run.value == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: firstSet))
@@ -379,6 +398,22 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     sheet.release()
     _ = await harness.background.flushing?.value
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7", "the flush ran on past the deadline")
+}
+
+private func restContent(toward target: LiveActivityRestTarget) -> LiveActivityRestContent {
+    LiveActivityRestContent(
+        exerciseName: "Back Squat",
+        prescribedReps: "5",
+        prescribedLoad: "RPE7",
+        weightValue: "",
+        weightUnit: "lbs",
+        setsDone: 1,
+        setsTotal: 3,
+        variant: .restTimerSetsLeft,
+        restStartDate: frozenNow,
+        restEndDate: frozenNow.addingTimeInterval(120),
+        target: target
+    )
 }
 
 @MainActor
@@ -431,6 +466,21 @@ private struct Harness {
         await clock.waitUntilSleeping(until: clock.now + window, orRecord: "It never started listening")
         clock.advance(by: window)
         return await run.value
+    }
+
+    func written(_ exerciseName: String, order: Int, set ordinal: Int, of total: Int) throws -> LiveActivityDictationContent.WrittenSet {
+        let session = try #require(app.workout.currentSession)
+        let setID = ActiveSetID(exerciseOrder: order, setIndex: ordinal - 1)
+        return LiveActivityDictationContent.WrittenSet(
+            exerciseName: exerciseName,
+            setOrdinal: ordinal,
+            setsTotal: total,
+            target: LiveActivityRestTarget(session: session.reparseIdentity, setID: setID)
+        )
+    }
+
+    func squat(set ordinal: Int) throws -> LiveActivityDictationContent.WrittenSet {
+        try written("Back Squat", order: 0, set: ordinal, of: 3)
     }
 
     /// A Session screen up behind the intent, its stage on `session`, as with the app backgrounded.
