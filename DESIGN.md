@@ -429,7 +429,8 @@ after:
   Drop from the previous Set, or a %1RM of the Training Max. For an RPE target
   it pre-fills the Load Suggestion estimated from the athlete's own Set Logs
   (ADR-0018). Reps and RPE pre-fill from the prescription when it names one
-  value.
+  value. A rep range such as `11-12` pre-fills its low end, though the weight
+  for it is estimated at the range's midpoint.
 - **The athlete sees only the estimated weight.** A basis line naming where it
   came from is a developer aid, off until Developer Tools' *Show Load Basis*
   turns it on. Mid-set, the number is the decision and its provenance is
@@ -446,6 +447,7 @@ after:
   no longer on the card. Cards without an estimate carry no line.
 - **No units anywhere** in the block.
 - A prescription tick marks the coach's prescribed reps and RPE on the rails.
+  A rep range ticks every value in it, and the Reps rail centers on its low end.
 
 Card padding is 16 / 16 / 14; steppers hold ~54pt targets, rail cells 48×44.
 Invalid fields mark themselves with `danger` on the specific bad field only;

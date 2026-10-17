@@ -11,6 +11,7 @@ struct SmartValuePillsForm {
     var weightText: String
     var repsText: String
     var rpeText: String
+    let prescribedReps: PrescribedReps
     let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
@@ -85,7 +86,9 @@ struct SmartValuePillsForm {
     }
 
     init(set: ExerciseSet, suggestion: LoadSuggestion) {
-        prescribedRPE = set.prescription.load.rpeTarget
+        let prescription = set.prescription
+        prescribedReps = prescription.reps
+        prescribedRPE = prescription.load.rpeTarget
         if let setLog = set.setLog {
             weightText = setLog.weight.label
             repsText = String(setLog.reps)
@@ -93,7 +96,7 @@ struct SmartValuePillsForm {
             estimateBasisText = nil
         } else {
             (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
-            repsText = Self.initialRepsText(for: set.prescribedReps)
+            repsText = Self.initialRepsText(for: prescribedReps)
             rpeText = prescribedRPE?.label ?? ""
         }
         repsPlaceholder = repsText.isEmpty ? set.prescribedReps : nil
@@ -218,7 +221,9 @@ struct SmartValuePillsForm {
         }
     }
 
-    private static func initialRepsText(for prescribedReps: String) -> String {
-        Int(prescribedReps).map { String($0) } ?? ""
+    /// A range pre-fills its low end. The weight for it is still estimated at its midpoint
+    /// (ADR-0018), and the athlete moves the rail to the reps they did.
+    private static func initialRepsText(for prescribedReps: PrescribedReps) -> String {
+        prescribedReps.target.map { String($0.lowerBound) } ?? ""
     }
 }

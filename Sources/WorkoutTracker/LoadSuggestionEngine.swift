@@ -57,7 +57,7 @@ enum LoadSuggestionEngine {
     }
 
     private static func rpeTable(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard case .target(let reps) = inputs.prescription.reps, let rpe = inputs.prescription.load.rpeTarget,
+        guard let reps = inputs.prescription.reps.target, let rpe = inputs.prescription.load.rpeTarget,
             let targetShare = RPETable.share(reps: reps, rpe: rpe),
             let basis = todayBasis(inputs) ?? inputs.lastPerformed.flatMap(historyBasis)
         else { return nil }

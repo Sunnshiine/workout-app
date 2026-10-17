@@ -52,6 +52,17 @@ struct ActiveSetCardVisualTests {
         )
     }
 
+    /// #515: a prescribed `11-12` ticks both chips on the Reps rail and pre-fills 11.
+    @Test func activeSetCardWithARepRangeMatchesVisualBaseline() throws {
+        try assertCardSnapshot(
+            makeCardScenario(prescribedReps: "11-12"),
+            setOrdinal: 3,
+            history: [],
+            appearance: .day,
+            colorScheme: .light
+        )
+    }
+
     private func assertCardSnapshot(
         _ card: (exercise: Exercise, set: ExerciseSet),
         setOrdinal: Int,
@@ -111,7 +122,7 @@ struct ActiveSetCardVisualTests {
 
     /// Reproduces the pick: Set 3 of 5 of a bench press, weight prefilled to 90 (60% of a 150
     /// training max), reps 5 and RPE 8 prescribed and prefilled.
-    private func makeCardScenario() -> (Exercise, ExerciseSet) {
+    private func makeCardScenario(prescribedReps: String = "5") -> (Exercise, ExerciseSet) {
         let exercise = Exercise(
             name: "Competition Bench Press",
             coachNote: nil,
@@ -120,7 +131,7 @@ struct ActiveSetCardVisualTests {
         exercise.sets = (0..<5).map { index in
             let set = ExerciseSet(
                 index: index,
-                prescribedReps: "5",
+                prescribedReps: prescribedReps,
                 prescribedLoad: "RPE 8",
                 percentOneRM: "60%",
                 state: index < 2 ? .logged : .pending
