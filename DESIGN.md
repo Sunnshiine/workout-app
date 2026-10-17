@@ -459,7 +459,10 @@ utility state — without swallowing real controls.
 
 A full-capsule action button: green fill (`actionDay` / `actionNight`),
 cream text, previewing the exact Set Log about to be written. Day carries a
-soft green drop shadow; night a soft green light. **Hold-to-skip** fills
+soft green drop shadow; night a soft green light. **The press** scales the
+capsule to 0.97 on a system snappy spring (0.16s) from touch-down until the
+finger lifts or the skip commits; only the scale moves, so the title still
+cuts to the next Set. **Hold-to-skip** fills
 with a muted overlay and reveals the Skip affordance (reveal 250ms, commit
 850ms); a skipped state renders transparent with muted text and a 1.5px
 dashed stroke — the dashed "empty bed" vocabulary.

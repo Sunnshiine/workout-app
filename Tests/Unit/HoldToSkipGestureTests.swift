@@ -158,3 +158,51 @@ func holdToSkipGestureCommitsAtTheSetStatesHold(state: SetState, commitMilliseco
     #expect(gesture.pressEnded(at: at(1_000)) == [])
     #expect(gesture.pressBegan(at: at(1_500), policy: .forSet(in: .skipped)) == [.clearFill])
 }
+
+@Test func holdToSkipGestureIsPressingFromTouchDownThroughTheFillUntilTheFingerLifts() {
+    var gesture = HoldToSkipGesture()
+    #expect(!gesture.isPressing)
+
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    #expect(gesture.isPressing)
+
+    _ = gesture.deadlineReached(at: at(250))
+    #expect(gesture.isPressing)
+
+    _ = gesture.pressEnded(at: at(500))
+    #expect(!gesture.isPressing)
+}
+
+@Test func holdToSkipGestureStopsPressingWhenATapLogs() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(gesture.tapped(at: at(120)) == [.log])
+    #expect(!gesture.isPressing)
+}
+
+@Test func holdToSkipGestureStopsPressingWhenTheHoldCommitsWithTheFingerStillDown() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+    _ = gesture.deadlineReached(at: at(250))
+
+    #expect(gesture.deadlineReached(at: at(850)) == [.skip])
+    #expect(!gesture.isPressing)
+}
+
+@Test func holdToSkipGestureStopsPressingWhenAccessibilitySkipsMidPress() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(gesture.skipRequested(at: at(300)) == [.skip])
+    #expect(!gesture.isPressing)
+}
+
+@Test func holdToSkipGestureStopsPressingWhenTheCapsuleDisappears() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    gesture.disappeared()
+
+    #expect(!gesture.isPressing)
+}
