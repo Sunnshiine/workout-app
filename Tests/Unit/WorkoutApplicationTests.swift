@@ -278,7 +278,7 @@ private func address(_ raw: String) throws -> SetAddress {
     let app = try await makeSelectedApp()
     let client = try #require(app.sheetsClient as? LocalWorkbookSheetsClient)
     _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
-    try await client.updateCells(spreadsheetId: "FIXTURE", range: "'Block 27'!K15", values: [["200x5@8"]])
+    try await client.write([SheetCellWrite(tabName: "Block 27", a1: "K15", value: "200x5@8")], spreadsheetId: "FIXTURE")
 
     let first = try await app.flush()
     #expect(first.attempted == 1)

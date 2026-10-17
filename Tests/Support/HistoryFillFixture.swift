@@ -49,7 +49,7 @@ final class HistoryFillStubClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grids[tabName] ?? [])
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 actor TabFetchRecorder {

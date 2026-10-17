@@ -13,7 +13,7 @@ private struct TwoDayStubClient: SheetsClient {
         SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 @MainActor
