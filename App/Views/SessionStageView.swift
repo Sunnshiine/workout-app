@@ -13,7 +13,7 @@ struct SessionStageView: View {
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
+    @Environment(AppEntryInbox.self) private var entry
     @State private var isQueuePresented = false
     @State private var isRestPillMounted = false
     @State private var isRestPillFaded = false
@@ -83,7 +83,7 @@ struct SessionStageView: View {
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
-        .onChange(of: entry?.arrivals) {
+        .onChange(of: entry.arrivals) {
             isQueuePresented = false
             historyExercise = nil
         }

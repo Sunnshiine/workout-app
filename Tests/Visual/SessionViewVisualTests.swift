@@ -42,6 +42,7 @@ struct SessionViewVisualTests {
         .environment(scenario.settings)
         .environment(lastPerformedLookup)
         .environment(historyFill)
+        .environment(AppEntryInbox())
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

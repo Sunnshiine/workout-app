@@ -4,7 +4,7 @@ struct BlockOverviewView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
-    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
+    @Environment(AppEntryInbox.self) private var entry
     @State private var isSettingsPresented = false
 
     let block: Block
@@ -36,7 +36,7 @@ struct BlockOverviewView: View {
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
         }
-        .onChange(of: entry?.arrivals) {
+        .onChange(of: entry.arrivals) {
             isSettingsPresented = false
             dismiss()
         }
