@@ -135,15 +135,28 @@ extension WorkoutApplication {
     /// A Spoken Set read over what the Set's card pre-fills, then `log` or `skip` through the same
     /// store calls. One still missing a value, or rejected, writes nothing and reports why.
     public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
+        try dictate([transcript], at: address)
+    }
+
+    /// `say` over a recognizer's transcripts, most likely first, under the Dictation write policy:
+    /// only the most likely transcript writes, and a Set it does not read that the others agree
+    /// on is reported `ambiguous` with nothing written. Every Dictation that writes without the
+    /// card, headless or from a recording, ends here.
+    public func dictate(_ candidates: [String], at address: SetAddress) throws -> SayReport {
         let set = try resolveSet(address)
-        let context = SpokenSetContext(for: set, history: lastPerformed.snapshot)
-        let outcome = SpokenSet.parse(transcript).flatMap { $0.resolved(against: context.draft, previous: context.previous) }
+        let outcome = SetDictation.outcome(of: candidates, in: SpokenSetContext(for: set, history: lastPerformed.snapshot))
+        try write(outcome, to: set)
+        return SayReport(outcome, report: try report(on: set, at: address))
+    }
+
+    /// The one place a Dictation's outcome reaches the store: `logged` and `skipped` write, the
+    /// rest leave the Set as it was.
+    func write(_ outcome: SetDictation.Outcome, to set: ExerciseSet) throws {
         switch outcome {
-        case .success(.log(let setLog)): try workout.log(set, as: setLog)
-        case .success(.skip): try workout.skip(set)
-        case .success(.missingValues), .failure: break
+        case .logged(let setLog, _): try workout.log(set, as: setLog)
+        case .skipped: try workout.skip(set)
+        case .filled, .rejected: break
         }
-        return SayReport(heard: transcript, outcome: outcome, report: try report(on: set, at: address))
     }
 
     /// `SyncCoordinator.flushPending(spreadsheetId:)`: what the stage requests after every log.

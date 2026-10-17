@@ -281,19 +281,23 @@ public struct SayReport: Encodable, Equatable, Sendable {
 }
 
 extension SayReport {
-    init(heard: String, outcome result: Result<SpokenSetOutcome, SpokenSet.Rejection>, report: LogReport) {
-        self.heard = heard
+    /// A complete Set Log read only from a less likely transcript is a guess the card would show
+    /// for a tap; with no card to show it, it is `ambiguous`, as a skip read that way already is.
+    init(_ outcome: SetDictation.Outcome, report: LogReport) {
         (set, pendingWriteCount, exerciseIsComplete) = (report.set, report.pendingWriteCount, report.exerciseIsComplete)
-        switch result {
-        case .success(.log(let setLog)):
-            (outcome, self.setLog, missing, rejection) = (.logged, setLog.formatted, nil, nil)
-        case .success(.skip):
-            (outcome, setLog, missing, rejection) = (.skipped, nil, nil, nil)
-        case .success(.missingValues(let values)):
-            (outcome, setLog, rejection) = (.missingValues, nil, nil)
+        switch outcome {
+        case .logged(let setLog, let heard):
+            (self.heard, self.outcome, self.setLog, missing, rejection) = (heard, .logged, setLog.formatted, nil, nil)
+        case .skipped(let heard):
+            (self.heard, self.outcome, setLog, missing, rejection) = (heard, .skipped, nil, nil, nil)
+        case .filled(let values, let heard) where values.missingFields.isEmpty:
+            (self.heard, self.outcome, setLog, missing) = (heard, .rejected, nil, nil)
+            rejection = SpokenSetRejectionSnapshot(.ambiguous)
+        case .filled(let values, let heard):
+            (self.heard, self.outcome, setLog, rejection) = (heard, .missingValues, nil, nil)
             missing = SetLogDraft.Field.allCases.filter(values.missingFields.contains).map(\.rawValue)
-        case .failure(let reason):
-            (outcome, setLog, missing) = (.rejected, nil, nil)
+        case .rejected(let reason, let heard):
+            (self.heard, self.outcome, setLog, missing) = (heard, .rejected, nil, nil)
             rejection = SpokenSetRejectionSnapshot(reason)
         }
     }
@@ -303,6 +307,9 @@ public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
     public enum Reason: String, Encodable, Sendable {
         case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, offLadderRPE
         case nothingToRepeat
+        /// The recognizer, not the words: the mic is off in Settings, speech is not available, or
+        /// listening failed.
+        case microphoneDenied, speechUnavailable, listeningFailed
     }
 
     public let reason: Reason
@@ -313,6 +320,16 @@ public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
 }
 
 extension SpokenSetRejectionSnapshot {
+    init(_ rejection: SetDictation.Rejection) {
+        switch rejection {
+        case .spokenSet(let reason): self.init(reason)
+        case .transcriber(.nothingHeard): self.init(reason: .nothingHeard, field: nil, value: nil)
+        case .transcriber(.microphoneDenied): self.init(reason: .microphoneDenied, field: nil, value: nil)
+        case .transcriber(.unavailable): self.init(reason: .speechUnavailable, field: nil, value: nil)
+        case .transcriber(.failed): self.init(reason: .listeningFailed, field: nil, value: nil)
+        }
+    }
+
     init(_ rejection: SpokenSet.Rejection) {
         switch rejection {
         case .nothingHeard: self.init(reason: .nothingHeard, field: nil, value: nil)

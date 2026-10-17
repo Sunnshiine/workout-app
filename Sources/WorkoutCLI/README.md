@@ -79,6 +79,12 @@ said replaces the one the card pre-fills (the Set's own Set Log, else `loadSugge
 prescribed reps and RPE), and the rest keep the pre-fill. A weight or reps the athlete did not say
 and the card does not hold is never guessed.
 
+On the facade, `say` is `dictate(_ candidates: [String], at:)` with one transcript. `dictate` takes
+a recognizer's transcripts, most likely first, under the Dictation write policy: only the most
+likely transcript writes. A Set only the less likely ones read, and agree on, is `rejected` as
+`ambiguous` with nothing written. The headless Dictation the Action button and Control Center run
+on a locked phone writes through the same call.
+
 | `outcome` | Means | Carries | Exit |
 |---|---|---|---|
 | `logged` | weight, reps, and RPE are all present, logged through `WorkoutStore.log` | `setLog` | 0 |
@@ -91,8 +97,9 @@ recognizer ran together), `ambiguous` (a number no word places, or words that ma
 `conflicting` (a `field` said twice, even as the same number, which reads as two Sets),
 `outOfRange` (reps that are 0 or not whole, or a weight of 0 pounds),
 `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
-earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
-then a `spoken_set_rejected` error.
+earlier Set Log of the Exercise in the Session). A Dictation that listened, rather than read a
+transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`. A rejected
+`say` prints its report, then a `spoken_set_rejected` error.
 
 The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it. A number is a value only
 where a word next to it, or the phrase around it, says which, never by its place in the transcript.
