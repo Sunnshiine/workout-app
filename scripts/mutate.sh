@@ -341,7 +341,7 @@ run_check() {
 probe_reach() {
     local id=$1 mfile=$2 at=$3
     git show "$tree:$mfile" >"$run/$id.orig"
-    case $at in '' | *[!0-9]*) at=$(cmp "$run/$id.orig" "$run/$id.swift" | sed -n 's/.*, line //p') ;; esac
+    case $at in '' | *[!0-9]*) at=$({ cmp "$run/$id.orig" "$run/$id.swift" || true; } | sed -n 's/.*, line //p') ;; esac
     [ -n "$at" ] || return 0
     awk -v n="$at" 'FNR == n { print "#error(\"mutate.sh reach probe\")" } { print }' "$run/$id.orig" >"$scratch/$mfile"
     run_check "$run/$id.probe.log" build-only
