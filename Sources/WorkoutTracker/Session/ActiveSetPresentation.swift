@@ -176,15 +176,13 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 
     init(session: Session, block: Block? = nil) {
-        let weekNumber = session.week?.number ?? 0
-        let dayNumber = session.dayNumber
-        let locationCore = "Week \(weekNumber) · Day \(dayNumber)"
+        let locationCore = session.placement.locationText(separator: " · ")
         if let block {
             runlineText = "\(block.tabName) · \(locationCore)"
         } else {
             runlineText = locationCore
         }
-        locationActionAccessibilityLabel = "Open Block Overview for Week \(weekNumber), Day \(dayNumber)"
+        locationActionAccessibilityLabel = "Open Block Overview for \(session.placement.locationText(separator: ", "))"
 
         let sets = session.exercises
             .sorted { $0.order < $1.order }
