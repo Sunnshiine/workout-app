@@ -76,8 +76,8 @@ struct SessionStageView: View {
         .sheet(item: $historyExercise) { exercise in
             ExerciseHistorySheet(
                 presentation: ExerciseHistorySheetPresentation(
-                    anchorBaseName: exercise.baseName,
-                    entries: lastPerformedLookup.snapshot.history(baseName: exercise.baseName)
+                    anchorBaseName: exercise.exerciseName.base,
+                    entries: lastPerformedLookup.snapshot.history(baseName: exercise.exerciseName.base)
                 ),
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
@@ -96,7 +96,7 @@ struct SessionStageView: View {
                 }
             }
         ) {
-            Text(stage.exercise.baseName)
+            Text(stage.exercise.exerciseName.base)
                 .font(Theme.font(.exerciseName))
                 .foregroundStyle(palette.textPrimary)
                 .lineSpacing(3)
@@ -350,7 +350,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 
     @ViewBuilder
     private var cadenceLine: some View {
-        if let cadence = exercise.cadence, !cadence.isEmpty {
+        if let cadence = exercise.exerciseName.cadence, !cadence.isEmpty {
             Text(cadence)
                 .font(Theme.font(.cadence))
                 .foregroundStyle(palette.textSecondary)

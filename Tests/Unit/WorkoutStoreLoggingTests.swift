@@ -40,8 +40,6 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [
                                     ParsedSet(

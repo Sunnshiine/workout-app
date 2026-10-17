@@ -24,8 +24,6 @@ private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, da
                             exercises: [
                                 ParsedExercise(
                                     name: "Squat",
-                                    baseName: "Squat",
-                                    cadence: nil,
                                     coachNote: nil,
                                     sets: [
                                         ParsedSet(
@@ -115,7 +113,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.openExercises.map(\.name) == ["Back Squat", "Bench Press"])
+    #expect(store.openExercises.map(\.exerciseName.entered) == ["Back Squat", "Bench Press"])
 }
 
 @MainActor

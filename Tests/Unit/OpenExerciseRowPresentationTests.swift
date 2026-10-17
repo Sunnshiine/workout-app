@@ -34,7 +34,7 @@ import Testing
 
 @MainActor
 @Test func openExerciseRowOmitsSourceWithoutSession() throws {
-    let exercise = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil)
+    let exercise = Exercise(name: "Back Squat", coachNote: nil)
 
     let row = OpenExerciseRowPresentation(exercise: exercise)
 

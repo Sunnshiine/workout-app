@@ -21,8 +21,8 @@ enum LastPerformedExtractor {
 
                     occurrences.append(
                         LastPerformedOccurrence(
-                            fullName: exercise.name,
-                            baseName: exercise.baseName,
+                            fullName: exercise.exerciseName.entered,
+                            baseName: exercise.exerciseName.base,
                             resultText: resultText,
                             performedOn: session.date ?? .distantPast,
                             source: SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))

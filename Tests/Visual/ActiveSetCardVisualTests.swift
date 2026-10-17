@@ -116,8 +116,6 @@ struct ActiveSetCardVisualTests {
     private func makeCardScenario() -> (Exercise, ExerciseSet) {
         let exercise = Exercise(
             name: "Competition Bench Press",
-            baseName: "Competition Bench Press",
-            cadence: nil,
             coachNote: nil,
             order: 0
         )
@@ -150,8 +148,6 @@ struct ActiveSetCardVisualTests {
     private func makeHistoryEstimateScenario() -> (Exercise, ExerciseSet) {
         let exercise = Exercise(
             name: "Competition Bench Press",
-            baseName: "Competition Bench Press",
-            cadence: nil,
             coachNote: nil,
             order: 0
         )

@@ -118,7 +118,7 @@ private struct StubClient: SheetsClient {
     let syncedSet = try #require(
         syncedBlock.weeks.first { $0.number == 1 }?
             .sessions.first { $0.dayNumber == 1 }?
-            .exercises.first { $0.name == "Squat" }?
+            .exercises.first { $0.exerciseName == "Squat" }?
             .sets.first { $0.index == 0 }
     )
     #expect(syncedSet.loggedAt == loggedAt)
@@ -161,8 +161,6 @@ private func makeLoggedSquatBlock() -> Block {
 private func loggedSquatExercise() -> ParsedExercise {
     ParsedExercise(
         name: "Squat",
-        baseName: "Squat",
-        cadence: nil,
         coachNote: nil,
         sets: [
             ParsedSet(

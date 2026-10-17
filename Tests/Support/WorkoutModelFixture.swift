@@ -8,7 +8,7 @@ func makeExercise(
     order: Int = 0,
     setStates: [SetState]
 ) -> Exercise {
-    let exercise = Exercise(name: name, baseName: name, cadence: nil, coachNote: nil, order: order)
+    let exercise = Exercise(name: ExerciseName(entered: name), coachNote: nil, order: order)
     exercise.sets = setStates.enumerated().map { index, state in
         let rpe = wholePointRPEs[min(index, wholePointRPEs.count - 1)]
         let set = ExerciseSet(
@@ -58,6 +58,7 @@ func makeBlock(tabName: String = "Block 40", sessions: [Session]) -> Block {
 
 @MainActor
 func makeBenchPress(
+    named name: ExerciseName = "Bench Press",
     loads: [String],
     blockTab: String = "Block 27",
     at address: SessionAddress = SessionAddress(week: 1, day: 2),
@@ -68,7 +69,7 @@ func makeBenchPress(
     week.block = block
     let session = Session(dayNumber: address.day, date: nil)
     session.week = week
-    let exercise = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: name, coachNote: nil, order: 0)
     exercise.session = session
     exercise.sets = loads.enumerated().map { index, load in
         ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: load, percentOneRM: nil, state: .pending)

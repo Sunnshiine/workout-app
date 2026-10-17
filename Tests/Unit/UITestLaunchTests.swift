@@ -157,8 +157,10 @@ import Testing
         let seeded = try seed(arguments: [])
         defer { withExtendedLifetime(seeded.container) {} }
         let history = LastPerformedLookupStore(context: seeded.context).snapshot
-        let sets = try #require(seeded.block.session(at: SessionAddress(week: 1, day: 2))?.exercises.first { $0.name == "Bench Press" })
-            .sets.sorted { $0.index < $1.index }
+        let sets = try #require(
+            seeded.block.session(at: SessionAddress(week: 1, day: 2))?.exercises.first { $0.exerciseName == "Bench Press" }
+        )
+        .sets.sorted { $0.index < $1.index }
         func card(_ set: ExerciseSet) -> SmartValuePillsForm {
             SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history))
         }
@@ -192,7 +194,7 @@ import Testing
         block.session(at: address)?
             .exercises
             .sorted { $0.order < $1.order }
-            .map(\.name) ?? []
+            .map(\.exerciseName.entered) ?? []
     }
 
 #endif
