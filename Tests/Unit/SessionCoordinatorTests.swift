@@ -221,7 +221,7 @@ private final class ManualSessionTransitionClock: SessionTransitionClock {
         sleptDurations.append(duration)
         let waiters = sleepWaiters
         sleepWaiters = []
-        waiters.forEach { $0.resume() }
+        for waiter in waiters { waiter.resume() }
 
         let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
             sleepers.append(sleeper)
@@ -276,7 +276,7 @@ private func makeCoordinatorSession() -> Session {
     ]
 
     session.exercises = [row, bench, completedSquat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makePlannedPairingSession() -> Session {
@@ -298,7 +298,7 @@ private func makePlannedPairingSession() -> Session {
     ]
 
     session.exercises = [bench, press, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeSquatAndRDLSession() -> Session {
@@ -311,7 +311,7 @@ private func makeSquatAndRDLSession() -> Session {
         }
     }
     session.exercises = [squat, rdl]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeFourExercisePairingSession() -> Session {
@@ -338,7 +338,7 @@ private func makeFourExercisePairingSession() -> Session {
     ]
 
     session.exercises = [row, bench, press, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeIntegratedCoordinatorSession() -> Session {
@@ -377,7 +377,7 @@ private func makeIntegratedCoordinatorSession() -> Session {
     ]
 
     session.exercises = [pulldown, row, bench, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: ExerciseSet) {
@@ -386,13 +386,14 @@ private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: Exe
     let set = ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     exercise.sets = [set]
     session.exercises = [exercise]
-    return (session, set)
+    return (placedInBlock(session), set)
 }
 
 @MainActor
 private func connectCoordinatorWeek(_ sessions: [Session]) {
     let week = Week(number: 1)
     week.sessions = sessions
+    week.block = Block(tabName: "Block 27")
 }
 
 private struct CoordinatorActionFixture {
