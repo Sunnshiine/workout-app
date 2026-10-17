@@ -30,6 +30,31 @@ final class ActionButtonDictationUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists, "the write waits for the Sheet")
     }
 
+    /// The readback names the Exercise that took the write, not the one the rest leads to.
+    @MainActor
+    func testActionButtonOnAnExercisesLastSetLogsThatSetWithTheAppBehind() throws {
+        let app = try launchForTheActionButton()
+        for _ in 0..<2 {
+            app.buttons["log-active-set-button"].tap()
+        }
+        XCTAssertTrue(app.staticTexts["Set 3 of 3"].appears(within: 5), "the card reached the Exercise's last Set")
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.action)
+        RunLoop.current.run(until: Date().addingTimeInterval(6))
+        XCTAssertEqual(app.state, .runningBackground, "the Set logs without the app coming forward")
+
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.staticTexts["Set 1 of 2"].appears(within: 5), "the card moved past Back Squat's last Set to BB RDL")
+        XCTAssertTrue(app.staticTexts["Sync status: 4 unsynced"].exists, "two card logs, and the last Set with its Last Set RPE")
+    }
+
     @MainActor
     func testActionButtonWithTheAppInFrontListensOnTheCard() throws {
         let app = try launchForTheActionButton()
