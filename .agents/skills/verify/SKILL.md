@@ -107,7 +107,7 @@ sources newer than the app, which means build before trusting anything. A last l
 
 ```bash
 .agents/skills/verify/verify.sh tree                       # what is on screen: role  id  label  value  @x,y wxh
-.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view, and elements with no id or label
+.agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view, and unnamed layout groups
 .agents/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
 .agents/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
 .agents/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
@@ -117,8 +117,11 @@ sources newer than the app, which means build before trusting anything. A last l
 .agents/skills/verify/verify.sh axe swipe --start-x 200 --start-y 90 --end-x 200 --end-y 420 --duration 0.4   # any axe verb
 ```
 
-`tree` prints only named elements and says on stderr how many it hid. An element with neither an
-identifier nor a label still exists; `tree --all` prints it with empty id and label columns.
+`tree` prints an element with neither an identifier nor a label with empty id and label columns
+when it has a value or a control, text, or image role, so an unnamed field is visible as unnamed,
+not missing. It hides unnamed layout groups with no value and off-screen elements, and says on
+stderr how many of each it hid; `tree --all` prints them too. `find`, `tap`, and `hold` never
+resolve an unnamed element.
 
 Any AXe keyboard event, `type` included, hides the software keyboard in the running app until its
 next launch (issue 700). After `type` and after `axe key`, `key-sequence`, `key-combo`, or `type`,
