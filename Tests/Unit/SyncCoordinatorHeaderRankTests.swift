@@ -8,6 +8,7 @@ private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var updates: [(String, [[String]])] = []
     var offlineFetches = 0
+    var failingUpdates = 0
 
     init(grid: SheetGrid) {
         self.grid = grid
@@ -28,6 +29,10 @@ private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
     }
 
     func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+        if failingUpdates > 0 {
+            failingUpdates -= 1
+            throw URLError(.notConnectedToInternet)
+        }
         self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
     }
 }
@@ -368,6 +373,32 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
     #expect(writes.map(\.lastError) == [dayHeadersChangedMeaning])
     let loggedAfterALaterSync = try loggedSquatSets(in: ctx)
     #expect(loggedAfterALaterSync == ["w1d2 s0=185x5@8"])
+}
+
+@MainActor
+@Test func aFlushThatRefusesAWriteAndThenStopsForRetryReportsTheRefusal() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .headerNumber, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.failingUpdates = 1
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    #expect(client.updates.isEmpty)
+    let afterTheStoppedFlush = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(afterTheStoppedFlush.map(\.status) == [.conflict, .pending])
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .clear)
+    #expect(client.updates.map(\.0) == ["'Block 27'!AA15"])
+    let afterTheRetry = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(afterTheRetry.map(\.status) == [.conflict])
 }
 
 @MainActor

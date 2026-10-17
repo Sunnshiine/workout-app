@@ -94,12 +94,15 @@ final class SyncCoordinator {
             planner: sheetWritePlanner
         )
 
-        switch await flushPendingWrites(pending, context: flushContext) {
+        let result = await flushPendingWrites(pending, context: flushContext)
+        try? context.save()
+        switch result {
         case .completed(let conflicts):
-            try? context.save()
             return SyncOutcome(refusedWrites: conflicts)
-        case .stoppedForRetry(let queued):
-            return .writesQueued(queued)
+        case .stoppedForRetry(let conflicts) where conflicts.isEmpty:
+            return .writesQueued(pendingWriteFlushQueue().count)
+        case .stoppedForRetry(let conflicts):
+            return .writesRefused(conflicts)
         }
     }
 
@@ -211,7 +214,8 @@ private struct PendingWriteFlushContext {
 
 private enum PendingWriteFlushResult {
     case completed(conflicts: [String])
-    case stoppedForRetry(queued: Int)
+    /// A tab read or a batch send failed. `conflicts` holds the refusals recorded before the stop.
+    case stoppedForRetry(conflicts: [String])
 }
 
 private struct PlannedPendingWrite {
@@ -280,9 +284,7 @@ private struct PendingWriteBatch {
     }
 }
 
-private struct PendingWriteBatchFailure: Error {
-    let queued: Int
-}
+private struct PendingWriteBatchFailure: Error {}
 
 private struct PendingWriteFlushInProgress: Error {}
 private struct PendingWritePlanningConflict: Error {
@@ -340,15 +342,15 @@ extension SyncCoordinator {
                     snapshots: &snapshots,
                     context: flushContext
                 )
-            } catch let failure as PendingWriteBatchFailure {
-                return .stoppedForRetry(queued: failure.queued)
+            } catch is PendingWriteBatchFailure {
+                return .stoppedForRetry(conflicts: conflicts)
             } catch let planningConflict as PendingWritePlanningConflict {
                 let message = recordConflict(planningConflict, for: write)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error)
-                return .stoppedForRetry(queued: pending.count)
+                return .stoppedForRetry(conflicts: conflicts)
             }
         }
 
@@ -356,7 +358,7 @@ extension SyncCoordinator {
             try await flush(batch, context: flushContext)
             return .completed(conflicts: conflicts)
         } catch {
-            return .stoppedForRetry(queued: error.queued)
+            return .stoppedForRetry(conflicts: conflicts)
         }
     }
 
@@ -425,7 +427,7 @@ extension SyncCoordinator {
                 item.write.lastError = String(describing: error)
             }
             try? context.save()
-            throw PendingWriteBatchFailure(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
+            throw PendingWriteBatchFailure()
         }
         for item in batch.items {
             recordWriteTargetAudit(
