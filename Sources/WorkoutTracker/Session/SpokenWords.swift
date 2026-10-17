@@ -69,7 +69,7 @@ enum SpokenWord: Equatable, Sendable {
     case unknown
 
     init(_ word: String) {
-        self = Self.lexicon[word] ?? (word.wholeMatch(of: /[0-9]+(?:\.[0-9]+)?/) == nil ? .unknown : .digits(word))
+        self = Self.lexicon[word] ?? (word.wholeMatch(of: /(?:0|[1-9][0-9]*)(?:\.[0-9]+)?/) == nil ? .unknown : .digits(word))
     }
 
     /// The word read on its own, outside a number and where no homophone reading fits: a token,

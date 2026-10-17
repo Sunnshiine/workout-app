@@ -288,14 +288,13 @@ struct SpokenPhrase: Sendable {
 /// Weight, reps, and RPE as the phrases claim them, each claimed once, and read only as values a
 /// Set Log holds.
 struct SpokenSlots {
-    /// Under it, as the 4 of "4 for 5", a weight is a rep count misheard.
-    static let lightestWeight = 5.0
+    /// Under it, as the 4 of "4 for 5" or the 5 of "5 by 5", a weight is a rep count or a count of
+    /// Sets misheard: a powerlifting Set lighter than 20 pounds is rarer than either.
+    static let lightestWeight = 20.0
     /// Plates and dumbbells step by a quarter pound at the finest, so "187.55" is a number misheard.
     static let weightStep = 0.25
     /// Over it, as the 45 of "135 for 45" or "10 for 45", a rep count is a weight or two numbers misheard.
     static let mostReps = 30
-    /// At or under it, a weight for as many reps, as "5 by 5", is the shorthand for Sets by reps.
-    static let heaviestSetsByReps = 12.0
 
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
     private var cutOff: Set<SetLogDraft.Field> = []
@@ -321,13 +320,7 @@ struct SpokenSlots {
     func spokenSet() throws(SpokenSet.Rejection) -> SpokenSet {
         let weight = try Self.weight(amounts[.weight])
         let reps = try Self.reps(amounts[.reps])
-        guard !Self.isSetsByReps(weight, reps) else { throw .ambiguous }
         return .values(weight: spoken(.weight, weight), reps: spoken(.reps, reps), rpe: spoken(.rpe, try Self.rpe(amounts[.rpe])))
-    }
-
-    private static func isSetsByReps(_ weight: Weight?, _ reps: Int?) -> Bool {
-        guard case .pounds(let pounds)? = weight, let reps else { return false }
-        return pounds == Double(reps) && pounds <= heaviestSetsByReps
     }
 
     private func spoken<Value: Equatable & Sendable>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {

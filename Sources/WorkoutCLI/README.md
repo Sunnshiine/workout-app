@@ -89,7 +89,7 @@ and the card does not hold is never guessed.
 `rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
 recognizer ran together), `ambiguous` (a number no word places, or words that may mean another Set),
 `conflicting` (a `field` said twice, even as the same number, which reads as two Sets),
-`outOfRange` (reps outside 1 to 30, or a weight under 5 pounds or finer than a quarter pound),
+`outOfRange` (reps outside 1 to 30, or a weight under 20 pounds or finer than a quarter pound),
 `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
 earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
 then a `spoken_set_rejected` error.
@@ -118,8 +118,8 @@ where a word next to it, or the phrase around it, says which, never by its place
 - A value said twice is `conflicting`, even as the same number: "185 for 5 for 5" and "185 for 5
   reps, 5 reps".
 - A Spoken Set no Set Log holds is rejected before the card fills anything: reps outside 1 to 30 or
-  a weight finer than a quarter pound is `outOfRange` ("135 for 45", "187.55 for 5"), and a weight
-  for reps of the same number, 12 or under, is sets by reps and `ambiguous` ("5 by 5", "8 for 8").
+  a weight under 20 pounds or finer than a quarter pound is `outOfRange` ("135 for 45", "187.55 for
+  5", and "5 by 5", the shorthand for five Sets of five).
 - A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
   "for 5, 8", and "eight" alone.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
