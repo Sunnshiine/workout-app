@@ -115,9 +115,11 @@ struct SettingsView: View {
                 }
             }
         }
-        .sheet(isPresented: $isSheetPickerPresented) {
-            sheetPickerSheet
-        }
+        .sheet(
+            isPresented: $isSheetPickerPresented,
+            onDismiss: { pendingSwitch = nil },
+            content: { sheetPickerSheet }
+        )
         .destructiveConfirmation(
             "You have unsynced changes. Sign out anyway?",
             isPresented: $isSignOutConfirmationPresented,
@@ -319,7 +321,8 @@ private struct DestructiveAction {
 }
 
 /// An `.alert` action drops its Label's glyph on iOS 26 and draws the text alone, so the
-/// confirmations that discard pending Set Logs draw their own alert to show the icon.
+/// confirmations that discard pending Set Logs draw their own alert to show the icon. Like a
+/// system alert, the card holds the presentation under it until the athlete answers.
 private struct DestructiveConfirmation: ViewModifier {
     @Environment(\.themePalette) private var palette
     let title: String
@@ -338,6 +341,7 @@ private struct DestructiveConfirmation: ViewModifier {
             }
         }
         .animation(.easeOut(duration: 0.2), value: isPresented)
+        .interactiveDismissDisabled(isPresented)
     }
 
     private var card: some View {
