@@ -9,40 +9,82 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
 @Test func whatIsHeardIsTheFinishedPhrasesThenTheLatestTentativeOne() {
     var segments = TranscriptSegments()
 
-    segments.receive(segment("135"), isFinal: false)
-    segments.receive(segment("135 for"), isFinal: false)
+    segments.receive(segment("135"), from: 0, to: 0.5, isFinal: false)
+    segments.receive(segment("135 for"), from: 0, to: 1, isFinal: false)
     #expect(segments.heard == "135 for")
 
-    segments.receive(segment("135 for 4"), isFinal: true)
-    segments.receive(segment(" at"), isFinal: false)
-    segments.receive(segment(" at RPE 9."), isFinal: false)
+    segments.receive(segment("135 for 4"), from: 0, to: 1.5, isFinal: true)
+    segments.receive(segment(" at"), from: 1.5, to: 2, isFinal: false)
+    segments.receive(segment(" at RPE 9."), from: 1.5, to: 2.5, isFinal: false)
     #expect(segments.heard == "135 for 4 at RPE 9.")
 }
 
 @Test func aFinishedPhraseReplacesTheTentativeOneItCovers() {
     var segments = TranscriptSegments()
 
-    segments.receive(segment("185 for 5 and"), isFinal: false)
-    segments.receive(segment("185 for 5 at 8."), isFinal: true)
+    segments.receive(segment("85 for 5 and"), from: 0.4, to: 2, isFinal: false)
+    segments.receive(segment("185 for 5 at 8."), from: 0, to: 2.5, isFinal: true)
 
     #expect(segments.heard == "185 for 5 at 8.")
     #expect(segments.candidates == ["185 for 5 at 8."])
 }
 
+@Test func aTentativePhraseNeverTakesBackAFinishedOne() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("185 for 5"), from: 0, to: 2, isFinal: true)
+    segments.receive(segment(" at 8."), from: 1.8, to: 3, isFinal: false)
+
+    #expect(segments.heard == "185 for 5 at 8.")
+}
+
+@Test func aPhraseFinishedAfterTheNextOneBeganStillReadsFirst() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("185 for 5"), from: 0, to: 1.5, isFinal: false)
+    segments.receive(segment(" at 8."), from: 1.5, to: 2.5, isFinal: false)
+    segments.receive(segment("185 for 5"), from: 0, to: 1.5, isFinal: true)
+
+    #expect(segments.heard == "185 for 5 at 8.")
+}
+
 @Test func aTranscriberThatNeverFinishesAPhraseIsHeardByItsLastResult() {
     var segments = TranscriptSegments()
 
-    segments.receive(segment("135 for four", "135 for four"), isFinal: false)
-    segments.receive(segment("135 for four at RPE nine", "135 for four at RPE nine", "135 for four RTE nine"), isFinal: false)
+    segments.receive(segment("135 for four", "135 for four"), from: 0, to: 1, isFinal: false)
+    segments.receive(
+        segment("135 for four at RPE nine", "135 for four at RPE nine", "135 for four RTE nine"),
+        from: 0,
+        to: 2,
+        isFinal: false
+    )
 
     #expect(segments.candidates == ["135 for four at RPE nine", "135 for four RTE nine"])
+}
+
+@Test func aPhraseRevisedOverNoLengthOfAudioStillReplacesItself() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("135"), from: 0, to: 0, isFinal: false)
+    segments.receive(segment("135 for 4"), from: 0, to: 0, isFinal: false)
+
+    #expect(segments.heard == "135 for 4")
+}
+
+@Test func aTranscriberThatNeverFinishesKeepsEachPhraseItHeardWithASpaceBetween() {
+    var segments = TranscriptSegments()
+
+    segments.receive(segment("185 for 5"), from: 0, to: 1.5, isFinal: false)
+    segments.receive(segment("at 8"), from: 1.5, to: 2.5, isFinal: false)
+
+    #expect(segments.heard == "185 for 5 at 8")
 }
 
 @Test func candidatesAreTheTopTranscriptThenEachPhraseSwappedForOneOfItsAlternatives() {
     var segments = TranscriptSegments()
 
-    segments.receive(segment("18545 at", "18545 at", "185 or 5 at", "18545, at"), isFinal: true)
-    segments.receive(segment(" nine.", " nine.", " 9."), isFinal: true)
+    segments.receive(segment("18545 at", "18545 at", "185 or 5 at", "18545, at"), from: 0, to: 1.5, isFinal: true)
+    segments.receive(segment(" nine.", " nine.", " 9."), from: 1.5, to: 2, isFinal: true)
 
     #expect(segments.candidates == ["18545 at nine.", "185 or 5 at nine.", "18545, at nine.", "18545 at 9."])
 }
@@ -50,7 +92,7 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
 @Test func swapsThatSpellTheSameTranscriptAreOneCandidate() {
     var segments = TranscriptSegments()
 
-    segments.receive(segment("Skip.", "Skip.", " Skip. "), isFinal: true)
+    segments.receive(segment("Skip.", "Skip.", " Skip. "), from: 0, to: 1, isFinal: true)
 
     #expect(segments.candidates == ["Skip."])
 }
@@ -59,7 +101,7 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
     var segments = TranscriptSegments()
     #expect(segments.candidates.isEmpty)
 
-    segments.receive(segment(" ", " "), isFinal: false)
+    segments.receive(segment(" ", " "), from: 0, to: 1, isFinal: false)
 
     #expect(segments.heard.isEmpty)
     #expect(segments.candidates.isEmpty)

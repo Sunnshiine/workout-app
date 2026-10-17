@@ -8,18 +8,29 @@ struct TranscriptSegments: Sendable {
         let alternatives: [String]
     }
 
-    private var finished: [Segment] = []
-    /// A transcriber revises the phrase it is still hearing until it finishes it, and
-    /// DictationTranscriber never finishes one, so its last result is all that was heard.
-    private var tentative: Segment?
+    private struct Heard: Sendable {
+        let segment: Segment
+        let start: Double
+        let end: Double
+        let isFinal: Bool
 
-    mutating func receive(_ segment: Segment, isFinal: Bool) {
-        if isFinal {
-            finished.append(segment)
-            tentative = nil
-        } else {
-            tentative = segment
+        /// Revisions of one phrase start together, even reported with no length of audio.
+        func overlaps(_ other: Heard) -> Bool {
+            start == other.start || (start < other.end && other.start < end)
         }
+    }
+
+    /// In the order spoken.
+    private var phrases: [Heard] = []
+
+    /// A transcriber revises a phrase it is still hearing until it finishes it, so a phrase
+    /// replaces each tentative one over the same audio and never a finished one.
+    /// DictationTranscriber never finishes one, so its tentative phrases are all that was heard.
+    /// Times are seconds into the press.
+    mutating func receive(_ segment: Segment, from start: Double, to end: Double, isFinal: Bool) {
+        let heard = Heard(segment: segment, start: start, end: end, isFinal: isFinal)
+        phrases.removeAll { !$0.isFinal && $0.overlaps(heard) }
+        phrases.insert(heard, at: phrases.firstIndex { $0.start > start } ?? phrases.endIndex)
     }
 
     var heard: String {
@@ -43,11 +54,16 @@ struct TranscriptSegments: Sendable {
     }
 
     private var segments: [Segment] {
-        finished + (tentative.map { [$0] } ?? [])
+        phrases.map(\.segment)
     }
 
-    /// Each phrase carries its own leading space.
+    /// SpeechTranscriber starts each phrase after the first with a space; a phrase without one
+    /// gets one.
     private static func transcript(_ phrases: [String]) -> String {
-        phrases.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+        phrases.reduce(into: "") { transcript, phrase in
+            let touches = !(transcript.last?.isWhitespace ?? true) && !(phrase.first?.isWhitespace ?? true)
+            transcript += touches ? " " + phrase : phrase
+        }
+        .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

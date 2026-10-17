@@ -14,9 +14,11 @@ enum SetTranscriberError: Error, Equatable, Sendable {
 @MainActor
 protocol SetTranscriber: AnyObject {
     /// Returns once the microphone is live. `hearing` receives the whole transcript so far each
-    /// time it changes, until `finish` or `cancel` returns.
+    /// time it changes, until `finish` or `cancel` returns. A start that throws leaves nothing
+    /// listening.
     func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError)
-    /// Stops listening and returns the transcripts heard, the most likely first.
+    /// Stops listening, even when it throws, and returns the transcripts heard, the most likely
+    /// first.
     func finish() async throws(SetTranscriberError) -> [String]
     func cancel() async
 }
