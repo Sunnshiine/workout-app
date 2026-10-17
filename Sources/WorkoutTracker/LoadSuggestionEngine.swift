@@ -124,7 +124,7 @@ enum LoadSuggestionEngine {
         guard let percentOneRM else { return nil }
         let trimmed = percentOneRM.trimmingCharacters(in: .whitespacesAndNewlines)
         let numberText = trimmed.hasSuffix("%") ? String(trimmed.dropLast()) : trimmed
-        return Double(numberText)
+        return Double(finiteText: numberText)
     }
 
     private static func roundToNearestPlateIncrement(_ weight: Double) -> Double {

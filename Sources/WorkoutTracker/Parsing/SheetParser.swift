@@ -304,7 +304,7 @@ private func trainingMaxValues(
         guard
             let lift = MainLift(sheetLabel: grid.cell(row: row, col: labelCol).trimmed),
             maxes[lift] == nil,
-            let value = Double(grid.cell(row: row, col: valueCol).trimmed)
+            let value = Double(finiteText: grid.cell(row: row, col: valueCol).trimmed)
         else { continue }
         maxes[lift] = value
     }

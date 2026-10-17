@@ -4,6 +4,17 @@ enum SetState: String, Codable, Sendable {
     case pending, logged, skipped
 }
 
+extension Double {
+    /// Reads a number a coach or athlete typed, refusing what `Double(_:)` admits that is not a
+    /// finite number: `inf`, `nan`, `Infinity`, `snan`, and an overflow such as `1e400`. Every
+    /// reader of a typed weight or percentage goes through here, so the Sheet's cells and the
+    /// entry surfaces agree on what counts as a number. The token must already be trimmed.
+    init?(finiteText text: String) {
+        guard let value = Double(text), value.isFinite else { return nil }
+        self = value
+    }
+}
+
 enum Weight: Codable, Sendable, Equatable {
     case bodyweight
     case pounds(Double)
@@ -16,7 +27,7 @@ enum Weight: Codable, Sendable, Equatable {
             self = .bodyweight
             return
         }
-        guard let pounds = Double(text), pounds.isFinite else {
+        guard let pounds = Double(finiteText: text) else {
             return nil
         }
         self = .pounds(pounds)
