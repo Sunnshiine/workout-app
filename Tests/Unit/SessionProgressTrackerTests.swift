@@ -463,15 +463,14 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func moveOnDestinationIsNoneWhenNothingLiesAhead() throws {
+@Test func moveOnDestinationReturnsToBlockOverviewFromTheLastSession() throws {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     let tracker = SessionProgressTracker()
 
     let destination = tracker.moveOnDestination(from: sessions[7], in: block)
 
-    #expect(destination == .notOffered)
-    #expect(!destination.isOffered)
+    #expect(destination == .returnToBlockOverview)
 }
 
 // MARK: - Current-Week membership
