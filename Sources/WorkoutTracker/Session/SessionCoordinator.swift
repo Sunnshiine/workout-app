@@ -43,7 +43,20 @@ final class SessionCoordinator {
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
     var pairingMode: PairingMode { pairing.mode }
 
-    func bind(to session: Session?) {
+    /// The athlete is now viewing `session`. Re-points the coordinator at it, with focus
+    /// re-seeded from its first Pending Set, and re-checks the rest Live Activity.
+    func view(_ session: Session) {
+        bind(to: session)
+        reconcileLiveActivity()
+    }
+
+    /// Re-checks the rest Live Activity at the Viewed Session's live edge. The one reconciler, run
+    /// after every Session verb and whenever the Block or the Current Session changes.
+    func reconcileLiveActivity() {
+        wiring.liveActivity.endIfInvalidated(at: wiring.navigation.liveEdge)
+    }
+
+    private func bind(to session: Session) {
         self.session = session
         savedLoggedSetID = nil
         cancelPairing()
@@ -71,7 +84,7 @@ final class SessionCoordinator {
             try perform(.momentumFlow) {
                 try wiring.logging.log(set, as: log)
                 startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
-                reconcileLiveActivity(for: session)
+                reconcileLiveActivity()
                 advanceAfterLog(set, in: session)
             }
             wiring.sync.requestPendingWriteFlush()
@@ -94,7 +107,7 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             try perform(.skipFadeUp) {
                 try wiring.logging.skip(set)
-                reconcileLiveActivity(for: session)
+                reconcileLiveActivity()
                 advanceAfterSkip(set, in: session)
             }
             wiring.sync.requestPendingWriteFlush()
@@ -111,7 +124,7 @@ final class SessionCoordinator {
                 ifOriginMatches: Self.activeSetID(for: set),
                 originSetObjectID: ObjectIdentifier(set)
             )
-            reconcileLiveActivity(for: session)
+            reconcileLiveActivity()
             focusManager.focus(on: set)
             wiring.sync.requestPendingWriteFlush()
         } catch {
@@ -125,7 +138,7 @@ final class SessionCoordinator {
             let updatedSetID = Self.activeSetID(for: set)
             try wiring.logging.log(set, as: log)
             savedLoggedSetID = updatedSetID
-            reconcileLiveActivity(for: session)
+            reconcileLiveActivity()
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
@@ -261,10 +274,6 @@ extension SessionCoordinator {
             restContent: content,
             sessionLabel: liveActivitySessionLabel(for: session)
         )
-    }
-
-    fileprivate func reconcileLiveActivity(for session: Session) {
-        wiring.liveActivity.endIfInvalidated(at: wiring.navigation.liveEdge(for: session))
     }
 
     fileprivate func liveActivitySessionLabel(for session: Session) -> String {

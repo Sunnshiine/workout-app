@@ -22,6 +22,10 @@ protocol SessionLiveActivityAdapter {
 
 @MainActor
 protocol SessionNavigationAdapter: AnyObject {
+    /// The Viewed Session's live edge, resolved against the Current Session as the store holds them
+    /// now. A sync replaces every Session model, so this stays right while a Session the
+    /// coordinator was bound to is a stale instance.
+    var liveEdge: LiveEdge { get }
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
     func liveEdge(for session: Session) -> LiveEdge

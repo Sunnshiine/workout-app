@@ -53,6 +53,7 @@ struct UnwiredSessionLogging: SessionLoggingAdapter {
 
 @MainActor
 final class BrowsedAwaySessionNavigation: SessionNavigationAdapter {
+    var liveEdge: LiveEdge { .browsedAway }
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
     func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
