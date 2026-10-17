@@ -91,27 +91,19 @@ struct DeveloperToolsView: View {
             .textSelection(.enabled)
 
             HStack(spacing: 10) {
-                Button {
+                BorderedCircleIconButton(label: "Copy Current Session Debug Info", systemImage: "doc.on.doc") {
                     UIPasteboard.general.string = info.copyText
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .accessibilityLabel("Copy Current Session Debug Info")
                 .accessibilityIdentifier("copy-current-session-debug-info-button")
 
-                Button(role: .destructive) {
+                BorderedCircleIconButton(
+                    label: "Reset Current Session Override",
+                    systemImage: "arrow.counterclockwise",
+                    role: .destructive
+                ) {
                     workout.resetCurrentSessionOverride()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .frame(width: 44, height: 44)
                 }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
                 .disabled(!workout.hasCurrentSessionOverride)
-                .accessibilityLabel("Reset Current Session Override")
                 .accessibilityIdentifier("reset-current-session-override-button")
             }
         }
@@ -129,25 +121,19 @@ struct DeveloperToolsView: View {
 
     private var actionsSection: some View {
         DeveloperToolsSection(title: "Actions") {
-            Button {
-                forcedCelebrationSession = workout.viewedSession
-            } label: {
-                Label("Force Move On Celebration", systemImage: "sparkles")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .disabled(workout.viewedSession == nil)
-            .accessibilityIdentifier("developer-tools-force-celebration-button")
+            HStack(spacing: 10) {
+                BorderedCircleIconButton(label: "Force Move On Celebration", systemImage: "sparkles") {
+                    forcedCelebrationSession = workout.viewedSession
+                }
+                .disabled(workout.viewedSession == nil)
+                .accessibilityIdentifier("developer-tools-force-celebration-button")
 
-            Button {
-                Task { await syncConfiguredSheet() }
-            } label: {
-                Label("Sync", systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                BorderedCircleIconButton(label: "Sync", systemImage: "arrow.triangle.2.circlepath") {
+                    Task { await syncConfiguredSheet() }
+                }
+                .disabled(!connection.canSyncNow)
+                .accessibilityIdentifier("developer-tools-sync-button")
             }
-            .buttonStyle(.bordered)
-            .disabled(!connection.canSyncNow)
-            .accessibilityIdentifier("developer-tools-sync-button")
 
             SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
                 .accessibilityIdentifier("developer-tools-sync-status-banner")
@@ -159,10 +145,12 @@ struct DeveloperToolsView: View {
             NavigationLink {
                 LiveActivityLabView()
             } label: {
-                Label("Open Live Activity Lab", systemImage: "rectangle.stack.badge.play")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "flask")
+                    .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("Open Live Activity Lab")
             .accessibilityIdentifier("developer-tools-live-activity-lab-link")
         }
     }
@@ -205,25 +193,18 @@ struct DeveloperToolsView: View {
                 }
             }
 
-            Button {
-                UIPasteboard.general.string = WriteTargetAuditDiagnostic.copyText(for: writeAuditDiagnostics)
-            } label: {
-                Label("Copy Write Log", systemImage: "doc.on.doc")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.bordered)
-            .disabled(writeAuditDiagnostics.isEmpty)
-            .accessibilityIdentifier("copy-write-log-button")
+            HStack(spacing: 10) {
+                BorderedCircleIconButton(label: "Copy Write Log", systemImage: "doc.on.doc") {
+                    UIPasteboard.general.string = WriteTargetAuditDiagnostic.copyText(for: writeAuditDiagnostics)
+                }
+                .accessibilityIdentifier("copy-write-log-button")
 
-            Button(role: .destructive) {
-                clearWriteAuditLog()
-            } label: {
-                Label("Clear Write Log", systemImage: "trash")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                BorderedCircleIconButton(label: "Clear Write Log", systemImage: "trash", role: .destructive) {
+                    clearWriteAuditLog()
+                }
+                .accessibilityIdentifier("clear-write-log-button")
             }
-            .buttonStyle(.bordered)
             .disabled(writeAuditDiagnostics.isEmpty)
-            .accessibilityIdentifier("clear-write-log-button")
         }
     }
 
