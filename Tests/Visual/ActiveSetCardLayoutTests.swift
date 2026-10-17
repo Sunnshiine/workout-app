@@ -229,7 +229,8 @@ private enum CardHost {
                 mic: scene.mic.map { SetCardMic(dictation: $0, start: {}, finish: { _ in nil }, cancel: {}, dismiss: {}) },
                 onLog: { _ in },
                 onSkip: {},
-                onDelete: {}
+                onDelete: {},
+                onTouchWhileHeld: {}
             )
             .padding(.horizontal, 16)
             Spacer(minLength: 0)

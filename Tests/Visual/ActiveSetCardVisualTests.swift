@@ -98,7 +98,8 @@ struct ActiveSetCardVisualTests {
                     mic: mic,
                     onLog: { _ in },
                     onSkip: {},
-                    onDelete: {}
+                    onDelete: {},
+                    onTouchWhileHeld: {}
                 )
                 .padding(.horizontal, 16)
                 Spacer(minLength: 0)

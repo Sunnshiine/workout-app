@@ -25,7 +25,7 @@ struct ActiveSetCard: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
-    var onTouchWhileHeld: () -> Void = {}
+    let onTouchWhileHeld: () -> Void
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
@@ -36,7 +36,7 @@ struct ActiveSetCard: View {
     private static let headTargetOverhang: CGFloat = 12
 
     private var setCardMode: SetCardMode {
-        mode.cardMode(for: set)
+        mode.cardMode
     }
 
     var body: some View {
@@ -100,8 +100,7 @@ struct ActiveSetCard: View {
         mode == .heldAfterSpokenWrite ? .all : .subviews
     }
 
-    /// The held Set shows as a review, which saves an edit when its card moves on, so a touch on its
-    /// values must reach only `touchWhileHeld`.
+    /// The held Set's values take no edit, so a touch on them moves the card on.
     private var heldValuesCover: some View {
         Color.clear
             .contentShape(.rect)

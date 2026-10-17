@@ -198,6 +198,18 @@ struct SetCardPresentationTests {
                 $0.repsText = "12"
                 $0.rpeText = "8"
             }
+        ),
+        "holding a Set logged by speech": CardCase(
+            mode: .held,
+            set: structuredSet(.logged),
+            makeIncomplete: { $0.rpeText = "" },
+            makeValid: { $0.stepWeight(.up) }
+        ),
+        "holding a Set skipped by speech": CardCase(
+            mode: .held,
+            set: structuredSet(.skipped),
+            makeIncomplete: { $0.repsText = "" },
+            makeValid: { $0.weightText = "185" }
         )
     ]
 
@@ -214,7 +226,9 @@ struct SetCardPresentationTests {
                 "logging a skipped Set": [[false, false], [true, false], [true, true]],
                 "logging a logged Set": [[false, true], [true, false], [true, true]],
                 "reviewing a structured Set Log": [[false, true], [true, false], [true, true]],
-                "reviewing an Unstructured Set Log": [[false, false], [true, false], [true, true]]
+                "reviewing an Unstructured Set Log": [[false, false], [true, false], [true, true]],
+                "holding a Set logged by speech": [[false, true], [true, false], [true, true]],
+                "holding a Set skipped by speech": [[false, false], [true, false], [true, true]]
             ]
         )
     }
@@ -234,26 +248,30 @@ struct SetCardPresentationTests {
                     .logged(line: "BW and vest for 12"),
                     .logged(line: "BW and vest for 12"),
                     .logged(line: "BW and vest for 12")
-                ]
+                ],
+                "holding a Set logged by speech": [.logged(line: "185x5@8"), .logged(line: "185x5@8"), .logged(line: "185x5@8")],
+                "holding a Set skipped by speech": [.skipped, .skipped, .skipped]
             ]
         )
     }
 
-    @Test func onlyLoggingASetAlreadyDoneOffersClearAndOnlyAReviewCommitsOnDisappear() {
+    @Test func onlyLoggingASetAlreadyDoneOffersClearOnlyAReviewCommitsOnDisappearAndAHeldSetTakesNoEdit() {
         let flags = Dictionary(
             uniqueKeysWithValues: cases.map { name, card in
                 let presentation = SetCardPresentation(mode: card.mode, set: card.set)
-                return (name, [presentation.showsClearMenu, presentation.commitsChangesOnDisappear])
+                return (name, [presentation.showsClearMenu, presentation.commitsChangesOnDisappear, presentation.editsValues])
             }
         )
 
         #expect(
             flags == [
-                "logging a pending Set": [false, false],
-                "logging a skipped Set": [true, false],
-                "logging a logged Set": [true, false],
-                "reviewing a structured Set Log": [false, true],
-                "reviewing an Unstructured Set Log": [false, true]
+                "logging a pending Set": [false, false, true],
+                "logging a skipped Set": [true, false, true],
+                "logging a logged Set": [true, false, true],
+                "reviewing a structured Set Log": [false, true, true],
+                "reviewing an Unstructured Set Log": [false, true, true],
+                "holding a Set logged by speech": [false, false, false],
+                "holding a Set skipped by speech": [false, false, false]
             ]
         )
     }
@@ -270,7 +288,7 @@ struct SetCardPresentationTests {
 
         let drawn = Dictionary(
             uniqueKeysWithValues: slots.map { name, slot in
-                (name, Pair(slot.0.cardMode(for: slot.1), slot.0.headAccessory(for: slot.1)))
+                (name, Pair(slot.0.cardMode, slot.0.headAccessory(for: slot.1)))
             }
         )
 
@@ -280,8 +298,8 @@ struct SetCardPresentationTests {
                 "logging a skipped Set": Pair(.logging, .clearMenu),
                 "reviewing a Set Log": Pair(.reviewingLogged, .none),
                 "reviewing a Set Log just saved": Pair(.reviewingLogged, .saved),
-                "holding a Set logged by speech": Pair(.reviewingLogged, .savedAndClearMenu),
-                "holding a Set skipped by speech": Pair(.logging, .savedAndClearMenu)
+                "holding a Set logged by speech": Pair(.held, .savedAndClearMenu),
+                "holding a Set skipped by speech": Pair(.held, .savedAndClearMenu)
             ]
         )
     }

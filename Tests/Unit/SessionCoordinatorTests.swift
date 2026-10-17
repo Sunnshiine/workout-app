@@ -2232,6 +2232,25 @@ private let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
 }
 
 @MainActor
+@Test(arguments: ["185 for 6 at 7", "skip"])
+func aHeldSetTakesNoWriteFromItsCard(saying transcript: String) async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: [transcript])
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    let held = try card(coordinator, in: session)
+    let written = (held.set.state, held.set.setLog)
+    let entriesWhileHeld = ledger.entries
+
+    coordinator.log(SetLog(weight: .pounds(190), reps: 6, rpe: .eight), for: held)
+    coordinator.skip(for: held)
+
+    #expect(ledger.entries == entriesWhileHeld)
+    #expect(held.set.state == written.0)
+    #expect(held.set.setLog == written.1)
+    #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
+}
+
+@MainActor
 @Test func clearingTheHeldSetUndoesTheWriteAndPutsItsCardBack() async throws {
     let session = makeCoordinatorSession()
     let (coordinator, ledger, clock) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
