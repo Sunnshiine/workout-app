@@ -5,9 +5,14 @@ import Testing
 
 // ADR-0013 calibration cases for Movement-level matching.
 
-@Test func canonicalizeStripsCadenceLowercasesAndCollapses() {
-    #expect(MovementMatching.canonicalize("2-3:1:0 BB RDL") == "barbell rdl")
+@Test func canonicalizeLowercasesAndCollapses() {
+    #expect(MovementMatching.canonicalize("BB RDL") == "barbell rdl")
     #expect(MovementMatching.canonicalize("Standing  Calf-Raise!") == "standing calf raise")
+}
+
+@Test func aCadencePrefixNeverSplitsAMovement() {
+    #expect(ExerciseName(entered: "2-3:1:0 BB RDL").isSameMovement(as: "BB RDL"))
+    #expect(ExerciseName(entered: "0:2:0 Hamstring Curl").isSameMovement(as: "3:1:0 Hamstring Curl"))
 }
 
 @Test func canonicalizeExpandsAbbreviationTable() {
@@ -19,16 +24,16 @@ import Testing
 }
 
 @Test func typosAndPluralsMergeAtThreshold() {
-    #expect(MovementMatching.areSameMovement("Standing Calve Raises", "Standing Calf Raise"))
-    #expect(MovementMatching.areSameMovement("Calf Raise", "Calf Raises"))
+    #expect(ExerciseName(entered: "Standing Calve Raises").isSameMovement(as: "Standing Calf Raise"))
+    #expect(ExerciseName(entered: "Calf Raise").isSameMovement(as: "Calf Raises"))
 }
 
 @Test func modifierWordsSplitMovements() {
-    #expect(!MovementMatching.areSameMovement("Paused Bench Press", "Bench Press"))
+    #expect(!ExerciseName(entered: "Paused Bench Press").isSameMovement(as: "Bench Press"))
 }
 
 @Test func abbreviationTableMergesCompBenchPress() {
-    #expect(MovementMatching.areSameMovement("Comp BP", "Competition Bench Press"))
+    #expect(ExerciseName(entered: "Comp BP").isSameMovement(as: "Competition Bench Press"))
 }
 
 @Test func similarityIsNormalizedLevenshtein() {

@@ -43,4 +43,12 @@ import Testing
         #expect(Set([slow, fast]).count == 2)
         #expect(slow == ExerciseName(entered: "3:1:0 Back Squat"))
     }
+
+    @Test func onlyASpellingDifferenceBeyondCaseCountsAsADifferentName() {
+        let viewed = ExerciseName(entered: "Bench Press")
+
+        #expect(!ExerciseName(entered: "bench press").differsBeyondCase(from: viewed))
+        #expect(!ExerciseName(entered: "3:1:0 Bench Press").differsBeyondCase(from: viewed))
+        #expect(ExerciseName(entered: "Comp BP").differsBeyondCase(from: viewed))
+    }
 }

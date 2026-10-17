@@ -1,8 +1,9 @@
 import Foundation
 
-/// Movement-level identity for Exercise History (ADR-0013).
+/// The canonical form and similarity that `ExerciseName.isSameMovement(as:)` compares Base Names
+/// with (ADR-0013).
 ///
-/// Two Exercises are the same **Movement** when their canonicalized names fuzzy-match.
+/// Two Exercises are the same **Movement** when their canonicalized Base Names fuzzy-match.
 /// Everything here runs at query time, anchor-relative to a viewed Exercise — nothing is
 /// persisted and no clustering is computed. Rule changes (a new abbreviation, a threshold
 /// tweak) therefore apply instantly to every existing row with no migration.
@@ -22,10 +23,10 @@ enum MovementMatching {
         "bw": "bodyweight"
     ]
 
-    /// Deterministic canonical form: strip the Cadence prefix, lowercase, map punctuation to
-    /// spaces, collapse whitespace, then expand each token through the abbreviation table.
-    static func canonicalize(_ name: String) -> String {
-        let base = ExerciseName(entered: name).base
+    /// Deterministic canonical form of a Base Name: lowercase, map punctuation to spaces, collapse
+    /// whitespace, then expand each token through the abbreviation table. The Cadence is already off,
+    /// because only `ExerciseName.base` reaches here.
+    static func canonicalize(_ base: String) -> String {
         let spaced = base.lowercased().map { character -> Character in
             character.isLetter || character.isNumber ? character : " "
         }
@@ -40,14 +41,6 @@ enum MovementMatching {
         let longest = max(left.count, right.count)
         guard longest > 0 else { return 1 }
         return 1 - Double(levenshtein(left, right)) / Double(longest)
-    }
-
-    /// Whether two entered names name the same Movement, comparing canonical forms.
-    static func areSameMovement(_ lhs: String, _ rhs: String) -> Bool {
-        let left = canonicalize(lhs)
-        let right = canonicalize(rhs)
-        if left == right { return true }
-        return similarity(left, right) >= threshold
     }
 
     private static func levenshtein(_ lhs: [Character], _ rhs: [Character]) -> Int {

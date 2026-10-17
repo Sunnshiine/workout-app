@@ -49,7 +49,7 @@ private func historyEntry(
         )
     ])
 
-    let history = snapshot.history(baseName: "Bench Press")
+    let history = snapshot.history(for: "Bench Press")
 
     #expect(history.map(\.resultText) == ["195x5@8", "190x5@8", "185x5@8"])
     #expect(history.allSatisfy { $0.exerciseName.base != "Paused Bench Press" })
@@ -65,7 +65,7 @@ private func historyEntry(
         )
     ])
 
-    let entry = try #require(snapshot.history(baseName: "Squat").first)
+    let entry = try #require(snapshot.history(for: "Squat").first)
     #expect(entry.exerciseName.entered == "3-0:1:0 Squat")
     #expect(entry.resultText == "315x3@8")
     #expect(entry.source == "Block 27 · W1 D1")
@@ -81,5 +81,5 @@ private func historyEntry(
         )
     ])
 
-    #expect(snapshot.history(baseName: "Overhead Press").isEmpty)
+    #expect(snapshot.history(for: "Overhead Press").isEmpty)
 }
