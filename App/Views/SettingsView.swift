@@ -279,6 +279,7 @@ private struct RowLabel: View {
         Image(systemName: systemImage)
             .foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
             .accessibilityLabel(title)
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 }
 
