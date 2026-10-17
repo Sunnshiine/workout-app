@@ -20,6 +20,25 @@
         /// Days 1 and 2, a Deadlift on Week 1 Day 3, and an Accessory on every other Day, so all
         /// sixteen Sessions are Available Sessions.
         case fullBlock = "full-block"
+        /// Week 1 Day 1's Back Squat and RDL with nothing logged, the Current Session a test of the
+        /// Stage starts from.
+        case currentSessionWithPendingSets = "current-session-with-pending-sets"
+        /// Week 1 Day 1 alone, its Back Squat's first Set logged and its second open.
+        case partiallyLoggedSession = "partially-logged-session"
+        /// Three Days of Week 1, each one main lift with its first Set logged and its second open,
+        /// so every Session has Open Exercises.
+        case openExercises = "open-exercises"
+        /// `open-exercises` with Day 2 a one-Set Bench Press, logged, so the Current Session is
+        /// complete while Day 1's Back Squat is still open.
+        case completedOpenExercises = "completed-open-exercises"
+        /// One Session of eight one-Set Exercises, the first logged, long enough to scroll.
+        case longSession = "long-session"
+        /// A Back Squat with one Set logged and one skipped on Day 1, a Perfect Session, and an
+        /// Unavailable Day 2 to move on to.
+        case perfectMoveOnCelebration = "perfect-move-on-celebration"
+        /// One Session of every status Block Overview draws: a complete Day 1, Day 2 with Open
+        /// Exercises, Day 3 to train next, and Week 2 Day 1 still upcoming.
+        case blockOverviewWithMixedSessionStates = "block-overview-with-mixed-session-states"
 
         public func workbook() -> LocalWorkbook {
             switch self {
@@ -29,6 +48,27 @@
                 Self.partialUpload()
             case .fullBlock:
                 Self.fullBlock()
+            case .currentSessionWithPendingSets:
+                Self.block(daysPerWeek: [1], prescriptions: [Self.weekOneDayOne()])
+            case .partiallyLoggedSession:
+                Self.block(daysPerWeek: [1], prescriptions: [Self.twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1))])
+            case .openExercises:
+                Self.block(
+                    daysPerWeek: [3],
+                    prescriptions: [
+                        Self.twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
+                        Self.twoLineLift(.benchPress, at: SessionAddress(week: 1, day: 2)),
+                        Self.twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
+                    ]
+                )
+            case .completedOpenExercises:
+                Self.completedOpenExercises()
+            case .longSession:
+                Self.longSession()
+            case .perfectMoveOnCelebration:
+                Self.perfectMoveOnCelebration()
+            case .blockOverviewWithMixedSessionStates:
+                Self.blockOverviewWithMixedSessionStates()
             }
         }
 
@@ -94,8 +134,9 @@
         private static func partialUpload() -> LocalWorkbook {
             fourWeekBlock(
                 prescriptions: [
-                    weekOneDaysOneAndTwo(),
-                    deadlift(at: SessionAddress(week: 2, day: 1)),
+                    weekOneDayOne(),
+                    weekOneDayTwo(),
+                    twoLineLift(.deadlift, at: SessionAddress(week: 2, day: 1)),
                     accessory(at: SessionAddress(week: 3, day: 1)),
                     accessory(at: SessionAddress(week: 4, day: 1))
                 ]
@@ -108,21 +149,27 @@
             }
             .filter { $0.week > 1 || $0.day > 3 }
             return fourWeekBlock(
-                prescriptions: [weekOneDaysOneAndTwo(), deadlift(at: SessionAddress(week: 1, day: 3))]
+                prescriptions: [weekOneDayOne(), weekOneDayTwo(), twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))]
                     + accessoryDays.map(accessory(at:))
             )
         }
 
-        /// Four Weeks of four Days under Training Max 315/225/405, with `prescriptions` written into
-        /// them. A Day no prescription lands in is an Unavailable Session.
         private static func fourWeekBlock(prescriptions: [[String: String]]) -> LocalWorkbook {
+            block(daysPerWeek: [4, 4, 4, 4], prescriptions: prescriptions)
+        }
+
+        /// One Week per entry of `daysPerWeek`, each with that many Days, under Training Max
+        /// 315/225/405, with `prescriptions` written into them. A Day no prescription lands in is an
+        /// Unavailable Session.
+        private static func block(daysPerWeek: [Int], prescriptions: [[String: String]]) -> LocalWorkbook {
             var cells: [String: String] = [
                 "E6": "Training Max",
                 "C7": "Squat", "E7": "315",
                 "C8": "Bench Press", "E8": "225",
                 "C9": "Deadlift", "E9": "405"
             ]
-            for part in (1...4).map(fourDayWeekHeaders) + prescriptions {
+            let headers = daysPerWeek.enumerated().map { weekHeaders(week: $0.offset + 1, days: $0.element) }
+            for part in headers + prescriptions {
                 cells.merge(part) { _, new in new }
             }
             return LocalWorkbook(
@@ -132,12 +179,12 @@
             )
         }
 
-        /// Week `week`'s `Day 1` to `Day 4` headers, their date cells, and their role headers. A Day
-        /// with no prescription rows under its headers is an Unavailable Session.
-        private static func fourDayWeekHeaders(week: Int) -> [String: String] {
+        /// Week `week`'s `Day 1` to `Day <days>` headers, their date cells, and their role headers.
+        /// A Day with no prescription rows under its headers is an Unavailable Session.
+        private static func weekHeaders(week: Int, days: Int) -> [String: String] {
             let headerRow = headerRow(week: week)
             var cells: [String: String] = [:]
-            for (index, start) in dayStartColumns.enumerated() {
+            for (index, start) in dayStartColumns.prefix(days).enumerated() {
                 cells["\(columnName(start))\(headerRow)"] = "Day \(index + 1)"
                 cells["\(columnName(start))\(headerRow + 1)"] = strideDate(week: week, day: index + 1)
                 cells.merge(roleHeaders(row: headerRow + 2, dayStart: start)) { _, new in new }
@@ -154,11 +201,11 @@
             headerRow(week: address.week) + 3
         }
 
-        private static func weekOneDaysOneAndTwo() -> [String: String] {
-            let (day1, day2) = (dayStartColumns[0], dayStartColumns[1])
+        private static func weekOneDayOne() -> [String: String] {
+            let day1 = dayStartColumns[0]
             // Back Squat varies its `%1RM` per Set, and a `%1RM` cell prescribes every Set of its
             // Line, so each Set is its own Prescription Line.
-            let lines = [
+            return merged([
                 prescription(
                     row: 15,
                     dayStart: day1,
@@ -179,7 +226,13 @@
                     reps: "8",
                     load: "Drop 17.5%",
                     notes: "Start w/ 10 sec hold, proceed to rep range."
-                ),
+                )
+            ])
+        }
+
+        private static func weekOneDayTwo() -> [String: String] {
+            let day2 = dayStartColumns[1]
+            return merged([
                 prescription(
                     row: 15,
                     dayStart: day2,
@@ -190,26 +243,181 @@
                     notes: "Pause every rep."
                 ),
                 prescription(row: 19, dayStart: day2, name: "Pull-Up", sets: 2, reps: "8", load: "BW", notes: "Use full range.")
-            ]
-            return merged(lines)
+            ])
         }
 
-        /// A Deadlift of two Prescription Lines, one per `%1RM`.
-        private static func deadlift(at address: SessionAddress) -> [String: String] {
+        /// A main lift the fixtures prescribe as two one-Set Prescription Lines, one per `%1RM`.
+        struct TwoLineLift {
+            let name: String
+            let reps: String
+            let percentsOneRM: (String, String)
+            let notes: String
+
+            static let backSquat = TwoLineLift(
+                name: "Back Squat",
+                reps: "5",
+                percentsOneRM: ("75%", "80%"),
+                notes: "Brace hard off the floor, controlled descent."
+            )
+            static let benchPress = TwoLineLift(name: "Bench Press", reps: "5", percentsOneRM: ("70%", "75%"), notes: "Pause every rep.")
+            static let deadlift = TwoLineLift(
+                name: "Deadlift",
+                reps: "3",
+                percentsOneRM: ("75%", "80%"),
+                notes: "Pull fast from the floor."
+            )
+        }
+
+        /// `lift` as the only Exercise of the Session at `address`: Lines at RPE 6 and 7.
+        private static func twoLineLift(_ lift: TwoLineLift, at address: SessionAddress) -> [String: String] {
             let (row, dayStart) = (firstPrescriptionRow(of: address), dayStartColumns[address.day - 1])
             return merged([
                 prescription(
                     row: row,
                     dayStart: dayStart,
-                    name: "Deadlift",
+                    name: lift.name,
                     sets: 1,
-                    reps: "3",
-                    percentOneRM: "75%",
+                    reps: lift.reps,
+                    percentOneRM: lift.percentsOneRM.0,
                     load: "RPE6",
-                    notes: "Pull fast from the floor."
+                    notes: lift.notes
                 ),
-                prescription(row: row + 1, dayStart: dayStart, name: nil, sets: 1, reps: "3", percentOneRM: "80%", load: "RPE7")
+                prescription(
+                    row: row + 1,
+                    dayStart: dayStart,
+                    name: nil,
+                    sets: 1,
+                    reps: lift.reps,
+                    percentOneRM: lift.percentsOneRM.1,
+                    load: "RPE7"
+                )
             ])
+        }
+
+        /// A one-Line Exercise whose Notes cell holds its Coach Note, and the Set Logs written on the
+        /// row under it.
+        private struct NotedExercise {
+            let name: String
+            var sets = 1
+            let reps: String
+            var percentOneRM: String?
+            let load: String
+            let notes: String
+            var logs: String?
+        }
+
+        private static func cells(of exercise: NotedExercise, row: Int, dayStart: Int) -> [String: String] {
+            merged([
+                prescription(
+                    row: row,
+                    dayStart: dayStart,
+                    name: exercise.name,
+                    sets: exercise.sets,
+                    reps: exercise.reps,
+                    percentOneRM: exercise.percentOneRM,
+                    load: exercise.load,
+                    notes: exercise.notes
+                ),
+                exercise.logs.map { setLogs($0, under: row, dayStart: dayStart) } ?? [:]
+            ])
+        }
+
+        /// `exercise` as the only Exercise of the Session at `address`.
+        private static func cells(of exercise: NotedExercise, at address: SessionAddress) -> [String: String] {
+            cells(of: exercise, row: firstPrescriptionRow(of: address), dayStart: dayStartColumns[address.day - 1])
+        }
+
+        private static func completedOpenExercises() -> LocalWorkbook {
+            let bench = NotedExercise(
+                name: "Bench Press",
+                reps: "5",
+                percentOneRM: "70%",
+                load: "RPE6",
+                notes: "Pause every rep.",
+                logs: "155x5@6"
+            )
+            return block(
+                daysPerWeek: [3],
+                prescriptions: [
+                    twoLineLift(.backSquat, at: SessionAddress(week: 1, day: 1)),
+                    cells(of: bench, at: SessionAddress(week: 1, day: 2)),
+                    twoLineLift(.deadlift, at: SessionAddress(week: 1, day: 3))
+                ]
+            )
+        }
+
+        private static func longSession() -> LocalWorkbook {
+            let exercises = [
+                NotedExercise(name: "Primer Row", reps: "8", load: "RPE6", notes: "Move crisply.", logs: "95x8@6"),
+                NotedExercise(name: "Back Squat", reps: "5", load: "RPE6", notes: "Brace hard."),
+                NotedExercise(name: "Bench Press", reps: "5", load: "RPE6", notes: "Pause every rep."),
+                NotedExercise(name: "Chest-Supported Row", reps: "10", load: "RPE7", notes: "Pause at the top."),
+                NotedExercise(name: "Split Squat", reps: "8", load: "RPE7", notes: "Keep the front foot planted."),
+                NotedExercise(name: "Hamstring Curl", reps: "12", load: "RPE8", notes: "Control the eccentric."),
+                NotedExercise(name: "Cable Crunch", reps: "12", load: "RPE8", notes: "Exhale hard."),
+                NotedExercise(name: "Farmer Carry", reps: "40 sec", load: "RPE7", notes: "Tall posture.")
+            ]
+            let (first, dayStart) = (firstPrescriptionRow(of: SessionAddress(week: 1, day: 1)), dayStartColumns[0])
+            // Each Exercise leaves the row under it empty, so a Coach Note's Set Logs have a Visible
+            // Writable Row to move to.
+            return block(
+                daysPerWeek: [1],
+                prescriptions: exercises.enumerated().map { cells(of: $0.element, row: first + $0.offset * 2, dayStart: dayStart) }
+            )
+        }
+
+        private static func perfectMoveOnCelebration() -> LocalWorkbook {
+            let squat = NotedExercise(
+                name: "Back Squat",
+                sets: 2,
+                reps: "5",
+                load: "RPE6, RPE7",
+                notes: "Perfect Session fixture.",
+                logs: "185x5@6, skip"
+            )
+            return block(daysPerWeek: [2], prescriptions: [cells(of: squat, at: SessionAddress(week: 1, day: 1))])
+        }
+
+        private static func blockOverviewWithMixedSessionStates() -> LocalWorkbook {
+            let sessions: [SessionAddress: NotedExercise] = [
+                SessionAddress(week: 1, day: 1): NotedExercise(
+                    name: "Competition Squat",
+                    sets: 2,
+                    reps: "5",
+                    load: "RPE7, RPE8",
+                    notes: "Completed Session.",
+                    logs: "185x5@7, skip"
+                ),
+                SessionAddress(week: 1, day: 2): NotedExercise(
+                    name: "Paused Bench Press",
+                    sets: 2,
+                    reps: "5",
+                    load: "RPE7, RPE8",
+                    notes: "Has Open Exercises.",
+                    logs: "155x5@7"
+                ),
+                SessionAddress(week: 1, day: 3): NotedExercise(
+                    name: "Current Deadlift",
+                    sets: 2,
+                    reps: "3",
+                    load: "RPE6, RPE7",
+                    notes: "Current Session."
+                ),
+                SessionAddress(week: 2, day: 1): NotedExercise(
+                    name: "Upcoming Squat",
+                    sets: 2,
+                    reps: "5",
+                    load: "RPE6, RPE7",
+                    notes: "Upcoming Session."
+                )
+            ]
+            return block(daysPerWeek: [3, 1], prescriptions: sessions.map { cells(of: $0.value, at: $0.key) })
+        }
+
+        /// The Set Logs of a one-Line Exercise whose Notes cell at `row` holds its Coach Note. They
+        /// move to the Visible Writable Row under it, as the app writes them.
+        private static func setLogs(_ logs: String, under row: Int, dayStart: Int) -> [String: String] {
+            ["\(columnName(dayStart + 8))\(row + 1)": logs]
         }
 
         private static func accessory(at address: SessionAddress) -> [String: String] {
@@ -281,11 +489,50 @@
         }
 
         /// The Block a sync of this scenario would persist: the parse, then `BlockBuilder.makeBlock`,
-        /// the second call. It stops before the overlays `SyncCoordinator.replacePersistedBlock`
-        /// applies, which only matter once local athlete state exists.
+        /// the second call, then the scenario's `unwritableSetLogs`. It stops before the overlays
+        /// `SyncCoordinator.replacePersistedBlock` applies, which only matter once local athlete
+        /// state exists.
         @MainActor
         func block() -> Block {
-            BlockBuilder.makeBlock(from: parsedBlockTab().block)
+            let block = BlockBuilder.makeBlock(from: parsedBlockTab().block)
+            applyUnwritableSetLogs(to: block)
+            return block
+        }
+
+        /// Set Logs on the first Line of a two-Line lift, whose Notes cell holds the Coach Note, so
+        /// the Sheet has no cell for them until #942 gives that Line a spare row. Each scenario that
+        /// needs one logs it over the parse instead, as the app holds a log the Sheet has not taken.
+        var unwritableSetLogs: [SetAddress: String] {
+            let firstSet = { (day: Int) in
+                SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: day), order: 0), index: 0)
+            }
+            switch self {
+            case .partiallyLoggedSession, .completedOpenExercises:
+                return [firstSet(1): "235x5@6"]
+            case .openExercises:
+                return [firstSet(1): "235x5@6", firstSet(2): "155x5@6", firstSet(3): "305x3@6"]
+            case .freshBlock, .partialUpload, .fullBlock, .currentSessionWithPendingSets, .longSession, .perfectMoveOnCelebration,
+                .blockOverviewWithMixedSessionStates:
+                return [:]
+            }
+        }
+
+        /// Marks each of `unwritableSetLogs` Logged in `block` the way a parsed Set Log cell reads:
+        /// the log and the state, with no `loggedAt`, because the Sheet never carries one.
+        @MainActor
+        func applyUnwritableSetLogs(to block: Block) {
+            for (address, text) in unwritableSetLogs {
+                guard
+                    let set = block.session(at: address.exercise.session)?
+                        .exercises.first(where: { $0.order == address.exercise.order })?
+                        .sets.first(where: { $0.index == address.index }),
+                    let log = SetLog(formatted: text)
+                else {
+                    preconditionFailure("\(rawValue) has no Set \(address) to log \(text) on")
+                }
+                set.setLog = log
+                set.state = .logged
+            }
         }
     }
 #endif
