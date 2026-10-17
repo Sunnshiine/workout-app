@@ -640,8 +640,8 @@ crossfade starts as the leaf's ends, so the stage never shows two cream
 leaves. A Superset bud lifts off its ink in the same 0.2s, before its
 partner's bud wakes. The ceremony fades in fully grown. Haptics are unaffected.
 
-The Active Set Card has no motion to reduce, so Reduce Motion leaves it
-unchanged (§5.2).
+Reduce Motion leaves the Active Set Card unchanged (§5.2). Its box holds
+still, and what moves inside it answers the athlete's own finger.
 
 ## 8. Do's and Don'ts
 

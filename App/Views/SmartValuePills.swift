@@ -530,8 +530,6 @@ private struct HoldToSkipLogButton: View {
                 }
             }
             .themeElevation(logShadow, in: Capsule())
-            // The body form animates the scale alone. A quick tap ends the press and logs in one
-            // update, so a value-based animation would also crossfade the next Set's title (§5.2).
             .animation(.snappy(duration: 0.16)) { $0.scaleEffect(gesture.isPressing ? 0.97 : 1) }
     }
 
