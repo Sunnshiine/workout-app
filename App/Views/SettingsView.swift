@@ -325,6 +325,7 @@ private struct DestructiveAction {
 /// system alert, the card holds the presentation under it until the athlete answers.
 private struct DestructiveConfirmation: ViewModifier {
     @Environment(\.themePalette) private var palette
+    @AccessibilityFocusState private var isTitleFocused: Bool
     let title: String
     @Binding var isPresented: Bool
     let action: DestructiveAction
@@ -349,6 +350,7 @@ private struct DestructiveConfirmation: ViewModifier {
             Text(title)
                 .fontWeight(.semibold)
                 .foregroundStyle(palette.textPrimary)
+                .accessibilityFocused($isTitleFocused)
             Text("Pending logs for the current sheet will be discarded.")
                 .foregroundStyle(palette.textSecondary)
             HStack(spacing: 12) {
@@ -379,6 +381,8 @@ private struct DestructiveConfirmation: ViewModifier {
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityLabel(title)
+        .accessibilityAction(.escape) { isPresented = false }
+        .task { isTitleFocused = true }
     }
 }
 
