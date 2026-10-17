@@ -226,20 +226,39 @@ func fillerAroundASetIsDropped(transcript: String) {
     #expect(SpokenSet.parse("135 pounds 185 for 5") == .failure(.conflicting(.weight)))
     #expect(SpokenSet.parse("RPE 8 at 9") == .failure(.conflicting(.rpe)))
     #expect(SpokenSet.parse("bodyweight 135 for 5") == .failure(.conflicting(.weight)))
-    #expect(SpokenSet.parse("135 for 8, 8 reps") == values(.pounds(135), 8, nil))
-    #expect(SpokenSet.parse("135 for eight, 8 reps") == values(.pounds(135), 8, nil))
 }
 
-/// A Set has one weight, so a second weight, even the same one, starts a second Set.
+/// "185 for 5 for 5 for 5" may be three Sets of five, and "185 for 5 and 3 at 8" a Set at 8 after one
+/// at an RPE cut off, so a value said twice, even as the same number, is never read as one.
 @Test(
-    "Two Sets said in one breath conflict on the weight",
+    "A value said a second time conflicts, even as the same number or cut off",
     arguments: [
-        "185 for 5, 185 for 5", "185 for 5 at 8 and 185 for 5 at 8", "185 for 5, 185 for 5 and 8", "8 reps at 135, 8 reps at 135",
-        "bodyweight for 12, bodyweight for 12", "185 pounds for 5, 185 for 5"
+        ("135 for 8, 8 reps", SetLogDraft.Field.reps), ("135 for eight, 8 reps", .reps), ("185 for 5 for 5 for 5", .reps),
+        ("185 for 5 reps, 5 reps, 5 reps", .reps), ("135 for 5 at 8 for", .reps), ("135 for 5 at 8 x", .reps),
+        ("185 for 5 and 3 at 8", .rpe), ("185 for 5 and 5 RPE 8", .rpe), ("185 for 5 and 8 at 9", .rpe),
+        ("135 for 3 and 135 at 9", .rpe), ("135 for 5 at 8 at", .rpe), ("135 for 5 at 8 of", .rpe), ("135 for 5 at 8 add", .rpe),
+        ("RPE 9 RPE 9", .rpe)
     ]
 )
-func twoSetsSaidInOneBreathConflictOnTheWeight(transcript: String) {
-    #expect(SpokenSet.parse(transcript) == .failure(.conflicting(.weight)))
+func aValueSaidASecondTimeConflicts(transcript: String, field: SetLogDraft.Field) {
+    #expect(SpokenSet.parse(transcript) == .failure(.conflicting(field)))
+}
+
+@Test func anRPEMarkerAfterTheRPEAfterAtLabelsItRatherThanAskingForASecond() {
+    #expect(SpokenSet.parse("at 9 RPE") == values(nil, nil, .nine))
+    #expect(SpokenSet.parse("135 for 5 at 5 rpe") == values(.pounds(135), 5, .five))
+}
+
+@Test(
+    "Two Sets said in one breath conflict on the first value said again",
+    arguments: [
+        ("185 for 5, 185 for 5", SetLogDraft.Field.weight), ("185 for 5 at 8 and 185 for 5 at 8", .weight),
+        ("185 for 5, 185 for 5 and 8", .weight), ("bodyweight for 12, bodyweight for 12", .weight),
+        ("185 pounds for 5, 185 for 5", .weight), ("8 reps at 135, 8 reps at 135", .reps)
+    ]
+)
+func twoSetsSaidInOneBreathConflict(transcript: String, field: SetLogDraft.Field) {
+    #expect(SpokenSet.parse(transcript) == .failure(.conflicting(field)))
 }
 
 @Test func kilogramsAreRejectedBecauseEverySetLogIsInPounds() {
@@ -379,7 +398,7 @@ func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, rep
     #expect(SpokenSet.parse("add 185 for 5") == .failure(.unrecognized))
 }
 
-@Test func aMarkerSaidLastCutsOffTheValueItAskedForUnlessThatValueWasHeard() {
+@Test func aMarkerSaidLastCutsOffTheValueItAskedFor() {
     #expect(SpokenSet.parse("185 for 5 at") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 RTE") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 of") == rpeCutOff(.pounds(185), 5))

@@ -72,6 +72,12 @@ enum SpokenAmount: Equatable, Sendable {
 enum SpokenClaim: Equatable, Sendable {
     case value(SetLogDraft.Field, SpokenAmount)
     case cutOff(SetLogDraft.Field)
+
+    var field: SetLogDraft.Field {
+        switch self {
+        case .value(let field, _), .cutOff(let field): field
+        }
+    }
 }
 
 /// What a phrase reads the number or bodyweight at one of its steps as.
@@ -205,7 +211,7 @@ struct SpokenPhrase: Sendable {
         SpokenPhrase(.optional(.marker(.at)), .marker(.rpe), .optional(.misheardAt), .value(.rpe)),
         SpokenPhrase(.value(.rpe), .marker(.rpe)),
         SpokenPhrase(.marker(.at), .value(.weight), .marker(.pounds)),
-        SpokenPhrase(.marker(.at), .value(.rpeAfterAt)),
+        SpokenPhrase(.marker(.at), .value(.rpeAfterAt), .optional(.marker(.rpe))),
         SpokenPhrase(.marker(.at), .value(.weightAfterAt)),
         SpokenPhrase(.marker(.with), .value(.weightAfterAt))
     ]
@@ -270,8 +276,7 @@ struct SpokenPhrase: Sendable {
     }
 }
 
-/// Weight, reps, and RPE as the phrases claim them. A value heard wins over the same field cut off,
-/// so "at 9 RPE" has an RPE.
+/// Weight, reps, and RPE as the phrases claim them, each claimed once.
 struct SpokenSlots {
     /// Under it, as the 4 of "4 for 5", a weight is a rep count misheard.
     static let lightestWeight = 5.0
@@ -284,15 +289,13 @@ struct SpokenSlots {
         guard !amounts.isEmpty else { throw .unrecognized }
     }
 
-    /// The same number said twice for one value, as in "135 for eight, 8 reps", is not a conflict, but
-    /// a second weight, even the same one, is a second Set, as in "185 for 5, 185 for 5".
+    /// A value claimed twice, even as the same number or once cut off, may be two Sets: "185 for 5,
+    /// 185 for 5", "185 for 5 for 5 for 5", or "185 for 5 and 3 at 8".
     private mutating func claim(_ claim: SpokenClaim) throws(SpokenSet.Rejection) {
+        guard amounts[claim.field] == nil, !cutOff.contains(claim.field) else { throw .conflicting(claim.field) }
         switch claim {
-        case .value(let field, let amount):
-            let said = amounts.updateValue(amount, forKey: field)
-            guard said == nil || (said == amount && field != .weight) else { throw .conflicting(field) }
-        case .cutOff(let field):
-            cutOff.insert(field)
+        case .value(let field, let amount): amounts[field] = amount
+        case .cutOff(let field): cutOff.insert(field)
         }
     }
 
