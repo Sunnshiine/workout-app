@@ -29,6 +29,12 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 - A wall-clock budget, such as polling for 10 seconds. Under load the budget runs out, the test returns,
   and a task it started keeps running against torn-down state. Await the event or the task instead.
 
+A wait for work the test does not control is bounded, or a regression that skips the work hangs the run
+instead of failing it. A continuation ignores the time limit's cancellation, so a fake never parks the
+test on one. It polls state on the main actor, where the work that sets it runs, and records a failure
+when the poll runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to
+copy, as `ManualSessionTransitionClock.waitForSleep()` does (#746).
+
 ## Parallel Agents
 
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
