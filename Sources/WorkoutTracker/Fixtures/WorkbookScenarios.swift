@@ -5,7 +5,8 @@
     /// as a SwiftData graph, so a scenario proves the whole Sheet round trip.
     public enum WorkbookScenario: String, CaseIterable, Sendable {
         /// One Block tab, two logged-nothing Weeks, and an Unavailable Day 3 in Week 2 (a Partially
-        /// Uploaded Block). The Coach Note on the RDL exercises the Visible Writable Row rule.
+        /// Uploaded Block). The Coach Note on the RDL exercises the Visible Writable Row rule, and
+        /// Bench Press carries one `%1RM` for every Set of its Line.
         case freshBlock = "fresh-block"
         /// The Block the app's UI fixture boots into when a launch names no scenario: four Weeks of
         /// four Days, eleven of them Unavailable Sessions with no prescription rows (a Partially
@@ -71,7 +72,7 @@
                         notes: "Start w/ 10 sec hold"
                     )
                 )
-                add(prescription(row: row, dayStart: day2, name: "Bench Press", sets: 3, reps: "5", load: "RPE7"))
+                add(prescription(row: row, dayStart: day2, name: "Bench Press", sets: 3, reps: "5", percentOneRM: "70%", load: "RPE7"))
                 add(prescription(row: row + 4, dayStart: day2, name: "BW Pull Up", sets: 2, reps: "8", load: "BW"))
             }
             return LocalWorkbook(

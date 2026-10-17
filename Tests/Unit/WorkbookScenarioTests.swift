@@ -37,6 +37,7 @@ func everyScenarioParsesCleanlyWithAnAvailableSession(scenario: WorkbookScenario
     #expect(week1Day1.exercises[1].coachNote == "Start w/ 10 sec hold")
     #expect(week1Day1.exercises[1].sets.count == 2)
     #expect(block.weeks[0].days[1].exercises.map(\.name) == ["Bench Press", "BW Pull Up"])
+    #expect(block.weeks[0].days[1].exercises[0].sets.map(\.percentOneRM) == ["70%", "70%", "70%"])
     #expect(block.weeks[0].days[1].exercises[1].sets.map(\.prescribedLoad) == ["BW", "BW"])
     #expect(block.weeks[1].days[2].exercises.isEmpty)
     #expect(block.weeks.flatMap(\.days).flatMap(\.exercises).flatMap(\.sets).allSatisfy { $0.state == .pending })
