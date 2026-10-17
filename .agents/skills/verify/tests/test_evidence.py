@@ -552,9 +552,10 @@ class TapPoint(unittest.TestCase):
             "children": [{"role": "AXButton", "AXUniqueId": "straddling-row",
                           "frame": {"x": 0, "y": 860, "width": 402, "height": 40}}],
         })
-        self.assertEqual(tree_py("tappable", "straddling-row", stdin=tree), (1, "", (
-            "clipped: outside AXScrollArea @0,880 402x100; bring it inside that frame before tapping\n"
-        )), "its centre y 880 is in the scroll area, but the part on the screen, y 860 to 874, is above it")
+        clipped = "clipped: outside AXScrollArea @0,880 402x100; bring it inside that frame before tapping\n"
+        self.assertEqual(tree_py("tappable", "straddling-row", stdin=tree), (1, "", clipped),
+                         "its centre y 880 is in the scroll area, but the part on the screen, y 860 to 874, is above it")
+        self.assertEqual(tree_py("find", "straddling-row", stdin=tree)[::2], (0, clipped), "find says what tappable refuses")
 
 
 class TappableByLabel(unittest.TestCase):
@@ -2838,7 +2839,11 @@ class Film(unittest.TestCase):
         self.addCleanup(self.kill_recorder)
         self.saved = take.STOP_GRACE
         self.addCleanup(setattr, take, "STOP_GRACE", self.saved)
+        take.STOP_GRACE = 10.0  # a recorder that honours SIGINT can take seconds to exit on a loaded host
+
+    def film_stuck(self, drive, **env):
         take.STOP_GRACE = 0.3
+        return self.film(drive, STUB_STUCK="1", **env)
 
     def kill_recorder(self):
         pid = self.tmp / "recorder.pid"
@@ -2869,11 +2874,11 @@ class Film(unittest.TestCase):
                                                "'['sysctl', '-n', 'vm.loadavg']' returned non-zero exit status 1.", ""))
 
     def test_a_failed_drive_is_the_failure_even_when_the_recorder_will_not_stop(self):
-        failure = self.film(["fail"], STUB_STUCK="1")
+        failure = self.film_stuck(["fail"])
         self.assertEqual(failure, ("DriveFailed", "the drive `fail` exited 4, so the take is not kept", self.stuck()))
 
     def test_a_recorder_that_never_started_is_the_failure_even_when_it_will_not_stop(self):
-        failure = self.film(["fail"], start_timeout=0.3, STUB_STUCK="1", STUB_NEVER_STARTS="1")
+        failure = self.film_stuck(["fail"], start_timeout=0.3, STUB_NEVER_STARTS="1")
         self.assertEqual(failure, ("NoTake", "simctl recordVideo did not start capturing within 0.3 s, so nothing "
                                              "was driven", self.stuck()))
 
