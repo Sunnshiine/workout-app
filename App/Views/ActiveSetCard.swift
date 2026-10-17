@@ -2,20 +2,6 @@ import SwiftData
 import SwiftUI
 
 struct ActiveSetCard: View {
-    /// How the card participates in the Session: logging the active pending
-    /// Set, or reviewing an already-logged one with a collapse affordance.
-    enum Mode {
-        case logging
-        case reviewingLogged(showsSavedConfirmation: Bool, onCollapse: () -> Void)
-
-        var setCardMode: SetCardMode {
-            switch self {
-            case .logging: .logging
-            case .reviewingLogged: .reviewingLogged
-            }
-        }
-    }
-
     private struct PillsIdentity: Hashable {
         let set: PersistentIdentifier
         let mode: SetCardMode
@@ -24,7 +10,7 @@ struct ActiveSetCard: View {
     let set: ExerciseSet
     let setOrdinal: Int
     let setCount: Int
-    var mode: Mode = .logging
+    var mode: SetCardSlot.Mode = .logging
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -35,8 +21,15 @@ struct ActiveSetCard: View {
     private static let headTargetSize: CGFloat = 44
     private static let headTargetOverhang: CGFloat = 12
 
+    private var setCardMode: SetCardMode {
+        switch mode {
+        case .logging: .logging
+        case .reviewingLogged: .reviewingLogged
+        }
+    }
+
     private var presentation: SetCardPresentation {
-        SetCardPresentation(mode: mode.setCardMode, set: set)
+        SetCardPresentation(mode: setCardMode, set: set)
     }
 
     var body: some View {
@@ -45,13 +38,13 @@ struct ActiveSetCard: View {
 
             SmartValuePills(
                 set: set,
-                mode: mode.setCardMode,
+                mode: setCardMode,
                 suggestion: LoadSuggestionEngine.suggest(for: set, history: history.snapshot),
                 onLog: onLog,
                 onSkip: onSkip,
                 inputDismissalRequestID: inputDismissalRequestID
             )
-            .id(PillsIdentity(set: set.persistentModelID, mode: mode.setCardMode))
+            .id(PillsIdentity(set: set.persistentModelID, mode: setCardMode))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
@@ -81,40 +74,25 @@ struct ActiveSetCard: View {
         .overlay(alignment: .trailing) { headTrailingSlot }
     }
 
+    @ViewBuilder
     private var headTrailingSlot: some View {
-        HStack(spacing: 0) {
-            if case .reviewingLogged(let showsSavedConfirmation, let onCollapse) = mode {
-                if showsSavedConfirmation {
-                    Label("Saved", systemImage: "checkmark.circle.fill")
-                        .font(Theme.font(.setOf))
-                        .foregroundStyle(palette.action)
-                }
-
-                Button(action: onCollapse) {
-                    Image(systemName: "chevron.up")
-                        .imageScale(.medium)
-                        .foregroundStyle(palette.textSecondary)
-                        .frame(width: Self.headTargetSize, height: Self.headTargetSize)
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Collapse logged set")
+        if mode == .reviewingLogged(showsSavedConfirmation: true) {
+            Label("Saved", systemImage: "checkmark.circle.fill")
+                .font(Theme.font(.setOf))
+                .foregroundStyle(palette.action)
+        } else if presentation.showsClearMenu {
+            Menu {
+                Button("Clear", role: .destructive, action: onDelete)
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .imageScale(.large)
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+                    .contentShape(.rect)
             }
-
-            if presentation.showsClearMenu {
-                Menu {
-                    Button("Clear", role: .destructive, action: onDelete)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.large)
-                        .foregroundStyle(palette.textSecondary)
-                        .frame(width: Self.headTargetSize, height: Self.headTargetSize)
-                        .contentShape(.rect)
-                }
-                .accessibilityIdentifier("clear-logged-set-menu")
-            }
+            .accessibilityIdentifier("clear-logged-set-menu")
+            .padding(.trailing, -Self.headTargetOverhang)
         }
-        .padding(.trailing, -Self.headTargetOverhang)
     }
 
     private func dismissInputIfLogging() {

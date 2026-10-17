@@ -370,21 +370,11 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
 
 extension ActiveSetCard {
     init(slot: SetCardSlot, coordinator: SessionCoordinator) {
-        let mode: Mode =
-            switch slot.mode {
-            case .logging:
-                .logging
-            case .reviewingLogged(let showsSavedConfirmation):
-                .reviewingLogged(
-                    showsSavedConfirmation: showsSavedConfirmation,
-                    onCollapse: { coordinator.focus(on: slot.set) }
-                )
-            }
         self.init(
             set: slot.set,
             setOrdinal: slot.ordinal,
             setCount: slot.count,
-            mode: mode,
+            mode: slot.mode,
             onLog: { coordinator.log($0, for: slot) },
             onSkip: { coordinator.skip(slot.set) },
             onDelete: { coordinator.deleteLog(for: slot.set) }

@@ -448,8 +448,9 @@ log, a skip, a Superset switch, a branch-node tap, a review opening or
 closing, rest, and sync all leave its frame where it was. Its values change
 in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a
-row says, never whether the row is there. The review chevron, Saved, and
-Clear sit in the head's trailing slot. Inside the card, only what answers
+row says, never whether the row is there. Saved and Clear sit in the head's
+trailing slot. A review has no collapse control: tapping its leaf again
+ends it. Inside the card, only what answers
 the athlete's own finger moves: the press, the rail recentring, and the
 hold-to-skip fill. A Superset switch is told above the card, by the Exercise
 name line and the active leaf. While the weight is edited, the card rides
