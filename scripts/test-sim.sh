@@ -124,7 +124,7 @@ stamp=$(date +%Y%m%d-%H%M%S)-$$
 if [ $build = 1 ]; then
   with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+    || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
