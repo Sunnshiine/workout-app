@@ -85,8 +85,8 @@ enum SpokenWord: Equatable, Sendable {
     /// A word that adds nothing to a transcript read on its own, as "um", "the", and "and" do.
     var isFiller: Bool {
         switch alone {
-        case .success(.none), .success(.misheardAt(isFiller: true)?): true
-        default: false
+        case .success(let token): token?.isFiller ?? true
+        case .failure: false
         }
     }
 
@@ -126,6 +126,7 @@ enum SpokenWord: Equatable, Sendable {
         (["rep", "reps"], .token(.marker(.reps))),
         (["rpe", "rp", "@", "rte", "rtd", "rtv"], .token(.marker(.rpe))),
         (["at"], .token(.marker(.at))),
+        (["with"], .token(.marker(.with))),
         (["bw", "bodyweight"], .token(.bodyweight)),
         (["of"], .token(.misheardAt(isFiller: true))),
         (["add"], .token(.misheardAt(isFiller: false))),
@@ -135,7 +136,7 @@ enum SpokenWord: Equatable, Sendable {
         (
             [
                 "um", "umm", "uh", "uhh", "er", "erm", "ah", "hmm", "mm", "okay", "ok", "so", "yeah", "yes", "please", "thanks", "the",
-                "an", "with", "i", "just", "hit", "did", "got", "then"
+                "an", "i", "just", "hit", "did", "got", "then"
             ],
             .filler
         )

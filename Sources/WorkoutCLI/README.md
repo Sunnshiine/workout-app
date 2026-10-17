@@ -102,7 +102,9 @@ where a word next to it, or the phrase around it, says which, never by its place
   "or" is "for" after bodyweight or a weight of at least 20 heavier than the reps ("225 or 3").
   Between any other two numbers "or" is a range, as in "20 or 25 reps", and `ambiguous`.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
-  number after it. "reps" labels the number before or after it ("8 reps", "reps 8").
+  number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
+  after it ("8 reps", "reps 8"). "with" labels bodyweight or a number of 15 or more after it as the
+  weight ("5 reps with 185"), and is filler anywhere else.
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
   "RPE" labels the number before it too ("8 RPE"). After "at", a number under 15 is the RPE
   ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135").

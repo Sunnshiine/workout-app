@@ -190,6 +190,24 @@ func fillerAroundASetIsDropped(transcript: String) {
     #expect(SpokenSet.parse("12 reps at bodyweight") == values(.bodyweight, 12, nil))
 }
 
+@Test func atBeforeAWeightInPoundsNamesTheWeightWhateverItWeighs() {
+    #expect(SpokenSet.parse("12 reps at 10 pounds") == values(.pounds(10), 12, nil))
+    #expect(SpokenSet.parse("8 reps at 135 lbs") == values(.pounds(135), 8, nil))
+    #expect(SpokenSet.parse("8 reps at 135 lbs at 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("12 reps at 10") == values(nil, 12, .ten))
+    #expect(SpokenSet.parse("185 for 5 at 8 pounds") == .failure(.conflicting(.weight)))
+}
+
+@Test func withBeforeBodyweightOrAWeightOf15OrMoreNamesTheWeightAndIsFillerElsewhere() {
+    #expect(SpokenSet.parse("5 reps with 185") == values(.pounds(185), 5, nil))
+    #expect(SpokenSet.parse("5 reps with 185 at 8") == values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("12 reps with bodyweight") == values(.bodyweight, 12, nil))
+    #expect(SpokenSet.parse("5 reps with 10 pounds") == values(.pounds(10), 5, nil))
+    #expect(SpokenSet.parse("for 5 with 8") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 for 5 with an RPE of 8") == values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("185 for 5 with") == values(.pounds(185), 5, nil))
+}
+
 @Test func twoDifferentNumbersForOneValueConflict() {
     #expect(SpokenSet.parse("135 for 4, 8 reps, RPE 9") == .failure(.conflicting(.reps)))
     #expect(SpokenSet.parse("135 pounds 185 for 5") == .failure(.conflicting(.weight)))
@@ -391,7 +409,7 @@ func orBetweenTwoNumbersItCannotSeparateIsAmbiguous(transcript: String) {
 
 @Test func aPoundSignOrAClockReadsAsTheWeightItWrote() {
     #expect(SpokenSet.parse("8 reps £135") == values(.pounds(135), 8, nil))
-    #expect(SpokenSet.parse("for 5 at £8") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("for 5 at £8") == values(.pounds(8), 5, nil))
     #expect(SpokenSet.parse("2:25 for 3") == values(.pounds(225), 3, nil))
 }
 

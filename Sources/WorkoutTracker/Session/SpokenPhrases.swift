@@ -31,6 +31,16 @@ enum SpokenToken: Equatable, Sendable {
         return number.digits?.wholeMatch(of: /[1-9][6-9]/) != nil
     }
 
+    /// A word that adds nothing where no phrase takes it: the "and" and "of" that may be a misheard
+    /// "at", and the "with" before a weight.
+    var isFiller: Bool {
+        switch self {
+        case .misheardAt(let isFiller): isFiller
+        case .marker(.with): true
+        default: false
+        }
+    }
+
     /// The step that takes this token as a word rather than a value.
     var wordStep: SpokenStep? {
         switch self {
@@ -50,6 +60,7 @@ enum SpokenMarker: Equatable, Sendable {
     /// "RPE", "@", or the "RTE", "RTD", or "RTV" a recognizer hears for "RPE".
     case rpe
     case at
+    case with
 }
 
 enum SpokenAmount: Equatable, Sendable {
@@ -75,10 +86,10 @@ enum SpokenReading: Equatable, Sendable {
     case unheardRPE
     /// A number under 15 after "at", as in "at 9".
     case rpeAfterAt
-    /// Bodyweight or a number of 15 or more after "at", as in "8 reps at 135".
+    /// Bodyweight or a number of 15 or more after "at" or "with", as in "8 reps at 135".
     case weightAfterAt
 
-    /// Under it, the number after "at" is an RPE.
+    /// Under it, the number after "at" is an RPE and the number after "with" is no weight.
     static let lightestWeightAfterAt = 15.0
 
     var field: SetLogDraft.Field {
@@ -193,15 +204,20 @@ struct SpokenPhrase: Sendable {
         SpokenPhrase(.marker(.reps), .value(.reps)),
         SpokenPhrase(.optional(.marker(.at)), .marker(.rpe), .optional(.misheardAt), .value(.rpe)),
         SpokenPhrase(.value(.rpe), .marker(.rpe)),
+        SpokenPhrase(.marker(.at), .value(.weight), .marker(.pounds)),
         SpokenPhrase(.marker(.at), .value(.rpeAfterAt)),
-        SpokenPhrase(.marker(.at), .value(.weightAfterAt))
+        SpokenPhrase(.marker(.at), .value(.weightAfterAt)),
+        SpokenPhrase(.marker(.with), .value(.weightAfterAt))
     ]
 
-    /// The match of every step from the tokens' start, or nil when a step is not there.
+    /// The match of every step from the tokens' start, or nil when a step is not there. A step cut off
+    /// is the phrase's only when nothing it needs comes after it, so "at" said last is the RPE's.
     func match(_ tokens: ArraySlice<SpokenToken>) -> SpokenMatch? {
         var match = SpokenMatch(tokens)
-        for step in steps {
-            guard match.take(step) else { return match.cutOff(at: step) }
+        for (index, step) in steps.enumerated() {
+            guard match.take(step) else {
+                return steps[(index + 1)...].allSatisfy(\.isOptional) ? match.cutOff(at: step) : nil
+            }
         }
         return match
     }
@@ -236,14 +252,15 @@ struct SpokenPhrase: Sendable {
         all.lazy.compactMap { $0.match(tokens) }.first
     }
 
-    /// A token no phrase takes. A misheard "at" said last is an RPE cut off and an "and" or "of"
-    /// anywhere else is filler, but a number no phrase takes is one no word places.
+    /// A token no phrase takes. A misheard "at" said last is an RPE cut off and filler anywhere else
+    /// is dropped, but a number no phrase takes is one no word places.
     private static func leftover(_ token: SpokenToken, isLast: Bool) throws(SpokenSet.Rejection) -> [SpokenClaim] {
         switch token {
         case .misheardAt where isLast: return [.cutOff(.rpe)]
-        case .misheardAt(isFiller: true): return []
         case .number: throw .ambiguous
-        default: throw .unrecognized
+        default:
+            guard token.isFiller else { throw .unrecognized }
+            return []
         }
     }
 
