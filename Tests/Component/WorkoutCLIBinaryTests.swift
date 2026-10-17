@@ -131,6 +131,41 @@
         #expect(sets[1]["state"] as? String == "pending")
     }
 
+    @Test func aSpokenSetLandsLikeALoggedOneAndARejectedOneExitsOne() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init", "--scenario", "fresh-block")
+
+        let missingWeight = try cli.run("say", "w1d1.e0.s0", "RPE 9")
+        #expect(missingWeight.status == 0)
+        #expect(missingWeight.stderr.isEmpty)
+        #expect(try missingWeight.json["outcome"] as? String == "missingValues")
+        #expect(try missingWeight.json["missing"] as? [String] == ["weight"])
+        #expect(try missingWeight.json["pendingWriteCount"] as? Int == 0)
+
+        let logged = try cli.run("say", "w1d1.e0.s0", "185 for 5 at 8")
+        #expect(logged.status == 0)
+        #expect(try logged.json["heard"] as? String == "185 for 5 at 8")
+        #expect(try logged.json["outcome"] as? String == "logged")
+        #expect(try logged.json["setLog"] as? String == "185x5@8")
+        #expect(try logged.json["pendingWriteCount"] as? Int == 1)
+        #expect((try logged.json["set"] as? [String: Any])?["state"] as? String == "logged")
+
+        let rejected = try cli.run("say", "w1d1.e0.s1", "100 kilos for 5")
+        #expect(rejected.status == 1)
+        #expect(try rejected.json["outcome"] as? String == "rejected")
+        #expect((try rejected.json["rejection"] as? [String: Any])?["reason"] as? String == "kilograms")
+        #expect(try rejected.errorJSON["code"] as? String == "spoken_set_rejected")
+
+        let skipped = try cli.run("say", "w1d1.e0.s1", "skip")
+        #expect(skipped.status == 0)
+        #expect(try skipped.json["outcome"] as? String == "skipped")
+
+        #expect(try cli.run("flush").status == 0)
+        #expect(try cli.run("sheet", "--cell", "K15").json["value"] as? String == "185x5@8, skip")
+    }
+
     @Test func aBadSetAddressExitsOneWithCandidatesOnStderrAndNothingOnStdout() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }

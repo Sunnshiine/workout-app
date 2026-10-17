@@ -84,6 +84,27 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 }
 
 @MainActor
+@Test func sayEncodesWhatItHeardAndWhatItDid() async throws {
+    let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
+    let set = try #require(SetAddress("w1d1.e0.s0"))
+
+    let missingWeight = try json(try app.say("RPE 9", at: set))
+    #expect(missingWeight["outcome"] as? String == "missingValues")
+    #expect(missingWeight["missing"] as? [String] == ["weight"])
+
+    let rejected = try json(try app.say("RPE 11", at: set))
+    #expect(rejected["outcome"] as? String == "rejected")
+    #expect((rejected["rejection"] as? [String: Any])?["reason"] as? String == "offLadderRPE")
+    #expect((rejected["rejection"] as? [String: Any])?["value"] as? Double == 11)
+
+    let logged = try json(try app.say("185 for 5 at 8", at: set))
+    #expect(Set(logged.keys) == ["heard", "outcome", "setLog", "set", "pendingWriteCount", "exerciseIsComplete"])
+    #expect(logged["setLog"] as? String == "185x5@8")
+    #expect(logged["pendingWriteCount"] as? Int == 1)
+}
+
+@MainActor
 @Test func errorsExposeCodeMessageAndCandidates() async throws {
     let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
     _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
@@ -119,6 +140,11 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
             .invalidSetLog("185 for 5"), "invalid_set_log",
             "\"185 for 5\" is not a Set Log. Use {weight}x{reps}@{RPE}, for example 185x5@8 or BWx12@7. "
                 + "RPE is one of 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10.", nil, .domain
+        ),
+        (
+            .spokenSetRejected("185 for 5 at 4", reason: .offLadderRPE), "spoken_set_rejected",
+            "\"185 for 5 at 4\" was not logged (offLadderRPE). Say the weight, reps, and RPE, for example "
+                + "\"185 for 5 at 8\", or log a Set Log with `workout log`.", nil, .domain
         ),
         (
             .notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session",

@@ -373,3 +373,95 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
     #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
 }
+
+@MainActor
+@Test func sayingAWholeSetLogsItThroughTheSameWriteAsLog() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.say("185 for 5 at 8", at: address("w1d1.e0.s0"))
+
+    #expect(report.heard == "185 for 5 at 8")
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == "185x5@8")
+    #expect(report.set.state == "logged")
+    #expect(report.set.setLog == "185x5@8")
+    #expect(report.pendingWriteCount == 1)
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["K15"] == "185x5@8")
+}
+
+@MainActor
+@Test func sayingOnlyTheRPEOfAFreshBlocksFirstSetIsMissingTheWeightAndQueuesNothing() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.say("RPE 9", at: address("w1d1.e0.s0"))
+
+    #expect(report.outcome == .missingValues)
+    #expect(report.missing == ["weight"])
+    #expect(report.setLog == nil)
+    #expect(report.set.state == "pending")
+    #expect(report.pendingWriteCount == 0)
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func sayingTheRPEAfterSetOneLogsTheWeightTheCardEstimates() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+    let estimate = try #require(try app.session(nil).exercises[0].sets[1].loadSuggestion.weight)
+
+    let report = try app.say("at 9", at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == SetLog(weight: .pounds(estimate), reps: 5, rpe: .nine).formatted)
+}
+
+@MainActor
+@Test func sayingSameAgainRepeatsTheNearestEarlierSetLogOfTheExercise() async throws {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+
+    let report = try app.say("same again", at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == "185x5@8")
+    #expect(report.pendingWriteCount == 2)
+}
+
+@MainActor
+@Test func sayingSkipSkipsTheSetAndWritesSkip() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.say("skip it", at: address("w1d1.e0.s0"))
+
+    #expect(report.outcome == .skipped)
+    #expect(report.set.state == "skipped")
+    #expect(try app.sync.fetchPendingWriteRecords().map(\.valueToWrite) == ["skip"])
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["K15"] == "skip")
+}
+
+@MainActor
+@Test func aRejectedSpokenSetReportsWhyAndQueuesNothing() async throws {
+    let app = try await makeSelectedApp()
+
+    let offLadder = try app.say("185 for 5 at 4", at: address("w1d1.e0.s0"))
+    let nothingToRepeat = try app.say("same again", at: address("w1d1.e0.s0"))
+    let conflicting = try app.say("135 for 4, 8 reps", at: address("w1d1.e0.s0"))
+
+    #expect(offLadder.outcome == .rejected)
+    #expect(offLadder.rejection == SpokenSetRejectionSnapshot(reason: .offLadderRPE, field: nil, value: 4))
+    #expect(nothingToRepeat.rejection?.reason == .nothingToRepeat)
+    #expect(conflicting.rejection == SpokenSetRejectionSnapshot(reason: .conflicting, field: "reps", value: nil))
+    #expect(conflicting.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func sayingToAnUnknownSetThrowsTheSameLookupErrorAsLog() async throws {
+    let app = try await makeSelectedApp()
+
+    #expect(throws: ApplicationError.notFound(.set, name: "w1d1.e0.s9", candidates: ["w1d1.e0.s0", "w1d1.e0.s1", "w1d1.e0.s2"])) {
+        try app.say("185 for 5 at 8", at: address("w1d1.e0.s9"))
+    }
+}

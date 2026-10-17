@@ -91,6 +91,15 @@ extension ApplicationError {
         )
     }
 
+    public static func spokenSetRejected(_ heard: String, reason: SpokenSetRejectionSnapshot.Reason) -> ApplicationError {
+        ApplicationError(
+            code: "spoken_set_rejected",
+            message: "\"\(heard)\" was not logged (\(reason.rawValue)). Say the weight, reps, and RPE, for example "
+                + "\"185 for 5 at 8\", or log a Set Log with `workout log`.",
+            kind: .domain
+        )
+    }
+
     public static func notFound(_ lookup: LookupKind, name: String, candidates: [String]) -> ApplicationError {
         ApplicationError(
             code: lookup.rawValue,

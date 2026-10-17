@@ -260,6 +260,71 @@ public struct LogReport: Encodable, Equatable, Sendable {
     public let exerciseIsComplete: Bool
 }
 
+/// What `say` heard and what it did to the Set. `set`, `pendingWriteCount`, and
+/// `exerciseIsComplete` are the report `log` returns, read after any write.
+public struct SayReport: Encodable, Equatable, Sendable {
+    public enum Outcome: String, Encodable, Sendable {
+        case logged, skipped, missingValues, rejected
+    }
+
+    public let heard: String
+    public let outcome: Outcome
+    /// `logged` only.
+    public let setLog: String?
+    /// `missingValues` only: `weight`, `reps`, or `rpe`, in that order.
+    public let missing: [String]?
+    /// `rejected` only.
+    public let rejection: SpokenSetRejectionSnapshot?
+    public let set: SetSnapshot
+    public let pendingWriteCount: Int
+    public let exerciseIsComplete: Bool
+}
+
+extension SayReport {
+    init(heard: String, outcome result: Result<SpokenSetOutcome, SpokenSet.Rejection>, report: LogReport) {
+        self.heard = heard
+        (set, pendingWriteCount, exerciseIsComplete) = (report.set, report.pendingWriteCount, report.exerciseIsComplete)
+        switch result {
+        case .success(.log(let setLog)):
+            (outcome, self.setLog, missing, rejection) = (.logged, setLog.formatted, nil, nil)
+        case .success(.skip):
+            (outcome, setLog, missing, rejection) = (.skipped, nil, nil, nil)
+        case .success(.missingValues(let values)):
+            (outcome, setLog, rejection) = (.missingValues, nil, nil)
+            missing = SetLogDraft.Field.allCases.filter(values.missingFields.contains).map(\.rawValue)
+        case .failure(let reason):
+            (outcome, setLog, missing) = (.rejected, nil, nil)
+            rejection = SpokenSetRejectionSnapshot(reason)
+        }
+    }
+}
+
+public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
+    public enum Reason: String, Encodable, Sendable {
+        case nothingHeard, unrecognized, kilograms, conflicting, outOfRange, offLadderRPE, nothingToRepeat
+    }
+
+    public let reason: Reason
+    /// `conflicting` and `outOfRange` only: `weight`, `reps`, or `rpe`.
+    public let field: String?
+    /// `offLadderRPE` only: the number heard.
+    public let value: Double?
+}
+
+extension SpokenSetRejectionSnapshot {
+    init(_ rejection: SpokenSet.Rejection) {
+        switch rejection {
+        case .nothingHeard: self.init(reason: .nothingHeard, field: nil, value: nil)
+        case .unrecognized: self.init(reason: .unrecognized, field: nil, value: nil)
+        case .kilograms: self.init(reason: .kilograms, field: nil, value: nil)
+        case .conflicting(let field): self.init(reason: .conflicting, field: field.rawValue, value: nil)
+        case .outOfRange(let field): self.init(reason: .outOfRange, field: field.rawValue, value: nil)
+        case .offLadderRPE(let value): self.init(reason: .offLadderRPE, field: nil, value: value)
+        case .nothingToRepeat: self.init(reason: .nothingToRepeat, field: nil, value: nil)
+        }
+    }
+}
+
 /// `conflictedWrites` lists every queued write whose status is `conflict`, from this flush or an
 /// earlier one, because the coordinator never retries those and an agent must see them until
 /// they are discarded.

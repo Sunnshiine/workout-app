@@ -74,3 +74,22 @@ private func pendingRows(in app: WorkoutApplication) throws -> [PendingWriteRow]
     #expect(facadeSheet.cells["I15"] == "9")
     #expect(try stageApp.snapshot() == facadeApp.snapshot())
 }
+
+@MainActor
+@Test func facadeSayMatchesFacadeLogForTheSameSet() async throws {
+    let logApp = try await makeApp()
+    let sayApp = try await makeApp()
+    let set = try #require(SetAddress("w1d1.e0.s2"))
+
+    let logged = try logApp.log(set, setLog: "200x5@9")
+    let said = try sayApp.say("two hundred for five at nine", at: set)
+
+    #expect(said.set == logged.set)
+    #expect(said.pendingWriteCount == logged.pendingWriteCount)
+    #expect(said.exerciseIsComplete == logged.exerciseIsComplete)
+    #expect(try pendingRows(in: sayApp) == pendingRows(in: logApp))
+    _ = try await logApp.flush()
+    _ = try await sayApp.flush()
+    #expect(try await sayApp.sheet(tab: nil) == logApp.sheet(tab: nil))
+    #expect(try sayApp.snapshot() == logApp.snapshot())
+}
