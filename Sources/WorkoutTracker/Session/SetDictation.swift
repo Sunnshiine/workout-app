@@ -23,6 +23,26 @@ protocol SetTranscriber: AnyObject {
     func cancel() async
 }
 
+/// The time hands-free listening reads to decide when the athlete has stopped talking.
+@MainActor
+protocol ListeningClock: AnyObject {
+    /// The time since a fixed origin.
+    var now: Duration { get }
+    /// Returns at `deadline`, or at once when it has passed.
+    func sleep(until deadline: Duration) async
+}
+
+@MainActor
+final class ContinuousListeningClock: ListeningClock {
+    private let origin = ContinuousClock.now
+
+    var now: Duration { ContinuousClock.now - origin }
+
+    func sleep(until deadline: Duration) async {
+        try? await Task.sleep(until: origin + deadline, clock: .continuous)
+    }
+}
+
 /// What the Spoken Set for one Set resolves against.
 struct SpokenSetContext: Equatable, Sendable {
     /// What the Set's card shows, which fills what the athlete leaves unsaid.
@@ -72,19 +92,46 @@ final class SetDictation {
         case transcriber(SetTranscriberError)
     }
 
-    private(set) var state: State = .idle
-    @ObservationIgnored private let transcriber: any SetTranscriber
-    /// Held from `start` until `finish` or `cancel` takes it: nil means no press is in flight.
-    @ObservationIgnored private var starting: Task<SetTranscriberError?, Never>?
-
-    init(transcriber: any SetTranscriber) {
-        self.transcriber = transcriber
+    /// Why listening with no hand on the mic ended on its own.
+    enum StopReason: Equatable, Sendable {
+        /// The athlete stopped talking.
+        case silence
+        /// Listening ran as long as it may.
+        case cap
     }
 
-    /// Ignored while another press is in flight, so one transcriber never listens twice.
-    func start(for set: ActiveSetID) {
-        guard starting == nil, state.listeningSetID == nil else { return }
+    /// The next step of listening with no hand on the mic.
+    enum AutoStop: Equatable, Sendable {
+        case wake(at: Duration)
+        case stop(StopReason)
+    }
+
+    /// How long after the last word heard hands-free listening ends.
+    nonisolated static let silenceWindow: Duration = .milliseconds(1200)
+    /// The longest hands-free listening runs, counted from when the mic went live.
+    nonisolated static let listeningCap: Duration = .seconds(8)
+
+    private(set) var state: State = .idle
+    @ObservationIgnored private let transcriber: any SetTranscriber
+    @ObservationIgnored private let clock: any ListeningClock
+    /// Held from `start` until `finish` or `cancel` takes it: nil means no press is in flight.
+    @ObservationIgnored private var starting: Task<SetTranscriberError?, Never>?
+    @ObservationIgnored private var wentLiveAt: Duration?
+    @ObservationIgnored private var lastHeardAt: Duration?
+
+    init(transcriber: any SetTranscriber, clock: any ListeningClock = ContinuousListeningClock()) {
+        self.transcriber = transcriber
+        self.clock = clock
+    }
+
+    /// Ignored, returning false, while another press is in flight, so one transcriber never
+    /// listens twice.
+    @discardableResult
+    func start(for set: ActiveSetID) -> Bool {
+        guard starting == nil, state.listeningSetID == nil else { return false }
         state = .preparing(set)
+        wentLiveAt = nil
+        lastHeardAt = nil
         let transcriber = transcriber
         starting = Task { [weak self] in
             do throws(SetTranscriberError) {
@@ -95,6 +142,45 @@ final class SetDictation {
                 return error
             }
         }
+        return true
+    }
+
+    /// Listens for `set` with no hand on the mic until the athlete stops talking, then finishes as
+    /// a release would. Nothing heard by the cap writes nothing. A tap that finishes the press
+    /// first, or a cancel, leaves this nil, as does a press already in flight.
+    func listenUntilQuiet(for set: ActiveSetID, in context: () -> SpokenSetContext) async -> Outcome? {
+        guard start(for: set), let press = starting else { return nil }
+        guard await press.value == nil else { return await finish(for: set, in: context()) }
+        while starting == press, let wentLiveAt {
+            switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: lastHeardAt) {
+            case .wake(let deadline):
+                await clock.sleep(until: deadline)
+            case .stop(.cap) where state.heard.isEmpty:
+                return await giveUpHearingNothing(for: set)
+            case .stop:
+                return await finish(for: set, in: context())
+            }
+        }
+        return nil
+    }
+
+    /// Hands-free listening stops at the first of `silenceWindow` after the last word and
+    /// `listeningCap` after the mic went live. With nothing heard yet it looks again a silence
+    /// window on, so a first word heard in between still stops a window after it.
+    nonisolated static func autoStop(at now: Duration, liveAt: Duration, lastHeardAt: Duration?) -> AutoStop {
+        let cap = liveAt + listeningCap
+        let quiet = lastHeardAt.map { $0 + silenceWindow }
+        if let quiet, quiet <= cap, now >= quiet { return .stop(.silence) }
+        if now >= cap { return .stop(.cap) }
+        return .wake(at: min(quiet ?? now + silenceWindow, cap))
+    }
+
+    private func giveUpHearingNothing(for set: ActiveSetID) async -> Outcome {
+        starting = nil
+        await transcriber.cancel()
+        let outcome = Outcome.rejected(.transcriber(.nothingHeard), heard: "")
+        state = .finished(set, outcome)
+        return outcome
     }
 
     /// Waits for the transcriber to start if it has not, so a release during `preparing` still
@@ -131,9 +217,14 @@ final class SetDictation {
         state = .idle
     }
 
-    /// `heard` nil is the transcriber going live before it has heard a word.
+    /// `heard` nil is the transcriber going live.
     private func hear(_ heard: String?, for set: ActiveSetID) {
         guard state.listeningSetID == set else { return }
+        switch heard {
+        case nil: wentLiveAt = clock.now
+        case let words? where !words.isEmpty && words != state.heard: lastHeardAt = clock.now
+        case .some: break
+        }
         state = .listening(set, heard: heard ?? state.heard)
     }
 
