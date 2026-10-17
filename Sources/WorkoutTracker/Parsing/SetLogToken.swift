@@ -58,6 +58,15 @@ enum SetLogToken {
         return ""
     }
 
+    /// Whether two Notes tokens say the same thing: the same Set State and, for a structured Set
+    /// Log, the same weight, reps, and RPE, however the coach spelled it (`185.0x5@8`,
+    /// `185 x 5 @ 8`, and `185x5@8` match; so do `SKIP` and `skip`). Unstructured text still
+    /// compares by its trimmed text. The compare-and-set check uses this so a coach's spelling of
+    /// the value a write expects does not refuse it (ADR-0003, #685).
+    static func matches(_ lhs: String, _ rhs: String) -> Bool {
+        classify(lhs) == classify(rhs)
+    }
+
     /// Whether a token is a Set-Log-list value: empty (Pending), the `skip` sentinel (Skipped), or
     /// a parseable structured Set Log (Logged). Free text is not — it is a Coach Note / Legacy Log.
     static func isSetLogListValue(_ value: String) -> Bool {
