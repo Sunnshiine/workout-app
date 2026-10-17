@@ -169,6 +169,30 @@ import Testing
 }
 
 @MainActor
+@Test func liveActivityContentNamesTheExerciseByItsBaseNameWithoutTheCadence() throws {
+    // PRODUCT.md, Hide the spreadsheet: the lock screen reads the name the stage reads, never the
+    // coach's tempo prefix (#987, the twin of #815).
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil)
+    rdl.sets = [
+        ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .logged),
+        ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending)
+    ]
+    let session = makeSingleSession(exercises: [rdl])
+    let loggedSet = try #require(rdl.sets.first { $0.index == 0 })
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: session,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(content.exerciseName == "BB RDL")
+}
+
+@MainActor
 @Test func liveActivityContentUsesSupersetAlternationAndCountsDisplayedExerciseOnly() throws {
     let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending])
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending, .pending])
@@ -246,7 +270,7 @@ import Testing
     )
 
     #expect(makeupQueue.map(\.exercise.name) == ["DB Row", "Curl"])
-    #expect(content.exerciseName == firstOpen.exercise.name)
+    #expect(content.exerciseName == firstOpen.exercise.baseName)
     #expect(
         content.target?.setID
             == ActiveSetID(exerciseOrder: firstOpen.exercise.order, setIndex: firstPending.index)
