@@ -14,6 +14,8 @@ struct SessionStageView: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isQueuePresented = false
+    @State private var isRestPillMounted = false
+    @State private var isRestPillFaded = false
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
     @State private var historyExercise: Exercise?
@@ -56,7 +58,10 @@ struct SessionStageView: View {
             }
             .overlay(alignment: composition == .reading ? .leading : .topLeading) {
                 restPill
-                    .animation(restPillSwapAnimation, value: isRestPillMounted)
+                    .animation(nil, value: isResting)
+            }
+            .onChange(of: isResting, initial: true) { _, isResting in
+                updateRestPillMount(isResting: isResting)
             }
         }
         // The whole stage is the keyboard's escape surface: any tap that no control claims
@@ -153,7 +158,7 @@ struct SessionStageView: View {
     private func queueBar(_ stage: SessionStage) -> some View {
         HStack(spacing: 12) {
             upNextButton(stage.upNext)
-                .animation(upNextSwapAnimation, value: isRestPillMounted)
+                .animation(upNextSwapAnimation, value: isResting)
 
             Spacer(minLength: 8)
 
@@ -202,19 +207,19 @@ struct SessionStageView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("stage-up-next")
-            .opacity(isRestPillMounted ? 0 : 1)
-            .accessibilityHidden(isRestPillMounted)
-            .allowsHitTesting(!isRestPillMounted)
+            .opacity(isResting ? 0 : 1)
+            .accessibilityHidden(isResting)
+            .allowsHitTesting(!isResting)
         }
     }
 
-    private var isRestPillMounted: Bool {
+    private var isResting: Bool {
         restTimer.interval != nil
     }
 
     @ViewBuilder
     private var restPill: some View {
-        if isRestPillMounted {
+        if isResting || isRestPillMounted {
             RestPillView(restTimer: restTimer)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .opacity(composition == .reading ? 1 : 0)
@@ -222,19 +227,31 @@ struct SessionStageView: View {
                 .allowsHitTesting(composition == .reading)
                 .animation(nil, value: composition)
                 .modifier(RestPillReveal(reduceMotion: reduceMotion))
-                .transition(.asymmetric(insertion: .identity, removal: .opacity))
+                .opacity(isRestPillFaded ? 0 : 1)
+                .transition(.identity)
         }
     }
 
     // A log starts rest inside the coordinator's 0.65 s momentumFlow, which would cross-fade the
     // timer over Up next. These overrides sequence the swap so the two are never drawn at once.
     private var upNextSwapAnimation: Animation {
-        isRestPillMounted ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
+        isResting ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
     }
 
-    // The entrance is RestPillReveal's, so the mount itself runs without animation.
-    private var restPillSwapAnimation: Animation? {
-        isRestPillMounted ? nil : .smooth(duration: 0.15)
+    // A removal transition here cut the timer in one frame, so the timer stays mounted through its
+    // own fade and unmounts when the fade completes.
+    private func updateRestPillMount(isResting: Bool) {
+        guard !isResting else {
+            isRestPillFaded = false
+            isRestPillMounted = true
+            return
+        }
+        withAnimation(.smooth(duration: 0.15)) {
+            isRestPillFaded = true
+        } completion: {
+            guard !self.isResting else { return }
+            isRestPillMounted = false
+        }
     }
 
     // UIKit hands the first responder back when a sheet closes, so the weight keyboard would reopen
