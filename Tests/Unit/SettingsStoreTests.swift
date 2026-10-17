@@ -12,6 +12,9 @@ import Testing
     store.setSheetURL("https://docs.google.com/spreadsheets/d/SHEET123/edit")
     #expect(store.spreadsheetId == "SHEET123")
     #expect(store.isConfigured == true)
+    store.isSignedIn = false
+    #expect(store.spreadsheetId == "SHEET123")
+    #expect(store.isConfigured == false)
 }
 
 @MainActor

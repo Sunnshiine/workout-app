@@ -4,6 +4,7 @@ struct RootView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
     var body: some View {
@@ -17,16 +18,16 @@ struct RootView: View {
                     NavigationStack {
                         SettingsView()
                     }
-                } else if destination == .session {
+                } else if settings.isConfigured {
                     sessionDestination
                 } else {
-                    OnboardingView()
+                    onboardingDestination
                 }
             #else
-                if destination == .session {
+                if settings.isConfigured {
                     sessionDestination
                 } else {
-                    OnboardingView()
+                    onboardingDestination
                 }
             #endif
         }
@@ -60,14 +61,18 @@ struct RootView: View {
         NavigationStack {
             SessionView(liveActivityAdapter: liveActivityAdapter)
         }
+        .transition(handoff)
     }
 
-    private var destination: AppEntryDestination {
-        AppEntryDestination(
-            isSignedIn: settings.isSignedIn,
-            hasSpreadsheet: settings.spreadsheetId != nil,
-            showsURLFallback: false
-        )
+    private var onboardingDestination: some View {
+        OnboardingView(isSignedIn: settings.isSignedIn)
+            .transition(handoff)
+    }
+
+    // On the transitions, not an .animation(_:value:) on the Group, which would animate every
+    // change under the Group in that transaction, not only the branch swap.
+    private var handoff: AnyTransition {
+        .opacity.animation(reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.35))
     }
 
     private func requestRestNotificationAuthorizationIfNeeded() {

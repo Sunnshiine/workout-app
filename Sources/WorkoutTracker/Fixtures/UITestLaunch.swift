@@ -48,6 +48,8 @@
 
         var slowsSync: Bool { has(.slowSync) }
 
+        var signsInLate: Bool { has(.lateSignIn) }
+
         var startsInDeveloperTools: Bool { has(.developerTools) }
 
         var startsInSettings: Bool { has(.settings) }
