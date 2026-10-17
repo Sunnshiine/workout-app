@@ -1,61 +1,5 @@
 import Foundation
 
-enum HoldToSkipReleaseOutcome: Equatable, Sendable {
-    case deferToTap
-    case cancelSkip
-    case skip
-    case ignore
-}
-
-struct HoldToSkipPolicy: Equatable, Sendable {
-    let holdDuration: TimeInterval
-    let tapMaximumDuration: TimeInterval
-    let revealDelay: TimeInterval
-
-    init(
-        holdDuration: TimeInterval = Theme.Motion.holdToSkipCommit,
-        tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
-        revealDelay: TimeInterval = Theme.Motion.holdToSkipReveal
-    ) {
-        self.holdDuration = holdDuration
-        self.tapMaximumDuration = tapMaximumDuration
-        self.revealDelay = revealDelay
-    }
-
-    /// The idle-Set hold: reveal 250ms, commit 850ms.
-    static let standard = HoldToSkipPolicy()
-
-    /// The longer hold a Set already logged must survive before it re-skips (900ms).
-    static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
-
-    /// The longest hold, to undo an already-skipped Set (1100ms).
-    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
-
-    func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
-        if skipCompleted {
-            return .ignore
-        }
-
-        if elapsed >= holdDuration {
-            return .skip
-        }
-
-        if elapsed <= tapMaximumDuration {
-            return .deferToTap
-        }
-
-        return .cancelSkip
-    }
-
-    func shouldRevealProgress(elapsed: TimeInterval) -> Bool {
-        elapsed >= revealDelay && elapsed < holdDuration
-    }
-
-    var progressAnimationDuration: TimeInterval {
-        max(holdDuration - revealDelay, 0)
-    }
-}
-
 enum HoldToSkipButtonTone: Equatable, Sendable {
     case primary
     case incomplete
@@ -82,6 +26,10 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
 
     var accessibilityLabel: String {
         clampedProgress > 0 ? "Skipped" : logTitle
+    }
+
+    var accessibilityValue: String {
+        clampedProgress > 0 ? "\(Int((clampedProgress * 100).rounded()))% Skip" : ""
     }
 
     var accessibilityHint: String {

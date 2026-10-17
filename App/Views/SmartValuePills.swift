@@ -488,7 +488,7 @@ private struct HoldToSkipLogButton: View {
         .onDisappear { gesture.disappeared() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
+        .accessibilityValue(presentation.accessibilityValue)
         .accessibilityHint(presentation.accessibilityHint)
         .accessibilityIdentifier("log-active-set-button")
         .accessibilityAddTraits(.isButton)

@@ -9,6 +9,37 @@ private func at(_ milliseconds: Int) -> ContinuousClock.Instant {
     pressStart + .milliseconds(milliseconds)
 }
 
+@Test func holdToSkipPolicyDefaultsToTheIdleSetHold() {
+    let policy = HoldToSkipPolicy.standard
+
+    #expect(HoldToSkipPolicy.forSet(in: .pending) == policy)
+    #expect(policy.revealDelay == 0.25)
+    #expect(policy.holdDuration == 0.85)
+    #expect(policy.progressAnimationDuration == 0.6)
+}
+
+@Test func holdToSkipGestureLeavesAReleaseInsideTheTapMaximumToTheTap() {
+    var gesture = HoldToSkipGesture()
+    _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(gesture.pressEnded(at: at(180)) == [.retreatFill])
+    #expect(gesture.tapped(at: at(190)) == [.log])
+}
+
+@Test func holdToSkipGestureSwallowsTheTapOfAReleasePastTheTapMaximumUntilTheWindowCloses() {
+    var early = HoldToSkipGesture()
+    _ = early.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(early.pressEnded(at: at(190)) == [.retreatFill])
+    #expect(early.tapped(at: at(439)) == [])
+
+    var late = HoldToSkipGesture()
+    _ = late.pressBegan(at: at(0), policy: .forSet(in: .pending))
+
+    #expect(late.pressEnded(at: at(190)) == [.retreatFill])
+    #expect(late.tapped(at: at(440)) == [.log])
+}
+
 @Test func holdToSkipGestureRevealsProgressAt250Milliseconds() {
     var gesture = HoldToSkipGesture()
     _ = gesture.pressBegan(at: at(0), policy: .forSet(in: .pending))
