@@ -47,8 +47,7 @@ private func squatRequest(titles: [String], baseNames: Set<String> = ["Squat"]) 
 
 private func squatEntry(week: Int) -> LastPerformedEntry {
     LastPerformedEntry(
-        fullName: "Squat",
-        baseName: "Squat",
+        exerciseName: "Squat",
         resultText: "24\(week)x5@8",
         performedOn: Date(timeIntervalSince1970: TimeInterval(week)),
         source: "Block 2\(week) · W1 D1"

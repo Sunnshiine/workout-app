@@ -1,13 +1,12 @@
 import Foundation
 
 /// Where a Set sits in the Sheet, in the semantic terms a pending write persists
-/// (ADR-0006): Block tab, Week, Day, Exercise, Set index — plus the Session date and the
-/// Exercise base name that the Last Performed index records alongside them.
+/// (ADR-0006): Block tab, Week, Day, Exercise, Set index — plus the Session date that the Last
+/// Performed index records alongside them.
 struct SetCoordinates: Equatable {
     let session: SessionCoordinate
     let dayNumbering: DayNumbering
-    let exerciseName: String
-    let exerciseBaseName: String
+    let exerciseName: ExerciseName
     let setIndex: Int
     let sessionDate: Date?
 
@@ -19,19 +18,18 @@ struct SetCoordinates: Equatable {
         guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
         self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
         self.dayNumbering = block.dayNumbering
-        self.exerciseName = exercise.exerciseName.entered
-        self.exerciseBaseName = exercise.exerciseName.base
+        self.exerciseName = exercise.exerciseName
         self.setIndex = set.index
         self.sessionDate = session.date
     }
 
     /// The part of a Set's coordinates that still names the same Set after a freshly parsed Block
-    /// replaces the cached one, when both Blocks number their Days the same way. The Session date
-    /// and the Exercise base name are re-read from the Sheet on every parse, so they can move while
-    /// the Set stays the one a pending write addressed.
+    /// replaces the cached one, when both Blocks number their Days the same way. The Session date is
+    /// re-read from the Sheet on every parse, so it can move while the Set stays the one a pending
+    /// write addressed.
     struct ID: Hashable {
         let session: SessionCoordinate
-        let exerciseName: String
+        let exerciseName: ExerciseName
         let setIndex: Int
     }
 }
@@ -39,7 +37,7 @@ struct SetCoordinates: Equatable {
 extension SetCoordinates.ID {
     @MainActor
     init(_ write: PendingWrite) {
-        self.init(session: write.recordedSession, exerciseName: write.exerciseName, setIndex: write.setIndex)
+        self.init(session: write.recordedSession, exerciseName: ExerciseName(entered: write.exerciseName), setIndex: write.setIndex)
     }
 }
 
@@ -56,7 +54,7 @@ extension Block {
                     for set in exercise.sets {
                         let id = SetCoordinates.ID(
                             session: SessionCoordinate(blockTab: tabName, address: week.address(of: session)),
-                            exerciseName: exercise.exerciseName.entered,
+                            exerciseName: exercise.exerciseName,
                             setIndex: set.index
                         )
                         sets[id] = set

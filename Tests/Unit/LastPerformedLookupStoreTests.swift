@@ -23,8 +23,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let context = container.mainContext
     context.insert(
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W3 D1"
@@ -46,8 +45,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let context = container.mainContext
     context.insert(
         LastPerformedEntry(
-            fullName: "1:0:1 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "1:0:1 BB RDL",
             resultText: "175x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
@@ -55,8 +53,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     )
     context.insert(
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
@@ -91,8 +88,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let context = container.mainContext
     let store = LastPerformedLookupStore(context: context)
     let entry = LastPerformedEntry(
-        fullName: "BB RDL",
-        baseName: "BB RDL",
+        exerciseName: "BB RDL",
         resultText: "185x7@6",
         performedOn: Date(timeIntervalSinceReferenceDate: 100),
         source: "Block 26 · W3 D1"
@@ -101,8 +97,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     try store.ingest([entry])
     try store.ingest([
         LastPerformedEntry(
-            fullName: "BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "BB RDL",
             resultText: "185x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W3 D1"
@@ -123,15 +118,13 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     try store.ingest([
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "205x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
         ),
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "185x5@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
@@ -157,8 +150,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let entry = {
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "205x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
@@ -183,8 +175,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     // A pre-existing (seeded) row from the former last_performed store.
     context.insert(
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "185x5@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
@@ -195,8 +186,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     try store.ingest([
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "205x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W2 D1"
@@ -217,8 +207,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     let entry = {
         LastPerformedEntry(
-            fullName: "Standing Calve Raises",
-            baseName: "Standing Calve Raises",
+            exerciseName: "Standing Calve Raises",
             resultText: "25x12, 12",
             performedOn: .distantPast,
             source: "Block 27 · W1 D1"
@@ -241,8 +230,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let store = LastPerformedLookupStore(context: context)
     try store.ingest([
         LastPerformedEntry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            exerciseName: "Bench Press",
             resultText: "225x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 27 · W1 D1"
@@ -251,8 +239,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     try store.ingest([
         LastPerformedEntry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            exerciseName: "Bench Press",
             resultText: "205x5@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 26 · W4 D1"
@@ -276,8 +263,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 
     try store.ingest([
         LastPerformedEntry(
-            fullName: "Squat",
-            baseName: "Squat",
+            exerciseName: "Squat",
             resultText: "205x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 27 · W1 D1"
@@ -297,15 +283,13 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let store = LastPerformedLookupStore(context: container.mainContext)
     try store.ingest([
         LastPerformedEntry(
-            fullName: "1:0:1 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "1:0:1 BB RDL",
             resultText: "175x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
         ),
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"
@@ -379,15 +363,13 @@ private func lastPerformedContainer() throws -> ModelContainer {
     let store = LastPerformedLookupStore(context: context)
     try store.ingest([
         LastPerformedEntry(
-            fullName: "1:0:1 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "1:0:1 BB RDL",
             resultText: "175x7@6",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "Block 25 · W4 D1"
         ),
         LastPerformedEntry(
-            fullName: "2-3:1:0 BB RDL",
-            baseName: "BB RDL",
+            exerciseName: "2-3:1:0 BB RDL",
             resultText: "185x7@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 200),
             source: "Block 26 · W3 D1"

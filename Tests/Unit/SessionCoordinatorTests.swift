@@ -555,8 +555,7 @@ private func makeRestActionFixture(
     let context = container.mainContext
     context.insert(
         LastPerformedEntry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            exerciseName: "Bench Press",
             resultText: "185x6@7",
             performedOn: Date(timeIntervalSinceReferenceDate: 100),
             source: "W3 D2"

@@ -5,13 +5,11 @@ import Observation
 /// keeps the pair. The Block tab stays in, because a coach reuses the template between Blocks.
 struct SupersetExerciseIdentity: Hashable, Sendable {
     let session: SessionReparseIdentity
-    let exerciseName: String
-    let baseName: String
+    let exerciseName: ExerciseName
 
     init(exercise: Exercise) {
         session = exercise.session?.reparseIdentity ?? .weekless(dayNumber: 0)
-        exerciseName = exercise.exerciseName.entered
-        baseName = exercise.exerciseName.base
+        exerciseName = exercise.exerciseName
     }
 }
 

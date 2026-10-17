@@ -4,15 +4,13 @@ import Testing
 @testable import WorkoutTracker
 
 private func entry(
-    fullName: String,
-    baseName: String,
+    name: ExerciseName,
     resultText: String,
     source: String,
     performedOn: Date
 ) -> LastPerformedOccurrence {
     LastPerformedOccurrence(
-        fullName: fullName,
-        baseName: baseName,
+        exerciseName: name,
         resultText: resultText,
         performedOn: performedOn,
         source: source
@@ -28,8 +26,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -44,22 +41,19 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func historySheetGroupsUnderBlockHeadersNewestFirst() {
     let entries = [
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "185x5@8",
             source: "Block 26 · W2 D1",
             performedOn: date(30)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "190x5@8",
             source: "Block 27 · W1 D1",
             performedOn: date(10)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "195x5@8",
             source: "Block 27 · W2 D1",
             performedOn: date(3)
@@ -79,8 +73,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -106,8 +99,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "3-0:1:0 Squat",
-                baseName: "Squat",
+                name: "3-0:1:0 Squat",
                 resultText: "315x3@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -124,8 +116,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8, skip, 185x4@9",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -151,8 +142,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: "185x5@7, amrap",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -170,8 +160,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: "185x5@8.5, 135x8@4",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -191,8 +180,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: "185x5@7, amrap, felt smooth",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -213,8 +201,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: raw,
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -234,8 +221,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Deadlift",
         entries: [
             entry(
-                fullName: "Deadlift",
-                baseName: "Deadlift",
+                name: "Deadlift",
                 resultText: raw,
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -257,8 +243,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Standing Calf Raise",
         entries: [
             entry(
-                fullName: "Standing Calve Raises",
-                baseName: "Standing Calve Raises",
+                name: "Standing Calve Raises",
                 resultText: "90x12@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -276,8 +261,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "bench press",
-                baseName: "bench press",
+                name: "bench press",
                 resultText: "185x5@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -296,8 +280,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squats",
+                name: "Squats",
                 resultText: "315x3@8, skip, amrap",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -317,8 +300,7 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func historySheetCapsAtFiveEntriesNewestFirst() {
     let entries = (0..<8).map { index in
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "\(180 + index)x5@8",
             source: "Block 27 · W\(index + 1) D1",
             performedOn: date(index)
@@ -337,15 +319,13 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func historySheetWithFewerThanFiveShowsWhatExists() {
     let entries = [
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "185x5@8",
             source: "Block 27 · W1 D1",
             performedOn: date(1)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "190x5@8",
             source: "Block 27 · W2 D1",
             performedOn: date(0)
@@ -364,8 +344,7 @@ private func date(_ daysAgo: Int) -> Date {
     // fill-in-progress affordance is scoped out even while a fill runs for other Movements.
     let belowCap = (0..<3).map { index in
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "\(180 + index)x5@8",
             source: "Block 27 · W\(index + 1) D1",
             performedOn: date(index)
@@ -375,8 +354,7 @@ private func date(_ daysAgo: Int) -> Date {
 
     let atCap = (0..<5).map { index in
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "\(180 + index)x5@8",
             source: "Block 27 · W\(index + 1) D1",
             performedOn: date(index)
@@ -395,8 +373,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -418,8 +395,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8, skip, 185x4@9",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -441,8 +417,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: "185x5@7, amrap",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -465,8 +440,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Squat",
         entries: [
             entry(
-                fullName: "Squat",
-                baseName: "Squat",
+                name: "Squat",
                 resultText: "worked up to 315, felt easy",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -482,22 +456,19 @@ private func date(_ daysAgo: Int) -> Date {
     // point carries its Block header so the view can draw the dotted Block seam at the boundary.
     let entries = [
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "180x5@8",
             source: "Block 26 · W2 D1",
             performedOn: date(30)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "185x5@8",
             source: "Block 27 · W1 D1",
             performedOn: date(10)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "190x5@8",
             source: "Block 27 · W2 D1",
             performedOn: date(3)
@@ -519,29 +490,25 @@ private func date(_ daysAgo: Int) -> Date {
     // crossing at index 2; consecutive points inside a Block never seam.
     let entries = [
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "180x5@8",
             source: "Block 26 · W1 D1",
             performedOn: date(40)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "182x5@8",
             source: "Block 26 · W2 D1",
             performedOn: date(30)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "185x5@8",
             source: "Block 27 · W1 D1",
             performedOn: date(20)
         ),
         entry(
-            fullName: "Bench Press",
-            baseName: "Bench Press",
+            name: "Bench Press",
             resultText: "190x5@8",
             source: "Block 27 · W2 D1",
             performedOn: date(10)
@@ -560,8 +527,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(1)
@@ -574,15 +540,13 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8",
                 source: "Block 27 · W1 D1",
                 performedOn: date(10)
             ),
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "190x5@8",
                 source: "Block 27 · W2 D1",
                 performedOn: date(3)
@@ -598,12 +562,24 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func volumeHeightFractionsNormalizeTheSeriesMinToFloorAndMaxToCeiling() {
     // Volumes 180×5=900 (Block 26), 185×5=925, 190×5=950 (Block 27) run oldest→newest.
     let entries = [
-        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "180x5@8",
-              source: "Block 26 · W2 D1", performedOn: date(30)),
-        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "185x5@8",
-              source: "Block 27 · W1 D1", performedOn: date(10)),
-        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "190x5@8",
-              source: "Block 27 · W2 D1", performedOn: date(3))
+        entry(
+            name: "Bench Press",
+            resultText: "180x5@8",
+            source: "Block 26 · W2 D1",
+            performedOn: date(30)
+        ),
+        entry(
+            name: "Bench Press",
+            resultText: "185x5@8",
+            source: "Block 27 · W1 D1",
+            performedOn: date(10)
+        ),
+        entry(
+            name: "Bench Press",
+            resultText: "190x5@8",
+            source: "Block 27 · W2 D1",
+            performedOn: date(3)
+        )
     ]
 
     let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
@@ -616,10 +592,18 @@ private func date(_ daysAgo: Int) -> Date {
 @Test func volumeHeightFractionsCenterAFlatSeriesSoItReadsCalm() {
     // Two identical totals: a zero span must map to the vertical centre, never divide by zero.
     let entries = [
-        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "185x5@8",
-              source: "Block 27 · W1 D1", performedOn: date(10)),
-        entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "185x5@8",
-              source: "Block 27 · W2 D1", performedOn: date(3))
+        entry(
+            name: "Bench Press",
+            resultText: "185x5@8",
+            source: "Block 27 · W1 D1",
+            performedOn: date(10)
+        ),
+        entry(
+            name: "Bench Press",
+            resultText: "185x5@8",
+            source: "Block 27 · W2 D1",
+            performedOn: date(3)
+        )
     ]
 
     let presentation = ExerciseHistorySheetPresentation(anchorBaseName: "Bench Press", entries: entries)
@@ -631,8 +615,12 @@ private func date(_ daysAgo: Int) -> Date {
     let single = ExerciseHistorySheetPresentation(
         anchorBaseName: "Bench Press",
         entries: [
-            entry(fullName: "Bench Press", baseName: "Bench Press", resultText: "185x5@8",
-                  source: "Block 27 · W1 D1", performedOn: date(1))
+            entry(
+                name: "Bench Press",
+                resultText: "185x5@8",
+                source: "Block 27 · W1 D1",
+                performedOn: date(1)
+            )
         ]
     )
     #expect(single.volumeHeightFractions == [0.5])
@@ -641,8 +629,12 @@ private func date(_ daysAgo: Int) -> Date {
     let none = ExerciseHistorySheetPresentation(
         anchorBaseName: "Squat",
         entries: [
-            entry(fullName: "Squat", baseName: "Squat", resultText: "worked up to 315",
-                  source: "Block 27 · W1 D1", performedOn: date(1))
+            entry(
+                name: "Squat",
+                resultText: "worked up to 315",
+                source: "Block 27 · W1 D1",
+                performedOn: date(1)
+            )
         ]
     )
     #expect(none.volumeHeightFractions.isEmpty)
@@ -655,8 +647,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8",
                 source: "W3 D2",
                 performedOn: date(1)
@@ -673,8 +664,7 @@ private func date(_ daysAgo: Int) -> Date {
         anchorBaseName: "Bench Press",
         entries: [
             entry(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                name: "Bench Press",
                 resultText: "185x5@8",
                 source: "Block 27 · Deload · W1 D1",
                 performedOn: date(1)

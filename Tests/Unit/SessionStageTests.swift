@@ -49,8 +49,7 @@ private func benchHistory() -> LastPerformedLookupSnapshot {
     LastPerformedLookupSnapshot(
         occurrences: [
             LastPerformedOccurrence(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                exerciseName: "Bench Press",
                 resultText: "185x6@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: "W3 D2"
