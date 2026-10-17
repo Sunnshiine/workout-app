@@ -62,7 +62,7 @@ enum SetLogToken {
     /// Log, the same weight, reps, and RPE, however the coach spelled it (`185.0x5@8`,
     /// `185 x 5 @ 8`, and `185x5@8` match; so do `SKIP` and `skip`). Unstructured text still
     /// compares by its trimmed text. The compare-and-set check uses this so a coach's spelling of
-    /// the value a write expects does not refuse it (ADR-0003, #685).
+    /// the value a write expects does not refuse it (ADR-0003).
     static func matches(_ lhs: String, _ rhs: String) -> Bool {
         classify(lhs) == classify(rhs)
     }

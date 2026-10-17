@@ -48,6 +48,25 @@ struct SetLogMatchByMeaningWriteTests {
         #expect(update.value == "190x5@8")
     }
 
+    @Test func coachExponentSpellingLands() throws {
+        let update = try planner.plan(
+            request(setIndex: 0, expecting: "1e+19x5@8", writing: "190x5@8"),
+            in: grid(j15: "1e19x5@8")
+        )
+
+        #expect(update.value == "190x5@8")
+    }
+
+    @Test func writeTargetAuditAgreesWithTheCheckOnACoachSpelling() throws {
+        let snapshot = planner.snapshot(for: grid(j15: "185.0x5@8"))
+        let write = request(setIndex: 0, expecting: "185x5@8", writing: "190x5@8")
+
+        let audit = planner.auditDetails(for: write, target: try planner.target(for: write, in: snapshot), in: snapshot)
+
+        #expect(audit.currentValue == "185.0x5@8")
+        #expect(audit.valueCheckOutcome == "Current value matched expected '185x5@8'.")
+    }
+
     @Test func coachSpellingOfASkipLands() throws {
         let update = try planner.plan(
             request(setIndex: 0, expecting: "skip", writing: "190x5@8"),
