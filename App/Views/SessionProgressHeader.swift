@@ -57,12 +57,9 @@ struct SessionProgressHeader: View {
     }
 
     private var locationLabelText: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Image(systemName: "calendar")
-                .accessibilityHidden(true)
-            Text(presentation.runlineText)
-        }
-        .font(Theme.font(.runline))
-        .foregroundStyle(palette.textSecondary)
+        Text("\(Image(systemName: "calendar")) \(presentation.runlineText)")
+            .accessibilityLabel(presentation.runlineText)
+            .font(Theme.font(.runline))
+            .foregroundStyle(palette.textSecondary)
     }
 }
