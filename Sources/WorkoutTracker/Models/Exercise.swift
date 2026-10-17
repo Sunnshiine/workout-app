@@ -180,3 +180,13 @@ final class ExerciseSet {
         self.unstructuredSetLog = unstructuredSetLog
     }
 }
+
+extension ExerciseSet {
+    /// The structured Set Logs on this Exercise's earlier Sets, nearest first.
+    var earlierSetLogs: [(index: Int, setLog: SetLog)] {
+        (exercise?.sets ?? [])
+            .filter { $0.index < index }
+            .sorted { $0.index > $1.index }
+            .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } }
+    }
+}

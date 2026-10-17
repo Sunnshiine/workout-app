@@ -42,6 +42,7 @@ with exit 3; run `init` again.
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
+| `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
@@ -69,6 +70,84 @@ entry's `session`, plus the `setLog` and the `text` the card shows.
 $ workout log w1d1.e0.s0 315x5@7 > /dev/null
 $ workout session w2d1 | jq -c '.exercises[0].sets[0].loadSuggestion'
 {"basis":{"origin":"history","session":"Block 27 · W1 D1","setLog":"315x5@7","text":"from 315x5@7 · W1 D1"},"kind":"estimate","weight":315}
+```
+
+## Spoken Sets
+
+`say` reads a transcript as a Spoken Set and does what the Set card would do with it. Each value
+said replaces the one the card pre-fills (the Set's own Set Log, else `loadSuggestion` and the
+prescribed reps and RPE), and the rest keep the pre-fill. A weight or reps the athlete did not say
+and the card does not hold is never guessed.
+
+| `outcome` | Means | Carries | Exit |
+|---|---|---|---|
+| `logged` | weight, reps, and RPE are all present, logged through `WorkoutStore.log` | `setLog` | 0 |
+| `skipped` | "skip", "skip it", "skip set", "skip this set", or "skipped", through `WorkoutStore.skip` | | 0 |
+| `missingValues` | a value is still missing, so nothing is queued and the Set stays Pending | `missing`: `weight`, `reps`, `rpe` | 0 |
+| `rejected` | the transcript is not a Set, so nothing is queued | `rejection`: `reason`, and `field` or `value` | 1 |
+
+`rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
+recognizer ran together), `ambiguous` (a number no word places, or words that may mean another Set),
+`conflicting` (a `field` said twice, even as the same number, which reads as two Sets),
+`outOfRange` (reps outside 1 to 30, or a weight under 20 pounds or finer than a quarter pound),
+`offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
+earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
+then a `spoken_set_rejected` error.
+
+The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it. A number is a value only
+where a word next to it, or the phrase around it, says which, never by its place in the transcript.
+
+- "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
+  and said first they label the reps ("for 5"). "four" between a weight and a number is "for" too
+  ("185 four 5"), and so is "per" after bodyweight or a weight of at least 20 heavier than the reps
+  ("95 pounds per 6"). "25 per 30" is `ambiguous`. "or" between numbers is always `ambiguous`:
+  "225 or 3" may be "225 for 3", and "20 or 25 reps" is a range.
+- "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
+  number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
+  after it ("8 reps", "reps 8"). "with" labels bodyweight or a number of 15 or more after it as the
+  weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else.
+- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
+  "RPE" labels the number before it too ("8 RPE"). After "at", a number under 15 is the RPE
+  ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135").
+- Right after a whole weight for reps, "and", "of", or "add" before a number is the "at" the
+  recognizer mishears, and the number after it is never read: "185 for 5 and 8" is `missingValues`
+  with the RPE missing, because "185 for 5 and 5" may be five Sets of five.
+- A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
+  cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing. A rep
+  count is whole, so after one it is the RPE that is missing ("185 for 5 and").
+- A value said twice is `conflicting`, even as the same number: "185 for 5 for 5" and "185 for 5
+  reps, 5 reps".
+- A Spoken Set no Set Log holds is rejected before the card fills anything: reps outside 1 to 30 or
+  a weight under 20 pounds or finer than a quarter pound is `outOfRange` ("135 for 45", "187.55 for
+  5", and "5 by 5", the shorthand for five Sets of five).
+- A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
+  "for 5, 8", and "eight" alone.
+- Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
+  "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
+  "ate" is 8, and "to" or "too" is 2 only where a number is asked for. Number words in a row that
+  make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
+  one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
+- A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
+  wrote "40542" for "four oh five for two".
+- A rep count written as two digits right after "for", with no "reps" after it and no RPE said, is
+  `ambiguous` when its second digit is 6 to 9: "135 for 19" may be "135 for 1 at 9". "135 for 19
+  reps", "135 for 15", and "45 for 10" log.
+- "bodyweight", "body weight", and "BW" are the BW weight.
+- "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log
+  the Exercise's nearest earlier Set Log in the Session. A command acts on this Set alone, so one
+  that names a Set or Session, as "skip set one", "same as set one", and "same as last time" do, is
+  `ambiguous`. Any other word in a command, as "same weight", is `unrecognized`.
+- Filler such as "um", "okay", "please", "thanks", "yeah", "I", "just", "hit", "did", and "got" is
+  dropped. Any other word, or a symbol such as "%", "+", or the minus of "135 for -5", rejects the
+  transcript rather than being skipped.
+
+```console
+$ workout say w1d1.e0.s0 "RPE 9" | jq -c '{outcome, missing}'
+{"outcome":"missingValues","missing":["weight"]}
+$ workout say w1d1.e0.s0 "185 for 5 at 8" | jq -c '{outcome, setLog}'
+{"outcome":"logged","setLog":"185x5@8"}
+$ workout say w1d1.e0.s1 "at 9" | jq -c '{outcome, setLog}'     # the card's estimate, at the RPE said
+{"outcome":"logged","setLog":"180x5@9"}
 ```
 
 ## Sync outcome
@@ -101,7 +180,7 @@ Parsing is strict (`w1d1.e0.s2`, never `W1D1`). Copy ids from `session` output.
 
 Results are pretty JSON on stdout (sorted keys, ISO-8601 dates). Errors are one JSON line on
 stderr; stdout is empty unless the command produced a report before failing (a `flush` that left
-conflicts behind prints the report, then the error):
+conflicts behind, or a rejected `say`, prints the report, then the error):
 
 ```console
 $ workout log w1d1.e0.s9 185x5@8; echo $?
@@ -112,7 +191,7 @@ $ workout log w1d1.e0.s9 185x5@8; echo $?
 | Exit | Meaning |
 |---|---|
 | 0 | ok |
-| 1 | domain error (an address or state error; `code` names it) |
+| 1 | domain error (an address or state error, or a rejected Spoken Set; `code` names it) |
 | 3 | environment error (no home, unreadable workbook, sheet offline) |
 | 4 | conflict (a queued write the Sheet rejected, or `sync` ended in conflict) |
 | 64 | usage (ArgumentParser) |
