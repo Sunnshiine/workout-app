@@ -251,8 +251,10 @@ final class SessionCoordinator {
                 try loggingAdapter.log(set, as: log)
                 startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
                 reconcileLiveActivity(for: session)
-                advanceAfterLog(set, in: session)
-                hold(set, writtenFrom: source, wasSupersetMember: wasSupersetMember)
+                switch source {
+                case .card: advanceAfterLog(set, in: session)
+                case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
+                }
             }
             syncAdapter.requestPendingWriteFlush()
         } catch {
@@ -267,8 +269,10 @@ final class SessionCoordinator {
             try perform(.skipFadeUp) {
                 try loggingAdapter.skip(set)
                 reconcileLiveActivity(for: session)
-                advanceAfterSkip(set, in: session)
-                hold(set, writtenFrom: source, wasSupersetMember: wasSupersetMember)
+                switch source {
+                case .card: advanceAfterSkip(set, in: session)
+                case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
+                }
             }
             syncAdapter.requestPendingWriteFlush()
         } catch {
@@ -611,9 +615,8 @@ extension SessionCoordinator {
 
     /// A Superset's stage shows no held Set, as it shows no review, so a spoken write there moves
     /// on at once.
-    fileprivate func hold(_ set: ExerciseSet, writtenFrom source: WriteSource, wasSupersetMember: Bool) {
-        guard source == .speech, !wasSupersetMember else { return }
-        focusManager.holdAfterSpokenWrite(set)
+    fileprivate func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
+        guard focusManager.advanceAfterSpokenWrite(set, in: session, holding: !wasSupersetMember) else { return }
         spokenWriteHoldTask?.cancel()
         let clock = transitionClock
         spokenWriteHoldTask = Task { @MainActor [weak self] in

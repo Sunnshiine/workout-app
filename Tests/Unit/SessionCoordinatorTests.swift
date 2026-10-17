@@ -2461,6 +2461,66 @@ private let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
     #expect(dictation.state == .idle)
 }
 
+/// Presses the mic on `set`'s card and lets go, returning while the transcript is still coming in.
+@MainActor
+private func letGoOfTheMic(
+    on set: ExerciseSet,
+    of coordinator: SessionCoordinator,
+    hearing transcriber: HeldSetTranscriber
+) async -> Task<SetDictation.Outcome?, Never> {
+    coordinator.startDictation(for: set)
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    let releasing = Task {
+        await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+    }
+    await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
+    return releasing
+}
+
+@MainActor
+@Test func aSpokenSetLogLandingAfterTheAthleteMovedToAnotherSetLeavesTheCardThere() async throws {
+    let session = makeCoordinatorSession()
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: SetDictation(transcriber: transcriber))
+    let released = try card(coordinator, in: session).set
+    let row = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
+    let releasing = await letGoOfTheMic(on: released, of: coordinator, hearing: transcriber)
+
+    coordinator.focus(on: row)
+    transcriber.finishing.release()
+
+    #expect(await releasing.value == .logged(SetLog(weight: .pounds(185), reps: 6, rpe: .seven), heard: "185 for 6 at 7"))
+    #expect(released.state == .logged)
+    let shown = try #require(exerciseStage(coordinator, in: session)?.card)
+    #expect(shown.set === row)
+    #expect(shown.mode == .logging)
+    #expect(clock.sleptDurations.isEmpty)
+}
+
+@MainActor
+@Test func aSpokenSetLogLandingUnderAReviewKeepsTheReviewAndMovesTheActiveSetOn() async throws {
+    let session = makeCoordinatorSession()
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: SetDictation(transcriber: transcriber))
+    let released = try card(coordinator, in: session).set
+    let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+    let releasing = await letGoOfTheMic(on: released, of: coordinator, hearing: transcriber)
+
+    coordinator.focus(on: squat)
+    transcriber.finishing.release()
+
+    #expect(await releasing.value == .logged(SetLog(weight: .pounds(185), reps: 6, rpe: .seven), heard: "185 for 6 at 7"))
+    #expect(released.state == .logged)
+    let reviewed = try #require(exerciseStage(coordinator, in: session)?.card)
+    #expect(reviewed.set === squat)
+    #expect(reviewed.mode == .reviewingLogged(showsSavedConfirmation: false))
+    #expect(clock.sleptDurations.isEmpty)
+    coordinator.focus(on: squat)
+    #expect(coordinator.activeSetID == secondBench)
+    #expect(try card(coordinator, in: session).mode == .logging)
+}
+
 @MainActor
 @Test func theMicIsOnTheCardOnlyForAPendingSetBeingLogged() async throws {
     let session = makeCoordinatorSession()
