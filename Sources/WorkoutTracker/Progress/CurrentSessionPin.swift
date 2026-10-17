@@ -122,6 +122,10 @@ struct CurrentSessionResolution: Equatable {
     /// not one: it moves along the Block rather than away from where the Sheet says they are.
     var isMadeCurrent: Bool { pin == .inForce(.madeCurrent) }
 
+    var isPinInForce: Bool {
+        if case .inForce = pin { true } else { false }
+    }
+
     /// A Pin is stored for this Block, in force or not.
     var hasPin: Bool { pin != .unset }
 }
