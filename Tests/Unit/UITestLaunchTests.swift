@@ -93,20 +93,20 @@ import Testing
     }
 
     @MainActor
-    @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() throws {
-        let seeded = try seed(arguments: ["-UITEST_FULL_BLOCK"])
-        defer { withExtendedLifetime(seeded.container) {} }
+    @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() async throws {
+        let booted = try await BootedFixture.boot(["-UITEST_FULL_BLOCK"])
+        let block = try booted.block()
 
-        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 1)) == ["Back Squat", "2-3:1:0 BB RDL"])
-        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 2)) == ["Bench Press", "Pull-Up"])
-        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 3)) == ["Deadlift"])
-        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 4)) == ["Accessory"])
-        #expect(exerciseNames(in: seeded.block, at: SessionAddress(week: 3, day: 2)) == ["Accessory"])
-        #expect(seeded.block.weeks.map(\.number).sorted() == [1, 2, 3, 4])
+        #expect(exerciseNames(in: block, at: SessionAddress(week: 1, day: 1)) == ["Back Squat", "2-3:1:0 BB RDL"])
+        #expect(exerciseNames(in: block, at: SessionAddress(week: 1, day: 2)) == ["Bench Press", "Pull-Up"])
+        #expect(exerciseNames(in: block, at: SessionAddress(week: 1, day: 3)) == ["Deadlift"])
+        #expect(exerciseNames(in: block, at: SessionAddress(week: 1, day: 4)) == ["Accessory"])
+        #expect(exerciseNames(in: block, at: SessionAddress(week: 3, day: 2)) == ["Accessory"])
+        #expect(block.weeks.map(\.number).sorted() == [1, 2, 3, 4])
     }
 
     @MainActor
-    @Test func eachScenarioSeedsItsOwnBlock() throws {
+    @Test func eachScenarioSeedsItsOwnBlock() async throws {
         let shapes: [(arguments: [String], weekOneDayNumbers: [Int], weekOneDayOneNames: [String])] = [
             (["-UITEST_PERFECT_MOVE_ON_CELEBRATION"], [1, 2], ["Back Squat"]),
             (["-UITEST_COMPLETED_OPEN_EXERCISES"], [1, 2, 3], ["Back Squat"]),
@@ -123,42 +123,84 @@ import Testing
         ]
 
         for shape in shapes {
-            let seeded = try seed(arguments: shape.arguments)
-            defer { withExtendedLifetime(seeded.container) {} }
-            let weekOne = try #require(seeded.block.weeks.first { $0.number == 1 })
+            let booted = try await BootedFixture.boot(shape.arguments)
+            let block = try booted.block()
+            let weekOne = try #require(block.weeks.first { $0.number == 1 })
 
             #expect(weekOne.sessions.map(\.dayNumber).sorted() == shape.weekOneDayNumbers)
             #expect(
-                exerciseNames(in: seeded.block, at: SessionAddress(week: 1, day: 1)) == shape.weekOneDayOneNames,
+                exerciseNames(in: block, at: SessionAddress(week: 1, day: 1)) == shape.weekOneDayOneNames,
                 "scenario \(shape.arguments)"
             )
         }
     }
 
     @MainActor
-    @Test func seedingAlwaysInsertsTheFixtureHistoryAndOnlyQueuesAWriteWhenAsked() throws {
-        let plain = try seed(arguments: [])
-        defer { withExtendedLifetime(plain.container) {} }
+    @Test func bootAlwaysLeavesTheFixtureHistoryAndOnlyQueuesAWriteWhenAsked() async throws {
+        let plain = try await BootedFixture.boot([])
         #expect(
             try plain.context.fetch(FetchDescriptor<LastPerformedEntry>()).map(\.resultText).sorted()
                 == ["185x5@7, 195x5@8", "225x5@7", "235x5@6, 245x5@7", "245x5@6, 255x5@7"]
         )
         #expect(try plain.context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 
-        let pending = try seed(arguments: ["-UITEST_PENDING_WRITE"])
-        defer { withExtendedLifetime(pending.container) {} }
+        let pending = try await BootedFixture.boot(["-UITEST_PENDING_WRITE"])
         let queued = try pending.context.fetch(FetchDescriptor<PendingWrite>())
-        #expect(queued.map(\.valueToWrite) == ["185x5@8"])
-        #expect(queued.map { $0.createdAt.ISO8601Format() } == ["2001-01-01T00:00:00Z"])
+        #expect(queued.map(\.exerciseName) == ["2-3:1:0 BB RDL"])
+        #expect(queued.map(\.setIndex) == [0])
+        #expect(queued.map(\.valueToWrite) == ["225x8@8"])
     }
 
     @MainActor
-    @Test func theDefaultLaunchBenchPressEstimatesFromHistoryThenFromSetOneToday() throws {
-        let seeded = try seed(arguments: [])
-        defer { withExtendedLifetime(seeded.container) {} }
-        let history = LastPerformedLookupStore(context: seeded.context).snapshot
-        let sets = try #require(seeded.block.session(at: SessionAddress(week: 1, day: 2))?.exercises.first { $0.name == "Bench Press" })
-            .sets.sorted { $0.index < $1.index }
+    @Test func aPendingWriteLaunchOnAHandBuiltScenarioFailsTheBoot() async throws {
+        await #expect(throws: UITestFixture.BootFailure.self) {
+            _ = try await BootedFixture.boot(["-UITEST_PENDING_WRITE", "-UITEST_LONG_SESSION"])
+        }
+    }
+
+    @MainActor
+    @Test func bootLeavesNoSyncOutcomeAndNoSyncInFlight() async throws {
+        for arguments in [[], ["-UITEST_FULL_BLOCK"], ["-UITEST_PENDING_WRITE"], ["-UITEST_LONG_SESSION"], ["-UITEST_ONBOARDING"]] {
+            let booted = try await BootedFixture.boot(arguments)
+            #expect(booted.app.sync.outcome == .clear, "\(arguments)")
+            #expect(booted.app.sync.isSyncing == false, "\(arguments)")
+        }
+    }
+
+    @MainActor
+    @Test func onlyThePendingWriteLaunchLeavesTheFixtureSheetReachable() async throws {
+        let plain = try await BootedFixture.boot([])
+        await #expect(throws: URLError.self) {
+            try await plain.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId)
+        }
+
+        let pending = try await BootedFixture.boot(["-UITEST_PENDING_WRITE"])
+        #expect(try await pending.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) == ["Block 27"])
+    }
+
+    @MainActor
+    @Test func aSlowSyncLaunchBootsWithoutWaitingOnTheHold() async throws {
+        let clock = ContinuousClock()
+        let elapsed = try await clock.measure {
+            _ = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
+        }
+        #expect(elapsed < .seconds(10))
+    }
+
+    @MainActor
+    @Test func onboardingBootsWithTheSyncedBlockAndNoSpreadsheetSelected() async throws {
+        let booted = try await BootedFixture.boot(["-UITEST_ONBOARDING"])
+
+        #expect(booted.app.settings.spreadsheetId == nil)
+        #expect(try booted.block().tabName == "Block 27")
+    }
+
+    @MainActor
+    @Test func theDefaultLaunchBenchPressEstimatesFromHistoryThenFromSetOneToday() async throws {
+        let booted = try await BootedFixture.boot([])
+        let history = LastPerformedLookupStore(context: booted.context).snapshot
+        let dayTwo = try booted.block().session(at: SessionAddress(week: 1, day: 2))
+        let sets = try #require(dayTwo?.exercises.first { $0.name == "Bench Press" }).sets.sorted { $0.index < $1.index }
         func card(_ set: ExerciseSet) -> SmartValuePillsForm {
             SmartValuePillsForm(set: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history))
         }
@@ -170,21 +212,6 @@ import Testing
 
         #expect(card(sets[1]).weightText == "185")
         #expect(card(sets[1]).loadBasisLine == SmartValuePillsForm.LoadBasisLine(text: "from Set 1 today", isShown: true))
-    }
-
-    @MainActor
-    private func seed(arguments: [String]) throws -> (container: ModelContainer, context: ModelContext, block: Block) {
-        let container = try ModelContainer(
-            for: Block.self,
-            PendingWrite.self,
-            WriteTargetAuditEntry.self,
-            LastPerformedEntry.self,
-            configurations: ModelConfiguration("launch-\(UUID().uuidString)", isStoredInMemoryOnly: true)
-        )
-        let context = container.mainContext
-        try UITestFixture.seed(into: context, launch: UITestLaunch(arguments: arguments))
-        let blocks = try context.fetch(FetchDescriptor<Block>())
-        return (container, context, try #require(blocks.first))
     }
 
     @MainActor

@@ -19,6 +19,13 @@
             cols: 60
         )
 
+        /// The spreadsheet the onboarding and Settings pickers offer in place of the fixture's own.
+        static let replacementWorkbook = LocalWorkbook(
+            spreadsheetId: replacementSheetId,
+            title: "Replacement Training Log",
+            snapshots: [blockTab: SheetSnapshot(values: replacementSheetGrid)]
+        )
+
         @MainActor
         static func currentSessionWithPendingSetsBlock() -> Block {
             WorkoutFixtureBlocks.currentSessionWithPendingSetsBlock()
@@ -71,8 +78,6 @@
                 expectedCurrentValue: ""
             )
         }
-
-        static let queuedWriteSheet = WorkbookScenario.freshBlock.workbook()
 
         static func lastPerformedBackSquat() -> LastPerformedEntry {
             LastPerformedEntry(
