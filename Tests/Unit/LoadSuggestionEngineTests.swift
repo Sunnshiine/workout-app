@@ -78,9 +78,7 @@ private func suggest(
 ) -> LoadSuggestion {
     LoadSuggestionEngine.suggest(
         LoadSuggestionInputs(
-            prescribedReps: reps,
-            prescribedLoad: load,
-            percentOneRM: percentOneRM,
+            prescription: Prescription(reps: reps, load: load, percentOneRM: percentOneRM),
             trainingMax: trainingMax,
             earlierSets: earlierSets,
             lastPerformed: history.map { LastPerformedLookupEntry(occurrence: entry($0)) }
@@ -217,9 +215,7 @@ func aTargetTheRPETableCannotPlaceSuggestsNothing(reps: String, load: String) {
     #expect(
         LoadSuggestionEngine.suggest(
             LoadSuggestionInputs(
-                prescribedReps: "5",
-                prescribedLoad: "RPE8",
-                percentOneRM: nil,
+                prescription: Prescription(reps: "5", load: "RPE8", percentOneRM: nil),
                 trainingMax: nil,
                 earlierSets: [],
                 lastPerformed: LastPerformedLookupEntry(occurrence: legacySource)
