@@ -147,32 +147,42 @@ extension CurrentSessionDebugInfo {
 
         currentBlockTab = resolution.blockTab
         sheetDerivedSession = Self.label(for: resolution.sheetDerivedSession)
+        pinnedSession = Self.pinLabel(for: resolution)
         resolvedCurrentSession = Self.label(for: resolution.session)
+        reason =
+            resolution.session == nil
+            ? "No Sheet-derived Session is available for this Block."
+            : Self.reason(for: resolution.pin)
+        localOnlyNote = resolution.isPinInForce ? "The Current Session Pin is local-only and is not Sheet data." : nil
         canClearPin = resolution.hasPin
+    }
+
+    @MainActor
+    private static func pinLabel(for resolution: CurrentSessionResolution) -> String {
         switch resolution.pin {
         case .unset:
-            pinnedSession = "None"
-            reason =
-                resolution.sheetDerivedSession == nil
-                ? "No Sheet-derived Session is available for this Block."
-                : "No manual override is active, so Sheet-derived progress wins."
-            localOnlyNote = nil
+            "None"
         case .inForce(let author):
-            pinnedSession = "\(Self.label(for: resolution.session)) (\(Self.label(for: author)))"
-            reason =
-                switch author {
-                case .moveOn: "Move On advanced to this Session, so it wins over Sheet-derived progress."
-                case .madeCurrent: "The athlete made this Session current, so it wins over Sheet-derived progress."
-                }
-            localOnlyNote = "The Current Session Pin is local-only and is not Sheet data."
+            "\(label(for: resolution.session)) (\(label(for: author)))"
         case .noLongerResolves(let author):
-            pinnedSession = "Saved pin no longer matches this Block (\(Self.label(for: author)))"
-            reason = "The Current Session Pin no longer matches this Block, so Sheet-derived progress wins."
-            localOnlyNote = nil
+            "Saved pin no longer matches this Block (\(label(for: author)))"
         case .unavailable(let session, let author):
-            pinnedSession = "\(Self.label(for: session)), Unavailable (\(Self.label(for: author)))"
-            reason = "The Current Session Pin names an Unavailable Session, so Sheet-derived progress wins."
-            localOnlyNote = nil
+            "\(label(for: session)), Unavailable (\(label(for: author)))"
+        }
+    }
+
+    private static func reason(for pin: CurrentSessionResolution.PinStanding) -> String {
+        switch pin {
+        case .unset:
+            "No manual override is active, so Sheet-derived progress wins."
+        case .inForce(.moveOn):
+            "Move On advanced to this Session, so it wins over Sheet-derived progress."
+        case .inForce(.madeCurrent):
+            "The athlete made this Session current, so it wins over Sheet-derived progress."
+        case .noLongerResolves:
+            "The Current Session Pin no longer matches this Block, so Sheet-derived progress wins."
+        case .unavailable:
+            "The Current Session Pin names an Unavailable Session, so Sheet-derived progress wins."
         }
     }
 
