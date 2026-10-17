@@ -73,10 +73,15 @@ final class ActiveSetFocusManager {
         activeSetID = nextActiveSetID(after: set, in: session)
     }
 
-    /// Keeps `set` on the card after the Active Set advanced past it.
-    func holdAfterSpokenWrite(_ set: ExerciseSet) {
-        guard let setID = Self.id(for: set) else { return }
+    /// A spoken write lands after the press let go, when the athlete may have moved on. The Active
+    /// Set moves past `set` only while it is still `set`, and the card keeps `set` only while it
+    /// still showed it. Whatever else the card shows stays. True when the card keeps `set`.
+    func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, holding: Bool) -> Bool {
+        guard let setID = Self.id(for: set), activeSetID == setID else { return false }
+        activeSetID = nextActiveSetID(after: set, in: session)
+        guard holding, shownInstead == nil else { return false }
         shownInstead = .heldAfterSpokenWrite(setID)
+        return true
     }
 
     var isHoldingSpokenWrite: Bool {
