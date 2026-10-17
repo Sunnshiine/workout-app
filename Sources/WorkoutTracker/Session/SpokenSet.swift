@@ -16,6 +16,11 @@ enum SpokenSet: Equatable, Sendable {
         case unrecognized
         /// Every Set Log is in pounds.
         case kilograms
+        /// Numbers the recognizer ran together, as "40542" for "405 for 2": a whole number of four or
+        /// more digits, which no Set holds.
+        case fusedNumber
+        /// Two readings: "135 for 49" may be "135 for 4 at 9".
+        case ambiguous
         /// Two different numbers for one value: the 4 and the 8 of "135 for 4, 8 reps".
         case conflicting(SetLogDraft.Field)
         /// Reps outside 1 to 100 or not whole, or a weight outside 0 to 2000 pounds.
@@ -45,7 +50,22 @@ enum SpokenSet: Equatable, Sendable {
             guard command.vocabulary.isSuperset(of: meaningful) else { throw .unrecognized }
             return command.spokenSet
         }
-        return .values(try Slots(Claims(Lexemes(words[...]).lexemes)).draft())
+        return .values(try values(in: words))
+    }
+
+    /// "4 at 9" can reach the transcript as "49", so a two-digit rep count said last after "for",
+    /// with no RPE, whose second digit is an RPE point reads two ways. "49 reps" reads one way.
+    private static func values(in words: [String]) throws(Rejection) -> SetLogDraft {
+        let lexemes = try Lexemes(words[...]).lexemes
+        let values = try Slots(Claims(lexemes)).draft()
+        guard values.rpe == nil, let reps = values.reps, couldBeRepsAtAnRPE(reps),
+            lexemes.suffix(2).elementsEqual([.marker(.by), .value(.number(Double(reps)))])
+        else { return values }
+        throw .ambiguous
+    }
+
+    private static func couldBeRepsAtAnRPE(_ reps: Int) -> Bool {
+        (10...99).contains(reps) && RPE(rawValue: Double(reps % 10)) != nil
     }
 }
 
@@ -100,13 +120,16 @@ private struct Command {
 }
 
 private enum Transcript {
-    /// Lowercased words, digit runs, and `@`, with punctuation dropped and spelled-out
-    /// abbreviations ("r p e", "b w", "body weight") joined into one word.
+    /// Lowercased words, digit runs, a written "1/2", and `@`, with punctuation dropped and
+    /// spelled-out abbreviations ("r p e", "b w", "body weight") joined into one word. A pound sign
+    /// is the "pounds" after its number, and a clock time is the number its digits spell ("1:35").
     static func words(in transcript: String) -> [String] {
         let tokens = transcript.lowercased()
             .replacing("×", with: " x ")
             .replacing(/['’]/, with: "")
-            .matches(of: /\d+(?:\.\d+)?|bw(?=x)|[a-z]+|@/)
+            .replacing(/£\s*(\d+(?:\.\d+)?)/) { "\($0.1) pounds" }
+            .replacing(/(\d{1,2}):(\d{2})/) { "\($0.1)\($0.2)" }
+            .matches(of: /1\/2|\d+(?:\.\d+)?|bw(?=x)|[a-z]+|@/)
             .map { String($0.output) }
         return joiningPhrases(tokens)
     }
@@ -140,6 +163,7 @@ private enum Lexicon {
         "pound": .marker(.pounds), "pounds": .marker(.pounds), "lb": .marker(.pounds), "lbs": .marker(.pounds),
         "rep": .marker(.reps), "reps": .marker(.reps),
         "rpe": .marker(.rpe), "rp": .marker(.rpe), "@": .marker(.rpe),
+        "rte": .marker(.rpe), "rtd": .marker(.rpe), "rtv": .marker(.rpe),
         "at": .marker(.at),
         "for": .marker(.by), "x": .marker(.by), "by": .marker(.by), "times": .marker(.by)
     ]
@@ -216,6 +240,7 @@ private struct Lexemes {
         if let homophone = homophone(word, before: words.dropFirst()) {
             lexemes.append(homophone)
         } else if let number = SpokenNumber.read(words) {
+            guard word.wholeMatch(of: /\d{4,}/) == nil else { throw .fusedNumber }
             lexemes.append(.value(.number(number.value)))
             return number.rest
         } else if let lexeme = Lexicon.lexemes[word] {
@@ -226,24 +251,35 @@ private struct Lexemes {
         return words.dropFirst()
     }
 
-    /// "four" between a value and a number is the "for" of "135 four 5". "to" and "too" are 2 only
-    /// where a number is asked for: "315 for to", "to reps".
+    /// "four", "per", and "or" between a value and a number are the "for" of "135 four 5". "to" and
+    /// "too" are 2 only where a number is asked for: "315 for to", "to reps". "and", "of", and "add"
+    /// before the last number are the "at" of "185 for 5 and 8".
     private func homophone(_ word: String, before next: ArraySlice<String>) -> Lexeme? {
         switch word {
-        case "four": isTheFor(before: next) ? .marker(.by) : nil
-        case "to", "too": isTheTwo(before: next) ? .value(.number(2)) : nil
+        case "four", "per", "or": theFor(before: next)
+        case "to", "too": theTwo(before: next)
+        case "and", "of", "add": Self.theAt(before: next)
         default: nil
         }
     }
 
     private var asksForANumber: Bool { lexemes.last?.asksForTheNumberAfter ?? false }
 
-    private func isTheFor(before next: ArraySlice<String>) -> Bool {
-        !lexemes.isEmpty && !asksForANumber && SpokenNumber.read(next) != nil
+    private func theFor(before next: ArraySlice<String>) -> Lexeme? {
+        guard !lexemes.isEmpty, !asksForANumber, SpokenNumber.read(next) != nil else { return nil }
+        return .marker(.by)
     }
 
-    private func isTheTwo(before next: ArraySlice<String>) -> Bool {
-        asksForANumber || Self.labelsTheNumberBefore(next)
+    private func theTwo(before next: ArraySlice<String>) -> Lexeme? {
+        guard asksForANumber || Self.labelsTheNumberBefore(next) else { return nil }
+        return .value(.number(2))
+    }
+
+    private static func theAt(before next: ArraySlice<String>) -> Lexeme? {
+        guard let number = SpokenNumber.read(next),
+            !number.rest.indices.contains(where: { SpokenNumber.read(number.rest[$0...]) != nil })
+        else { return nil }
+        return .marker(.at)
     }
 
     private static func labelsTheNumberBefore(_ words: ArraySlice<String>) -> Bool {
@@ -408,9 +444,13 @@ private enum SpokenNumber {
         return Reading(value: tens + unit, rest: rest.dropFirst())
     }
 
-    /// ".5" for "and a half" or "point five".
+    private static let halves: [[String]] = [["and", "a", "half"], ["1/2"]]
+
+    /// ".5" for "and a half", a written "1/2", or "point five".
     private static func fraction(_ words: ArraySlice<String>) -> Reading<String>? {
-        if words.starts(with: ["and", "a", "half"]) { return Reading(value: ".5", rest: words.dropFirst(3)) }
+        if let half = halves.first(where: { words.starts(with: $0) }) {
+            return Reading(value: ".5", rest: words.dropFirst(half.count))
+        }
         guard words.first == "point" else { return nil }
         let digits = words.dropFirst().prefix { digit($0) != nil }.compactMap(digit)
         guard !digits.isEmpty else { return nil }

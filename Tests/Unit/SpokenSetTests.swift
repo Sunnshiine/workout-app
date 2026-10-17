@@ -159,8 +159,8 @@ func skipInAnyPhrasing(transcript: String) {
     #expect(SpokenSet.parse("135 for 8.5") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 1e20") == .failure(.unrecognized))
     #expect(SpokenSet.parse("0 for 5") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("2001 for 5") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("2000 for 1 at 10") == values(.pounds(2000), 1, .ten))
+    #expect(SpokenSet.parse("2000.5 for 5") == .failure(.outOfRange(.weight)))
+    #expect(SpokenSet.parse("999 for 1 at 10") == values(.pounds(999), 1, .ten))
     #expect(SpokenSet.parse("135 for 100") == values(.pounds(135), 100, nil))
 }
 
@@ -172,4 +172,83 @@ func skipInAnyPhrasing(transcript: String) {
     for transcript in transcripts {
         #expect(SpokenSet.parse(transcript) == .failure(.unrecognized), "\(transcript)")
     }
+}
+
+/// Verbatim from Apple's SpeechTranscriber and DictationTranscriber on spoken Sets, clean and in noise.
+@Test(
+    "What Apple's transcribers wrote for a spoken Set reads as the Set said",
+    arguments: [
+        ("135 for 4 at RPE9.", values(.pounds(135), 4, .nine)),
+        ("185 for 5 and 8.", values(.pounds(185), 5, .eight)),
+        ("Body weight for 12 at 7.", values(.bodyweight, 12, .seven)),
+        ("135 for 8 reps, RPE9.", values(.pounds(135), 8, .nine)),
+        ("Same again.", .success(.sameAgain)),
+        ("Skip.", .success(.skip)),
+        ("225 for 3 at 8.5 .", values(.pounds(225), 3, .eightPointFive)),
+        ("225 for three at eight and a half.", values(.pounds(225), 3, .eightPointFive)),
+        ("315 for one at 9.5.", values(.pounds(315), 1, .ninePointFive)),
+        ("45 for 10.", values(.pounds(45), 10, nil)),
+        ("£95 for 6 at RPE 7.", values(.pounds(95), 6, .seven)),
+        ("95 pounds per six of RPE 7.", values(.pounds(95), 6, .seven)),
+        ("135 for four of nine.", values(.pounds(135), 4, .nine)),
+        ("225 or 3 at 8.5 .", values(.pounds(225), 3, .eightPointFive)),
+        ("135 for four at RPE nine", values(.pounds(135), 4, .nine)),
+        ("135 for four RTE nine", values(.pounds(135), 4, .nine)),
+        ("225 for three at 8 1/2", values(.pounds(225), 3, .eightPointFive)),
+        ("Bodyweight for 12 at seven", values(.bodyweight, 12, .seven)),
+        ("1:35 for 5 at 8", values(.pounds(135), 5, .eight))
+    ]
+)
+func whatTheTranscribersWroteReadsAsTheSetSaid(transcript: String, heard: Result<SpokenSet, SpokenSet.Rejection>) {
+    #expect(SpokenSet.parse(transcript) == heard)
+}
+
+@Test(
+    "A whole number of four or more digits is numbers run together, never a weight",
+    arguments: ["40542 at nine.", "18545 at 8.", "13544 at RPE 9.", "31541 at 9.5.", "4510", "405-4209", "405429", "2000 for 1 at 10"]
+)
+func aWholeNumberOfFourOrMoreDigitsIsFused(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
+}
+
+@Test func aLastTwoDigitRepCountThatCouldBeRepsAtAnRPEIsAmbiguous() {
+    #expect(SpokenSet.parse("135 for 49") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 x 15") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 49 reps") == values(.pounds(135), 49, nil))
+    #expect(SpokenSet.parse("135 for 49 at 8") == values(.pounds(135), 49, .eight))
+    #expect(SpokenSet.parse("RPE 8, 135 for 49") == values(.pounds(135), 49, .eight))
+    #expect(SpokenSet.parse("bodyweight for 12") == values(.bodyweight, 12, nil))
+    #expect(SpokenSet.parse("49 reps") == values(nil, 49, nil))
+}
+
+@Test func andOfAndAddBeforeTheLastNumberAreAMisheardAt() {
+    #expect(SpokenSet.parse("for 5 and 8") == values(nil, 5, .eight))
+    #expect(SpokenSet.parse("185 for 5 add 8") == values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("8 reps of 135") == values(.pounds(135), 8, nil))
+    #expect(SpokenSet.parse("135 for 8 and RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("add 185 for 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("185 and 5") == values(.pounds(185), nil, .five))
+}
+
+@Test func rteRtdAndRtvAreAMisheardRPE() {
+    #expect(SpokenSet.parse("135 for 4 RTD 9") == values(.pounds(135), 4, .nine))
+    #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
+}
+
+@Test func perAndOrBetweenTwoNumbersAreTheForOfWeightForReps() {
+    #expect(SpokenSet.parse("45 or 10") == values(.pounds(45), 10, nil))
+    #expect(SpokenSet.parse("bodyweight per 12") == values(.bodyweight, 12, nil))
+    #expect(SpokenSet.parse("or 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("185 for or 5") == .failure(.unrecognized))
+}
+
+@Test func aPoundSignOrAClockReadsAsTheWeightItWrote() {
+    #expect(SpokenSet.parse("8 reps £135") == values(.pounds(135), 8, nil))
+    #expect(SpokenSet.parse("for 5 at £8") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("2:25 for 3") == values(.pounds(225), 3, nil))
+}
+
+@Test func aHalfWrittenAsOneOverTwoAddsAHalfOnlyAfterANumber() {
+    #expect(SpokenSet.parse("at 9 1/2") == values(nil, nil, .ninePointFive))
+    #expect(SpokenSet.parse("at 1/2") == .failure(.unrecognized))
 }

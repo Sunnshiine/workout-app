@@ -301,7 +301,8 @@ extension SayReport {
 
 public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
     public enum Reason: String, Encodable, Sendable {
-        case nothingHeard, unrecognized, kilograms, conflicting, outOfRange, offLadderRPE, nothingToRepeat
+        case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, offLadderRPE
+        case nothingToRepeat
     }
 
     public let reason: Reason
@@ -317,6 +318,8 @@ extension SpokenSetRejectionSnapshot {
         case .nothingHeard: self.init(reason: .nothingHeard, field: nil, value: nil)
         case .unrecognized: self.init(reason: .unrecognized, field: nil, value: nil)
         case .kilograms: self.init(reason: .kilograms, field: nil, value: nil)
+        case .fusedNumber: self.init(reason: .fusedNumber, field: nil, value: nil)
+        case .ambiguous: self.init(reason: .ambiguous, field: nil, value: nil)
         case .conflicting(let field): self.init(reason: .conflicting, field: field.rawValue, value: nil)
         case .outOfRange(let field): self.init(reason: .outOfRange, field: field.rawValue, value: nil)
         case .offLadderRPE(let value): self.init(reason: .offLadderRPE, field: nil, value: value)

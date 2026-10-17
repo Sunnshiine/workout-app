@@ -448,11 +448,15 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     let offLadder = try app.say("185 for 5 at 4", at: address("w1d1.e0.s0"))
     let nothingToRepeat = try app.say("same again", at: address("w1d1.e0.s0"))
     let conflicting = try app.say("135 for 4, 8 reps", at: address("w1d1.e0.s0"))
+    let fused = try app.say("40542 at nine.", at: address("w1d1.e0.s0"))
+    let ambiguous = try app.say("135 for 49", at: address("w1d1.e0.s0"))
 
     #expect(offLadder.outcome == .rejected)
     #expect(offLadder.rejection == SpokenSetRejectionSnapshot(reason: .offLadderRPE, field: nil, value: 4))
     #expect(nothingToRepeat.rejection?.reason == .nothingToRepeat)
     #expect(conflicting.rejection == SpokenSetRejectionSnapshot(reason: .conflicting, field: "reps", value: nil))
+    #expect(fused.rejection == SpokenSetRejectionSnapshot(reason: .fusedNumber, field: nil, value: nil))
+    #expect(ambiguous.rejection == SpokenSetRejectionSnapshot(reason: .ambiguous, field: nil, value: nil))
     #expect(conflicting.set.state == "pending")
     #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
 }
