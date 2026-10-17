@@ -285,10 +285,10 @@ struct SheetWritePlanner: Sendable {
     }
 
     /// The Notes-cell value a Set-Log list write produces, or nil when this Set owns its cell
-    /// outright and the direct-write path applies. Three placement kinds share one comma-separated
-    /// list cell — a multi-line Prescription Line's own Notes cell, Kevin's compact aggregate
-    /// header, and the Visible Writable Row a protected header redirects to — and a Set is
-    /// addressed within that cell by its list position.
+    /// outright and the direct-write path applies. Four placement kinds share one comma-separated
+    /// list cell — a multi-line Prescription Line's own Notes cell, the spare row a Line's Coach
+    /// Note redirects to, Kevin's compact aggregate header, and the Visible Writable Row a
+    /// protected header redirects to — and a Set is addressed within that cell by its list position.
     private func setLogListCellValue(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,
