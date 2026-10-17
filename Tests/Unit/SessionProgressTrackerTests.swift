@@ -394,6 +394,21 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(!destination.isOffered)
 }
 
+/// A Session held across a sync is no longer one of the Block's Sessions. Move On from it used to
+/// read a Session with no Week as Week 1, so W2 D3 advanced to W1 D4 (#897).
+@MainActor
+@Test func moveOnIsNotOfferedFromASessionTheBlockNoLongerHolds() throws {
+    let block = makeBlock()
+    let tracker = SessionProgressTracker()
+    let weekless = Session(dayNumber: 3, date: nil)
+    let replaced = try #require(sortedSessions(in: makeBlock()).first { $0.week?.number == 2 && $0.dayNumber == 3 })
+
+    #expect(tracker.moveOnDestination(from: weekless, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: weekless, in: block) == nil)
+    #expect(tracker.moveOnDestination(from: replaced, in: block) == .notOffered)
+    #expect(!tracker.hasSessionAhead(after: replaced, in: block))
+}
+
 // MARK: - Current-Week membership
 
 @MainActor
