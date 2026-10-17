@@ -5,7 +5,6 @@
     enum WorkoutFixtureScenarios {
         static let sheetId = "FIXTURE"
         static let replacementSheetId = "REPLACEMENT"
-        static let sheetURL = "https://docs.google.com/spreadsheets/d/\(sheetId)/edit"
         static let blockTab = "Block 27"
 
         static let replacementSheetGrid = gridFromA1(

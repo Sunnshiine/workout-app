@@ -187,7 +187,7 @@ import Testing
     #expect(store.validatingSpreadsheetId == "sheet-1")
     store.cancelSelection()
     #expect(store.validatingSpreadsheetId == nil)
-    settings.setSheetURL("https://docs.google.com/spreadsheets/d/pasted-sheet/edit")
+    settings.setSpreadsheet(id: "pasted-sheet")
 
     await client.waitForRequest(spreadsheetId: "sheet-1")
     client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])

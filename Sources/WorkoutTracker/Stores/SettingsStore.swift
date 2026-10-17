@@ -34,14 +34,6 @@ final class SettingsStore {
 
     var isConfigured: Bool { isSignedIn && spreadsheetId != nil }
 
-    /// Stores the spreadsheet id parsed from a pasted Sheet URL. Returns false if unparseable.
-    @discardableResult
-    func setSheetURL(_ url: String) -> Bool {
-        guard let id = extractSpreadsheetId(from: url) else { return false }
-        setSpreadsheet(id: id)
-        return true
-    }
-
     func setSpreadsheet(id: String, title: String) {
         spreadsheetId = id
         spreadsheetTitle = title
