@@ -230,7 +230,9 @@ private enum CardHost {
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {},
-                onTouchWhileHeld: {}
+                onTouchWhileHeld: {},
+                onClearMenuOpened: {},
+                onClearMenuClosed: {}
             )
             .padding(.horizontal, 16)
             Spacer(minLength: 0)
@@ -254,7 +256,7 @@ private enum CardHost {
         for element in window.accessibilityTree {
             let names = [element.elementIdentifier, element.accessibilityLabel].compactMap { $0 }
             if let key = names.lazy.compactMap({ headControlNames[$0] }).first {
-                headControls[key] = element.accessibilityFrame
+                headControls[key] = element.drawnFrame
             }
         }
         return CardDrawing(
@@ -264,7 +266,7 @@ private enum CardHost {
                 weight: frame { $0.elementIdentifier == "weight-pill" },
                 reps: frame { $0.accessibilityLabel == "Reps" },
                 rpe: frame { $0.accessibilityLabel == "RPE" },
-                action: actionElement?.accessibilityFrame
+                action: actionElement?.drawnFrame
             ),
             actionControl: actionElement?.elementIdentifier ?? "none",
             headControls: headControls

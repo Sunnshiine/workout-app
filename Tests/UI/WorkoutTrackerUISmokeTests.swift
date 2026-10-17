@@ -93,12 +93,49 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
         app.buttons["say-set-button"].press(forDuration: 1)
         XCTAssertTrue(app.buttons["clear-logged-set-menu"].appears(within: 3))
+        XCTAssertFalse(app.buttons["rpe-7.5"].isEnabled, "the held Set's values take no edit")
 
         app.buttons["rpe-7.5"].tap()
 
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
         XCTAssertTrue(app.buttons["Set 1, 235x5@7"].exists, "the touch only moves the card on")
         XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists)
+    }
+
+    @MainActor
+    func testTheHeldSetWaitsWhileItsClearMenuIsOpenAndAClearUndoesTheWrite() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        app.buttons["say-set-button"].press(forDuration: 1)
+        XCTAssertTrue(app.buttons["clear-logged-set-menu"].appears(within: 3))
+
+        app.buttons["clear-logged-set-menu"].tap()
+        let clear = app.buttons["Clear"]
+        XCTAssertTrue(clear.appears(within: 2))
+
+        XCTAssertFalse(app.staticTexts["Set 2 of 3"].appears(within: 6), "the open menu keeps the card on the Set")
+        XCTAssertTrue(clear.exists, "the hold left the menu open")
+        clear.tap()
+
+        XCTAssertTrue(app.buttons["Set 1, 5 · RPE6"].appears(within: 3), "the Clear undid the write")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
+        XCTAssertTrue(app.buttons["say-set-button"].exists)
+    }
+
+    @MainActor
+    func testClosingTheHeldSetsClearMenuWithoutAClearMovesTheCardOn() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        app.buttons["say-set-button"].press(forDuration: 1)
+        XCTAssertTrue(app.buttons["clear-logged-set-menu"].appears(within: 3))
+        app.buttons["clear-logged-set-menu"].tap()
+        XCTAssertTrue(app.buttons["Clear"].appears(within: 2))
+        XCTAssertFalse(app.staticTexts["Set 2 of 3"].appears(within: 5), "the open menu keeps the card on the Set")
+
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25)).tap()
+
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3), "closing the menu moves the card on")
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].exists)
     }
 
     @MainActor

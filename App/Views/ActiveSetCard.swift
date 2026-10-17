@@ -26,6 +26,8 @@ struct ActiveSetCard: View {
     let onSkip: () -> Void
     let onDelete: () -> Void
     let onTouchWhileHeld: () -> Void
+    let onClearMenuOpened: () -> Void
+    let onClearMenuClosed: () -> Void
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
@@ -122,7 +124,14 @@ struct ActiveSetCard: View {
         case .savedAndClearMenu:
             HStack(spacing: 0) {
                 savedConfirmation
-                clearMenu
+                HeldClearMenu(
+                    tint: palette.textSecondary,
+                    onOpened: onClearMenuOpened,
+                    onClosed: onClearMenuClosed,
+                    onClear: onDelete
+                )
+                .frame(width: Self.headTargetSize, height: Self.headTargetSize)
+                .padding(.trailing, -Self.headTargetOverhang)
             }
         }
     }
