@@ -29,6 +29,7 @@ enum WorkoutUITestFixture {
 enum WorkoutUITestFixtureOption: String {
     case openExercises = "-UITEST_OPEN_EXERCISES"
     case pendingWrite = "-UITEST_PENDING_WRITE"
+    case lateSignIn = "-UITEST_LATE_SIGN_IN"
 }
 
 extension XCTestCase {

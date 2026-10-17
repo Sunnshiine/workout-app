@@ -70,11 +70,26 @@ private final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var openExercises: [Exercise] = []
     var liveEdge: (Session) -> LiveEdge
     var readAtCelebrationRequest: () -> Bool = { false }
+    var currentSession: Session?
     private(set) var celebrationRequests: [Bool] = []
     private(set) var shownAddresses: [SessionAddress] = []
+    private(set) var currentSessionShows = 0
 
     init(liveEdge: @escaping (Session) -> LiveEdge = { _ in .browsedAway }) {
         self.liveEdge = liveEdge
+    }
+
+    /// The live edge is `current`, as the store resolves it.
+    convenience init(current: Session?) {
+        self.init { session in
+            guard let current, session === current else { return .browsedAway }
+            return .atLiveEdge(currentSession: current)
+        }
+        currentSession = current
+    }
+
+    func showCurrent() {
+        currentSessionShows += 1
     }
 
     func liveEdge(for session: Session) -> LiveEdge {
@@ -205,7 +220,8 @@ private func makeLedgerCoordinator(session: Session, restTimer: RestTimer? = nil
         standardRestDuration: { 210 },
         liveActivity: ledger,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ledger
+        motion: ledger,
+        entry: AppEntryInbox()
     )
     ledger.coordinator = coordinator
     return (coordinator, ledger)
@@ -461,7 +477,8 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     return CoordinatorRestActionFixture(
         session: session,
@@ -981,7 +998,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1019,7 +1037,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1054,7 +1073,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1084,7 +1104,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 210 },
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: current.session) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(browsed.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1201,7 +1222,8 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         liveActivity: liveActivity,
         navigation: navigation,
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1246,7 +1268,8 @@ private func makeRestActionFixture(
         logging: SpySessionLoggingAdapter(),
         sync: SpySessionSyncAdapter(),
         navigation: navigation,
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
 
     let atLiveEdge = coordinator.stage(in: session, lookup: .empty).queue
@@ -1274,7 +1297,8 @@ private func makeRestActionFixture(
         logging: SpySessionLoggingAdapter(),
         sync: SpySessionSyncAdapter(),
         navigation: navigation,
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
 
     #expect(changes.fired == 1)
@@ -1294,7 +1318,8 @@ private func makeRestActionFixture(
             logging: SpySessionLoggingAdapter(),
             sync: SpySessionSyncAdapter(),
             navigation: navigation,
-            motion: ImmediateSessionMotion()
+            motion: ImmediateSessionMotion(),
+            entry: AppEntryInbox()
         )
     }
     let firstBind = ObservedChanges()
@@ -1630,7 +1655,8 @@ private func makeRestActionFixture(
         logging: logging,
         sync: sync,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1658,7 +1684,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1684,7 +1711,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 123 },
         supersetRestDuration: { 77 },
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -1716,7 +1744,8 @@ private func makeRestActionFixture(
         standardRestDuration: { 123 },
         liveActivity: bound,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1746,7 +1775,8 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1773,7 +1803,8 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1799,7 +1830,8 @@ private func makeRestActionFixture(
         restTimer: restTimer,
         standardRestDuration: { 123 },
         navigation: SpySessionNavigationAdapter(liveEdge: { _ in .browsedAway }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1822,7 +1854,8 @@ private func makeRestActionFixture(
         sync: SpySessionSyncAdapter(),
         restTimer: restTimer,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+        motion: ImmediateSessionMotion(),
+        entry: AppEntryInbox()
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -2035,7 +2068,8 @@ private func makeRestActionFixture(
         restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
         liveActivity: liveActivity,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: motion
+        motion: motion,
+        entry: AppEntryInbox()
     )
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -2100,7 +2134,8 @@ private func makeDictationCoordinator(
         standardRestDuration: { 210 },
         liveActivity: ledger,
         navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ledger
+        motion: ledger,
+        entry: AppEntryInbox()
     )
     ledger.coordinator = coordinator
     return (coordinator, ledger, clock)
@@ -2626,4 +2661,384 @@ private func letGoOfTheMic(
     coordinator.startDictation(for: slot.set)
 
     #expect(coordinator.cardDictation(for: slot) == .listening(caption: "Listening"))
+}
+
+@MainActor
+private struct HandsFreeFixture {
+    let coordinator: SessionCoordinator
+    let ledger: SessionVerbLedger
+    let navigation: SpySessionNavigationAdapter
+    let entry: AppEntryInbox
+    let dictation: SetDictation?
+    let clock: ManualListeningClock
+
+    /// Binds as the Session screen does when it shows `session`.
+    func show(_ session: Session?) {
+        coordinator.bind(
+            to: session,
+            logging: ledger,
+            sync: ledger,
+            liveActivity: ledger,
+            navigation: navigation,
+            motion: ledger,
+            entry: entry
+        )
+    }
+
+    func card(in session: Session) throws -> SetCardSlot {
+        try #require(exerciseStage(coordinator, in: session)?.card)
+    }
+
+    /// Lets the card's listen run until the athlete has been quiet a silence window.
+    func listenUntilQuiet(on slot: SetCardSlot, showing shown: @escaping @MainActor () -> SetLogDraft) async -> SetDictation.Outcome? {
+        let listening = Task { await coordinator.listenHandsFree(to: slot.set, showing: shown) }
+        await clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+        clock.advance(by: SetDictation.silenceWindow)
+        return await listening.value
+    }
+}
+
+/// `requested` delivers a request before the stage binds, as a cold launch from the Action button does.
+@MainActor
+private func makeHandsFreeFixture(
+    showing session: Session?,
+    current: Session?,
+    saying candidates: [String]? = ["185 for 6 at 7"],
+    requested: Bool = true
+) -> HandsFreeFixture {
+    let clock = ManualListeningClock()
+    let dictation = candidates.map { SetDictation(transcriber: CannedSetTranscriber(candidates: $0), clock: clock) }
+    let entry = AppEntryInbox(clock: clock)
+    if requested {
+        entry.deliver(.dictateCurrentSet)
+    }
+    let fixture = HandsFreeFixture(
+        coordinator: SessionCoordinator(transitionClock: ManualSessionTransitionClock(), dictation: dictation),
+        ledger: SessionVerbLedger(),
+        navigation: SpySessionNavigationAdapter(current: current),
+        entry: entry,
+        dictation: dictation,
+        clock: clock
+    )
+    fixture.ledger.coordinator = fixture.coordinator
+    fixture.show(session)
+    return fixture
+}
+
+@MainActor
+@Test func aRequestOnTheCurrentSessionListensForItsActiveSetAndWritesWhatIsSaidOnce() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+    #expect(fixture.coordinator.startsHandsFree(slot))
+    #expect(fixture.entry.coverClosings > 0, "whatever covers the stage closes so the card can listen")
+
+    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+
+    let logged = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
+    #expect(outcome == .logged(logged, heard: "185 for 6 at 7"))
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.count == 1)
+    #expect(fixture.entry.pending == nil)
+    let held = try fixture.card(in: session)
+    #expect(held.mode == .heldAfterSpokenWrite)
+    #expect(held.set.setLog == logged)
+    #expect(!fixture.coordinator.startsHandsFree(held))
+}
+
+@MainActor
+@Test func aRequestIsTakenOnceTheCardListensSoTheCardDoesNotListenTwice() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+
+    #expect(fixture.entry.pending == nil)
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+    _ = await listening.value
+}
+
+@MainActor
+@Test func handsFreeListeningFillsWhatIsLeftUnsaidFromWhatTheCardShowsWhenItEnds() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, saying: ["for 5 at 8"])
+    let slot = try fixture.card(in: session)
+    var shown = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { shown } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+    shown = SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+
+    #expect(await listening.value == .logged(SetLog(weight: .pounds(190), reps: 5, rpe: .eight), heard: "for 5 at 8"))
+}
+
+@MainActor
+@Test func aRequestWhileAnotherSessionIsViewedShowsTheCurrentSessionThenListensThere() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current)
+
+    #expect(fixture.navigation.currentSessionShows == 1)
+    #expect(fixture.entry.coverClosings > 0)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: viewed)))
+    #expect(fixture.entry.pending == .dictateCurrentSet)
+
+    fixture.show(current)
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+    #expect(fixture.navigation.currentSessionShows == 1)
+}
+
+@MainActor
+@Test func withNoRequestWaitingTheStageStaysWhereItIsAndNoCardListensHandsFree() async throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: current, current: current, requested: false)
+    let slot = try fixture.card(in: current)
+
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(fixture.dictation?.state == .idle)
+
+    fixture.show(viewed)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestWhoseCurrentSessionHasNoPendingSetEndsWhereTheStageIs() throws {
+    let (current, done) = makeSingleSetSession(dayNumber: 1)
+    done.state = .logged
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.ledger.entries.isEmpty)
+}
+
+@MainActor
+@Test func aRequestWithNoCurrentSessionEndsWhereTheStageIs() throws {
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: nil)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
+    #expect(fixture.entry.pending == nil)
+}
+
+@MainActor
+@Test func aRequestWithNoMicEndsWhereTheStageIs() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: viewed, current: current, saying: nil)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    #expect(fixture.entry.coverClosings == 0)
+    #expect(fixture.entry.pending == nil)
+    fixture.show(current)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+}
+
+@MainActor
+@Test func aRequestWaitsWhileTheStageHasNoSession() {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    #expect(fixture.entry.pending == .dictateCurrentSet)
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestStillWaitingWhenItsLifetimeEndsIsNeverAnswered() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    fixture.clock.advance(by: AppEntryInbox.requestLifetime)
+    fixture.show(viewed)
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+    fixture.show(current)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+    #expect(fixture.entry.pending == nil, "no card can take the request")
+}
+
+@MainActor
+@Test func aRequestThatHasWaitedJustUnderItsLifetimeIsAnsweredWhenTheStageShows() throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let fixture = makeHandsFreeFixture(showing: nil, current: current)
+
+    fixture.clock.advance(by: AppEntryInbox.requestLifetime - .milliseconds(1))
+    fixture.show(current)
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: current)))
+}
+
+@MainActor
+@Test func aRequestThatArrivesWhileTheSignInRestoresListensAndLogsOnceTheRestoreSignsIn() async throws {
+    let settings = SettingsStore(defaults: .inMemory())
+    settings.setSpreadsheet(id: "SHEET123", title: "Training Log")
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: nil, current: session, requested: false)
+    let reportOnboardingAsRootViewDoes = { fixture.entry.reportOnboarding(isShown: settings.needsOnboarding) }
+    reportOnboardingAsRootViewDoes()
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    settings.isSignedIn = true
+    reportOnboardingAsRootViewDoes()
+    fixture.show(session)
+
+    let slot = try fixture.card(in: session)
+    #expect(fixture.coordinator.startsHandsFree(slot))
+    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+    #expect(outcome == .logged(SetLog(weight: .pounds(185), reps: 6, rpe: .seven), heard: "185 for 6 at 7"))
+}
+
+@MainActor
+@Test func aRequestThatArrivesWhileTheStageShowsTheCurrentSessionIsAnsweredWhenItArrives() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    #expect(!fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.coordinator.startsHandsFree(try fixture.card(in: session)))
+}
+
+@MainActor
+@Test func aSecondRequestWhileListeningDoesNothing() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+    let prefill = SpokenSetContext(for: slot.set, history: .empty).draft
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { prefill } }
+    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+    let closings = fixture.entry.coverClosings
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == closings)
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+    _ = await listening.value
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.count == 1)
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
+@Test func aRequestWhileTheMicIsHeldDoesNothing() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let slot = try fixture.card(in: session)
+    fixture.coordinator.startDictation(for: slot.set)
+    #expect(fixture.dictation?.state.listeningSetID == firstBench)
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == 0)
+    #expect(fixture.dictation?.state.listeningSetID == firstBench)
+}
+
+@MainActor
+@Test func aRequestWhileTheCardHoldsASpokenSetMovesTheCardOnAndListensForTheNextSet() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    _ = await fixture.listenUntilQuiet(on: try fixture.card(in: session)) { SetLogDraft(weight: nil, reps: nil, rpe: nil) }
+    #expect(try fixture.card(in: session).mode == .heldAfterSpokenWrite)
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    let next = try fixture.card(in: session)
+    #expect(next.mode == .logging)
+    #expect(SessionCoordinator.activeSetID(for: next.set) == secondBench)
+    #expect(fixture.coordinator.startsHandsFree(next))
+}
+
+@MainActor
+@Test func aRequestWhileTheCardReviewsALoggedSetClosesTheReviewAndListensForTheActiveSet() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+    fixture.coordinator.focus(on: squat)
+    #expect(try fixture.card(in: session).mode == .reviewingLogged(showsSavedConfirmation: false))
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    let active = try fixture.card(in: session)
+    #expect(active.mode == .logging)
+    #expect(SessionCoordinator.activeSetID(for: active.set) == firstBench)
+    #expect(fixture.coordinator.startsHandsFree(active))
+    #expect(fixture.entry.coverClosings > 0)
+}
+
+@MainActor
+@Test func aCardLeavingForAnotherSetLeavesThePressOfTheCardThatReplacedItRunning() async throws {
+    let (current, currentSet) = makeSingleSetSession(dayNumber: 1)
+    let (_, otherSessionsSet) = makeSingleSetSession(dayNumber: 3)
+    let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
+    let dictation = SetDictation(transcriber: transcriber)
+    let coordinator = SessionCoordinator(dictation: dictation)
+    coordinator.bind(to: current)
+    coordinator.startDictation(for: currentSet)
+
+    await coordinator.cancelDictation(of: otherSessionsSet)
+
+    #expect(dictation.state.listeningSetID == SessionCoordinator.activeSetID(for: currentSet))
+    let cancelling = Task { await coordinator.cancelDictation(of: currentSet) }
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    transcriber.starting.release()
+    await cancelling.value
+    #expect(transcriber.wasCancelled)
+    #expect(dictation.state == .idle)
+}
+
+@MainActor
+@Test func aCardLeavingForAnotherSetOfTheSameSessionLeavesThePressRunning() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    coordinator.startDictation(for: try #require(bench.sets.first { $0.index == 0 }))
+
+    await coordinator.cancelDictation(of: try #require(bench.sets.first { $0.index == 1 }))
+
+    #expect(coordinator.cardDictation(for: try card(coordinator, in: session)) == .listening(caption: "Listening"))
+}
+
+@MainActor
+@Test func aRequestForAnActiveSetThatIsNotPendingEndsThere() throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let skipped = try fixture.card(in: session).set
+    fixture.coordinator.skip(skipped)
+    fixture.coordinator.focus(on: skipped)
+
+    fixture.entry.deliver(.dictateCurrentSet)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.entry.pending == nil)
+    #expect(fixture.entry.coverClosings == 0)
+}
+
+@MainActor
+@Test func onlyTheCardOfTheSetARequestWaitsForCanTakeIt() async throws {
+    let session = makeCoordinatorSession()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let other = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 })
+
+    #expect(await fixture.coordinator.listenHandsFree(to: other) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(fixture.entry.pending == .dictateCurrentSet)
 }
