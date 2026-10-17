@@ -5,8 +5,8 @@ enum SpokenToken: Equatable, Sendable {
     case number(SpokenNumber)
     case bodyweight
     case marker(SpokenMarker)
-    /// "and", "of", or "add" where "at" may have been said, so the number after it is no RPE heard.
-    /// "and" and "of" are filler anywhere else.
+    /// "and", "of", "add", or "to" where "at" may have been said, so the number after it is no RPE
+    /// heard. "and" and "of" are filler anywhere else.
     case misheardAt(isFiller: Bool)
 
     var amount: SpokenAmount? {

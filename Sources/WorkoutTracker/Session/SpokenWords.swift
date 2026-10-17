@@ -62,7 +62,8 @@ enum SpokenWord: Equatable, Sendable {
     case or
     /// The "for" of "95 pounds per six" after bodyweight or a weight heavier than the reps.
     case per
-    /// "to" and "too", the 2 of "185 for to" and "to reps".
+    /// "to" and "too", the 2 of "185 for to" and "to reps", and otherwise the "at" the recognizer
+    /// mishears in "225 for 3 to 8".
     case to
     case kilograms
     case filler
@@ -78,6 +79,7 @@ enum SpokenWord: Equatable, Sendable {
         switch self {
         case .token(let token): .success(token)
         case .and: .success(.misheardAt(isFiller: true))
+        case .to: .success(.misheardAt(isFiller: false))
         case .a, .oh, .filler: .success(nil)
         case .kilograms: .failure(.kilograms)
         default: .failure(.unrecognized)
@@ -327,7 +329,7 @@ struct SpokenTokens {
 
     /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is too before
     /// fewer reps. "or" sounds like "for" but offers a choice, so it is ambiguous. "to" and "too" are
-    /// 2 only where a number is asked for: "315 for to", "to reps".
+    /// 2 only where a number is asked for: "315 for to", "to reps", and a misheard "at" elsewhere.
     private func homophone(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         switch word {
         case .four: separator(before: next)

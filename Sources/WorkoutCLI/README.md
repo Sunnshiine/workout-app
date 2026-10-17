@@ -118,9 +118,9 @@ where a word next to it, or the phrase around it, says which, never by its place
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
   "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
   ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
-- Right after a whole weight for reps, "and", "of", or "add" before a number is the "at" the
-  recognizer mishears, and the number after it is never read: "185 for 5 and 8" is `missingValues`
-  with the RPE missing, because "185 for 5 and 5" may be five Sets of five. `hear` and the mic
+- Right after a whole weight for reps, "and", "of", "add", or "to" before a number is the "at" the
+  recognizer mishears, and the number after it is never read: "185 for 5 and 8" and "225 for 3 to
+  8" are `missingValues` with the RPE missing, because "185 for 5 and 5" may be five Sets of five. `hear` and the mic
   fill a value the top transcript cut off from the alternative transcripts, when every one that
   hears the same weight and reps hears the same RPE: "185 for 5 and 8" beside "185 for 5 at 8" logs
   185x5@8, and beside "185 for 5 at 8" and "185 for 5 at 9" stays `missingValues`.
