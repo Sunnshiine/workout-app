@@ -182,7 +182,11 @@ speech assets from Apple, free and with no account, and prints each whole percen
 fails partway through is `listening_failed` (exit 3), and a Mac without the model, or whose assets
 would not install, is `speech_unavailable` (exit 69). `scripts/prove-dictation.sh` speaks a table
 of phrases in two macOS voices, runs each through `hear`, flushes, and prints what landed in the
-Sheet.
+Sheet. `scripts/measure-dictation.sh` speaks every phrase of `scripts/dictation-corpus.tsv` in
+every real English voice at three rates, runs each through `hear` on a card whose pre-fill differs
+from the phrase's intent, and counts how many wrote the Set meant (CORRECT), wrote another
+(WRONG), or wrote nothing (NOWRITE), by voice, by rate, and by cause. Its results TSV keeps every
+transcript the model heard.
 
 ## Sync outcome
 
