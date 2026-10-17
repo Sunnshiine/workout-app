@@ -12,7 +12,8 @@
             argument: "-UITEST_FIXTURE",
             meaning:
                 "Runs on an in-memory store, synced from the Scenario's local workbook at boot, with a faked sign-in and"
-                + " a Sheets client that never reaches Google. The fixture Sheet then reads as Offline, so a log stays queued.",
+                + " a Sheets client that never reaches Google. A log then flushes into that workbook, as it would into the"
+                + " coach's Sheet.",
             actsWithoutFixture: true
         )
 
@@ -84,8 +85,14 @@
         static let pendingWrite = LaunchFlag(
             argument: "-UITEST_PENDING_WRITE",
             meaning:
-                "Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, and keeps the fixture Sheet reachable,"
-                + " so a sync writes it to the Scenario's own workbook and reloads the Block from it."
+                "Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, so a sync writes it to the Scenario's"
+                + " own workbook and reloads the Block from it."
+        )
+
+        static let offline = LaunchFlag(
+            argument: "-UITEST_OFFLINE",
+            meaning: "Makes the fixture Sheet read as Offline after the boot, so a log stays queued and the header reads"
+                + " `N unsynced`."
         )
 
         static let slowSync = LaunchFlag(
@@ -137,6 +144,7 @@
             .disableAnimations,
             .disableLiveActivities,
             .pendingWrite,
+            .offline,
             .slowSync,
             .lateSignIn,
             .currentSessionOverride,

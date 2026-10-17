@@ -23,7 +23,7 @@ Log a set lets the athlete record the active set's weight, reps, and RPE from th
 
 Preconditions:
 
-- `verify.sh launch session` landed on Back Squat with `find session-remaining-count` reading `5 Sets left` and a `Set 1 of 3` static text.
+- `verify.sh launch session -UITEST_OFFLINE` landed on Back Squat with `find session-remaining-count` reading `5 Sets left` and a `Set 1 of 3` static text. `-UITEST_OFFLINE` keeps each log queued, so the header reads `N unsynced` below. Without it the fixture sheet is reachable, so after a log the pill reads `Syncing` and then leaves, and Developer Tools lists the write as `Succeeded`.
 
 - **Baseline.** Capture the stage. Run `verify.sh shot 01-before`. The tree has `AXButton  weight-pill  Weight, 237.5` and `AXButton  log-active-set-button  Log 237.5 × 5 @6` (RPE 6 is the prescribed default).
 - **History.** Tap the last-performed line. Run `verify.sh tap --label "Block 26 · W4 D3 — 245x5@6, 255x5@7"`. A half-height sheet titled `Back Squat` with `Exercise History · last 5` lists `Block 26` and `Block 25`. Run `verify.sh tap --id history-volume-toggle`. Its value turns `on` and `find history-volume-chart` answers. Run `verify.sh shot 02-history`. Dismiss the sheet with `verify.sh axe swipe --start-x 200 --start-y 70 --end-x 200 --end-y 800 --duration 0.3`, then confirm it closed with `verify.sh find history-volume-toggle` exiting 1. Every bullet below assumes it is gone.

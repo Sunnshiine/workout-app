@@ -21,7 +21,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -61,7 +61,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
-        let app = launchFixtureApp(animated: true)
+        let app = launchFixtureApp(options: [.offline], animated: true)
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         let card = app.otherElements["active-set-card"]
@@ -100,7 +100,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)
@@ -119,7 +119,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)

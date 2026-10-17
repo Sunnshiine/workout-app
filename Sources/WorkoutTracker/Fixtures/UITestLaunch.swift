@@ -41,6 +41,8 @@
 
         var startsWithPendingWrite: Bool { has(.pendingWrite) }
 
+        var startsOffline: Bool { has(.offline) }
+
         var slowsSync: Bool { has(.slowSync) }
 
         var signsInLate: Bool { has(.lateSignIn) }
