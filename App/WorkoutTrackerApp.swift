@@ -6,10 +6,10 @@ import SwiftUI
 @main
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
-    /// One Dictation per process: the card and a headless intent share the mic through it.
-    @State private var dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
+    /// One Dictation per process: the card and the headless intent share the mic through it.
+    @State private var dictation: SetDictation?
     /// One owner of the Live Activity per process, whichever surface asked for it.
-    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
+    @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
 
     init() {
@@ -19,10 +19,19 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        // Registered before the first scene, so an intent that cold-launches the app finds it.
+        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
+        _dictation = State(initialValue: dictation)
+        let liveActivityAdapter = LiveActivityProductionAdapter()
+        _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
         _entry = State(initialValue: entry)
-        AppDependencyManager.shared.add(dependency: entry)
+        // Registered before the first scene, so an intent that launches the app in the background,
+        // with no scene at all, finds it.
+        AppDependencyManager.shared.add(
+            key: LogSetByVoiceIntent.performerKey,
+            dependency: LogSetByVoicePerformer(app: app, dictation: dictation, liveActivity: liveActivityAdapter, entry: entry)
+                as any LogSetByVoicePerforming
+        )
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG
             #if canImport(UIKit)

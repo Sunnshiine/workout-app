@@ -102,6 +102,12 @@ struct SessionView: View {
         .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
         }
+        .onChange(of: entry.backgroundWrites) {
+            // A Set logged behind the stage leaves its card on the logged Set until the stage
+            // binds again and the focus moves to the next Pending Set.
+            guard let session = workout.viewedSession else { return }
+            bindCoordinator(to: session)
+        }
     }
 
     private func bindCoordinator(to session: Session) {
