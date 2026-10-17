@@ -230,17 +230,29 @@ final class SessionCoordinator {
         self.log(set, as: log, from: .card)
     }
 
+    /// A held Set takes no write from its card: only its Clear menu changes it.
     func log(_ setLog: SetLog, for slot: SetCardSlot) {
-        switch slot.mode.cardMode(for: slot.set) {
+        switch slot.mode.cardMode {
         case .logging:
             log(slot.set, as: setLog)
         case .reviewingLogged:
             updateLoggedSet(slot.set, as: setLog)
+        case .held:
+            break
         }
     }
 
     func skip(_ set: ExerciseSet) {
         skip(set, from: .card)
+    }
+
+    func skip(for slot: SetCardSlot) {
+        switch slot.mode.cardMode {
+        case .logging, .reviewingLogged:
+            skip(slot.set)
+        case .held:
+            break
+        }
     }
 
     private func log(_ set: ExerciseSet, as log: SetLog, from source: WriteSource) {

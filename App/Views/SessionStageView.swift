@@ -387,7 +387,7 @@ extension ActiveSetCard {
                 )
             },
             onLog: { coordinator.log($0, for: slot) },
-            onSkip: { coordinator.skip(slot.set) },
+            onSkip: { coordinator.skip(for: slot) },
             onDelete: { coordinator.deleteLog(for: slot.set) },
             onTouchWhileHeld: { coordinator.endSpokenWriteHold() }
         )

@@ -82,6 +82,7 @@ struct SmartValuePills: View {
 
             actionRow
         }
+        .disabled(!presentation.editsValues)
         .background {
             Color.clear
                 .contentShape(Rectangle())

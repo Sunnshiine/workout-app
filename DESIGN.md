@@ -460,8 +460,9 @@ in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a
 row says, never whether the row is there. Saved and Clear sit in the head's
 trailing slot, as does the mic on a Pending Set being logged. A Set written
-by speech stays on the card with Saved and Clear for four seconds, then the
-card moves on as a log does, at once if the athlete touches it. While the mic
+by speech stays on the card with Saved and Clear for four seconds, its values
+and action capsule disabled because only Clear changes it, then the card
+moves on as a log does, at once if the athlete touches it. While the mic
 listens, and after a press that wrote nothing, the action capsule says what
 it heard in the Log button's frame, never aloud. A review has no collapse
 control: tapping its leaf again ends it. Inside the card, only what answers
