@@ -4,8 +4,9 @@ import SwiftData
 enum WorkoutLoggingError: Error, Equatable {
     case missingExercise
     case missingSession
-    case missingWeek
-    case missingBlock
+    /// The sync that replaced its Block took the Session out of it, so the Set has no place in the
+    /// Sheet to write to.
+    case detachedSession
 }
 
 struct BlockOverviewNavigationRequest: Equatable, Identifiable {

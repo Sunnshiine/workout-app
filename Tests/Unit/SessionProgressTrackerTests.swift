@@ -404,11 +404,11 @@ private func sortedSessions(in block: Block) -> [Session] {
 @Test func moveOnIsNotOfferedFromASessionTheBlockNoLongerHolds() throws {
     let block = makeBlock()
     let tracker = SessionProgressTracker()
-    let weekless = Session(dayNumber: 3, date: nil)
+    let detached = Session(dayNumber: 3, date: nil)
     let replaced = try #require(sortedSessions(in: makeBlock()).first { $0.week?.number == 2 && $0.dayNumber == 3 })
 
-    #expect(tracker.moveOnDestination(from: weekless, in: block) == .notOffered)
-    #expect(tracker.nextSession(after: weekless, in: block) == nil)
+    #expect(tracker.moveOnDestination(from: detached, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: detached, in: block) == nil)
     #expect(tracker.moveOnDestination(from: replaced, in: block) == .notOffered)
     #expect(!tracker.hasSessionAhead(after: replaced, in: block))
 }

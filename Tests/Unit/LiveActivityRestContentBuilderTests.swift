@@ -93,6 +93,28 @@ import Testing
     #expect(LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: content, at: capDate))
 }
 
+/// A Detached Session has no Session Coordinate, so its rest names no target and the next
+/// reconcile ends it rather than matching some other Session by Day.
+@MainActor
+@Test func liveActivityContentForADetachedSessionHasNoTarget() throws {
+    let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
+    let session = Session(dayNumber: 1, date: nil)
+    session.exercises = [exercise]
+    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
+
+    let content = try #require(
+        LiveActivityRestContentBuilder.content(
+            afterLogging: loggedSet,
+            in: session,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+        )
+    )
+
+    #expect(content.target == nil)
+    #expect(content.exerciseName == "Bench Press")
+}
+
 @MainActor
 @Test func liveActivityContentTargetsNextPendingSetInSameExerciseAndCountsDisplayedExercisePendingSets() throws {
     let startDate = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -120,7 +142,7 @@ import Testing
     #expect(content.restStartDate == startDate)
     #expect(content.restEndDate == endDate)
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
-    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
+    #expect(content.target?.session == SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)))
 }
 
 @MainActor
@@ -215,7 +237,7 @@ import Testing
 
     #expect(content.exerciseName == "DB Row")
     #expect(content.setsLeftText == "1 set left")
-    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
+    #expect(content.target?.session == SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)))
 }
 
 @MainActor
@@ -279,7 +301,7 @@ import Testing
     )
 
     #expect(content.exerciseName == "DB Row")
-    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
+    #expect(content.target?.session == SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)))
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 1, setIndex: 1))
 }
 
@@ -312,7 +334,7 @@ import Testing
 
     // Widget up-next: the earlier day's Open Exercise.
     #expect(content.exerciseName == "DB Row")
-    #expect(content.target?.session == SessionReparseIdentity.inWeek(SessionAddress(week: 1, day: 1), blockTab: nil))
+    #expect(content.target?.session == SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)))
     // On-screen focus: nothing left in the Current Session, and no fallback.
     #expect(focus.activeSetID == nil)
     // The two scopes disagree, by design.
@@ -543,4 +565,5 @@ private func makeSingleSession(dayNumber: Int = 1, exercises: [Exercise]) -> Ses
 private func connectCurrentWeek(_ sessions: [Session]) {
     let week = Week(number: 1)
     week.sessions = sessions
+    week.block = Block(tabName: "Block 27")
 }

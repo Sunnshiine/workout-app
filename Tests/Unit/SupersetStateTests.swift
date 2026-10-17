@@ -44,7 +44,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(!state.canCreateSuperset(with: [squat, squat], in: session))
     #expect(!state.canCreateSuperset(with: [squat, otherSessionExercise], in: session))
 
-    bench.sets.forEach { $0.state = .logged }
+    for set in bench.sets { set.state = .logged }
 
     #expect(!state.canCreateSuperset(with: [squat, bench], in: session))
 
@@ -115,7 +115,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(pureBench == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
     // nil when the Exercise has no Pending Set — matching the mutating path.
-    bench.sets.forEach { $0.state = .logged }
+    for set in bench.sets { set.state = .logged }
     #expect(SupersetState.nextPendingSetID(for: bench) == nil)
     #expect(state.focusNextPendingSet(for: bench, in: session) == nil)
 }
@@ -138,7 +138,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(projected == SessionCoordinator.activeSetID(for: nextSet))
 
     // nil when the Exercise has no Pending Set.
-    squat.sets.forEach { $0.state = .logged }
+    for set in squat.sets { set.state = .logged }
     #expect(SupersetState.nextPendingSet(for: squat) == nil)
     #expect(SupersetState.nextPendingSetID(for: squat) == nil)
 }
@@ -158,7 +158,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(!state.isPaired(bench))
 
     state.createSuperset(with: [squat, bench], in: session)
-    squat.sets.forEach { $0.state = .logged }
+    for set in squat.sets { set.state = .logged }
     state.refresh(in: session)
 
     #expect(state.supersetCount == 0)
@@ -395,16 +395,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 }
 
 @MainActor
-@Test func supersetIdentityTellsSessionsWithoutAWeekApartByDay() {
-    func squatIdentity(inDay day: Int?) -> SupersetExerciseIdentity {
-        let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
-        if let day {
-            Session(dayNumber: day, date: nil).exercises = [squat]
-        }
-        return SupersetExerciseIdentity(exercise: squat)
-    }
+@Test func anExerciseOfADetachedSessionCannotJoinASuperset() {
+    let session = makeSupersetSession()
+    session.week = nil
+    let state = SupersetState()
 
-    #expect(squatIdentity(inDay: 2) == squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
+    #expect(SupersetExerciseIdentity(exercise: session.exercises[0]) == nil)
+    #expect(!state.canCreateSuperset(with: Array(session.exercises.prefix(2)), in: session))
+    #expect(!state.createSuperset(with: Array(session.exercises.prefix(2)), in: session))
 }

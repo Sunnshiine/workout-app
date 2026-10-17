@@ -798,3 +798,18 @@ private final class CurrentSessionChanges {
 
     #expect(counts == [0, 0, 1, 2])
 }
+
+/// The write path refuses a Set the sync took out of the Block, whichever link the store dropped.
+@MainActor
+@Test func loggingASetHeldAcrossASyncQueuesNoWrite() throws {
+    try withOnDiskStore(weekCount: 1) { store, context in
+        let held = try #require(store.currentSession?.exercises.first?.sets.first)
+        try replaceBlock(in: context, with: makeStoreBlock())
+        store.reload()
+
+        #expect(throws: WorkoutLoggingError.self) {
+            try store.log(held, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+        }
+        #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    }
+}
