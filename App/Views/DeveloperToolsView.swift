@@ -61,7 +61,7 @@ struct DeveloperToolsView: View {
                 )
                 CurrentSessionDebugRow(
                     label: "Manual Current Session Override",
-                    value: info.manualOverrideSession,
+                    value: info.pinnedSession,
                     valueIdentifier: "current-session-debug-manual-override-value"
                 )
                 CurrentSessionDebugRow(
@@ -101,9 +101,9 @@ struct DeveloperToolsView: View {
                     systemImage: "arrow.counterclockwise",
                     role: .destructive
                 ) {
-                    workout.resetCurrentSessionOverride()
+                    workout.clearCurrentSessionPin()
                 }
-                .disabled(!workout.hasCurrentSessionOverride)
+                .disabled(!info.canClearPin)
                 .accessibilityIdentifier("reset-current-session-override-button")
             }
         }

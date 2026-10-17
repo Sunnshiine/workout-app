@@ -92,7 +92,9 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 ### Progress
 
-**Current Session**: The most recently logged Session in the current Block — the session the athlete is actively working on. Derived from the sheet on each sync. Always an Available Session: when no Session has been logged yet it defaults to the first Available Session in Block order, never an Unavailable Session. Avoid: today's workout, active session.
+**Current Session**: The session the athlete is actively working on in the current Block: the Current Session Pin while one is in force, otherwise the most recently logged Session, derived from the sheet on each sync. Always an Available Session: when no Session has been logged yet it defaults to the first Available Session in Block order, never an Unavailable Session. Avoid: today's workout, active session.
+
+**Current Session Pin**: The Session the athlete last advanced to with Move On or chose with the off-live-edge Make current control, held on the device for each Block tab and never written to the Sheet. It wins over Sheet-derived progress, even behind the most recently logged Session, while it still names an Available Session of that Block; when it names none, as after a re-parse, Sheet-derived progress wins without telling the athlete. Only a Make current pin is an override, because a Move On moves along the Block rather than away from it. Avoid: manual override, advanced-to order, manual current session.
 
 **Current Week**: The Week containing the Current Session. Open Exercises are tracked only within the Current Week. Starting any Session in Week N+1 closes Week N — its Open Exercises are silently abandoned. Avoid: active week.
 

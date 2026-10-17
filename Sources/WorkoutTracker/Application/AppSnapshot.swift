@@ -247,6 +247,8 @@ public struct AppSnapshot: Encodable, Equatable, Sendable {
     public let block: BlockSummary?
     public let currentSession: SessionAddress?
     public let currentSessionReason: String
+    /// True only while a Current Session Pin the athlete wrote with Make current is in force. A
+    /// Move On advance also pins the Current Session, but it is not an override.
     public let currentSessionIsOverridden: Bool
     public let viewedSession: SessionAddress?
     public let canMoveOn: Bool
