@@ -470,21 +470,11 @@ extension SessionCoordinator {
             )
         else { return }
 
-        liveActivityAdapter.startOrUpdate(
-            restContent: content,
-            sessionLabel: liveActivitySessionLabel(for: session)
-        )
+        liveActivityAdapter.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
     }
 
     fileprivate func reconcileLiveActivity(for session: Session) {
         liveActivityAdapter.endIfInvalidated(at: navigationAdapter.liveEdge(for: session))
-    }
-
-    fileprivate func liveActivitySessionLabel(for session: Session) -> String {
-        if let address = session.address {
-            return "Week \(address.week) - Day \(address.day)"
-        }
-        return "Day \(session.dayNumber)"
     }
 }
 
