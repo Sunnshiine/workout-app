@@ -130,10 +130,15 @@ says so on stderr.
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
-element that contains it. A container with a zero width or height holds no point, so it is skipped.
-The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
-centre. The answer must belong to the app in front and be the element or something inside its
-frame, and then it taps that centre. A system prompt over the app is covered. The pid file that
+element that contains it. A container with a zero width or height holds no point, so it is skipped,
+and so is one that covers the whole screen, such as a full-screen scroll area, whose edges the
+screen check already covers.
+The keyboard toolbar wraps `Done` in a 0x0 group. The tap point is the centre of the part of the
+element that the screen and those containers show, rounded to a whole point inside that part, so a
+row half below the fold is tapped in its visible half. When no point of it is left, the tap is
+refused as `off-screen` or `clipped`. Last, `tap --id` asks axe what is on top at that point. The
+answer must belong to the app in front and be the element or something inside its frame, and then
+it taps that point. A system prompt over the app is covered. The pid file that
 `launch` writes decides when this check runs:
 
 - While the app `launch` started is in front, the check runs.
@@ -148,8 +153,8 @@ That second read makes a tap that lands take about 3 s, against about 2 s withou
 
 When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
 `clipped`, `disabled`, or `covered`. A refusal takes 4 s or more, because it polls the full 3 s and
-then reads once more. A `clipped` note names the container whose frame misses the centre, such as
-the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
+then reads once more. A `clipped` note names the container whose frame misses the centre, or
+misses every point of the element the screen shows, such as the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
 whatever took the place of an element that went away after the tree was read. So a tap that reports
 success aimed at an element that was on screen, enabled, inside every container that clips it, and
 on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
