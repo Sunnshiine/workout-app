@@ -2772,6 +2772,23 @@ private func makeHandsFreeFixture(
 }
 
 @MainActor
+@Test func withNoRequestWaitingTheStageStaysWhereItIsAndNoCardListensHandsFree() async throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (viewed, _) = makeSingleSetSession(dayNumber: 3)
+    let fixture = makeHandsFreeFixture(showing: current, current: current, requested: false)
+    let slot = try fixture.card(in: current)
+
+    #expect(!fixture.coordinator.startsHandsFree(slot))
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(fixture.dictation?.state == .idle)
+
+    fixture.show(viewed)
+    fixture.coordinator.answerEntry()
+
+    #expect(fixture.navigation.currentSessionShows == 0)
+}
+
+@MainActor
 @Test func aRequestWithNoPendingSetOpensTheCurrentSessionAndEndsThere() throws {
     let (current, done) = makeSingleSetSession(dayNumber: 1)
     done.state = .logged
@@ -2862,7 +2879,7 @@ private func makeHandsFreeFixture(
 @MainActor
 @Test func aRequestWhileTheCardHoldsASpokenSetMovesTheCardOnAndListensForTheNextSet() async throws {
     let session = makeCoordinatorSession()
-    let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
     _ = await fixture.listenUntilQuiet(on: try fixture.card(in: session)) { SetLogDraft(weight: nil, reps: nil, rpe: nil) }
     #expect(try fixture.card(in: session).mode == .heldAfterSpokenWrite)
 

@@ -98,6 +98,8 @@ final class SetDictation {
         case silence
         /// Listening ran as long as it may.
         case cap
+        /// Listening ran as long as it may without hearing a word.
+        case nothingHeard
     }
 
     /// The next step of listening with no hand on the mic.
@@ -151,14 +153,19 @@ final class SetDictation {
     func listenUntilQuiet(for set: ActiveSetID, in context: () -> SpokenSetContext) async -> Outcome? {
         guard start(for: set), let press = starting else { return nil }
         guard await press.value == nil else { return await finish(for: set, in: context()) }
+        return await listen(through: press, for: set, in: context)
+    }
+
+    private func listen(
+        through press: Task<SetTranscriberError?, Never>,
+        for set: ActiveSetID,
+        in context: () -> SpokenSetContext
+    ) async -> Outcome? {
         while starting == press, let wentLiveAt {
             switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: lastHeardAt) {
-            case .wake(let deadline):
-                await clock.sleep(until: deadline)
-            case .stop(.cap) where state.heard.isEmpty:
-                return await giveUpHearingNothing(for: set)
-            case .stop:
-                return await finish(for: set, in: context())
+            case .wake(let deadline): await clock.sleep(until: deadline)
+            case .stop(.nothingHeard): return await giveUpHearingNothing(for: set)
+            case .stop(.silence), .stop(.cap): return await finish(for: set, in: context())
             }
         }
         return nil
@@ -169,10 +176,10 @@ final class SetDictation {
     /// window on, so a first word heard in between still stops a window after it.
     nonisolated static func autoStop(at now: Duration, liveAt: Duration, lastHeardAt: Duration?) -> AutoStop {
         let cap = liveAt + listeningCap
-        let quiet = lastHeardAt.map { $0 + silenceWindow }
-        if let quiet, quiet <= cap, now >= quiet { return .stop(.silence) }
-        if now >= cap { return .stop(.cap) }
-        return .wake(at: min(quiet ?? now + silenceWindow, cap))
+        guard let lastHeardAt else { return now >= cap ? .stop(.nothingHeard) : .wake(at: min(now + silenceWindow, cap)) }
+        let quiet = lastHeardAt + silenceWindow
+        if quiet <= cap, now >= quiet { return .stop(.silence) }
+        return now >= cap ? .stop(.cap) : .wake(at: min(quiet, cap))
     }
 
     private func giveUpHearingNothing(for set: ActiveSetID) async -> Outcome {
@@ -220,12 +227,13 @@ final class SetDictation {
     /// `heard` nil is the transcriber going live.
     private func hear(_ heard: String?, for set: ActiveSetID) {
         guard state.listeningSetID == set else { return }
-        switch heard {
-        case nil: wentLiveAt = clock.now
-        case let words? where !words.isEmpty && words != state.heard: lastHeardAt = clock.now
-        case .some: break
+        guard let heard else {
+            wentLiveAt = clock.now
+            state = .listening(set, heard: state.heard)
+            return
         }
-        state = .listening(set, heard: heard ?? state.heard)
+        if !heard.isEmpty, heard != state.heard { lastHeardAt = clock.now }
+        state = .listening(set, heard: heard)
     }
 
     /// The write policy. A transcript writes only when the most likely one reads as a complete

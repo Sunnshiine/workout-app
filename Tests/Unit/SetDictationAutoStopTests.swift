@@ -12,7 +12,7 @@ private let cap = SetDictation.listeningCap
     arguments: [
         (Duration.seconds(1), nil, Duration.seconds(1), SetDictation.AutoStop.wake(at: .seconds(1) + window)),
         (.seconds(1), nil, .seconds(1) + cap - .milliseconds(500), .wake(at: .seconds(1) + cap)),
-        (.seconds(1), nil, .seconds(1) + cap, .stop(.cap)),
+        (.seconds(1), nil, .seconds(1) + cap, .stop(.nothingHeard)),
         (.seconds(1), .seconds(2), .milliseconds(2500), .wake(at: .seconds(2) + window)),
         (.seconds(1), .seconds(2), .seconds(2) + window, .stop(.silence)),
         (.seconds(1), .seconds(1) + cap - window, .seconds(1) + cap, .stop(.silence)),
