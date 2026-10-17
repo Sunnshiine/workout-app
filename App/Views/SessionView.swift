@@ -70,21 +70,10 @@ struct SessionView: View {
         }
         .task {
             workout.reload()
-            coordinator.reconcileLiveActivity()
             if workout.block == nil, let id = settings.spreadsheetId {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
-                coordinator.reconcileLiveActivity()
             }
-        }
-        .onChange(of: workout.block?.persistentModelID) { _, _ in
-            coordinator.reconcileLiveActivity()
-        }
-        .onChange(of: workout.currentSession?.persistentModelID) { _, _ in
-            coordinator.reconcileLiveActivity()
-        }
-        .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
-            coordinator.reconcileLiveActivity()
         }
     }
 }

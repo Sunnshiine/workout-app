@@ -25,6 +25,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
     @ObservationIgnored private let wiring: SessionWiring
+    @ObservationIgnored private var liveEdgeReconcile: Task<Void, Never>?
 
     init(
         session: Session? = nil,
@@ -36,6 +37,11 @@ final class SessionCoordinator {
         let focusManager = ActiveSetFocusManager(session: session)
         self.focusManager = focusManager
         self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
+        reconcileOnEachLiveEdgeChange()
+    }
+
+    deinit {
+        liveEdgeReconcile?.cancel()
     }
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
@@ -51,9 +57,29 @@ final class SessionCoordinator {
     }
 
     /// Re-checks the rest Live Activity at the Viewed Session's live edge. The one reconciler, run
-    /// after every Session verb and whenever the Block or the Current Session changes.
-    func reconcileLiveActivity() {
+    /// after every Session verb and whenever the store's live edge changes.
+    private func reconcileLiveActivity() {
         wiring.liveActivity.endIfInvalidated(at: wiring.navigation.liveEdge)
+    }
+
+    /// Covers every store-driven change to the live edge: a sync replacing the Block, Make Current,
+    /// Move On, a reload, and navigating. The observation fires in the store's `willSet`, before
+    /// the new value lands, so the reconcile waits one main-actor turn and reads the settled store.
+    /// Every change in that turn lands in the one reconcile. Listening again before reconciling
+    /// keeps a change made during the reconcile from being missed.
+    private func reconcileOnEachLiveEdgeChange() {
+        withObservationTracking {
+            _ = wiring.navigation.liveEdge
+        } onChange: { [weak self] in
+            // The navigation adapter changes only on the main actor, so its change notice runs there.
+            MainActor.assumeIsolated {
+                self?.liveEdgeReconcile = Task { [weak self] in
+                    guard let self else { return }
+                    reconcileOnEachLiveEdgeChange()
+                    reconcileLiveActivity()
+                }
+            }
+        }
     }
 
     private func bind(to session: Session) {

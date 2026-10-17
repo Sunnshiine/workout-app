@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 @testable import WorkoutTracker
 
@@ -52,6 +53,7 @@ struct UnwiredSessionLogging: SessionLoggingAdapter {
 }
 
 @MainActor
+@Observable
 final class BrowsedAwaySessionNavigation: SessionNavigationAdapter {
     var liveEdge: LiveEdge { .browsedAway }
     var canMoveOn: Bool { false }
