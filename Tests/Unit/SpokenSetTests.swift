@@ -94,7 +94,7 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
     #expect(SpokenSet.parse("ninety four five at eight") == .failure(.ambiguous))
     #expect(SpokenSet.parse("forty four five") == .failure(.ambiguous))
     #expect(SpokenSet.parse("ninety four five") == .failure(.ambiguous))
-    #expect(SpokenSet.parse("ninety four reps") == .failure(.outOfRange(.reps)))
+    #expect(SpokenSet.parse("ninety four reps") == values(nil, 94, nil))
     #expect(SpokenSet.parse("ninety four pounds for five") == values(.pounds(94), 5, nil))
 }
 
@@ -102,7 +102,7 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
     #expect(SpokenSet.parse("four oh five for four at 9") == values(.pounds(405), 4, .nine))
     #expect(SpokenSet.parse("twenty four reps") == values(nil, 24, nil))
     #expect(SpokenSet.parse("135 pounds four reps") == values(.pounds(135), 4, nil))
-    #expect(SpokenSet.parse("at four") == .failure(.offLadderRPE(4)))
+    #expect(SpokenSet.parse("at four") == values(.pounds(4), nil, nil))
 }
 
 @Test func ateIsEightAndToIsTwoOnlyWhereANumberIsAskedFor() {
@@ -206,34 +206,52 @@ func fillerAroundASetIsDropped(transcript: String) {
 @Test func anRPEOffTheTenPointLadderIsRejectedWithTheNumberHeard() {
     #expect(SpokenSet.parse("RPE 5.5") == .failure(.offLadderRPE(5.5)))
     #expect(SpokenSet.parse("RPE 11") == .failure(.offLadderRPE(11)))
-    #expect(SpokenSet.parse("185 for 5 at 4") == .failure(.offLadderRPE(4)))
+    #expect(SpokenSet.parse("185 for 5 RPE 4") == .failure(.offLadderRPE(4)))
     #expect(SpokenSet.parse("185x5@185") == .failure(.offLadderRPE(185)))
-    #expect(SpokenSet.parse("185 for 5 at 7.25") == .failure(.offLadderRPE(7.25)))
-    #expect(SpokenSet.parse("at 4.5") == .failure(.offLadderRPE(4.5)))
-    #expect(SpokenSet.parse("185 for 5 at 11") == .failure(.offLadderRPE(11)))
+    #expect(SpokenSet.parse("185 for 5 RPE 7.25") == .failure(.offLadderRPE(7.25)))
+    #expect(SpokenSet.parse("at RPE 4.5") == .failure(.offLadderRPE(4.5)))
+    #expect(SpokenSet.parse("185 for 5 @ 11") == .failure(.offLadderRPE(11)))
 }
 
-@Test func atNamesTheWeightFrom15AndTheRPEBelowIt() {
+@Test func atNamesTheRPEOnTheLadderAndTheWeightOffIt() {
     #expect(SpokenSet.parse("12 reps at 30") == values(.pounds(30), 12, nil))
     #expect(SpokenSet.parse("at 20") == values(.pounds(20), nil, nil))
-    #expect(SpokenSet.parse("at 15") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("at 14") == .failure(.offLadderRPE(14)))
-    #expect(SpokenSet.parse("at 12") == .failure(.offLadderRPE(12)))
+    #expect(SpokenSet.parse("at 15") == values(.pounds(15), nil, nil))
+    #expect(SpokenSet.parse("at 14") == values(.pounds(14), nil, nil))
+    #expect(SpokenSet.parse("at 12") == values(.pounds(12), nil, nil))
+    #expect(SpokenSet.parse("8 reps at 12") == values(.pounds(12), 8, nil))
+    #expect(SpokenSet.parse("at 4.5") == values(.pounds(4.5), nil, nil))
     #expect(SpokenSet.parse("at 10") == values(nil, nil, .ten))
+    #expect(SpokenSet.parse("at 9") == values(nil, nil, .nine))
+    #expect(SpokenSet.parse("at 5") == values(nil, nil, .five))
+    #expect(SpokenSet.parse("at 6.5") == values(nil, nil, .sixPointFive))
     #expect(SpokenSet.parse("12 reps at bodyweight") == values(.bodyweight, 12, nil))
+}
+
+/// A weight for reps holds one weight, so a number off the ladder after "at" is a second one.
+@Test func aNumberOffTheLadderAfterAtAfterAWeightConflictsWithIt() {
+    #expect(SpokenSet.parse("185 for 5 at 4") == .failure(.conflicting(.weight)))
+    #expect(SpokenSet.parse("185 for 5 at 7.25") == .failure(.conflicting(.weight)))
+    #expect(SpokenSet.parse("185 for 5 at 11") == .failure(.conflicting(.weight)))
 }
 
 @Test func atBeforeAWeightInPoundsNamesTheWeightWhateverItWeighs() {
     #expect(SpokenSet.parse("12 reps at 25 pounds") == values(.pounds(25), 12, nil))
-    #expect(SpokenSet.parse("12 reps at 10 pounds") == .failure(.outOfRange(.weight)))
+    #expect(SpokenSet.parse("12 reps at 10 pounds") == values(.pounds(10), 12, nil))
+    #expect(SpokenSet.parse("12 reps at 4 pounds") == values(.pounds(4), 12, nil))
     #expect(SpokenSet.parse("8 reps at 135 lbs") == values(.pounds(135), 8, nil))
     #expect(SpokenSet.parse("8 reps at 135 lbs at 9") == values(.pounds(135), 8, .nine))
     #expect(SpokenSet.parse("12 reps at 10") == values(nil, 12, .ten))
     #expect(SpokenSet.parse("185 for 5 at 8 pounds") == .failure(.conflicting(.weight)))
 }
 
-@Test func withBeforeBodyweightOrAWeightOf15OrMoreNamesTheWeightAndIsFillerElsewhere() {
+/// "with 8" may be "with an RPE of 8", so a number on the RPE ladder after "with" is no weight.
+@Test func withBeforeBodyweightOrANumberOffTheRPELadderNamesTheWeightAndIsFillerElsewhere() {
     #expect(SpokenSet.parse("5 reps with 185") == values(.pounds(185), 5, nil))
+    #expect(SpokenSet.parse("5 reps with 12") == values(.pounds(12), 5, nil))
+    #expect(SpokenSet.parse("5 reps with 4.5") == values(.pounds(4.5), 5, nil))
+    #expect(SpokenSet.parse("5 reps with 10 pounds") == values(.pounds(10), 5, nil))
+    #expect(SpokenSet.parse("5 reps with 10") == .failure(.ambiguous))
     #expect(SpokenSet.parse("5 reps with 185 at 8") == values(.pounds(185), 5, .eight))
     #expect(SpokenSet.parse("12 reps with bodyweight") == values(.bodyweight, 12, nil))
     #expect(SpokenSet.parse("5 reps with 25 pounds") == values(.pounds(25), 5, nil))
@@ -301,47 +319,45 @@ func twoSetsSaidInOneBreathConflict(transcript: String, field: SetLogDraft.Field
     }
 }
 
-@Test func valuesOutsideWhatAnySetHoldsAreOutOfRange() {
+/// A Set with no load is bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set
+/// Log, and a rep count is whole.
+@Test func noLoadNoRepsAndAFractionOfARepAreOutOfRange() {
     #expect(SpokenSet.parse("135 for 0") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for zero") == .failure(.outOfRange(.reps)))
-    #expect(SpokenSet.parse("135 for 101") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 8.5") == .failure(.outOfRange(.reps)))
     #expect(SpokenSet.parse("135 for 1e20") == .failure(.unrecognized))
     #expect(SpokenSet.parse("0 for 5") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("4 for 5") == .failure(.outOfRange(.weight)))
-    #expect(SpokenSet.parse("19.75 for 5") == .failure(.outOfRange(.weight)))
+    #expect(SpokenSet.parse("0 pounds") == .failure(.outOfRange(.weight)))
     #expect(SpokenSet.parse("135 for 005") == .failure(.unrecognized))
-    #expect(SpokenSet.parse("4.5 pounds") == .failure(.outOfRange(.weight)))
     #expect(SpokenSet.parse("999 for 1 at 10") == values(.pounds(999), 1, .ten))
 }
 
-/// No Set Log holds more than 30 reps, under 20 pounds, or a weight finer than a quarter pound, so
-/// "12 for 95" and "5 by 5", five Sets of five, are each a Set misheard or not one Set.
-@Test(
-    "A Spoken Set no Set Log holds is rejected",
-    arguments: [
-        ("10 for 45", SpokenSet.Rejection.outOfRange(.weight)), ("12 for 95", .outOfRange(.weight)),
-        ("twelve for ninety five", .outOfRange(.weight)), ("8 four 95", .outOfRange(.weight)), ("135 for 45", .outOfRange(.reps)),
-        ("135 for forty five", .outOfRange(.reps)), ("135 for 31", .outOfRange(.reps)), ("135 for 49 reps", .outOfRange(.reps)),
-        ("135 for 49 at 8", .outOfRange(.reps)), ("RPE 8, 135 for 49", .outOfRange(.reps)), ("49 reps", .outOfRange(.reps)),
-        ("135 for 100", .outOfRange(.reps)), ("187.55 for 5", .outOfRange(.weight)), ("135.123456 for 5", .outOfRange(.weight)),
-        ("185.1 pounds", .outOfRange(.weight)), ("5 by 5", .outOfRange(.weight)), ("5 x 5", .outOfRange(.weight)),
-        ("five by five", .outOfRange(.weight)), ("8 x 8", .outOfRange(.weight)), ("10 by 10", .outOfRange(.weight)),
-        ("5 for 5", .outOfRange(.weight)), ("12 times 12 at 8", .outOfRange(.weight)), ("5 by 5 at 8", .outOfRange(.weight)),
-        ("12 reps at 12 pounds", .outOfRange(.weight)), ("5 x 3", .outOfRange(.weight)), ("6 by 8", .outOfRange(.weight)),
-        ("10 for 25", .outOfRange(.weight)), ("12 for 30", .outOfRange(.weight)), ("15 for 25", .outOfRange(.weight)),
-        ("7 for 5", .outOfRange(.weight))
-    ]
-)
-func aSpokenSetNoSetLogHoldsIsRejected(transcript: String, rejection: SpokenSet.Rejection) {
-    #expect(SpokenSet.parse(transcript) == .failure(rejection))
-}
+/// Speaking logs any weight and rep count the card's Set Log form accepts, so none of these is
+/// refused for being light, fine, or many reps.
+private let anyValueTheCardAccepts: [(transcript: String, weight: Weight?, reps: Int?, rpe: RPE?)] = [
+    ("4 for 5", .pounds(4), 5, nil), ("10 for 12", .pounds(10), 12, nil), ("5 by 5", .pounds(5), 5, nil),
+    ("5 x 5", .pounds(5), 5, nil), ("five by five", .pounds(5), 5, nil), ("8 x 8", .pounds(8), 8, nil),
+    ("10 by 10", .pounds(10), 10, nil), ("5 for 5", .pounds(5), 5, nil), ("5 x 3", .pounds(5), 3, nil),
+    ("6 by 8", .pounds(6), 8, nil), ("7 for 5", .pounds(7), 5, nil), ("10 for 25", .pounds(10), 25, nil),
+    ("12 for 30", .pounds(12), 30, nil), ("15 for 25", .pounds(15), 25, nil), ("19.75 for 5", .pounds(19.75), 5, nil),
+    ("12 times 12 at 8", .pounds(12), 12, .eight), ("5 by 5 at 8", .pounds(5), 5, .eight),
+    ("10 for 12 at 8", .pounds(10), 12, .eight), ("4.5 pounds", .pounds(4.5), nil, nil),
+    ("12 reps at 12 pounds", .pounds(12), 12, nil), ("10 for 45", .pounds(10), 45, nil), ("12 for 95", .pounds(12), 95, nil),
+    ("twelve for ninety five", .pounds(12), 95, nil), ("8 four 95", .pounds(8), 95, nil),
+    ("135 for 45", .pounds(135), 45, nil), ("135 for forty five", .pounds(135), 45, nil), ("135 for 31", .pounds(135), 31, nil),
+    ("135 for 30", .pounds(135), 30, nil), ("135 for 100", .pounds(135), 100, nil), ("135 for 101", .pounds(135), 101, nil),
+    ("135 for 49 reps", .pounds(135), 49, nil), ("135 for 49 at 8", .pounds(135), 49, .eight),
+    ("RPE 8, 135 for 49", .pounds(135), 49, .eight), ("49 reps", nil, 49, nil), ("bodyweight for 50", .bodyweight, 50, nil),
+    ("187.55 for 5", .pounds(187.55), 5, nil), ("135.123456 for 5", .pounds(135.123456), 5, nil),
+    ("185.1 pounds", .pounds(185.1), nil, nil), ("187.25 for 5", .pounds(187.25), 5, nil), ("20 for 20", .pounds(20), 20, nil)
+]
 
-@Test func valuesAtTheBoundsOfASetLogAreHeard() {
-    #expect(SpokenSet.parse("135 for 30") == values(.pounds(135), 30, nil))
-    #expect(SpokenSet.parse("187.25 for 5") == values(.pounds(187.25), 5, nil))
-    #expect(SpokenSet.parse("20 for 20") == values(.pounds(20), 20, nil))
-    #expect(SpokenSet.parse("bodyweight for 5") == values(.bodyweight, 5, nil))
+@Test(
+    "Any weight and rep count the card accepts is heard as said",
+    arguments: anyValueTheCardAccepts
+)
+func anyWeightAndRepCountTheCardAcceptsIsHeard(transcript: String, weight: Weight?, reps: Int?, rpe: RPE?) {
+    #expect(SpokenSet.parse(transcript) == values(weight, reps, rpe))
 }
 
 /// Every weight, separator, rep count, and RPE below, crossed, reads as the Set it says.
@@ -527,15 +543,18 @@ func aFractionStartedLastCutsItsNumberOff(transcript: String) {
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
 }
 
-/// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight of at
-/// least 20 and fewer reps is its "for". Between any other two numbers it may be a rate or a range.
-@Test func perAfterBodyweightOrAWeightOf20HeavierThanTheRepsIsTheForOfWeightForReps() {
+/// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight and
+/// fewer reps is its "for". Between any other two numbers it may be a rate or a range.
+@Test func perAfterBodyweightOrAWeightHeavierThanTheRepsIsTheForOfWeightForReps() {
     #expect(SpokenSet.parse("95 pounds per six") == values(.pounds(95), 6, nil))
     #expect(SpokenSet.parse("bodyweight per 12") == values(.bodyweight, 12, nil))
     #expect(SpokenSet.parse("45 per 10") == values(.pounds(45), 10, nil))
     #expect(SpokenSet.parse("21 per 20") == values(.pounds(21), 20, nil))
     #expect(SpokenSet.parse("20 per 10") == values(.pounds(20), 10, nil))
-    #expect(SpokenSet.parse("19 per 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("19 per 5") == values(.pounds(19), 5, nil))
+    #expect(SpokenSet.parse("4 per 3") == values(.pounds(4), 3, nil))
+    #expect(SpokenSet.parse("12.5 per 8") == values(.pounds(12.5), 8, nil))
+    #expect(SpokenSet.parse("5 per 5") == .failure(.ambiguous))
     #expect(SpokenSet.parse("25 per 30") == .failure(.ambiguous))
     #expect(SpokenSet.parse("20 per 25") == .failure(.ambiguous))
     #expect(SpokenSet.parse("20 per 20") == .failure(.ambiguous))
@@ -612,11 +631,12 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
 
 @Test func alternativesThatDisagreeAreAmbiguous() {
     #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 4 at 8"]) == .failure(.ambiguous))
+    #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 45 at 8"]) == .failure(.ambiguous))
 }
 
 @Test func anAlternativeNoSetLogHoldsDisagreesWithNone() {
     #expect(
-        SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 45 at 8"])
+        SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 5.5 at 8"])
             == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .heard(.eight)), from: .alternative)
     )
 }

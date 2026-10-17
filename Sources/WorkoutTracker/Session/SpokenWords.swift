@@ -60,7 +60,7 @@ enum SpokenWord: Equatable, Sendable {
     case token(SpokenToken)
     /// A choice, as in "20 or 25 reps", though the recognizer writes it for the "for" of "135 or 5".
     case or
-    /// The "for" of "95 pounds per six" after bodyweight or a weight of at least 20 heavier than the reps.
+    /// The "for" of "95 pounds per six" after bodyweight or a weight heavier than the reps.
     case per
     /// "to" and "too", the 2 of "185 for to" and "to reps".
     case to
@@ -304,9 +304,6 @@ extension SpokenNumber {
 
 /// The transcript's words read into numbers, bodyweight, and the markers that label them.
 struct SpokenTokens {
-    /// The lightest weight a "per" is the "for" after, above the reps of "10 per 20".
-    static let lightestWeightBeforePer = 20.0
-
     private(set) var tokens: [SpokenToken] = []
 
     init(_ words: [SpokenWord]) throws(SpokenSet.Rejection) {
@@ -346,13 +343,13 @@ struct SpokenTokens {
         return .marker(.separator)
     }
 
-    /// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight of
-    /// at least 20 and fewer reps is its "for". Between any other two numbers it may be a rate or a
-    /// range, as in "25 per 30", and ambiguous.
+    /// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight and
+    /// fewer reps is its "for". Between any other two numbers it may be a rate or a range, as in
+    /// "25 per 30", and ambiguous.
     private func separatorBeforeFewerReps(_ next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         guard let reps = SpokenNumber.read(next)?.number.value, let weight = lastValue?.amount else { return nil }
         guard case .number(let pounds) = weight else { return .marker(.separator) }
-        guard pounds >= Self.lightestWeightBeforePer, pounds > reps else { throw .ambiguous }
+        guard pounds > reps else { throw .ambiguous }
         return .marker(.separator)
     }
 

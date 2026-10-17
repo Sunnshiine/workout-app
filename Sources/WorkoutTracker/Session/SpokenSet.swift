@@ -27,8 +27,7 @@ enum SpokenSet: Equatable, Sendable {
         /// A value said twice, even as the same number or once cut off: the 4 and the 8 of "135 for 4,
         /// 8 reps", or a second Set, as in "185 for 5, 185 for 5" and "185 for 5 for 5".
         case conflicting(SetLogDraft.Field)
-        /// Reps outside 1 to 30 or not whole, or a weight under 20 pounds or finer than a quarter pound,
-        /// as "5 by 5", the shorthand for five Sets of five.
+        /// Reps not whole or 0, as "135 for 8.5", or a weight of 0 pounds.
         case outOfRange(SetLogDraft.Field)
         /// The number heard for the RPE is not one of the ten RPE points.
         case offLadderRPE(Double)

@@ -89,7 +89,7 @@ and the card does not hold is never guessed.
 `rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
 recognizer ran together), `ambiguous` (a number no word places, or words that may mean another Set),
 `conflicting` (a `field` said twice, even as the same number, which reads as two Sets),
-`outOfRange` (reps outside 1 to 30, or a weight under 20 pounds or finer than a quarter pound),
+`outOfRange` (reps that are 0 or not whole, or a weight of 0 pounds),
 `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
 earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
 then a `spoken_set_rejected` error.
@@ -99,16 +99,17 @@ where a word next to it, or the phrase around it, says which, never by its place
 
 - "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
   and said first they label the reps ("for 5"). "four" between a weight and a number is "for" too
-  ("185 four 5"), and so is "per" after bodyweight or a weight of at least 20 heavier than the reps
+  ("185 four 5"), and so is "per" after bodyweight or a weight heavier than the reps
   ("95 pounds per 6"). "25 per 30" is `ambiguous`. "or" between numbers is always `ambiguous`:
   "225 or 3" may be "225 for 3", and "20 or 25 reps" is a range.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
   number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
-  after it ("8 reps", "reps 8"). "with" labels bodyweight or a number of 15 or more after it as the
-  weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else.
+  after it ("8 reps", "reps 8"). "with" labels bodyweight or a number off the RPE ladder after it
+  as the weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else,
+  so "for 5 with 8" is `ambiguous`.
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
-  "RPE" labels the number before it too ("8 RPE"). After "at", a number under 15 is the RPE
-  ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135").
+  "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
+  ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
 - Right after a whole weight for reps, "and", "of", or "add" before a number is the "at" the
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" is `missingValues`
   with the RPE missing, because "185 for 5 and 5" may be five Sets of five.
@@ -117,9 +118,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   count is whole, so after one it is the RPE that is missing ("185 for 5 and").
 - A value said twice is `conflicting`, even as the same number: "185 for 5 for 5" and "185 for 5
   reps, 5 reps".
-- A Spoken Set no Set Log holds is rejected before the card fills anything: reps outside 1 to 30 or
-  a weight under 20 pounds or finer than a quarter pound is `outOfRange` ("135 for 45", "187.55 for
-  5", and "5 by 5", the shorthand for five Sets of five).
+- A Spoken Set holds any weight and rep count the card accepts: "4 for 5", "5 by 5", "135 for 45",
+  and "187.55 for 5" each read as said. Reps that are 0 or not whole, or a weight of 0 pounds, is
+  `outOfRange` ("135 for 0", "315 for 19.5", "0 for 5"), because a Set with no load is bodyweight
+  and a Set not done is Skipped.
 - A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
   "for 5, 8", and "eight" alone.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",

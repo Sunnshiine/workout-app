@@ -445,7 +445,7 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
 @Test func aRejectedSpokenSetReportsWhyAndQueuesNothing() async throws {
     let app = try await makeSelectedApp()
 
-    let offLadder = try app.say("185 for 5 at 4", at: address("w1d1.e0.s0"))
+    let offLadder = try app.say("185 for 5 RPE 4", at: address("w1d1.e0.s0"))
     let nothingToRepeat = try app.say("same again", at: address("w1d1.e0.s0"))
     let conflicting = try app.say("135 for 4, 8 reps", at: address("w1d1.e0.s0"))
     let fused = try app.say("40542 at nine.", at: address("w1d1.e0.s0"))
@@ -502,7 +502,7 @@ private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutAppli
         "185, 45, at 8", "405 42", "eight", "8", "ten", "nine point five", "185, 5, 8", "185 and 5", "for 5 and 8",
         "8 reps of 135", "nine five for five", "at nine five for five", "five or six reps at eight",
         "twenty five or thirty reps at eight", "1854.5 for 5",
-        "4 for 5", "135 for 16", "Two.", "245 for three 8 1/2", "185+58", "315 for 19.5", "185 for 5 at 80%",
+        "135 for 16", "Two.", "245 for three 8 1/2", "185+58", "315 for 19.5", "185 for 5 at 80%",
         "185 for 5 and 8 reps", "185 for 5 at 8 reps", "185 for 5, 185 for 5", "same weight", "8½", "Body weight for 12 to 7",
         "95 pounds to 67"
     ]
@@ -517,18 +517,14 @@ func aRejectedTranscriptQueuesNoWrite(transcript: String) async throws {
     #expect(try app.sync.fetchPendingWriteRecords().count == 1)
 }
 
-/// Each of these once wrote a Set Log the lifter did not say: a value no Set Log holds, sets by reps, "or"
-/// between two numbers, a command naming which Set, a value said twice, a dropped minus sign.
+/// Each of these once wrote a Set Log the lifter did not say: a value no Set Log holds, "or" between two
+/// numbers, a command naming which Set, a value said twice, a dropped minus sign.
 @MainActor
 @Test(
     "A transcript no Set Log holds or that says a value twice queues no write on a card that holds every value",
     arguments: [
-        "5 by 5", "5 x 5", "5 times 5", "8 x 8", "10 by 10", "five by five", "five times five", "eight by eight", "10 x 10",
-        "5 by 5 at 8", "8 for 8", "5 for 5", "6 for 6", "9 for 9", "12 for 95", "10 for 45", "12 for 65", "20 for 45",
-        "8 for 95", "6 for 50", "10 by 50", "10 times 45", "8 four 95", "ten for forty five", "twelve for ninety five",
-        "eight for ninety five", "135 for 45", "135 for 35", "135 for 55", "135 for 65", "135 for 75", "135 for 85",
-        "135 for 95", "135 for 58 at 8", "135 for forty five", "ninety four reps", "187.55 for 5", "135.123456 for 5",
-        "30 or 25 reps", "25 or 20 reps", "50 or 40 reps", "twenty five or twenty reps", "thirty or twenty five reps at 8",
+        "135 for 0", "135 for 8.5", "0 for 5", "30 or 25 reps", "25 or 20 reps", "50 or 40 reps", "twenty five or twenty reps",
+        "thirty or twenty five reps at 8",
         "60 or 50 reps", "40 or 30", "25 per 30", "20 per 25", "forty four five", "ninety four five", "skip set one",
         "skip one set", "same as set one", "same as last time", "repeat set one", "one again", "same one", "135 for -5",
         "135 for 5 at -8", "185 for 5 and 3 at 8", "185 for 5 and 5 at 8", "185 for 5 and 8 at 9", "185 for 5 and 5 RPE 8",
@@ -544,6 +540,25 @@ func aTranscriptNoSetLogHoldsQueuesNoWrite(transcript: String) async throws {
     #expect(report.outcome == .rejected)
     #expect(report.set.state == "pending")
     #expect(try app.sync.fetchPendingWriteRecords().count == 1)
+}
+
+/// Speaking logs what typing on the card logs, however light the weight, fine its decimal, or many its reps.
+@MainActor
+@Test(
+    "A Spoken Set of any weight and rep count the card accepts queues its write",
+    arguments: [
+        ("5 by 5", "5x5@7"), ("4 for 5", "4x5@7"), ("10 for 12 at 9", "10x12@9"), ("135 for 45", "135x45@7"),
+        ("187.55 for 5", "187.55x5@7"), ("8 reps at 12", "12x8@7"), ("5 reps with 12", "12x5@7"), ("19 per 5", "19x5@7")
+    ]
+)
+func aSpokenSetOfAnyValueTheCardAcceptsQueuesItsWrite(transcript: String, setLog: String) async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == setLog)
+    #expect(try app.sync.fetchPendingWriteRecords().count == 2)
 }
 
 /// Each of these once logged the card's or the cut-off RPE as if the lifter had finished saying it.

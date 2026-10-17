@@ -86,5 +86,5 @@ func aValueCutOffAfterItsMarkerIsMissingWhateverTheDraftHolds(transcript: String
 }
 
 @Test func aRejectedTranscriptStaysRejectedWhateverTheDraftHolds() {
-    #expect(outcome(of: "185 for 5 at 4", draft: squatDraft) == .failure(.offLadderRPE(4)))
+    #expect(outcome(of: "185 for 5 RPE 4", draft: squatDraft) == .failure(.offLadderRPE(4)))
 }

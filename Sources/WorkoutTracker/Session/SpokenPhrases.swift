@@ -95,13 +95,11 @@ enum SpokenReading: Equatable, Sendable {
     /// Any number after a misheard "at", which leaves the RPE cut off: "185 for 5 and 5" may be five
     /// Sets of five.
     case unheardRPE
-    /// A number under 15 after "at", as in "at 9".
+    /// A number on the RPE ladder after "at", as in "at 9".
     case rpeAfterAt
-    /// Bodyweight or a number of 15 or more after "at" or "with", as in "8 reps at 135".
+    /// Bodyweight or a number off the RPE ladder after "at" or "with", as in "8 reps at 12". A number
+    /// on the ladder after "with" is no weight, because "with 8" may be "with an RPE of 8".
     case weightAfterAt
-
-    /// Under it, the number after "at" is an RPE and the number after "with" is no weight.
-    static let lightestWeightAfterAt = 15.0
 
     var field: SetLogDraft.Field {
         switch self {
@@ -129,8 +127,8 @@ enum SpokenReading: Equatable, Sendable {
     private func takes(number: Double) -> Bool {
         switch self {
         case .bodyweight: false
-        case .rpeAfterAt: number < Self.lightestWeightAfterAt
-        case .weightAfterAt: number >= Self.lightestWeightAfterAt
+        case .rpeAfterAt: RPE(rawValue: number) != nil
+        case .weightAfterAt: RPE(rawValue: number) == nil
         default: true
         }
     }
@@ -285,17 +283,10 @@ struct SpokenPhrase: Sendable {
     }
 }
 
-/// Weight, reps, and RPE as the phrases claim them, each claimed once, and read only as values a
-/// Set Log holds.
+/// Weight, reps, and RPE as the phrases claim them, each claimed once, and read as any value the
+/// card's Set Log form accepts, so speaking logs nothing typing could not. A Set with no load is
+/// bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set Log.
 struct SpokenSlots {
-    /// Under it, as the 4 of "4 for 5" or the 5 of "5 by 5", a weight is a rep count or a count of
-    /// Sets misheard: a powerlifting Set lighter than 20 pounds is rarer than either.
-    static let lightestWeight = 20.0
-    /// Plates and dumbbells step by a quarter pound at the finest, so "187.55" is a number misheard.
-    static let weightStep = 0.25
-    /// Over it, as the 45 of "135 for 45" or "10 for 45", a rep count is a weight or two numbers misheard.
-    static let mostReps = 30
-
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
     private var cutOff: Set<SetLogDraft.Field> = []
 
@@ -330,14 +321,13 @@ struct SpokenSlots {
 
     private static func weight(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Weight? {
         guard case .number(let pounds) = amount else { return amount.map { _ in .bodyweight } }
-        let steps = pounds / weightStep
-        guard pounds >= lightestWeight, steps.rounded() == steps else { throw .outOfRange(.weight) }
+        guard pounds > 0 else { throw .outOfRange(.weight) }
         return .pounds(pounds)
     }
 
     private static func reps(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Int? {
         guard case .number(let count) = amount else { return nil }
-        guard let reps = Int(exactly: count), (1...mostReps).contains(reps) else { throw .outOfRange(.reps) }
+        guard let reps = Int(exactly: count), reps > 0 else { throw .outOfRange(.reps) }
         return reps
     }
 
