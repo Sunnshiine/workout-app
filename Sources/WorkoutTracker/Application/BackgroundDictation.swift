@@ -110,18 +110,29 @@ final class BackgroundDictation {
         in session: Session,
         shown: LiveActivitySetContent
     ) -> Settled {
-        let setID = position.setID
         do {
             try app.write(heard, to: position.set)
         } catch {
-            return notLogged(.writeFailed, at: setID, shown: shown)
+            return Self.notLogged(.writeFailed, at: position.setID, shown: shown)
         }
+        return settled(heard, for: position, in: session, shown: shown)
+    }
+
+    private func settled(
+        _ heard: SetDictation.Outcome,
+        for position: SessionSetPosition,
+        in session: Session,
+        shown: LiveActivitySetContent
+    ) -> Settled {
+        let setID = position.setID
         switch heard {
         case .logged(let setLog, _):
-            let subject = restSubject(afterLogging: position.set, in: session) ?? .set(shown)
             return Settled(
                 outcome: .logged(setLog, at: setID),
-                content: LiveActivityDictationContent(readback: .logged(setLog.readback), subject: subject),
+                content: LiveActivityDictationContent(
+                    readback: .logged(setLog.readback),
+                    subject: restSubject(afterLogging: position.set, in: session, else: shown)
+                ),
                 wrote: true
             )
         case .skipped:
@@ -131,14 +142,13 @@ final class BackgroundDictation {
                 wrote: true
             )
         case .filled(let values, let heard):
-            let why: NotLogged = values.missingFields.isEmpty ? .ambiguous(heard: heard) : .missingValues(values, heard: heard)
-            return notLogged(why, at: setID, shown: shown)
+            return Self.notLogged(NotLogged(filled: values, heard: heard), at: setID, shown: shown)
         case .rejected(let rejection, let heard):
-            return notLogged(.rejected(rejection, heard: heard), at: setID, shown: shown)
+            return Self.notLogged(.rejected(rejection, heard: heard), at: setID, shown: shown)
         }
     }
 
-    private func notLogged(_ why: NotLogged, at setID: ActiveSetID, shown: LiveActivitySetContent) -> Settled {
+    private static func notLogged(_ why: NotLogged, at setID: ActiveSetID, shown: LiveActivitySetContent) -> Settled {
         Settled(
             outcome: .notLogged(why, at: setID),
             content: LiveActivityDictationContent(readback: .notLogged(why.caption), subject: .set(shown)),
@@ -147,8 +157,12 @@ final class BackgroundDictation {
     }
 
     /// The rest the stage would start after this Set, at the standard rest duration. With no Set
-    /// left to rest toward there is no rest.
-    private func restSubject(afterLogging set: ExerciseSet, in session: Session) -> LiveActivityDictationContent.Subject? {
+    /// left to rest toward, the Set that was logged.
+    private func restSubject(
+        afterLogging set: ExerciseSet,
+        in session: Session,
+        else shown: LiveActivitySetContent
+    ) -> LiveActivityDictationContent.Subject {
         let start = now()
         let content = LiveActivityRestContentBuilder.content(
             afterLogging: set,
@@ -156,7 +170,8 @@ final class BackgroundDictation {
             restStartDate: start,
             restEndDate: start.addingTimeInterval(app.settings.standardRestDuration.timeInterval)
         )
-        return content.map { .rest($0) }
+        guard let content else { return .set(shown) }
+        return .rest(content)
     }
 
     /// Restores the sign-in when no scene has, then flushes for at most `flushWait`.
@@ -171,25 +186,37 @@ final class BackgroundDictation {
 }
 
 extension BackgroundDictation.NotLogged {
+    /// The values the card would fill for a tap, which no card can: `ambiguous` once complete.
+    init(filled values: SetLogDraft, heard: String) {
+        self = values.missingFields.isEmpty ? .ambiguous(heard: heard) : .missingValues(values, heard: heard)
+    }
+
     /// What the Live Activity says in place of a Set Log.
     var caption: String {
         switch self {
         case .missingValues(let values, let heard):
             let missing = SetLogDraft.Field.allCases.filter(values.missingFields.contains).map(\.spokenName)
-            return heard.isEmpty ? "Nothing heard" : "“\(heard)”, no \(missing.joined(separator: " or "))"
+            return "\(Self.quoted(heard)), no \(missing.joined(separator: " or "))"
         case .ambiguous(let heard):
-            return "“\(heard)”"
-        case .rejected(.transcriber(.microphoneDenied), _), .rejected(.transcriber(.unavailable), _):
-            return "Open WorkoutTracker once to allow the mic"
-        case .rejected(.transcriber(.failed), _):
-            return "Couldn’t listen. Unlock to log"
-        case .rejected(.spokenSet(.nothingHeard), _), .rejected(.transcriber(.nothingHeard), _):
-            return "Nothing heard"
-        case .rejected(.spokenSet, let heard):
-            return heard.isEmpty ? "Nothing heard" : "“\(heard)”"
+            return Self.quoted(heard)
+        case .rejected(let rejection, let heard):
+            return Self.caption(rejection, heard: heard)
         case .writeFailed:
             return "Couldn’t save. Unlock to log"
         }
+    }
+
+    private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
+        switch rejection {
+        case .transcriber(.microphoneDenied), .transcriber(.unavailable): "Open WorkoutTracker once to allow the mic"
+        case .transcriber(.failed): "Couldn’t listen. Unlock to log"
+        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
+        case .spokenSet: quoted(heard)
+        }
+    }
+
+    private static func quoted(_ heard: String) -> String {
+        heard.isEmpty ? "Nothing heard" : "“\(heard)”"
     }
 }
 
