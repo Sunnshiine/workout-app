@@ -6,8 +6,9 @@ Reads an `axe describe-ui` JSON tree on stdin:
                          on-screen elements only; --all keeps the off-screen ones and the elements
                          with neither id nor label too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
-                         says on stderr when it is off-screen, clipped (its centre outside the frame
-                         of an ancestor of nonzero size), or disabled
+                         says on stderr when it is off-screen (no whole point on the screen), clipped
+                         (its centre, or every point of it the screen shows, outside the frame of an
+                         ancestor of nonzero size that does not cover the screen), or disabled
   tree.py frame-of <id>  the first such element's frame, as @x,y wxh, or none when the tree has no
                          such id; exit 0 either way, so any other exit is a tree it could not read
   tree.py tappable <id>  "x y" of the first hit that is enabled, on screen, and not clipped, so a tap
