@@ -223,8 +223,7 @@ struct SmartValuePills: View {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: row == .skipped,
-                policy: .forSet(in: set.state),
+                setState: set.state,
                 onLogTap: submitLog,
                 onSkip: skip
             )
@@ -465,8 +464,7 @@ private struct StepperGlyph: Shape {
 private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
-    let isSkipped: Bool
-    let policy: HoldToSkipPolicy
+    let setState: SetState
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
@@ -476,17 +474,17 @@ private struct HoldToSkipLogButton: View {
 
     var body: some View {
         Group {
-            if isSkipped {
+            if presentation.showsSkippedBed {
                 skippedBed
             } else {
                 logButtonSurface
             }
         }
         .onLongPressGesture(
-            minimumDuration: policy.holdDuration,
+            minimumDuration: presentation.longPressDuration,
             maximumDistance: 44,
             pressing: { isPressing in
-                apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
+                apply(isPressing ? gesture.pressBegan(at: .now, policy: presentation.holdPolicy) : gesture.pressEnded(at: .now))
             },
             perform: { apply(gesture.deadlineReached(at: .now)) }
         )
@@ -507,8 +505,10 @@ private struct HoldToSkipLogButton: View {
         .accessibilityAction {
             apply(gesture.tapped(at: .now))
         }
-        .accessibilityAction(named: "Skip") {
-            apply(gesture.skipRequested(at: .now))
+        .accessibilityActions {
+            if presentation.offersSkip {
+                Button("Skip") { apply(gesture.skipRequested(at: .now)) }
+            }
         }
     }
 
@@ -558,7 +558,7 @@ private struct HoldToSkipLogButton: View {
     }
 
     private var presentation: HoldToSkipButtonPresentation {
-        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
+        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog, setState: setState)
     }
 
     /// The green drop / green light only rides the primary (loggable) capsule.

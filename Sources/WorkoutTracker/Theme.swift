@@ -323,7 +323,6 @@ enum Theme {
         static let holdToSkipCommit = 0.85  // commit at 850ms
         static let holdToSkipRetreat = 0.2
         static let holdToSkipLoggedCommit = 0.9  // logged-state hold
-        static let holdToSkipSkippedCommit = 1.1  // skipped-state hold
     }
 
     /// A Crisp haptic tuning: `intensity` and `sharpness` for a Core Haptics transient (token
