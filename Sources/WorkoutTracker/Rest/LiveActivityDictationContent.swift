@@ -6,11 +6,19 @@ struct LiveActivityDictationContent: Equatable, Sendable {
     /// Read on the Lock Screen in place of the card.
     enum Readback: Equatable, Sendable {
         case listening
-        /// The Set Log written, as "235×5 @7".
-        case logged(String)
-        case skipped
+        /// The Set Log written, as "235×5 @7", and the Set it went to.
+        case logged(String, to: WrittenSet)
+        case skipped(WrittenSet)
         /// Why nothing was written, in the card's words.
         case notLogged(String)
+    }
+
+    /// The Set a write went to, named apart from the rest it began, which leads to another.
+    struct WrittenSet: Equatable, Sendable {
+        let exerciseName: String
+        /// The Set's place among its Exercise's Sets, from 1, as its card numbers it.
+        let setOrdinal: Int
+        let setsTotal: Int
     }
 
     /// The Set listened for, or the rest a logged Set began toward the next one.
@@ -21,6 +29,18 @@ struct LiveActivityDictationContent: Equatable, Sendable {
 
     let readback: Readback
     let subject: Subject
+}
+
+extension LiveActivityDictationContent.WrittenSet {
+    @MainActor
+    init(_ position: SessionSetPosition) {
+        let sets = SessionSetOrder.orderedSets(in: [position.exercise])
+        self.init(
+            exerciseName: position.exercise.name,
+            setOrdinal: (sets.firstIndex { $0.set === position.set } ?? position.set.index) + 1,
+            setsTotal: sets.count
+        )
+    }
 }
 
 /// What the Live Activity says when the athlete asked to log a Set and there was none to listen

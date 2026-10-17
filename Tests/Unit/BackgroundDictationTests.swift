@@ -8,6 +8,11 @@ private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 private let window = SetDictation.silenceWindow
 private let cap = SetDictation.listeningCap
 private let flushWait = BackgroundDictation.flushWait
+private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
+
+private func squat(set ordinal: Int) -> LiveActivityDictationContent.WrittenSet {
+    LiveActivityDictationContent.WrittenSet(exerciseName: "Back Squat", setOrdinal: ordinal, setsTotal: 3)
+}
 
 @MainActor
 @Test func aSpokenSetLogsTheActiveSetReadsItBackOverTheRestAndFlushes() async throws {
@@ -17,7 +22,7 @@ private let flushWait = BackgroundDictation.flushWait
     let outcome = await harness.runUntilQuiet()
 
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7")])
+    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: squat(set: 1))])
     #expect(harness.liveActivity.sessionLabels == ["Week 1 - Day 1", "Week 1 - Day 1"])
     guard case .set(let listenedFor) = harness.liveActivity.subjects.first else {
         Issue.record("Listening showed \(String(describing: harness.liveActivity.subjects.first)), not the Set")
@@ -41,6 +46,44 @@ private let flushWait = BackgroundDictation.flushWait
 }
 
 @MainActor
+@Test func afterAnExercisesLastSetTheReadbackNamesThatExerciseOverTheRestTowardTheNext() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let squatSets = try #require(session.exercises.first { $0.order == 0 }).sets.sorted { $0.index < $1.index }
+    for set in squatSets.dropLast() {
+        try harness.app.workout.log(set, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+    }
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(logged235, at: ActiveSetID(exerciseOrder: 0, setIndex: 2)))
+    #expect(harness.liveActivity.readbacks.last == .logged("235×5 @7", to: squat(set: 3)))
+    guard case .rest(let rest) = harness.liveActivity.subjects.last else {
+        Issue.record("Logged showed \(String(describing: harness.liveActivity.subjects.last)), not the rest")
+        return
+    }
+    #expect(rest.exerciseName == "2-3:1:0 BB RDL", "the countdown still leads to the next Exercise")
+    #expect(rest.target?.setID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+}
+
+@MainActor
+@Test func afterTheSessionsLastSetTheReadbackNamesTheSetLogged() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let positions = SessionSetOrder.orderedSets(in: session)
+    for position in positions.dropLast() {
+        try harness.app.workout.log(position.set, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+    }
+    let last = try #require(positions.last)
+
+    _ = await harness.runUntilQuiet()
+
+    let rdl = LiveActivityDictationContent.WrittenSet(exerciseName: "2-3:1:0 BB RDL", setOrdinal: 2, setsTotal: 2)
+    #expect(harness.liveActivity.readbacks.last == .logged("235×5 @7", to: rdl))
+    #expect(last.set.state == .logged)
+}
+
+@MainActor
 @Test func theLiveActivityShowsListeningBeforeTheMicOpens() async throws {
     let transcriber = HeldSetTranscriber(candidates: ["skip it"])
     let harness = try await Harness(transcriber: transcriber)
@@ -56,7 +99,7 @@ private let flushWait = BackgroundDictation.flushWait
     transcriber.finishing.release()
 
     #expect(await run.value == .skipped(at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .skipped])
+    #expect(harness.liveActivity.readbacks == [.listening, .skipped(squat(set: 1))])
     #expect(try harness.app.session(nil).exercises[0].sets[0].state == "skipped")
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "skip")
 }
@@ -273,7 +316,7 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     harness.clock.advance(by: window)
     await harness.clock.waitUntilSleeping(until: window + flushWait, orRecord: "The flush was never bounded")
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7")], "the result shows before the flush")
+    #expect(harness.liveActivity.readbacks == [.listening, .logged("235×5 @7", to: squat(set: 1))], "the result shows before the flush")
     harness.clock.advance(by: flushWait)
 
     #expect(await run.value == .logged(SetLog(weight: .pounds(235), reps: 5, rpe: .seven), at: firstSet))

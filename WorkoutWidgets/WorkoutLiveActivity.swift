@@ -45,7 +45,9 @@ struct WorkoutLiveActivity: Widget {
     @ViewBuilder
     private func expandedLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
         if let dictation = state.dictation {
-            if dictation.isAboutASet {
+            // A write's content is the rest toward the next Set, whose prescription is not the
+            // written Set's.
+            if dictation.isAboutASet, dictation.writtenSet == nil {
                 PrescriptionStack(state: state)
                     .lineLimit(1)
             }
@@ -107,7 +109,7 @@ struct WorkoutLiveActivity: Widget {
     ) -> some View {
         if let dictation = context.state.dictation {
             if dictation.isAboutASet || context.state.restEndDate != nil {
-                DictationProgress(state: context.state, style: .island)
+                DictationProgress(state: context.state, dictation: dictation, style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
@@ -270,8 +272,8 @@ private struct LockScreenWorkoutView: View {
 }
 
 /// The Lock Screen while a Dictation the athlete ran without the app listens for the Set, and
-/// once it has an answer: the readback under the Exercise, over the rest when a logged Set began
-/// one, else over the Exercise's Sets.
+/// once it has an answer: the readback under the Exercise of the Set it is about, over the rest
+/// when a logged Set began one, else over the Exercise's Sets.
 private struct DictationLockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
     let dictation: LiveActivityDictation
@@ -282,7 +284,7 @@ private struct DictationLockScreenView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(state.exerciseName)
+                    Text(dictation.writtenSet?.exerciseName ?? state.exerciseName)
                         .font(.headline.weight(.semibold))
                         .foregroundStyle(colors.primaryText)
                         .lineLimit(1)
@@ -293,8 +295,10 @@ private struct DictationLockScreenView: View {
 
                 Spacer(minLength: 10)
 
-                PrescriptionStack(state: state, style: .lockScreen)
-                    .minimumScaleFactor(0.75)
+                if dictation.writtenSet == nil {
+                    PrescriptionStack(state: state, style: .lockScreen)
+                        .minimumScaleFactor(0.75)
+                }
 
                 if dictation.isListening {
                     DictationSymbol(dictation: dictation, colors: colors, diameter: 44)
@@ -303,7 +307,7 @@ private struct DictationLockScreenView: View {
                 }
             }
 
-            DictationProgress(state: state, style: .lockScreen)
+            DictationProgress(state: state, dictation: dictation, style: .lockScreen)
         }
         .padding(16)
     }
@@ -332,7 +336,7 @@ private struct NoSetLockScreenView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if state.restEndDate != nil {
-                DictationProgress(state: state, style: .lockScreen)
+                DictationProgress(state: state, dictation: dictation, style: .lockScreen)
             }
         }
         .padding(16)
@@ -357,7 +361,7 @@ private struct DictationReadback: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
-            if let detail = dictation.detail {
+            if let detail {
                 Text(detail)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(secondaryTextColor)
@@ -367,6 +371,12 @@ private struct DictationReadback: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("live-activity-dictation")
+    }
+
+    /// The island has no line naming the Exercise, so a write's detail names it.
+    private var detail: String? {
+        guard style == .island, let set = dictation.writtenSet else { return dictation.detail }
+        return set.fullText
     }
 
     private var secondaryTextColor: Color {
@@ -401,6 +411,7 @@ private struct DictationProgress: View {
     }
 
     let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
     let style: Style
 
     var body: some View {
@@ -414,11 +425,18 @@ private struct DictationProgress: View {
                     .monospacedDigit()
                     .frame(width: 52, alignment: .leading)
 
-                RestProgressWithContext(state: state, style: progressStyle)
+                RestProgressWithContext(state: state, style: progressStyle, context: nextSetText)
             }
         } else {
             SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: state.liveActivityColors)
         }
+    }
+
+    /// The rest after a write leads to another Set, so it names that Set's Exercise rather than
+    /// count Sets beside the written one.
+    private var nextSetText: String? {
+        guard dictation.writtenSet != nil else { return nil }
+        return "Next: \(state.exerciseName)"
     }
 
     private var progressStyle: RestProgressWithContext.Style {
@@ -671,6 +689,8 @@ private struct RestProgressWithContext: View {
     let state: WorkoutActivityAttributes.ContentState
     let style: Style
     var showsBar = true
+    /// In place of the variant's own context.
+    var context: String?
 
     var body: some View {
         HStack(spacing: 8) {
@@ -678,7 +698,7 @@ private struct RestProgressWithContext: View {
                 RestProgressBar(state: state)
             }
 
-            if let restContextText = state.restContextText {
+            if let restContextText = context ?? state.restContextText {
                 Text(restContextText)
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(textColor)

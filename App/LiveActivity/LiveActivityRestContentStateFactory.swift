@@ -74,9 +74,15 @@ extension LiveActivityDictation {
     init(_ readback: LiveActivityDictationContent.Readback) {
         switch readback {
         case .listening: self = .listening
-        case .logged(let setLog): self = .logged(setLog)
-        case .skipped: self = .skipped
+        case .logged(let setLog, let set): self = .logged(setLog, to: LiveActivityWrittenSet(set))
+        case .skipped(let set): self = .skipped(LiveActivityWrittenSet(set))
         case .notLogged(let reason): self = .notLogged(reason)
         }
+    }
+}
+
+extension LiveActivityWrittenSet {
+    init(_ set: LiveActivityDictationContent.WrittenSet) {
+        self.init(exerciseName: set.exerciseName, setOrdinal: set.setOrdinal, setsTotal: set.setsTotal)
     }
 }

@@ -26,9 +26,10 @@ struct WorkoutActivityAttributes: ActivityAttributes {
 /// Action button, a control, or Siri, with the app closed or the phone locked.
 enum LiveActivityDictation: Codable, Hashable, Sendable {
     case listening
-    /// The Set Log written, as "235×5 @7".
-    case logged(String)
-    case skipped
+    /// The Set Log written, as "235×5 @7", and the Set it went to. The content around it may be
+    /// the rest toward another Exercise.
+    case logged(String, to: LiveActivityWrittenSet)
+    case skipped(LiveActivityWrittenSet)
     /// Why nothing was written.
     case notLogged(String)
     /// The named Session has no Pending Set, so nothing listened.
@@ -46,6 +47,14 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         switch self {
         case .listening, .logged, .skipped, .notLogged: true
         case .noSetLeft, .noCurrentSession: false
+        }
+    }
+
+    /// The Set a write went to, which the readback names in place of the content's Exercise.
+    var writtenSet: LiveActivityWrittenSet? {
+        switch self {
+        case .logged(_, let set), .skipped(let set): set
+        case .listening, .notLogged, .noSetLeft, .noCurrentSession: nil
         }
     }
 
@@ -67,7 +76,7 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     var headline: String {
         switch self {
         case .listening: "Listening…"
-        case .logged(let setLog): "Logged \(setLog)"
+        case .logged(let setLog, _): "Logged \(setLog)"
         case .skipped: "Skipped"
         case .notLogged: "Not logged"
         case .noSetLeft: "No Set left to log"
@@ -79,7 +88,7 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     var compactText: String {
         switch self {
         case .listening: "Listening"
-        case .logged(let setLog): setLog
+        case .logged(let setLog, _): setLog
         case .skipped: "Skipped"
         case .notLogged: "Not logged"
         case .noSetLeft: "No Set left"
@@ -87,12 +96,31 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         }
     }
 
+    /// Under the headline, where the Exercise is already named above it.
     var detail: String? {
         switch self {
+        case .logged(_, let set), .skipped(let set): set.setText
         case .notLogged(let reason): reason
         case .noCurrentSession: "Open WorkoutTracker to choose a Sheet"
-        case .listening, .logged, .skipped, .noSetLeft: nil
+        case .listening, .noSetLeft: nil
         }
+    }
+}
+
+/// The Set a Dictation wrote: what its readback names, apart from the rest the write began.
+struct LiveActivityWrittenSet: Codable, Hashable, Sendable {
+    let exerciseName: String
+    /// The Set's place among its Exercise's Sets, from 1, as its card numbers it.
+    let setOrdinal: Int
+    let setsTotal: Int
+
+    var setText: String {
+        "Set \(setOrdinal) of \(setsTotal)"
+    }
+
+    /// The Exercise and the Set, for a surface with no line naming the Exercise.
+    var fullText: String {
+        "\(exerciseName), \(setText)"
     }
 }
 

@@ -138,20 +138,21 @@ final class BackgroundDictation {
         wasSupersetMember: Bool
     ) -> Settled {
         let setID = position.setID
+        let written = LiveActivityDictationContent.WrittenSet(position)
         switch heard {
         case .logged(let setLog, _):
             return Settled(
                 outcome: .logged(setLog, at: setID),
                 content: LiveActivityDictationContent(
-                    readback: .logged(setLog.readback),
-                    subject: restSubject(afterLogging: position.set, in: session, wasSupersetMember: wasSupersetMember, else: shown)
+                    readback: .logged(setLog.readback, to: written),
+                    subject: restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
                 ),
                 wrote: true
             )
         case .skipped:
             return Settled(
                 outcome: .skipped(at: setID),
-                content: LiveActivityDictationContent(readback: .skipped, subject: .set(shown)),
+                content: LiveActivityDictationContent(readback: .skipped(written), subject: .set(LiveActivitySetContent(position))),
                 wrote: true
             )
         case .filled(let values, let heard):
@@ -170,29 +171,32 @@ final class BackgroundDictation {
     }
 
     /// The rest the stage would start after this Set, toward the Set it would focus next. With no
-    /// rest to start, the Set that was logged.
+    /// rest to start, the logged Set's Exercise as it now stands.
     private func restSubject(
-        afterLogging set: ExerciseSet,
+        afterLogging position: SessionSetPosition,
         in session: Session,
-        wasSupersetMember: Bool,
-        else shown: LiveActivitySetContent
+        wasSupersetMember: Bool
     ) -> LiveActivityDictationContent.Subject {
+        let set = position.set
         let kind = RestTriggerPolicy.restKind(afterLogging: set, in: session, isSupersetMember: wasSupersetMember, isRestRunning: false)
-        guard let kind else { return .set(shown) }
         let start = now()
-        let duration =
-            switch kind {
-            case .standard: app.settings.standardRestDuration
-            case .superset: app.settings.supersetRestDuration
-            }
-        let content = focus.liveActivityRestContent(
-            afterLogging: set,
-            in: session,
-            restStartDate: start,
-            restEndDate: start.addingTimeInterval(duration.timeInterval)
-        )
-        guard let content else { return .set(shown) }
+        let content = kind.flatMap { kind in
+            focus.liveActivityRestContent(
+                afterLogging: set,
+                in: session,
+                restStartDate: start,
+                restEndDate: start.addingTimeInterval(restDuration(kind).timeInterval)
+            )
+        }
+        guard let content else { return .set(LiveActivitySetContent(position)) }
         return .rest(content)
+    }
+
+    private func restDuration(_ kind: RestKind) -> RestDurationSetting {
+        switch kind {
+        case .standard: app.settings.standardRestDuration
+        case .superset: app.settings.supersetRestDuration
+        }
     }
 
     /// Restores the sign-in when no scene has, then flushes for at most `flushWait`.
