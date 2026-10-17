@@ -405,8 +405,7 @@ private func multiLineNotesRequest(
     )
 
     let update = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: snapshot)
-    #expect(update.range == "'Block 27'!J19")
-    #expect(update.value == "95x5@6")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "J19", value: "95x5@6"))
 
     let after = planner.applying(update, to: snapshot)
     #expect(after.grid.cell(row: 16, col: 9) == coachNote)
