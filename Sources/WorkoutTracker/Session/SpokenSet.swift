@@ -116,13 +116,22 @@ extension SpokenSet {
     /// "add" for "at" in a top transcript and "at" in an alternative, so the RPE of "185 for 5 and
     /// 8" is the 8 of "185 for 5 at 8". Alternatives that hear two RPEs settle nothing.
     private func settled(by alternatives: ArraySlice<String>) -> SpokenSet {
-        guard case .values(let weight, let reps, let rpe) = self, weight.isCutOff || reps.isCutOff || rpe.isCutOff else { return self }
-        let settling = alternatives.compactMap { try? Self.parse($0).get() }.filter { reading in
-            guard case .values(let otherWeight, let otherReps, let otherRPE) = reading else { return false }
-            return weight.isSettled(by: otherWeight) && reps.isSettled(by: otherReps) && rpe.isSettled(by: otherRPE)
-        }
+        guard hasACutOffValue else { return self }
+        let settling = alternatives.compactMap { try? Self.parse($0).get() }.filter(isSettled(by:))
         guard let settled = settling.first, settling.allSatisfy({ $0 == settled }) else { return self }
         return settled
+    }
+
+    private var hasACutOffValue: Bool {
+        guard case .values(let weight, let reps, let rpe) = self else { return false }
+        return weight.isCutOff || reps.isCutOff || rpe.isCutOff
+    }
+
+    /// Whether `other` hears every value of this Set as it was heard, and the one cut off.
+    private func isSettled(by other: SpokenSet) -> Bool {
+        guard case .values(let weight, let reps, let rpe) = self, case .values(let otherWeight, let otherReps, let otherRPE) = other
+        else { return false }
+        return weight.isSettled(by: otherWeight) && reps.isSettled(by: otherReps) && rpe.isSettled(by: otherRPE)
     }
 
     private static func agreed(_ alternatives: ArraySlice<String>, else rejection: Rejection) -> Result<Chosen, Rejection> {
