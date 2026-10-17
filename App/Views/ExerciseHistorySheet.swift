@@ -165,8 +165,8 @@ struct ExerciseHistorySheet: View {
         }
     }
 
-    private var toggleAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: Theme.Motion.crossfade) : .snappy(duration: 0.22)
+    private var toggleAnimation: Animation? {
+        reduceMotion ? nil : .snappy(duration: 0.22)
     }
 }
 
