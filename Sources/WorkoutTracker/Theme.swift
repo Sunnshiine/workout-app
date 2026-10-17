@@ -384,7 +384,8 @@ enum Theme {
     static let prescriptionTickWidth: CGFloat = 18  // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
 
-    static let holdToSkipTapMaximumDuration = 0.18
+    static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
+    static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
     static let momentumFlowTotalDuration = 0.65
     static let skipFadeUpDuration = 0.45
     static let focusMorphDuration = 0.28

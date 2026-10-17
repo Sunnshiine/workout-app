@@ -1,14 +1,23 @@
 import Foundation
 
-enum HoldToSkipEffect: Equatable, Sendable {
-    case clearFill
-    case revealFill(over: TimeInterval)
-    case retreatFill
-    case log
-    case skip
-}
+/// The timings one press is held to (DESIGN.md §5.3, §7). A press keeps the policy it began with.
+struct HoldToSkipPolicy: Equatable, Sendable {
+    let holdDuration: TimeInterval
+    let revealDelay: TimeInterval = Theme.Motion.holdToSkipReveal
 
-extension HoldToSkipPolicy {
+    private init(holdDuration: TimeInterval) {
+        self.holdDuration = holdDuration
+    }
+
+    /// The idle-Set hold: reveal 250ms, commit 850ms.
+    static let standard = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipCommit)
+
+    /// The longer hold a Set already logged must survive before it re-skips (900ms).
+    static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
+
+    /// The longest hold, to undo an already-skipped Set (1100ms).
+    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
+
     static func forSet(in state: SetState) -> HoldToSkipPolicy {
         switch state {
         case .pending: .standard
@@ -16,6 +25,18 @@ extension HoldToSkipPolicy {
         case .skipped: .skippedState
         }
     }
+
+    var progressAnimationDuration: TimeInterval {
+        max(holdDuration - revealDelay, 0)
+    }
+}
+
+enum HoldToSkipEffect: Equatable, Sendable {
+    case clearFill
+    case revealFill(over: TimeInterval)
+    case retreatFill
+    case log
+    case skip
 }
 
 struct HoldToSkipGesture: Equatable, Sendable {
@@ -25,7 +46,8 @@ struct HoldToSkipGesture: Equatable, Sendable {
         case skipped(fingerDown: Bool)
     }
 
-    private static let tapSuppression = Duration.milliseconds(250)
+    private static let tapMaximum = milliseconds(Theme.holdToSkipTapMaximumDuration)
+    private static let tapSuppression = milliseconds(Theme.holdToSkipTapSuppression)
 
     private var phase: Phase = .idle
     private var suppressTapsUntil: ContinuousClock.Instant?
@@ -69,17 +91,15 @@ struct HoldToSkipGesture: Equatable, Sendable {
             }
             return []
         }
-        switch policy.releaseOutcome(elapsed: since.duration(to: now) / .seconds(1), skipCompleted: false) {
-        case .skip:
+        let held = since.duration(to: now)
+        if held >= Self.milliseconds(policy.holdDuration) {
             return skip(at: now, fingerDown: false)
-        case .deferToTap:
-            phase = .idle
-            return [.retreatFill]
-        case .cancelSkip, .ignore:
-            phase = .idle
-            suppressTapsUntil = now + Self.tapSuppression
-            return [.retreatFill]
         }
+        phase = .idle
+        if held > Self.tapMaximum {
+            suppressTapsUntil = now + Self.tapSuppression
+        }
+        return [.retreatFill]
     }
 
     mutating func tapped(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
