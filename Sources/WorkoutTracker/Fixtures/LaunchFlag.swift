@@ -6,7 +6,9 @@
 
         static let fixture = LaunchFlag(
             argument: "-UITEST_FIXTURE",
-            meaning: "Runs on an in-memory store with a fixture Block, a faked sign-in, and a Sheets client that never reaches Google.",
+            meaning:
+                "Runs on an in-memory store, synced from the Scenario's local workbook at boot, with a faked sign-in and"
+                + " a Sheets client that never reaches Google. The fixture Sheet then reads as Offline, so a log stays queued.",
             actsWithoutFixture: true
         )
 
@@ -69,13 +71,13 @@
         static let pendingWrite = LaunchFlag(
             argument: "-UITEST_PENDING_WRITE",
             meaning:
-                "Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block,"
-                + " so a sync writes it and reloads that Block in place of the Scenario's."
+                "Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, and keeps the fixture Sheet reachable,"
+                + " so a sync writes it to the Scenario's own workbook and reloads the Block from it."
         )
 
         static let slowSync = LaunchFlag(
             argument: "-UITEST_SLOW_SYNC",
-            meaning: "Makes the fixture Sheets client wait 20 seconds before it lists tabs, so a sync stays in flight."
+            meaning: "Makes every tab list after the boot wait 20 seconds, so a sync stays in flight."
         )
 
         static let lateSignIn = LaunchFlag(

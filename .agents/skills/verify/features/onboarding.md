@@ -19,7 +19,7 @@ Onboarding connects the athlete's Google account and training sheet. After sign-
 Preconditions:
 
 - `verify.sh launch onboarding` landed on `Choose your training sheet` with no `Back Squat` in the tree.
-- The list shows one row labeled `Replacement Training Log, 25y ago`.
+- The list shows two rows, `Replacement Training Log, 25y ago` and then `Fixture Training Log, 25y ago`, the fixture drive's two workbooks.
 
 - **List.** Capture the picker. Run `verify.sh shot picker`. The tree has the `Replacement Training Log` row and `Paste a URL instead`.
 - **Pick.** Tap the row. Run `verify.sh tap --label "Replacement Training Log, 25y ago"`, then `verify.sh shot landed`. The stage appears with `find stage-exercise-name` reading `Replacement Squat`, and `verify.sh tree --all | grep "Back Squat"` prints nothing, so the stale seeded Block is gone.
