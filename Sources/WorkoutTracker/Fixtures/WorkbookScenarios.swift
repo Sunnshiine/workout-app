@@ -16,7 +16,7 @@
         /// whose Notes cell holds the Coach Note, and the write conflicts rather than overwrite it
         /// (#942).
         case partialUpload = "partial-upload"
-        /// The Block the UI fixture boots into for `-UITEST_FULL_BLOCK`: `partial-upload`'s Week 1
+        /// The Block the UI fixture boots into for the Full Block scenario: `partial-upload`'s Week 1
         /// Days 1 and 2, a Deadlift on Week 1 Day 3, and an Accessory on every other Day, so all
         /// sixteen Sessions are Available Sessions.
         case fullBlock = "full-block"
