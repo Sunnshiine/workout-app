@@ -127,8 +127,7 @@ struct SupersetStageVisualTests {
         block.weeks = [week]
 
         let lastPerformed = LastPerformedOccurrence(
-            fullName: "Incline Bench Press",
-            baseName: "Incline Bench Press",
+            exerciseName: "Incline Bench Press",
             resultText: "30×10 @8 · 30×10 @8 · 30×9 @9",
             performedOn: .distantPast,
             source: "W1 D2"
