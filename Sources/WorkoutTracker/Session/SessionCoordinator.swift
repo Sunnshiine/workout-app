@@ -25,9 +25,11 @@ protocol SessionLiveActivityAdapter {
 protocol SessionNavigationAdapter: AnyObject {
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
+    var currentSession: Session? { get }
     func liveEdge(for session: Session) -> LiveEdge
     func requestMoveOnCelebration()
     func show(_ address: SessionAddress)
+    func showCurrent()
 }
 
 @MainActor
@@ -108,9 +110,11 @@ private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
 private final class NoopSessionNavigationAdapter: SessionNavigationAdapter {
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
+    var currentSession: Session? { nil }
     func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
     func requestMoveOnCelebration() {}
     func show(_ address: SessionAddress) {}
+    func showCurrent() {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -141,6 +145,8 @@ final class SessionCoordinator {
     @ObservationIgnored private let dictation: SetDictation?
     @ObservationIgnored private var dictatingSession: Session?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
+    /// Nil leaves the stage deaf to the Action button, Siri, and the Live Activity.
+    private var entry: AppEntryInbox?
 
     init(
         session: Session? = nil,
@@ -184,6 +190,7 @@ final class SessionCoordinator {
         cancelSpokenWriteHold()
         dictation?.dismiss()
         focusManager.reset(to: session)
+        answerEntry()
     }
 
     func bind(
@@ -195,7 +202,8 @@ final class SessionCoordinator {
         supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
         navigation: any SessionNavigationAdapter,
-        motion: any SessionMotionPerforming
+        motion: any SessionMotionPerforming,
+        entry: AppEntryInbox? = nil
     ) {
         if navigationAdapter !== navigation {
             navigationAdapter = navigation
@@ -209,6 +217,9 @@ final class SessionCoordinator {
         }
         loggingAdapter = logging
         syncAdapter = sync
+        if self.entry !== entry {
+            self.entry = entry
+        }
         bind(to: session)
     }
 
@@ -563,10 +574,12 @@ extension SessionCoordinator {
         return SetCardDictation(dictation.state, for: setID)
     }
 
-    func startDictation(for set: ExerciseSet) {
-        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session else { return }
+    /// False when no press began, as while another is in flight.
+    @discardableResult
+    func startDictation(for set: ExerciseSet) -> Bool {
+        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session else { return false }
         dictatingSession = session
-        dictation.start(for: setID)
+        return dictation.start(for: setID)
     }
 
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
@@ -609,9 +622,14 @@ extension SessionCoordinator {
         }
     }
 
-    /// Stops a press whose control left the screen, writing nothing.
-    func cancelDictation() async {
-        await dictation?.cancel()
+    /// Stops the press for `set` whose control left the screen, writing nothing. A control that
+    /// leaves while another card's press runs, as an outgoing card's can after the incoming one
+    /// starts listening, stops nothing.
+    func cancelDictation(of set: ExerciseSet) async {
+        guard let dictation, let setID = dictation.state.listeningSetID, Self.activeSetID(for: set) == setID,
+            set.exercise?.session === dictatingSession
+        else { return }
+        await dictation.cancel()
     }
 
     func dismissDictation() {
@@ -655,5 +673,76 @@ extension SessionCoordinator {
 extension Session {
     fileprivate func set(at setID: ActiveSetID) -> ExerciseSet? {
         exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex }
+    }
+}
+
+/// What a request to say the Current Session's active Set does next.
+enum SetDictationEntryRoute: Equatable {
+    /// The stage has no Session yet, as on a cold launch.
+    case wait
+    case showCurrentSession
+    /// The card shows a logged Set in place of the active one.
+    case uncoverActiveSet
+    /// The card for this Set takes the request when it shows.
+    case listen(ActiveSetID)
+    /// Nothing to listen for, so the request ends with the stage where it is.
+    case drop
+}
+
+extension SessionCoordinator {
+    /// Moves the stage toward the Current Session's active Set for a waiting request, or ends a
+    /// request there is nothing to listen for. Run when a request arrives and on every bind.
+    func answerEntry() {
+        guard let entry, entry.pending != nil else { return }
+        if entryRoute == .uncoverActiveSet {
+            endSpokenWriteHold()
+            perform(nil) { focusManager.collapseLoggedSetReview() }
+        }
+        switch entryRoute {
+        case .wait, .uncoverActiveSet, .listen: break
+        case .showCurrentSession: navigationAdapter.showCurrent()
+        case .drop: entry.discard()
+        }
+    }
+
+    /// True while a request waits for `slot`'s card to listen for its Set.
+    func startsHandsFree(_ slot: SetCardSlot) -> Bool {
+        guard entry?.pending != nil, slot.mode == .logging, case .listen(let setID) = entryRoute else { return false }
+        return Self.activeSetID(for: slot.set) == setID
+    }
+
+    /// Takes the waiting request and listens for `set` until the athlete stops talking, writing
+    /// what was said as a release of the mic would. `shown` reads the card's values when
+    /// listening ends, which fill what was left unsaid.
+    func listenHandsFree(to set: ExerciseSet, showing shown: () -> SetLogDraft) async -> SetDictation.Outcome? {
+        guard let entry, let dictation, let session, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID else {
+            return nil
+        }
+        _ = entry.take()
+        dictatingSession = session
+        guard let outcome = await dictation.listenUntilQuiet(for: setID, in: { SpokenSetContext(for: set, showing: shown()) }) else {
+            return nil
+        }
+        guard let set = pendingSet(at: setID, in: session) else {
+            dictation.dismiss()
+            return nil
+        }
+        write(outcome, to: set)
+        return outcome
+    }
+
+    private var entryRoute: SetDictationEntryRoute {
+        guard dictation?.state.listeningSetID == nil else { return .drop }
+        guard let session else { return .wait }
+        guard navigationAdapter.currentSession != nil else { return .drop }
+        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .showCurrentSession }
+        switch focusManager.visualFocusOwner {
+        case .loggedSetReview, .heldAfterSpokenWrite:
+            return .uncoverActiveSet
+        case .activeSet(let setID) where dictation != nil && (session.set(at: setID)?.isPending ?? false):
+            return .listen(setID)
+        case .activeSet, nil:
+            return .drop
+        }
     }
 }
