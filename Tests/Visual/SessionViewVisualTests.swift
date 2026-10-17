@@ -40,8 +40,11 @@ struct SessionViewVisualTests {
                     workout: scenario.store,
                     sync: sync,
                     settings: scenario.settings,
-                    liveActivity: LiveActivityProductionAdapter(),
-                    motion: SwiftUISessionMotion()
+                    platform: SessionPlatform(
+                        liveActivity: LiveActivityProductionAdapter(),
+                        motion: SwiftUISessionMotion(),
+                        restNotifications: RestNotificationCenterScheduler.shared
+                    )
                 )
             )
         }

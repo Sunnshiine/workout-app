@@ -8,25 +8,6 @@ import Testing
 #endif
 
 @MainActor
-private final class MockRestNotificationScheduler: RestNotificationScheduling {
-    private(set) var requestedAuthorizationCount = 0
-    private(set) var scheduledDeadlines: [Date] = []
-    private(set) var cancelCount = 0
-
-    func requestAuthorizationIfNeeded() {
-        requestedAuthorizationCount += 1
-    }
-
-    func schedule(deadline: Date) {
-        scheduledDeadlines.append(deadline)
-    }
-
-    func cancel() {
-        cancelCount += 1
-    }
-}
-
-@MainActor
 private final class MockRestExpiryScheduler: RestExpiryScheduling {
     private(set) var scheduledDeadlines: [Date] = []
     private(set) var cancelCount = 0
@@ -87,7 +68,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerSchedulesNotificationAtDeadlineOnStart() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler)
 
     timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
@@ -99,7 +80,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerReschedulesNotificationWhenRestRestarts() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler)
 
     timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
@@ -118,7 +99,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerCancelsNotificationOnDismiss() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler)
 
     timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 1, setIndex: 0))
@@ -215,7 +196,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerSelfDrivesExpiryAtDeadlineWithoutAPill() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let expiry = MockRestExpiryScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
 
@@ -236,7 +217,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerExpiresExactlyOnce() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let expiry = MockRestExpiryScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
 
@@ -255,7 +236,7 @@ private final class MockRestExpiryScheduler: RestExpiryScheduling {
 @MainActor
 @Test func restTimerAuthorsExpiryBuzzForATickingPillThenClearsAfterLinger() {
     let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 1_000))
-    let scheduler = MockRestNotificationScheduler()
+    let scheduler = RecordingRestNotificationScheduler()
     let expiry = MockRestExpiryScheduler()
     let timer = RestTimer(clock: clock, notificationScheduler: scheduler, expiryScheduler: expiry)
 
