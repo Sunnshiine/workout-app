@@ -32,27 +32,27 @@ enum Theme {
     /// The small set of pigments every role is mixed from (token sheet §2). Most roles are
     /// `paint @ opacity`; wash recipes, glows and `tileCurrentBorder` are honest literals.
     enum Paint {
-        static let ink = rgb(21, 33, 24) // #152118 — day text
-        static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
-        static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
-        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
-        static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
-        static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
-        static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
+        static let ink = rgb(21, 33, 24)  // #152118 — day text
+        static let inkNight = rgb(239, 243, 227)  // #EFF3E3 — night text
+        static let muted = rgb(64, 78, 68)  // #404E44 — day secondary
+        static let mutedNight = rgb(154, 170, 155)  // #9AAA9B — night secondary
+        static let mutedNightLight = rgb(170, 186, 170)  // #AABAAA — night Superset partner name
+        static let cream = rgb(242, 247, 232)  // #F2F7E8 — the workhorse
+        static let actionDay = rgb(13, 107, 64)  // #0D6B40 — day action / leaf / stem / bird
+        static let actionNight = rgb(31, 133, 82)  // #1F8552 — night action (mint is banned at night)
         static let actionDayInk = rgb(10, 89, 54)
         static let actionNightInk = rgb(168, 207, 180)
-        static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
-        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
-        static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
-        static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
-        static let paperNightTop = rgb(35, 44, 32) // #232C20
-        static let paperNightBottom = rgb(18, 29, 20) // #121D14
+        static let foliage = rgb(87, 145, 104)  // #579168 — the night pigment
+        static let foliageDeep = rgb(63, 106, 75)  // #3F6A4B — day Superset partner name
+        static let paperDayTop = rgb(233, 238, 220)  // #E9EEDC
+        static let paperDayBottom = rgb(203, 225, 194)  // #CBE1C2
+        static let paperNightTop = rgb(35, 44, 32)  // #232C20
+        static let paperNightBottom = rgb(18, 29, 20)  // #121D14
         // The Sunbird colophon's three-stop glass greens (token sheet §Bird & colophon). The glass
         // mark keeps its icon greens in both appearances — "unchanged at night".
-        static let colophonGlassTop = rgb(74, 160, 108) // #4AA06C
-        static let colophonGlassMid = rgb(14, 110, 67) // #0E6E43
-        static let colophonGlassBottom = rgb(8, 78, 47) // #084E2F
+        static let colophonGlassTop = rgb(74, 160, 108)  // #4AA06C
+        static let colophonGlassMid = rgb(14, 110, 67)  // #0E6E43
+        static let colophonGlassBottom = rgb(8, 78, 47)  // #084E2F
     }
 
     // MARK: - Paper wash
@@ -256,14 +256,14 @@ enum Theme {
     // kept verbatim, not rounded. `soft` belongs only to the one soft container and sheet shoulders.
 
     enum Radius {
-        static let capsule: CGFloat = 999 // ∞ — all controls
-        static let soft: CGFloat = 30 // the one soft container: Active Set Card, ceremony stats, sheets
-        static let focusCard: CGFloat = 24 // the Block grid's focus card
-        static let card: CGFloat = 20 // collapsed week cards
-        static let rail: CGFloat = 18 // reps/RPE rails
-        static let tile: CGFloat = 15 // day tiles
-        static let cell: CGFloat = 14 // rail chips
-        static let mini: CGFloat = 6 // week mini-chips
+        static let capsule: CGFloat = 999  // ∞ — all controls
+        static let soft: CGFloat = 30  // the one soft container: Active Set Card, ceremony stats, sheets
+        static let focusCard: CGFloat = 24  // the Block grid's focus card
+        static let card: CGFloat = 20  // collapsed week cards
+        static let rail: CGFloat = 18  // reps/RPE rails
+        static let tile: CGFloat = 15  // day tiles
+        static let cell: CGFloat = 14  // rail chips
+        static let mini: CGFloat = 6  // week mini-chips
     }
 
     // MARK: - Motion & haptics (token sheet §7)
@@ -312,18 +312,18 @@ enum Theme {
     }
 
     enum Motion {
-        static let leafInk = 0.42 // a leaf inks in
-        static let budOpen = 0.34 // the next bud wakes…
-        static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
+        static let leafInk = 0.42  // a leaf inks in
+        static let budOpen = 0.34  // the next bud wakes…
+        static let budOpenDelay = 0.26  // …starting inside the leaf's tail (One Log, One Fill)
         static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
         static let ceremonyBird = 0.35
-        static let holdToSkipReveal = 0.25 // reveal at 250ms
-        static let holdToSkipCommit = 0.85 // commit at 850ms
+        static let holdToSkipReveal = 0.25  // reveal at 250ms
+        static let holdToSkipCommit = 0.85  // commit at 850ms
         static let holdToSkipRetreat = 0.2
-        static let holdToSkipLoggedCommit = 0.9 // logged-state hold
-        static let holdToSkipSkippedCommit = 1.1 // skipped-state hold
+        static let holdToSkipLoggedCommit = 0.9  // logged-state hold
+        static let holdToSkipSkippedCommit = 1.1  // skipped-state hold
     }
 
     /// A Crisp haptic tuning: `intensity` and `sharpness` for a Core Haptics transient (token
@@ -351,13 +351,13 @@ enum Theme {
     // The focus-week grid: wordless, wider-than-tall tiles whose fill + stroke alone say state.
     // Geometry constants (not palette); the named radius family owns the corners.
 
-    static let blockTileHeight: CGFloat = 52 // full day tile — wider-than-tall
-    static let blockTileMiniHeight: CGFloat = 16 // collapsed card's mini day-strip
+    static let blockTileHeight: CGFloat = 52  // full day tile — wider-than-tall
+    static let blockTileMiniHeight: CGFloat = 16  // collapsed card's mini day-strip
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
-    static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
-    static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
+    static let blockTileStroke: CGFloat = 1  // quiet available / mini strokes
+    static let blockTileCurrentStroke: CGFloat = 1.5  // the current tile's rim
+    static let blockTileGhostStroke: CGFloat = 1.5  // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
@@ -375,13 +375,13 @@ enum Theme {
 
     static let cardContentPadding = EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16)
     static let inputBlockSpacing: CGFloat = 16
-    static let weightStepperDiameter: CGFloat = 54 // the round ± steppers flanking the weight
-    static let railCellWidth: CGFloat = 48 // one rail chip cell (48×44)
+    static let weightStepperDiameter: CGFloat = 54  // the round ± steppers flanking the weight
+    static let railCellWidth: CGFloat = 48  // one rail chip cell (48×44)
     static let railCellHeight: CGFloat = 44
-    static let railTrackHeight: CGFloat = 58 // the rail track the cells sit inside, concentric with cell 14
-    static let railCellInset: CGFloat = 3 // the selected chip's inset within its cell
+    static let railTrackHeight: CGFloat = 58  // the rail track the cells sit inside, concentric with cell 14
+    static let railCellInset: CGFloat = 3  // the selected chip's inset within its cell
     static let railEdgeFadeWidth: CGFloat = 18
-    static let prescriptionTickWidth: CGFloat = 18 // last-week tick under the rail value (18×3, r2)
+    static let prescriptionTickWidth: CGFloat = 18  // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
 
     static let holdToSkipTapMaximumDuration = 0.18
@@ -467,7 +467,7 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
-    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
+    private static let nightBud = rgb(120, 240, 178)  // #78F0B2 — the bud carries the page's one glow
     private static let nightBudGlow = rgb(120, 240, 178, 0.32)
 }
 
@@ -537,7 +537,7 @@ extension Theme {
         futureStroke: Paint.actionDay.opacity(0.40),
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
-        supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
+        supersetPartnerBranch: Paint.foliage,  // Day quiets the partner by pigment
         supersetPartnerName: Paint.foliageDeep,
 
         surface: Paint.cream.opacity(0.52),
@@ -561,18 +561,18 @@ extension Theme {
         footFill: Paint.cream.opacity(0.50),
         queueStroke: rgb(82, 111, 90, 0.38),
         tileCurrentFill: Paint.cream.opacity(0.95),
-        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
+        tileCurrentBorder: rgb(31, 133, 82),  // literal #1F8552 — kept exactly as approved
         tileGhostStroke: Paint.muted.opacity(0.38),
         weekCardShade: rgb(226, 233, 214, 0.72),
-        sheetFill: rgb(239, 244, 228), // #EFF4E4
+        sheetFill: rgb(239, 244, 228),  // #EFF4E4
         chipCarvedFill: Paint.ink.opacity(0.055),
-        chipCarveShadow: rgb(21, 33, 24, 0.14), // inset top shadow — carves the chip below flat
-        chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
+        chipCarveShadow: rgb(21, 33, 24, 0.14),  // inset top shadow — carves the chip below flat
+        chipCarveEdge: Color.white.opacity(0.6),  // the light bottom lip
         chartLine: Paint.ink.opacity(0.35),
         blockSeam: Paint.ink.opacity(0.14),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
-        danger: rgb(255, 59, 48), // system red, carried forward pending danger pass
+        danger: rgb(255, 59, 48),  // system red, carried forward pending danger pass
         lighting: .day
     )
 
@@ -599,7 +599,7 @@ extension Theme {
         futureStroke: Paint.foliage.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
-        supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
+        supersetPartnerBranch: Paint.foliage.opacity(0.55),  // Night quiets the partner by translucency
         supersetPartnerName: Paint.mutedNightLight,
         surface: nightSurface,
         surfaceShadow: nightSurfaceShadow,
@@ -612,19 +612,19 @@ extension Theme {
         action: Paint.actionNight,
         actionText: Paint.cream,
         logShadow: [
-            BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)) // green light — glow, no drop
+            BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35))  // green light — glow, no drop
         ],
-        skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
+        skipFillOverlay: Paint.mutedNight.opacity(0.30),  // muted hold-to-skip overlay, re-lit for Night (#488)
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
         tileCurrentFill: Paint.foliage,
         tileCurrentBorder: nightBud,
         tileGhostStroke: Paint.mutedNight.opacity(0.38),
         weekCardShade: Paint.cream.opacity(0.06),
-        sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
+        sheetFill: rgb(31, 40, 29),  // night sheet follows the #418 recipe (flagged for build validation)
         chipCarvedFill: Paint.cream.opacity(0.06),
-        chipCarveShadow: rgb(9, 18, 12, 0.45), // deep sage-ink inset — the room re-lit, never black
-        chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
+        chipCarveShadow: rgb(9, 18, 12, 0.45),  // deep sage-ink inset — the room re-lit, never black
+        chipCarveEdge: Paint.cream.opacity(0.10),  // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
         birdFill: Paint.foliage,
