@@ -35,7 +35,7 @@ struct SongbirdGlyph: View {
 struct SongbirdBodyShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 3, y: 34)) // pointed tail tip, trailing left
+        path.move(to: CGPoint(x: 3, y: 34))  // pointed tail tip, trailing left
         // The back sweeps up from the tail to a low shoulder, easing into the neck.
         path.addCurve(
             to: CGPoint(x: 72, y: 20),
