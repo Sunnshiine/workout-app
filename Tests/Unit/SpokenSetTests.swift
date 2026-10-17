@@ -85,9 +85,17 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
 @Test func fourBetweenTwoNumbersIsTheForOfWeightForReps() {
     #expect(SpokenSet.parse("135 four 5 at 8") == values(.pounds(135), 5, .eight))
     #expect(SpokenSet.parse("one thirty five four ten at 8") == values(.pounds(135), 10, .eight))
-    #expect(SpokenSet.parse("ninety four five at eight") == values(.pounds(90), 5, .eight))
     #expect(SpokenSet.parse("135 pounds four 5") == values(.pounds(135), 5, nil))
     #expect(SpokenSet.parse("bodyweight four 12") == values(.bodyweight, 12, nil))
+}
+
+/// "ninety four five" may be 94 and a 5 or 90 for 5, so "four" after a tens word is always its unit.
+@Test func fourAfterATensWordIsItsUnit() {
+    #expect(SpokenSet.parse("ninety four five at eight") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("forty four five") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("ninety four five") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("ninety four reps") == .failure(.outOfRange(.reps)))
+    #expect(SpokenSet.parse("ninety four pounds for five") == values(.pounds(94), 5, nil))
 }
 
 @Test func fourWhereANumberIsAskedForIsTheNumberFour() {

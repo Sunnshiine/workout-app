@@ -40,7 +40,8 @@ enum SpokenTranscript {
 enum SpokenWord: Equatable, Sendable {
     case digits(String)
     case unit(Int)
-    /// The unit 4, which between a weight and a number is the "for" of "135 four 5".
+    /// The unit 4, which between a weight and a number is the "for" of "135 four 5", unless a tens
+    /// word before it takes it, as "ninety four" does.
     case four
     case teen(Int)
     case tens(Int)
@@ -266,11 +267,8 @@ extension SpokenNumber {
         }
     }
 
-    /// A "four" a number follows is the "for" of "ninety four five", so "ninety" stops before it.
     private static func tensAndUnit(_ tens: Int, _ rest: Words) -> Reading<Int> {
-        guard let unit = rest.first?.unit, rest.first != .four || read(rest.dropFirst()) == nil else {
-            return Reading(number: tens, rest: rest)
-        }
+        guard let unit = rest.first?.unit else { return Reading(number: tens, rest: rest) }
         return Reading(number: tens + unit, rest: rest.dropFirst())
     }
 
