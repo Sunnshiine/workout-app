@@ -190,15 +190,14 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncLaunchesTheExerciseHistoryFillWithoutWaitingForIt() async throws {
+@Test func syncLaunchesTheExerciseHistoryFillWithoutWaitingForIt() async throws {
     let container = try makeSyncContainer()
     let client = HistoryFillStubClient(
         titles: ["Block 26", "Block 27"],
         grids: [
             "Block 27": currentGridWithPendingSquat(),
             "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
-        ],
-        suspendedTabs: ["Block 26"]
+        ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: lookupStore)
@@ -211,13 +210,14 @@ private func loggedSquatGrid() -> SheetGrid {
 
     await sync.sync(spreadsheetId: "sid")
 
-    // Block 26's read is still parked, so sync returned while the fill was mid-flight.
+    // Sync launches the fill as its last step and returns without suspending, so this line runs
+    // before the main actor gives the fill its first turn. A sync that waited for the fill returns
+    // with Block 26 already ingested and fails here. An `await` in sync after the launch would let
+    // the fill run first, so keep the launch last.
     #expect(sync.outcome == .clear)
     #expect(sync.isSyncing == false)
     #expect(lookupStore.snapshot.lookup(for: "Squat") == nil)
     let inFlight = try #require(sync.inFlightHistoryFill)
-
-    await client.recorder.release()
 
     #expect(await inFlight.value == .tabsExhausted(tabsIngested: 1))
     #expect(lookupStore.snapshot.lookup(for: "Squat")?.resultText == "245x5@8")
