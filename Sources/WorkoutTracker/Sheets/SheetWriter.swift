@@ -50,6 +50,7 @@ struct SheetWriteRequest: Sendable, Equatable {
 enum SheetWriterError: Error, Equatable, LocalizedError {
     case weekNotFound(Int)
     case dayNotFound(Int)
+    case dayRepeated(Int)
     case dayHeadersChangedMeaning
     case columnNotFound(String)
     case exerciseNotFound(String)
@@ -61,6 +62,7 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
         switch self {
         case .weekNotFound(let week): return "Week \(week) was not found in the sheet"
         case .dayNotFound(let day): return "Day \(day) was not found in the sheet"
+        case .dayRepeated(let day): return "Day \(day) has more than one header in the sheet"
         case .dayHeadersChangedMeaning:
             return "The sheet's Day headers changed meaning since this Set was logged. Log it again."
         case .columnNotFound(let column): return "\(column) column was not found"
@@ -122,6 +124,7 @@ struct SheetWriter: Sendable {
 enum SheetWriteAddressing: Sendable {
     case weekNotFound
     case dayNotFound
+    case dayRepeated
     case columnNotFound(header: String)
     case exerciseNotFound
     case lastSetRPE(anchor: SheetLayoutExerciseAnchor, col: Int)
@@ -133,6 +136,8 @@ enum SheetWriteAddressing: Sendable {
             throw SheetWriterError.weekNotFound(request.session.address.week)
         case .dayNotFound:
             throw SheetWriterError.dayNotFound(request.session.address.day)
+        case .dayRepeated:
+            throw SheetWriterError.dayRepeated(request.session.address.day)
         case .columnNotFound(let header):
             throw SheetWriterError.columnNotFound(header)
         case .exerciseNotFound:
@@ -142,6 +147,14 @@ enum SheetWriteAddressing: Sendable {
         case .setLog(_, let resolution):
             return try resolution.addressedCell(for: request)
         }
+    }
+}
+
+extension SheetLayoutWeek {
+    /// Why this Week names no Session for a Day number: two of its headers read that number
+    /// (#762), or none does.
+    func addressingForAbsentDay(_ day: Int) -> SheetWriteAddressing {
+        ignoredDayHeaders.contains(.repeated(dayNumber: day)) ? .dayRepeated : .dayNotFound
     }
 }
 
@@ -260,8 +273,10 @@ struct SheetWritePlanner: Sendable {
 
     func addressing(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) -> SheetWriteAddressing {
         let layout = snapshot.layout
-        guard layout.week(number: request.session.address.week) != nil else { return .weekNotFound }
-        guard let day = layout.day(at: request.session.address) else { return .dayNotFound }
+        guard let week = layout.week(number: request.session.address.week) else { return .weekNotFound }
+        guard let day = layout.day(at: request.session.address) else {
+            return week.addressingForAbsentDay(request.session.address.day)
+        }
 
         let (header, col): (String, Int?) =
             switch request.column {
