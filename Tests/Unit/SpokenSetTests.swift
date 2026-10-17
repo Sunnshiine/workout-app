@@ -629,6 +629,29 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
     )
 }
 
+/// The recognizer writes "and" or "add" for "at" in a top transcript and "at" in an alternative.
+@Test func alternativesThatHearTheSameSetSettleTheValueTheTopCandidateCutOff() {
+    let settled = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.nine)), from: .top)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for eight and 9.", "135 for 8 at 9.", "135 for 8 and nine."]) == settled)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 add nine.", "135 for 8 at 9.", "135 for 8 at RPE 9."]) == settled)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 at", "135 for 8 at 9"]) == settled)
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 8 at 9 and", "135 for 8 at 9 and a half"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.ninePointFive)), from: .top)
+    )
+}
+
+@Test func alternativesThatHearTwoValuesForTheOneCutOffOrAnotherSetLeaveItCutOff() {
+    let cutOff = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .cutOff), from: .top)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 9", "135 for 8 at 8"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 4 at 9"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 11"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 and nine"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "skip"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9"]) == cutOff)
+}
+
 @Test func alternativesThatDisagreeAreAmbiguous() {
     #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 4 at 8"]) == .failure(.ambiguous))
     #expect(SpokenSet.parse(candidates: ["18545 at 8", "185 for 5 at 8", "185 for 45 at 8"]) == .failure(.ambiguous))

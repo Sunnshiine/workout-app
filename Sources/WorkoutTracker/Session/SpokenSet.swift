@@ -76,6 +76,17 @@ enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
         case .cutOff: nil
         }
     }
+
+    var isCutOff: Bool { self == .cutOff }
+
+    /// Whether `other` hears this value: the same value, or one heard where this was cut off.
+    func isSettled(by other: SpokenValue<Value>) -> Bool {
+        switch (self, other) {
+        case (.cutOff, .heard): true
+        case (.cutOff, _): false
+        default: self == other
+        }
+    }
 }
 
 extension SpokenSet {
@@ -89,13 +100,29 @@ extension SpokenSet {
         let source: Source
     }
 
-    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. The
-    /// alternatives are read only when the top is rejected, and stand in for it only when every one
-    /// that reads agrees, because two readings of one Set are two different Set Logs.
+    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. A
+    /// value the top cut off is settled by its alternatives when every one that hears the same Set
+    /// hears that value the same. Otherwise the alternatives are read only when the top is rejected,
+    /// and stand in for it only when every one that reads agrees, because two readings of one Set
+    /// are two different Set Logs.
     static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
         guard let top = candidates.first else { return .failure(.nothingHeard) }
-        return parse(top).map { Chosen(spokenSet: $0, source: .top) }
+        return parse(top).map { Chosen(spokenSet: $0.settled(by: candidates.dropFirst()), source: .top) }
             .flatMapError { agreed(candidates.dropFirst(), else: $0) }
+    }
+
+    /// This Set with the value the recognizer cut off heard from the alternatives that hear every
+    /// other value as the top did, when they all hear it the same. The recognizer writes "and" or
+    /// "add" for "at" in a top transcript and "at" in an alternative, so the RPE of "185 for 5 and
+    /// 8" is the 8 of "185 for 5 at 8". Alternatives that hear two RPEs settle nothing.
+    private func settled(by alternatives: ArraySlice<String>) -> SpokenSet {
+        guard case .values(let weight, let reps, let rpe) = self, weight.isCutOff || reps.isCutOff || rpe.isCutOff else { return self }
+        let settling = alternatives.compactMap { try? Self.parse($0).get() }.filter { reading in
+            guard case .values(let otherWeight, let otherReps, let otherRPE) = reading else { return false }
+            return weight.isSettled(by: otherWeight) && reps.isSettled(by: otherReps) && rpe.isSettled(by: otherRPE)
+        }
+        guard let settled = settling.first, settling.allSatisfy({ $0 == settled }) else { return self }
+        return settled
     }
 
     private static func agreed(_ alternatives: ArraySlice<String>, else rejection: Rejection) -> Result<Chosen, Rejection> {

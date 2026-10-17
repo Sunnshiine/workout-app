@@ -120,7 +120,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
 - Right after a whole weight for reps, "and", "of", or "add" before a number is the "at" the
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" is `missingValues`
-  with the RPE missing, because "185 for 5 and 5" may be five Sets of five.
+  with the RPE missing, because "185 for 5 and 5" may be five Sets of five. `hear` and the mic
+  fill a value the top transcript cut off from the alternative transcripts, when every one that
+  hears the same weight and reps hears the same RPE: "185 for 5 and 8" beside "185 for 5 at 8" logs
+  185x5@8, and beside "185 for 5 at 8" and "185 for 5 at 9" stays `missingValues`.
 - A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
   cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing. A rep
   count is whole, so after one it is the RPE that is missing ("185 for 5 and").

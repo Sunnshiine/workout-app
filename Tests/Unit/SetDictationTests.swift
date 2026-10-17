@@ -25,6 +25,17 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     #expect(outcome(of: ["same again"], in: secondSquat) == .logged(previous, heard: "same again"))
 }
 
+@Test func aValueTheTopTranscriptCutOffThatEveryAlternativeSettlesIsLogged() {
+    #expect(
+        outcome(of: ["135 for 4 and 9", "135 for 4 at 9"])
+            == .logged(SetLog(weight: .pounds(135), reps: 4, rpe: .nine), heard: "135 for 4 and 9")
+    )
+    #expect(
+        outcome(of: ["135 for 4 and 9", "135 for 4 at 9", "135 for 4 at 8"])
+            == .filled(SetLogDraft(weight: .pounds(135), reps: 4, rpe: nil), heard: "135 for 4 and 9")
+    )
+}
+
 @Test func aSetLogReadOnlyFromAnAlternativeFillsTheCardAndWritesNothing() {
     let filled = outcome(of: ["13549", "135 for 4 at 9"])
 
