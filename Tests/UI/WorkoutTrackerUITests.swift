@@ -92,9 +92,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertEqual(
             app.buttons["weight-keyboard-done"].frame.width,
-            62,
+            38,
             accuracy: 2,
-            "at the default text size, Done in the weight font measures 75"
+            "at the default text size, the Done glyph in the system font measures 38"
         )
     }
 

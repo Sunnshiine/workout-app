@@ -7,22 +7,18 @@ struct LastPerformedCard: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 5) {
-            Image(systemName: "clock.arrow.circlepath")
-                .accessibilityHidden(true)
-            line
-                .lineLimit(1)
-                .minimumScaleFactor(11.0 / 12.5)
-                .truncationMode(.tail)
-        }
-        .font(Theme.font(.lastPerformed))
-        .foregroundStyle(palette.textSecondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityHint("Opens Exercise History")
-        .accessibilityIdentifier("last-performed-line")
-        .onTapGesture(perform: onTap)
+        (Text(Image(systemName: "clock.arrow.circlepath")) + Text(" ") + line)
+            .font(Theme.font(.lastPerformed))
+            .foregroundStyle(palette.textSecondary)
+            .lineLimit(1)
+            .minimumScaleFactor(11.0 / 12.5)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .accessibilityLabel(line)
+            .accessibilityHint("Opens Exercise History")
+            .accessibilityIdentifier("last-performed-line")
+            .onTapGesture(perform: onTap)
     }
 
     private var line: Text {
