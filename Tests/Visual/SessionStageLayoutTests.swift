@@ -487,7 +487,7 @@ private enum SessionPageHost {
 
     static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(
-            block: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
+            block: WorkbookScenario.completedOpenExercises.block()
         )
         VisualFixtureRetainer.retain(scenario)
         let session = try #require(scenario.store.viewedSession)

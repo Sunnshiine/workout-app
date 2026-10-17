@@ -20,45 +20,29 @@
         /// picker lists the spreadsheets the application syncs and both meet the same faults.
         @MainActor static let sheets = makeSheets(launch: launch)
 
-        /// Where a launch scenario's Block comes from.
-        enum Source {
-            /// Parsed from the workbook by the boot sync, as a phone's first sync parses the Sheet.
-            case workbook(WorkbookScenario)
-            /// A Block graph built in Swift and inserted straight into the store, with no Sheet
-            /// behind it. #970 converts the last of these to workbooks and deletes this case.
-            case handBuilt(@MainActor () -> Block)
-        }
-
-        /// One source per scenario. A table has no compiler exhaustiveness check, so
+        /// One workbook per scenario. A table has no compiler exhaustiveness check, so
         /// `everyScenarioSeedsItsOwnFixtureBlock` in `Tests/Unit/UITestFixtureBlockTests.swift` is
         /// what keeps a new scenario from reaching `boot` without a row.
-        @MainActor
-        private static let sources: [UITestLaunch.Scenario: Source] = [
-            .perfectMoveOnCelebration: .handBuilt(WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock),
-            .completedOpenExercises: .handBuilt(WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock),
-            .openExercises: .handBuilt(WorkoutFixtureScenarios.openExercisesBlock),
-            .longSession: .handBuilt(WorkoutFixtureScenarios.longSessionBlock),
-            .fullBlock: .workbook(.fullBlock),
-            .partialUpload: .workbook(.partialUpload)
+        private static let workbooks: [UITestLaunch.Scenario: WorkbookScenario] = [
+            .perfectMoveOnCelebration: .perfectMoveOnCelebration,
+            .completedOpenExercises: .completedOpenExercises,
+            .openExercises: .openExercises,
+            .longSession: .longSession,
+            .fullBlock: .fullBlock,
+            .partialUpload: .partialUpload
         ]
 
-        @MainActor
-        static func source(for scenario: UITestLaunch.Scenario) -> Source {
-            guard let source = sources[scenario] else {
-                preconditionFailure("No fixture Block for \(scenario)")
+        static func workbook(for scenario: UITestLaunch.Scenario) -> WorkbookScenario {
+            guard let workbook = workbooks[scenario] else {
+                preconditionFailure("No fixture workbook for \(scenario)")
             }
-            return source
+            return workbook
         }
 
-        /// The REPLACEMENT spreadsheet, and the scenario's workbook as FIXTURE when it has one. A
-        /// hand-built scenario has no Sheet, so FIXTURE is absent and every read of it fails.
+        /// The REPLACEMENT spreadsheet, and the scenario's workbook as FIXTURE.
         @MainActor
         static func makeSheets(launch: UITestLaunch) -> LocalDrive {
-            var workbooks = [WorkoutFixtureScenarios.replacementWorkbook]
-            if case .workbook(let scenario) = source(for: launch.scenario) {
-                workbooks.append(scenario.workbook())
-            }
-            return LocalDrive(workbooks)
+            LocalDrive([WorkoutFixtureScenarios.replacementWorkbook, workbook(for: launch.scenario).workbook()])
         }
 
         /// The set the pending-write launch logs at boot and leaves unflushed: Week 1 Day 1's BB RDL,
@@ -66,18 +50,10 @@
         static let pendingWriteSet = SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: 1), order: 1), index: 0)
         static let pendingWriteLog = "225x8@8"
 
-        enum BootFailure: Error, CustomStringConvertible {
-            case syncFailed(SyncOutcome)
-            case pendingWriteNeedsAWorkbook(UITestLaunch.Scenario)
+        struct BootSyncFailed: Error, CustomStringConvertible {
+            let outcome: SyncOutcome
 
-            var description: String {
-                switch self {
-                case .syncFailed(let outcome):
-                    "The fixture's boot sync failed: \(outcome)"
-                case .pendingWriteNeedsAWorkbook(let scenario):
-                    "\(LaunchFlag.pendingWrite.argument) logs into the fixture Sheet, and \(scenario) has none"
-                }
-            }
+            var description: String { "The fixture's boot sync failed: \(outcome)" }
         }
 
         /// Brings a fresh fixture application to the state `launch` names, through the calls a
@@ -90,11 +66,10 @@
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             app.settings.setAppearance(try launch.appearance)
             app.settings.isSignedIn = !launch.signsInLate
-            let scenarioSource = source(for: launch.scenario)
-            try await load(scenarioSource, into: app)
+            try await load(workbook(for: launch.scenario), into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()
-            try await queueOrDisconnect(scenarioSource, app: app, launch: launch, sheets: sheets)
+            try await queueOrDisconnect(app: app, launch: launch, sheets: sheets)
             if launch.slowsSync {
                 await sheets.holdTabListings(for: .seconds(20))
             }
@@ -107,35 +82,28 @@
             present(launch, on: app.workout)
         }
 
+        /// Syncs the scenario's workbook, then logs its `unwritableSetLogs` over the stored Block, as
+        /// the app holds a log the Sheet has not taken.
         @MainActor
-        private static func load(_ source: Source, into app: WorkoutApplication) async throws {
-            switch source {
-            case .workbook:
-                guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
-                    throw BootFailure.syncFailed(app.sync.outcome)
-                }
-            case .handBuilt(let block):
-                let context = app.container.mainContext
-                context.insert(block())
-                try context.save()
+        private static func load(_ workbook: WorkbookScenario, into app: WorkoutApplication) async throws {
+            guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
+                throw BootSyncFailed(outcome: app.sync.outcome)
             }
+            guard !workbook.unwritableSetLogs.isEmpty else { return }
+            let context = app.container.mainContext
+            for block in try context.fetch(FetchDescriptor<Block>()) {
+                workbook.applyUnwritableSetLogs(to: block)
+            }
+            try context.save()
         }
 
         /// A pending-write launch logs and leaves FIXTURE reachable for the sync that lands it;
         /// every other launch disconnects FIXTURE.
         @MainActor
-        private static func queueOrDisconnect(
-            _ source: Source,
-            app: WorkoutApplication,
-            launch: UITestLaunch,
-            sheets: LocalDrive
-        ) async throws {
+        private static func queueOrDisconnect(app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             guard launch.startsWithPendingWrite else {
                 await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
                 return
-            }
-            guard case .workbook = source else {
-                throw BootFailure.pendingWriteNeedsAWorkbook(launch.scenario)
             }
             _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
         }

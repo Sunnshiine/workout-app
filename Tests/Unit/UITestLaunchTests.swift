@@ -152,9 +152,10 @@ import Testing
     }
 
     @MainActor
-    @Test func aPendingWriteLaunchOnAHandBuiltScenarioFailsTheBoot() async throws {
-        await #expect(throws: UITestFixture.BootFailure.self) {
-            _ = try await BootedFixture.boot(["-UITEST_PENDING_WRITE", "-UITEST_LONG_SESSION"])
+    @Test func aPendingWriteLaunchOnAScenarioWithoutThatSetFailsTheBoot() async throws {
+        // The Perfect Session's Day 1 has one Exercise, so it has no Week 1 Day 1 Exercise 2.
+        await #expect(throws: ApplicationError.self) {
+            _ = try await BootedFixture.boot(.perfectMoveOnCelebration, plus: ["-UITEST_PENDING_WRITE"])
         }
     }
 
