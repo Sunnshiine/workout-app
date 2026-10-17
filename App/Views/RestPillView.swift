@@ -8,6 +8,7 @@ struct RestPillView: View {
     @Environment(\.themePalette) private var palette
     @State private var finalFivePulse = false
     @State private var restartPulse = false
+    @State private var lastInterval: RestInterval?
 
     init(restTimer: RestTimer, visualBaselineDate: Date? = nil) {
         self.restTimer = restTimer
@@ -18,7 +19,7 @@ struct RestPillView: View {
         if let visualBaselineDate {
             pillContainer(at: visualBaselineDate)
         } else {
-            TimelineView(.periodic(from: restTimer.interval?.start ?? .now, by: 1)) { context in
+            TimelineView(.periodic(from: shownInterval?.start ?? .now, by: 1)) { context in
                 let remaining = restTimer.remaining(at: context.date)
                 pillContainer(at: context.date)
                     .task(id: restTimer.restartRevision) {
@@ -35,16 +36,25 @@ struct RestPillView: View {
                         playExpiryHaptics(events)
                     }
             }
-            .id(restTimer.interval?.start)
+            .id(shownInterval?.start)
             // A restart swaps this identity inside the log's animation. Without the opaque capsule,
             // a cross-fade would draw both countdowns at once, so the swap is instant.
             .transition(.identity)
+            .onChange(of: restTimer.interval, initial: true) { _, interval in
+                if let interval { lastInterval = interval }
+            }
         }
     }
 
+    /// The live interval, or the last one once it clears. The stage fades this view out after rest
+    /// ends, and without the last interval the fade would draw an empty body.
+    private var shownInterval: RestInterval? {
+        restTimer.interval ?? lastInterval
+    }
+
     private func pillContainer(at date: Date) -> some View {
-        let interval = restTimer.interval
-        let remaining = restTimer.remaining(at: date)
+        let interval = shownInterval
+        let remaining = interval?.remaining(at: date) ?? 0
         let presentation = RestPillPresentation(
             kind: interval?.kind ?? .standard,
             remaining: remaining,
@@ -87,8 +97,9 @@ struct RestPillView: View {
     private func ring(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
         ZStack {
             Circle()
-                .stroke(palette.progressTrack.opacity(0.55), lineWidth: 3)
+                .strokeBorder(palette.progressTrack.opacity(0.55), lineWidth: 3)
             Circle()
+                .inset(by: 1.5)
                 .trim(from: 0, to: CGFloat(presentation.progressFraction))
                 .stroke(
                     arcColor(for: cue).opacity(countdownOpacity(for: cue)),

@@ -221,7 +221,8 @@ struct SessionStageView: View {
                 .accessibilityHidden(composition != .reading)
                 .allowsHitTesting(composition == .reading)
                 .animation(nil, value: composition)
-                .transition(restPillTransition)
+                .modifier(RestPillReveal(reduceMotion: reduceMotion))
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
         }
     }
 
@@ -231,14 +232,9 @@ struct SessionStageView: View {
         isRestPillMounted ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
     }
 
-    private var restPillSwapAnimation: Animation {
-        isRestPillMounted ? .smooth(duration: 0.22).delay(0.11) : .smooth(duration: 0.15)
-    }
-
-    private var restPillTransition: AnyTransition {
-        let insertion: AnyTransition =
-            reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.96, anchor: .leading))
-        return .asymmetric(insertion: insertion, removal: .opacity)
+    // The entrance is RestPillReveal's, so the mount itself runs without animation.
+    private var restPillSwapAnimation: Animation? {
+        isRestPillMounted ? nil : .smooth(duration: 0.15)
     }
 
     // UIKit hands the first responder back when a sheet closes, so the weight keyboard would reopen
@@ -399,5 +395,20 @@ struct SessionMoveOnButton: View {
         .buttonStyle(.plain)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier(accessibilityID)
+    }
+}
+
+/// Fades the rest timer in once Up next has faded out. An insertion transition drew the timer at
+/// full strength on the log's first frame, so the entrance is driven from the timer's own state.
+private struct RestPillReveal: ViewModifier {
+    let reduceMotion: Bool
+    @State private var isRevealed = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isRevealed ? 1 : 0)
+            .scaleEffect(isRevealed || reduceMotion ? 1 : 0.96, anchor: .leading)
+            .animation(.smooth(duration: 0.22).delay(0.11), value: isRevealed)
+            .onAppear { isRevealed = true }
     }
 }
