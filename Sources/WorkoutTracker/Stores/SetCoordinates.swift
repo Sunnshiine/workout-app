@@ -1,12 +1,14 @@
 import Foundation
 
 /// Where a Set sits in the Sheet, in the semantic terms a pending write persists
-/// (ADR-0006): Block tab, Week, Day, Exercise, Set index — plus the Session date and the
+/// (ADR-0006): Block tab, Week, Day, Exercise and its ordinal among same-named Exercises, Set
+/// index — plus the Session date and the
 /// Exercise base name that the Last Performed index records alongside them.
 struct SetCoordinates: Equatable {
     let session: SessionCoordinate
     let dayNumbering: DayNumbering
     let exerciseName: String
+    let exerciseOrdinal: Int
     let exerciseBaseName: String
     let setIndex: Int
     let sessionDate: Date?
@@ -20,6 +22,7 @@ struct SetCoordinates: Equatable {
         self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
         self.dayNumbering = block.dayNumbering
         self.exerciseName = exercise.name
+        self.exerciseOrdinal = exercise.ordinalAmongSameNamed(in: session)
         self.exerciseBaseName = exercise.baseName
         self.setIndex = set.index
         self.sessionDate = session.date
@@ -32,6 +35,7 @@ struct SetCoordinates: Equatable {
     struct ID: Hashable {
         let session: SessionCoordinate
         let exerciseName: String
+        let exerciseOrdinal: Int
         let setIndex: Int
     }
 }
@@ -39,7 +43,12 @@ struct SetCoordinates: Equatable {
 extension SetCoordinates.ID {
     @MainActor
     init(_ write: PendingWrite) {
-        self.init(session: write.recordedSession, exerciseName: write.exerciseName, setIndex: write.setIndex)
+        self.init(
+            session: write.recordedSession,
+            exerciseName: write.exerciseName,
+            exerciseOrdinal: write.exerciseOrdinal,
+            setIndex: write.setIndex
+        )
     }
 }
 
@@ -57,6 +66,7 @@ extension Block {
                         let id = SetCoordinates.ID(
                             session: SessionCoordinate(blockTab: tabName, address: week.address(of: session)),
                             exerciseName: exercise.name,
+                            exerciseOrdinal: exercise.ordinalAmongSameNamed(in: session),
                             setIndex: set.index
                         )
                         sets[id] = set
@@ -65,5 +75,15 @@ extension Block {
             }
         }
         return sets
+    }
+}
+
+extension Exercise {
+    /// How many Exercises earlier in `session` share this one's name: 0 for the first, 1 for a
+    /// second Exercise the coach gave the same name. The Sheet layout counts its anchors the same
+    /// way, so the pair (name, ordinal) addresses one row where the name alone matches several.
+    @MainActor
+    func ordinalAmongSameNamed(in session: Session) -> Int {
+        session.exercises.count { $0.name == name && $0.order < order }
     }
 }
