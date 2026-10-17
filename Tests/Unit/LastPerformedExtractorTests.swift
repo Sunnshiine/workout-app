@@ -367,6 +367,61 @@ import Testing
     #expect(entry.resultText == "35x12@9")
 }
 
+@Test func keysWithoutEntryNameEveryExerciseAndSessionTheBlockGivesNoEntry() {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise("Squat", sets: [pendingSet(index: 0)]),
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)]),
+                    exercise("Deadlift", sets: [skippedSet(index: 0)]),
+                    exercise("Row", legacyLog: "135x10", sets: [pendingSet(index: 0)])
+                ]
+            ),
+            week(
+                2,
+                date: nil,
+                exercises: [
+                    exercise("Bench Press", sets: [pendingSet(index: 0)])
+                ]
+            )
+        ]
+    )
+
+    let keys = LastPerformedExtractor.keysWithoutEntry(from: block)
+
+    #expect(
+        keys == [
+            LastPerformedEntryKey(fullName: "Squat", source: "Block 27 · W1 D1"),
+            LastPerformedEntryKey(fullName: "Deadlift", source: "Block 27 · W1 D1"),
+            LastPerformedEntryKey(fullName: "Bench Press", source: "Block 27 · W2 D1")
+        ]
+    )
+}
+
+/// Two same-named Exercises in one Session share an entry (#813), so one that holds a Set Log keeps
+/// the entry its empty twin would otherwise give up.
+@Test func keysWithoutEntrySkipAKeyAnySameNamedExerciseInTheSessionEarns() {
+    let block = ParsedBlockModel(
+        tabName: "Block 27",
+        weeks: [
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise("Squat", sets: [loggedSet(index: 0, weight: 185, reps: 5, rpe: .seven)]),
+                    exercise("Squat", sets: [pendingSet(index: 0)])
+                ]
+            )
+        ]
+    )
+
+    #expect(LastPerformedExtractor.keysWithoutEntry(from: block).isEmpty)
+}
+
 private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> ParsedWeek {
     ParsedWeek(
         number: number,
