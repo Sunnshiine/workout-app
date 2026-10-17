@@ -43,6 +43,7 @@ with exit 3; run `init` again.
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
 | `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
+| `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
@@ -159,6 +160,28 @@ $ workout say w1d1.e0.s1 "at 9" | jq -c '{outcome, setLog}'     # the card's est
 {"outcome":"logged","setLog":"180x5@9"}
 ```
 
+## Recordings
+
+`hear` is `say` with Apple's on-device speech-to-text in front of it. It reads an audio file
+through the model, configuration, and transcript mapping the Active Set Card's mic uses
+(`Sources/WorkoutTracker/Session/OnDeviceSpeech.swift`): SpeechTranscriber with alternatives for
+en-US, or DictationTranscriber where the Mac has no SpeechTranscriber. Then it hands every
+transcript, most likely first, to `dictate`, which writes under the same Dictation write policy
+as the locked phone. `candidates` is that list; `heard` is its first entry.
+
+```console
+$ say -o set.aiff "185 for 5 at 8"
+$ workout hear w1d1.e0.s0 set.aiff | jq -c '{candidates, outcome, setLog}'
+{"candidates":["185 for 5 at 8.","185 for five at 8.","185 for 5 and 8.","185 for 5 at eight."],"outcome":"logged","setLog":"185x5@8"}
+```
+
+It needs macOS 26 or later on a Mac that runs SpeechAnalyzer. The first run downloads the en-US
+speech assets from Apple, free and with no account, and prints each whole percent to stderr as
+`{"installingSpeechAssets":{"percent":42}}`. A recording with no speech in it is `rejected` as
+`nothingHeard`. A path that is not an audio file is `unreadable_recording` (exit 1), a model that
+fails partway through is `listening_failed` (exit 3), and a Mac without the model, or whose assets
+would not install, is `speech_unavailable` (exit 69).
+
 ## Sync outcome
 
 `status`, `flush`, and `sync` print `syncOutcome`, which carries one `status` per outcome, so a
@@ -204,6 +227,7 @@ $ workout log w1d1.e0.s9 185x5@8; echo $?
 | 3 | environment error (no home, unreadable workbook, sheet offline) |
 | 4 | conflict (a queued write the Sheet rejected, or `sync` ended in conflict) |
 | 64 | usage (ArgumentParser) |
+| 69 | unavailable (`hear` on a Mac with no on-device speech-to-text) |
 | 70 | internal (an error the CLI did not classify; the message is the raw description) |
 
 `WORKOUT_NOW=2026-05-28T20:26:40Z` freezes the clock for reproducible `loggedAt` values. A

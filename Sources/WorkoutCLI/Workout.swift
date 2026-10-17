@@ -9,11 +9,12 @@ struct Workout: AsyncParsableCommand {
             Every command opens the application over a home directory (manifest.json, store.sqlite,
             workbook.json, settings.json), performs one facade call, and prints its result as JSON on
             stdout. Errors are JSON on stderr, after the report when the command printed one first.
-            Exit codes: 0 ok, 1 domain error, 3 environment error, 4 conflict, 64 usage.
+            Exit codes: 0 ok, 1 domain error, 3 environment error, 4 conflict, 64 usage, 69 no on-device
+            speech-to-text.
             """,
         subcommands: [
             InitCommand.self, StatusCommand.self, SessionCommand.self, LogCommand.self,
-            SkipCommand.self, SayCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self
+            SkipCommand.self, SayCommand.self, HearCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self
         ]
     )
 }
