@@ -19,6 +19,10 @@ struct LastPerformedOccurrence: Sendable, Equatable {
 }
 
 extension LastPerformedOccurrence {
+    var key: LastPerformedEntryKey {
+        LastPerformedEntryKey(fullName: fullName, source: source)
+    }
+
     /// Nil when any token is neither a Set Log nor `skip`, so a Legacy Log yields none (ADR-0018).
     var setLogs: [SetLog]? {
         let tokens = splitSheetNotesList(resultText)
