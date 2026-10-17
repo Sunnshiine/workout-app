@@ -35,6 +35,19 @@ struct WorkoutTrackerApp: App {
         return .device()
     }
 
+    /// Returns nil when there is nothing to restore. A fixture launch signs in up front unless it
+    /// asks to sign in late.
+    private static func restoreSignIn() async -> Bool? {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                guard UITestFixture.launch.signsInLate else { return nil }
+                try? await Task.sleep(for: .seconds(3))
+                return true
+            }
+        #endif
+        return await GoogleAuth.restorePreviousSignIn()
+    }
+
     #if DEBUG
         private static func applyUITestFixtures(to app: WorkoutApplication) {
             let settings = app.settings
@@ -44,7 +57,7 @@ struct WorkoutTrackerApp: App {
             } catch {
                 fatalError("\(error)")
             }
-            settings.isSignedIn = true
+            settings.isSignedIn = !UITestFixture.launch.signsInLate
             // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
             // while the seeded (stale) Block stays in the store to prove it is never shown for the
             // newly selected sheet.
@@ -86,10 +99,12 @@ struct WorkoutTrackerApp: App {
                 #endif
                 .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
                 .task {
-                    #if DEBUG
-                        if UITestFixture.isEnabled { return }
-                    #endif
-                    app.settings.isSignedIn = await GoogleAuth.restorePreviousSignIn()
+                    guard let isSignedIn = await Self.restoreSignIn() else { return }
+                    // A restore hands back a sign-in the athlete already had, so RootView cuts to
+                    // where they were. Only their own sheet commit plays the onboarding handoff.
+                    withTransaction(\.disablesAnimations, true) {
+                        app.settings.isSignedIn = isSignedIn
+                    }
                 }
         }
         .modelContainer(app.container)

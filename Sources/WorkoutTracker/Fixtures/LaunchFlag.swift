@@ -78,6 +78,11 @@
             meaning: "Makes the fixture Sheets client wait 20 seconds before it lists tabs, so a sync stays in flight."
         )
 
+        static let lateSignIn = LaunchFlag(
+            argument: "-UITEST_LATE_SIGN_IN",
+            meaning: "Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device."
+        )
+
         static let currentSessionOverride = LaunchFlag(
             argument: "-UITEST_CURRENT_SESSION_OVERRIDE",
             meaning:
@@ -117,6 +122,7 @@
             .disableLiveActivities,
             .pendingWrite,
             .slowSync,
+            .lateSignIn,
             .currentSessionOverride,
             .moveOnCelebration,
             .appearance,

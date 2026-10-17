@@ -11,8 +11,8 @@ struct OnboardingView: View {
     @State private var selectionErrorMessage: String?
 
     // A value, not a SettingsStore read. While a removed view fades out, SwiftUI keeps the last
-    // value its parent built, so a launch that restores sign-in fades the connect screen out
-    // instead of swapping it for the sheet picker mid-fade.
+    // value its parent built, so signing in with a sheet still stored fades the connect screen
+    // out instead of swapping it for the sheet picker mid-fade.
     let isSignedIn: Bool
 
     var body: some View {
