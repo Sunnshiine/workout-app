@@ -482,7 +482,7 @@ private struct HoldToSkipLogButton: View {
         }
         .onLongPressGesture(
             minimumDuration: presentation.longPressDuration,
-            maximumDistance: 44,
+            maximumDistance: HoldToSkipGesture.maximumTravel,
             pressing: { isPressing in
                 apply(isPressing ? gesture.pressBegan(at: .now, policy: presentation.holdPolicy) : gesture.pressEnded(at: .now))
             },
@@ -490,6 +490,11 @@ private struct HoldToSkipLogButton: View {
         )
         .contentShape(.rect)
         .onTapGesture { apply(gesture.tapped(at: .now)) }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: HoldToSkipGesture.maximumTravel)
+                .onChanged { apply(gesture.pressMoved(by: $0.translation)) }
+                .onEnded { _ in apply(gesture.pressEnded(at: .now)) }
+        )
         .task(id: gesture.nextDeadline) {
             guard let deadline = gesture.nextDeadline else { return }
             do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
