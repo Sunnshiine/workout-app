@@ -416,20 +416,9 @@ private struct SessionPage: View {
 
 @MainActor
 private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: store,
-        sync: InertSessionSync(),
-        navigation: store,
-        motion: ImmediateSessionMotion()
-    )
+    let coordinator = SessionCoordinator(wiring: .fixture(logging: store, navigation: store))
+    coordinator.bind(to: session)
     return coordinator
-}
-
-private struct InertSessionSync: SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error) {}
-    func requestPendingWriteFlush() {}
 }
 
 @MainActor
