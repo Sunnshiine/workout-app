@@ -5,7 +5,8 @@ enum SpokenToken: Equatable, Sendable {
     case number(SpokenNumber)
     case bodyweight
     case marker(SpokenMarker)
-    /// "and", "of", or "add" where "at" may have been said. "and" and "of" are filler anywhere else.
+    /// "and", "of", or "add" where "at" may have been said, so the number after it is no RPE heard.
+    /// "and" and "of" are filler anywhere else.
     case misheardAt(isFiller: Bool)
 
     var amount: SpokenAmount? {
@@ -69,8 +70,9 @@ enum SpokenReading: Equatable, Sendable {
     case bodyweight
     case reps
     case rpe
-    /// An RPE after a misheard "at", which must be one of the ten RPE points.
-    case ladderRPE
+    /// Any number after a misheard "at", which leaves the RPE cut off: "185 for 5 and 5" may be five
+    /// Sets of five.
+    case unheardRPE
     /// A number under 15 after "at", as in "at 9".
     case rpeAfterAt
     /// Bodyweight or a number of 15 or more after "at", as in "8 reps at 135".
@@ -83,13 +85,13 @@ enum SpokenReading: Equatable, Sendable {
         switch self {
         case .weight, .bodyweight, .weightAfterAt: .weight
         case .reps: .reps
-        case .rpe, .ladderRPE, .rpeAfterAt: .rpe
+        case .rpe, .unheardRPE, .rpeAfterAt: .rpe
         }
     }
 
     func claim(_ token: SpokenToken) -> SpokenClaim? {
         guard let amount = token.amount, takes(amount) else { return nil }
-        return .value(field, amount)
+        return self == .unheardRPE ? .cutOff(field) : .value(field, amount)
     }
 
     private func takes(_ amount: SpokenAmount) -> Bool {
@@ -100,7 +102,6 @@ enum SpokenReading: Equatable, Sendable {
     private func takes(number: Double) -> Bool {
         switch self {
         case .bodyweight: false
-        case .ladderRPE: RPE(rawValue: number) != nil
         case .rpeAfterAt: number < Self.lightestWeightAfterAt
         case .weightAfterAt: number >= Self.lightestWeightAfterAt
         default: true
@@ -182,7 +183,7 @@ struct SpokenPhrase: Sendable {
             .value(.reps),
             .optional(.marker(.reps)),
             .misheardAt,
-            .value(.ladderRPE)
+            .value(.unheardRPE)
         ),
         SpokenPhrase(.value(.weight), .optional(.marker(.pounds)), .marker(.separator), .value(.reps), .optional(.marker(.reps))),
         SpokenPhrase(.marker(.separator), .value(.reps), .optional(.marker(.reps))),

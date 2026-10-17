@@ -103,8 +103,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   number after it. "reps" labels the number before or after it ("8 reps", "reps 8").
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
   "RPE" labels the number before it too ("8 RPE"). After "at", a number under 15 is the RPE
-  ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135"). Right after a
-  whole weight for reps and before an RPE point, "and", "of", and "add" are "at" ("185 for 5 and 8").
+  ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135").
+- Right after a whole weight for reps, "and", "of", or "add" before a number is the "at" the
+  recognizer mishears, and the number after it is never read: "185 for 5 and 8" is `missingValues`
+  with the RPE missing, because "185 for 5 and 5" may be five Sets of five.
 - A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
   "for 5, 8", and "eight" alone.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",

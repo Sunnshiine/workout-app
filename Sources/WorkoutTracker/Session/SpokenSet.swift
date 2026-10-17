@@ -61,8 +61,9 @@ enum SpokenSet: Equatable, Sendable {
 enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
     case notSaid
     case heard(Value)
-    /// Its marker was said last and the recognizer cut off the number after it, as the RPE of
-    /// "185 for 5 at" or the reps of "185 for".
+    /// Said but not heard: its marker was said last and the recognizer cut off the number after it, as
+    /// the RPE of "185 for 5 at" or the reps of "185 for", or its number followed a misheard "at", as
+    /// the RPE of "185 for 5 and 8".
     case cutOff
 
     /// A value not said keeps the pre-fill. A value cut off was said, so the pre-fill is not it.

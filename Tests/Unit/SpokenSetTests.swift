@@ -13,6 +13,10 @@ private func values(_ weight: Weight?, _ reps: Int?, _ rpe: RPE?) -> Heard {
     .success(.values(weight: spoken(weight), reps: spoken(reps), rpe: spoken(rpe)))
 }
 
+private func rpeCutOff(_ weight: Weight, _ reps: Int) -> Heard {
+    .success(.values(weight: .heard(weight), reps: .heard(reps), rpe: .cutOff))
+}
+
 @Test(
     "Every way of saying one Set hears its weight, reps, and RPE",
     arguments: [
@@ -115,7 +119,7 @@ func bodyweightInAnySpellingIsBW(transcript: String) {
     arguments: [
         "185, 5", "185, 5, 8", "RPE 9, 135, 8", "8 reps, 135, 9", "135 for 8, 9", "5 at 8", "for 5, 8", "5 reps, 8",
         "eight reps nine", "four at eight", "185, 45, at 8", "405 42", "1 85", "1,85", "1 8 5", "one 85", "8", "eight",
-        "ten", "nine point five", "8½", "185 and 5", "for 5 and 8", "8 reps of 135", "185 for 5 and 12", "185, 5, 8, 9"
+        "ten", "nine point five", "8½", "185 and 5", "for 5 and 8", "8 reps of 135", "185, 5, 8, 9"
     ]
 )
 func aNumberNoWordPlacesIsAmbiguous(transcript: String) {
@@ -235,7 +239,7 @@ func fillerAroundASetIsDropped(transcript: String) {
     "What Apple's transcribers wrote for a spoken Set reads as the Set said",
     arguments: [
         ("135 for 4 at RPE9.", values(.pounds(135), 4, .nine)),
-        ("185 for 5 and 8.", values(.pounds(185), 5, .eight)),
+        ("185 for 5 and 8.", rpeCutOff(.pounds(185), 5)),
         ("Body weight for 12 at 7.", values(.bodyweight, 12, .seven)),
         ("135 for 8 reps, RPE9.", values(.pounds(135), 8, .nine)),
         ("Same again.", .success(.sameAgain)),
@@ -247,7 +251,7 @@ func fillerAroundASetIsDropped(transcript: String) {
         ("£95 for 6 at RPE 7.", values(.pounds(95), 6, .seven)),
         ("95 pounds per six of RPE 7.", values(.pounds(95), 6, .seven)),
         ("95 pounds for six and RPE seven", values(.pounds(95), 6, .seven)),
-        ("135 for four of nine.", values(.pounds(135), 4, .nine)),
+        ("135 for four of nine.", rpeCutOff(.pounds(135), 4)),
         ("225 or 3 at 8.5 .", values(.pounds(225), 3, .eightPointFive)),
         ("135 for four at RPE nine", values(.pounds(135), 4, .nine)),
         ("135 for four RTE nine", values(.pounds(135), 4, .nine)),
@@ -310,21 +314,32 @@ func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
     #expect(SpokenSet.parse("49 reps") == values(nil, 49, nil))
 }
 
-@Test func andOfAndAddAfterAWholeSetBeforeAnRPEPointAreAMisheardAt() {
-    #expect(SpokenSet.parse("185 for 5 and 8") == values(.pounds(185), 5, .eight))
-    #expect(SpokenSet.parse("185 for 5 add 8") == values(.pounds(185), 5, .eight))
-    #expect(SpokenSet.parse("135 for four of nine") == values(.pounds(135), 4, .nine))
-    #expect(SpokenSet.parse("185 pounds for 5 reps and 8.5") == values(.pounds(185), 5, .eightPointFive))
+/// The transcriber writes "and" for "at", but "185 for 5 and 5" may be five Sets of five, so the
+/// number after it is never an RPE: the RPE was said and not heard.
+@Test(
+    "And, of, or add before a number after a weight for reps cuts the RPE off, never reads it",
+    arguments: [
+        ("185 for 5 and 8", Weight.pounds(185), 5), ("185 for 5 and 5", .pounds(185), 5), ("50 for 10 and 10", .pounds(50), 10),
+        ("bodyweight for 10 and 10", .bodyweight, 10), ("135 for 8 and 6", .pounds(135), 8), ("185 for 5 and 3", .pounds(185), 5),
+        ("185 for 5 reps and 5", .pounds(185), 5), ("185 for 5 of 5", .pounds(185), 5), ("135 for four of nine", .pounds(135), 4),
+        ("185 for 5 add 8", .pounds(185), 5), ("185 pounds for 5 reps and 8.5", .pounds(185), 5), ("185 for 5 and 12", .pounds(185), 5)
+    ]
+)
+func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, reps: Int) {
+    #expect(SpokenSet.parse(transcript) == rpeCutOff(weight, reps))
+}
+
+@Test func andOrOfBeforeAnRPEMarkerIsFillerAndAddAnywhereElseIsUnrecognized() {
     #expect(SpokenSet.parse("135 for 8 and RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("95 pounds per six of RPE 7") == values(.pounds(95), 6, .seven))
     #expect(SpokenSet.parse("add 185 for 5") == .failure(.unrecognized))
 }
 
 @Test func aMarkerSaidLastCutsOffTheValueItAskedForUnlessThatValueWasHeard() {
-    let cutOffRPE: Heard = .success(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff))
-    #expect(SpokenSet.parse("185 for 5 at") == cutOffRPE)
-    #expect(SpokenSet.parse("185 for 5 RTE") == cutOffRPE)
-    #expect(SpokenSet.parse("185 for 5 of") == cutOffRPE)
-    #expect(SpokenSet.parse("185 for 5 add um") == cutOffRPE)
+    #expect(SpokenSet.parse("185 for 5 at") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 RTE") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 of") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 add um") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 by") == .success(.values(weight: .heard(.pounds(185)), reps: .cutOff, rpe: .notSaid)))
     #expect(SpokenSet.parse("for 5 and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff)))
     #expect(SpokenSet.parse("8 reps at") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff)))

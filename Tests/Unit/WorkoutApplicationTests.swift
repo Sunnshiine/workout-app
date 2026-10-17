@@ -480,6 +480,19 @@ private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutAppli
     #expect(try app.sync.fetchPendingWriteRecords().count == 2)
 }
 
+/// "185 for 5 and 5" once logged RPE 5 over the card's RPE, so a number after "and" leaves the RPE to the athlete.
+@MainActor
+@Test func aWeightForRepsAndANumberOnACardThatHoldsEveryValueIsMissingTheRPEAndQueuesNothing() async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say("185 for 5 and 5", at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .missingValues)
+    #expect(report.missing == ["rpe"])
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().count == 1)
+}
+
 /// Each of these once wrote a Set Log nobody said, or is a transcriber's misreading of one.
 @MainActor
 @Test(
