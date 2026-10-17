@@ -16,7 +16,7 @@ Settings lets the athlete pick appearance, set rest timers, see and change the c
 
 ## How to get to it (user POV)
 
-- From the stage, tap the session location in the header (`session-location-button`) to open Block Overview, then the `Settings` row at its foot (`block-overview-settings-row`). Settings opens as a sheet with a `Done` button.
+- From the stage, tap the session location in the header (`session-location-button`) to open Block Overview, then the gear at its foot (`block-overview-settings-row`, labeled `Settings`). Settings opens as a sheet with a checkmark button labeled `Done`.
 - Open the app straight into Settings (`settings` fixture).
 
 ## Driving it with verify.sh

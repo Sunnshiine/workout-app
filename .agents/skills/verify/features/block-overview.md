@@ -11,7 +11,7 @@ Block Overview shows the whole training Block as a grid of weeks and sessions wi
 - `block-inert` leaves a `Not uploaded` tile inert.
 - `block-make-current` makes the opened session the Current Session.
 - `block-return` returns from a non-current session to the Current Session.
-- `block-settings` opens Settings from the `Settings` row at the grid's foot (`block-overview-settings-row`), driven in `settings.md` **From the stage**.
+- `block-settings` opens Settings from the gear button, labeled `Settings`, at the grid's foot (`block-overview-settings-row`), driven in `settings.md` **From the stage**.
 
 ## How to get to it (user POV)
 

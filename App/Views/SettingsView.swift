@@ -57,7 +57,7 @@ struct SettingsView: View {
                         LabeledContent {
                             RowValue(text: sheetDisplayName)
                         } label: {
-                            RowLabel(title: "Training Sheet")
+                            RowLabel(title: "Training Sheet", systemImage: "tablecells")
                         }
                     }
                     .disabled(isSheetBusy)
@@ -69,7 +69,7 @@ struct SettingsView: View {
                         LabeledContent {
                             RowValue(text: connection.syncNowDetail)
                         } label: {
-                            RowLabel(title: "Sync now")
+                            RowLabel(title: "Sync now", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
                     .disabled(!connection.canSyncNow)
@@ -89,7 +89,8 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         requestSignOut()
                     } label: {
-                        Text("Sign Out")
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .labelStyle(.iconOnly)
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -106,8 +107,8 @@ struct SettingsView: View {
             .background(palette.paperBackground.ignoresSafeArea())
             .navigationTitle("Settings")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", systemImage: "checkmark") {
                         dismiss()
                     }
                     .accessibilityIdentifier("settings-done-button")
@@ -270,9 +271,12 @@ struct SettingsView: View {
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
     let title: String
+    let systemImage: String
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
+        Image(systemName: systemImage)
+            .foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
+            .accessibilityLabel(title)
     }
 }
 
