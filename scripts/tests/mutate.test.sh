@@ -147,6 +147,13 @@ expect "the log dir sits under the caller's .build/mutate and lists every killer
     "${logdir%/*} $(cat "$logdir/results.tsv")" "$repo/.build/mutate m1	killed	GateTests.testOpensAtFour; gateOpensAtThree
 m2	SURVIVED	"
 
+mutate --filter GateTests Sources/Gate/Gate.swift 's/10/11/' '2s/>= 3/> 3/'
+expect "a pattern-addressed mutant that survives prints its row, and the run goes on to the next (#898)" "$status
+$(sed 1,2d <<<"$out")" "1
+SURVIVED     Sources/Gate/Gate.swift:-  sed      s/10/11/
+killed       Sources/Gate/Gate.swift:2  sed      2s/>= 3/> 3/  GateTests.testOpensAtFour +1
+2 mutants: 1 killed, 1 SURVIVED"
+
 echo 'let extraOn = true' >"$repo/Sources/Gate/Extra.swift"
 sed -i '' 's/gateLimit = 10/gateLimit = 12/' "$repo/Sources/Gate/Gate.swift"
 before=$(caller_state)
@@ -235,6 +242,11 @@ $(cat "$logdir/results.tsv")" "1
 unreachable  Sources/Gate/Platform.swift:2  sed      2s/4/5/  compiled out of this build (#if or no target)
 1 mutant: 1 unreachable
 m1	unreachable	compiled out of this build (#if or no target)"
+mutate --filter GateTests Sources/Gate/Platform.swift 's/4/5/'
+expect "the reach probe finds a pattern-addressed mutant's line by comparing the files" "$status
+$(tail -2 <<<"$out")" "1
+unreachable  Sources/Gate/Platform.swift:-  sed      s/4/5/  compiled out of this build (#if or no target)
+1 mutant: 1 unreachable"
 rm "$repo/Sources/Gate/Platform.swift"
 
 rm -f "$STUB_CALLS"
