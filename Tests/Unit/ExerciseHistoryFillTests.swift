@@ -92,7 +92,7 @@ private final class ProgressTicks {
         ]
     )
     let index = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: index)
 
     let outcome = await fill.run(squatRequest(titles: client.titles))
 
@@ -122,7 +122,7 @@ private final class ProgressTicks {
     let index = LastPerformedLookupStore(context: container.mainContext)
     // The current Block's own Squat entry, as sync ingests it before starting the fill.
     try index.ingest([squatEntry(week: 7)])
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: index)
 
     let outcome = await fill.run(squatRequest(titles: client.titles))
 
@@ -144,7 +144,7 @@ private final class ProgressTicks {
         titles: ["Intro", "Block 26", "Block 27"],
         grids: ["Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")]
     )
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: index)
 
     let outcome = await fill.run(squatRequest(titles: client.titles))
 
@@ -164,7 +164,7 @@ private final class ProgressTicks {
         ]
     )
     let index = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: index)
 
     let first = await fill.run(squatRequest(titles: client.titles))
     let second = await fill.run(squatRequest(titles: client.titles))
@@ -183,7 +183,7 @@ private final class ProgressTicks {
     container.mainContext.insert(HistoryFillCursor(spreadsheetId: "sid", deepestIngestedTab: "Block 26"))
     try container.mainContext.save()
     let client = HistoryFillStubClient(titles: ["Intro", "Block 27"], grids: [:])
-    let fill = ExerciseHistoryFill(
+    let fill = makeHistoryFill(
         client: client,
         context: container.mainContext,
         index: LastPerformedLookupStore(context: container.mainContext)
@@ -205,7 +205,7 @@ private final class ProgressTicks {
         titles: ["Block 25", "Block 26", "Block 27"],
         grids: ["Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")]
     )
-    let fill = ExerciseHistoryFill(
+    let fill = makeHistoryFill(
         client: client,
         context: container.mainContext,
         index: LastPerformedLookupStore(context: container.mainContext)
@@ -232,7 +232,7 @@ private final class ProgressTicks {
         transientFailureTabs: ["Block 26"]
     )
     let index = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(
+    let fill = makeHistoryFill(
         client: client,
         context: container.mainContext,
         index: index,
@@ -261,7 +261,7 @@ private final class ProgressTicks {
         unreadableTabs: ["Block 26"]
     )
     let index = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: index)
 
     let outcome = await fill.run(squatRequest(titles: client.titles))
 
@@ -281,7 +281,7 @@ private final class ProgressTicks {
             "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ]
     )
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: RefusingIndex())
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: RefusingIndex())
 
     let outcome = await fill.run(squatRequest(titles: client.titles))
 
@@ -303,7 +303,7 @@ private final class ProgressTicks {
     ]
     let index = LastPerformedLookupStore(context: container.mainContext)
     let firstClient = HistoryFillStubClient(titles: titles, grids: grids, transientFailureTabs: ["Block 25"])
-    let first = ExerciseHistoryFill(
+    let first = makeHistoryFill(
         client: firstClient,
         context: container.mainContext,
         index: index,
@@ -324,7 +324,7 @@ private final class ProgressTicks {
     // A fresh fill over the same store stands in for an app restart. Block 25 now reads fine, and
     // the run resumes below the cursor rather than re-reading Block 26.
     let secondClient = HistoryFillStubClient(titles: titles, grids: grids)
-    let second = ExerciseHistoryFill(
+    let second = makeHistoryFill(
         client: secondClient,
         context: container.mainContext,
         index: index,
@@ -357,7 +357,7 @@ private final class ProgressTicks {
             "Block 25": historicalGrid(exerciseName: "Squat", log: "235x5@8", date: "4/17/2026")
         ]
     )
-    let fill = ExerciseHistoryFill(
+    let fill = makeHistoryFill(
         client: client,
         context: container.mainContext,
         index: LastPerformedLookupStore(context: container.mainContext)
