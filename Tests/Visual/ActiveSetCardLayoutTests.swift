@@ -226,7 +226,17 @@ private enum CardHost {
                 setOrdinal: 3,
                 setCount: 5,
                 mode: mode,
-                mic: scene.mic.map { SetCardMic(dictation: $0, start: {}, finish: { _ in nil }, cancel: {}, dismiss: {}) },
+                mic: scene.mic.map {
+                    SetCardMic(
+                        dictation: $0,
+                        startsHandsFree: false,
+                        start: {},
+                        finish: { _ in nil },
+                        listenHandsFree: { _ in nil },
+                        cancel: {},
+                        dismiss: {}
+                    )
+                },
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {},

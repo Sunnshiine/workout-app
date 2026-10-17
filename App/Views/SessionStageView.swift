@@ -13,6 +13,7 @@ struct SessionStageView: View {
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
     @State private var isQueuePresented = false
     @State private var isRestPillMounted = false
     @State private var isRestPillFaded = false
@@ -81,6 +82,10 @@ struct SessionStageView: View {
                 ),
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
+        }
+        .onChange(of: entry?.arrivals) {
+            isQueuePresented = false
+            historyExercise = nil
         }
     }
 
@@ -380,8 +385,10 @@ extension ActiveSetCard {
             mic: coordinator.cardDictation(for: slot).map { dictation in
                 SetCardMic(
                     dictation: dictation,
+                    startsHandsFree: coordinator.startsHandsFree(slot),
                     start: { coordinator.startDictation(for: slot.set) },
                     finish: { await coordinator.finishDictation(of: slot.set, resolvingAgainst: $0) },
+                    listenHandsFree: { await coordinator.listenHandsFree(to: slot.set, showing: $0) },
                     cancel: { await coordinator.cancelDictation(of: slot.set) },
                     dismiss: { coordinator.dismissDictation() }
                 )

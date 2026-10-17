@@ -4,6 +4,7 @@ struct BlockOverviewView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppEntryInbox.self) private var entry: AppEntryInbox?
     @State private var isSettingsPresented = false
 
     let block: Block
@@ -34,6 +35,10 @@ struct BlockOverviewView: View {
         }
         .sheet(isPresented: $isSettingsPresented) {
             SettingsView()
+        }
+        .onChange(of: entry?.arrivals) {
+            isSettingsPresented = false
+            dismiss()
         }
         .background {
             palette.paperBackground

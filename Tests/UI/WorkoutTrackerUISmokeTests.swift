@@ -1,5 +1,7 @@
 import XCTest
 
+private let dictateLink = URL(string: "workouttracker://dictate")!
+
 final class WorkoutTrackerUISmokeTests: XCTestCase {
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
@@ -154,6 +156,37 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         heard.tap()
 
         waitForLabel("Log 237.5 × 5 @6", on: app.buttons["log-active-set-button"])
+    }
+
+    @MainActor
+    func testTheDictateLinkLogsTheActiveSetWithNoTouchOnTheMic() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+
+        app.open(dictateLink)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 6), "the Set logs once the athlete stops talking")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists, "the card holds the Set it just logged")
+    }
+
+    @MainActor
+    func testTheDictateLinkClosesSettingsAndTheBlockGridAndLogsOnTheCurrentSession() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        app.buttons["session-location-button"].tap()
+        app.otherElements["session-tile-W1-D3"].tap()
+        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
+        app.buttons["session-location-button"].tap()
+        tapWhenHittable(app.buttons["block-overview-settings-row"])
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
+
+        app.open(dictateLink)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 8), "the Current Session's first Set logs")
+        XCTAssertFalse(app.navigationBars["Settings"].exists)
+        XCTAssertFalse(app.navigationBars["Block 27"].exists)
+        waitForLabel("Open Block Overview for Week 1, Day 1", on: app.buttons["session-location-button"])
     }
 
     @MainActor
