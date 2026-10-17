@@ -367,12 +367,14 @@ private struct DictationProgress: View {
 
     var body: some View {
         if state.restEndDate != nil {
+            // A timer Text asks for every point an HStack offers, so without a fixed width the
+            // bar and the Sets left beside it drew at zero width.
             HStack(spacing: 8) {
                 RestCountdownText(state: state)
                     .font(.system(.subheadline, design: .rounded).weight(.heavy))
                     .foregroundStyle(state.liveActivityColors.accent)
                     .monospacedDigit()
-                    .layoutPriority(1)
+                    .frame(width: 52, alignment: .leading)
 
                 RestProgressWithContext(state: state, style: progressStyle)
             }

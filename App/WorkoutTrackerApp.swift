@@ -1,4 +1,3 @@
-import AppIntents
 import GoogleSignIn
 import SwiftData
 import SwiftUI
@@ -25,12 +24,13 @@ struct WorkoutTrackerApp: App {
         _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
         _entry = State(initialValue: entry)
-        // Registered before the first scene, so an intent that launches the app in the background,
-        // with no scene at all, finds it.
-        AppDependencyManager.shared.add(
-            key: LogSetByVoiceIntent.performerKey,
-            dependency: LogSetByVoicePerformer(app: app, dictation: dictation, liveActivity: liveActivityAdapter, entry: entry)
-                as any LogSetByVoicePerforming
+        // Set before the first scene, so an intent that launches the app in the background, with
+        // no scene at all, finds it.
+        LogSetByVoiceIntent.performer = LogSetByVoicePerformer(
+            app: app,
+            dictation: dictation,
+            liveActivity: liveActivityAdapter,
+            entry: entry
         )
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG

@@ -12,22 +12,30 @@ struct LogSetByVoiceIntent: AudioRecordingIntent, LiveActivityIntent {
     )
     static let supportedModes: IntentModes = .background
 
-    @AppDependency(key: LogSetByVoiceIntent.performerKey) private var performer: any LogSetByVoicePerforming
-
     @MainActor
     func perform() async throws -> some IntentResult {
+        guard let performer = Self.performer else { throw PerformedOutsideTheApp() }
         await performer.logSetByVoice()
         return .result()
     }
 }
 
 extension LogSetByVoiceIntent {
-    /// The `AppDependencyManager` key the app registers its performer under.
-    static let performerKey = "LogSetByVoiceIntent.performer"
+    /// What the app does when the intent runs. `WorkoutTrackerApp` sets it once, before its first
+    /// scene, so a background launch with no scene finds it; the widget extension never does, so
+    /// a run that reaches the extension throws instead of doing work there. It is not an
+    /// `@AppDependency` because that would make the extension's control depend on a registry the
+    /// extension never fills, and the intent carries no stored state, so nothing of the app's is
+    /// serialized with it.
+    @MainActor static var performer: (any LogSetByVoicePerforming)?
+
+    struct PerformedOutsideTheApp: Error, CustomStringConvertible {
+        var description: String { "LogSetByVoiceIntent ran in a process that registered no performer; only the app performs it." }
+    }
 }
 
 /// What the app does when the intent runs: the one entry for every surface outside the app.
 @MainActor
-protocol LogSetByVoicePerforming: AnyObject, Sendable {
+protocol LogSetByVoicePerforming: AnyObject {
     func logSetByVoice() async
 }

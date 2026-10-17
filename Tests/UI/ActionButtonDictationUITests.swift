@@ -1,0 +1,70 @@
+import XCTest
+
+/// The Action button pressed with the app in the background and in front. Only a simulator whose
+/// Action button was set to the Log a Set shortcut (Settings, Action Button, Shortcut, Choose a
+/// Shortcut, WorkoutTracker) runs these, and `TEST_RUNNER_WORKOUT_ACTION_BUTTON=1` in the
+/// xcodebuild environment says it was; without that they skip, so CI never presses a button set
+/// to nothing.
+final class ActionButtonDictationUITests: XCTestCase {
+    @MainActor
+    func testActionButtonLogsTheActiveSetOnTheLockScreenWithoutBringingTheAppForward() throws {
+        let app = try launchForTheActionButton()
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.action)
+
+        // Listening takes about 1.2 s and the readback follows the write; the app stays behind.
+        RunLoop.current.run(until: Date().addingTimeInterval(6))
+        XCTAssertEqual(app.state, .runningBackground, "the Set logs without the app coming forward")
+
+        // Wake, then Home unlocks a simulator with no passcode.
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 5), "the headless Dictation logged the active Set")
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3), "the card moved on to the next Set")
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists, "the write waits for the Sheet")
+    }
+
+    @MainActor
+    func testActionButtonWithTheAppInFrontListensOnTheCard() throws {
+        let app = try launchForTheActionButton()
+
+        XCUIDevice.shared.press(.action)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 6), "the card logged the Set, not the headless path")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists, "the card holds the Set it just logged")
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
+    @MainActor
+    private func launchForTheActionButton() throws -> XCUIApplication {
+        try XCTSkipUnless(
+            ProcessInfo.processInfo.environment["WORKOUT_ACTION_BUTTON"] == "1",
+            "set the Action button to Log a Set, then run with TEST_RUNNER_WORKOUT_ACTION_BUTTON=1"
+        )
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments =
+            WorkoutUITestFixture.currentSession.launchArguments
+            + ["-UITEST_DISABLE_ANIMATIONS", "-UITEST_DICTATION", "235 for 5 at 7"]
+        app.launch()
+        XCTAssertTrue(app.buttons["log-active-set-button"].appears(within: 10))
+        XCTAssertFalse(app.buttons["Set 1, 235x5@7"].exists)
+        return app
+    }
+
+    /// `XCUIDevice.ButtonType` has no lock button; the selector XCUIDevice has answered since
+    /// Xcode 8 locks the screen the way `axe button lock` does, so the readback lands on the
+    /// Lock Screen rather than behind the Home Screen.
+    private static func pressLockButton() {
+        let lock = Selector(("pressLockButton"))
+        guard XCUIDevice.shared.responds(to: lock) else { return }
+        XCUIDevice.shared.perform(lock)
+    }
+}
