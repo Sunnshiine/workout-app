@@ -25,6 +25,11 @@ enum SpokenToken: Equatable, Sendable {
         }
     }
 
+    var isCutOff: Bool {
+        guard case .number(let number) = self else { return false }
+        return number.isCutOff
+    }
+
     /// Two digits, the second 6 to 9, that may be a rep count and an RPE run together, as "49" for "4 at 9".
     var mayBeRepsAtAnRPE: Bool {
         guard case .number(let number) = self else { return false }
@@ -106,9 +111,14 @@ enum SpokenReading: Equatable, Sendable {
         }
     }
 
-    func claim(_ token: SpokenToken) -> SpokenClaim? {
+    func claims(_ token: SpokenToken) -> [SpokenClaim]? {
         guard let amount = token.amount, takes(amount) else { return nil }
-        return self == .unheardRPE ? .cutOff(field) : .value(field, amount)
+        return self == .unheardRPE || token.isCutOff ? cutOff(amount) : [.value(field, amount)]
+    }
+
+    /// A rep count is whole, so what the recognizer cut off after one is the RPE said after the reps.
+    private func cutOff(_ amount: SpokenAmount) -> [SpokenClaim] {
+        field == .reps ? [.value(.reps, amount), .cutOff(.rpe)] : [.cutOff(field)]
     }
 
     private func takes(_ amount: SpokenAmount) -> Bool {
@@ -136,7 +146,7 @@ enum SpokenStep: Equatable, Sendable {
     /// The claims this step makes of the token, or nil when the step does not take it.
     func take(_ token: SpokenToken) -> [SpokenClaim]? {
         switch self {
-        case .value(let reading): reading.claim(token).map { [$0] }
+        case .value(let reading): reading.claims(token)
         case .optional(let step): step.take(token)
         default: token.wordStep == self ? [] : nil
         }
@@ -232,6 +242,7 @@ struct SpokenPhrase: Sendable {
     /// "for", with no "reps" after it and no RPE said, is ambiguous when its second digit is 6 to 9,
     /// because "4 at 9" can reach the transcript as "49".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
+        guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
         let values = try SpokenSlots(claims(in: tokens)).spokenSet()
         guard case .values(_, _, .notSaid) = values, tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else {
             return values
@@ -286,7 +297,6 @@ struct SpokenSlots {
 
     init(_ claims: [SpokenClaim]) throws(SpokenSet.Rejection) {
         for claim in claims { try self.claim(claim) }
-        guard !amounts.isEmpty else { throw .unrecognized }
     }
 
     /// A value claimed twice, even as the same number or once cut off, may be two Sets: "185 for 5,

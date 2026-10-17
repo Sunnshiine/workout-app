@@ -174,6 +174,9 @@ struct SpokenCommand {
 struct SpokenNumber: Equatable, Sendable {
     let value: Double
     let digits: String?
+    /// Said last with the start of a half or a decimal after it, as the 8 of "at 8 and a" or "at 8
+    /// point": the recognizer cut off the rest of the number.
+    var isCutOff = false
 
     /// Four or more digits before any point, which no Set holds: numbers the recognizer ran together.
     var isFused: Bool { (digits?.prefix { $0 != "." }.count ?? 0) >= 4 }
@@ -190,9 +193,8 @@ extension SpokenNumber {
     /// The number the words start with, read as far as it goes, with the words after it.
     static func read(_ words: Words) -> Reading<SpokenNumber>? {
         guard let whole = written(words) ?? said(words) else { return nil }
-        guard let fraction = fraction(after: whole) else { return whole }
-        let number = SpokenNumber(value: whole.number.value + fraction.number, digits: whole.number.digits)
-        return Reading(number: number, rest: fraction.rest)
+        guard whole.number.value.rounded() == whole.number.value else { return whole }
+        return fraction(after: whole) ?? cutOffFraction(after: whole) ?? whole
     }
 
     private static func written(_ words: Words) -> Reading<SpokenNumber>? {
@@ -255,10 +257,19 @@ extension SpokenNumber {
         return Reading(number: tens + unit, rest: rest.dropFirst())
     }
 
-    /// A half or the digits after "point", read only after a whole number.
-    private static func fraction(after whole: Reading<SpokenNumber>) -> Reading<Double>? {
-        guard whole.number.value.rounded() == whole.number.value else { return nil }
-        return half(whole.rest) ?? decimal(whole.rest)
+    /// A half or the digits after "point".
+    private static func fraction(after whole: Reading<SpokenNumber>) -> Reading<SpokenNumber>? {
+        (half(whole.rest) ?? decimal(whole.rest)).map {
+            Reading(number: SpokenNumber(value: whole.number.value + $0.number, digits: whole.number.digits), rest: $0.rest)
+        }
+    }
+
+    private static let fractionStarts: [[SpokenWord]] = [[.and], [.and, .a], [.point]]
+
+    /// The number cut off when all that follows it, filler aside, is the start of a half or a decimal.
+    private static func cutOffFraction(after whole: Reading<SpokenNumber>) -> Reading<SpokenNumber>? {
+        guard fractionStarts.contains(whole.rest.filter { $0 != .filler }) else { return nil }
+        return Reading(number: SpokenNumber(value: whole.number.value, digits: whole.number.digits, isCutOff: true), rest: [])
     }
 
     private static let halves: [[SpokenWord]] = [[.and, .a, .half], [.and, .half], [.halfSign]]

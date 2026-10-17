@@ -411,6 +411,36 @@ func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, rep
     #expect(SpokenSet.parse("at") == .failure(.unrecognized))
 }
 
+/// "at 8 and a" is "at 8 and a half" with the half cut off, so the 8 is not the RPE said.
+@Test(
+    "A half or a decimal started last cuts its number off, never reads the whole number",
+    arguments: [
+        "135 for 5 at 9 and a", "135 for 5 at 8 and", "135 for 5 at eight and a", "135 for 5 at 8 point", "135 for 5 rpe 8 and",
+        "135 for 5 reps at 8 and a", "135 for 5 at 8 and uh", "135 for 5 at 8 and then", "135 for 5 at 8 so and",
+        "135 for 5 at nine point"
+    ]
+)
+func aFractionStartedLastCutsItsNumberOff(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == rpeCutOff(.pounds(135), 5))
+}
+
+@Test func aFractionStartedLastAfterARepCountCutsOffTheRPEBecauseRepsAreWhole() {
+    #expect(SpokenSet.parse("185 for 5 and") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 and a") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 point") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("5 reps and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff)))
+    #expect(SpokenSet.parse("8 reps at 9 and") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff)))
+}
+
+@Test func aFractionStartedLastCutsOffTheWeightOrRPEItFollows() {
+    #expect(SpokenSet.parse("rpe 8 and") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff)))
+    #expect(SpokenSet.parse("at 6 and a") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff)))
+    #expect(SpokenSet.parse("5 reps with 185 and a") == .success(.values(weight: .cutOff, reps: .heard(5), rpe: .notSaid)))
+    #expect(SpokenSet.parse("135 for 5 at 8 and 9") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 and") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 5 at eight and half") == values(.pounds(135), 5, .eightPointFive))
+}
+
 @Test func rteRtdAndRtvAreAMisheardRPE() {
     #expect(SpokenSet.parse("135 for 4 RTD 9") == values(.pounds(135), 4, .nine))
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))

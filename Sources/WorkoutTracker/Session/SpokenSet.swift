@@ -3,7 +3,7 @@ import Foundation
 /// A Set as the athlete said it, read from a speech transcript before it meets the Set it is for:
 /// some of a Set Log's values, the previous Set again, or a skip.
 enum SpokenSet: Equatable, Sendable {
-    /// At least one value is heard.
+    /// At least one number or bodyweight is said, though the recognizer may have cut it off.
     case values(weight: SpokenValue<Weight>, reps: SpokenValue<Int>, rpe: SpokenValue<RPE>)
     case sameAgain
     case skip
@@ -63,8 +63,9 @@ enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
     case notSaid
     case heard(Value)
     /// Said but not heard: its marker was said last and the recognizer cut off the number after it, as
-    /// the RPE of "185 for 5 at" or the reps of "185 for", or its number followed a misheard "at", as
-    /// the RPE of "185 for 5 and 8".
+    /// the RPE of "185 for 5 at" or the reps of "185 for", the recognizer cut off its half or decimal,
+    /// as the RPE of "185 for 5 at 8 and a", or its number followed a misheard "at", as the RPE of
+    /// "185 for 5 and 8".
     case cutOff
 
     /// A value not said keeps the pre-fill. A value cut off was said, so the pre-fill is not it.
