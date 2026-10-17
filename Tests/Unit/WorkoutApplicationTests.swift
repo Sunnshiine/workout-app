@@ -503,7 +503,8 @@ private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutAppli
         "8 reps of 135", "nine five for five", "at nine five for five", "five or six reps at eight",
         "twenty five or thirty reps at eight", "1854.5 for 5",
         "4 for 5", "135 for 16", "Two.", "245 for three 8 1/2", "185+58", "315 for 19.5", "185 for 5 at 80%",
-        "185 for 5 and 8 reps", "185 for 5 at 8 reps", "same weight", "8½", "Body weight for 12 to 7", "95 pounds to 67"
+        "185 for 5 and 8 reps", "185 for 5 at 8 reps", "185 for 5, 185 for 5", "same weight", "8½", "Body weight for 12 to 7",
+        "95 pounds to 67"
     ]
 )
 func aRejectedTranscriptQueuesNoWrite(transcript: String) async throws {

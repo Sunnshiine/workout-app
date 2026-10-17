@@ -267,12 +267,13 @@ struct SpokenSlots {
         guard !amounts.isEmpty else { throw .unrecognized }
     }
 
-    /// The same number said twice for one value, as in "135 for eight, 8 reps", is not a conflict.
+    /// The same number said twice for one value, as in "135 for eight, 8 reps", is not a conflict, but
+    /// a second weight, even the same one, is a second Set, as in "185 for 5, 185 for 5".
     private mutating func claim(_ claim: SpokenClaim) throws(SpokenSet.Rejection) {
         switch claim {
         case .value(let field, let amount):
-            guard (amounts[field] ?? amount) == amount else { throw .conflicting(field) }
-            amounts[field] = amount
+            let said = amounts.updateValue(amount, forKey: field)
+            guard said == nil || (said == amount && field != .weight) else { throw .conflicting(field) }
         case .cutOff(let field):
             cutOff.insert(field)
         }

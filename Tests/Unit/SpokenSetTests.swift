@@ -199,6 +199,18 @@ func fillerAroundASetIsDropped(transcript: String) {
     #expect(SpokenSet.parse("135 for eight, 8 reps") == values(.pounds(135), 8, nil))
 }
 
+/// A Set has one weight, so a second weight, even the same one, starts a second Set.
+@Test(
+    "Two Sets said in one breath conflict on the weight",
+    arguments: [
+        "185 for 5, 185 for 5", "185 for 5 at 8 and 185 for 5 at 8", "185 for 5, 185 for 5 and 8", "8 reps at 135, 8 reps at 135",
+        "bodyweight for 12, bodyweight for 12", "185 pounds for 5, 185 for 5"
+    ]
+)
+func twoSetsSaidInOneBreathConflictOnTheWeight(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.conflicting(.weight)))
+}
+
 @Test func kilogramsAreRejectedBecauseEverySetLogIsInPounds() {
     for transcript in ["100 kilos for 5", "100 kg for 5", "100kg for 5", "100 kilograms", "a hundred k g for 5", "60 KGs"] {
         #expect(SpokenSet.parse(transcript) == .failure(.kilograms), "\(transcript)")

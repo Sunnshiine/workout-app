@@ -87,8 +87,8 @@ and the card does not hold is never guessed.
 | `rejected` | the transcript is not a Set, so nothing is queued | `rejection`: `reason`, and `field` or `value` | 1 |
 
 `rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
-recognizer ran together), `ambiguous` (a number no word places, or a transcript that reads as two
-Sets), `conflicting` (two numbers for one `field`), `outOfRange` (reps outside 1 to 100, or a weight
+recognizer ran together), `ambiguous` (a number no word places), `conflicting` (two numbers for one
+`field`, or a second weight, which reads as two Sets), `outOfRange` (reps outside 1 to 100, or a weight
 under 5 pounds), `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same
 again" with no earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
 then a `spoken_set_rejected` error.

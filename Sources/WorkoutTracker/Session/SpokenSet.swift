@@ -23,7 +23,8 @@ enum SpokenSet: Equatable, Sendable {
         /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; or alternatives
         /// that disagree.
         case ambiguous
-        /// Two different numbers for one value: the 4 and the 8 of "135 for 4, 8 reps".
+        /// Two different numbers for one value: the 4 and the 8 of "135 for 4, 8 reps". Or a second
+        /// weight, even the same one, which starts a second Set: "185 for 5, 185 for 5".
         case conflicting(SetLogDraft.Field)
         /// Reps outside 1 to 100 or not whole, or a weight under 5 pounds.
         case outOfRange(SetLogDraft.Field)
