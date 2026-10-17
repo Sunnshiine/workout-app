@@ -15,6 +15,7 @@ private let cap = SetDictation.listeningCap
         (.seconds(1), nil, .seconds(1) + cap, .stop(.cap)),
         (.seconds(1), .seconds(2), .milliseconds(2500), .wake(at: .seconds(2) + window)),
         (.seconds(1), .seconds(2), .seconds(2) + window, .stop(.silence)),
+        (.seconds(1), .seconds(1) + cap - window, .seconds(1) + cap, .stop(.silence)),
         (.seconds(1), .seconds(8), .milliseconds(8500), .wake(at: .seconds(1) + cap)),
         (.seconds(1), .seconds(8), .seconds(1) + cap, .stop(.cap))
     ] as [(Duration, Duration?, Duration, SetDictation.AutoStop)]
@@ -43,6 +44,23 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
     let logged = SetDictation.Outcome.logged(SetLog(weight: .pounds(135), reps: 4, rpe: .nine), heard: "135 for 4 at 9")
     #expect(await listening.value == logged)
     #expect(dictation.state == .finished(firstSet, logged))
+}
+
+@MainActor
+@Test func aTranscriptHeardAgainUnchangedDoesNotRestartTheSilenceWindow() async {
+    let (dictation, transcriber, clock) = makeHandsFreeDictation()
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
+
+    clock.advance(by: .milliseconds(500))
+    transcriber.say("skip")
+    clock.advance(by: .milliseconds(300))
+    transcriber.say("skip")
+    clock.advance(by: .milliseconds(400))
+
+    await clock.waitUntilSleeping(until: .milliseconds(1700), orRecord: "The unchanged skip restarted the silence window")
+    clock.advance(by: window)
+    #expect(await listening.value == .skipped(heard: "skip"))
 }
 
 @MainActor

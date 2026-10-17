@@ -574,12 +574,10 @@ extension SessionCoordinator {
         return SetCardDictation(dictation.state, for: setID)
     }
 
-    /// False when no press began, as while another is in flight.
-    @discardableResult
-    func startDictation(for set: ExerciseSet) -> Bool {
-        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session else { return false }
+    func startDictation(for set: ExerciseSet) {
+        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session else { return }
         dictatingSession = session
-        return dictation.start(for: setID)
+        dictation.start(for: setID)
     }
 
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
@@ -739,7 +737,7 @@ extension SessionCoordinator {
         switch focusManager.visualFocusOwner {
         case .loggedSetReview, .heldAfterSpokenWrite:
             return .uncoverActiveSet
-        case .activeSet(let setID) where dictation != nil && (session.set(at: setID)?.isPending ?? false):
+        case .activeSet(let setID) where dictation != nil && pendingSet(at: setID, in: session) != nil:
             return .listen(setID)
         case .activeSet, nil:
             return .drop
