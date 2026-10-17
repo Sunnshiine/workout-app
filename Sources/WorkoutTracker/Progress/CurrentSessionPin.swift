@@ -42,8 +42,10 @@ final class CurrentSessionPin {
         defaults.keys.contains { $0.hasPrefix(anyOrderKeyPrefix) }
     }
 
+    /// Writes nothing for a Session `block` does not hold, as one held across the sync that
+    /// replaced its Block, so a stale Session cannot pin some other Session's order.
     func pin(_ session: Session, in block: Block, by author: Author) {
-        let order = Self.order(of: session)
+        guard let order = Self.order(of: session, in: block) else { return }
         defaults.set(order, forKey: Self.orderKey(for: block))
         switch author {
         case .moveOn:
@@ -71,8 +73,8 @@ final class CurrentSessionPin {
         }
 
         let author: Author = defaults.integer(forKey: Self.madeCurrentKey(for: block)) == order ? .madeCurrent : .moveOn
-        let sessions = block.weeks.flatMap(\.sessions)
-        guard let pinned = sessions.first(where: { Self.order(of: $0) == order }) else {
+        let pinned = block.weeks.lazy.flatMap { week in week.sessions.filter { Self.order(of: $0, in: week) == order } }.first
+        guard let pinned else {
             return CurrentSessionResolution(
                 blockTab: block.tabName,
                 session: sheetDerived,
@@ -91,8 +93,12 @@ final class CurrentSessionPin {
         return CurrentSessionResolution(blockTab: block.tabName, session: pinned, sheetDerivedSession: sheetDerived, pin: .inForce(author))
     }
 
-    private static func order(of session: Session) -> Int {
-        session.address.map { ($0.week - 1) * orderStride + $0.day } ?? session.dayNumber
+    private static func order(of session: Session, in block: Block) -> Int? {
+        block.weeks.first { $0.sessions.contains(session) }.map { order(of: session, in: $0) }
+    }
+
+    private static func order(of session: Session, in week: Week) -> Int {
+        (week.number - 1) * orderStride + session.dayNumber
     }
 
     private static func orderKey(for block: Block) -> String { orderKeyPrefix + block.tabName }

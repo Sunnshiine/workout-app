@@ -30,6 +30,10 @@ final class WorkoutStore {
     /// sync deletes the whole Block and inserts the re-parsed one, and the deleted Session no
     /// longer reliably knows its own Week.
     private var browsedTo: SessionAddress?
+    /// The Session the Move On Celebration closes, by address for the same reason as `browsedTo`:
+    /// `reload()` re-resolves `moveOnCelebrationSession` from it, so a Move On from a celebration a
+    /// sync landed under advances from the re-parsed Session.
+    private var moveOnCelebrationAddress: SessionAddress?
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
@@ -76,6 +80,7 @@ final class WorkoutStore {
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
         refreshCurrentSession()
+        refreshMoveOnCelebration()
 
         guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
             view(currentSession)
@@ -114,9 +119,11 @@ final class WorkoutStore {
         guard
             let block,
             let currentSession,
+            let address = currentSession.address,
             tracker.moveOnDestination(from: currentSession, in: block).isOffered
         else { return }
 
+        moveOnCelebrationAddress = address
         moveOnCelebrationSession = currentSession
         moveOnCelebrationRequestedAt = now()
         view(currentSession)
@@ -124,8 +131,7 @@ final class WorkoutStore {
 
     func dismissMoveOnCelebration() {
         guard let session = moveOnCelebrationSession else { return }
-        moveOnCelebrationSession = nil
-        moveOnCelebrationRequestedAt = nil
+        endMoveOnCelebration()
         advance(after: session)
     }
 
@@ -152,6 +158,20 @@ final class WorkoutStore {
 
     private func refreshCurrentSession() {
         currentSession = currentSessionResolution?.session
+    }
+
+    /// A sync that took the celebrated Session out of the Block ends the celebration, since there
+    /// is no longer a Session to Move On from.
+    private func refreshMoveOnCelebration() {
+        guard let moveOnCelebrationAddress else { return }
+        moveOnCelebrationSession = block?.session(at: moveOnCelebrationAddress)
+        if moveOnCelebrationSession == nil { endMoveOnCelebration() }
+    }
+
+    private func endMoveOnCelebration() {
+        moveOnCelebrationAddress = nil
+        moveOnCelebrationSession = nil
+        moveOnCelebrationRequestedAt = nil
     }
 
     private func pinCurrentSession(_ session: Session, in block: Block, by author: CurrentSessionPin.Author) {
