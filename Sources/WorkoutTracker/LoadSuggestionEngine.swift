@@ -5,6 +5,15 @@ enum LoadSuggestion: Equatable, Sendable {
     case bodyweight
     case estimate(Double, basis: LoadBasis)
     case noSuggestion
+
+    /// The weight the Active Set Card pre-fills from this suggestion.
+    var weight: Weight? {
+        switch self {
+        case .prescribedWeight(let pounds), .estimate(let pounds, _): .pounds(pounds)
+        case .bodyweight: .bodyweight
+        case .noSuggestion: nil
+        }
+    }
 }
 
 struct LoadBasis: Equatable, Sendable {
