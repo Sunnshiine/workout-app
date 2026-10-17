@@ -1014,7 +1014,9 @@ case $cmd in
       pid=$(cat "$state_dir/pid")
       alive=
       uninstall=
-      if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+      # A pid alone can name another process once the app is gone, since pids wrap fast on a build
+      # machine. Terminating by bundle id then exits 3, or ends a copy of the app a UI test owns (#728).
+      if is_fixture_launch "$pid"; then alive=1; fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
       # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
