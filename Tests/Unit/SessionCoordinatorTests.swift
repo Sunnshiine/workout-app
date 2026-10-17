@@ -2286,6 +2286,65 @@ func aHeldSetTakesNoWriteFromItsCard(saying transcript: String) async throws {
 }
 
 @MainActor
+@Test func theHeldSetsOpenClearMenuKeepsItOnTheCardUntilTheMenuCloses() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger, clock) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    _ = try await sayIntoTheCard(coordinator, in: session)
+
+    coordinator.suspendSpokenWriteHold()
+    await clock.waitForSleep()
+    await clock.advance()
+
+    #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
+    #expect(ledger.motions == [.momentumFlow])
+
+    coordinator.endSpokenWriteHold()
+
+    let next = try card(coordinator, in: session)
+    #expect(next.mode == .logging)
+    #expect(SessionCoordinator.activeSetID(for: next.set) == secondBench)
+    #expect(ledger.motions == [.momentumFlow, .momentumFlow])
+}
+
+@MainActor
+@Test func aClearFromTheHeldSetsOpenMenuUndoesTheWriteAndTheMenuClosingLeavesIt() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, ledger, clock) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    coordinator.suspendSpokenWriteHold()
+
+    coordinator.deleteLog(for: try card(coordinator, in: session).set)
+    let motionsAfterTheClear = ledger.motions
+    coordinator.endSpokenWriteHold()
+    await clock.waitForSleep()
+    await clock.advance()
+
+    let cleared = try card(coordinator, in: session)
+    #expect(cleared.mode == .logging)
+    #expect(cleared.set.isPending)
+    #expect(SessionCoordinator.activeSetID(for: cleared.set) == firstBench)
+    #expect(ledger.motions == motionsAfterTheClear)
+}
+
+@MainActor
+@Test func aClearLandingAfterTheHeldSetsMenuClosedStillUndoesTheWriteAndBringsItsSetBack() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let held = try card(coordinator, in: session).set
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    coordinator.suspendSpokenWriteHold()
+    coordinator.endSpokenWriteHold()
+    #expect(SessionCoordinator.activeSetID(for: try card(coordinator, in: session).set) == secondBench)
+
+    coordinator.deleteLog(for: held)
+
+    let cleared = try card(coordinator, in: session)
+    #expect(cleared.mode == .logging)
+    #expect(cleared.set === held)
+    #expect(cleared.set.isPending)
+}
+
+@MainActor
 @Test func aTouchThatArrivesWithNoHoldLeavesAnOpenReviewOpen() throws {
     let session = makeCoordinatorSession()
     let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])

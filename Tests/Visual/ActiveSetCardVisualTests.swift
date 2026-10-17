@@ -99,7 +99,9 @@ struct ActiveSetCardVisualTests {
                     onLog: { _ in },
                     onSkip: {},
                     onDelete: {},
-                    onTouchWhileHeld: {}
+                    onTouchWhileHeld: {},
+                    onClearMenuOpened: {},
+                    onClearMenuClosed: {}
                 )
                 .padding(.horizontal, 16)
                 Spacer(minLength: 0)

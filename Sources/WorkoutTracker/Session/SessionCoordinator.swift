@@ -618,8 +618,15 @@ extension SessionCoordinator {
         dictation?.dismiss()
     }
 
-    /// The athlete touched the held card, or its time ran out: it moves on now. A hold already
-    /// ended by a tap or a Clear stays ended.
+    /// The athlete opened the held Set's Clear menu: its time stops, and the card keeps the Set until
+    /// the menu closes or a Clear undoes the write.
+    func suspendSpokenWriteHold() {
+        guard focusManager.isHoldingSpokenWrite else { return }
+        cancelSpokenWriteHold()
+    }
+
+    /// The athlete touched the held card or closed its Clear menu without a Clear, or its time ran
+    /// out: it moves on now. A hold already ended by a tap or a Clear stays ended.
     func endSpokenWriteHold() {
         guard focusManager.isHoldingSpokenWrite else { return }
         perform(.momentumFlow) { focusManager.endHoldAfterSpokenWrite() }

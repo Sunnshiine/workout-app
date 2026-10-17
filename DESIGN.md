@@ -462,14 +462,16 @@ row says, never whether the row is there. Saved and Clear sit in the head's
 trailing slot, as does the mic on a Pending Set being logged. A Set written
 by speech stays on the card with Saved and Clear for four seconds, its values
 and action capsule disabled because only Clear changes it, then the card
-moves on as a log does, at once if the athlete touches it. While the mic
-listens, and after a press that wrote nothing, the action capsule says what
-it heard in the Log button's frame, never aloud. A review has no collapse
-control: tapping its leaf again ends it. Inside the card, only what answers
-the athlete's own finger moves: the press, the rail recentring, and the
-hold-to-skip fill. A Superset switch is told above the card, by the Exercise
-name line and the active leaf. While the weight is edited, the card rides
-above the keyboard in one piece at the same size (§5.1).
+moves on as a log does, at once if the athlete touches it. Its open Clear
+menu stops the four seconds, and closing the menu without a Clear moves the
+card on. While the mic listens, and after a press that wrote nothing, the
+action capsule says what it heard in the Log button's frame, never aloud. A
+review has no collapse control: tapping its leaf again ends it. Inside the
+card, only what answers the athlete's own finger moves: the press, the rail
+recentring, and the hold-to-skip fill. A Superset switch is told above the
+card, by the Exercise name line and the active leaf. While the weight is
+edited, the card rides above the keyboard in one piece at the same size
+(§5.1).
 
 **Inert-Space All-Clear Rule** (carried forward). Tapping inert stage
 background clears transient UI — dismisses keyboard editing and transient
