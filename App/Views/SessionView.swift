@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct SessionView: View {
-    private let liveActivity: any SessionLiveActivityAdapter
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
@@ -12,7 +11,6 @@ struct SessionView: View {
     @State private var stageComposition = SessionStageComposition.reading
 
     init(wiring: SessionWiring) {
-        liveActivity = wiring.liveActivity
         _coordinator = State(initialValue: SessionCoordinator(wiring: wiring))
     }
 
@@ -33,11 +31,11 @@ struct SessionView: View {
                         .onAppear {
                             let isFirstBind = coordinator.session == nil
                             withTransaction(\.disablesAnimations, isFirstBind) {
-                                bindCoordinator(to: session)
+                                coordinator.view(session)
                             }
                         }
                         .onChange(of: session.persistentModelID) { _, _ in
-                            bindCoordinator(to: session)
+                            coordinator.view(session)
                         }
                 }
             } else {
@@ -72,31 +70,22 @@ struct SessionView: View {
         }
         .task {
             workout.reload()
-            reconcileLiveActivity()
+            coordinator.reconcileLiveActivity()
             if workout.block == nil, let id = settings.spreadsheetId {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
-                reconcileLiveActivity()
+                coordinator.reconcileLiveActivity()
             }
         }
         .onChange(of: workout.block?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
+            coordinator.reconcileLiveActivity()
         }
         .onChange(of: workout.currentSession?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
+            coordinator.reconcileLiveActivity()
         }
         .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
+            coordinator.reconcileLiveActivity()
         }
-    }
-
-    private func bindCoordinator(to session: Session) {
-        coordinator.bind(to: session)
-        reconcileLiveActivity()
-    }
-
-    private func reconcileLiveActivity() {
-        liveActivity.endIfInvalidated(at: workout.liveEdge)
     }
 }
 
