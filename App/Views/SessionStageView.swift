@@ -83,7 +83,7 @@ struct SessionStageView: View {
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
-        .onChange(of: entry.arrivals) {
+        .onChange(of: entry.coverClosings) {
             isQueuePresented = false
             historyExercise = nil
         }

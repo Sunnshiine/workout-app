@@ -694,17 +694,32 @@ enum SetDictationEntryRoute: Equatable {
 }
 
 extension SessionCoordinator {
-    /// Moves the stage toward the Current Session's active Set for a waiting request, or ends a
-    /// request there is nothing to listen for. Run when a request arrives and on every bind.
+    /// Closes whatever covers the stage and moves it toward the Current Session's active Set for
+    /// a waiting request, or ends a request there is nothing to listen for, leaving the stage as
+    /// it is. Run when a request arrives and on every bind.
     func answerEntry() {
-        if entryRoute == .uncoverActiveSet {
+        guard let entry, let route = entryRoute else { return }
+        switch route {
+        case .wait:
+            break
+        case .drop:
+            entry.discard()
+        case .showCurrentSession, .uncoverActiveSet, .listen:
+            entry.closeCovers()
+            moveStage(toward: route)
+        }
+    }
+
+    /// The card takes a `.listen` request itself once it shows, so only the other routes move it.
+    private func moveStage(toward route: SetDictationEntryRoute) {
+        switch route {
+        case .showCurrentSession:
+            navigationAdapter.showCurrent()
+        case .uncoverActiveSet:
             endSpokenWriteHold()
             perform(nil) { focusManager.collapseLoggedSetReview() }
-        }
-        switch entryRoute {
-        case .showCurrentSession: navigationAdapter.showCurrent()
-        case .drop: entry?.discard()
-        case .wait, .uncoverActiveSet, .listen, nil: break
+        case .wait, .drop, .listen:
+            break
         }
     }
 
@@ -728,18 +743,23 @@ extension SessionCoordinator {
     /// Nil while no request waits.
     private var entryRoute: SetDictationEntryRoute? {
         guard entry?.pending != nil else { return nil }
-        guard dictation?.state.listeningSetID == nil else { return .drop }
         guard let session else { return .wait }
-        guard navigationAdapter.currentSession != nil else { return .drop }
+        guard micIsFreeForAPendingSet else { return .drop }
         guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .showCurrentSession }
         return entryRoute(onLiveEdgeOf: session)
+    }
+
+    /// True while the mic is idle and the Current Session still has a Pending Set to log.
+    private var micIsFreeForAPendingSet: Bool {
+        guard let dictation, dictation.state.listeningSetID == nil, let current = navigationAdapter.currentSession else { return false }
+        return SessionSetOrder.firstPendingSet(in: current) != nil
     }
 
     private func entryRoute(onLiveEdgeOf session: Session) -> SetDictationEntryRoute {
         switch focusManager.visualFocusOwner {
         case .loggedSetReview, .heldAfterSpokenWrite:
             return .uncoverActiveSet
-        case .activeSet(let setID) where dictation != nil && pendingSet(at: setID, in: session) != nil:
+        case .activeSet(let setID) where pendingSet(at: setID, in: session) != nil:
             return .listen(setID)
         case .activeSet, nil:
             return .drop
