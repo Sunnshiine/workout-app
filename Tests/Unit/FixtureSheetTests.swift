@@ -9,6 +9,7 @@ import Testing
         id: WorkoutFixtureScenarios.replacementSheetId,
         title: "Replacement Training Log"
     )
+    expectShowsOnlySessionsOfItsBlock(app.workout)
 
     _ = try app.log(try #require(SetAddress("w1d1.e0.s0")), setLog: "185x5@8")
     let flush = try await app.flush()
@@ -25,6 +26,7 @@ import Testing
     )
 
     let synced = try await app.sync()
+    expectShowsOnlySessionsOfItsBlock(app.workout)
     #expect(synced.syncOutcome.status == .clear)
     #expect(synced.pendingWriteCount == 0)
     let squat = try #require(try app.session(SessionAddress(week: 1, day: 1)).exercises.first)
@@ -40,6 +42,7 @@ import Testing
     #expect(try app.snapshot().pendingWriteCount == 1)
 
     let synced = try await app.sync()
+    expectShowsOnlySessionsOfItsBlock(app.workout)
 
     #expect(synced.syncOutcome.status == .clear)
     #expect(synced.pendingWriteCount == 0)
