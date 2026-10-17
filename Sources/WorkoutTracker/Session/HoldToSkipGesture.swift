@@ -43,7 +43,11 @@ struct HoldToSkipGesture: Equatable, Sendable {
         case idle
         case pressing(since: ContinuousClock.Instant, policy: HoldToSkipPolicy?, revealed: Bool)
         case skipped(fingerDown: Bool)
+        case slidOff
     }
+
+    /// How far a finger may travel from touch-down and still be pressing the capsule (#922).
+    static let maximumTravel: Double = 44
 
     private static let tapMaximum = milliseconds(Theme.holdToSkipTapMaximumDuration)
     private static let tapSuppression = milliseconds(Theme.holdToSkipTapSuppression)
@@ -65,7 +69,7 @@ struct HoldToSkipGesture: Equatable, Sendable {
     /// A nil `policy` is a press on a capsule that takes no hold, so its release only logs or cancels.
     mutating func pressBegan(at now: ContinuousClock.Instant, policy: HoldToSkipPolicy?) -> [HoldToSkipEffect] {
         switch phase {
-        case .pressing, .skipped(fingerDown: true): return []
+        case .pressing, .skipped(fingerDown: true), .slidOff: return []
         case .idle, .skipped(fingerDown: false): break
         }
         phase = .pressing(since: now, policy: policy, revealed: false)
@@ -83,12 +87,19 @@ struct HoldToSkipGesture: Equatable, Sendable {
         return [.revealFill(over: policy.progressAnimationDuration)]
     }
 
+    /// A finger that slides off the capsule cancels its press, as it would a system button: the
+    /// fill retreats, and the press neither logs nor skips however long the finger stays down.
+    mutating func pressMoved(by translation: CGSize) -> [HoldToSkipEffect] {
+        guard case .pressing = phase, hypot(translation.width, translation.height) > Self.maximumTravel else {
+            return []
+        }
+        phase = .slidOff
+        return [.retreatFill]
+    }
+
     mutating func pressEnded(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
         guard case .pressing(let since, let policy, _) = phase else {
-            if phase == .skipped(fingerDown: true) {
-                phase = .skipped(fingerDown: false)
-                suppressTapsUntil = now + Self.tapSuppression
-            }
+            liftFingerOffAnEndedPress(at: now)
             return []
         }
         let held = since.duration(to: now)
@@ -103,8 +114,9 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func tapped(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
-        if case .pressing(_, _, revealed: true) = phase {
-            return []
+        switch phase {
+        case .pressing(_, _, revealed: true), .slidOff: return []
+        case .idle, .pressing, .skipped: break
         }
         if let until = suppressTapsUntil, now < until {
             suppressTapsUntil = nil
@@ -117,16 +129,26 @@ struct HoldToSkipGesture: Equatable, Sendable {
     }
 
     mutating func skipRequested(at now: ContinuousClock.Instant) -> [HoldToSkipEffect] {
-        if case .pressing = phase {
-            return skip(at: now, fingerDown: true)
+        switch phase {
+        case .pressing, .slidOff: skip(at: now, fingerDown: true)
+        case .idle, .skipped: skip(at: now, fingerDown: false)
         }
-        return skip(at: now, fingerDown: false)
     }
 
     mutating func disappeared() {
-        if case .pressing = phase {
-            phase = .idle
+        switch phase {
+        case .pressing, .slidOff: phase = .idle
+        case .idle, .skipped: break
         }
+    }
+
+    private mutating func liftFingerOffAnEndedPress(at now: ContinuousClock.Instant) {
+        switch phase {
+        case .skipped(fingerDown: true): phase = .skipped(fingerDown: false)
+        case .slidOff: phase = .idle
+        case .idle, .pressing, .skipped(fingerDown: false): return
+        }
+        suppressTapsUntil = now + Self.tapSuppression
     }
 
     private mutating func skip(at now: ContinuousClock.Instant, fingerDown: Bool) -> [HoldToSkipEffect] {
