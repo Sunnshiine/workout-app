@@ -82,39 +82,47 @@ and the card does not hold is never guessed.
 | `outcome` | Means | Carries | Exit |
 |---|---|---|---|
 | `logged` | weight, reps, and RPE are all present, logged through `WorkoutStore.log` | `setLog` | 0 |
-| `skipped` | "skip", "skip it", "skip set", or "skip this set", through `WorkoutStore.skip` | | 0 |
+| `skipped` | "skip", "skip it", "skip set", "skip this set", or "skipped", through `WorkoutStore.skip` | | 0 |
 | `missingValues` | a value is still missing, so nothing is queued and the Set stays Pending | `missing`: `weight`, `reps`, `rpe` | 0 |
 | `rejected` | the transcript is not a Set, so nothing is queued | `rejection`: `reason`, and `field` or `value` | 1 |
 
 `rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
-recognizer ran together), `ambiguous` (a transcript that reads as two Sets), `conflicting` (two
-numbers for one `field`), `outOfRange` (reps outside 1 to 100, or a weight outside 0 to 2000 pounds),
-`offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
-earlier Set Log of the Exercise in the Session). A rejected `say` prints its report, then a
-`spoken_set_rejected` error.
+recognizer ran together), `ambiguous` (a number no word places, or a transcript that reads as two
+Sets), `conflicting` (two numbers for one `field`), `outOfRange` (reps outside 1 to 100, or a weight
+under 5 pounds), `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same
+again" with no earlier Set Log of the Exercise in the Session). A rejected `say` prints its report,
+then a `spoken_set_rejected` error.
 
-The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it:
+The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it. A number is a value only
+where a word next to it, or the phrase around it, says which, never by its place in the transcript.
 
-- "for", "x", "by", and "times" put the weight before them and the reps after them. Between a
-  value and a number, "four", "per", and "or" are "for" too ("225 or 3 at 8.5").
-- "pounds", "lbs", and "lb" label the number before them as the weight, as "£" does the number after
-  it, and "reps" labels the reps.
-- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE. So does
-  "at", up to 10; past 10 it is the weight ("8 reps at 135"). Before the last number, "and", "of",
-  and "add" are "at" ("185 for 5 and 8").
-- Numbers no word labels fill what is left, in weight, reps, RPE order ("185, 5, 8").
-- Number words read as athletes say them: "one thirty five", "four oh five", "eight and a half",
-  "8 1/2", "one eighty seven point five", and a clock-style "1:35" for 135. "ate" is 8, and "to" or
-  "too" is 2 only where a number is asked for.
-- A whole number of four or more digits is `fusedNumber`, never a weight: the recognizer wrote
-  "40542" for "four oh five for two".
-- A two-digit rep count said last after "for", with no RPE, whose second digit is an RPE point is
-  `ambiguous`: "135 for 49" may be "135 for 4 at 9". "135 for 49 reps" logs 49 reps, and "45 for 10"
-  logs, because 0 is not an RPE point.
+- "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
+  and said first they label the reps ("for 5"). "four" between a weight and a number is "for" too
+  ("185 four 5"), and so are "or" and "per" after bodyweight or a weight of at least 20 ("225 or 3").
+- "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
+  number after it. "reps" labels the number before or after it ("8 reps", "reps 8").
+- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", and "@" label the number after them as the RPE, and
+  "RPE" labels the number before it too ("8 RPE"). After "at", a number under 15 is the RPE
+  ("at 8"), and bodyweight or a number of 15 or more is the weight ("8 reps at 135"). Right after a
+  whole weight for reps and before an RPE point, "and", "of", and "add" are "at" ("185 for 5 and 8").
+- A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
+  "for 5, 8", and "eight" alone.
+- Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
+  "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
+  "ate" is 8, and "to" or "too" is 2 only where a number is asked for. Number words in a row that
+  make no one number, as "nine five", are `ambiguous`.
+- A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
+  wrote "40542" for "four oh five for two".
+- A rep count written as two digits right after "for", with no "reps" after it and no RPE said, is
+  `ambiguous` when its second digit is 6 to 9: "135 for 49" may be "135 for 4 at 9". "135 for 49
+  reps", "135 for 15", and "45 for 10" log.
 - "bodyweight", "body weight", and "BW" are the BW weight.
-- "same again", "same", "same as last", "repeat", and "again" log the Exercise's nearest earlier Set
-  Log in the Session. A command with numbers in it is `unrecognized`.
-- Any other word rejects the transcript rather than being skipped.
+- "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log
+  the Exercise's nearest earlier Set Log in the Session. A command with numbers or any other word in
+  it, as "same weight", is `unrecognized`.
+- Filler such as "um", "okay", "please", "thanks", "yeah", "I", "just", "hit", "did", and "got" is
+  dropped. Any other word, or a symbol such as "%" or "+", rejects the transcript rather than being
+  skipped.
 
 ```console
 $ workout say w1d1.e0.s0 "RPE 9" | jq -c '{outcome, missing}'

@@ -18,7 +18,7 @@ private let squatDraft = SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight)
     arguments: [
         ("185 for 5 at 8", SetLog(weight: .pounds(185), reps: 5, rpe: .eight)),
         ("at 9", SetLog(weight: .pounds(185), reps: 5, rpe: .nine)),
-        ("190", SetLog(weight: .pounds(190), reps: 5, rpe: .eight)),
+        ("190 pounds", SetLog(weight: .pounds(190), reps: 5, rpe: .eight)),
         ("for 3", SetLog(weight: .pounds(185), reps: 3, rpe: .eight)),
         ("185 for 5", SetLog(weight: .pounds(185), reps: 5, rpe: .eight)),
         ("185 for 5 at 9 RPE", SetLog(weight: .pounds(185), reps: 5, rpe: .nine)),

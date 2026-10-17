@@ -461,6 +461,47 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
 }
 
+/// The second Set once the first is logged, so its card pre-fills a weight, reps, and an RPE, and any
+/// value the grammar wrongly hears completes a Set Log that would be queued for the Sheet.
+@MainActor
+private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutApplication {
+    let app = try await makeSelectedApp()
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+    return app
+}
+
+@MainActor
+@Test func oneValueSaidOnACardThatHoldsEveryValueQueuesItsWrite() async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say("for 5", at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .logged)
+    #expect(try app.sync.fetchPendingWriteRecords().count == 2)
+}
+
+/// Each of these once wrote a Set Log nobody said, or is a transcriber's misreading of one.
+@MainActor
+@Test(
+    "A transcript the grammar rejects queues no write, even on a card that holds every value",
+    arguments: [
+        "5 at 8", "for 5, 8", "5 reps, 8", "eight reps nine", "four at eight", "1 85", "1,85", "one 85", "1 8 5",
+        "185, 45, at 8", "405 42", "eight", "8", "ten", "nine point five", "185, 5, 8", "185 and 5", "for 5 and 8",
+        "8 reps of 135", "nine five for five", "at nine five for five", "five or six reps at eight", "1854.5 for 5",
+        "4 for 5", "135 for 16", "Two.", "245 for three 8 1/2", "185+58", "315 for 19.5", "185 for 5 at 80%",
+        "185 for 5 and 8 reps", "185 for 5 at 8 reps", "same weight", "8½", "Body weight for 12 to 7", "95 pounds to 67"
+    ]
+)
+func aRejectedTranscriptQueuesNoWrite(transcript: String) async throws {
+    let app = try await appWhoseSecondSetCardHoldsEveryValue()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s1"))
+
+    #expect(report.outcome == .rejected)
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().count == 1)
+}
+
 @MainActor
 @Test func sayingToAnUnknownSetThrowsTheSameLookupErrorAsLog() async throws {
     let app = try await makeSelectedApp()
