@@ -6,7 +6,10 @@ import SwiftUI
 @main
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
-    @State private var transcriber = Self.setTranscriber()
+    /// One Dictation per process: the card and a headless intent share the mic through it.
+    @State private var dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
+    /// One owner of the Live Activity per process, whichever surface asked for it.
+    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
     @State private var entry: AppEntryInbox
 
     init() {
@@ -110,7 +113,7 @@ struct WorkoutTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(transcriber: transcriber)
+            RootView(dictation: dictation, liveActivityAdapter: liveActivityAdapter)
                 .environment(app.settings)
                 .environment(app.workout)
                 .environment(app.sync)

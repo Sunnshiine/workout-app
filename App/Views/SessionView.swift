@@ -18,13 +18,13 @@ struct SessionView: View {
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
-    /// No transcriber leaves the mic off every card.
+    /// No Dictation leaves the mic off every card.
     init(
         liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter(),
-        transcriber: (any SetTranscriber)? = nil
+        dictation: SetDictation? = nil
     ) {
         self.liveActivityAdapter = liveActivityAdapter
-        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: transcriber.map { SetDictation(transcriber: $0) }))
+        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: dictation))
     }
 
     var body: some View {

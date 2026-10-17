@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct RootView: View {
-    var transcriber: (any SetTranscriber)?
+    let dictation: SetDictation?
+    let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
     var body: some View {
         Group {
@@ -68,7 +68,7 @@ struct RootView: View {
 
     private var sessionDestination: some View {
         NavigationStack {
-            SessionView(liveActivityAdapter: liveActivityAdapter, transcriber: transcriber)
+            SessionView(liveActivityAdapter: liveActivityAdapter, dictation: dictation)
         }
         .transition(handoff)
     }
