@@ -38,7 +38,8 @@ struct TranscriptSegments: Sendable {
     }
 
     /// The top transcript, then each phrase swapped for one of its alternatives in turn, for
-    /// `SpokenSet.parse(candidates:)`.
+    /// `SpokenSet.parse(candidates:)`. The top stays first even when empty, so an alternative is
+    /// never read as the top; empty when nothing was heard at all.
     var candidates: [String] {
         let segments = segments
         let tops = segments.map(\.top)
@@ -49,8 +50,10 @@ struct TranscriptSegments: Sendable {
                 return Self.transcript(swapped)
             }
         }
-        var seen = Set<String>()
-        return ([Self.transcript(tops)] + swaps).filter { !$0.isEmpty && seen.insert($0).inserted }
+        let top = Self.transcript(tops)
+        var seen: Set = [top]
+        let alternatives = swaps.filter { !$0.isEmpty && seen.insert($0).inserted }
+        return top.isEmpty && alternatives.isEmpty ? [] : [top] + alternatives
     }
 
     private var segments: [Segment] {
