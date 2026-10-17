@@ -143,6 +143,31 @@ enum SpokenWord: Equatable, Sendable {
     ]
 }
 
+/// Same again and skip, each recognized by a trigger word and allowed only its own vocabulary.
+/// Read before any number, because "skip this one" holds the number word "one".
+struct SpokenCommand {
+    let triggers: Set<String>
+    let vocabulary: Set<String>
+    let spokenSet: SpokenSet
+
+    /// What the athlete says, which happens to spell the Set Log wire token. A spoken skip reaches
+    /// the Sheet through `WorkoutStore.skip`, so the word and the token change independently.
+    static let spokenSkipWord = "skip"
+
+    static let all = [
+        SpokenCommand(
+            triggers: [spokenSkipWord, "skipped"],
+            vocabulary: [spokenSkipWord, "skipped", "it", "this", "that", "set", "one"],
+            spokenSet: .skip
+        ),
+        SpokenCommand(
+            triggers: ["same", "again", "repeat"],
+            vocabulary: ["same", "again", "repeat", "as", "last", "time", "before", "do", "set", "one", "that", "it", "previous"],
+            spokenSet: .sameAgain
+        )
+    ]
+}
+
 /// One number as an athlete says it: "185", "one thirty five", "a hundred and eighty five",
 /// "four oh five", "eight and a half", "one eighty seven point five". `digits` is the number as the
 /// transcriber wrote it, before any half or "point" said after it, and nil when it was said in words.

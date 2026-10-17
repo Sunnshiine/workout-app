@@ -8,7 +8,7 @@ private let skipSentinelOwner = "SetLogToken.swift"
 /// The Spoken Set grammar hears the word an athlete says, which happens to spell the wire token,
 /// and never writes it. That file may declare the word once; any other bare literal there is a
 /// hand-copied wire token like anywhere else.
-private let spokenSkipWord = (file: "SpokenSet.swift", declaration: "static let spokenSkipWord = \"skip\"")
+private let spokenSkipWord = (file: "SpokenWords.swift", declaration: "static let spokenSkipWord = \"skip\"")
 
 /// Grep gate for PRD #328: after consolidating the Set Log wire format, no non-view Swift source
 /// may hand-copy the bare `"skip"` sentinel literal — a straggler would silently keep the format

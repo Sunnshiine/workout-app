@@ -50,7 +50,7 @@ enum SpokenSet: Equatable, Sendable {
     private static func spokenSet(in words: [String]) throws(Rejection) -> SpokenSet {
         let meaningful = words.filter { !SpokenWord($0).isFiller }
         guard !meaningful.isEmpty else { throw .nothingHeard }
-        if let command = Command.all.first(where: { !$0.triggers.isDisjoint(with: meaningful) }) {
+        if let command = SpokenCommand.all.first(where: { !$0.triggers.isDisjoint(with: meaningful) }) {
             guard command.vocabulary.isSuperset(of: meaningful) else { throw .unrecognized }
             return command.spokenSet
         }
@@ -132,29 +132,4 @@ extension SpokenSet {
         case .skip: .success(.skip)
         }
     }
-}
-
-/// Same again and skip, each recognized by a trigger word and allowed only its own vocabulary.
-/// Read before any number, because "skip this one" holds the number word "one".
-private struct Command {
-    let triggers: Set<String>
-    let vocabulary: Set<String>
-    let spokenSet: SpokenSet
-
-    /// What the athlete says, which happens to spell the Set Log wire token. A spoken skip reaches
-    /// the Sheet through `WorkoutStore.skip`, so the word and the token change independently.
-    static let spokenSkipWord = "skip"
-
-    static let all = [
-        Command(
-            triggers: [spokenSkipWord, "skipped"],
-            vocabulary: [spokenSkipWord, "skipped", "it", "this", "that", "set", "one"],
-            spokenSet: .skip
-        ),
-        Command(
-            triggers: ["same", "again", "repeat"],
-            vocabulary: ["same", "again", "repeat", "as", "last", "time", "before", "do", "set", "one", "that", "it", "previous"],
-            spokenSet: .sameAgain
-        )
-    ]
 }
