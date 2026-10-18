@@ -4,6 +4,9 @@ phrase	intent
 185 for 5 at 8	185|5|8
 315 for 2 at 9	315|2|9
 405 for 1 at 10	405|1|10
+1005 for 1 at 10	1005|1|10
+1100 for 2 at 9	1100|2|9
+1250 pounds for 3 at 9.5	1250|3|9.5
 10 for 12 at 8	10|12|8
 20 for 15 at 8	20|15|8
 45 for 10 at 6	45|10|6
