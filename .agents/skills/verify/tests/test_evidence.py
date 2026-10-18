@@ -584,7 +584,7 @@ class TappableByLabel(unittest.TestCase):
 
     def test_two_texts_with_one_label_and_no_control_are_listed(self):
         self.assertEqual(tree_py("tappable", "--label", "RPE", stdin=SESSION_RAILS), (1, "", "\n".join([
-            "2 elements carry the label RPE; pick one by its id, or tap its centre with -x -y:",
+            "2 elements carry the label RPE; pick one by its id, or tap it with -x -y:",
             "AXGroup\t\tRPE\t\t@207,612 163x83\t-x 288 -y 654",
             "AXStaticText\t\tRPE\t\t@278,678 21x17\t-x 289 -y 687",
         ]) + "\n"), "the rail and its caption; neither wins, so neither is tapped")
@@ -605,7 +605,7 @@ class TappableByLabel(unittest.TestCase):
         code, out, err = tree_py("tappable", "--label", "Sign Out", stdin=SIGN_OUT_ALERT)
         self.assertEqual((code, out), (1, ""))
         self.assertEqual(err.splitlines(), [
-            "2 elements carry the label Sign Out; pick one by its id, or tap its centre with -x -y:",
+            "2 elements carry the label Sign Out; pick one by its id, or tap it with -x -y:",
             "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52\t-x 201 -y 683",
             "AXButton\t\tSign Out\t\t@205,484 140x48\t-x 275 -y 508",
         ], "the Settings row behind the alert, then the alert's own button")

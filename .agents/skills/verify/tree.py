@@ -17,7 +17,7 @@ Reads an `axe describe-ui` JSON tree on stdin:
                          part of the hit the screen and its clipping ancestors show
   tree.py tappable --label TEXT
                          the same for the one element whose trimmed label is TEXT, a control over
-                         a text with that label; exit 1 listing each with its centre when more
+                         a text with that label; exit 1 listing each with the point a tap takes when more
                          than one is left
   tree.py pid            the frontmost application's pid
   tree.py frame          the application's width and height
@@ -172,7 +172,7 @@ class TreeLine(NamedTuple):
     def parse(cls, text_line: str) -> "TreeLine":
         role, ident, label, value, text = text_line.split("\t")
         frame = Frame.parse(text)
-        return cls(role, ident, label, value, frame, True, None, True, whole_point(frame))
+        return cls(role, ident, label, value, frame, True, None, True, None)
 
     @property
     def aim(self) -> Point:
@@ -401,7 +401,7 @@ def main() -> None:
                 sys.exit(f"no element with label {label}")
             if len(found) > 1:
                 listed = [f"{len(found)} elements carry the label {label}; "
-                          "pick one by its id, or tap its centre with -x -y:"]
+                          "pick one by its id, or tap it with -x -y:"]
                 for line in found:
                     x, y = line.aim
                     listed.append(f"{line.text}\t-x {x} -y {y}")
