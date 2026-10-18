@@ -152,6 +152,16 @@ func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) 
     #expect(SpokenSet.parse("315 for a single at 9") == values(.pounds(315), 1, .nine))
     #expect(SpokenSet.parse("225 for a double RPE 8") == values(.pounds(225), 2, .eight))
     #expect(SpokenSet.parse("225 for a triple 8") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225, a triple, RPE 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("8 reps at a triple") == .failure(.unrecognized))
+}
+
+/// A single, a double, or a triple is a rep count with its own label, never a digit of a number.
+@Test func aSingleADoubleOrATripleNeverJoinsANumberWord() {
+    #expect(SpokenSet.parse("one eighty single for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for twenty triple") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("one hundred double for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for 3 triple") == .failure(.conflicting(.reps)))
 }
 
 @Test func aPartialSetHearsOnlyWhatWasSaid() {

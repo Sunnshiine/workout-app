@@ -61,6 +61,9 @@ enum SpokenWord: Equatable, Sendable {
     case half
     /// A written "1/2".
     case halfSign
+    /// "single", "double", and "triple": a rep count said with its label, as "a triple" is "3 reps",
+    /// and never part of a number, so "one eighty single" is no 181.
+    case repCount(Int)
     case token(SpokenToken)
     /// A choice, as in "20 or 25 reps", though the recognizer writes it for the "for" of "135 or 5".
     case or
@@ -120,7 +123,7 @@ enum SpokenWord: Equatable, Sendable {
     )
 
     private static let entries: [(words: [String], word: SpokenWord)] = [
-        (["zero"], .unit(0)), (["one", "single"], .unit(1)), (["two", "double"], .unit(2)), (["three", "triple"], .unit(3)),
+        (["zero"], .unit(0)), (["one"], .unit(1)), (["two"], .unit(2)), (["three"], .unit(3)),
         (["four"], .four),
         (["five"], .unit(5)), (["six"], .unit(6)), (["seven"], .unit(7)), (["eight", "ate"], .unit(8)), (["nine"], .unit(9)),
         (["ten"], .teen(10)), (["eleven"], .teen(11)), (["twelve"], .teen(12)), (["thirteen"], .teen(13)),
@@ -129,7 +132,7 @@ enum SpokenWord: Equatable, Sendable {
         (["twenty"], .tens(20)), (["thirty"], .tens(30)), (["forty"], .tens(40)), (["fifty"], .tens(50)),
         (["sixty"], .tens(60)), (["seventy"], .tens(70)), (["eighty"], .tens(80)), (["ninety"], .tens(90)),
         (["hundred"], .hundred), (["a"], .a), (["oh"], .oh), (["and"], .and), (["point"], .point), (["half"], .half),
-        (["1/2"], .halfSign),
+        (["1/2"], .halfSign), (["single"], .repCount(1)), (["double"], .repCount(2)), (["triple"], .repCount(3)),
         (["for", "x", "by", "times"], .token(.marker(.separator))),
         (["pound", "pounds", "lb", "lbs"], .token(.marker(.pounds))),
         (["rep", "reps", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
@@ -321,7 +324,10 @@ struct SpokenTokens {
     }
 
     private mutating func read(_ word: SpokenWord, _ words: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenNumber.Words {
-        if let homophone = try homophone(word, before: words.dropFirst()) {
+        if case .repCount(let count) = word {
+            try append(SpokenNumber(value: Double(count), digits: nil))
+            tokens.append(.marker(.reps))
+        } else if let homophone = try homophone(word, before: words.dropFirst()) {
             tokens.append(homophone)
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
