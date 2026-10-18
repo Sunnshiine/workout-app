@@ -1,7 +1,8 @@
 # Design System: the Session stage components (DESIGN.md §5.1–§5.4)
 
-Part of [DESIGN.md](../../DESIGN.md), which holds the overview, color, type, surfaces, the
-Sunbird, motion, and the Do's and Don'ts these specs serve. A § number names a section of
+Part of [DESIGN.md](../../DESIGN.md), which holds the overview, color, type, surfaces, and the
+Do's and Don'ts these specs serve. The Sunbird is in [sunbird.md](sunbird.md) and motion in
+[motion-and-haptics.md](motion-and-haptics.md). A § number names a section of
 DESIGN.md or of one of its component files, which keep its numbering.
 
 ### 5.1 The Living Stage (Session stage)

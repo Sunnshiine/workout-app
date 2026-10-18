@@ -141,7 +141,7 @@ Test doubles policy:
 
 The UI XCUITest boundary, UI-test frame assertions, and the representative UI Integration Smoke
 scope live in [docs/testing/ui-tests.md](testing/ui-tests.md). Read it before you add, delete, or
-narrow a UI test.
+narrow a UI test, or change a frame or layout assertion in one.
 
 Smoke selector command:
 

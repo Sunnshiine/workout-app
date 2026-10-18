@@ -1,7 +1,8 @@
 # UI tests
 
 Part of the AI-Generated Code Gate in [docs/TESTING.md](../TESTING.md), which defines the test
-layers, UI Integration Smoke, and the UI Interaction Suite, and holds the smoke selector commands.
+layers, names the UI target's two purposes, and holds the smoke selector commands. This file
+defines UI Integration Smoke and the UI Interaction Suite.
 
 UI XCUITest boundary:
 
