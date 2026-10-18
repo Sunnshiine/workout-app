@@ -26,10 +26,10 @@ struct SyncCommand: AsyncParsableCommand {
             }
             return try await app.sync()
         } verdict: { report in
-            // A write this sync refused is already one of the conflicted writes.
+            // This sync's refusals are a subset of the conflicted writes, so they print once.
             let messages =
-                report.syncOutcome.status == .writesRefused
-                ? report.conflictedWrites : report.conflictedWrites + report.syncOutcome.messages
+                report.conflictedWrites
+                + (report.syncOutcome.status == .writesRefused ? [] : report.syncOutcome.messages)
             guard !report.syncOutcome.status.leavesTheAthleteSomethingToDo, messages.isEmpty else {
                 throw CLIError.conflict(code: "sync_conflict", messages: messages)
             }
