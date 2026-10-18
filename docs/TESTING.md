@@ -29,6 +29,12 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 - A wall-clock budget, such as polling for 10 seconds. Under load the budget runs out, the test returns,
   and a task it started keeps running against torn-down state. Await the event or the task instead.
 
+A wait for work the test does not control is bounded, or a regression that skips the work hangs the run
+instead of failing it. A continuation ignores the time limit's cancellation, so a fake never parks the
+test on one. It polls state on the main actor, where the work that sets it runs, and records a failure
+when the poll runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to
+copy, as `ManualSessionTransitionClock.waitForSleep()` does (#746).
+
 ## Parallel Agents
 
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
@@ -139,32 +145,9 @@ Test doubles policy:
   launch boundaries, and drives real controls through accessibility.
 - Automated tests must not hit live Google auth, live Google Sheets, or real network connectivity.
 
-UI XCUITest boundary:
-
-- UI Integration Smoke is the real-control wiring layer. It proves launch state, navigation, accessibility
-  lookup, hittability, route completion, and one representative end-to-end flow per critical app
-  surface.
-- The UI Interaction Suite covers higher-flake interaction mechanics such as keyboard focus,
-  overscroll, long scrolling, hold gestures, and frame/visibility behavior. CI never runs it
-  (#662), so it runs locally before a change that needs it is ready.
-- UI XCUITests may assert that a real user action reaches a visible result. Unit and component tests own
-  the detailed state rules, permutations, string construction, persistence semantics, and business
-  logic behind that result.
-- UI XCUITests may include layout assertions only when the assertion protects functional accessibility:
-  a control must remain tappable, readable, reachable, and not clipped out of usable bounds. Pixel
-  polish, spacing, exact frame relationships, and broad appearance coverage belong to Visual
-  Regression tests or component/presentation tests.
-- Gesture-heavy surfaces should keep at most one representative UI gesture per critical path to
-  prove the real SwiftUI attachment works. Component or unit tests own thresholds, timing, idle
-  behavior, precommit releases, and state-machine edge cases.
-- Settings and Developer Tools should have route smokes plus one representative critical
-  confirmation path. Store, sync, reset, diagnostics, and pending-write rules belong to lower-level
-  tests unless the app-layer wiring itself is the risk.
-- UI cleanup issues must identify the replacement coverage owner before deleting or narrowing an
-  XCTest. Either cite existing unit, component, or visual coverage, or add the missing
-  lower-level coverage first.
-- UI Integration Smoke lives in dedicated test classes inside the `WorkoutTrackerUITests` target,
-  so a class-level selector runs it without the rest of the bundle.
+The UI XCUITest boundary, UI-test frame assertions, and the representative UI Integration Smoke
+scope live in [docs/testing/ui-tests.md](testing/ui-tests.md). Read it before you add, delete, or
+narrow a UI test, or change a frame or layout assertion in one.
 
 Smoke selector command:
 
@@ -246,15 +229,6 @@ Per-change test selection:
 - Pure visual restyling requires relevant Visual Regression coverage when the surface has a
   baseline. Component or UI tests are required only when behavior or state contracts change.
 
-UI-test frame assertions:
-
-- Accessibility frames are hit targets, not visual bounds. Do not treat a native 44 pt hit target
-  intersecting a compact visual element's layout frame as proof of a visual collision. For compact
-  header controls such as the stage's session location button (`session-location-button`), prefer
-  assertions that prove the control exists, is hittable, remains separated from real neighboring
-  controls/cards, and opens the intended surface. Use Visual Regression tests or human review for
-  actual visual-overlap questions.
-
 Agent gate policy:
 
 - While you work, run the narrowest tests for the layer you change.
@@ -262,62 +236,7 @@ Agent gate policy:
   and `scripts/lint.sh`. A change to navigation or real controls also runs the smoke selector, and
   one to keyboard focus, gestures, or scrolling runs `scripts/test-sim.sh ui`.
 
-Representative UI Integration Smoke scope:
-
-- Launch the deterministic Current Session fixture, select RPE, log the first Set, and verify the
-  next active Set advances.
-- Move On from a deterministic completed or ready-to-advance Session, dismiss the Move On
-  Celebration, and verify the next intended Session or Exercise appears.
-- Open Block Overview, switch to a non-current Session, verify Make current / Go back controls, and
-  return to the Current Session.
-- Open Settings from a deterministic route and exercise one representative pending-write sign-out
-  confirmation path.
-- Open a Partially Uploaded Block, verify one Unavailable Session is inert, and verify one Available
-  Session still opens.
-
-Do not promote a broad chained journey into smoke. Split it into these short named flows first,
-and leave keyboard focus, overscroll, long-session scrolling, hold gestures, exact frame movement,
-and celebration visibility-ratio checks in the UI Interaction Suite.
-
 # Manual Testing on the iOS Simulator
 
-## Prerequisites
-
-- **Xcode 27** with the **iOS 27.0 simulator runtime**, the runtime CI and the Visual Baselines use.
-  Check Xcode → Settings → Platforms if the app fails to launch.
-
-## Running the App
-
-1. Open `WorkoutTracker.xcodeproj` in Xcode
-2. Select the **WorkoutTracker** scheme (top bar, left of the device picker)
-3. Choose a simulator — **iPhone 17 Pro** on iOS 27.0 is a good default
-
-4. Press **Cmd+R** to build and run
-
-Build time is ~30–60 s on first run (Swift packages resolve). Subsequent builds are fast.
-
-Agents drive the app through `.agents/skills/verify/SKILL.md`, which launches with animations off.
-A change to anything that moves needs that skill's Motion section: `verify.sh launch --animated`,
-`verify.sh record`, and `motion/cardframe.py`.
-
-## First-Run Onboarding
-
-The app opens to **OnboardingView** on a fresh install (no sign-in, no sheet configured):
-
-1. **Sign in with Google** — tap the button; a Safari sheet opens for OAuth. Use your Google account that has read access to the training sheet.
-2. Once signed in, a text field appears — **paste the full Google Sheet URL** (e.g. `https://docs.google.com/spreadsheets/d/<ID>/edit`).
-3. Tap **Save**. The app validates the URL and extracts the sheet ID. A bad URL shows an inline error.
-4. On success the app navigates to **SessionView**.
-
-## Resetting State
-
-To start fresh (re-trigger onboarding):
-
-- **Delete the app** from the simulator home screen → reinstall via Cmd+R
-
-Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and add a launch argument to clear defaults on boot — or just delete and reinstall, it's faster.
-
-## Running via xcodebuild (no Xcode GUI)
-
-`AGENTS.md` lists the `xcodebuild build` command. Cmd+R in Xcode is the quickest way to install and
-run the build.
+Running the app from Xcode, first-run onboarding, and resetting state live in
+[docs/testing/manual-simulator.md](testing/manual-simulator.md).

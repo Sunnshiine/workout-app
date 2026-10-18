@@ -238,26 +238,21 @@ private func makeLedgerCoordinator(
 private final class ManualSessionTransitionClock: SessionTransitionClock {
     private(set) var sleptDurations: [Duration] = []
     private var sleepers: [CheckedContinuation<CheckedContinuation<Void, Never>, Never>] = []
-    private var sleepWaiters: [CheckedContinuation<Void, Never>] = []
 
     func sleep(for duration: Duration) async {
         sleptDurations.append(duration)
-        let waiters = sleepWaiters
-        sleepWaiters = []
-        for waiter in waiters { waiter.resume() }
-
         let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
             sleepers.append(sleeper)
         }
         returnFromAdvanceAfterCallerRuns.resume()
     }
 
-    func waitForSleep() async {
-        if !sleptDurations.isEmpty { return }
-
-        await withCheckedContinuation { continuation in
-            sleepWaiters.append(continuation)
-        }
+    func waitForSleep(sourceLocation: SourceLocation = #_sourceLocation) async {
+        await waitUntil(
+            { !sleptDurations.isEmpty },
+            orRecord: "the coordinator never slept on the transition clock",
+            sourceLocation: sourceLocation
+        )
     }
 
     func advance() async {
@@ -1750,20 +1745,6 @@ private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, S
     return (app, coordinator, liveActivity)
 }
 
-/// Polls on the main actor, where the store's change and the coordinator's reconcile both run.
-@MainActor
-private func waitForReconciles(
-    _ count: Int,
-    on liveActivity: SpySessionLiveActivityAdapter,
-    sourceLocation: SourceLocation = #_sourceLocation
-) async {
-    for _ in 0..<10_000 {
-        if liveActivity.invalidationCalls.count >= count { return }
-        await Task.yield()
-    }
-    Issue.record("Expected \(count) reconciles, saw \(liveActivity.invalidationCalls.count)", sourceLocation: sourceLocation)
-}
-
 /// A sync replaces every Session model, so the Session the coordinator is bound to is a stale
 /// instance whose own live edge reads browsed away while the athlete is still at the live edge.
 @MainActor
@@ -1772,7 +1753,10 @@ private func waitForReconciles(
     let stale = try #require(coordinator.session)
 
     _ = try await app.sync()
-    await waitForReconciles(1, on: liveActivity)
+    await waitUntil(
+        { liveActivity.invalidationCalls.count >= 1 },
+        orRecord: "Expected 1 reconcile, saw \(liveActivity.invalidationCalls.count)"
+    )
 
     let replacement = try #require(app.workout.currentSession)
     #expect(replacement !== stale)
@@ -1789,12 +1773,18 @@ private func waitForReconciles(
 
     app.workout.show(SessionAddress(week: 1, day: 2))
     app.workout.makeViewedSessionCurrent()
-    await waitForReconciles(1, on: liveActivity)
+    await waitUntil(
+        { liveActivity.invalidationCalls.count >= 1 },
+        orRecord: "Expected 1 reconcile, saw \(liveActivity.invalidationCalls.count)"
+    )
     let firstCurrent = try #require(app.workout.currentSession)
 
     app.workout.show(SessionAddress(week: 2, day: 1))
     app.workout.makeViewedSessionCurrent()
-    await waitForReconciles(2, on: liveActivity)
+    await waitUntil(
+        { liveActivity.invalidationCalls.count >= 2 },
+        orRecord: "Expected 2 reconciles, saw \(liveActivity.invalidationCalls.count)"
+    )
     let secondCurrent = try #require(app.workout.currentSession)
 
     #expect(firstCurrent.address == SessionAddress(week: 1, day: 2))
