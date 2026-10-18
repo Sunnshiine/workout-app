@@ -31,11 +31,13 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
   tap --id ID | --label TEXT | -x X -y Y
                               --id and --label wait up to 3 s (--wait-timeout N) for that element
                               to be enabled, on screen, with its centre inside every element of
-                              nonzero size containing it, and on top at that centre, then tap the
-                              centre; exit 1 and say which it was not (off-screen, clipped,
+                              nonzero size containing it short of the whole screen, and on top at
+                              the tap point, then tap
+                              there. The point is the centre of the part of it the screen and those
+                              elements show; exit 1 and say which it was not (off-screen, clipped,
                               disabled, covered). --label is the exact label, a control over a text
                               that shares it; when more than one is left, exit 1 listing each
-                              with its centre. -x -y taps the point and reports whatever it hits
+                              with the point a tap takes. -x -y taps the point and reports whatever it hits
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field, then reset the keyboard preference AXe
                               input sets (issue 700)
@@ -830,7 +832,7 @@ case $cmd in
         return
       fi
       "$axe" describe-ui --udid "$sim" --point "$x,$y" \
-        | python3 "$tree" landing "${resolved#*$'\n'}" "$front"
+        | python3 "$tree" landing "${resolved#*$'\n'}" "$front" "$x" "$y"
     }
     SECONDS=0
     while :; do
@@ -1016,7 +1018,9 @@ case $cmd in
       pid=$(cat "$state_dir/pid")
       alive=
       uninstall=
-      if kill -0 "$pid" 2>/dev/null; then alive=1; fi
+      # A pid alone can name another process once the app is gone, since pids wrap fast on a build
+      # machine. Terminating by bundle id then exits 3, or ends a copy of the app a UI test owns (#728).
+      if is_fixture_launch "$pid"; then alive=1; fi
       # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
       # springboard over every later shot. Uninstalling is the only lever on one from outside the
       # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which

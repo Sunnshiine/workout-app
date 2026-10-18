@@ -257,6 +257,53 @@
         #expect(try sync.json["pendingWriteCount"] as? Int == 1)
     }
 
+    /// A sync names each refused write once on stderr, though the report carries a refusal both as
+    /// a conflicted write and as the outcome's message (#979). Two Sets refused for the same reason
+    /// stay two lines. The refusal is #768's: a second `Day 1` header in Week 1 names the Day as
+    /// repeated, not as missing.
+    @Test func aSyncNamesEachRefusedWriteOnce() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@8")
+        _ = try cli.run("log", "w1d1.e0.s1", "185x5@8")
+        try editBlockCells(in: home) { $0["S12"] = "Day 1" }
+
+        let sync = try cli.run("sync")
+        let refusal = "Back Squat: Day 1 has more than one header in the sheet"
+        #expect(sync.status == 4)
+        #expect(try sync.errorJSON["code"] as? String == "sync_conflict")
+        #expect(try sync.errorJSON["message"] as? String == "\(refusal)\n\(refusal)")
+        #expect(try sync.json["conflictedWrites"] as? [String] == [refusal, refusal])
+    }
+
+    /// A write refused by an earlier sync stays conflicted, so a sync that refuses another names
+    /// both on stderr, once each, though its outcome carries only the new refusal.
+    @Test func aSyncNamesAnEarlierRefusalAlongsideItsOwn() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@8")
+        _ = try cli.run("flush")
+        _ = try cli.run("sync")
+        _ = try cli.run("log", "w1d1.e0.s0", "205x3@9")
+        try editBlockCells(in: home) { $0["K15"] = "coach edited" }
+        let earlier = try cli.run("sync")
+        #expect(try (earlier.json["conflictedWrites"] as? [String])?.count == 1)
+        let earlierRefusal = try #require(try earlier.errorJSON["message"] as? String)
+
+        _ = try cli.run("log", "w1d1.e0.s1", "185x5@8")
+        try editBlockCells(in: home) { $0["S12"] = "Day 1" }
+        let sync = try cli.run("sync")
+        let newRefusal = "Back Squat: Day 1 has more than one header in the sheet"
+        let outcome = try #require(try sync.json["syncOutcome"] as? [String: Any])
+        #expect(sync.status == 4)
+        #expect(outcome["messages"] as? [String] == [newRefusal])
+        #expect(try sync.errorJSON["message"] as? String == "\(earlierRefusal)\n\(newRefusal)")
+    }
+
     /// The reason `syncOutcome` exists. Both halves exit 4 and both leave the athlete something to
     /// do, and the only thing telling them apart is `status`.
     @Test func aParseWarningAndARefusedWriteReachTheWireUnderDifferentStatuses() throws {
@@ -275,7 +322,9 @@
         let warnedOutcome = try #require(try warned.json["syncOutcome"] as? [String: Any])
         #expect(warned.status == 4)
         #expect(warnedOutcome["status"] as? String == "parseWarnings")
-        #expect(((warnedOutcome["messages"] as? [String]) ?? []).isEmpty == false)
+        let warnings = try #require(warnedOutcome["messages"] as? [String])
+        #expect(warnings.isEmpty == false)
+        #expect(try warned.errorJSON["message"] as? String == warnings.joined(separator: "\n"))
 
         let refusedHome = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: refusedHome) }
@@ -291,6 +340,28 @@
         let refusedOutcome = try #require(try refused.json["syncOutcome"] as? [String: Any])
         #expect(refused.status == 4)
         #expect(refusedOutcome["status"] as? String == "writesRefused")
+    }
+
+    @Test func aChoiceExerciseSuggestsALoadFromHistoryLoggedUnderOneOption() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init", "--scenario", "fresh-block")
+        try editBlockCells(in: home) { cells in
+            cells["C15"] = "Incline DB Bench Press"
+            cells["C40"] = "Incline Machine or DB Bench Press"
+        }
+        _ = try cli.run("sync")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@7")
+
+        let session = try cli.run("session", "w2d1")
+        let exercises = try #require(try session.json["exercises"] as? [[String: Any]])
+        let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
+        let suggestion = try #require(sets[0]["loadSuggestion"] as? [String: Any])
+        #expect(suggestion["kind"] as? String == "estimate")
+        #expect(suggestion["weight"] as? Int == 185)
+        let basis = try #require(suggestion["basis"] as? [String: Any])
+        #expect(basis["text"] as? String == "from 185x5@7 · W1 D1 as “Incline DB Bench Press”")
     }
 
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {

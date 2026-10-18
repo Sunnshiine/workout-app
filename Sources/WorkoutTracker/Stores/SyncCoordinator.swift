@@ -87,20 +87,11 @@ final class SyncCoordinator {
         let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else { return .clear }
 
-        let writer = SheetWriter(client: client)
-        let flushContext = PendingWriteFlushContext(
-            spreadsheetId: spreadsheetId,
-            writer: writer,
-            planner: sheetWritePlanner
-        )
+        let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, planner: sheetWritePlanner)
 
-        switch await flushPendingWrites(pending, context: flushContext) {
-        case .completed(let conflicts):
-            try? context.save()
-            return SyncOutcome(refusedWrites: conflicts)
-        case .stoppedForRetry(let queued):
-            return .writesQueued(queued)
-        }
+        let conflicts = await flushPendingWrites(pending, context: flushContext)
+        try? context.save()
+        return SyncOutcome(refusedWrites: conflicts, queued: pendingWriteFlushQueue().count)
     }
 
     @discardableResult
@@ -205,55 +196,7 @@ extension SyncCoordinator: SheetSwitchSyncing {
 
 private struct PendingWriteFlushContext {
     let spreadsheetId: String
-    let writer: SheetWriter
     let planner: SheetWritePlanner
-}
-
-private enum PendingWriteFlushResult {
-    case completed(conflicts: [String])
-    case stoppedForRetry(queued: Int)
-}
-
-private struct PlannedPendingWrite {
-    let write: PendingWrite
-    let update: SheetCellUpdate
-    let snapshot: SheetWritePlanningSnapshot
-    let auditDetails: SheetWriteAuditDetails
-
-    /// Declared in the struct body so it replaces the memberwise init. A planned write is then built
-    /// from one read only, so its target, value check, and audit row cannot disagree.
-    @MainActor
-    init(_ write: PendingWrite, against snapshot: SheetWritePlanningSnapshot, planner: SheetWritePlanner) throws {
-        guard let request = SheetWriteRequest(write, on: snapshot.layout) else {
-            throw PendingWritePlanningConflict(
-                error: .dayHeadersChangedMeaning,
-                refusedTarget: nil,
-                auditDetails: .dayHeadersChangedMeaning(recorded: write.recordedSession.address)
-            )
-        }
-        let target: SheetWriteTarget
-        do {
-            target = try planner.target(for: request, in: snapshot)
-        } catch let error as SheetWriterError {
-            throw PendingWritePlanningConflict(
-                error: error,
-                refusedTarget: nil,
-                auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: nil)
-            )
-        }
-        do {
-            update = try planner.plan(request, target: target, in: snapshot)
-        } catch let error as SheetWriterError {
-            throw PendingWritePlanningConflict(
-                error: error,
-                refusedTarget: target,
-                auditDetails: planner.auditDetails(for: request, error: error, in: snapshot, target: target)
-            )
-        }
-        self.write = write
-        self.snapshot = snapshot
-        auditDetails = planner.auditDetails(for: request, target: target, in: snapshot)
-    }
 }
 
 private struct PendingWriteBatch {
@@ -263,8 +206,8 @@ private struct PendingWriteBatch {
         items.isEmpty
     }
 
-    var updates: [SheetCellUpdate] {
-        items.map(\.update)
+    var cells: [SheetCellWrite] {
+        items.map(\.cell)
     }
 
     mutating func append(_ item: PlannedPendingWrite) {
@@ -276,20 +219,13 @@ private struct PendingWriteBatch {
     }
 
     func overlaps(_ target: SheetWriteTarget) -> Bool {
-        items.contains { $0.update.target == target }
+        items.contains { $0.cell.target == target }
     }
 }
 
-private struct PendingWriteBatchFailure: Error {
-    let queued: Int
-}
+private struct PendingWriteBatchFailure: Error {}
 
 private struct PendingWriteFlushInProgress: Error {}
-private struct PendingWritePlanningConflict: Error {
-    let error: SheetWriterError
-    let refusedTarget: SheetWriteTarget?
-    let auditDetails: SheetWriteAuditDetails
-}
 
 extension SyncCoordinator {
     func fetchPendingWriteRecords() throws -> [PendingWrite] {
@@ -320,7 +256,7 @@ extension SyncCoordinator {
     fileprivate func flushPendingWrites(
         _ pending: [PendingWrite],
         context flushContext: PendingWriteFlushContext
-    ) async -> PendingWriteFlushResult {
+    ) async -> [String] {
         var snapshots: [String: SheetWritePlanningSnapshot] = [:]
         var conflicts: [String] = []
         var batch = PendingWriteBatch()
@@ -340,24 +276,20 @@ extension SyncCoordinator {
                     snapshots: &snapshots,
                     context: flushContext
                 )
-            } catch let failure as PendingWriteBatchFailure {
-                return .stoppedForRetry(queued: failure.queued)
+            } catch is PendingWriteBatchFailure {
+                return conflicts
             } catch let planningConflict as PendingWritePlanningConflict {
                 let message = recordConflict(planningConflict, for: write)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error)
-                return .stoppedForRetry(queued: pending.count)
+                return conflicts
             }
         }
 
-        do {
-            try await flush(batch, context: flushContext)
-            return .completed(conflicts: conflicts)
-        } catch {
-            return .stoppedForRetry(queued: error.queued)
-        }
+        try? await flush(batch, context: flushContext)
+        return conflicts
     }
 
     fileprivate func append(
@@ -366,13 +298,13 @@ extension SyncCoordinator {
         snapshots: inout [String: SheetWritePlanningSnapshot],
         context flushContext: PendingWriteFlushContext
     ) async throws {
-        if batch.overlaps(plannedWrite.update.target) {
+        if batch.overlaps(plannedWrite.cell.target) {
             try await flush(batch, context: flushContext)
             batch.removeAll()
         }
         batch.append(plannedWrite)
-        snapshots[plannedWrite.update.tabName] = flushContext.planner.applying(
-            plannedWrite.update,
+        snapshots[plannedWrite.cell.tabName] = flushContext.planner.applying(
+            plannedWrite.cell,
             to: plannedWrite.snapshot
         )
     }
@@ -418,14 +350,14 @@ extension SyncCoordinator {
     ) async throws(PendingWriteBatchFailure) {
         guard !batch.isEmpty else { return }
         do {
-            try await flushContext.writer.write(batch.updates, spreadsheetId: flushContext.spreadsheetId)
+            try await client.write(batch.cells, spreadsheetId: flushContext.spreadsheetId)
         } catch {
             for item in batch.items {
                 item.write.retryCount += 1
                 item.write.lastError = String(describing: error)
             }
             try? context.save()
-            throw PendingWriteBatchFailure(queued: (try? fetchPendingWriteRecords().count) ?? batch.items.count)
+            throw PendingWriteBatchFailure()
         }
         for item in batch.items {
             recordWriteTargetAudit(
@@ -439,7 +371,7 @@ extension SyncCoordinator {
         try? context.save()
     }
 
-    /// The flush's working copy of a tab, which `append` advances with every batched update. A hit
+    /// The flush's working copy of a tab, which `append` advances with every batched cell write. A hit
     /// here is therefore what the batch predicts the Sheet will hold, not what it holds (ADR-0003).
     fileprivate func gridSnapshot(
         for tab: String,

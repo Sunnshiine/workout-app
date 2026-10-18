@@ -35,7 +35,18 @@ struct SessionViewVisualTests {
         )
 
         let view = NavigationStack {
-            SessionView()
+            SessionView(
+                wiring: .live(
+                    workout: scenario.store,
+                    sync: sync,
+                    settings: scenario.settings,
+                    platform: SessionPlatform(
+                        liveActivity: LiveActivityProductionAdapter(),
+                        motion: SwiftUISessionMotion(),
+                        restNotifications: RestNotificationCenterScheduler.shared
+                    )
+                )
+            )
         }
         .environment(scenario.store)
         .environment(sync)

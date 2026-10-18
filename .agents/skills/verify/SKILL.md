@@ -133,10 +133,15 @@ says so on stderr.
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
 only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
 up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
-element that contains it. A container with a zero width or height holds no point, so it is skipped.
-The keyboard toolbar wraps `Done` in a 0x0 group. Last, `tap --id` asks axe what is on top at that
-centre. The answer must belong to the app in front and be the element or something inside its
-frame, and then it taps that centre. A system prompt over the app is covered. The pid file that
+element that contains it. A container with a zero width or height holds no point, so it is skipped,
+and so is one that covers the whole screen, such as a full-screen scroll area, whose edges the
+screen check already covers.
+The keyboard toolbar wraps `Done` in a 0x0 group. The tap point is the centre of the part of the
+element that the screen and those containers show, rounded to a whole point inside that part, so a
+row half below the fold is tapped in its visible half. When no point of it is left, the tap is
+refused as `off-screen` or `clipped`. Last, `tap --id` asks axe what is on top at that point. The
+answer must belong to the app in front and be the element or something inside its frame, and then
+it taps that point. A system prompt over the app is covered. The pid file that
 `launch` writes decides when this check runs:
 
 - While the app `launch` started is in front, the check runs.
@@ -151,8 +156,8 @@ That second read makes a tap that lands take about 3 s, against about 2 s withou
 
 When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
 `clipped`, `disabled`, or `covered`. A refusal takes 4 s or more, because it polls the full 3 s and
-then reads once more. A `clipped` note names the container whose frame misses the centre, such as
-the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
+then reads once more. A `clipped` note names the container whose frame misses the centre, or
+misses every point of the element the screen shows, such as the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
 whatever took the place of an element that went away after the tree was read. So a tap that reports
 success aimed at an element that was on screen, enabled, inside every container that clips it, and
 on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
@@ -162,8 +167,8 @@ what it changed.
 `tap --label` resolves its element through the tree the same way, with the same poll and the same
 notes. It matches the whole label as `tree` prints it, case included. When a control and a text
 carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
-its centre. With the sign-out alert up, `tap --label "Sign Out"` lists the Settings row and the
-alert's own button, so tap the alert's button at its centre with `-x -y`. `tap -x -y` resolves no
+its centre. With the sign-out confirmation up, `tap --label "Sign Out"` lists the Settings row and the
+confirmation's own button, so tap that button by its id, `sign-out-confirm-button`. `tap -x -y` resolves no
 element, so it still reports success whatever is under the point.
 
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
@@ -174,8 +179,8 @@ without it that moved, show one cut from the old screen to the new for these: a 
 weight keyboard closed, a skip's commit, a Superset log, the Move On celebration opening and
 closing, and the pairing state inside the queue sheet. The tapped button can show its pressed
 colour for up to about 90 ms before that cut. A Superset log's retiring card never draws. After a
-log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced`, and
-moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
+log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced` under
+`-UITEST_OFFLINE`, and moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
 saved for issues 618 and 696 caught the new card with no sync pill.
 
 Some states still change under the flag (issue 739). The rest pill's countdown and progress line
@@ -231,11 +236,11 @@ after the simulator is gone. `launch` names the run from
 captures the action and the resulting state, not just the final screen. Shoot before, drive, shoot
 after. The second `shot` prints the tree lines that changed with positions ignored, so a row that
 only moved is not a change; quote those lines verbatim. Prove side effects alongside the screen.
-After a log, the header reads `Sync status: 1 unsynced` and the branch gains a `Set 1, 237.5x5@6`
-button. For store or sync effects with no UI question, run the same operation through the CLI and
-quote its JSON, or run the covering `swift test --filter` suite. The fixture sheets client accepts
-every write and never reaches the network, so a green flush in fixture mode proves the queue, not
-Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
+After a log under `-UITEST_OFFLINE`, the header reads `Sync status: 1 unsynced` and the branch
+gains a `Set 1, 237.5x5@6` button. For store or sync effects with no UI question, run the same operation through the CLI and
+quote its JSON, or run the covering `swift test --filter` suite. The fixture sheet is a local workbook,
+and a log flushes into it as it would into the coach's Sheet. `-UITEST_OFFLINE` makes it read as
+Offline after the boot, so a log stays queued. A green flush in fixture mode proves the queue and the cells, not Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
 jumps to the end state.
 
 Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. The read is

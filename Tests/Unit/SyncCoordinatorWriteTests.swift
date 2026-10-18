@@ -7,7 +7,7 @@ import Testing
 private final class FlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var fetches: [String] = []
-    var updates: [(String, [[String]])] = []
+    var writes: [SheetCellWrite] = []
     var shouldThrowOffline = false
     var shouldFailUpdates = false
 
@@ -21,14 +21,9 @@ private final class FlushStubClient: SheetsClient, @unchecked Sendable {
         fetches.append(tabName)
         return SheetSnapshot(values: grid)
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         if shouldFailUpdates { throw URLError(.timedOut) }
-        updates.append((range, values))
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        if shouldFailUpdates { throw URLError(.timedOut) }
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -43,29 +38,33 @@ private final class PlanningIndexBuildCounter: @unchecked Sendable {
     }
 }
 
-private final class ControlledFlushClient: SheetsClient, @unchecked Sendable {
-    private let coordinator = ControlledFlushCoordinator()
+@MainActor
+private final class ControlledFlushClient: SheetsClient {
+    private(set) var writes: [SheetCellWrite] = []
+    private var grid: SheetGrid = []
+    private let fetch = HeldCall()
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 27"] }
 
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        try await coordinator.fetchTabSnapshot()
+        await fetch.hold()
+        return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        await coordinator.recordUpdate(range: range, values: values)
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        writes.append(contentsOf: cells)
     }
 
-    func waitForFetch() async {
-        await coordinator.waitForFetch()
+    func waitForFetch(sourceLocation: SourceLocation = #_sourceLocation) async {
+        await fetch.waitUntilHeld(
+            orRecord: "the flush never fetched the tab snapshot this client holds",
+            sourceLocation: sourceLocation
+        )
     }
 
-    func completeFetch(with grid: SheetGrid) async {
-        await coordinator.completeFetch(with: grid)
-    }
-
-    func updates() async -> [(String, [[String]])] {
-        await coordinator.updates
+    func completeFetch(with grid: SheetGrid) {
+        self.grid = grid
+        fetch.release()
     }
 }
 
@@ -128,7 +127,7 @@ private func pendingWrite(
         try await sync.discardPendingWrites()
     }
 
-    await client.completeFetch(
+    client.completeFetch(
         with: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
@@ -142,7 +141,7 @@ private func pendingWrite(
 
     await flushTask.value
 
-    #expect(await client.updates().count == 1)
+    #expect(client.writes.count == 1)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -194,8 +193,12 @@ private func pendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.fetches == ["Block 27"])
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x6@8")
+        ]
+    )
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -227,8 +230,13 @@ private func pendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(counter.count == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@8"]], [["8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8, 195x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "I15", value: "8")
+        ]
+    )
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
@@ -264,7 +272,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
+    #expect(client.writes.map(\.target) == [SheetWriteTarget(tabName: "Block 27", a1: "K15")])
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -304,7 +312,7 @@ private func pendingWrite(
     #expect(client.fetches == ["Block 27"])
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     #expect(write.status == .conflict)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome.isWritesRefused)
 }
 
@@ -331,8 +339,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8")])
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.count == 1)
     let conflict = try #require(writes.first)
@@ -362,7 +369,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome == .writesRefused(["Squat: Day 1 was not found in the sheet"]))
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
@@ -371,6 +378,38 @@ private func pendingWrite(
     #expect(entries.map(\.selectedA1Target) == [nil])
     #expect(entries.map(\.finalStatus) == [.conflict])
     #expect(entries.map(\.rowScanDetails) == ["No row selected: Week 1, Day 1 was not found."])
+}
+
+@MainActor
+@Test func flushRefusesAQueuedWriteWhoseDayHeaderIsRepeated() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    ctx.insert(pendingWrite(createdAt: 1))
+    try ctx.save()
+    let client = FlushStubClient(
+        grid: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 1",
+                "D14": "Sets", "K14": "Notes", "C15": "Squat", "D15": "1",
+                "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "1"
+            ],
+            rows: 24,
+            cols: 40
+        )
+    )
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.writes.isEmpty)
+    #expect(sync.outcome == .writesRefused(["Squat: Day 1 has more than one header in the sheet"]))
+    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.map(\.status) == [.conflict])
+    #expect(writes.map(\.lastError) == ["Day 1 has more than one header in the sheet"])
+    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
+    #expect(entries.map(\.selectedA1Target) == [nil])
+    #expect(entries.map(\.finalStatus) == [.conflict])
+    #expect(entries.map(\.rowScanDetails) == ["No row selected: Week 1 has more than one Day 1 header."])
 }
 
 @MainActor
@@ -448,45 +487,10 @@ private func pendingWrite(
     let block = try #require(try ctx.fetch(FetchDescriptor<Block>()).first)
     let week = try #require(block.weeks.first { $0.number == 1 })
     let session = try #require(week.sessions.first { $0.dayNumber == 1 })
-    let exercise = try #require(session.exercises.first { $0.name == "Squat" })
+    let exercise = try #require(session.exercises.first { $0.exerciseName == "Squat" })
     let set = try #require(exercise.sets.first { $0.index == 0 })
     #expect(set.state == .logged)
     #expect(set.setLog?.formatted == "185x5@8")
-}
-
-private actor ControlledFlushCoordinator {
-    private var fetchContinuation: CheckedContinuation<SheetSnapshot, Error>?
-    private var hasFetchStarted = false
-    private var fetchWaiters: [CheckedContinuation<Void, Never>] = []
-    private(set) var updates: [(String, [[String]])] = []
-
-    func fetchTabSnapshot() async throws -> SheetSnapshot {
-        hasFetchStarted = true
-        for waiter in fetchWaiters {
-            waiter.resume()
-        }
-        fetchWaiters = []
-
-        return try await withCheckedThrowingContinuation { continuation in
-            fetchContinuation = continuation
-        }
-    }
-
-    func waitForFetch() async {
-        if hasFetchStarted { return }
-        await withCheckedContinuation { continuation in
-            fetchWaiters.append(continuation)
-        }
-    }
-
-    func completeFetch(with grid: SheetGrid) {
-        fetchContinuation?.resume(returning: SheetSnapshot(values: grid))
-        fetchContinuation = nil
-    }
-
-    func recordUpdate(range: String, values: [[String]]) {
-        updates.append((range, values))
-    }
 }
 
 extension SyncOutcome {
@@ -511,7 +515,7 @@ extension SyncOutcome {
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(sync.outcome == .writesQueued(2))
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })
     #expect(writes.sorted { $0.createdAt < $1.createdAt }.map(\.retryCount) == [1, 0])
@@ -640,6 +644,6 @@ private func overlaidSquatSet(index: Int, in ctx: ModelContext) throws -> Exerci
     try ctx.fetch(FetchDescriptor<Block>()).first?
         .weeks.first { $0.number == 1 }?
         .sessions.first { $0.dayNumber == 1 }?
-        .exercises.first { $0.name == "Squat" }?
+        .exercises.first { $0.exerciseName == "Squat" }?
         .sets.first { $0.index == index }
 }

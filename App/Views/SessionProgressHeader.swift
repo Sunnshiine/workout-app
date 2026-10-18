@@ -57,7 +57,8 @@ struct SessionProgressHeader: View {
     }
 
     private var locationLabelText: some View {
-        Text(presentation.runlineText)
+        Text("\(Image(systemName: "calendar")) \(presentation.runlineText)")
+            .accessibilityLabel(presentation.runlineText)
             .font(Theme.font(.runline))
             .foregroundStyle(palette.textSecondary)
     }

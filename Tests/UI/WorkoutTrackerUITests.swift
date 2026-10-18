@@ -21,7 +21,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -61,7 +61,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
-        let app = launchFixtureApp(animated: true)
+        let app = launchFixtureApp(options: [.offline], animated: true)
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         let card = app.otherElements["active-set-card"]
@@ -92,15 +92,15 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertEqual(
             app.buttons["weight-keyboard-done"].frame.width,
-            62,
+            38,
             accuracy: 2,
-            "at the default text size, Done in the weight font measures 75"
+            "at the default text size, the Done glyph in the system font measures 38"
         )
     }
 
     @MainActor
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)
@@ -119,7 +119,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
     @MainActor
     func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
-        let app = launchFixtureApp()
+        let app = launchFixtureApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         pairBackSquatWithBBRDL(in: app)
@@ -268,6 +268,43 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "weight-pill").count, 1)
         XCTAssertEqual(app.textFields.count, 0, "a folded weight exposes no text field")
+    }
+
+    /// A switch that would discard pending Set Logs waits on the confirmation card. A swipe on the
+    /// picker under it once closed both and left the selection pending, so reopening the picker
+    /// showed the card again with nothing chosen, one tap from discarding the Set Logs.
+    @MainActor
+    func testSwipingThePickerUnderASwitchConfirmationLeavesNoSwitchPending() throws {
+        let app = launchSettingsFixtureApp(options: [.pendingWrite])
+
+        let trainingSheetRow = app.buttons["settings-training-sheet-row"]
+        tapWhenHittable(trainingSheetRow)
+        let replacementRow = app.buttons.matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")
+        ).firstMatch
+        tapWhenHittable(replacementRow)
+        let confirmSwitch = app.buttons["switch-sheet-confirm-button"]
+        XCTAssertTrue(confirmSwitch.appears(within: 3))
+
+        // A drag that starts on an element under the card makes XCTest's interruption handler tap
+        // the card's Cancel first, so the drag starts from a screen coordinate.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).press(
+            forDuration: 0.1,
+            thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)),
+            withVelocity: .fast,
+            thenHoldForDuration: 0
+        )
+        XCTAssertFalse(confirmSwitch.waitForNonExistence(timeout: 2), "the swipe closed the picker under the card")
+
+        app.buttons["Cancel"].tap()
+        XCTAssertTrue(confirmSwitch.waitForNonExistence(timeout: 2))
+        tapWhenHittable(app.buttons["sheet-picker-done-button"])
+        XCTAssertTrue(app.navigationBars["Training Sheet"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
+
+        tapWhenHittable(trainingSheetRow)
+        XCTAssertTrue(replacementRow.appears(within: 3))
+        XCTAssertFalse(confirmSwitch.appears(within: 1), "reopening the picker brought back a pending switch")
     }
 
     @MainActor
@@ -422,7 +459,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
         let queueButton = app.buttons["stage-queue-button"]
-        waitForLabel("Queue, 2 of 8", on: queueButton)
+        waitForValue("2 of 8", on: queueButton)
         queueButton.tap()
 
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))

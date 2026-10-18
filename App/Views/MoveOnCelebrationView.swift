@@ -99,7 +99,7 @@ struct MoveOnCelebrationView: View {
 
     private var continueButton: some View {
         Button(action: onDismiss) {
-            Text(presentation.continueText)
+            Image(systemName: "sunrise")
                 .font(Theme.font(.logCapsule))
                 .foregroundStyle(palette.actionText)
                 .frame(maxWidth: .infinity)
@@ -107,6 +107,7 @@ struct MoveOnCelebrationView: View {
                 .background(palette.action, in: .capsule)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(presentation.continueText)
         .accessibilityHint(presentation.accessibilityHint)
         .accessibilityIdentifier("move-on-celebration-continue")
     }

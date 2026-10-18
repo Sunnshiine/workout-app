@@ -258,7 +258,7 @@ class Flat(unittest.TestCase):
                      "AXGroup\t\tRPE\t\t@207,612 474x83"]:
             self.assertIn(line, out.splitlines(), "a card wider than the screen is still on it")
 
-    def test_the_captured_trees_keep_what_intersects_the_screen(self):
+    def test_the_captured_trees_keep_what_has_a_whole_point_on_the_screen(self):
         for fixture, kept, total in [("01-before.all.txt", 42, 139),
                                      ("02-after-log.all.txt", 47, 142),
                                      ("03-queue.all.txt", 59, 154)]:
@@ -419,8 +419,8 @@ class Clipped(unittest.TestCase):
 
         self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(367))[::2], (1, RPE_CLIPPED),
                          "x 367 to 376 overlaps the track, which ends at 370, but the tap at 372 is past it")
-        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(364))[:2], (0, "368 641\nAXButton\trpe-7\tRPE 7\t\t@364,629 9x24\n"),
-                         "x 364 to 373 pokes past the track, but the tap at 368 lands inside it")
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=rpe_7_at(364))[:2], (0, "367 641\nAXButton\trpe-7\tRPE 7\t\t@364,629 9x24\n"),
+                         "x 364 to 373 pokes past the track, so the tap goes to the middle of x 364 to 370")
 
     def test_an_off_screen_chip_outside_its_rail_gets_both_notes(self):
         code, out, err = tree_py("find", "reps-100", stdin=SESSION_RAILS)
@@ -522,6 +522,69 @@ class Clipped(unittest.TestCase):
                          "describe-ui --point at each centre on the live app returned something else for these seven")
 
 
+def on_screen_of_402x874(*children):
+    return json.dumps([{"role": "AXApplication", "pid": 1, "frame": {"x": 0, "y": 0, "width": 402, "height": 874},
+                        "children": list(children)}])
+
+
+HALF_ROW = {"role": "AXButton", "AXUniqueId": "half-row", "AXLabel": "Row",
+            "frame": {"x": 23, "y": 850, "width": 312, "height": 52}}
+WIDE_CARD = {"role": "AXGroup", "AXUniqueId": "active-set-card", "frame": {"x": -83, "y": 476, "width": 4770, "height": 308}}
+
+
+class TapPoint(unittest.TestCase):
+    """Issue 698: the point is the centre of the part of the frame the screen and its clips show."""
+
+    def test_a_row_half_below_the_fold_is_tapped_in_its_visible_half(self):
+        tree = on_screen_of_402x874(WIDE_CARD, HALF_ROW)
+        row = "AXButton\thalf-row\tRow\t\t@23,850 312x52\n"
+        self.assertEqual(tree_py("tappable", "half-row", stdin=tree), (0, "179 862\n" + row, ""),
+                         "the frame centre is y 876, past the 874-point screen; y 850 to 874 is drawn")
+        self.assertEqual(tree_py("tappable", "--label", "Row", stdin=tree), (0, "179 862\n" + row, ""),
+                         "tap --label resolves through the same point")
+        self.assertEqual(tree_py("find", "half-row", stdin=tree), (0, row, ""), "find still calls it on screen")
+
+    def test_a_card_wider_than_the_screen_is_tapped_on_the_screen(self):
+        self.assertEqual(tree_py("tappable", "active-set-card", stdin=on_screen_of_402x874(WIDE_CARD, HALF_ROW)),
+                         (0, "201 630\nAXGroup\tactive-set-card\t\t\t@-83,476 4770x308\n", ""),
+                         "the frame centre is x 2302 on a 402-point screen")
+
+    def test_a_chip_across_the_track_edge_is_tapped_inside_the_track(self):
+        tree = on_screen_of_402x874({
+            "role": "AXGroup", "AXLabel": "RPE", "frame": {"x": 207, "y": 612, "width": 163, "height": 83},
+            "children": [{"role": "AXButton", "AXUniqueId": "rpe-7", "AXLabel": "RPE 7",
+                          "frame": {"x": 365, "y": 629, "width": 9, "height": 24}}],
+        })
+        self.assertEqual(tree_py("tappable", "rpe-7", stdin=tree)[:2], (0, "368 641\nAXButton\trpe-7\tRPE 7\t\t@365,629 9x24\n"),
+                         "issue 703: the centre 369.5 printed as 370, the track's exclusive edge; x 365 to 370 is drawn")
+
+    def test_the_printed_point_is_rounded_into_the_element(self):
+        sliver = {"role": "AXButton", "AXUniqueId": "sliver", "frame": {"x": 369, "y": 629, "width": 1, "height": 24}}
+        self.assertEqual(tree_py("tappable", "sliver", stdin=on_screen_of_402x874(sliver))[:2],
+                         (0, "369 641\nAXButton\tsliver\t\t\t@369,629 1x24\n"),
+                         "its centre 369.5 rounds to 370, which is past its right edge")
+
+    def test_an_element_with_no_whole_point_on_the_screen_is_off_screen(self):
+        sliver = {"role": "AXButton", "AXUniqueId": "sliver", "frame": {"x": 0, "y": 873.5, "width": 300, "height": 40}}
+        self.assertEqual(tree_py("tappable", "sliver", stdin=on_screen_of_402x874(sliver)),
+                         (1, "", "off-screen: swipe it into view before tapping\n"),
+                         "y 873.5 to 874 is on the screen, but no whole point of it is")
+        code, out, err = tree_py("flat", stdin=on_screen_of_402x874(sliver))
+        self.assertEqual((code, out), (0, ""), "tree leaves out what find and tappable call off-screen")
+        self.assertIn("1 off-screen element", err, "and counts it among the off-screen ones")
+
+    def test_an_element_whose_drawn_part_is_outside_its_clip_is_refused(self):
+        tree = on_screen_of_402x874({
+            "role": "AXScrollArea", "frame": {"x": 0, "y": 880, "width": 402, "height": 100},
+            "children": [{"role": "AXButton", "AXUniqueId": "straddling-row",
+                          "frame": {"x": 0, "y": 860, "width": 402, "height": 40}}],
+        })
+        clipped = "clipped: outside AXScrollArea @0,880 402x100; bring it inside that frame before tapping\n"
+        self.assertEqual(tree_py("tappable", "straddling-row", stdin=tree), (1, "", clipped),
+                         "its centre y 880 is in the scroll area, but the part on the screen, y 860 to 874, is above it")
+        self.assertEqual(tree_py("find", "straddling-row", stdin=tree)[::2], (0, clipped), "find says what tappable refuses")
+
+
 class TappableByLabel(unittest.TestCase):
     def test_a_label_on_one_enabled_on_screen_element_is_its_centre(self):
         self.assertEqual(tree_py("tappable", "--label", "Weight, 237.5", stdin=MINI),
@@ -545,7 +608,7 @@ class TappableByLabel(unittest.TestCase):
 
     def test_two_texts_with_one_label_and_no_control_are_listed(self):
         self.assertEqual(tree_py("tappable", "--label", "RPE", stdin=SESSION_RAILS), (1, "", "\n".join([
-            "2 elements carry the label RPE; pick one by its id, or tap its centre with -x -y:",
+            "2 elements carry the label RPE; pick one by its id, or tap it with -x -y:",
             "AXGroup\t\tRPE\t\t@207,612 163x83\t-x 288 -y 654",
             "AXStaticText\t\tRPE\t\t@278,678 21x17\t-x 289 -y 687",
         ]) + "\n"), "the rail and its caption; neither wins, so neither is tapped")
@@ -566,7 +629,7 @@ class TappableByLabel(unittest.TestCase):
         code, out, err = tree_py("tappable", "--label", "Sign Out", stdin=SIGN_OUT_ALERT)
         self.assertEqual((code, out), (1, ""))
         self.assertEqual(err.splitlines(), [
-            "2 elements carry the label Sign Out; pick one by its id, or tap its centre with -x -y:",
+            "2 elements carry the label Sign Out; pick one by its id, or tap it with -x -y:",
             "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52\t-x 201 -y 683",
             "AXButton\t\tSign Out\t\t@205,484 140x48\t-x 275 -y 508",
         ], "the Settings row behind the alert, then the alert's own button")
@@ -592,32 +655,42 @@ GEAR_COVERED = ("covered: at 356,87 the screen has AXStaticText session-remainin
 
 class Landing(unittest.TestCase):
     def test_the_target_itself_at_its_centre_lands(self):
-        self.assertEqual(tree_py("landing", GEAR, APP, stdin=GEAR_UP), (0, "", ""), "the live read with the controls up")
-        self.assertEqual(tree_py("landing", GEAR.replace("@334,65", "@334,40"), APP, stdin=GEAR_UP), (0, "", ""),
+        self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=GEAR_UP), (0, "", ""), "the live read with the controls up")
+        self.assertEqual(tree_py("landing", GEAR.replace("@334,65", "@334,40"), APP, "356", "62", stdin=GEAR_UP), (0, "", ""),
                          "its own id lands even when its frame moved between the two reads")
 
     def test_a_child_inside_the_target_lands(self):
         child = [{"role": "AXStaticText", "AXLabel": "237.5", "pid": 53393,
                   "frame": {"x": 110, "y": 545, "width": 180, "height": 40}}]
-        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, stdin=json.dumps(child)), (0, "", ""),
+        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "201", "564", stdin=json.dumps(child)), (0, "", ""),
                          "the text drawn inside the pill wins the hit test, and the tap still lands on the pill")
 
     def test_the_alert_backdrop_over_the_sign_out_row_is_covered(self):
         backdrop = (FIXTURES / "sign-out-row-under-alert.describe-ui.json").read_text()
         row = "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52"
-        self.assertEqual(tree_py("landing", row, "62389", stdin=backdrop), (1, "", (
+        self.assertEqual(tree_py("landing", row, "62389", "201", "683", stdin=backdrop), (1, "", (
             "covered: at 201,683 the screen has AXGroup @0,0 402x874, not AXButton settings-sign-out-button" + COVERED
         )), "the full tree still lists the row under the alert; the live point read returned the backdrop")
 
     def test_the_header_text_where_the_hidden_gear_was_is_covered(self):
-        self.assertEqual(tree_py("landing", GEAR, APP, stdin=GEAR_HIDDEN), (1, "", GEAR_COVERED),
+        self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=GEAR_HIDDEN), (1, "", GEAR_COVERED),
                          "the controls hid 2.5 s after the drag, between the tree read and the point read")
 
     def test_nothing_at_the_point_is_covered(self):
         for answer in ["", "[]"]:
             with self.subTest(answer=answer):
-                self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, stdin=answer), (
+                self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "201", "564", stdin=answer), (
                     1, "", "covered: at 201,564 the screen has nothing, not AXButton weight-pill" + COVERED))
+
+    def test_the_note_names_the_point_tapped_not_the_frame_centre(self):
+        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "110", "540", stdin=""), (
+            1, "", "covered: at 110,540 the screen has nothing, not AXButton weight-pill" + COVERED),
+            "tappable may aim off the centre, at the part of the pill the screen shows")
+
+    def test_a_landing_without_the_point_tapped_is_refused(self):
+        code, out, err = tree_py("landing", WEIGHT_PILL, APP, stdin="")
+        self.assertEqual((code, out), (1, ""), "no point to name, so no landing to judge")
+        self.assertIn("tree.py landing LINE FRONT_PID X Y", err, "the usage names the point it needs")
 
     def test_a_frame_within_a_point_of_the_printed_edges_lands(self):
         done = "AXButton\t\tDone\t\t@316,66 66x36"
@@ -626,11 +699,11 @@ class Landing(unittest.TestCase):
             return json.dumps({"role": "AXStaticText", "AXLabel": "Done", "pid": 53393,
                                "frame": {"x": x, "y": 65.667, "width": 65.667, "height": 36.333}})
 
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(316.333)), (0, "", ""),
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(316.333)), (0, "", ""),
                          "the button's own fractional frame, printed as @316,66 66x36")
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(317)), (0, "", ""),
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(317)), (0, "", ""),
                          "a child whose right edge, 382.667, passes the printed 382 by less than a point")
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(314.6)), (1, "", (
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(314.6)), (1, "", (
             "covered: at 349,84 the screen has AXStaticText Done @315,66 66x36, not AXButton Done" + COVERED
         )), "a frame more than a point past the left edge is something else")
 
@@ -638,7 +711,7 @@ class Landing(unittest.TestCase):
         for hit in [{"role": "AXButton", "AXLabel": "Allow", "pid": 111}, {"role": "AXButton", "AXLabel": "Allow"}]:
             with self.subTest(pid=hit.get("pid")):
                 hit["frame"] = {"x": 334, "y": 65, "width": 44, "height": 44}
-                self.assertEqual(tree_py("landing", GEAR, APP, stdin=json.dumps(hit)), (1, "", (
+                self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=json.dumps(hit)), (1, "", (
                     "covered: at 356,87 the screen has AXButton Allow @334,65 44x44, "
                     "not AXButton session-controls-settings-button" + COVERED
                 )), "a system prompt the size of the gear, or a hit with no process, is not the app's gear")
@@ -866,6 +939,16 @@ class VerifyTap(unittest.TestCase):
                                                 "describe-ui --udid %s --point 356,87" % self.sim]),
                          "the tree still had the gear; the point read found the header text in its place")
 
+    def test_a_row_half_below_the_fold_is_read_and_tapped_in_its_visible_half(self):
+        tree = on_screen_of_402x874(HALF_ROW)
+        self.assertEqual(self.tap(tree, "--id", "half-row", "--wait-timeout", "0", point=json.dumps(dict(HALF_ROW, pid=1))),
+                         (0, "Tap completed\n", "", ["describe-ui --udid %s" % self.sim,
+                                                      "describe-ui --udid %s --point 179,862" % self.sim,
+                                                      "tap --udid %s -x 179 -y 862" % self.sim]))
+        self.assertEqual(self.tap(tree, "--id", "half-row", "--wait-timeout", "0", point="[]")[:3],
+                         (1, "", "covered: at 179,862 the screen has nothing, not AXButton half-row" + COVERED),
+                         "the note names the point read, not the frame centre at y 876")
+
     def launched(self, pid):
         state = Path("/tmp/workout-verify-%s" % self.sim)
         state.mkdir(exist_ok=True)
@@ -945,7 +1028,10 @@ class VerifyStop(unittest.TestCase):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
 
     def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
-        (self.state / "pid").write_text("%d\n" % os.getpid())
+        app = subprocess.Popen(FIXTURE_APP, start_new_session=True)
+        self.addCleanup(app.wait)
+        self.addCleanup(app.kill)
+        (self.state / "pid").write_text("%d\n" % app.pid)
         code, out, err = self.stop("issue-660")
         self.assertEqual(code, 75, "the code launch already uses for a simulator another run owns")
         self.assertIn(self.owner, err, "whose app it is about to end")
@@ -966,6 +1052,17 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 75, "its app died, but stop would still uninstall it and end the run's Live Activity")
         self.assertIn("VERIFY_RUN=%s" % self.owner, err)
         self.assertTrue((self.state / "args").exists(), "the owner's own stop can still uninstall")
+
+    def test_a_pid_another_process_reused_is_forgotten_not_terminated(self):
+        (self.state / "pid").write_text("%d\n" % os.getpid())
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
+        code, out, err = self.stop(self.owner)
+        self.assertEqual(
+            (code, out, err), (0, "", ""),
+            "the pid is live but not a fixture launch, so simctl terminate would exit 3 or end someone else's app (#728)",
+        )
+        self.assertFalse((self.state / "pid").exists(), "a stale pid file left behind fails every later stop")
+        self.assertFalse((self.state / "args").exists())
 
     def test_a_dead_pid_that_stop_would_only_forget_is_not_refused(self):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
@@ -2793,7 +2890,11 @@ class Film(unittest.TestCase):
         self.addCleanup(self.kill_recorder)
         self.saved = take.STOP_GRACE
         self.addCleanup(setattr, take, "STOP_GRACE", self.saved)
+        take.STOP_GRACE = 10.0  # a recorder that honours SIGINT can take seconds to exit on a loaded host
+
+    def film_stuck(self, drive, **env):
         take.STOP_GRACE = 0.3
+        return self.film(drive, STUB_STUCK="1", **env)
 
     def kill_recorder(self):
         pid = self.tmp / "recorder.pid"
@@ -2824,11 +2925,11 @@ class Film(unittest.TestCase):
                                                "'['sysctl', '-n', 'vm.loadavg']' returned non-zero exit status 1.", ""))
 
     def test_a_failed_drive_is_the_failure_even_when_the_recorder_will_not_stop(self):
-        failure = self.film(["fail"], STUB_STUCK="1")
+        failure = self.film_stuck(["fail"])
         self.assertEqual(failure, ("DriveFailed", "the drive `fail` exited 4, so the take is not kept", self.stuck()))
 
     def test_a_recorder_that_never_started_is_the_failure_even_when_it_will_not_stop(self):
-        failure = self.film(["fail"], start_timeout=0.3, STUB_STUCK="1", STUB_NEVER_STARTS="1")
+        failure = self.film_stuck(["fail"], start_timeout=0.3, STUB_NEVER_STARTS="1")
         self.assertEqual(failure, ("NoTake", "simctl recordVideo did not start capturing within 0.3 s, so nothing "
                                              "was driven", self.stuck()))
 

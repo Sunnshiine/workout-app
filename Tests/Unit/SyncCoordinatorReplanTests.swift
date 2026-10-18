@@ -56,15 +56,11 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid, rowVisibility: rowVisibility)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        write(values, to: splitA1Range(range)!.reference)
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         updateRequestCount += 1
         if updateRequestCount == failingUpdateRequest { throw URLError(.cannotConnectToHost) }
-        for update in updates {
-            try await updateCells(spreadsheetId: spreadsheetId, range: update.range, values: update.values)
+        for cell in cells {
+            grid.write([[cell.value]], atRow: cell.row, col: cell.col)
         }
     }
 
@@ -689,9 +685,7 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
 
     #expect(client.cell("K15") == "185x5@8")
     #expect(client.fetchCount == 2)
-    withKnownIssue("#744: the outcome counts the write the interim flush already landed") {
-        #expect(sync.outcome == .writesQueued(1))
-    }
+    #expect(sync.outcome == .writesQueued(1))
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(remaining.map(\.status) == [.pending])
     #expect(remaining.map(\.lastError) == [#"Error Domain=NSURLErrorDomain Code=-1009 "(null)""#])

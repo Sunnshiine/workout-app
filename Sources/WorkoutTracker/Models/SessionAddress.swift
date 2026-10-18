@@ -3,7 +3,7 @@ import Foundation
 /// A Session by its 1-based Week number and Day number: `w1d3`.
 ///
 /// It carries no Block tab, so it re-resolves against whichever Block is cached. Deliberately not
-/// `Comparable`: the one persisted order is the current-Session override's `(week - 1) * 7 + day`.
+/// `Comparable`: the one persisted order is the Current Session Pin's `(week - 1) * 7 + day`.
 public struct SessionAddress: StringCodedAddress {
     public let week: Int
     public let day: Int
@@ -29,20 +29,6 @@ extension Week {
     func address(of session: Session) -> SessionAddress {
         SessionAddress(week: number, day: session.dayNumber)
     }
-}
-
-extension Session {
-    var address: SessionAddress? { week?.address(of: self) }
-
-    var reparseIdentity: SessionReparseIdentity {
-        guard let week else { return .weekless(dayNumber: dayNumber) }
-        return .inWeek(week.address(of: self), blockTab: week.block?.tabName)
-    }
-}
-
-enum SessionReparseIdentity: Hashable, Sendable {
-    case inWeek(SessionAddress, blockTab: String?)
-    case weekless(dayNumber: Int)
 }
 
 extension ParsedWeek {
