@@ -62,6 +62,22 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     try harness.expectNothingWritten()
 }
 
+/// A press with no Set to log says why on the Live Activity; with none to say it on, the surface
+/// that pressed says what to turn on rather than nothing at all.
+@MainActor
+@Test func withLiveActivitiesOffAPressWithNoSetToLogSaysWhatToTurnOn() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"], selectingSpreadsheet: false)
+    harness.liveActivity.isUp = false
+
+    let outcome = await harness.background.run()
+
+    #expect(outcome == .liveActivitiesOff)
+    #expect(outcome.refusal?.errorDescription == "Turn on Live Activities for WorkoutTracker to log while locked")
+    #expect(harness.liveActivity.noSets == [.noCurrentSession], "it asked the Live Activity first")
+    #expect(harness.liveActivity.readbacks.isEmpty, "nothing listened")
+    #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
 @MainActor
 @Test func afterAnExercisesLastSetTheReadbackNamesThatExerciseOverTheRestTowardTheNext() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"])
@@ -707,8 +723,9 @@ private final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         return isUp
     }
 
-    func show(_ noSet: LiveActivityNoSetReadback) async {
+    func show(_ noSet: LiveActivityNoSetReadback) async -> Bool {
         noSets.append(noSet)
+        return isUp
     }
 
     func withdrawReadback() async {

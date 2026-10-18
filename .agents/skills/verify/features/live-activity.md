@@ -23,7 +23,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 
 Preconditions:
 
-- With Live Activities off for the app (a launch without `VERIFY_LIVE_ACTIVITIES=1`, or the Settings toggle), a locked press records nothing: the Action button or Shortcuts shows `Turn on Live Activities for WorkoutTracker to log while locked`, and nothing is written.
+- With Live Activities off for the app (a launch without `VERIFY_LIVE_ACTIVITIES=1`, or the Settings toggle), a locked press records nothing, whether or not there is a Set to log: the Action button or Shortcuts shows `Turn on Live Activities for WorkoutTracker to log while locked`, and nothing is written.
 - Every launch in this file takes `VERIFY_LIVE_ACTIVITIES=1`, which is the only way the app requests an activity. Without it the Lab's status row reads `Live Activities disabled` and `verify.sh tap --id live-activity-lab-start-button` exits 1 saying `disabled`.
 - `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` shows the stage with `log-active-set-button` labeled `Log 237.5 × 5 @6`.
 

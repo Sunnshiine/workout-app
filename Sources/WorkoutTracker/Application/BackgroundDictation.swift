@@ -8,8 +8,10 @@ protocol DictationLiveActivityAdapter: AnyObject {
     /// Live Activity shows it, as when the athlete turned them off for the app.
     @discardableResult
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool
-    /// Shows why there was no Set to listen for, over a running rest when one is up.
-    func show(_ noSet: LiveActivityNoSetReadback) async
+    /// Shows why there was no Set to listen for, over a running rest when one is up. False when
+    /// no Live Activity shows it.
+    @discardableResult
+    func show(_ noSet: LiveActivityNoSetReadback) async -> Bool
     /// Takes the readback off once the card has the Set: a Live Activity started for it ends now,
     /// and a rest it rode on shows as the stage left it.
     func withdrawReadback() async
@@ -33,7 +35,7 @@ final class BackgroundDictation {
         case notLogged(NotLogged, at: ActiveSetID)
         case noSetToLog(NoSet)
         /// Nothing listened: no Live Activity could show the recording, which a recording with the
-        /// app behind must have.
+        /// app behind must have, or say why there was no Set to record.
         case liveActivitiesOff
     }
 
@@ -139,22 +141,26 @@ final class BackgroundDictation {
     }
 
     /// The Set to listen for. A press with none says why on the Live Activity, unless the card's
-    /// mic is listening, which the card shows itself.
+    /// mic is listening, which the card shows itself. With no Live Activity to say it on, the
+    /// press is refused, so the surface that pressed says something.
     private func target() async -> Target {
         guard let session = app.workout.currentSession else {
-            await liveActivity.show(.noCurrentSession)
-            return .noSet(.noSetToLog(.noCurrentSession))
+            return await noSet(.noCurrentSession, .noCurrentSession)
         }
         // The card keeps a Set its mic wrote for the athlete to glance at and undo. A press with
         // the phone locked says they have moved on, so the hold ends as a touch of the card would,
         // and no card stays held while another Set is written.
         focus.endHoldAfterSpokenWrite()
         guard let position = focus.activeSet(in: session) else {
-            await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
-            return .noSet(.noSetToLog(.everythingLogged))
+            return await noSet(.everythingLogged, .noSetLeft(session: session.liveActivityLabel))
         }
         guard dictation.state.listeningSetID == nil else { return .noSet(.noSetToLog(.micBusy)) }
         return .set(position, in: session)
+    }
+
+    private func noSet(_ why: NoSet, _ readback: LiveActivityNoSetReadback) async -> Target {
+        guard await liveActivity.show(readback) else { return .noSet(.liveActivitiesOff) }
+        return .noSet(.noSetToLog(why))
     }
 
     /// How a press ends once "Listening…" shows. Every end replaces it: a result reads back, and

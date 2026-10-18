@@ -150,12 +150,12 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     }
 
     /// A press with no Set to listen for reads back like a result, over whatever rest runs.
-    func show(_ noSet: LiveActivityNoSetReadback) async {
+    func show(_ noSet: LiveActivityNoSetReadback) async -> Bool {
         let readback = LiveActivityDictation(noSet)
         let alone = WorkoutActivityAttributes.ContentState(noSetToLog: readback)
         switch noSet {
-        case .noSetLeft(let session): await show(readback, else: alone, sessionLabel: session, ridingRestIf: { _ in true })
-        case .noCurrentSession: await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
+        case .noSetLeft(let session): return await show(readback, else: alone, sessionLabel: session, ridingRestIf: { _ in true })
+        case .noCurrentSession: return await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
         }
     }
 
