@@ -5,7 +5,7 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=scripts/scratch-tree.sh
 . "$script_dir/scratch-tree.sh"
 # shellcheck source=scripts/mutate-usage.sh
-. "$script_dir/mutate-usage.sh"
+. "$script_dir/mutate-usage.sh" || exit 2
 
 die() {
     echo "$1" >&2

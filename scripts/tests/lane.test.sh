@@ -46,6 +46,12 @@ expect "one argument holding a name and a SHA, as zsh passes \"x <sha>\", exits 
 "$primary/scripts/lane.sh" --help >"$root/out" 2>"$root/err"
 expect "--help prints the usage on stdout and exits 0" "$? $(head -1 "$root/out") | $(cat "$root/err")" \
     "0 Usage: scripts/lane.sh up <name> <commit> | "
+cp "$root/out" "$root/help-direct"
+mkdir -p "$root/link"
+ln -s "$primary/scripts/lane.sh" "$root/link/lane.sh"
+"$root/link/lane.sh" --help >"$root/out" 2>"$root/err"
+expect "--help through a symlink to lane.sh exits 0 and prints the same usage" \
+    "$? $(cmp -s "$root/out" "$root/help-direct" && echo same) | $(cat "$root/err")" "0 same | "
 
 touch "$root/case-probe"
 if [ -e "$root/CASE-PROBE" ]; then

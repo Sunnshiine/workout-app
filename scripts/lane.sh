@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # shellcheck source=scripts/lane-help.sh
-. "$(dirname "${BASH_SOURCE[0]}")/lane-help.sh"
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lane-help.sh" || exit 2
 
 usage() { help >&2; exit 2; }
 

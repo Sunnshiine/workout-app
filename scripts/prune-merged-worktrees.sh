@@ -81,7 +81,7 @@ unset GIT_DIR GIT_WORK_TREE
 caller_tree=$(git rev-parse --show-toplevel 2>/dev/null)
 script_tree=$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
 # shellcheck source=scripts/prune-worktree-facts.sh
-. "$(dirname "${BASH_SOURCE[0]}")/prune-worktree-facts.sh"
+. "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/prune-worktree-facts.sh" || exit 2
 
 if [ -z "$repo" ]; then
     repo=$(git rev-parse --show-toplevel 2>/dev/null)

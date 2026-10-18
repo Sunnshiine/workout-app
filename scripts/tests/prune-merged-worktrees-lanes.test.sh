@@ -76,6 +76,23 @@ git -C "$lane_repo" worktree add -q --detach "$lanes/not a lane" main
 PATH="$lane_path" "$prune" --repo "$lane_repo" --no-size >"$root/out.txt" 2>"$root/err.txt"
 lanes_status=$?
 cat "$root/out.txt"
+mkdir -p "$root/link" "$root/alone"
+ln -s "$prune" "$root/link/prune-merged-worktrees.sh"
+PATH="$lane_path" "$root/link/prune-merged-worktrees.sh" --repo "$lane_repo" --no-size >"$root/link-out.txt" 2>/dev/null
+link_status=$?
+if [ "$link_status" -eq "$lanes_status" ] && cmp -s "$root/link-out.txt" "$root/out.txt"; then
+    ok "a run through a symlink to the script reports what a direct run does"
+else
+    bad "the symlinked run exited $link_status (direct $lanes_status) or printed a different report"
+fi
+cp "$prune" "$root/alone/"
+PATH="$lane_path" "$root/alone/prune-merged-worktrees.sh" --repo "$lane_repo" --no-size >"$root/alone-out.txt" 2>/dev/null
+alone_status=$?
+if [ "$alone_status" -ne 0 ] && ! grep -qx 'KEPT' "$root/alone-out.txt"; then
+    ok "a missing helper makes the scan exit non-zero with no report"
+else
+    bad "with its helper missing the scan exited $alone_status: $(head -3 "$root/alone-out.txt")"
+fi
 row_for() { awk -v w="$lanes/$2" '/^'"$1"'$/{f=1;next} /^[A-Z]+$/{f=0} f && index($0, "  " w) == length($0) - length(w) - 1'  "$root/out.txt"; }
 assert_lane() {
     local line
