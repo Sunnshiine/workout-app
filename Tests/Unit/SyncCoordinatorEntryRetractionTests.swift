@@ -134,6 +134,44 @@ private struct RetractionStubClient: SheetsClient {
     #expect(entries.map(\.resultText) == ["315x5@7"])
 }
 
+/// A week's last Day takes its first Day's width. A wider last Day leaves its Notes column outside
+/// that span, so the layout reads the Session with no Notes column. Its Set Logs went unread, not
+/// missing, so the entry stays.
+@MainActor
+@Test func syncKeepsTheEntryOfASessionTheLayoutReadsWithNoNotesColumn() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([
+        LastPerformedEntry(
+            exerciseName: "Bench Press",
+            resultText: "315x5@7",
+            performedOn: .distantPast,
+            source: "Block 27 · W1 D2"
+        )
+    ])
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "L12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+            "M14": "Sets", "O14": "Reps", "Q14": "Load", "T14": "Tempo", "U14": "Notes",
+            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE7",
+            "L15": "Bench Press", "M15": "1", "O15": "5", "Q15": "RPE7", "U15": "315x5@7"
+        ],
+        rows: 24,
+        cols: 30
+    )
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(grid: grid),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map { "\($0.fullName)|\($0.resultText)|\($0.source)" } == ["Bench Press|315x5@7|Block 27 · W1 D2"])
+}
+
 /// A second "Notes" header in the Session makes the layout pick the column with the Coach Note, so
 /// the Set Log in the other goes unread. It is still in the Sheet, so the entry stays.
 @MainActor

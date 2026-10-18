@@ -156,15 +156,26 @@ final class SyncCoordinator {
     /// An entry goes only when no cell in its Exercise's rows, hidden rows and every column of the
     /// Session included, still holds the entry's own result (#812, ADR-0018). A Set Log the parse
     /// read as a Coach Note, behind a filter or a duplicate or renamed header, therefore keeps its
-    /// entry. So does an Exercise the overlay shows Logged from a queued or refused write.
+    /// entry. So does an Exercise the overlay shows Logged from a queued or refused write, and every
+    /// Exercise of a Session the layout read with no Notes column, since its Set Logs went unread
+    /// rather than missing.
     private func retractEntriesClearedInTheSheet(_ parsed: ParsedBlock) throws {
+        let tab = parsed.block.tabName
+        let unread = Set(
+            parsed.layout.weeks.flatMap { week in
+                week.days.filter { $0.columns.notes == nil }.map {
+                    SessionCoordinate(blockTab: tab, address: SessionAddress(week: week.number, day: $0.number))
+                        .storageValue
+                }
+            }
+        )
         let shownLocally = Set(
-            notesWritesOverlaid(onTab: parsed.block.tabName, layout: parsed.layout).map {
+            notesWritesOverlaid(onTab: tab, layout: parsed.layout).map {
                 LastPerformedEntryKey(fullName: $0.exerciseName, source: $0.recordedSession.storageValue)
             }
         )
         for (key, cells) in LastPerformedExtractor.sheetCellsByKeyWithoutEntry(from: parsed.block)
-        where !shownLocally.contains(key) {
+        where !shownLocally.contains(key) && !unread.contains(key.source) {
             guard
                 let result = lastPerformed.resultText(fullName: key.fullName, source: key.source),
                 !LastPerformedExtractor.sheetCells(cells, hold: result)
