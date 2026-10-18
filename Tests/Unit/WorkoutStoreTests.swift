@@ -538,6 +538,69 @@ private func makeStore(
     #expect(store.viewedSession?.dayNumber == 2)
 }
 
+/// On disk, as on the device: an in-memory store keeps a deleted Session's Week, so it cannot show
+/// a Session held across a sync losing its place.
+@MainActor
+private func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("workout-store-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let container = try ModelContainer(
+        for: Block.self,
+        PendingWrite.self,
+        WriteTargetAuditEntry.self,
+        configurations: ModelConfiguration("workout-store", url: directory.appendingPathComponent("store.sqlite"))
+    )
+    let context = container.mainContext
+    context.insert(makeStoreBlock(weekCount: weekCount))
+    try context.save()
+    let store = WorkoutStore(context: context, defaults: .inMemory())
+    store.reload()
+    try withExtendedLifetime(container) { try body(store, context) }
+}
+
+/// `SyncCoordinator.replacePersistedBlock`, inlined.
+@MainActor
+private func replaceBlock(in context: ModelContext, with block: Block) throws {
+    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+    context.insert(block)
+    try context.save()
+}
+
+@MainActor
+@Test func dismissingMoveOnCelebrationAfterASyncAdvancesFromTheCelebratedSession() throws {
+    try withOnDiskStore(weekCount: 2) { store, context in
+        store.show(SessionAddress(week: 2, day: 3))
+        store.makeViewedSessionCurrent()
+        store.requestMoveOnCelebration()
+
+        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2))
+        store.reload()
+        #expect(store.moveOnCelebrationSession?.address == SessionAddress(week: 2, day: 3))
+        store.dismissMoveOnCelebration()
+
+        #expect(store.currentSession?.address == SessionAddress(week: 2, day: 4))
+        #expect(store.viewedSession?.address == SessionAddress(week: 2, day: 4))
+    }
+}
+
+@MainActor
+@Test func aSyncThatRemovesTheCelebratedSessionEndsTheCelebrationWithoutMovingOn() throws {
+    try withOnDiskStore(weekCount: 2) { store, context in
+        store.show(SessionAddress(week: 2, day: 3))
+        store.makeViewedSessionCurrent()
+        store.requestMoveOnCelebration()
+
+        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2, dayCount: 2))
+        store.reload()
+        #expect(store.moveOnCelebrationSession == nil)
+        #expect(store.moveOnCelebrationRequestedAt == nil)
+        store.dismissMoveOnCelebration()
+
+        #expect(store.currentSession?.address == SessionAddress(week: 1, day: 1))
+    }
+}
+
 @MainActor
 @Test func reachingZeroLeftDoesNotShowCelebrationOrAdvanceCurrentSession() throws {
     let fixture = try makeStore()

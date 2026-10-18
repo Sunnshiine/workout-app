@@ -239,3 +239,16 @@ private final class ResolutionChanges {
         #expect(pin.resolve(in: block).session?.persistentModelID == pinned.persistentModelID)
     }
 }
+
+/// A Session held across the sync that replaced its Block used to pin its Day number alone, which
+/// is Week 1's order: W2 D3 would pin W1 D3 (#897).
+@MainActor
+@Test func pinningASessionTheBlockDoesNotHoldWritesNothing() throws {
+    let block = makeBlock()
+    let pin = CurrentSessionPin(defaults: .inMemory())
+
+    pin.pin(Session(dayNumber: 3, date: nil), in: block, by: .madeCurrent)
+    pin.pin(try session(2, 3, in: makeBlock()), in: block, by: .moveOn)
+
+    #expect(pin.resolve(in: block).pin == .unset)
+}

@@ -42,20 +42,14 @@ enum MoveOnDestination: Equatable {
 struct SessionProgressTracker {
     private static let weekOrderStride = Week.dayNumbers.count
 
-    private func order(of session: Session) -> Int {
-        session.address.map { ($0.week - 1) * Self.weekOrderStride + $0.day } ?? session.dayNumber
-    }
-
+    /// The first Available Session after `session` in Block order, or nil when none lies ahead or
+    /// `block` does not hold `session`.
     func nextSession(after session: Session, in block: Block) -> Session? {
-        let currentOrder = order(of: session)
-        return allSessions(block).first {
-            order(of: $0) > currentOrder && isAvailable($0)
-        }
+        sessions(after: session, in: block).first(where: isAvailable)
     }
 
     func hasSessionAhead(after session: Session, in block: Block) -> Bool {
-        let currentOrder = order(of: session)
-        return allSessions(block).contains { order(of: $0) > currentOrder }
+        !sessions(after: session, in: block).isEmpty
     }
 
     /// Where a Move On from `session` lands, per the `CONTEXT.md` Move On rule:
@@ -70,8 +64,21 @@ struct SessionProgressTracker {
         return .returnToBlockOverview
     }
 
+    /// Empty when `block` does not hold `session`, as for a Session held across the sync that
+    /// replaced its Block: navigation refuses such a Session rather than guessing where it sat.
+    private func sessions(after session: Session, in block: Block) -> ArraySlice<Session> {
+        let sessions = allSessions(block)
+        guard let index = sessions.firstIndex(where: { $0.persistentModelID == session.persistentModelID }) else { return [] }
+        return sessions[(index + 1)...]
+    }
+
     private func allSessions(_ block: Block) -> [Session] {
-        block.weeks.flatMap { $0.sessions }.sorted { order(of: $0) < order(of: $1) }
+        block.weeks
+            .flatMap { week in
+                week.sessions.map { (order: (week.number - 1) * Self.weekOrderStride + $0.dayNumber, session: $0) }
+            }
+            .sorted { $0.order < $1.order }
+            .map(\.session)
     }
 
     /// The Sheet-derived Current Session: the last logged Session, else the first Available one.
