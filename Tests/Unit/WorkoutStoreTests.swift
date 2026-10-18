@@ -790,11 +790,10 @@ private final class CurrentSessionChanges {
 
 /// The write path refuses a Set the sync took out of the Block, whichever link the store dropped.
 @MainActor
-@Test func loggingASetHeldAcrossASyncQueuesNoWrite() throws {
-    try withOnDiskStore(weekCount: 1) { store, context in
+@Test func loggingASetHeldAcrossASyncQueuesNoWrite() async throws {
+    try await withOnDiskStore(weekCount: 1) { store, context in
         let held = try #require(store.currentSession?.exercises.first?.sets.first)
-        try replaceBlock(in: context, with: makeStoreBlock())
-        store.reload()
+        try sync(store, replacingBlockWith: makeStoreBlock(), in: context)
 
         #expect(throws: WorkoutLoggingError.self) {
             try store.log(held, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
