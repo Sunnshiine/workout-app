@@ -148,6 +148,15 @@ def reach(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Reach:
     return Reach(clipped_by, whole_point(shown))
 
 
+AXE_ACTIONABLE_ROLES = frozenset({
+    "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
+    "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
+    "AXTextField", "AXToggle",
+})
+# An unnamed element with one of these roles still shows the reader something, so flat prints it.
+READABLE_ROLES = AXE_ACTIONABLE_ROLES | {"AXImage", "AXStaticText"}
+
+
 class TreeLine(NamedTuple):
     role: str
     ident: str
@@ -231,14 +240,6 @@ def by_label(root: dict, label: str) -> List[TreeLine]:
     if not wanted:
         return []
     return [line for line in lines(root) if line.label.strip() == wanted]
-
-
-AXE_ACTIONABLE_ROLES = frozenset({
-    "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
-    "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
-    "AXTextField", "AXToggle",
-})
-READABLE_ROLES = AXE_ACTIONABLE_ROLES | {"AXImage", "AXStaticText"}
 
 
 def tap_candidates(matches: List[TreeLine]) -> List[TreeLine]:
@@ -386,11 +387,11 @@ def main() -> None:
         shown = [line for line in readable if line.on_screen]
         for line in shown:
             print(line.text)
-        for count, kind in [(len(readable) - len(shown), "off-screen element"),
-                            (len(every) - len(readable), "unnamed layout element with no value")]:
+        for count, what, suffix in [(len(readable) - len(shown), "off-screen", ""),
+                                    (len(every) - len(readable), "unnamed layout", " with no value")]:
             if count:
-                kinds = kind.replace("element", "elements") if count > 1 else kind
-                print(f"{count} {kinds} hidden; `verify.sh tree --all` lists them", file=sys.stderr)
+                print(f"{count} {what} element{'s' * (count != 1)}{suffix} hidden; `verify.sh tree --all` lists them",
+                      file=sys.stderr)
     elif mode == "find":
         found = by_id(root, sys.argv[2])
         if not found:
