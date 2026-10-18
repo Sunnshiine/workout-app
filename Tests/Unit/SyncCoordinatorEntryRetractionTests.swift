@@ -7,11 +7,12 @@ import Testing
 /// Serves one grid for every tab, and fails every write when `failUpdates` is set.
 private struct RetractionStubClient: SheetsClient {
     var grid: SheetGrid
+    var hiddenRows: [Int: SheetRowVisibility] = [:]
     var failUpdates = false
 
     func listTabTitles(spreadsheetId: String) async throws -> [String] { ["Block 26", "Block 27"] }
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: grid)
+        SheetSnapshot(values: grid, rowVisibility: hiddenRows)
     }
     func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         if failUpdates { throw URLError(.timedOut) }
@@ -109,6 +110,68 @@ private struct RetractionStubClient: SheetsClient {
     #expect(entries.map(\.resultText) == ["315x5@7"])
 }
 
+/// A filter that hides the row below a Coach Note hides the Set Logs the parse would place there.
+/// They are still in the Sheet, so the entry stays.
+@MainActor
+@Test func syncKeepsTheEntryOfASetLogOnARowAFilterHides() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(
+            grid: squatGrid(notes: "Pause 2s at the bottom", extraCells: ["K16": "315x5@7, 315x5@8"]),
+            hiddenRows: [15: SheetRowVisibility(hiddenByFilter: true)]
+        ),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map(\.resultText) == ["315x5@7"])
+}
+
+/// A second "Notes" header in the Session makes the layout pick the column with the Coach Note, so
+/// the Set Log in the other goes unread. It is still in the Sheet, so the entry stays.
+@MainActor
+@Test func syncKeepsTheEntryOfASetLogBehindADuplicateNotesHeader() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(
+            grid: squatGrid(notes: "315x5@7", extraCells: ["J14": "Notes", "J15": "Brace hard"])
+        ),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map(\.resultText) == ["315x5@7"])
+}
+
+/// A remark the athlete adds after a Set Log makes the header cell read as a Coach Note. The Set Log
+/// is still in the Sheet, so the entry stays.
+@MainActor
+@Test func syncKeepsTheEntryOfASetLogTheAthleteAnnotated() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(grid: squatGrid(notes: "315x5@7, felt heavy")),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map(\.resultText) == ["315x5@7"])
+}
+
 /// A write the Sheet refused still shows its Set as Logged, so its entry stays with it.
 @MainActor
 @Test func syncKeepsTheEntryOfASetLogTheSheetRefusedButTheAppStillShows() async throws {
@@ -168,14 +231,15 @@ private func squatEntry(resultText: String, source: String) -> LastPerformedEntr
 }
 
 /// Block 27 W1 D1 with one Squat Set. By default the Notes column holds no Set Log.
-private func squatGrid(notesHeader: String = "Notes", notes: String = "") -> SheetGrid {
-    gridFromA1(
-        [
-            "C12": "Day 1", "S12": "Day 2",
-            "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": notesHeader,
-            "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE7", "K15": notes
-        ],
-        rows: 24,
-        cols: 30
-    )
+private func squatGrid(
+    notesHeader: String = "Notes",
+    notes: String = "",
+    extraCells: [String: String] = [:]
+) -> SheetGrid {
+    let cells: [String: String] = [
+        "C12": "Day 1", "S12": "Day 2",
+        "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": notesHeader,
+        "C15": "Squat", "D15": "1", "F15": "5", "H15": "RPE7", "K15": notes
+    ]
+    return gridFromA1(cells.merging(extraCells) { _, extra in extra }, rows: 24, cols: 30)
 }

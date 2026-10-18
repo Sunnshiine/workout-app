@@ -422,6 +422,16 @@ import Testing
     #expect(LastPerformedExtractor.keysWithoutEntry(from: block).isEmpty)
 }
 
+/// An Exercise whose cells still hold a Set Log the parse did not place is not cleared, however its
+/// Sets read.
+@Test func keysWithoutEntrySkipAnExerciseWhoseSheetCellsStillHoldASetLog() {
+    var squat = exercise("Squat", sets: [pendingSet(index: 0)])
+    squat.sheetHoldsASetLog = true
+    let block = ParsedBlockModel(tabName: "Block 27", weeks: [week(1, date: nil, exercises: [squat])])
+
+    #expect(LastPerformedExtractor.keysWithoutEntry(from: block).isEmpty)
+}
+
 private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> ParsedWeek {
     ParsedWeek(
         number: number,

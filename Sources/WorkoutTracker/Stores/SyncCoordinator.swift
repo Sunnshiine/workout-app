@@ -153,9 +153,11 @@ final class SyncCoordinator {
         try context.save()
     }
 
-    /// The Sheet no longer holds a Set Log for these Exercises, so their entries go (#812, ADR-0018).
-    /// A Session the layout read with no Notes column keeps its entries, since its Set Logs went
-    /// unread rather than missing. So does an Exercise the overlay shows Logged from a queued write.
+    /// The Sheet positively holds no Set Log for these Exercises, so their entries go (#812,
+    /// ADR-0018). An Exercise whose raw Notes cells still hold one the parse did not place never
+    /// reaches here (`LastPerformedExtractor.keysWithoutEntry`). A Session the layout read with no
+    /// Notes column keeps its entries, since its Set Logs went unread rather than missing. So does
+    /// an Exercise the overlay shows Logged from a queued write.
     private func retractEntriesClearedInTheSheet(_ parsed: ParsedBlock) throws {
         let tab = parsed.block.tabName
         let unread = Set(

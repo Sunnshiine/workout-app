@@ -36,6 +36,9 @@ struct DayColumns: Sendable {
     let load: Int?
     let lastSetRPE: Int?
     let notes: Int?
+    /// Every column headed Notes, `notes` among them. A duplicate header leaves Set Logs in the
+    /// column `notes` did not pick, so a read that must not miss one scans them all (#812).
+    let allNotes: [Int]
     let span: Range<Int>  // [dayStart, nextDayStart)
 }
 
@@ -290,6 +293,23 @@ struct SheetLayoutExerciseAnchor: Sendable {
         visibleSetLogRows(headerHoldsSetLogs: false, in: snapshot).first
     }
 
+    /// Whether a column headed Notes holds a Set Log somewhere in this Exercise's rows, hidden rows
+    /// and duplicate Notes columns included. On the header row only a Set Log token or a Legacy Log
+    /// counts, because prose there is a Coach Note. On every other row any Logged token counts,
+    /// which is how the parse reads it. A sync retracts an entry only when this is false (#812).
+    func sheetHoldsASetLog(in grid: SheetGrid, cols: DayColumns) -> Bool {
+        (row..<nextAnchorRow).contains { cellRow in
+            cols.allNotes.contains { col in
+                let cell = grid.cell(row: cellRow, col: col).trimmed
+                let tokens = splitSheetNotesList(cell)
+                if tokens.contains(where: { SetLog(formatted: $0) != nil }) || isLegacyLogValue(cell) {
+                    return true
+                }
+                return cellRow != row && tokens.contains { SetLogToken.classify($0).state == .logged }
+            }
+        }
+    }
+
     /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
     /// Row addressing tree in one place — multi-line Prescription Line (or the spare row its Coach
     /// Note sends it to) → compact-header list → protected-header Visible Writable Row → visible
@@ -472,10 +492,11 @@ func resolveDayColumns(
         : start + (starts.count > 1 ? starts[1] - starts[0] : 16)
     let span = start..<end
 
+    func matches(_ label: String) -> [Int] {
+        span.filter { grid.cell(row: section.roleHeaderRow, col: $0).caseInsensitiveCompare(label) == .orderedSame }
+    }
     func find(_ label: String) -> Int? {
-        let matches = span.filter {
-            grid.cell(row: section.roleHeaderRow, col: $0).caseInsensitiveCompare(label) == .orderedSame
-        }
+        let matches = matches(label)
         guard matches.count > 1 else { return matches.first }
         // A coach sheet can repeat a role header across adjacent columns where only one
         // carries data (e.g. a stray duplicate "Sets" header). Prefer the column with
@@ -492,6 +513,7 @@ func resolveDayColumns(
         load: find("Load"),
         lastSetRPE: find("Last set RPE"),
         notes: find("Notes"),
+        allNotes: matches("Notes"),
         span: span
     )
 }

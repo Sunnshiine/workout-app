@@ -8,15 +8,19 @@ struct LastPerformedEntryKey: Hashable, Sendable {
 }
 
 enum LastPerformedExtractor {
-    /// Every (Exercise, Session) in the block that earns no entry, because no Exercise of that name
-    /// in that Session holds completion evidence. Two same-named Exercises in one Session share a
-    /// key (#813), so one with evidence keeps the key off this list.
+    /// Every (Exercise, Session) in the block whose Set Logs the Sheet positively lacks: no Exercise
+    /// of that name in that Session earns an entry, and none has a Set Log in its cells that the
+    /// parse did not place (`ParsedExercise.sheetHoldsASetLog`). Two same-named Exercises in one
+    /// Session share a key (#813), so one with evidence keeps the key off this list.
     static func keysWithoutEntry(from block: ParsedBlockModel) -> Set<LastPerformedEntryKey> {
         var keys: Set<LastPerformedEntryKey> = []
+        var held: Set<LastPerformedEntryKey> = []
         forEachExercise(in: block) { exercise, _, source in
-            keys.insert(LastPerformedEntryKey(fullName: exercise.exerciseName.entered, source: source))
+            let key = LastPerformedEntryKey(fullName: exercise.exerciseName.entered, source: source)
+            keys.insert(key)
+            if exercise.sheetHoldsASetLog { held.insert(key) }
         }
-        return keys.subtracting(occurrences(from: block).map(\.key))
+        return keys.subtracting(held).subtracting(occurrences(from: block).map(\.key))
     }
 
     static func entries(from block: ParsedBlockModel) -> [LastPerformedEntry] {
