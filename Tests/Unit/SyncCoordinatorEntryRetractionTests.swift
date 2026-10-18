@@ -75,12 +75,13 @@ private struct RetractionStubClient: SheetsClient {
     #expect(entries.map(\.resultText) == ["315x5@7"])
 }
 
-/// A skip is no Set Log, so a Session whose only Set the Sheet now reads as Skipped gives up its entry.
+/// A skip is no Set Log, so a Session whose only Set the Sheet now reads as Skipped gives up its
+/// entry, and the `skip` the entry itself carries is not a result the cell can hold.
 @MainActor
 @Test func syncRetractsTheEntryOfAnExerciseTheSheetNowReadsAsSkipped() async throws {
     let container = try makeRetractionContainer()
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
-    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7, skip", source: "Block 27 · W1 D1")])
     let sync = SyncCoordinator(
         client: RetractionStubClient(grid: squatGrid(notes: "skip")),
         context: container.mainContext,
@@ -92,14 +93,15 @@ private struct RetractionStubClient: SheetsClient {
     #expect(try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>()).isEmpty)
 }
 
-/// With its Notes header renamed, a Session's Set Logs go unread rather than missing, so the entry stays.
+/// With its Notes header renamed, a Session's Set Logs go unread. They are still in the Sheet, so
+/// the entry stays.
 @MainActor
-@Test func syncKeepsTheEntryOfASessionWhoseNotesColumnItCannotFind() async throws {
+@Test func syncKeepsTheEntryOfASessionWhoseNotesHeaderWasRenamed() async throws {
     let container = try makeRetractionContainer()
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
     let sync = SyncCoordinator(
-        client: RetractionStubClient(grid: squatGrid(notesHeader: "Log", notes: "315x5@7")),
+        client: RetractionStubClient(grid: squatGrid(notesHeader: "Athlete log", notes: "315x5@7")),
         context: container.mainContext,
         lastPerformed: lookupStore
     )
@@ -153,15 +155,16 @@ private struct RetractionStubClient: SheetsClient {
     #expect(entries.map(\.resultText) == ["315x5@7"])
 }
 
-/// A remark the athlete adds after a Set Log makes the header cell read as a Coach Note. The Set Log
-/// is still in the Sheet, so the entry stays.
+/// A remark, a unit, or a capital X makes the header cell read as a Coach Note, so the parse
+/// places no Set Log. The numbers are still in the Sheet, so the entry stays.
 @MainActor
-@Test func syncKeepsTheEntryOfASetLogTheAthleteAnnotated() async throws {
+@Test(arguments: ["315x5@7, felt heavy", "315x5@7 felt heavy", "315x5@7 (felt heavy)", "315X5@7", "315lbx5@7"])
+func syncKeepsTheEntryOfASetLogWhoseCellTheParseReadsAsACoachNote(notes: String) async throws {
     let container = try makeRetractionContainer()
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
     try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
     let sync = SyncCoordinator(
-        client: RetractionStubClient(grid: squatGrid(notes: "315x5@7, felt heavy")),
+        client: RetractionStubClient(grid: squatGrid(notes: notes)),
         context: container.mainContext,
         lastPerformed: lookupStore
     )
@@ -170,6 +173,85 @@ private struct RetractionStubClient: SheetsClient {
 
     let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
     #expect(entries.map(\.resultText) == ["315x5@7"])
+}
+
+/// An Unstructured Set Log has no numbers to match, so it is found as text. Here a filter hides
+/// its row, and the entry stays while the text is in the Sheet.
+@MainActor
+@Test func syncKeepsTheEntryOfAnUnstructuredSetLogStillInTheSheet() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "felt heavy", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(
+            grid: squatGrid(notes: "Pause 2s at the bottom", extraCells: ["K16": "Felt heavy"]),
+            hiddenRows: [15: SheetRowVisibility(hiddenByFilter: true)]
+        ),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map(\.resultText) == ["felt heavy"])
+}
+
+/// A Coach Note in the header sends the Set Log to the row below. With that row cleared, the
+/// Coach Note is not the entry's result, so the entry goes.
+@MainActor
+@Test func syncRetractsTheEntryOfACoachNoteHeadedExerciseWhoseSetLogRowWasCleared() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(grid: squatGrid(notes: "Start w/ 10 sec hold")),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    #expect(try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>()).isEmpty)
+}
+
+/// A Prescription Line's own Coach Note sends its Set Log to a spare row. With that row cleared,
+/// the entry goes, as it does for a Coach Note in the header.
+@MainActor
+@Test func syncRetractsTheEntryOfALineWithACoachNoteWhoseSetLogRowWasCleared() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(
+            grid: squatGrid(notes: "Brace hard", extraCells: ["D16": "1", "F16": "5", "K16": "Belt on for this one"])
+        ),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    #expect(try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>()).isEmpty)
+}
+
+/// A Set Log edited into numbers the entry does not hold is a new result. The parse earns the new
+/// entry when it can read the cell; when it cannot, the stale entry still goes, because the Sheet no
+/// longer holds the result the entry names.
+@MainActor
+@Test func syncRetractsAStaleEntryWhoseSetLogWasEditedToAnotherValue() async throws {
+    let container = try makeRetractionContainer()
+    let lookupStore = LastPerformedLookupStore(context: container.mainContext)
+    try lookupStore.ingest([squatEntry(resultText: "315x5@7", source: "Block 27 · W1 D1")])
+    let sync = SyncCoordinator(
+        client: RetractionStubClient(grid: squatGrid(notes: "325x5@7 felt heavy")),
+        context: container.mainContext,
+        lastPerformed: lookupStore
+    )
+
+    #expect(await sync.sync(spreadsheetId: "sid"))
+
+    #expect(try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>()).isEmpty)
 }
 
 /// A write the Sheet refused still shows its Set as Logged, so its entry stays with it.

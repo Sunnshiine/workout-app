@@ -153,28 +153,22 @@ final class SyncCoordinator {
         try context.save()
     }
 
-    /// The Sheet positively holds no Set Log for these Exercises, so their entries go (#812,
-    /// ADR-0018). An Exercise whose raw Notes cells still hold one the parse did not place never
-    /// reaches here (`LastPerformedExtractor.keysWithoutEntry`). A Session the layout read with no
-    /// Notes column keeps its entries, since its Set Logs went unread rather than missing. So does
-    /// an Exercise the overlay shows Logged from a queued write.
+    /// An entry goes only when no cell in its Exercise's rows, hidden rows and every column of the
+    /// Session included, still holds the entry's own result (#812, ADR-0018). A Set Log the parse
+    /// read as a Coach Note, behind a filter or a duplicate or renamed header, therefore keeps its
+    /// entry. So does an Exercise the overlay shows Logged from a queued or refused write.
     private func retractEntriesClearedInTheSheet(_ parsed: ParsedBlock) throws {
-        let tab = parsed.block.tabName
-        let unread = Set(
-            parsed.layout.weeks.flatMap { week in
-                week.days.filter { $0.columns.notes == nil }.map {
-                    SessionCoordinate(blockTab: tab, address: SessionAddress(week: week.number, day: $0.number))
-                        .storageValue
-                }
-            }
-        )
         let shownLocally = Set(
-            notesWritesOverlaid(onTab: tab, layout: parsed.layout).map {
+            notesWritesOverlaid(onTab: parsed.block.tabName, layout: parsed.layout).map {
                 LastPerformedEntryKey(fullName: $0.exerciseName, source: $0.recordedSession.storageValue)
             }
         )
-        for key in LastPerformedExtractor.keysWithoutEntry(from: parsed.block).subtracting(shownLocally)
-        where !unread.contains(key.source) {
+        for (key, cells) in LastPerformedExtractor.sheetCellsByKeyWithoutEntry(from: parsed.block)
+        where !shownLocally.contains(key) {
+            guard
+                let result = lastPerformed.resultText(fullName: key.fullName, source: key.source),
+                !LastPerformedExtractor.sheetCells(cells, hold: result)
+            else { continue }
             try lastPerformed.retract(fullName: key.fullName, source: key.source)
         }
     }

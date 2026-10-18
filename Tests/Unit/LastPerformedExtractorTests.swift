@@ -367,7 +367,7 @@ import Testing
     #expect(entry.resultText == "35x12@9")
 }
 
-@Test func keysWithoutEntryNameEveryExerciseAndSessionTheBlockGivesNoEntry() {
+@Test func cellsByKeyWithoutEntryNameEveryExerciseAndSessionTheBlockGivesNoEntry() {
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -391,7 +391,7 @@ import Testing
         ]
     )
 
-    let keys = LastPerformedExtractor.keysWithoutEntry(from: block)
+    let keys = Set(LastPerformedExtractor.sheetCellsByKeyWithoutEntry(from: block).keys)
 
     #expect(
         keys == [
@@ -404,7 +404,7 @@ import Testing
 
 /// Two same-named Exercises in one Session share an entry (#813), so one that holds a Set Log keeps
 /// the entry its empty twin would otherwise give up.
-@Test func keysWithoutEntrySkipAKeyAnySameNamedExerciseInTheSessionEarns() {
+@Test func cellsByKeyWithoutEntrySkipAKeyAnySameNamedExerciseInTheSessionEarns() {
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -419,17 +419,7 @@ import Testing
         ]
     )
 
-    #expect(LastPerformedExtractor.keysWithoutEntry(from: block).isEmpty)
-}
-
-/// An Exercise whose cells still hold a Set Log the parse did not place is not cleared, however its
-/// Sets read.
-@Test func keysWithoutEntrySkipAnExerciseWhoseSheetCellsStillHoldASetLog() {
-    var squat = exercise("Squat", sets: [pendingSet(index: 0)])
-    squat.sheetHoldsASetLog = true
-    let block = ParsedBlockModel(tabName: "Block 27", weeks: [week(1, date: nil, exercises: [squat])])
-
-    #expect(LastPerformedExtractor.keysWithoutEntry(from: block).isEmpty)
+    #expect(LastPerformedExtractor.sheetCellsByKeyWithoutEntry(from: block).isEmpty)
 }
 
 private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> ParsedWeek {

@@ -13,6 +13,8 @@ protocol LastPerformedIndexing {
     /// Number of stored entries whose Cadence-stripped base name matches — the coverage-fill
     /// counting unit (ADR-0012).
     func entryCount(baseName: String) -> Int
+    /// The stored result of one entry, or nil when the Session has none for that Exercise.
+    func resultText(fullName: String, source: String) -> String?
     /// Deletes the entry once its Session holds no Logged Set of that Exercise, after a live edit or
     /// a sync that finds the Sheet cleared. The one exception to append-only (ADR-0018).
     func retract(fullName: String, source: String) throws
@@ -22,6 +24,7 @@ protocol LastPerformedIndexing {
 struct NoopLastPerformedIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws {}
     func entryCount(baseName: String) -> Int { 0 }
+    func resultText(fullName: String, source: String) -> String? { nil }
     func retract(fullName: String, source: String) throws {}
 }
 
@@ -71,6 +74,10 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
             predicate: #Predicate { $0.baseName == baseName }
         )
         return (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    func resultText(fullName: String, source: String) -> String? {
+        existingEntry(fullName: fullName, source: source)?.resultText
     }
 
     func retract(fullName: String, source: String) throws {

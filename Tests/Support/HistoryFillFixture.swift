@@ -75,6 +75,7 @@ private struct HistoryFillIngestFailure: Error, LocalizedError {
 final class RefusingIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws { throw HistoryFillIngestFailure() }
     func entryCount(baseName: String) -> Int { 0 }
+    func resultText(fullName: String, source: String) -> String? { nil }
     func retract(fullName: String, source: String) throws {}
 }
 

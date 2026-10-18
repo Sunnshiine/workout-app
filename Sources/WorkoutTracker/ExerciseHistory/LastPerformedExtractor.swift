@@ -8,19 +8,43 @@ struct LastPerformedEntryKey: Hashable, Sendable {
 }
 
 enum LastPerformedExtractor {
-    /// Every (Exercise, Session) in the block whose Set Logs the Sheet positively lacks: no Exercise
-    /// of that name in that Session earns an entry, and none has a Set Log in its cells that the
-    /// parse did not place (`ParsedExercise.sheetHoldsASetLog`). Two same-named Exercises in one
-    /// Session share a key (#813), so one with evidence keeps the key off this list.
-    static func keysWithoutEntry(from block: ParsedBlockModel) -> Set<LastPerformedEntryKey> {
-        var keys: Set<LastPerformedEntryKey> = []
-        var held: Set<LastPerformedEntryKey> = []
+    /// Every (Exercise, Session) in the block that earns no entry, with every cell its rows hold.
+    /// Two same-named Exercises in one Session share a key (#813), so their cells pool. A sync
+    /// retracts the key's entry only when none of the cells holds the entry's result (#812).
+    static func sheetCellsByKeyWithoutEntry(from block: ParsedBlockModel) -> [LastPerformedEntryKey: [String]] {
+        var cellsByKey: [LastPerformedEntryKey: [String]] = [:]
         forEachExercise(in: block) { exercise, _, source in
             let key = LastPerformedEntryKey(fullName: exercise.exerciseName.entered, source: source)
-            keys.insert(key)
-            if exercise.sheetHoldsASetLog { held.insert(key) }
+            cellsByKey[key, default: []] += exercise.sheetCells
         }
-        return keys.subtracting(held).subtracting(occurrences(from: block).map(\.key))
+        for occurrence in occurrences(from: block) {
+            cellsByKey[occurrence.key] = nil
+        }
+        return cellsByKey
+    }
+
+    /// Whether the cells of an Exercise's rows still hold an entry's result. Each token of the result
+    /// is found by its numbers in order, so `315x5@7` is held by `315X5@7`, `315lbx5@7`,
+    /// `315 x 5 @ 7.0` and `315x5@7 felt heavy` alike, and a Legacy Log's `60x7@9.5` the same way.
+    /// A token with no numbers, an Unstructured Set Log such as `heavy`, is found as case-folded
+    /// text. A `skip` is no result and never counts. A result reformatted until its numbers cannot
+    /// be read, or a cell whose numbers changed, is not found, and the entry goes.
+    static func sheetCells(_ cells: [String], hold resultText: String) -> Bool {
+        let tokens = splitSheetNotesList(resultText).filter {
+            !$0.isEmpty && $0.caseInsensitiveCompare(SetLogToken.skipSentinel) != .orderedSame
+        }
+        return tokens.contains { token in
+            let tokenNumbers = numbers(in: token)
+            return cells.contains { cell in
+                tokenNumbers.isEmpty
+                    ? cell.range(of: token, options: .caseInsensitive) != nil
+                    : numbers(in: cell).containsRun(tokenNumbers)
+            }
+        }
+    }
+
+    private static func numbers(in text: String) -> [Double] {
+        text.matches(of: /\d+(?:\.\d+)?/).compactMap { Double($0.output) }
     }
 
     static func entries(from block: ParsedBlockModel) -> [LastPerformedEntry] {
@@ -72,5 +96,13 @@ enum LastPerformedExtractor {
         if let resultText = evidence.resultText { return resultText }
         if evidence.contains(.skipped) { return nil }
         return exercise.legacyLogAsCompletionEvidence
+    }
+}
+
+extension [Double] {
+    /// Whether `run` appears as a contiguous slice, in order.
+    fileprivate func containsRun(_ run: [Double]) -> Bool {
+        guard !run.isEmpty, run.count <= count else { return false }
+        return (0...(count - run.count)).contains { self[$0..<$0 + run.count].elementsEqual(run) }
     }
 }

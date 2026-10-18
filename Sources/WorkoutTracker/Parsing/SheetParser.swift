@@ -79,23 +79,23 @@ struct ParsedExercise {
     var coachNote: String?
     var legacyLog: String?
     var sets: [ParsedSet]
-    /// The Sheet holds a Set Log in this Exercise's rows, whether or not the parse placed it in
-    /// `sets` or `legacyLog` (`SheetLayoutExerciseAnchor.sheetHoldsASetLog`). A sync keeps the
-    /// Exercise's history entry while this is true (#812).
-    var sheetHoldsASetLog: Bool
+    /// Every non-empty cell in this Exercise's rows, hidden rows and every column of its Session
+    /// included (`SheetLayoutExerciseAnchor.cells`). A sync keeps the Exercise's history entry while
+    /// one still holds the entry's result (#812).
+    var sheetCells: [String]
 
     init(
         name: ExerciseName,
         coachNote: String?,
         legacyLog: String? = nil,
         sets: [ParsedSet],
-        sheetHoldsASetLog: Bool = false
+        sheetCells: [String] = []
     ) {
         self.exerciseName = name
         self.coachNote = coachNote
         self.legacyLog = legacyLog
         self.sets = sets
-        self.sheetHoldsASetLog = sheetHoldsASetLog
+        self.sheetCells = sheetCells
     }
 }
 
@@ -197,7 +197,7 @@ private func parsedMultiLineExercise(
         name: name,
         coachNote: anchor.headerNotesRole(in: grid, cols: cols).coachNote,
         sets: sets,
-        sheetHoldsASetLog: anchor.sheetHoldsASetLog(in: grid, cols: cols)
+        sheetCells: anchor.cells(in: grid, cols: cols)
     )
 }
 
@@ -232,7 +232,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
         coachNote: role.coachNote,
         legacyLog: role.legacyLog,
         sets: sets,
-        sheetHoldsASetLog: anchor.sheetHoldsASetLog(in: grid, cols: cols)
+        sheetCells: anchor.cells(in: grid, cols: cols)
     )
     .completingSetsFromLegacyLog()
 }
