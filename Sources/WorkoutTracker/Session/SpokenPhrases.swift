@@ -8,8 +8,8 @@ enum SpokenToken: Equatable, Sendable {
     /// "and", "of", "add", or "to" where "at" may have been said, so the number after it is no RPE
     /// heard. "and" and "of" are filler anywhere else.
     case misheardAt(isFiller: Bool)
-    /// The "a" after a number, as in "135, a representative": it starts what comes after it, so the
-    /// number before it labels nothing after it.
+    /// The "a" after a number, as in "135, a representative", or between "for" and a number, as in
+    /// "135 for a 9": no phrase takes it, so no word labels a number across it.
     case article
 
     var amount: SpokenAmount? {

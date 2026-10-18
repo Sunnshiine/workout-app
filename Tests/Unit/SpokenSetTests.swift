@@ -150,6 +150,16 @@ func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) 
     #expect(SpokenSet.parse("225 for 3 RPA") == rpeCutOff(.pounds(225), 3))
 }
 
+/// Verbatim from the matrix: in every "for a" before a number, the "a" stood for the "8 at" of "135
+/// for 8 at 9", so the number after it is no rep count.
+@Test func aBetweenForAndANumberLetsForLabelNothing() {
+    #expect(SpokenSet.parse("135 for a 9.") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 for a 9 RP.") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("225 for a triple at 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("135 for a hundred reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("225 for 3 at a 9") == values(.pounds(225), 3, .nine))
+}
+
 @Test func aSingleADoubleAndATripleAreOneTwoAndThreeReps() {
     #expect(SpokenSet.parse("225 for a triple at 8") == values(.pounds(225), 3, .eight))
     #expect(SpokenSet.parse("315 for a single at 9") == values(.pounds(315), 1, .nine))

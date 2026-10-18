@@ -156,8 +156,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   for 1 at 9", "135 for 808" is what the recognizer writes for "135 for 8 at an 8", and "135 for
   one hundred" is `ambiguous` too. "135 for 19 reps", "135 for 100 reps", "135 for 101 at 8", "135
   for 15", and "45 for 10" log.
-- "a" right after a number keeps that number from the label after it, so "135, a representative,
-  RP9", the recognizer dropping the 8 of "135, 8 reps, RPE 9", is `unrecognized`.
+- "a" right after a number, or between "for" and a number, keeps the number from the label across
+  it, so "135, a representative, RP9", the recognizer dropping the 8 of "135, 8 reps, RPE 9", and
+  "135 for a 9", the recognizer's "a" for the "8 at" of "135 for 8 at 9", are `unrecognized`. "225
+  for a triple at 8", "135 for a hundred reps", and "225 for 3 at a 9" read as said.
 - "bodyweight", "body weight", and "BW" are the BW weight, as are the "body waits" and "Bobby waits"
   the recognizer writes for it.
 - "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log

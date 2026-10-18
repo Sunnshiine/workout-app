@@ -332,7 +332,7 @@ struct SpokenTokens {
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
             return number.rest
-        } else if word == .a, case .number? = tokens.last {
+        } else if word == .a, isArticle(before: words.dropFirst()) {
             tokens.append(.article)
         } else if let token = try word.alone.get() {
             tokens.append(token)
@@ -366,6 +366,17 @@ struct SpokenTokens {
         guard case .number(let pounds) = weight else { return .marker(.separator) }
         guard pounds > reps else { throw .ambiguous }
         return .marker(.separator)
+    }
+
+    /// "a" right after a number, or between "for" and a number, as in "135, a representative" and "135
+    /// for a 9": a lifter counts with a bare number, so the "a" the recognizer wrote stands for words it
+    /// lost, as the "8 at" of "135 for 8 at 9", and the number on either side of it is not the reps.
+    private func isArticle(before next: SpokenNumber.Words) -> Bool {
+        switch tokens.last {
+        case .number?: true
+        case .marker(.separator)?: SpokenNumber.read(next) != nil
+        default: false
+        }
     }
 
     private var lastValue: SpokenToken? {
