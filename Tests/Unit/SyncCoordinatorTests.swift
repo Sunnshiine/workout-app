@@ -487,6 +487,25 @@ struct SyncOutcomeCharacterizationTests {
         #expect(try sync.hasPendingWrites() == true)
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    func aSetLogQueuedWhileAFlushIsInFlightIsCountedWhenThatFlushCompletes() async throws {
+        let container = try makeContainer()
+        try queueSquatLog(in: container.mainContext)
+        let client = HeldOutcomePinClient(holding: .tabSnapshot, grid: writableGrid())
+        let sync = SyncCoordinator(client: client, context: container.mainContext)
+
+        let running = Task { await sync.flushPending(spreadsheetId: "sid") }
+        await client.waitUntilHeld()
+        try queueSquatLog(in: container.mainContext, valueToWrite: "190x5@8")
+        client.release()
+        await running.value
+
+        #expect(sync.outcome == .writesQueued(1))
+        let remaining = try sync.fetchPendingWriteRecords()
+        #expect(remaining.map(\.valueToWrite) == ["190x5@8"])
+        #expect(remaining.map(\.status) == [.pending])
+    }
+
     @Test func aFailedSyncAfterAParseWarningReportsTheSheetUnreachableAndDropsTheWarning() async throws {
         let container = try makeContainer()
         let client = OutcomePinClient(grid: gridWithNoDayHeaders())
@@ -543,7 +562,8 @@ extension SyncOutcomeCharacterizationTests {
 
     fileprivate func queueSquatLog(
         in context: ModelContext,
-        dayNumbering: DayNumbering = .headerNumber
+        dayNumbering: DayNumbering = .headerNumber,
+        valueToWrite: String = "185x5@8"
     ) throws {
         context.insert(
             PendingWrite(
@@ -553,7 +573,7 @@ extension SyncOutcomeCharacterizationTests {
                 setIndex: 0,
                 column: .notes,
                 operation: .upsert,
-                valueToWrite: "185x5@8",
+                valueToWrite: valueToWrite,
                 expectedCurrentValue: ""
             )
         )

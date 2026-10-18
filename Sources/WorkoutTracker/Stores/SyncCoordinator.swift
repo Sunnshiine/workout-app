@@ -89,16 +89,9 @@ final class SyncCoordinator {
 
         let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, planner: sheetWritePlanner)
 
-        let result = await flushPendingWrites(pending, context: flushContext)
+        let conflicts = await flushPendingWrites(pending, context: flushContext)
         try? context.save()
-        switch result {
-        case .completed(let conflicts):
-            return SyncOutcome(refusedWrites: conflicts)
-        case .stoppedForRetry(let conflicts) where conflicts.isEmpty:
-            return .writesQueued(pendingWriteFlushQueue().count)
-        case .stoppedForRetry(let conflicts):
-            return .writesRefused(conflicts)
-        }
+        return SyncOutcome(refusedWrites: conflicts, queued: pendingWriteFlushQueue().count)
     }
 
     @discardableResult
@@ -206,12 +199,6 @@ private struct PendingWriteFlushContext {
     let planner: SheetWritePlanner
 }
 
-private enum PendingWriteFlushResult {
-    case completed(conflicts: [String])
-    /// A tab read or a batch send failed. `conflicts` holds the refusals recorded before the stop.
-    case stoppedForRetry(conflicts: [String])
-}
-
 private struct PendingWriteBatch {
     private(set) var items: [PlannedPendingWrite] = []
 
@@ -269,7 +256,7 @@ extension SyncCoordinator {
     fileprivate func flushPendingWrites(
         _ pending: [PendingWrite],
         context flushContext: PendingWriteFlushContext
-    ) async -> PendingWriteFlushResult {
+    ) async -> [String] {
         var snapshots: [String: SheetWritePlanningSnapshot] = [:]
         var conflicts: [String] = []
         var batch = PendingWriteBatch()
@@ -290,23 +277,19 @@ extension SyncCoordinator {
                     context: flushContext
                 )
             } catch is PendingWriteBatchFailure {
-                return .stoppedForRetry(conflicts: conflicts)
+                return conflicts
             } catch let planningConflict as PendingWritePlanningConflict {
                 let message = recordConflict(planningConflict, for: write)
                 conflicts.append(message)
                 conflicts.append(contentsOf: recordDependentLastSetRPEConflicts(message, for: write, in: pending))
             } catch {
                 recordRetry(for: write, error: error)
-                return .stoppedForRetry(conflicts: conflicts)
+                return conflicts
             }
         }
 
-        do {
-            try await flush(batch, context: flushContext)
-            return .completed(conflicts: conflicts)
-        } catch {
-            return .stoppedForRetry(conflicts: conflicts)
-        }
+        try? await flush(batch, context: flushContext)
+        return conflicts
     }
 
     fileprivate func append(

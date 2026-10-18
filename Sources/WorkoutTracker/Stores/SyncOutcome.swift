@@ -11,8 +11,7 @@ enum SyncOutcome: Equatable, Sendable {
     /// That Set Log is gone.
     case localWriteFailed(String)
     case sheetUnreachable
-    /// The next flush attempts them again. A flush that refused a write before it stopped reports
-    /// `writesRefused` instead, because no later flush reports that refusal (#784).
+    /// The next flush attempts them again.
     case writesQueued(Int)
     /// The Sheet cell no longer held what the app expected, so the write was refused rather than
     /// overwrite the coach (ADR-0003). `markConflict` takes it off the flush queue, which fetches
@@ -30,8 +29,17 @@ extension SyncOutcome {
         self = parseWarnings.isEmpty ? .clear : .parseWarnings(parseWarnings)
     }
 
-    init(refusedWrites: [String]) {
-        self = refusedWrites.isEmpty ? .clear : .writesRefused(refusedWrites)
+    /// The verdict one pending-write flush reports. A refusal wins over the writes still queued,
+    /// because no later flush reports that refusal and the next one reports those writes (#784).
+    init(refusedWrites: [String], queued: Int) {
+        self =
+            if !refusedWrites.isEmpty {
+                .writesRefused(refusedWrites)
+            } else if queued > 0 {
+                .writesQueued(queued)
+            } else {
+                .clear
+            }
     }
 
     /// The verdict one sync reports, from what its Sheet read concluded and what the pending-write
