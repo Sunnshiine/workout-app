@@ -9,6 +9,7 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @Environment(AppEntryInbox.self) private var entry
+    @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionCoordinator
     #if canImport(UserNotifications)
         @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
@@ -102,6 +103,12 @@ struct SessionView: View {
         }
         .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
+        }
+        // The hold is for the athlete to glance at the written Set and undo it. Off screen there
+        // is no glance, and a hold its Clear menu suspended would otherwise outlast the lock.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .background else { return }
+            coordinator.endSpokenWriteHold()
         }
     }
 

@@ -103,8 +103,6 @@ final class BackgroundDictation {
         case .settled(let settled):
             await liveActivity.show(settled.content, sessionLabel: label)
             guard settled.wrote else { return settled.outcome }
-            focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
-            dictation.dismiss()
             await flush()
             return settled.outcome
         }
@@ -122,6 +120,10 @@ final class BackgroundDictation {
             await liveActivity.show(.noCurrentSession)
             return .noSet(.noSetToLog(.noCurrentSession))
         }
+        // The card keeps a Set its mic wrote for the athlete to glance at and undo. A press with
+        // the phone locked says they have moved on, so the hold ends as a touch of the card would,
+        // and no card stays held while another Set is written.
+        focus.endHoldAfterSpokenWrite()
         guard let position = focus.activeSet(in: session) else {
             await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
             return .noSet(.noSetToLog(.everythingLogged))
@@ -170,7 +172,14 @@ final class BackgroundDictation {
         } catch {
             return Self.notLogged(.writeFailed, at: position.setID, shown: shown)
         }
-        return settled(heard, for: position, in: session, shown: shown, wasSupersetMember: wasSupersetMember)
+        let settled = settled(heard, for: position, in: session, shown: shown, wasSupersetMember: wasSupersetMember)
+        // The card moves on with the write, in the stage's order (write, rest, then focus) and
+        // before anything is awaited, since a second press can arrive while the readback draws.
+        if settled.wrote {
+            focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
+            dictation.dismiss()
+        }
+        return settled
     }
 
     private func settled(

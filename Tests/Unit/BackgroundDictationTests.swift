@@ -7,7 +7,9 @@ private let frozenNow = Date(timeIntervalSince1970: 1_780_000_000)
 private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 private let window = SetDictation.silenceWindow
 private let cap = SetDictation.listeningCap
-private let flushWait = BackgroundDictation.flushWait
+/// The bound a hung flush holds a press to, spelled out: the result shows before it, and a
+/// longer wait keeps the recording session open past what the athlete expects of a press.
+private let flushWait = Duration.seconds(10)
 private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
 @MainActor
@@ -307,6 +309,64 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     #expect(current.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 }?.state == .logged)
     #expect(browsed.exercises.allSatisfy { $0.sets.allSatisfy { $0.isPending } }, "the browsed Session took nothing")
     #expect(stage.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1), "the browsed card stays where it was")
+}
+
+/// A second press can arrive while the first's readback is still being drawn, so the card moves
+/// on with the write itself, never after it shows.
+@MainActor
+@Test func theCardMovesPastTheSetWithTheWriteBeforeTheReadbackShows() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let next = ActiveSetID(exerciseOrder: 0, setIndex: 1)
+    var cardWhileShowing: ActiveSetVisualFocusOwner?
+    harness.liveActivity.whileShowing = { readback in
+        guard case .logged = readback else { return }
+        cardWhileShowing = harness.focus.visualFocusOwner
+    }
+
+    _ = await harness.runUntilQuiet()
+
+    #expect(cardWhileShowing == .activeSet(next), "the card is on the next Set as the readback shows")
+    #expect(stage.activeSetID == next)
+    #expect(!harness.focus.isHoldingSpokenWrite, "no card held a Set written with the phone locked")
+    #expect(harness.dictation.state == .idle)
+}
+
+@MainActor
+@Test func aStageWhoseActiveSetWasLoggedElsewhereListensForTheNextPendingSet() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    _ = harness.stage(on: session)
+    let set = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    try harness.app.workout.log(set, as: SetLog(weight: .pounds(225), reps: 5, rpe: .six))
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(logged235, at: ActiveSetID(exerciseOrder: 0, setIndex: 1)))
+    #expect(harness.liveActivity.noSets.isEmpty, "Pending Sets remain, so the press listened")
+}
+
+/// The card keeps a Set its mic wrote for the athlete to glance at and undo. A press with the
+/// phone locked says they have moved on, so the hold ends as a touch of the card would, and the
+/// next Set takes the write; no card stays held while another Set is written.
+@MainActor
+@Test func aPressWhileTheCardHoldsASpokenWriteEndsTheHoldAndLogsTheNextSet() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let first = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    #expect(harness.focus.advanceAfterSpokenWrite(first, in: session, holding: true))
+    try harness.app.workout.log(first, as: SetLog(weight: .pounds(225), reps: 5, rpe: .six))
+    #expect(harness.focus.isHoldingSpokenWrite)
+
+    let outcome = await harness.runUntilQuiet()
+
+    let second = ActiveSetID(exerciseOrder: 0, setIndex: 1)
+    #expect(outcome == .logged(logged235, at: second))
+    #expect(!harness.focus.isHoldingSpokenWrite)
+    #expect(harness.focus.visualFocusOwner == .activeSet(ActiveSetID(exerciseOrder: 0, setIndex: 2)), "the card moved past both Sets")
+    #expect(stage.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 2))
 }
 
 @MainActor

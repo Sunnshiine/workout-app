@@ -46,10 +46,12 @@ final class ActiveSetFocusManager {
     /// The Set the card for `session` listens on: the stage's own focus while it is about
     /// `session`, Superset alternation and the athlete's focus included. A stage about another
     /// Session, or none yet, holds no Superset of this one, so binding `session` would focus its
-    /// first Pending Set.
+    /// first Pending Set. A focus left on a Set no longer Pending, as by a write that bypassed the
+    /// stage, falls back to the first Pending Set, as the card's own stage does.
     func activeSet(in session: Session) -> SessionSetPosition? {
         guard self.session === session else { return SessionSetOrder.firstPendingSet(in: session) }
-        return SessionSetOrder.orderedSets(in: session).first { $0.setID == activeSetID && $0.set.isPending }
+        let ordered = SessionSetOrder.orderedSets(in: session)
+        return ordered.first { $0.setID == activeSetID && $0.set.isPending } ?? ordered.first { $0.set.isPending }
     }
 
     var expandedLoggedSetID: ActiveSetID? {
