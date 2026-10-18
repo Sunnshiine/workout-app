@@ -324,20 +324,27 @@ struct SpokenTokens {
     }
 
     private mutating func read(_ word: SpokenWord, _ words: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenNumber.Words {
-        if case .repCount(let count) = word {
-            try append(SpokenNumber(value: Double(count), digits: nil))
-            tokens.append(.marker(.reps))
-        } else if let homophone = try homophone(word, before: words.dropFirst()) {
+        if let homophone = try homophone(word, before: words.dropFirst()) {
             tokens.append(homophone)
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
             return number.rest
-        } else if word == .a, isArticle(before: words.dropFirst()) {
-            tokens.append(.article)
-        } else if let token = try word.alone.get() {
-            tokens.append(token)
+        } else {
+            try readOutsideANumber(word, before: words.dropFirst())
         }
         return words.dropFirst()
+    }
+
+    /// A word no number takes: a rep count with its label, an article, or the word read alone.
+    private mutating func readOutsideANumber(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) {
+        switch word {
+        case .repCount(let count):
+            try append(SpokenNumber(value: Double(count), digits: nil))
+            tokens.append(.marker(.reps))
+        case .a where isArticle(before: next): tokens.append(.article)
+        default:
+            if let token = try word.alone.get() { tokens.append(token) }
+        }
     }
 
     /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is too before
