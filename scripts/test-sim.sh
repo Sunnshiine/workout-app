@@ -36,6 +36,8 @@ when its test log ends with a result line and none of them changed in the last 3
 when none of them changed in the last 24 hours, as for a run killed before its result line
 (SIGKILL, power loss). Copy a bundle or diff you cite into your proof directory, since only five
 runs are kept.
+Exits 65 when the build fails, after printing up to 20 of its error lines, then `build log: <path>`,
+on stderr.
 Exits 69 when xcodebuild failed and its log shows a simulator fault rather than a test result, such as
 a launch that returned no process handle, a CoreSimulator SimError, or a test the simulator's
 shutdown killed with SIGTERM. It shuts the simulator down
@@ -124,7 +126,7 @@ stamp=$(date +%Y%m%d-%H%M%S)-$$
 if [ $build = 1 ]; then
   with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -E "error:|BUILD FAILED" "$logs/$stamp-build.log" | head -20 >&2; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+    || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do

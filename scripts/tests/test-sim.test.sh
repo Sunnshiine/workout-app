@@ -597,6 +597,32 @@ STUB_STAMP=20991231-000009 run --sim "$sim" unit
 expect "a run that fails in the build writes its result line to its test log" \
     "$(cat "$logs"/20991231-000009-*-test.log)" "$(result unit 65)"
 
+build_failure() {
+    printf '%s' "$2" >"$root/xcodebuild.log"
+    rm -rf "$logs"
+    rc=1 run --sim "$sim" unit
+    local status=$?
+    expect "$1" "$status|$(cat "$root/err")|$(tail -1 "$root/out")" \
+        "65|${3:+$3$'\n'}build log: $(ls "$logs"/*-build.log)|$(result unit 65)"
+}
+build_failure "a build that fails with no output prints its log path and exits 65" "" ""
+build_failure "a build that fails with no error: or BUILD FAILED line prints its log path and exits 65" \
+"Command line invocation:
+    xcodebuild build-for-testing
+Killed: 9
+" ""
+build_failure "a build that fails with error lines prints them, then its log path, and exits 65" \
+"Compiling
+App/Foo.swift:1:1: error: cannot find 'bar' in scope
+** BUILD FAILED **
+" "App/Foo.swift:1:1: error: cannot find 'bar' in scope
+** BUILD FAILED **"
+many=$(for n in $(seq 20000); do echo "App/Foo$n.swift:1:1: error: cannot find 'bar' in scope"; done)
+build_failure "a build with more error lines than it prints stops at 20, then prints its log path, and exits 65" \
+"$many
+** BUILD FAILED **
+" "$(printf '%s\n' "$many" | sed -n 1,20p)"
+
 printf '%s' "◇ Test run started." >"$root/xcodebuild.log"
 STUB_STAMP=20991231-000010 run --no-build --sim "$sim" unit
 expect "a result line lands on its own line after a log cut off mid-line" "$(tail -1 "$(sed -n 's/^log: //p' "$root/out")")" \
