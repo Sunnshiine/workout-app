@@ -471,7 +471,7 @@ func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: We
 @Test func anythingElseIsUnrecognized() {
     let transcripts = [
         "banana", "the quick brown fox", "reps", "RPE", "for", "nan for 5", "for bodyweight", "185 and a half point five",
-        "one thousand for 5", "185 for 5 at 8¾", "185 for 5 at 80%", "185+58", "185 for 5 and 8 reps", "185 for 5 at 8 reps"
+        "185 for 5 at 8¾", "185 for 5 at 80%", "185+58", "185 for 5 and 8 reps", "185 for 5 at 8 reps"
     ]
     for transcript in transcripts {
         #expect(SpokenSet.parse(transcript) == .failure(.unrecognized), "\(transcript)")
@@ -531,13 +531,93 @@ func whatTheTranscribersMisheardIsRejected(transcript: String, rejection: Spoken
 }
 
 @Test(
-    "A number whose whole part has four or more digits is numbers run together, never a weight",
+    "Five or more digits with no for or pounds right after them are numbers run together",
+    arguments: ["40542 at nine.", "18545 at 8.", "13544 at RPE 9.", "31541 at 9.5.", "405429", "13544, 8 reps, RPE 9", "13548"]
+)
+func fiveOrMoreDigitsThatMayHideAValueAreFused(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
+}
+
+@Test(
+    "A number of 1,000 or more is the weight when for, then the reps and the RPE, or pounds, then the reps, follow it",
     arguments: [
-        "40542 at nine.", "18545 at 8.", "13544 at RPE 9.", "31541 at 9.5.", "4510", "405-4209", "405429", "2000 for 1 at 10",
-        "2000.5 for 5", "1854.5 for 5"
+        ("1000 for 5 at 8", values(.pounds(1000), 5, .eight)), ("1005 for 5 at 8", values(.pounds(1005), 5, .eight)),
+        ("1500 for 5 at 8", values(.pounds(1500), 5, .eight)), ("1000 pounds for 1 at 10", values(.pounds(1000), 1, .ten)),
+        ("2000 for 1 at 10", values(.pounds(2000), 1, .ten)), ("1002.5 for 3 at 9.5", values(.pounds(1002.5), 3, .ninePointFive)),
+        ("1005 by 1, RPE 10", values(.pounds(1005), 1, .ten)), ("1005 pounds for 1", values(.pounds(1005), 1, nil)),
+        ("1005 lb, 5 reps", values(.pounds(1005), 5, nil)), ("9999 x 1 @ 10", values(.pounds(9999), 1, .ten)),
+        ("10000 for 5 at 8", values(.pounds(10000), 5, .eight)), ("25,000 pounds for 1", values(.pounds(25000), 1, nil)),
+        ("1000 for 5 and 8", rpeCutOff(.pounds(1000), 5, .number(8))), ("1005 for one to 10", rpeCutOff(.pounds(1005), 1, .number(10)))
     ]
 )
-func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
+private func aNumberOfAThousandOrMoreThatHidesNoValueIsTheWeight(transcript: String, heard: Heard) {
+    #expect(SpokenSet.parse(transcript) == heard)
+}
+
+@Test(
+    "A thousand, a teen of hundreds, and a teen before the tens read as one number, as athletes say them",
+    arguments: [
+        ("one thousand for 5 at 8", values(.pounds(1000), 5, .eight)), ("a thousand for 2 at 9", values(.pounds(1000), 2, .nine)),
+        ("one thousand five for 5 at 8", values(.pounds(1005), 5, .eight)),
+        ("one thousand and five for 1 at 10", values(.pounds(1005), 1, .ten)),
+        ("one thousand five hundred for 1 at 10", values(.pounds(1500), 1, .ten)),
+        ("two thousand two hundred and fifty pounds for 1", values(.pounds(2250), 1, nil)),
+        ("one thousand and a half for 1 at 10", values(.pounds(1000.5), 1, .ten)),
+        ("thousand fifty for 1 at 10", values(.pounds(1050), 1, .ten)),
+        ("eleven hundred for 5 at 8", values(.pounds(1100), 5, .eight)),
+        ("fifteen hundred and fifty for 1 at 10", values(.pounds(1550), 1, .ten)),
+        ("twenty five hundred pounds for 1", values(.pounds(2500), 1, nil)), ("ten fifty for 5 at 8", values(.pounds(1050), 5, .eight)),
+        ("ten oh five for 1 at 10", values(.pounds(1005), 1, .ten)), ("twelve twenty five for 3 at 9", values(.pounds(1225), 3, .nine)),
+        ("one thousand pounds for 1 at 10", values(.pounds(1000), 1, .ten)),
+        ("ten thousand for 5 at 8", values(.pounds(10000), 5, .eight)),
+        ("twenty five thousand pounds for 1", values(.pounds(25000), 1, nil))
+    ]
+)
+private func thousandsSaidInWordsReadAsTheNumberMeant(transcript: String, heard: Heard) {
+    #expect(SpokenSet.parse(transcript) == heard)
+}
+
+/// "one thousand five" may be "1000 for 5" and "ten fifty" "10 for 50", so a number of 1,000 or more
+/// said in words meets the same rule as one in digits.
+@Test(
+    "A number of 1,000 or more said in words that may hide another value is numbers run together",
+    arguments: [
+        "one thousand for 5", "one thousand five", "ten fifty", "eleven hundred", "a thousand at 8", "twelve twenty reps",
+        "135 for twelve ten", "135 for one thousand at 8", "ten thousand at 8"
+    ]
+)
+func aNumberOfAThousandOrMoreInWordsThatMayHideAValueIsFused(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
+}
+
+/// The recognizer writes a weight of 1,000 or more with a comma before its last three digits, and a
+/// comma before anything else is punctuation.
+@Test func aCommaBeforeThreeDigitsSeparatesThousands() {
+    #expect(SpokenSet.parse("1,000 for 5 at 8") == values(.pounds(1000), 5, .eight))
+    #expect(SpokenSet.parse("1,005 pounds for 5 at 8") == values(.pounds(1005), 5, .eight))
+    #expect(SpokenSet.parse("£1,005 for 1 at 10") == values(.pounds(1005), 1, .ten))
+    #expect(SpokenSet.parse("1,002.5 for 3 at 9") == values(.pounds(1002.5), 3, .nine))
+    #expect(SpokenSet.parse("1,000") == .failure(.fusedNumber))
+    #expect(SpokenSet.parse("1,000,000 for 5 at 8") == values(.pounds(1_000_000), 5, .eight))
+    #expect(SpokenSet.parse("135, 8 reps, RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135,8 reps, RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135,85 for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 for 5,8") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("1,0005 for 5 at 8") == .failure(.unrecognized))
+}
+
+/// "1358" may be "135 for 8" and "4510" "45 for 10", so a number of 1,000 or more that words do not
+/// show hides no value is numbers run together, even where the rest would read.
+@Test(
+    "A number of 1,000 or more that may hide another value is numbers run together",
+    arguments: [
+        "1358", "1358 at 9", "4510", "405-4209", "1000 for 5", "1005 for 1, 8", "1358 reps at 9", "1358 reps, RPE 9", "1005 pounds",
+        "1005 pounds at 8", "135 for 1000 at 8", "135 for 5 at 1000", "8 reps at 1005 pounds", "2000.5 for 5", "1854.5 for 5",
+        "2543 at an island", "4105 or one at 10", "1854 5 rips at our PE8.", "1005, 1 rep, RPE 10",
+        "1000 at 8 for 5"
+    ]
+)
+func aNumberOfAThousandOrMoreThatMayHideAValueIsFused(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
 }
 
@@ -777,6 +857,17 @@ private func chosen(_ heard: Heard) -> Result<SpokenSet.Chosen, SpokenSet.Reject
         SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for 8 at 9."])
             == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.nine)), from: .top)
     )
+}
+
+/// Verbatim from the matrix: Eddy (English (UK)) at 240 words a minute says "1005 for 1 at 10", the
+/// top transcript has "to" for "at", and one alternative hears the "at".
+@Test func anAlternativeSettlesTheRPEAWeightOfAThousandOrMoreLeftCutOff() {
+    let candidates = ["1005 for one to 10.", "105 for one to 10.", "1005 for one at 10.", "1005 for one to 10", "1005 for one to 10?"]
+    #expect(
+        SpokenSet.parse(candidates: candidates)
+            == chosen(.values(weight: .heard(.pounds(1005)), reps: .heard(1), rpe: .heard(.ten)), from: .top)
+    )
+    #expect(SpokenSet.parse(candidates: ["1005 for one to 10.", "1005 for one at 9."]) == chosen(rpeCutOff(.pounds(1005), 1, .number(10))))
 }
 
 @Test func alternativesThatHearTwoValuesForTheOneCutOffOrAnotherSetLeaveItCutOff() {

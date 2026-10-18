@@ -16,8 +16,8 @@ enum SpokenSet: Equatable, Sendable {
         case unrecognized
         /// Every Set Log is in pounds.
         case kilograms
-        /// Numbers the recognizer ran together, as "40542" for "405 for 2": a number whose whole part
-        /// has four or more digits, which no Set holds.
+        /// Numbers the recognizer ran together: a number of 1,000 or more that may hide another value,
+        /// as "40542" for "405 for 2" and "1358 at 9" for "135 for 8 at 9".
         case fusedNumber
         /// A number no word places, as both numbers of "185, 5"; number words in a row that make no
         /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; "or", a choice; a

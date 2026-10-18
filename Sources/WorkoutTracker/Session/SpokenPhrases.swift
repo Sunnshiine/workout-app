@@ -36,6 +36,13 @@ enum SpokenToken: Equatable, Sendable {
         return number.value >= 100 || number.digits?.wholeMatch(of: /[1-9][6-9]/) != nil
     }
 
+    /// A number of 1,000 or more, which is a weight or numbers the recognizer ran together, as "1358"
+    /// for "135 for 8".
+    var mayBeFused: Bool {
+        guard case .number(let number) = self else { return false }
+        return number.value >= 1000
+    }
+
     /// A word that adds nothing where no phrase takes it: the "and" and "of" that may be a misheard
     /// "at", the "with" before a weight, and an article.
     var isFiller: Bool {
@@ -244,14 +251,17 @@ struct SpokenPhrase: Sendable {
     /// "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
-        let (claims, unplaced) = try claims(in: tokens)
+        guard tokens.indices.allSatisfy({ hidesNoValue(tokens, at: $0) }) else { throw .fusedNumber }
+        let (claims, unplaced) = try claims(in: tokens[...])
         let slots = try SpokenSlots(claims + placing(unplaced, in: tokens, beside: claims))
         guard slots.said(.rpe) || !tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else { throw .ambiguous }
         return try slots.spokenSet()
     }
 
     /// The claims the phrases make, and the index of each number no phrase takes.
-    private static func claims(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> (claims: [SpokenClaim], unplaced: [Int]) {
+    private static func claims(
+        in tokens: ArraySlice<SpokenToken>
+    ) throws(SpokenSet.Rejection) -> (claims: [SpokenClaim], unplaced: [Int]) {
         var claims: [SpokenClaim] = []
         var unplaced: [Int] = []
         var rest = tokens[...]
@@ -268,6 +278,26 @@ struct SpokenPhrase: Sendable {
             }
         }
         return (claims, unplaced)
+    }
+
+    /// A number that may be fused is the weight only where it cannot hide another value: "for" right
+    /// after it, and the phrases from it on read it as the weight and label the reps and the RPE, as in
+    /// "1005 for 1 at 10" and "1005 for 1 and 10", or "pounds" right after it and the reps labelled, as
+    /// in "1005 pounds for 1". Anywhere else it may be a Set run together, as the 1358 of "1358 at 9"
+    /// for "135 for 8 at 9", or the 1854 of "1854 5 reps at RPE 8", whose 4 is the "for" of "185 for 5".
+    private static func hidesNoValue(_ tokens: [SpokenToken], at index: Int) -> Bool {
+        guard tokens[index].mayBeFused else { return true }
+        let fields: Set<SetLogDraft.Field>
+        switch tokens.dropFirst(index + 1).first {
+        case .marker(.separator)?: fields = [.weight, .reps, .rpe]
+        case .marker(.pounds)?: fields = [.weight, .reps]
+        default: return false
+        }
+        return labelled(tokens.dropFirst(index)).isSuperset(of: fields)
+    }
+
+    private static func labelled(_ tokens: ArraySlice<SpokenToken>) -> Set<SetLogDraft.Field> {
+        Set((try? claims(in: tokens).claims.map(\.field)) ?? [])
     }
 
     private static func firstMatch(_ tokens: ArraySlice<SpokenToken>) -> SpokenMatch? {

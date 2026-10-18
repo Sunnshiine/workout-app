@@ -428,6 +428,27 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
     #expect(report.pendingWriteCount == 2)
 }
 
+/// A typed Set Log takes any weight, so a spoken one does too, wherever the words show it hides no value.
+@MainActor
+@Test(
+    "Saying a weight of 1,000 or more writes it to the Sheet as said",
+    arguments: [
+        ("1000 for 5 at 8", "1000x5@8"), ("1005 for 5 at 8", "1005x5@8"), ("1500 for 5 at 8", "1500x5@8"),
+        ("1000 pounds for 1 at 10", "1000x1@10"), ("1,000 for 5 at 8", "1000x5@8"), ("1,005 pounds for 5 at 8", "1005x5@8"),
+        ("one thousand for 5 at 8", "1000x5@8"), ("a thousand for 2 at 9", "1000x2@9")
+    ]
+)
+func sayingAWeightOfAThousandOrMoreWritesItAsSaid(transcript: String, setLog: String) async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s0"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == setLog)
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["K15"] == setLog)
+}
+
 @MainActor
 @Test func sayingSkipSkipsTheSetAndWritesSkip() async throws {
     let app = try await makeSelectedApp()

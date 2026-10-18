@@ -143,14 +143,21 @@ where a word next to it, or the phrase around it, says which, never by its place
   writes that "for" as a comma, and the weight is the only value left. "8 reps, RPE 9, 135" stays
   `ambiguous`.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
-  "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
+  "one thousand", "a thousand and five", "one thousand five hundred", "eleven hundred", "ten fifty",
+  "eight and a half", "8 1/2", "8½", "one eighty seven point five", a clock-style "1:35" for 135,
+  and "1,005", where a comma before exactly three digits separates thousands ("135,8" stays 135 and 8).
   "ate" is 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for a triple at 8") and
   never part of a number word ("one eighty single for 5" is `ambiguous`), and "to"
   or "too" is 2 only where a number is asked for. Number words in a row that
   make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
-- A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
-  wrote "40542" for "four oh five for two".
+- A number of 1,000 or more, in digits or words, is the weight only where it cannot hide another
+  value: "for", "x", or "by" follows it and words label the reps and the RPE, as in "1005 for 1 at
+  10", or "pounds" or "lb" follows it and words label the reps, as in "1005 pounds for 1". Anywhere
+  else it is `fusedNumber`, because "1358" may be "135 for 8", "ten fifty" "10 for 50", "40542"
+  "four oh five for two", and the 4 of "1854 5 reps at RPE 8" the "for" of "185 for 5": "1358",
+  "1358 at 9", "40542 at nine", "1000 for 5", "1000, 5 reps, RPE 8", "ten fifty", and "135 for
+  1000 at 8" are rejected. The weight has no upper bound, as on the card.
 - A rep count right after "for", with no "reps" after it and no RPE said, is `ambiguous` as two
   digits whose second is 6 to 9, and as 100 or more in digits or words: "135 for 19" may be "135
   for 1 at 9", "135 for 808" is what the recognizer writes for "135 for 8 at an 8", and "135 for
