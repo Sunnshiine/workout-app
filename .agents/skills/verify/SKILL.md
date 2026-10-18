@@ -224,8 +224,8 @@ host.
 After an edit to `verify.sh` or the `verify-*.sh` helpers it sources, `tree.py`, `frames.py`,
 `scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run
 `python3 .agents/skills/verify/tests/test_evidence.py`. Also run
-`scripts/tests/host-admission.test.sh` after an edit to `verify.sh`, a `verify-*.sh` helper, `scripts/sim-lock.sh`, or
-`scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
+every `scripts/tests/host-admission*.test.sh` after an edit to `verify.sh`, a `verify-*.sh` helper,
+`scripts/sim-lock.sh`, or `scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
 `test_evidence.py` through `.github/workflows/verify-tools.yml` and every script test through
 `.github/workflows/script-tests.yml`.
 After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
