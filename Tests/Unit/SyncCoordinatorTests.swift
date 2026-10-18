@@ -171,7 +171,8 @@ private func loggedSquatExercise() -> ParsedExercise {
                 state: .logged,
                 setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
             )
-        ]
+        ],
+        sheetCells: []
     )
 }
 

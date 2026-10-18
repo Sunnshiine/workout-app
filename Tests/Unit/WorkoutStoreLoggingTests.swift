@@ -58,7 +58,8 @@ private func parsedLoggingBlock(exerciseName: ExerciseName) -> ParsedBlockModel 
                                         state: .pending,
                                         setLog: nil
                                     )
-                                ]
+                                ],
+                                sheetCells: []
                             )
                         ]
                     )

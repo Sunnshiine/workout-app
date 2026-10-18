@@ -432,7 +432,7 @@ private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> Pa
 }
 
 private func exercise(_ name: String, legacyLog: String? = nil, sets: [ParsedSet]) -> ParsedExercise {
-    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets)
+    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets, sheetCells: [])
 }
 
 private func loggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {

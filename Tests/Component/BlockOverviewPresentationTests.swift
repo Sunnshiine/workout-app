@@ -157,7 +157,8 @@ private func uniformDayBlock(daysPerWeek: Int, weeks: Int = 2) -> Block {
                                 ParsedExercise(
                                     name: "Squat",
                                     coachNote: nil,
-                                    sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+                                    sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)],
+                                    sheetCells: []
                                 )
                             ]
                         )

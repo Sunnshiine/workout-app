@@ -562,7 +562,8 @@ private func makeStoredWeek() throws -> ModelContainer {
                                         prescribedLoad: "RPE8",
                                         percentOneRM: nil
                                     )
-                                }
+                                },
+                                sheetCells: []
                             )
                         ]
                     )

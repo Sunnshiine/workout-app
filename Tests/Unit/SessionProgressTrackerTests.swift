@@ -18,7 +18,8 @@ private func makeBlock() -> Block {
                             ParsedExercise(
                                 name: "Squat",
                                 coachNote: nil,
-                                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+                                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)],
+                                sheetCells: []
                             )
                         ]
                     )
@@ -44,7 +45,8 @@ private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
                             ParsedExercise(
                                 name: "Squat",
                                 coachNote: nil,
-                                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
+                                sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)],
+                                sheetCells: []
                             )
                         ]
                     )

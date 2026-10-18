@@ -21,7 +21,8 @@ private func makeBlock(tabName: String = "Block 27") -> Block {
                                     coachNote: nil,
                                     sets: [
                                         ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)
-                                    ]
+                                    ],
+                                    sheetCells: []
                                 )
                             ]
                         )

@@ -89,7 +89,7 @@ struct ParsedExercise {
         coachNote: String?,
         legacyLog: String? = nil,
         sets: [ParsedSet],
-        sheetCells: [String] = []
+        sheetCells: [String]
     ) {
         self.exerciseName = name
         self.coachNote = coachNote

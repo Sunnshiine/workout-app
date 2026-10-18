@@ -762,7 +762,8 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) throws 
                                             state: .pending,
                                             setLog: nil
                                         )
-                                    ]
+                                    ],
+                                    sheetCells: []
                                 )
                             ]
                         )

@@ -23,12 +23,13 @@ enum LastPerformedExtractor {
         return cellsByKey
     }
 
-    /// Whether the cells of an Exercise's rows still hold an entry's result. Each token of the result
-    /// is found by its numbers in order, so `315x5@7` is held by `315X5@7`, `315lbx5@7`,
-    /// `315 x 5 @ 7.0` and `315x5@7 felt heavy` alike, and a Legacy Log's `60x7@9.5` the same way.
-    /// A token with no numbers, an Unstructured Set Log such as `heavy`, is found as case-folded
-    /// text. A `skip` is no result and never counts. A result reformatted until its numbers cannot
-    /// be read, or a cell whose numbers changed, is not found, and the entry goes.
+    /// Whether the cells of an Exercise's rows still hold an entry's result. A cell holds a token
+    /// whose numbers appear among the cell's as a contiguous run, so `315x5@7` is held by `315X5@7`,
+    /// `315lbx5@7`, `315 x 5 @ 7.0` and `315x5@7 felt heavy` alike, and a Legacy Log's `60x7@9.5` the
+    /// same way. A token with no numbers, an Unstructured Set Log such as `heavy`, is found as
+    /// case-folded text. A `skip` is no result and never counts. A result reformatted until its
+    /// numbers no longer form that run, or a cell whose numbers changed, is not found, and the entry
+    /// goes.
     static func sheetCells(_ cells: [String], hold resultText: String) -> Bool {
         let tokens = splitSheetNotesList(resultText).filter {
             !$0.isEmpty && $0.caseInsensitiveCompare(SetLogToken.skipSentinel) != .orderedSame

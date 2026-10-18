@@ -90,7 +90,7 @@ private func occurrenceWeek(exercises: [ParsedExercise]) -> ParsedWeek {
 }
 
 private func occurrenceExercise(_ name: String, legacyLog: String? = nil, sets: [ParsedSet]) -> ParsedExercise {
-    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets)
+    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets, sheetCells: [])
 }
 
 private func occurrenceLoggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {

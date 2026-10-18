@@ -32,7 +32,8 @@ private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, da
                                             prescribedLoad: "RPE8",
                                             percentOneRM: nil
                                         )
-                                    ]
+                                    ],
+                                    sheetCells: []
                                 )
                             ]
                         )

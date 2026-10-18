@@ -68,15 +68,13 @@ private struct HistoryFillIngestFailure: Error, LocalizedError {
     var errorDescription: String? { "the index is full" }
 }
 
-/// An index that refuses every new entry, so a test can drive the halt the athlete hears about.
-/// Its retract accepts the call and does nothing, so the retractions a sync makes for a current
-/// tab with no Set Logs (#812) do not halt it first.
+/// An index that refuses everything, so a test can drive the halt the athlete hears about.
 @MainActor
 final class RefusingIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws { throw HistoryFillIngestFailure() }
     func entryCount(baseName: String) -> Int { 0 }
     func resultText(fullName: String, source: String) -> String? { nil }
-    func retract(fullName: String, source: String) throws {}
+    func retract(fullName: String, source: String) throws { throw HistoryFillIngestFailure() }
 }
 
 /// A current Block tab whose single Squat Set carries no log yet.

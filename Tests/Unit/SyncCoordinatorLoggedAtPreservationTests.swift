@@ -43,7 +43,8 @@ private func makeTwoSessionBlock(tabName: String, day1LoggedAt: Date, day2Logged
                 state: .logged,
                 setLog: SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
             )
-        ]
+        ],
+        sheetCells: []
     )
     let block = BlockBuilder.makeBlock(
         from: ParsedBlockModel(

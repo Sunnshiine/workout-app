@@ -340,7 +340,8 @@ private func lastPerformedContainer() throws -> ModelContainer {
                                         state: .logged,
                                         unstructuredSetLog: "felt easy"
                                     )
-                                ]
+                                ],
+                                sheetCells: []
                             )
                         ]
                     )

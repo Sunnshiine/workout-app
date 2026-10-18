@@ -34,7 +34,8 @@ import Testing
                                         percentOneRM: nil,
                                         setLog: nil
                                     )
-                                ]
+                                ],
+                                sheetCells: []
                             )
                         ]
                     )
