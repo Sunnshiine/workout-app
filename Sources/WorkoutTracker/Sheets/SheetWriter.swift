@@ -3,6 +3,7 @@ import Foundation
 struct SheetWriteRequest: Sendable, Equatable {
     var session: SessionCoordinate
     var exerciseName: String
+    var exerciseOrdinal: Int
     var setIndex: Int
     var column: PendingWriteColumn
     var operation: PendingWriteOperation
@@ -15,6 +16,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         self.init(
             session: write.recordedSession,
             exerciseName: write.exerciseName,
+            exerciseOrdinal: write.exerciseOrdinal,
             setIndex: write.setIndex,
             column: write.column,
             operation: write.operation,
@@ -26,6 +28,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     init(
         session: SessionCoordinate,
         exerciseName: String,
+        exerciseOrdinal: Int = 0,
         setIndex: Int,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -34,11 +37,18 @@ struct SheetWriteRequest: Sendable, Equatable {
     ) {
         self.session = session
         self.exerciseName = exerciseName
+        self.exerciseOrdinal = exerciseOrdinal
         self.setIndex = setIndex
         self.column = column
         self.operation = operation
         self.valueToWrite = valueToWrite
         self.expectedCurrentValue = expectedCurrentValue
+    }
+
+    /// The Exercise as a conflict names it: numbered past the first of its name, so a missing second
+    /// `Back Squat` is not reported as a missing `Back Squat` while the first is still there.
+    var exerciseLabel: String {
+        exerciseOrdinal == 0 ? exerciseName : "\(exerciseName) number \(exerciseOrdinal + 1)"
     }
 
     /// The value this write lands in its cell: a delete clears it, an upsert writes its value.
@@ -114,7 +124,7 @@ enum SheetWriteAddressing: Sendable {
         case .columnNotFound(let header):
             throw SheetWriterError.columnNotFound(header)
         case .exerciseNotFound:
-            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+            throw SheetWriterError.exerciseNotFound(request.exerciseLabel)
         case .lastSetRPE(let anchor, let col):
             return (anchor.row, col)
         case .setLog(_, let resolution):
@@ -248,9 +258,9 @@ struct SheetWritePlanner: Sendable {
             }
         guard let col else { return .columnNotFound(header: header) }
 
-        guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
-            return .exerciseNotFound
-        }
+        let sameNamed = day.exerciseAnchors.filter { $0.name == request.exerciseName }
+        guard sameNamed.indices.contains(request.exerciseOrdinal) else { return .exerciseNotFound }
+        let anchor = sameNamed[request.exerciseOrdinal]
         switch request.column {
         case .lastSetRPE:
             return .lastSetRPE(anchor: anchor, col: col)

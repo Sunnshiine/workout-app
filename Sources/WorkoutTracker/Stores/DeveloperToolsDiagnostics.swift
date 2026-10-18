@@ -90,7 +90,7 @@ extension SheetWritePlanner {
         case .columnNotFound(let header):
             return "No row selected: \(session) has no \(header) column."
         case .exerciseNotFound:
-            return "No row selected: \(request.exerciseName) was not found in \(session)."
+            return "No row selected: \(request.exerciseLabel) was not found in \(session)."
         case .lastSetRPE(let anchor, _):
             narration = .lastSetRPE(anchor: anchor)
         case .setLog(let anchor, let resolution):

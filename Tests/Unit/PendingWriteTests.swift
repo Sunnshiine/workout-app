@@ -77,8 +77,11 @@ import Testing
     }
 
     #expect(
-        try types(PendingWrite.self, ["blockTab", "week", "day", "dayNumberingRaw"])
-            == ["blockTab": "String", "week": "Int", "day": "Int", "dayNumberingRaw": "Optional<String>"]
+        try types(PendingWrite.self, ["blockTab", "week", "day", "dayNumberingRaw", "exerciseOrdinalRaw"])
+            == [
+                "blockTab": "String", "week": "Int", "day": "Int", "dayNumberingRaw": "Optional<String>",
+                "exerciseOrdinalRaw": "Optional<Int>"
+            ]
     )
     #expect(
         try types(WriteTargetAuditEntry.self, ["blockTab", "week", "day"])

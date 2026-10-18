@@ -40,6 +40,8 @@ final class PendingWrite {
     private var day: Int
     private var dayNumberingRaw: String?
     var exerciseName: String
+    // Nil on a write queued before #813, which named only the first Exercise of its name.
+    private var exerciseOrdinalRaw: Int?
     var setIndex: Int
     var columnRaw: String
     var operationRaw: String
@@ -48,6 +50,12 @@ final class PendingWrite {
     var statusRaw: String
     var retryCount: Int
     var lastError: String?
+
+    /// Which of its Session's Exercises named `exerciseName` this write targets, counting from 0
+    /// down the Sheet, so a Session that names an Exercise twice keeps both apart.
+    var exerciseOrdinal: Int {
+        exerciseOrdinalRaw ?? 0
+    }
 
     var column: PendingWriteColumn {
         get { PendingWriteColumn(rawValue: columnRaw) ?? .notes }
@@ -94,6 +102,7 @@ final class PendingWrite {
         session: SessionCoordinate,
         dayNumbering: DayNumbering,
         exerciseName: String,
+        exerciseOrdinal: Int = 0,
         setIndex: Int,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -107,6 +116,7 @@ final class PendingWrite {
         self.day = session.address.day
         self.dayNumberingRaw = dayNumbering.rawValue
         self.exerciseName = exerciseName
+        self.exerciseOrdinalRaw = exerciseOrdinal
         self.setIndex = setIndex
         self.columnRaw = column.rawValue
         self.operationRaw = operation.rawValue

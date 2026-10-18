@@ -212,6 +212,7 @@ final class WorkoutStore {
                 session: coordinates.session,
                 dayNumbering: coordinates.dayNumbering,
                 exerciseName: coordinates.exerciseName.entered,
+                exerciseOrdinal: coordinates.exerciseOrdinal,
                 setIndex: coordinates.setIndex,
                 column: column,
                 operation: operation,
