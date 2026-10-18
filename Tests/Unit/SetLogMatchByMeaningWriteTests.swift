@@ -24,10 +24,30 @@ struct SetLogMatchByMeaningWriteTests {
         )
     }
 
-    private func request(setIndex: Int, expecting expected: String, writing value: String) -> SheetWriteRequest {
+    /// Bench is a single-Set Exercise on one Prescription Line, so its Set Log is the whole J15
+    /// cell rather than a token in a list.
+    private func singleSetGrid(j15: String) -> SheetGrid {
+        gridFromA1(
+            [
+                "C12": "Day 1",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Notes",
+                "C15": "Bench", "D15": "1", "F15": "5", "J15": j15,
+                "C17": "Hip Thrust", "D17": "2"
+            ],
+            rows: 26,
+            cols: 30
+        )
+    }
+
+    private func request(
+        _ exercise: String = "Comp SQ",
+        setIndex: Int,
+        expecting expected: String,
+        writing value: String
+    ) -> SheetWriteRequest {
         SheetWriteRequest(
             session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-            exerciseName: "Comp SQ",
+            exerciseName: exercise,
             setIndex: setIndex,
             column: .notes,
             operation: .upsert,
@@ -46,6 +66,29 @@ struct SetLogMatchByMeaningWriteTests {
         #expect(update.row == 14)
         #expect(update.col == 9)
         #expect(update.value == "190x5@8")
+    }
+
+    @Test func coachSpellingOfASingleSetExercisesWholeCellLands() throws {
+        let update = try planner.plan(
+            request("Bench", setIndex: 0, expecting: "185x5@8", writing: "190x5@8"),
+            in: singleSetGrid(j15: "185 x 5 @ 8")
+        )
+
+        #expect(update.row == 14)
+        #expect(update.col == 9)
+        #expect(update.value == "190x5@8")
+    }
+
+    @Test func aSkippedSetIsNotTakenForAPendingOne() {
+        #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "", actual: "skip")) {
+            try planner.plan(request("Bench", setIndex: 0, expecting: "", writing: "190x5@8"), in: singleSetGrid(j15: "skip"))
+        }
+    }
+
+    @Test func aPendingSetIsNotTakenForASkippedOne() {
+        #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "skip", actual: "")) {
+            try planner.plan(request("Bench", setIndex: 0, expecting: "skip", writing: "190x5@8"), in: singleSetGrid(j15: ""))
+        }
     }
 
     @Test func coachExponentSpellingLands() throws {
@@ -110,11 +153,12 @@ struct SetLogMatchByMeaningWriteTests {
         }
     }
 
+    /// A Legacy Log with no RPE is not a structured Set Log, so its spelling is not normalised.
     @Test func unstructuredSetLogStillComparesByText() {
-        #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "felt heavy", actual: "felt  heavy")) {
+        #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "185 x 5", actual: "185x5")) {
             try planner.plan(
-                request(setIndex: 0, expecting: "felt heavy", writing: "190x5@8"),
-                in: grid(j15: "felt  heavy")
+                request(setIndex: 0, expecting: "185 x 5", writing: "190x5@8"),
+                in: grid(j15: "185x5")
             )
         }
     }
