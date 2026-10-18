@@ -141,6 +141,30 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY, "rest is back in the foot below the card")
     }
 
+    /// Going to the background flips the appearance for the app switcher's snapshot, which must
+    /// not rebuild the card and drop what the athlete dialled.
+    @MainActor
+    func testADialledWeightOutlastsTheAppGoingToTheBackground() throws {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        for _ in 0..<2 {
+            app.buttons["weight-increment"].tap()
+        }
+        waitForLabel("Weight, 247.5", on: app.buttons["weight-pill"])
+
+        XCUIDevice.shared.press(.home)
+        // A slow runner can suspend the app before a wait for .runningBackground first looks.
+        let backgrounded = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in app.state != .runningForeground },
+            object: nil
+        )
+        XCTAssertEqual(XCTWaiter.wait(for: [backgrounded], timeout: 10), .completed, "still \(app.state)")
+        app.activate()
+
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        waitForLabel("Weight, 247.5", on: app.buttons["weight-pill"])
+    }
+
     @MainActor
     func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
         let app = launchFixtureApp()
