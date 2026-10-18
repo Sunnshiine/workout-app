@@ -83,7 +83,7 @@ extension WorkoutApplication {
             block: workout.block.map(BlockSummary.init),
             currentSession: current.flatMap(\.address),
             currentSessionReason: workout.currentSessionDebugInfo.reason,
-            currentSessionIsOverridden: workout.hasCurrentSessionOverride,
+            currentSessionIsOverridden: workout.currentSessionResolution?.isMadeCurrent ?? false,
             viewedSession: workout.viewedSession.flatMap(\.address),
             canMoveOn: workout.canMoveOn,
             openExercises: workout.openExercises.compactMap(address(of:)),

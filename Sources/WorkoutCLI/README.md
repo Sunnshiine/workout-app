@@ -19,9 +19,9 @@ It holds `manifest.json` (the ownership marker: scenario, spreadsheet id, versio
 exist, an empty directory, or a directory carrying this tool's manifest; a file or a foreign
 directory is refused with exit 3.
 
-The home also holds `settings.json`: the selected spreadsheet, the appearance, and the Current
-Session override, rewritten after every change. `init` resets it with the rest of the home, and
-deleting or moving the home takes it along. A home made before settings moved into it is refused
+The home also holds `settings.json`: the selected spreadsheet, the appearance, and each Block
+tab's Current Session Pin, rewritten after every change. `init` resets it with the rest of the
+home, and deleting or moving the home takes it along. A home made before settings moved into it is refused
 with exit 3; run `init` again.
 
 `workbook.json` is a sparse A1 map you can edit by hand:
