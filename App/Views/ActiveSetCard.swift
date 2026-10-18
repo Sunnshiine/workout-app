@@ -56,14 +56,14 @@ struct ActiveSetCard: View {
                 onSkip: onSkip,
                 inputDismissalRequestID: inputDismissalRequestID,
                 dictation: mic?.dictation ?? .ready,
-                onDismissDictation: { mic?.dismiss() }
+                onDismissDictation: { mic?.dismiss() },
+                onShow: { mic?.shows($0) }
             )
             .id(PillsIdentity(set: set.persistentModelID, mode: setCardMode))
             .overlay {
                 if mode == .heldAfterSpokenWrite { heldValuesCover }
             }
         }
-        .onPreferenceChange(ShownSetLogDraftKey.self) { mic?.shows($0) }
         .onChange(of: isPressingMic) { _, isPressing in
             if isPressing { beginPress() } else { endPress() }
         }

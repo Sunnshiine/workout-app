@@ -9,15 +9,6 @@ struct EditingWeightPreferenceKey: PreferenceKey {
     }
 }
 
-/// The values the card shows, which a Spoken Set fills what it leaves unsaid from.
-struct ShownSetLogDraftKey: PreferenceKey {
-    static let defaultValue = SetLogDraft(weight: nil, reps: nil, rpe: nil)
-
-    static func reduce(value: inout SetLogDraft, nextValue: () -> SetLogDraft) {
-        value = nextValue()
-    }
-}
-
 /// The Active Set Card's input block (DESIGN.md §5.2, pick input-block3-c): weight
 /// leads as the card's biggest number flanked by round ± steppers; Reps and RPE are
 /// side-by-side one-tap scroll rails; a true Log capsule previews the exact Set Log.
@@ -30,6 +21,8 @@ struct SmartValuePills: View {
     let inputDismissalRequestID: Int
     let dictation: SetCardDictation
     let onDismissDictation: () -> Void
+    /// Takes what the card shows each time it changes, which fills what a Spoken Set leaves unsaid.
+    let onShow: (SetLogDraft) -> Void
 
     @State private var form: SmartValuePillsForm
     @State private var weightFieldMount = WeightFieldMount()
@@ -45,7 +38,8 @@ struct SmartValuePills: View {
         onSkip: @escaping () -> Void,
         inputDismissalRequestID: Int = 0,
         dictation: SetCardDictation = .ready,
-        onDismissDictation: @escaping () -> Void = {}
+        onDismissDictation: @escaping () -> Void = {},
+        onShow: @escaping (SetLogDraft) -> Void = { _ in }
     ) {
         self.set = set
         self.mode = mode
@@ -55,6 +49,7 @@ struct SmartValuePills: View {
         self.inputDismissalRequestID = inputDismissalRequestID
         self.dictation = dictation
         self.onDismissDictation = onDismissDictation
+        self.onShow = onShow
         _form = State(initialValue: SmartValuePillsForm(set: set, suggestion: suggestion))
     }
 
@@ -110,7 +105,9 @@ struct SmartValuePills: View {
         }
         .onDisappear(perform: commitChangedDraftIfNeeded)
         .preference(key: EditingWeightPreferenceKey.self, value: weightFieldFocused)
-        .preference(key: ShownSetLogDraftKey.self, value: form.draft)
+        .onChange(of: form.draft, initial: true) { _, draft in
+            onShow(draft)
+        }
     }
 
     private var presentation: SetCardPresentation {

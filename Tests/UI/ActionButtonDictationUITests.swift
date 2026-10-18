@@ -103,6 +103,37 @@ final class ActionButtonDictationUITests: XCTestCase {
         XCTAssertEqual(status.label, "Sync status: 7 unsynced", "two card logs, three spoken Sets, and each Exercise's Last Set RPE")
     }
 
+    /// What the athlete dialled before locking fills what they leave unsaid, as a release of the
+    /// card's mic would.
+    @MainActor
+    func testActionButtonFillsAnUnsaidWeightFromTheDialWithTheAppBehind() throws {
+        let app = try launchForTheActionButton(hearing: "for 5 at 8")
+        for _ in 0..<2 {
+            app.buttons["weight-increment"].tap()
+        }
+        waitForLabel("Weight, 247.5", on: app.buttons["weight-pill"])
+
+        XCUIDevice.shared.press(.home)
+        XCTAssertTrue(app.wait(for: .runningBackground, timeout: 5))
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.action)
+        RunLoop.current.run(until: Date().addingTimeInterval(6))
+        attachScreenshot(named: "locked-readback")
+        XCTAssertEqual(app.state, .runningBackground, "the Set logs without the app coming forward")
+
+        Self.pressLockButton()
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        let logged = app.buttons["Set 1, 247.5x5@8"]
+        XCTAssertTrue(logged.appears(within: 5), "the dial's weight with the spoken reps and RPE")
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists, "the write waits for the Sheet")
+        let onScreen = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: logged)
+        XCTAssertEqual(XCTWaiter.wait(for: [onScreen], timeout: 5), .completed, "the unlock has settled on the app")
+        attachScreenshot(named: "after-unlock")
+    }
+
     @MainActor
     func testActionButtonWithTheAppInFrontListensOnTheCard() throws {
         let app = try launchForTheActionButton()
@@ -116,7 +147,7 @@ final class ActionButtonDictationUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchForTheActionButton() throws -> XCUIApplication {
+    private func launchForTheActionButton(hearing transcript: String = "235 for 5 at 7") throws -> XCUIApplication {
         try XCTSkipUnless(
             ProcessInfo.processInfo.environment["WORKOUT_ACTION_BUTTON"] == "1",
             "set the Action button to Log a Set, then run with TEST_RUNNER_WORKOUT_ACTION_BUTTON=1"
@@ -125,11 +156,18 @@ final class ActionButtonDictationUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments =
             WorkoutUITestFixture.currentSession.launchArguments
-            + ["-UITEST_DISABLE_ANIMATIONS", "-UITEST_DICTATION", "235 for 5 at 7"]
+            + ["-UITEST_DISABLE_ANIMATIONS", "-UITEST_DICTATION", transcript]
         app.launch()
         XCTAssertTrue(app.buttons["log-active-set-button"].appears(within: 10))
         XCTAssertFalse(app.buttons["Set 1, 235x5@7"].exists)
         return app
+    }
+
+    private func attachScreenshot(named name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     /// `XCUIDevice.ButtonType` has no lock button; the selector XCUIDevice has answered since
