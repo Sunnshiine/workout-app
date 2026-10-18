@@ -17,8 +17,6 @@ private func makeBlock() -> Block {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
                             )
@@ -45,8 +43,6 @@ private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
                         exercises: [
                             ParsedExercise(
                                 name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
                                 coachNote: nil,
                                 sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
                             )
@@ -67,8 +63,10 @@ private func makeBlock(weeks: Int, daysPerWeek: Int) -> Block {
     let tracker = SessionProgressTracker()
     let sessions = sortedSessions(in: block)
 
-    #expect(sessions.map { "\($0.week?.number ?? 0).\($0.dayNumber)" }
-        == ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"])
+    #expect(
+        sessions.map { "\($0.week?.number ?? 0).\($0.dayNumber)" }
+            == ["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6"]
+    )
 
     let week1Day6 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 6 })
     let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
@@ -142,98 +140,6 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(week2Day1.week?.number == 2)
     #expect(week2Day1.dayNumber == 1)
     #expect(tracker.nextSession(after: sessions[7], in: block) == nil)
-}
-
-@MainActor
-@Test func hasSessionAheadIncludesUnavailableSessions() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[1].exercises = []
-    sessions[2].exercises = []
-    sessions[3].exercises = []
-
-    let tracker = SessionProgressTracker()
-
-    #expect(tracker.hasSessionAhead(after: sessions[0], in: block))
-    #expect(!tracker.hasSessionAhead(after: sessions[7], in: block))
-}
-
-@MainActor
-@Test func persistedIdentityRoundTripsToSameSessionAcrossBlock() throws {
-    let block = makeBlock()
-    let tracker = SessionProgressTracker()
-
-    for session in sortedSessions(in: block) {
-        let identity = tracker.persistedIdentity(of: session)
-        let roundTripped = try #require(tracker.session(for: identity, in: block))
-
-        #expect(roundTripped.persistentModelID == session.persistentModelID)
-    }
-}
-
-@MainActor
-@Test func persistedIdentityKeepsTheStoredOverrideEncoding() throws {
-    let block = makeBlock()
-    let tracker = SessionProgressTracker()
-    let sessions = sortedSessions(in: block)
-    let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
-    let week1Day2 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 2 })
-
-    #expect(tracker.persistedIdentity(of: week2Day1).storageValue == 8)
-    #expect(tracker.persistedIdentity(of: week1Day2).storageValue == 2)
-}
-
-@MainActor
-@Test func currentSessionOverrideStorageKeyIsNamespacedPerBlockTab() {
-    let tracker = SessionProgressTracker()
-
-    // Namespaced so a legacy pre-V2 value under `advancedToOrder_*` is orphaned, and
-    // one Block's override never leaks into another's.
-    #expect(tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27") == "advancedToOrderV2_Block 27")
-    #expect(tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27")
-        != tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 28"))
-}
-
-@MainActor
-@Test func currentSessionUsesValidOverrideEvenWhenBehindDerivedProgress() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[2].exercises[0].sets[0].state = .logged
-    let tracker = SessionProgressTracker()
-
-    let ahead = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[4]))  // W2 D1
-    let behind = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[1]))  // W1 D2
-
-    #expect(ahead?.week?.number == 2)
-    #expect(ahead?.dayNumber == 1)
-    #expect(behind?.week?.number == 1)
-    #expect(behind?.dayNumber == 2)
-}
-
-@MainActor
-@Test func currentSessionIgnoresUnavailableOverride() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[1].exercises = []
-    let tracker = SessionProgressTracker()
-
-    let current = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[1]))  // W1 D2
-
-    #expect(current?.week?.number == 1)
-    #expect(current?.dayNumber == 1)
-}
-
-@MainActor
-@Test func currentSessionIgnoresInvalidOverride() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[2].exercises[0].sets[0].state = .logged
-
-    // A stale persisted identity that matches no Session in this Block.
-    let current = SessionProgressTracker().currentSession(in: block, override: PersistedSessionIdentity(storageValue: 99))
-
-    #expect(current?.week?.number == 1)
-    #expect(current?.dayNumber == 3)
 }
 
 @MainActor
@@ -370,7 +276,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let current = try #require(SessionProgressTracker().currentSession(in: block))
     let openExercises = SessionProgressTracker().openExercises(for: current)
 
-    #expect(openExercises.map(\.exercise.baseName) == ["Squat", "Squat"])
+    #expect(openExercises.map(\.exercise.exerciseName.base) == ["Squat", "Squat"])
     #expect(openExercises.map(\.session.dayNumber) == [1, 2])
 }
 
@@ -463,15 +369,29 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func moveOnDestinationIsNoneWhenNothingLiesAhead() throws {
+@Test func moveOnDestinationReturnsToBlockOverviewFromTheLastSession() throws {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     let tracker = SessionProgressTracker()
 
     let destination = tracker.moveOnDestination(from: sessions[7], in: block)
 
-    #expect(destination == .notOffered)
-    #expect(!destination.isOffered)
+    #expect(destination == .returnToBlockOverview)
+}
+
+/// A Session held across a sync is no longer one of the Block's Sessions. Move On from it used to
+/// read a Session with no Week as Week 1, so W2 D3 advanced to W1 D4 (#897).
+@MainActor
+@Test func moveOnIsNotOfferedFromASessionTheBlockNoLongerHolds() throws {
+    let block = makeBlock()
+    let tracker = SessionProgressTracker()
+    let detached = Session(dayNumber: 3, date: nil)
+    let replaced = try #require(sortedSessions(in: makeBlock()).first { $0.week?.number == 2 && $0.dayNumber == 3 })
+
+    #expect(tracker.moveOnDestination(from: detached, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: detached, in: block) == nil)
+    #expect(tracker.moveOnDestination(from: replaced, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: replaced, in: block) == nil)
 }
 
 // MARK: - Current-Week membership
@@ -505,7 +425,8 @@ private func sortedSessions(in block: Block) -> [Session] {
 
     #expect(
         Set(members.map(\.persistentModelID))
-            == Set([sessionA1, sessionA2].map(\.persistentModelID)))
+            == Set([sessionA1, sessionA2].map(\.persistentModelID))
+    )
     #expect(!members.map(\.persistentModelID).contains(sessionB1.persistentModelID))
 }
 

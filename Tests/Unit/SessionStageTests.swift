@@ -49,8 +49,7 @@ private func benchHistory() -> LastPerformedLookupSnapshot {
     LastPerformedLookupSnapshot(
         occurrences: [
             LastPerformedOccurrence(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                exerciseName: "Bench Press",
                 resultText: "185x6@7",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: "W3 D2"
@@ -423,7 +422,7 @@ extension SessionStageTests {
 
     @Test func titlesReadTheBaseNameWithoutTheCadencePrefix() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
-        let rdl = Exercise(name: "2-3:1:0 BB RDL", baseName: "BB RDL", cadence: "2-3:1:0", coachNote: nil, order: 1)
+        let rdl = Exercise(name: "2-3:1:0 BB RDL", coachNote: nil, order: 1)
         rdl.sets = [ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)]
 
         let stage = makeStage([squat, rdl])

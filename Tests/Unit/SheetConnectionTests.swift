@@ -8,7 +8,8 @@ import Testing
     (DestructiveTransitionFailure.syncInProgress, "A sync is already in progress."),
     (.pendingCheckFailed, "Couldn't check pending logs. Try again."),
     (.discardFailed, "Couldn't discard pending logs. Try again."),
-    (.syncFailed, "Couldn't sync selected sheet. Try again.")
+    (.syncFailed, "Couldn't sync selected sheet. Try again."),
+    (.holdsNoBlock, "No training blocks found in this sheet")
 ])
 func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFailure, expected: String) {
     #expect(failure.message == expected)
@@ -23,6 +24,7 @@ func everyDestructiveTransitionFailureSaysWhy(failure: DestructiveTransitionFail
             "You have unsynced changes from a previous sheet. Review them in Settings before switching."
         ),
         (.failed(.syncFailed), "Couldn't sync selected sheet. Try again."),
+        (.failed(.holdsNoBlock), "No training blocks found in this sheet"),
         (.failed(.syncInProgress), "A sync is already in progress.")
     ] as [(SheetSwitchResult, String?)]
 )
@@ -243,6 +245,28 @@ func onboardingSaysWhyASelectionDidNotConnect(result: SheetSwitchResult, expecte
     )
 
     #expect(result == .failed(.syncFailed))
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(settings.spreadsheetTitle == "Old Training Log")
+    #expect(reloadCount == 0)
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
+}
+
+@MainActor
+@Test func sheetSwitchToASheetWithNoBlockTabSaysSoAndCommitsNothing() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    try seedStaleBlock(tabName: "Block 26", into: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let client = RecordingSheetsClient(titles: ["Intro", "Notes"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
+    var reloadCount = 0
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context)) {
+        reloadCount += 1
+    }
+
+    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet", title: "Notes Only"))
+
+    #expect(result == .failed(.holdsNoBlock))
     #expect(settings.spreadsheetId == "old-sheet")
     #expect(settings.spreadsheetTitle == "Old Training Log")
     #expect(reloadCount == 0)
@@ -626,6 +650,27 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 // MARK: - Onboarding
 
 @MainActor
+@Test func confirmedSheetSwitchToASheetWithNoBlockTabSaysSoAndKeepsTheOldSheet() async throws {
+    let container = try makeCacheSafetyContainer()
+    let context = container.mainContext
+    try seedStaleBlock(tabName: "Block 26", into: context)
+    try queueReplacementSquatLog(in: context)
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
+    let client = RecordingSheetsClient(titles: ["Intro", "Notes"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
+    let connection = SheetConnection(settings: settings, sync: SyncCoordinator(client: client, context: context), onSynced: {})
+    let newSheet = SheetSelection(spreadsheetId: "new-sheet", title: "Notes Only")
+
+    #expect(await connection.requestSwitch(to: newSheet) == .requiresConfirmation(newSheet))
+    await #expect(throws: DestructiveTransitionFailure.holdsNoBlock) {
+        try await connection.confirmSwitch(to: newSheet)
+    }
+
+    #expect(settings.spreadsheetId == "old-sheet")
+    #expect(try context.fetch(FetchDescriptor<Block>()).map(\.tabName) == ["Block 26"])
+}
+
+@MainActor
 @Test func onboardingSelectionWithAPreviousSheetsPendingLogsAsksForConfirmationAndKeepsThem() async throws {
     let container = try makeCacheSafetyContainer()
     let context = container.mainContext
@@ -651,7 +696,10 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
     let sync = SyncCoordinator(client: client, context: container.mainContext)
     let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
 
-    #expect(await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) == .failed(.syncFailed))
+    let result = await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet"))
+
+    #expect(result == .failed(.syncFailed))
+    #expect(result.onboardingMessage == "Couldn't sync selected sheet. Try again.")
     #expect(settings.spreadsheetId == nil)
 }
 
@@ -704,8 +752,6 @@ private func seedStaleBlock(tabName: String, into context: ModelContext) throws 
                             exercises: [
                                 ParsedExercise(
                                     name: "Squat",
-                                    baseName: "Squat",
-                                    cadence: nil,
                                     coachNote: nil,
                                     sets: [
                                         ParsedSet(
@@ -775,7 +821,7 @@ private final class RecordingSheetsClient: SheetsClient, @unchecked Sendable {
         SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         await recorder.recordUpdate(spreadsheetId)
     }
 

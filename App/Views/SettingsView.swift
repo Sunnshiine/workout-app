@@ -57,7 +57,7 @@ struct SettingsView: View {
                         LabeledContent {
                             RowValue(text: sheetDisplayName)
                         } label: {
-                            RowLabel(title: "Training Sheet")
+                            RowLabel(title: "Training Sheet", systemImage: "tablecells")
                         }
                     }
                     .disabled(isSheetBusy)
@@ -69,7 +69,7 @@ struct SettingsView: View {
                         LabeledContent {
                             RowValue(text: connection.syncNowDetail)
                         } label: {
-                            RowLabel(title: "Sync now")
+                            RowLabel(title: "Sync now", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
                     .disabled(!connection.canSyncNow)
@@ -89,7 +89,8 @@ struct SettingsView: View {
                     Button(role: .destructive) {
                         requestSignOut()
                     } label: {
-                        Text("Sign Out")
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .labelStyle(.iconOnly)
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -106,27 +107,29 @@ struct SettingsView: View {
             .background(palette.paperBackground.ignoresSafeArea())
             .navigationTitle("Settings")
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", systemImage: "checkmark") {
                         dismiss()
                     }
                     .accessibilityIdentifier("settings-done-button")
                 }
             }
         }
-        .sheet(isPresented: $isSheetPickerPresented) {
-            sheetPickerSheet
-        }
-        .alert(
+        .sheet(
+            isPresented: $isSheetPickerPresented,
+            onDismiss: { pendingSwitch = nil },
+            content: { sheetPickerSheet }
+        )
+        .destructiveConfirmation(
             "You have unsynced changes. Sign out anyway?",
-            isPresented: $isSignOutConfirmationPresented
+            isPresented: $isSignOutConfirmationPresented,
+            action: DestructiveAction(
+                label: "Sign Out",
+                systemImage: "rectangle.portrait.and.arrow.right",
+                identifier: "sign-out-confirm-button"
+            )
         ) {
-            Button("Cancel", role: .cancel) {}
-            Button("Sign Out", role: .destructive) {
-                Task { await signOutNow() }
-            }
-        } message: {
-            Text("Pending logs for the current sheet will be discarded.")
+            Task { await signOutNow() }
         }
         .alert("Settings Error", isPresented: settingsErrorPresented, presenting: settingsError) { _ in
             Button("OK", role: .cancel) {}
@@ -229,17 +232,17 @@ struct SettingsView: View {
             .background(palette.gradient.ignoresSafeArea())
             .navigationTitle("Training Sheet")
         }
-        .alert(
+        .destructiveConfirmation(
             "You have unsynced changes. Switch anyway?",
             isPresented: pendingSwitchConfirmation,
-            presenting: pendingSwitch
-        ) { selection in
-            Button("Cancel", role: .cancel) {}
-            Button("Switch Anyway", role: .destructive) {
-                Task { await confirmSwitch(to: selection) }
-            }
-        } message: { _ in
-            Text("Pending logs for the current sheet will be discarded.")
+            action: DestructiveAction(
+                label: "Switch Anyway",
+                systemImage: "arrow.left.arrow.right",
+                identifier: "switch-sheet-confirm-button"
+            )
+        ) {
+            guard let selection = pendingSwitch else { return }
+            Task { await confirmSwitch(to: selection) }
         }
     }
 
@@ -270,9 +273,13 @@ struct SettingsView: View {
 private struct RowLabel: View {
     @Environment(\.isEnabled) private var isEnabled
     let title: String
+    let systemImage: String
 
     var body: some View {
-        Text(title).foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
+        Image(systemName: systemImage)
+            .foregroundStyle(isEnabled ? Color.blue : inactiveRowInk)
+            .accessibilityLabel(title)
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
     }
 }
 
@@ -305,5 +312,90 @@ private struct StackedAtAccessibilitySizes: LabeledContentStyle {
         } else {
             LabeledContent(configuration)
         }
+    }
+}
+
+private struct DestructiveAction {
+    let label: String
+    let systemImage: String
+    let identifier: String
+}
+
+/// An `.alert` action drops its Label's glyph on iOS 26 and draws the text alone, so the
+/// confirmations that discard pending Set Logs draw their own alert to show the icon. Like a
+/// system alert, the card holds the presentation under it until the athlete answers.
+private struct DestructiveConfirmation: ViewModifier {
+    @Environment(\.themePalette) private var palette
+    @AccessibilityFocusState private var isTitleFocused: Bool
+    let title: String
+    @Binding var isPresented: Bool
+    let action: DestructiveAction
+    let onConfirm: () -> Void
+
+    func body(content: Content) -> some View {
+        content.overlay {
+            if isPresented {
+                ZStack {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    card
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: isPresented)
+        .interactiveDismissDisabled(isPresented)
+    }
+
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .fontWeight(.semibold)
+                .foregroundStyle(palette.textPrimary)
+                .accessibilityFocused($isTitleFocused)
+            Text("Pending logs for the current sheet will be discarded.")
+                .foregroundStyle(palette.textSecondary)
+            HStack(spacing: 12) {
+                Button(role: .cancel) {
+                    isPresented = false
+                } label: {
+                    Text("Cancel").frame(maxWidth: .infinity)
+                }
+                Button(role: .destructive) {
+                    onConfirm()
+                    isPresented = false
+                } label: {
+                    Label(action.label, systemImage: action.systemImage)
+                        .labelStyle(.iconOnly)
+                        .frame(maxWidth: .infinity)
+                }
+                .accessibilityIdentifier(action.identifier)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .padding(.top, 12)
+        }
+        .padding(24)
+        .frame(maxWidth: 320)
+        .background(palette.sheetFill, in: .rect(cornerRadius: Theme.Radius.soft))
+        .themeElevation(palette.surfaceShadow, in: .rect(cornerRadius: Theme.Radius.soft))
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityLabel(title)
+        .accessibilityAction(.escape) { isPresented = false }
+        .task { isTitleFocused = true }
+    }
+}
+
+extension View {
+    fileprivate func destructiveConfirmation(
+        _ title: String,
+        isPresented: Binding<Bool>,
+        action: DestructiveAction,
+        onConfirm: @escaping () -> Void
+    ) -> some View {
+        modifier(
+            DestructiveConfirmation(title: title, isPresented: isPresented, action: action, onConfirm: onConfirm)
+        )
     }
 }

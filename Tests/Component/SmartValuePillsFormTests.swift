@@ -64,22 +64,48 @@ import Testing
 }
 
 @MainActor
-@Test func repsPillShowsNonIntegerPrescriptionAsHint() {
-    let range = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        suggestion: .noSuggestion
-    )
+@Test func repsPillShowsUninterpretedRepsTextAsHint() {
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
         suggestion: .bodyweight
     )
 
-    #expect(range.repsText == "")
-    #expect(range.repsDisplay == "10-15")
-    #expect(range.isRepsDisplayingPlaceholder)
     #expect(amrap.repsText == "")
     #expect(amrap.repsDisplay == "AMRAP")
     #expect(amrap.isRepsDisplayingPlaceholder)
+}
+
+@MainActor
+@Test func aRepRangePrefillsItsLowEndSoLoggingUntouchedWritesIt() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "11-12", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(200)
+    )
+
+    #expect(form.repsText == "11")
+    #expect(!form.isRepsDisplayingPlaceholder)
+    #expect(form.makeLog() == SetLog(weight: .pounds(200), reps: 11, rpe: .eight))
+}
+
+@MainActor
+@Test func aSpacePaddedRepsCellPrefillsItsNumber() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: " 5 ", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .noSuggestion
+    )
+
+    #expect(form.repsText == "5")
+}
+
+@MainActor
+@Test func aLoggedSetShowsItsLoggedRepsNotTheRange() {
+    let set = ExerciseSet(index: 0, prescribedReps: "11-12", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    set.markLogged(SetLog(weight: .pounds(200), reps: 12, rpe: .nine), at: Date(timeIntervalSinceReferenceDate: 0))
+
+    let form = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+
+    #expect(form.repsText == "12")
+    #expect(form.prescribedReps == .target(11...12))
 }
 
 @MainActor
@@ -163,7 +189,7 @@ import Testing
 @MainActor
 @Test func formValidationMarksInvalidFieldsAndClearsThemAsTheyBecomeValid() {
     var form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
+        set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
         suggestion: .noSuggestion
     )
 
@@ -406,8 +432,7 @@ private func benchHistory(_ entries: [(resultText: String, source: String)]) -> 
     LastPerformedLookupSnapshot(
         occurrences: entries.map {
             LastPerformedOccurrence(
-                fullName: "Bench Press",
-                baseName: "Bench Press",
+                exerciseName: "Bench Press",
                 resultText: $0.resultText,
                 performedOn: Date(timeIntervalSinceReferenceDate: 0),
                 source: $0.source
@@ -443,17 +468,13 @@ private func cardForm(_ set: ExerciseSet, history: [(resultText: String, source:
 
 @MainActor
 private func competitionBenchPress() -> Exercise {
-    let exercise = makeBenchPress(loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
-    exercise.name = "Competition Bench Press"
-    exercise.baseName = "Competition Bench Press"
-    return exercise
+    makeBenchPress(named: "Competition Bench Press", loads: ["RPE6"], at: SessionAddress(week: 2, day: 2))
 }
 
-private func competitionBenchHistory(fullName: String, baseName: String) -> LastPerformedLookupSnapshot {
+private func competitionBenchHistory(name: ExerciseName) -> LastPerformedLookupSnapshot {
     LastPerformedLookupSnapshot(occurrences: [
         LastPerformedOccurrence(
-            fullName: fullName,
-            baseName: baseName,
+            exerciseName: name,
             resultText: "185x5@7, 195x5@8",
             performedOn: Date(timeIntervalSinceReferenceDate: 0),
             source: "Block 27 · W1 D2"
@@ -468,7 +489,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 
 @MainActor
 @Test func anEstimateFromAMovementLevelMatchNamesTheEntryItCameFrom() {
-    let history = competitionBenchHistory(fullName: "Comp Bench Press", baseName: "Comp Bench Press")
+    let history = competitionBenchHistory(name: "Comp Bench Press")
 
     let form = estimateForm(competitionBenchPress(), history: history)
 
@@ -479,7 +500,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 @MainActor
 @Test func aCaseOnlyMovementLevelMatchNamesTheEntryAsLastPerformedDoes() {
     let exercise = competitionBenchPress()
-    let history = competitionBenchHistory(fullName: "competition bench press", baseName: "competition bench press")
+    let history = competitionBenchHistory(name: "competition bench press")
 
     let form = estimateForm(exercise, history: history)
 
@@ -490,7 +511,7 @@ private func estimateForm(_ exercise: Exercise, history: LastPerformedLookupSnap
 
 @MainActor
 @Test func anEstimateFromAnEntryWithTheExercisesBaseNameNamesNoEntry() {
-    let history = competitionBenchHistory(fullName: "2-0:1:0 Competition Bench Press", baseName: "Competition Bench Press")
+    let history = competitionBenchHistory(name: "2-0:1:0 Competition Bench Press")
 
     let form = estimateForm(competitionBenchPress(), history: history)
 

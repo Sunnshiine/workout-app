@@ -411,7 +411,7 @@ private enum StageItem {
     }
 
     var title: String {
-        exercises.map(\.baseName).joined(separator: " + ")
+        exercises.map(\.exerciseName.base).joined(separator: " + ")
     }
 
     var isComplete: Bool { exercises.allSetsComplete }

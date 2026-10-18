@@ -6,7 +6,7 @@ import Testing
 
 private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
-    var updates: [(String, [[String]])] = []
+    var writes: [SheetCellWrite] = []
     var offlineFetches = 0
 
     init(grid: SheetGrid) {
@@ -23,12 +23,8 @@ private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        updates.append((range, values))
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -95,7 +91,7 @@ private func loggedSquatSets(in ctx: ModelContext) throws -> [String] {
     let week = try ctx.fetch(FetchDescriptor<Block>()).first?.weeks.first { $0.number == 1 }
     var logged: [String] = []
     for session in (week?.sessions ?? []).sorted(by: { $0.dayNumber < $1.dayNumber }) {
-        let sets: [ExerciseSet] = session.exercises.filter { $0.name == "Squat" }.flatMap(\.sets)
+        let sets: [ExerciseSet] = session.exercises.filter { $0.exerciseName == "Squat" }.flatMap(\.sets)
         for set in sets.sorted(by: { $0.index < $1.index }) where set.state == .logged {
             logged.append("w1d\(session.dayNumber) s\(set.index)=\(set.setLog?.formatted ?? "")")
         }
@@ -255,7 +251,7 @@ private func flushRefusesAWriteQueuedByHeaderRankWhereItsRankAndNumberDisagree(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome == .writesRefused(["Squat: \(refusal.lastError)"]))
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
@@ -273,7 +269,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
     let day: Int
     let dayNumbering: DayNumbering
     let setIndex: Int
-    let range: String
+    let cell: String
     let value: String
 }
 
@@ -286,7 +282,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         day: 2,
         dayNumbering: .legacyHeaderRank,
         setIndex: 1,
-        range: "'Block 27'!AA15",
+        cell: "AA15",
         value: "185x5@8, 190x5@8"
     ),
     QueuedWriteLanding(
@@ -296,7 +292,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         day: 3,
         dayNumbering: .legacyHeaderRank,
         setIndex: 0,
-        range: "'Block 27'!AQ15",
+        cell: "AQ15",
         value: "190x5@8"
     ),
     QueuedWriteLanding(
@@ -306,7 +302,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         day: 2,
         dayNumbering: .legacyHeaderRank,
         setIndex: 0,
-        range: "'Block 27'!AA15",
+        cell: "AA15",
         value: "190x5@8"
     ),
     QueuedWriteLanding(
@@ -316,7 +312,7 @@ private struct QueuedWriteLanding: Sendable, CustomTestStringConvertible {
         day: 1,
         dayNumbering: .headerNumber,
         setIndex: 0,
-        range: "'Block 27'!AA15",
+        cell: "AA15",
         value: "190x5@8"
     )
 ])
@@ -338,8 +334,7 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == [landing.range])
-    #expect(client.updates.map(\.1) == [[[landing.value]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: landing.cell, value: landing.value)])
     #expect(sync.outcome == .clear)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
@@ -362,7 +357,7 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
     await sync.sync(spreadsheetId: "sid")
 
     #expect(sync.outcome == .clear)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
     #expect(writes.map(\.lastError) == [dayHeadersChangedMeaning])
@@ -399,8 +394,7 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
     try store.log(set, as: SetLog(weight: .pounds(195), reps: 5, rpe: .eight))
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["195x5@8"]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "K15", value: "195x5@8")])
 }
 
 @MainActor
@@ -424,7 +418,7 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
     await sync.sync(spreadsheetId: "sid")
 
     #expect(sync.outcome == .clear)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(write.status == .pending)
     #expect(write.retryCount == 1)
     let overlaid = try loggedSquatSets(in: ctx)
@@ -444,8 +438,12 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!AA15", "'Block 27'!Y15"])
-    #expect(client.updates.map(\.1) == [[["190x5@9"]], [["9"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "AA15", value: "190x5@9"),
+            SheetCellWrite(tabName: "Block 27", a1: "Y15", value: "9")
+        ]
+    )
     #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
     let remaining = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(remaining.map(\.valueToWrite) == ["185x5@8"])
@@ -471,7 +469,7 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
@@ -494,8 +492,7 @@ func aHeaderRankWriteTheFlushStoppedBeforeShowsOnlyWhereItsRankAndNumberAgree(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!AA15"])
-    #expect(client.updates.map(\.1) == [[["190x5@8"]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "AA15", value: "190x5@8")])
     #expect(sync.outcome == .clear)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
@@ -570,8 +567,7 @@ private func openWithThisBuild(_ store: URL, client: HeaderRankStubClient) throw
             storage: .file(store),
             sheetsClient: client,
             defaults: .inMemory(),
-            now: { Date(timeIntervalSince1970: 2) },
-            seed: nil
+            now: { Date(timeIntervalSince1970: 2) }
         )
     )
 }
@@ -592,7 +588,7 @@ private func makeMigrationDirectory() throws -> URL {
 
     await app.sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(app.sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
     let writes = try app.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
@@ -611,8 +607,7 @@ private func makeMigrationDirectory() throws -> URL {
 
     await app.sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["190x5@8"]]])
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "K15", value: "190x5@8")])
     #expect(app.sync.outcome == .clear)
     #expect(try app.container.mainContext.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     let blocks = try app.container.mainContext.fetch(FetchDescriptor<Block>())

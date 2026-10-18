@@ -17,9 +17,11 @@ import Testing
 @Suite struct AppIconAssetTests {
     private static func iconManifests() throws -> [URL] {
         let entries = try FileManager.default.contentsOfDirectory(
-            at: RepositoryFiles.existingURL(of: "App"), includingPropertiesForKeys: nil
+            at: RepositoryFiles.existingURL(of: "App"),
+            includingPropertiesForKeys: nil
         )
-        return entries
+        return
+            entries
             .filter { $0.pathExtension == "icon" }
             .map { $0.appendingPathComponent("icon.json") }
             .sorted { $0.path < $1.path }

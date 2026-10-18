@@ -3,26 +3,12 @@ import Testing
 
 @testable import WorkoutTracker
 
-private final class StubWriteClient: SheetsClient, @unchecked Sendable {
-    var titles: [String] = ["Block 27"]
+private struct WriterFixture {
     var grid: SheetGrid
-    var updates: [(range: String, values: [[String]])] = []
-
-    init(grid: SheetGrid) {
-        self.grid = grid
-    }
-
-    func listTabTitles(spreadsheetId: String) async throws -> [String] { titles }
-    func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-        SheetSnapshot(values: grid)
-    }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        updates.append((range, values))
-    }
 }
 
-private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
-    StubWriteClient(
+private func writerFixture(_ cells: [String: String]) -> WriterFixture {
+    WriterFixture(
         grid: gridFromA1(
             [
                 "C12": "Day 1", "S12": "Day 2",
@@ -34,10 +20,9 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     )
 }
 
-@Test func writesSetLogToNotesContinuationRow() async throws {
+@Test func writesSetLogToNotesContinuationRow() throws {
     let client = writerFixture(["C15": "Squat", "D15": "2", "K15": "Coach note"])
     let planner = SheetWritePlanner()
-    let writer = SheetWriter(client: client)
     let request = SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: "Squat",
@@ -48,12 +33,9 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         expectedCurrentValue: ""
     )
 
-    let update = try planner.plan(request, in: client.grid)
-    try await writer.write(update, spreadsheetId: "sid")
+    let cell = try planner.plan(request, in: client.grid)
 
-    #expect(client.updates.count == 1)
-    #expect(client.updates[0].range == "'Block 27'!K16")
-    #expect(client.updates[0].values == [["185x5@8"]])
+    #expect(cell == SheetCellWrite(tabName: "Block 27", a1: "K16", value: "185x5@8"))
 }
 
 @Test func writesSetOneToEmptyCompactHeaderNotes() throws {
@@ -71,8 +53,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!K15")
-    #expect(update.value == "25x12@7")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "K15", value: "25x12@7"))
 }
 
 @Test func writesCompactSetTwoToHeaderNotesAggregate() throws {
@@ -92,8 +73,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: client.grid
     )
 
-    #expect(setTwoUpdate.range == "'Block 27'!K15")
-    #expect(setTwoUpdate.value == "25x12@7, 25x12@8")
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K15", value: "25x12@7, 25x12@8"))
 }
 
 @Test func writesCoachNoteLayoutSetTwoToContinuationRow() throws {
@@ -112,8 +92,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: writerFixture(["C15": "Ab of Choice", "D15": "2", "K15": "Coach note", "C18": "Bench"]).grid
     )
 
-    #expect(setTwoUpdate.range == "'Block 27'!K16")
-    #expect(setTwoUpdate.value == ", 25x12@8")
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K16", value: ", 25x12@8"))
 }
 
 @Test func writesCompactSetTwoAfterApplyingSetOneToSnapshot() throws {
@@ -147,10 +126,8 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: updatedSnapshot
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!K15")
-    #expect(setOneUpdate.value == "25x12@7")
-    #expect(setTwoUpdate.range == "'Block 27'!K15")
-    #expect(setTwoUpdate.value == "25x12@7, 25x12@8")
+    #expect(setOneUpdate == SheetCellWrite(tabName: "Block 27", a1: "K15", value: "25x12@7"))
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K15", value: "25x12@7, 25x12@8"))
 }
 
 @Test func editsExistingCompactHeaderSetLogWhenExpectedValueMatches() throws {
@@ -168,8 +145,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!K15")
-    #expect(update.value == "30x12@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "K15", value: "30x12@8"))
 }
 
 @Test func matchingCoachNoteStillDoesNotMakeHeaderWritable() throws {
@@ -195,23 +171,6 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
     }
 }
 
-@Test func defaultClientBatchUpdateRejectsMultipleUpdatesWithoutPartialWrites() async throws {
-    let client = writerFixture(["C15": "Squat", "D15": "2"])
-    let writer = SheetWriter(client: client)
-
-    await #expect(throws: SheetsError.unsupportedBatchUpdate) {
-        try await writer.write(
-            [
-                SheetCellUpdate(tabName: "Block 27", row: 15, col: 10, value: "185x5@8"),
-                SheetCellUpdate(tabName: "Block 27", row: 16, col: 10, value: "195x5@8")
-            ],
-            spreadsheetId: "sid"
-        )
-    }
-
-    #expect(client.updates.isEmpty)
-}
-
 @Test func protectsAnchorNotesByWritingBelowAnchor() async throws {
     let client = writerFixture(["C15": "Squat", "D15": "1", "K15": "Coach note"])
     let planner = SheetWritePlanner()
@@ -227,7 +186,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!K16")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K16"))
 }
 
 @Test func writesLastSetRPEToAnchorRow() async throws {
@@ -245,8 +204,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!I15")
-    #expect(update.value == "9")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "I15", value: "9"))
 }
 
 @Test func resolvesShiftedNotesAndRPEColumnsFromRoleHeaders() throws {
@@ -286,8 +244,8 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(notesUpdate.range == "'Block 27'!E16")
-    #expect(rpeUpdate.range == "'Block 27'!G15")
+    #expect(notesUpdate.target == SheetWriteTarget(tabName: "Block 27", a1: "E16"))
+    #expect(rpeUpdate.target == SheetWriteTarget(tabName: "Block 27", a1: "G15"))
 }
 
 @Test func resolvesShiftedExerciseRowsFromExerciseAnchors() throws {
@@ -315,7 +273,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!K18")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K18"))
 }
 
 @Test func parserAndWriterAgreeOnShiftedCoachNoteContinuationRows() throws {
@@ -349,8 +307,7 @@ private func writerFixture(_ cells: [String: String]) -> StubWriteClient {
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E19")
-    #expect(update.value == "25x12@7, 22.5x10@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "E19", value: "25x12@7, 22.5x10@8"))
 }
 
 private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> SheetGrid {
@@ -371,8 +328,12 @@ private func multiLinePrescriptionGrid(_ extra: [String: String] = [:]) -> Sheet
     )
 }
 
-private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: String, expected: String = "")
-    -> SheetWriteRequest {
+private func multiLineNotesRequest(
+    _ name: String,
+    _ setIndex: Int,
+    value: String,
+    expected: String = ""
+) -> SheetWriteRequest {
     SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
         exerciseName: name,
@@ -388,13 +349,21 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let planner = SheetWritePlanner()
     let grid = multiLinePrescriptionGrid()
 
-    #expect(try planner.plan(multiLineNotesRequest("Comp SQ", 0, value: "135x5@6"), in: grid).range == "'Block 27'!J15")
-    #expect(try planner.plan(multiLineNotesRequest("Comp SQ", 1, value: "115x5@7"), in: grid).range == "'Block 27'!J16")
-    #expect(try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid).range == "'Block 27'!J17")
+    #expect(
+        try planner.plan(multiLineNotesRequest("Comp SQ", 0, value: "135x5@6"), in: grid).target
+            == SheetWriteTarget(tabName: "Block 27", a1: "J15")
+    )
+    #expect(
+        try planner.plan(multiLineNotesRequest("Comp SQ", 1, value: "115x5@7"), in: grid).target
+            == SheetWriteTarget(tabName: "Block 27", a1: "J16")
+    )
+    #expect(
+        try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid).target
+            == SheetWriteTarget(tabName: "Block 27", a1: "J17")
+    )
 
     let bpSetTwo = try planner.plan(multiLineNotesRequest("Comp BP", 1, value: "135x7@8"), in: grid)
-    #expect(bpSetTwo.range == "'Block 27'!J18")
-    #expect(bpSetTwo.value == "135x7@8")
+    #expect(bpSetTwo == SheetCellWrite(tabName: "Block 27", a1: "J18", value: "135x7@8"))
 }
 
 @Test func aggregatesMultiSetLineLogsWithinOneNotesCell() throws {
@@ -403,8 +372,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
 
     let bpSetThree = try planner.plan(multiLineNotesRequest("Comp BP", 2, value: "140x7@9"), in: grid)
 
-    #expect(bpSetThree.range == "'Block 27'!J18")
-    #expect(bpSetThree.value == "135x7@8, 140x7@9")
+    #expect(bpSetThree == SheetCellWrite(tabName: "Block 27", a1: "J18", value: "135x7@8, 140x7@9"))
 }
 
 @Test func refusesToOverwriteLegacyLogOnMultiLinePrescriptionLine() throws {
@@ -426,6 +394,43 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     }
 }
 
+@Test func aCoachNoteLineLogsToTheSpareRowAndReadsBackLogged() throws {
+    // #942: the anchor Line's Notes cell holds a Coach Note, so Set 1 lands on the first spare row
+    // of the Exercise (row 18 here, below Comp BP's two Lines) and the Coach Note stays as written.
+    let parser = SheetParser()
+    let planner = SheetWritePlanner()
+    let coachNote = "Brace hard, controlled descent"
+    let snapshot = planner.snapshot(
+        for: multiLinePrescriptionGrid(["J17": coachNote, "C19": "", "D19": "", "C20": "Hip Thrust", "D20": "2"])
+    )
+
+    let update = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: snapshot)
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "J19", value: "95x5@6"))
+
+    let after = planner.applying(update, to: snapshot)
+    #expect(after.grid.cell(row: 16, col: 9) == coachNote)
+    let compBP = try #require(parser.parse(grid: after.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1])
+    #expect(compBP.coachNote == coachNote)
+    #expect(compBP.sets.map(\.state) == [.logged, .pending, .pending])
+    #expect(compBP.sets[0].setLog == SetLog(weight: .pounds(95), reps: 5, rpe: .six))
+}
+
+@Test func aCoachNoteLineWithoutASpareRowNamesTheProtectedNotes() throws {
+    // Comp BP's Lines fill its span, so the Coach Note leaves its first Set nowhere to go. The
+    // refusal names the Exercise and the protected Notes, not the Coach Note's first comma fragment.
+    let planner = SheetWritePlanner()
+    let grid = multiLinePrescriptionGrid(["J17": "Brace hard, controlled descent"])
+
+    do {
+        _ = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid)
+        Issue.record("Expected the Coach Note Line write to be refused")
+    } catch let error as SheetWriterError {
+        #expect(error == .headerNotesBlockSetRow(exerciseName: "Comp BP", setIndex: 0))
+    } catch {
+        Issue.record("Expected SheetWriterError, got \(error)")
+    }
+}
+
 @Test func parserAndWriterAgreeOnMultiLinePrescriptionSets() throws {
     let parser = SheetParser()
     let planner = SheetWritePlanner()
@@ -434,7 +439,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
     let compBP = try #require(
         parser.parse(grid: snapshot.grid, tabName: "Block 27").block.weeks.first?.days.first?.exercises[1]
     )
-    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.exerciseName.base == "Comp BP")
     #expect(compBP.sets.count == 3)
 
     let afterSetTwo = planner.applying(
@@ -515,7 +520,7 @@ private func multiLineNotesRequest(_ name: String, _ setIndex: Int, value: Strin
 
     let update = try planner.plan(request, in: client.grid)
 
-    #expect(update.range == "'Block 27'!K16")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K16"))
 }
 
 @Test func refusesMissingContinuationRowWhenLegacyLogFillsHeader() throws {

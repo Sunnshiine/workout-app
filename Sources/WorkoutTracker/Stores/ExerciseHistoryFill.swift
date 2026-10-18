@@ -65,17 +65,23 @@ final class ExerciseHistoryFill {
     private let context: ModelContext
     private let index: any LastPerformedIndexing
     private let backoff: SheetsBackoff
+    /// The priority each tab's scan runs at off the main actor. The app keeps `.background`, so the
+    /// fill yields to the athlete's work. Tests raise it, because a loaded host starves
+    /// `.background` work for minutes (#899).
+    private let scanPriority: TaskPriority
 
     init(
         client: any SheetsClient,
         context: ModelContext,
         index: any LastPerformedIndexing,
-        backoff: SheetsBackoff = SheetsBackoff()
+        backoff: SheetsBackoff = SheetsBackoff(),
+        scanPriority: TaskPriority = .background
     ) {
         self.client = client
         self.context = context
         self.index = index
         self.backoff = backoff
+        self.scanPriority = scanPriority
     }
 
     /// One traversal, awaitable. Safe to call again after any outcome: the cursor and `source`
@@ -143,7 +149,7 @@ extension ExerciseHistoryFill {
         let backoff = backoff
         let scan: TabScan
         do {
-            scan = try await Task.detached(priority: .background) {
+            scan = try await Task.detached(priority: scanPriority) {
                 try await Self.scan(tab: tab, spreadsheetId: spreadsheetId, client: client, backoff: backoff)
             }.value
         } catch {

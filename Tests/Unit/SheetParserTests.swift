@@ -64,14 +64,6 @@ import Testing
     }
 }
 
-@Test func splitsCadencePrefix() {
-    #expect(splitCadence("2-3:1:0 BB RDL").cadence == "2-3:1:0")
-    #expect(splitCadence("2-3:1:0 BB RDL").base == "BB RDL")
-    #expect(splitCadence("0:3:0 Standing Calve Raises").base == "Standing Calve Raises")
-    #expect(splitCadence("Lateral Raises").cadence == nil)
-    #expect(splitCadence("Lateral Raises").base == "Lateral Raises")
-}
-
 @Test func parsesTrainingMaxValuesFromHeaderArea() {
     let grid = gridFromA1(
         [
@@ -153,6 +145,34 @@ import Testing
     #expect(twoValues[.squat] == 365)
 }
 
+@Test(
+    "A Training Max that is not a finite number is absent, as a non-numeric cell is",
+    arguments: ["inf", "nan", "Infinity", "1e400", "-nan", "snan"]
+)
+func aNonFiniteTrainingMaxIsAbsent(cell: String) {
+    let tm = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": cell, "C8": "Bench Press", "E8": "365"],
+            rows: 20,
+            cols: 10
+        )
+    )
+
+    #expect(tm == [.bench: 365])
+}
+
+@Test func aRepeatedTrainingMaxLabelPassesOverANonFiniteValue() {
+    let tm = parseTrainingMax(
+        from: gridFromA1(
+            ["E6": "Training Max", "C7": "Squat", "E7": "inf", "C8": "Squat", "E8": "365"],
+            rows: 20,
+            cols: 10
+        )
+    )
+
+    #expect(tm == [.squat: 365])
+}
+
 @Test func parsesAnchorAndContinuationRows() {
     // Real rows: C15 anchor "0:3:0 Standing Calve Raises", D15 Sets=2, F15 Reps=12,
     // H15 Load "RPE9, RPE10", K15 coach/log "Superset cue". Next anchor C22.
@@ -170,14 +190,14 @@ import Testing
 
     let exercises = parseDay(in: grid, section: section, headerIndex: 0)
     #expect(exercises.count == 2)
-    #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
-    #expect(exercises[0].baseName == "Standing Calve Raises")
+    #expect(exercises[0].exerciseName.entered == "0:3:0 Standing Calve Raises")
+    #expect(exercises[0].exerciseName.base == "Standing Calve Raises")
     #expect(exercises[0].coachNote == "Superset cue")
     #expect(exercises[0].sets.count == 2)  // "2" sets
     #expect(exercises[0].sets[0].prescribedReps == "12")
     #expect(exercises[0].sets[0].prescribedLoad == "RPE9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE10")
-    #expect(exercises[1].baseName == "Pull Up")
+    #expect(exercises[1].exerciseName.base == "Pull Up")
     #expect(exercises[1].sets[0].prescribedReps == "AMRAP")
     #expect(exercises[1].sets[0].prescribedLoad == "BW")
 }
@@ -208,7 +228,7 @@ import Testing
     #expect(parsed.block.trainingMaxes[.deadlift] == 455)
     #expect(parsed.block.weeks[0].number == 1)
     #expect(parsed.block.weeks[0].days.count == 4)
-    #expect(parsed.block.weeks[0].days[0].exercises[0].baseName == "Standing Calve Raises")
+    #expect(parsed.block.weeks[0].days[0].exercises[0].exerciseName.base == "Standing Calve Raises")
     #expect(parsed.block.weeks[1].days[0].exercises[0].sets[0].prescribedReps == "11 - 12")
 }
 
@@ -243,7 +263,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    #expect(parseDay(in: grid, section: section, headerIndex: 1).map(\.name) == ["Squat"])
+    #expect(parseDay(in: grid, section: section, headerIndex: 1).map(\.exerciseName.entered) == ["Squat"])
 }
 
 @Test func perSetLoadAndRepsAreSplitByComma() {
@@ -318,7 +338,7 @@ import Testing
     #expect(exercises.count == 2)
 
     let compSQ = exercises[0]
-    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.exerciseName.base == "Comp SQ")
     #expect(compSQ.sets.count == 2)
     #expect(compSQ.sets[0].prescribedReps == "5")
     #expect(compSQ.sets[0].prescribedLoad == "RPE6")
@@ -326,7 +346,7 @@ import Testing
     #expect(compSQ.sets[1].prescribedLoad == "Drop 20%")
 
     let compBP = exercises[1]
-    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.exerciseName.base == "Comp BP")
     #expect(compBP.sets.count == 3)
     #expect(compBP.sets[0].prescribedLoad == "RPE6")
     #expect(compBP.sets[1].prescribedReps == "7")
@@ -355,7 +375,7 @@ import Testing
     let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     let compSQ = exercises[0]
-    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.exerciseName.base == "Comp SQ")
     #expect(compSQ.sets.count == 2)
     // Legacy-Log line cell is protected: the Set stays Pending, not read as a Set Log.
     #expect(compSQ.sets[0].state == .pending)
@@ -410,7 +430,7 @@ import Testing
 
     #expect(exercises.count == 1)
     let lunges = exercises[0]
-    #expect(lunges.baseName == "Walking Lunges")
+    #expect(lunges.exerciseName.base == "Walking Lunges")
     #expect(lunges.sets.count == 2)  // 1 with the duplicate-header bug
     #expect(lunges.sets[0].prescribedReps == "12/leg")
     #expect(lunges.sets[0].prescribedLoad == "RPE7")
@@ -476,6 +496,47 @@ import Testing
     let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block 27")
     let day = try #require(parsed.block.weeks.first?.days.first)
 
-    #expect(day.exercises.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
+    #expect(day.exercises.map(\.exerciseName.entered) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exercises.map { $0.sets.count } == [3, 2])
+}
+
+private func backSquatSetCounts(setsCells: [String: String]) -> [Int] {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "S12": "Day 2",
+            "D14": "Sets", "F14": "Reps", "H14": "Load", "J14": "Notes",
+            "C15": "Back Squat", "F15": "5", "H15": "RPE7", "F16": "5", "H16": "RPE8",
+            "C19": "BW Pull Up", "D19": "2", "F19": "8", "H19": "BW"
+        ].merging(setsCells) { _, typed in typed },
+        rows: 24,
+        cols: 30
+    )
+    let section = locateWeekSections(in: grid)[0]
+    return parseDay(in: grid, section: section, headerIndex: 0).map(\.sets.count)
+}
+
+@Test(
+    "A Sets count past the cap reads like a non-numeric Sets cell, so a typo cannot crash or hang sync",
+    arguments: [
+        ("99", 99),
+        ("0", 1),
+        ("100", 1),
+        ("abc", 1),
+        ("1000000", 1),
+        ("5000000000", 1),
+        ("9223372036854775807", 1),
+        ("99999999999999999999", 1)
+    ]
+)
+func anchorSetsCountPastTheCapFallsBackToOneSet(typed: String, expectedSets: Int) {
+    #expect(backSquatSetCounts(setsCells: ["D15": typed]) == [expectedSets, 2])
+}
+
+@Test func aContinuationLineAfterAnOversizedAnchorSetsCountSumsWithoutOverflow() {
+    #expect(backSquatSetCounts(setsCells: ["D15": "9223372036854775807", "D16": "1"]) == [2, 2])
+}
+
+@Test func aContinuationRowWhoseSetsCountIsPastTheCapIsNotAPrescriptionLine() {
+    #expect(backSquatSetCounts(setsCells: ["D15": "3", "D16": "100"]) == [3, 2])
+    #expect(backSquatSetCounts(setsCells: ["D15": "3", "D16": "99"]) == [102, 2])
 }

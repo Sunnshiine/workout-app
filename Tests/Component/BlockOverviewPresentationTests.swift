@@ -106,17 +106,17 @@ private func blockWithControlledSessions(weeks: [[DayState]]) -> Block {
 private func makeSession(dayNumber: Int, day: DayState) -> Session {
     let session = Session(dayNumber: dayNumber, date: nil)
     guard day != .unavailable else {
-        session.exercises = [] // an un-uploaded day carries no Exercises
+        session.exercises = []  // an un-uploaded day carries no Exercises
         return session
     }
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: "Squat", coachNote: nil, order: 0)
     exercise.sets = (0..<4).map { index in
         let state: SetState
         switch day {
         case .complete:
             state = .logged
         case .partial:
-            state = index < 1 ? .logged : .pending // one settled Set of four → in progress
+            state = index < 1 ? .logged : .pending  // one settled Set of four → in progress
         case .available, .unavailable:
             state = .pending
         }
@@ -156,8 +156,6 @@ private func uniformDayBlock(daysPerWeek: Int, weeks: Int = 2) -> Block {
                             exercises: [
                                 ParsedExercise(
                                     name: "Squat",
-                                    baseName: "Squat",
-                                    cadence: nil,
                                     coachNote: nil,
                                     sets: [ParsedSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil)]
                                 )

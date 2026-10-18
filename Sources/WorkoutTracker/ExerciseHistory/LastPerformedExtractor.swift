@@ -9,7 +9,7 @@ enum LastPerformedExtractor {
     ///
     /// Append-only (ADR-0012): unlike the former single-entry index, this does not collapse
     /// to the latest occurrence per name. Each Session an Exercise was performed in yields its
-    /// own occurrence, keyed downstream by (`fullName`, `source`). Occurrences are emitted in
+    /// own occurrence, keyed downstream by (Entered Name, `source`). Occurrences are emitted in
     /// Session order (week → day → Exercise), each carrying its already-derived display text.
     static func occurrences(from block: ParsedBlockModel) -> [LastPerformedOccurrence] {
         var occurrences: [LastPerformedOccurrence] = []
@@ -21,8 +21,7 @@ enum LastPerformedExtractor {
 
                     occurrences.append(
                         LastPerformedOccurrence(
-                            fullName: exercise.name,
-                            baseName: exercise.baseName,
+                            exerciseName: exercise.exerciseName,
                             resultText: resultText,
                             performedOn: session.date ?? .distantPast,
                             source: SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))

@@ -297,8 +297,7 @@ private enum History {
     static func backSquatAndBBRDL() -> [LastPerformedEntry] {
         WorkoutFixtureScenarios.backSquatHistory() + [
             LastPerformedEntry(
-                fullName: "2-3:1:0 BB RDL",
-                baseName: "BB RDL",
+                exerciseName: "2-3:1:0 BB RDL",
                 resultText: "185x8, 195x8",
                 performedOn: Date(timeIntervalSinceReferenceDate: 100),
                 source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
@@ -417,20 +416,7 @@ private struct SessionPage: View {
 
 @MainActor
 private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: store,
-        sync: InertSessionSync(),
-        navigation: store,
-        motion: ImmediateSessionMotion()
-    )
-    return coordinator
-}
-
-private struct InertSessionSync: SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error) {}
-    func requestPendingWriteFlush() {}
+    SessionCoordinator(session: session, wiring: .fixture(logging: store, navigation: store))
 }
 
 @MainActor
@@ -487,7 +473,7 @@ private enum SessionPageHost {
 
     static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(
-            block: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
+            block: WorkbookScenario.completedOpenExercises.block()
         )
         VisualFixtureRetainer.retain(scenario)
         let session = try #require(scenario.store.viewedSession)

@@ -102,8 +102,8 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         return volumes.map { ($0 - minimum) / span }
     }
 
-    init(anchorBaseName: String, entries: [LastPerformedOccurrence]) {
-        title = anchorBaseName
+    init(anchor: ExerciseName, entries: [LastPerformedOccurrence]) {
+        title = anchor.base
         subtitle = "Exercise History · last \(Self.entryLimit)"
         mayStillDeepen = entries.count < Self.entryLimit
 
@@ -117,7 +117,7 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         var points: [VolumePoint] = []
         for entry in recent {
             let (header, gutter) = SessionCoordinate.labels(forStoredValue: entry.source)
-            let projected = Self.project(entry, gutter: gutter, header: header, anchorBaseName: anchorBaseName)
+            let projected = Self.project(entry, gutter: gutter, header: header, anchor: anchor)
             if grouped[header] == nil { order.append(header) }
             grouped[header, default: []].append(projected.row)
             if let point = projected.volumePoint { points.append(point) }
@@ -132,14 +132,14 @@ struct ExerciseHistorySheetPresentation: Equatable, Sendable {
         _ entry: LastPerformedOccurrence,
         gutter: String,
         header: String,
-        anchorBaseName: String
+        anchor: ExerciseName
     ) -> (row: Row, volumePoint: VolumePoint?) {
-        let cadence = splitCadence(entry.fullName).cadence
+        let cadence = entry.exerciseName.cadence
         let parsed = parse(entry.resultText)
 
         var annotations: [Annotation] = []
-        if entry.baseName.lowercased() != anchorBaseName.lowercased() {
-            annotations.append(.asName(entry.baseName))
+        if entry.exerciseName.differsBeyondCase(from: anchor) {
+            annotations.append(.asName(entry.exerciseName.base))
         }
         if parsed.skipCount > 0 {
             annotations.append(.skipped(parsed.skipCount))

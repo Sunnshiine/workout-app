@@ -8,8 +8,8 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var rowVisibility: [Int: SheetRowVisibility]
     var fetches: [String] = []
-    var attemptedRanges: [String] = []
-    var updates: [(String, [[String]])] = []
+    var attemptedTargets: [SheetWriteTarget] = []
+    var writes: [SheetCellWrite] = []
     var updateRequestCount = 0
     var failedUpdateRequestNumbers: Set<Int> = []
 
@@ -25,42 +25,16 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid, rowVisibility: rowVisibility)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         updateRequestCount += 1
-        attemptedRanges.append(range)
+        attemptedTargets.append(contentsOf: cells.map(\.target))
         if failedUpdateRequestNumbers.contains(updateRequestCount) {
             throw URLError(.cannotConnectToHost)
         }
-        updates.append((range, values))
-        apply(range: range, values: values)
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        updateRequestCount += 1
-        attemptedRanges.append(contentsOf: updates.map(\.range))
-        if failedUpdateRequestNumbers.contains(updateRequestCount) {
-            throw URLError(.cannotConnectToHost)
+        writes.append(contentsOf: cells)
+        for cell in cells {
+            grid.write([[cell.value]], atRow: cell.row, col: cell.col)
         }
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
-        for update in updates {
-            apply(range: update.range, values: update.values)
-        }
-    }
-
-    private func apply(range: String, values: [[String]]) {
-        guard
-            let reference = range.split(separator: "!").last,
-            let value = values.first?.first,
-            let target = a1CellIndex(String(reference))
-        else { return }
-
-        if target.row >= grid.count {
-            grid.append(contentsOf: SheetGrid(repeating: [], count: target.row - grid.count + 1))
-        }
-        if target.col >= grid[target.row].count {
-            grid[target.row].append(contentsOf: [String](repeating: "", count: target.col - grid[target.row].count + 1))
-        }
-        grid[target.row][target.col] = value
     }
 }
 
@@ -133,8 +107,13 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K30", "'Block 27'!K30", "'Block 27'!I30"])
-    #expect(client.updates.map(\.1) == [[["100x10@6"]], [["100x10@6, 100x10@6"]], [["6"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K30", value: "100x10@6"),
+            SheetCellWrite(tabName: "Block 27", a1: "K30", value: "100x10@6, 100x10@6"),
+            SheetCellWrite(tabName: "Block 27", a1: "I30", value: "6")
+        ]
+    )
     #expect(client.grid.cell(row: 29, col: 10) == "100x10@6, 100x10@6")
     #expect(client.grid.cell(row: 30, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
@@ -270,8 +249,12 @@ private func batchPendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "I15", value: "8")
+        ]
+    )
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
 }
@@ -289,8 +272,12 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K15", value: "185x6@8")
+        ]
+    )
     #expect(client.grid.cell(row: 14, col: 10) == "185x6@8")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
@@ -319,8 +306,12 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [[""]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "")
+        ]
+    )
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
@@ -343,7 +334,9 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K19"])
+    #expect(
+        client.writes.map(\.target) == [SheetWriteTarget(tabName: "Block 27", a1: "K15"), SheetWriteTarget(tabName: "Block 27", a1: "K19")]
+    )
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.count == 1)
     let conflict = try #require(writes.first)
@@ -365,7 +358,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .conflict })
     let messages = try #require(refusedWrites(sync.outcome))
@@ -397,7 +390,7 @@ private func batchPendingWrite(
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     let messages = try #require(refusedWrites(sync.outcome))
     let message = try #require(messages.first)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(write.status == .conflict)
     #expect(message.contains("0:2:0 Hip Thrust of Choice"))
     #expect(message.contains("Set 2"))
@@ -425,7 +418,7 @@ private func batchPendingWrite(
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(sync.outcome == .writesQueued(2))
     #expect(client.updateRequestCount == 1)
-    #expect(client.attemptedRanges == ["'Block 27'!K17"])
+    #expect(client.attemptedTargets == [SheetWriteTarget(tabName: "Block 27", a1: "K17")])
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })
     #expect(writes.map(\.retryCount).sorted() == [0, 1])
@@ -451,8 +444,8 @@ private func batchPendingWrite(
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(client.updateRequestCount == 1)
-    #expect(client.attemptedRanges == ["'Block 27'!K17", "'Block 27'!I15"])
-    #expect(client.updates.isEmpty)
+    #expect(client.attemptedTargets == [SheetWriteTarget(tabName: "Block 27", a1: "K17"), SheetWriteTarget(tabName: "Block 27", a1: "I15")])
+    #expect(client.writes.isEmpty)
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "185x5@8")
     #expect(client.grid.cell(row: 14, col: 8) == "")
@@ -501,8 +494,13 @@ private func batchPendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@9"]], [["9"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8, 195x5@9"),
+            SheetCellWrite(tabName: "Block 27", a1: "I15", value: "9")
+        ]
+    )
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "185x5@8, 195x5@9")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
