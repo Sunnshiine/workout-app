@@ -4,6 +4,10 @@
         let meaning: String
         var actsWithoutFixture = false
 
+        /// What every launch flag starts with, so `UITestLaunch.checkFlags` can tell a misspelt
+        /// flag from an argument that is not one.
+        static let prefix = "-UITEST_"
+
         static let fixture = LaunchFlag(
             argument: "-UITEST_FIXTURE",
             meaning:
@@ -34,27 +38,36 @@
 
         static let perfectMoveOnCelebration = LaunchFlag(
             argument: "-UITEST_PERFECT_MOVE_ON_CELEBRATION",
-            meaning: "Seeds a Block whose Week 1 Day 1 has every Set Logged or Skipped, and requests the Move On Celebration."
+            meaning: "Seeds the perfect-move-on-celebration workbook, whose Week 1 Day 1 has every Set Logged or Skipped,"
+                + " and requests the Move On Celebration."
         )
 
         static let completedOpenExercises = LaunchFlag(
             argument: "-UITEST_COMPLETED_OPEN_EXERCISES",
-            meaning: "Seeds one Week whose Day 2 has every Set Logged while Day 1's Back Squat still has a Pending Set."
+            meaning: "Seeds the completed-open-exercises workbook: one Week whose Day 2 has every Set Logged while Day 1's"
+                + " Back Squat still has a Pending Set."
         )
 
         static let openExercises = LaunchFlag(
             argument: "-UITEST_OPEN_EXERCISES",
-            meaning: "Seeds one Week whose Days 1 to 3 each hold one Open Exercise with some Sets Logged."
+            meaning: "Seeds the open-exercises workbook: one Week whose Days 1 to 3 each hold one Open Exercise with some Sets Logged."
         )
 
         static let longSession = LaunchFlag(
             argument: "-UITEST_LONG_SESSION",
-            meaning: "Seeds one Session of eight Exercises with only the first logged."
+            meaning: "Seeds the long-session workbook: one Session of eight Exercises with only the first logged."
         )
 
         static let fullBlock = LaunchFlag(
             argument: "-UITEST_FULL_BLOCK",
             meaning: "Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session."
+        )
+
+        static let partialUpload = LaunchFlag(
+            argument: "-UITEST_PARTIAL_UPLOAD",
+            meaning:
+                "Seeds the partial-upload workbook: four Weeks of four Days, eleven of them Unavailable Sessions."
+                + " A launch that names no Scenario flag gets it too."
         )
 
         static let disableAnimations = LaunchFlag(
@@ -120,6 +133,7 @@
             .openExercises,
             .longSession,
             .fullBlock,
+            .partialUpload,
             .disableAnimations,
             .disableLiveActivities,
             .pendingWrite,

@@ -14,11 +14,12 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_DEVELOPER_TOOLS` | Screen | Opens Developer Tools in place of the Session screen. |
 | `-UITEST_SETTINGS` | Screen | Opens Settings in place of the Session screen. |
 | `-UITEST_ONBOARDING` | Screen | Leaves the spreadsheet unselected, so the app opens on onboarding's sheet picker. |
-| `-UITEST_PERFECT_MOVE_ON_CELEBRATION` | Scenario 1 | Seeds a Block whose Week 1 Day 1 has every Set Logged or Skipped, and requests the Move On Celebration. |
-| `-UITEST_COMPLETED_OPEN_EXERCISES` | Scenario 2 | Seeds one Week whose Day 2 has every Set Logged while Day 1's Back Squat still has a Pending Set. |
-| `-UITEST_OPEN_EXERCISES` | Scenario 3 | Seeds one Week whose Days 1 to 3 each hold one Open Exercise with some Sets Logged. |
-| `-UITEST_LONG_SESSION` | Scenario 4 | Seeds one Session of eight Exercises with only the first logged. |
+| `-UITEST_PERFECT_MOVE_ON_CELEBRATION` | Scenario 1 | Seeds the perfect-move-on-celebration workbook, whose Week 1 Day 1 has every Set Logged or Skipped, and requests the Move On Celebration. |
+| `-UITEST_COMPLETED_OPEN_EXERCISES` | Scenario 2 | Seeds the completed-open-exercises workbook: one Week whose Day 2 has every Set Logged while Day 1's Back Squat still has a Pending Set. |
+| `-UITEST_OPEN_EXERCISES` | Scenario 3 | Seeds the open-exercises workbook: one Week whose Days 1 to 3 each hold one Open Exercise with some Sets Logged. |
+| `-UITEST_LONG_SESSION` | Scenario 4 | Seeds the long-session workbook: one Session of eight Exercises with only the first logged. |
 | `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session. |
+| `-UITEST_PARTIAL_UPLOAD` | Scenario 6 | Seeds the partial-upload workbook: four Weeks of four Days, eleven of them Unavailable Sessions. A launch that names no Scenario flag gets it too. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
 | `-UITEST_PENDING_WRITE` | Switch | Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, and keeps the fixture Sheet reachable, so a sync writes it to the Scenario's own workbook and reloads the Block from it. |
