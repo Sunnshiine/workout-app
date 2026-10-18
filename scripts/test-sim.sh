@@ -36,6 +36,8 @@ when its test log ends with a result line and none of them changed in the last 3
 when none of them changed in the last 24 hours, as for a run killed before its result line
 (SIGKILL, power loss). Copy a bundle or diff you cite into your proof directory, since only five
 runs are kept.
+Exits 65 when the build fails, after printing up to 20 of its error lines, then `build log: <path>`,
+on stderr.
 Exits 69 when xcodebuild failed and its log shows a simulator fault rather than a test result, such as
 a launch that returned no process handle, a CoreSimulator SimError, or a test the simulator's
 shutdown killed with SIGTERM. It shuts the simulator down
