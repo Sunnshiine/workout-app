@@ -44,6 +44,12 @@
         /// pending, and SpringBoard kills that instance and hands Xcode no process (#537).
         var disablesLiveActivities: Bool { has(.disableLiveActivities) }
 
+        /// A test that needs Live Activities leaves one up when its process ends. Reinstalled for
+        /// the next session, the app is relaunched for it by liveactivitiesd with no arguments, and
+        /// XCUITest can attach to that instance, which lands on onboarding. A launch that ends them
+        /// all leaves nothing to relaunch for.
+        var endsLiveActivities: Bool { has(.endLiveActivities) }
+
         var startsWithPendingWrite: Bool { has(.pendingWrite) }
 
         var slowsSync: Bool { has(.slowSync) }

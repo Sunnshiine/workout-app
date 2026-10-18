@@ -6,6 +6,23 @@ import XCTest
 /// xcodebuild environment says it was; without that they skip, so CI never presses a button set
 /// to nothing.
 final class ActionButtonDictationUITests: XCTestCase {
+    /// Each test leaves a Live Activity up, which outlives the app's process. Reinstalled for the
+    /// next test session, the app is relaunched for it by liveactivitiesd with no arguments, and
+    /// XCUITest can attach to that instance, which lands on onboarding and never shows the card
+    /// (#537). A launch that ends every activity leaves nothing to relaunch for.
+    override func tearDown() async throws {
+        guard ProcessInfo.processInfo.environment["WORKOUT_ACTION_BUTTON"] == "1" else { return }
+        await MainActor.run {
+            let app = XCUIApplication()
+            app.launchArguments =
+                WorkoutUITestFixture.currentSession.launchArguments
+                + ["-UITEST_END_LIVE_ACTIVITIES", "-UITEST_DISABLE_LIVE_ACTIVITIES"]
+            app.launch()
+            _ = app.buttons["log-active-set-button"].appears(within: 10)
+            app.terminate()
+        }
+    }
+
     @MainActor
     func testActionButtonLogsTheActiveSetOnTheLockScreenWithoutBringingTheAppForward() throws {
         let app = try launchForTheActionButton()

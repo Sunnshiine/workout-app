@@ -7,6 +7,12 @@ import Testing
 
     private let launchFlagTablePath = ".agents/skills/verify/launch-flags.md"
 
+    /// A list as a sentence reads it, with no locale deciding the join, since the table is checked in.
+    private func listed(_ items: [String]) -> String {
+        guard items.count > 2, let last = items.last else { return items.joined(separator: " and ") }
+        return items.dropLast().joined(separator: ", ") + ", and " + last
+    }
+
     private func launchFlagTable(
         _ flags: [LaunchFlag],
         scenarios: [LaunchFlag],
@@ -16,7 +22,7 @@ import Testing
         let fixtureRule =
             alone.isEmpty
             ? "Every flag acts only when the launch also passes `\(LaunchFlag.fixture.argument)`."
-            : "Every flag but \(alone.joined(separator: " and ")) acts only when the launch also passes `\(LaunchFlag.fixture.argument)`."
+            : "Every flag but \(listed(alone)) acts only when the launch also passes `\(LaunchFlag.fixture.argument)`."
         let header = """
             <!-- Generated from LaunchFlag in Sources/WorkoutTracker/Fixtures/LaunchFlag.swift. Do not edit.
                  Regenerate: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests -->

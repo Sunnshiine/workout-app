@@ -53,6 +53,9 @@ struct WorkoutTrackerApp: App {
             if UITestFixture.isEnabled {
                 Self.applyUITestFixtures(to: app)
             }
+            if UITestFixture.launch.endsLiveActivities {
+                liveActivityAdapter.end()
+            }
         #endif
     }
 

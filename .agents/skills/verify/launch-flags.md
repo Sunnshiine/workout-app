@@ -3,7 +3,7 @@
 # Launch flags
 
 With no Scenario flag, the fixture seeds a Partially Uploaded Block. When a launch passes more
-than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
+than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`, and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
 
 | Flag | Kind | Meaning |
 | --- | --- | --- |
@@ -19,6 +19,7 @@ than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST
 | `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds four Weeks of four Sessions, every one an Available Session. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
+| `-UITEST_END_LIVE_ACTIVITIES` | Switch | Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session. |
 | `-UITEST_PENDING_WRITE` | Switch | Seeds one queued Set Log write for Week 1 Day 1's Back Squat and backs the fixture Sheet with fresh-block, so a sync writes it and reloads that Block in place of the Scenario's. |
 | `-UITEST_SLOW_SYNC` | Switch | Makes the fixture Sheets client wait 20 seconds before it lists tabs, so a sync stays in flight. |
 | `-UITEST_LATE_SIGN_IN` | Switch | Restores the sign-in for 3 seconds after launch, showing onboarding meanwhile, then signs in, as restoring a Google sign-in does on a device. |
