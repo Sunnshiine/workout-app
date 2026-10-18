@@ -519,6 +519,7 @@ private func backSquatSetCounts(setsCells: [String: String]) -> [Int] {
     "A Sets count past the cap reads like a non-numeric Sets cell, so a typo cannot crash or hang sync",
     arguments: [
         ("99", 99),
+        ("0", 1),
         ("100", 1),
         ("abc", 1),
         ("1000000", 1),

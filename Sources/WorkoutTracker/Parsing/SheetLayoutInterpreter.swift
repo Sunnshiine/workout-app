@@ -239,7 +239,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
     /// The most Sets one Prescription Line can prescribe. A larger Sets cell is a typo, and is
     /// read like a non-numeric one, so it cannot make sync build a Set per count (#686).
-    static let maxSetsPerLine = 99
+    private static let maxSetsPerLine = 99
 
     func prescribedSetCount(in grid: SheetGrid, setsColumn: Int?) -> Int {
         setCount(at: row, in: grid, setsColumn: setsColumn) ?? 1
@@ -264,14 +264,15 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// (`isMultiLine == false`) on the existing single-anchor logic.
     func prescriptionLines(in snapshot: SheetSnapshot, setsColumn: Int?) -> [PrescriptionLine] {
         let grid = snapshot.values
-        var lines = [PrescriptionLine(row: row, setCount: prescribedSetCount(in: grid, setsColumn: setsColumn), firstSetIndex: 0)]
-        var nextFirstSetIndex = lines[0].setCount
+        let anchorSetCount = prescribedSetCount(in: grid, setsColumn: setsColumn)
+        var lines = [PrescriptionLine(row: row, setCount: anchorSetCount, firstSetIndex: 0)]
+        var nextFirstSetIndex = anchorSetCount
         for continuationRow in (row + 1)..<nextAnchorRow where snapshot.isRowVisible(continuationRow) {
-            guard let setCount = setCount(at: continuationRow, in: grid, setsColumn: setsColumn) else { continue }
+            guard let lineSetCount = setCount(at: continuationRow, in: grid, setsColumn: setsColumn) else { continue }
             lines.append(
-                PrescriptionLine(row: continuationRow, setCount: setCount, firstSetIndex: nextFirstSetIndex)
+                PrescriptionLine(row: continuationRow, setCount: lineSetCount, firstSetIndex: nextFirstSetIndex)
             )
-            nextFirstSetIndex += setCount
+            nextFirstSetIndex += lineSetCount
         }
         return lines
     }
