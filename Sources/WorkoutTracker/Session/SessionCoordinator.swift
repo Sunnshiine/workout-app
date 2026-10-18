@@ -140,6 +140,8 @@ final class SessionCoordinator {
     @ObservationIgnored private var restTimer: RestTimer?
     @ObservationIgnored private var standardRestDuration: () -> TimeInterval
     @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
+    /// What a card's first values suggest from, for a Spoken Set on a Set no card has reported.
+    @ObservationIgnored private var history: () -> LastPerformedLookupSnapshot
     @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     /// Nil leaves the mic off every card.
     @ObservationIgnored private let dictation: SetDictation?
@@ -160,10 +162,12 @@ final class SessionCoordinator {
         navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion(),
         dictation: SetDictation? = nil,
-        focus: ActiveSetFocusManager? = nil
+        focus: ActiveSetFocusManager? = nil,
+        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
     ) {
         self.session = session
         self.dictation = dictation
+        self.history = history
         self.navigationAdapter = navigation
         self.motion = motion
         // A focus handed in is the process's, which a headless Dictation reads too. It keeps the
@@ -208,12 +212,14 @@ final class SessionCoordinator {
         liveActivity: (any SessionLiveActivityAdapter)? = nil,
         navigation: any SessionNavigationAdapter,
         motion: any SessionMotionPerforming,
-        entry: AppEntryInbox
+        entry: AppEntryInbox,
+        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
     ) {
         if navigationAdapter !== navigation {
             navigationAdapter = navigation
         }
         self.motion = motion
+        self.history = history
         self.restTimer = restTimer
         self.standardRestDuration = standardRestDuration
         self.supersetRestDuration = supersetRestDuration
@@ -575,17 +581,27 @@ extension SessionCoordinator {
         dictation.start(for: setID)
     }
 
+    /// The card reports what it shows for `set` as the athlete changes it, which fills what a
+    /// Spoken Set leaves unsaid, from the card's mic or a press with the phone locked alike.
+    func cardShows(_ draft: SetLogDraft, for set: ExerciseSet) {
+        guard let setID = Self.activeSetID(for: set) else { return }
+        focusManager.cardShows(draft, for: setID)
+    }
+
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
-    /// they left unsaid read from `shown`, the values of `set`'s card. A press begun on another
-    /// Session or for another Set, or for a Set no longer Pending once the transcript is in, writes
-    /// nothing.
-    func finishDictation(of set: ExerciseSet, resolvingAgainst shown: SetLogDraft) async -> SetDictation.Outcome? {
+    /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
+    /// another Set, or for a Set no longer Pending once the transcript is in, writes nothing.
+    func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
         guard let dictation, let setID = dictation.state.listeningSetID else { return nil }
         guard let session = sessionOfPress(for: setID, releasedOn: set) else {
             await dictation.cancel()
             return nil
         }
-        return write(await dictation.finish(for: setID, in: SpokenSetContext(for: set, showing: shown)), heardFor: setID, in: session)
+        return write(await dictation.finish(for: setID, in: spokenSetContext(for: set)), heardFor: setID, in: session)
+    }
+
+    private func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
+        SpokenSetContext(for: set, shownBy: focusManager, history: history())
     }
 
     /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
@@ -724,13 +740,13 @@ extension SessionCoordinator {
     }
 
     /// Takes the waiting request and listens for `set` until the athlete stops talking, writing
-    /// what was said as a release of the mic would. `shown` reads the card's values when
-    /// listening ends, which fill what was left unsaid.
-    func listenHandsFree(to set: ExerciseSet, showing shown: () -> SetLogDraft) async -> SetDictation.Outcome? {
+    /// what was said as a release of the mic would, with what was left unsaid read from what the
+    /// card shows when listening ends.
+    func listenHandsFree(to set: ExerciseSet) async -> SetDictation.Outcome? {
         guard let dictation, let session, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID else { return nil }
         _ = entry?.take()
         dictatingSession = session
-        let outcome = await dictation.listenUntilQuiet(for: setID) { SpokenSetContext(for: set, showing: shown()) }
+        let outcome = await dictation.listenUntilQuiet(for: setID) { spokenSetContext(for: set) }
         return write(outcome, heardFor: setID, in: session)
     }
 

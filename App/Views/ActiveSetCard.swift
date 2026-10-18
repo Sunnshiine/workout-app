@@ -7,10 +7,10 @@ struct SetCardMic {
     /// True while the Action button, Siri, or the Live Activity waits for this card to listen.
     let startsHandsFree: Bool
     let start: () -> Void
-    /// Takes what the card shows, which fills what the athlete leaves unsaid.
-    let finish: (SetLogDraft) async -> SetDictation.Outcome?
-    /// Reads what the card shows when listening ends on its own.
-    let listenHandsFree: @MainActor (() -> SetLogDraft) async -> SetDictation.Outcome?
+    /// Reports what the card shows as it changes, which fills what the athlete leaves unsaid.
+    let shows: (SetLogDraft) -> Void
+    let finish: () async -> SetDictation.Outcome?
+    let listenHandsFree: () async -> SetDictation.Outcome?
     let cancel: () async -> Void
     let dismiss: () -> Void
 }
@@ -35,7 +35,6 @@ struct ActiveSetCard: View {
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @State private var inputDismissalRequestID = 0
-    @State private var shownDraft = SetLogDraft(weight: nil, reps: nil, rpe: nil)
     @GestureState private var isPressingMic = false
 
     private static let headTargetSize: CGFloat = 44
@@ -64,7 +63,7 @@ struct ActiveSetCard: View {
                 if mode == .heldAfterSpokenWrite { heldValuesCover }
             }
         }
-        .onPreferenceChange(ShownSetLogDraftKey.self) { shownDraft = $0 }
+        .onPreferenceChange(ShownSetLogDraftKey.self) { mic?.shows($0) }
         .onChange(of: isPressingMic) { _, isPressing in
             if isPressing { beginPress() } else { endPress() }
         }
@@ -194,9 +193,8 @@ struct ActiveSetCard: View {
 
     private func endPress() {
         guard let mic else { return }
-        let shown = shownDraft
         Task {
-            guard let outcome = await mic.finish(shown) else { return }
+            guard let outcome = await mic.finish() else { return }
             HapticPlayer.shared.play(outcome.haptic)
         }
     }
@@ -206,7 +204,7 @@ struct ActiveSetCard: View {
         dismissInputIfLogging()
         HapticPlayer.shared.play(SetDictation.startHaptic)
         Task {
-            guard let outcome = await mic.listenHandsFree({ shownDraft }) else { return }
+            guard let outcome = await mic.listenHandsFree() else { return }
             HapticPlayer.shared.play(outcome.haptic)
         }
     }

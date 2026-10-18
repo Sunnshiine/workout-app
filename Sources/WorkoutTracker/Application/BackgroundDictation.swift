@@ -148,7 +148,8 @@ final class BackgroundDictation {
     private func listen(for position: SessionSetPosition, in session: Session, shown: LiveActivitySetContent) async -> Ending {
         let set = position.set
         let history = app.lastPerformed.snapshot
-        guard let heard = await dictation.listenUntilQuiet(for: position.setID, in: { SpokenSetContext(for: set, history: history) }) else {
+        let context = { [focus] in SpokenSetContext(for: set, shownBy: focus, history: history) }
+        guard let heard = await dictation.listenUntilQuiet(for: position.setID, in: context) else {
             return .withdrawn(.noSetToLog(.micBusy))
         }
         // The card refuses a write to a Set no longer Pending once the transcript is in; so does this.

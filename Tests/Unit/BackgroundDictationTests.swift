@@ -369,6 +369,36 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     #expect(stage.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 2))
 }
 
+/// What the athlete dialled on the card before locking the phone fills what they leave unsaid, as
+/// it would had they let go of the card's own mic.
+@MainActor
+@Test func aPressFillsWhatIsUnsaidFromWhatTheCardShowsForTheSet() async throws {
+    let harness = try await Harness(hearing: ["for 5 at 8"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let first = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    stage.cardShows(SetLogDraft(weight: .pounds(245), reps: 5, rpe: .six), for: first)
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(SetLog(weight: .pounds(245), reps: 5, rpe: .eight), at: firstSet))
+    #expect(first.setLog == SetLog(weight: .pounds(245), reps: 5, rpe: .eight))
+}
+
+@MainActor
+@Test func whatTheCardShowedForAnotherSetFillsNothing() async throws {
+    let harness = try await Harness(hearing: ["for 5 at 8"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let second = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 1 })
+    stage.cardShows(SetLogDraft(weight: .pounds(245), reps: 5, rpe: .six), for: second)
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .notLogged(.missingValues(SetLogDraft(weight: nil, reps: 5, rpe: .eight), heard: "for 5 at 8"), at: firstSet))
+    try harness.expectNothingWritten()
+}
+
 @MainActor
 @Test func theCardTakingTheMicWhileListeningShowsTakesTheReadbackOff() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"])

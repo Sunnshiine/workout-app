@@ -387,8 +387,9 @@ extension ActiveSetCard {
                     dictation: dictation,
                     startsHandsFree: coordinator.startsHandsFree(slot),
                     start: { coordinator.startDictation(for: slot.set) },
-                    finish: { await coordinator.finishDictation(of: slot.set, resolvingAgainst: $0) },
-                    listenHandsFree: { await coordinator.listenHandsFree(to: slot.set, showing: $0) },
+                    shows: { coordinator.cardShows($0, for: slot.set) },
+                    finish: { await coordinator.finishDictation(of: slot.set) },
+                    listenHandsFree: { await coordinator.listenHandsFree(to: slot.set) },
                     cancel: { await coordinator.cancelDictation(of: slot.set) },
                     dismiss: { coordinator.dismissDictation() }
                 )

@@ -9,6 +9,7 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @Environment(AppEntryInbox.self) private var entry
+    @Environment(LastPerformedLookupStore.self) private var lastPerformed
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionCoordinator
     #if canImport(UserNotifications)
@@ -123,7 +124,8 @@ struct SessionView: View {
             liveActivity: liveActivityAdapter,
             navigation: workout,
             motion: SwiftUISessionMotion(),
-            entry: entry
+            entry: entry,
+            history: { lastPerformed.snapshot }
         )
         reconcileLiveActivity()
     }

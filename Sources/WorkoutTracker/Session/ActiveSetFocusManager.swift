@@ -34,6 +34,9 @@ final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
     private var shownInstead: ShownInstead?
     private let supersetState = SupersetState()
+    /// The values the card shows for one Set, as the card last reported them, which fill what a
+    /// Spoken Set leaves unsaid whether the card's mic or a locked press heard it.
+    @ObservationIgnored private var cardDraft: (setID: ActiveSetID, draft: SetLogDraft)?
     /// The Session the focus is about: the one the stage last bound. An `ActiveSetID` names a Set
     /// only within it.
     @ObservationIgnored private(set) var session: Session?
@@ -77,6 +80,17 @@ final class ActiveSetFocusManager {
             activeSetID = nil
         }
         shownInstead = nil
+        cardDraft = nil
+    }
+
+    func cardShows(_ draft: SetLogDraft, for setID: ActiveSetID) {
+        cardDraft = (setID, draft)
+    }
+
+    /// What the card shows for `setID`; nil when it has shown nothing for that Set.
+    func cardDraft(for setID: ActiveSetID) -> SetLogDraft? {
+        guard let cardDraft, cardDraft.setID == setID else { return nil }
+        return cardDraft.draft
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {

@@ -231,8 +231,9 @@ private enum CardHost {
                         dictation: $0,
                         startsHandsFree: false,
                         start: {},
-                        finish: { _ in nil },
-                        listenHandsFree: { _ in nil },
+                        shows: { _ in },
+                        finish: { nil },
+                        listenHandsFree: { nil },
                         cancel: {},
                         dismiss: {}
                     )
