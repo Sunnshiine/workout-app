@@ -87,6 +87,9 @@ extension SheetWritePlanner {
         switch addressing(for: request, in: snapshot) {
         case .weekNotFound, .dayNotFound:
             return "No row selected: \(session) was not found."
+        case .dayRepeated:
+            return "No row selected: Week \(request.session.address.week) has more than one "
+                + "Day \(request.session.address.day) header."
         case .columnNotFound(let header):
             return "No row selected: \(session) has no \(header) column."
         case .exerciseNotFound:
