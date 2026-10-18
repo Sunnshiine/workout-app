@@ -16,6 +16,10 @@
         /// whose Notes cell holds the Coach Note, and the write conflicts rather than overwrite it
         /// (#942).
         case partialUpload = "partial-upload"
+        /// The Block the UI fixture boots into for the Full Block scenario: `partial-upload`'s Week 1
+        /// Days 1 and 2, a Deadlift on Week 1 Day 3, and an Accessory on every other Day, so all
+        /// sixteen Sessions are Available Sessions.
+        case fullBlock = "full-block"
 
         public func workbook() -> LocalWorkbook {
             switch self {
@@ -23,6 +27,8 @@
                 Self.freshBlock()
             case .partialUpload:
                 Self.partialUpload()
+            case .fullBlock:
+                Self.fullBlock()
             }
         }
 
@@ -86,14 +92,37 @@
         private static let weekRowStride = 25
 
         private static func partialUpload() -> LocalWorkbook {
+            fourWeekBlock(
+                prescriptions: [
+                    weekOneDaysOneAndTwo(),
+                    deadlift(at: SessionAddress(week: 2, day: 1)),
+                    accessory(at: SessionAddress(week: 3, day: 1)),
+                    accessory(at: SessionAddress(week: 4, day: 1))
+                ]
+            )
+        }
+
+        private static func fullBlock() -> LocalWorkbook {
+            let accessoryDays = (1...4).flatMap { week in
+                (1...4).map { SessionAddress(week: week, day: $0) }
+            }
+            .filter { $0.week > 1 || $0.day > 3 }
+            return fourWeekBlock(
+                prescriptions: [weekOneDaysOneAndTwo(), deadlift(at: SessionAddress(week: 1, day: 3))]
+                    + accessoryDays.map(accessory(at:))
+            )
+        }
+
+        /// Four Weeks of four Days under Training Max 315/225/405, with `prescriptions` written into
+        /// them. A Day no prescription lands in is an Unavailable Session.
+        private static func fourWeekBlock(prescriptions: [[String: String]]) -> LocalWorkbook {
             var cells: [String: String] = [
                 "E6": "Training Max",
                 "C7": "Squat", "E7": "315",
                 "C8": "Bench Press", "E8": "225",
                 "C9": "Deadlift", "E9": "405"
             ]
-            let parts = (1...4).map(fourDayWeekHeaders) + [partialUploadWeekOne(), partialUploadLaterWeeks()]
-            for part in parts {
+            for part in (1...4).map(fourDayWeekHeaders) + prescriptions {
                 cells.merge(part) { _, new in new }
             }
             return LocalWorkbook(
@@ -106,7 +135,7 @@
         /// Week `week`'s `Day 1` to `Day 4` headers, their date cells, and their role headers. A Day
         /// with no prescription rows under its headers is an Unavailable Session.
         private static func fourDayWeekHeaders(week: Int) -> [String: String] {
-            let headerRow = 12 + (week - 1) * weekRowStride
+            let headerRow = headerRow(week: week)
             var cells: [String: String] = [:]
             for (index, start) in dayStartColumns.enumerated() {
                 cells["\(columnName(start))\(headerRow)"] = "Day \(index + 1)"
@@ -116,7 +145,16 @@
             return cells
         }
 
-        private static func partialUploadWeekOne() -> [String: String] {
+        private static func headerRow(week: Int) -> Int {
+            12 + (week - 1) * weekRowStride
+        }
+
+        /// The row of a Day's first prescription: under its `Day N`, date, and role header rows.
+        private static func firstPrescriptionRow(of address: SessionAddress) -> Int {
+            headerRow(week: address.week) + 3
+        }
+
+        private static func weekOneDaysOneAndTwo() -> [String: String] {
             let (day1, day2) = (dayStartColumns[0], dayStartColumns[1])
             // Back Squat varies its `%1RM` per Set, and a `%1RM` cell prescribes every Set of its
             // Line, so each Set is its own Prescription Line.
@@ -153,16 +191,16 @@
                 ),
                 prescription(row: 19, dayStart: day2, name: "Pull-Up", sets: 2, reps: "8", load: "BW", notes: "Use full range.")
             ]
-            return lines.reduce(into: [:]) { cells, line in cells.merge(line) { _, new in new } }
+            return merged(lines)
         }
 
-        /// Day 1 of Weeks 2 to 4; every other Day of those Weeks is Unavailable.
-        private static func partialUploadLaterWeeks() -> [String: String] {
-            let day1 = dayStartColumns[0]
-            let lines = [
+        /// A Deadlift of two Prescription Lines, one per `%1RM`.
+        private static func deadlift(at address: SessionAddress) -> [String: String] {
+            let (row, dayStart) = (firstPrescriptionRow(of: address), dayStartColumns[address.day - 1])
+            return merged([
                 prescription(
-                    row: 40,
-                    dayStart: day1,
+                    row: row,
+                    dayStart: dayStart,
                     name: "Deadlift",
                     sets: 1,
                     reps: "3",
@@ -170,12 +208,24 @@
                     load: "RPE6",
                     notes: "Pull fast from the floor."
                 ),
-                prescription(row: 41, dayStart: day1, name: nil, sets: 1, reps: "3", percentOneRM: "80%", load: "RPE7")
-            ]
-            let accessories = [65, 90].map { row in
-                prescription(row: row, dayStart: day1, name: "Accessory", sets: 1, reps: "10", load: "RPE6", notes: "Controlled reps.")
-            }
-            return (lines + accessories).reduce(into: [:]) { cells, line in cells.merge(line) { _, new in new } }
+                prescription(row: row + 1, dayStart: dayStart, name: nil, sets: 1, reps: "3", percentOneRM: "80%", load: "RPE7")
+            ])
+        }
+
+        private static func accessory(at address: SessionAddress) -> [String: String] {
+            prescription(
+                row: firstPrescriptionRow(of: address),
+                dayStart: dayStartColumns[address.day - 1],
+                name: "Accessory",
+                sets: 1,
+                reps: "10",
+                load: "RPE6",
+                notes: "Controlled reps."
+            )
+        }
+
+        private static func merged(_ parts: [[String: String]]) -> [String: String] {
+            parts.reduce(into: [:]) { cells, part in cells.merge(part) { _, new in new } }
         }
 
         /// The Session's calendar day on a 7-day stride from 1 January 2001, the reference date, so
