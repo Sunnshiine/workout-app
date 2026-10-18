@@ -55,8 +55,11 @@ private final class ControlledFlushClient: SheetsClient {
         writes.append(contentsOf: cells)
     }
 
-    func waitForFetch() async {
-        await fetch.waitUntilHeld(orRecord: "the flush never fetched the tab snapshot this client holds")
+    func waitForFetch(sourceLocation: SourceLocation = #_sourceLocation) async {
+        await fetch.waitUntilHeld(
+            orRecord: "the flush never fetched the tab snapshot this client holds",
+            sourceLocation: sourceLocation
+        )
     }
 
     func completeFetch(with grid: SheetGrid) {
