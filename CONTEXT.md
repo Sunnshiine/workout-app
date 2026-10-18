@@ -76,7 +76,9 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Cadence**: The tempo prefix on an exercise name encoding eccentric, pause, and concentric durations (e.g. "2-3:1:0" in "2-3:1:0 BB RDL"). Prescribed by the coach; displayed in the UI but stripped for fallback index lookups. Avoid: tempo.
 
-**Entered Name**: An Exercise's name exactly as the coach wrote it in the name cell, Cadence prefix included (e.g. "2-3:1:0 BB RDL"). It is the Exercise's identity: the Sheet write finds the Exercise's row by it, a queued write names its Exercise by it, and Exercise History dedups on it (ADR-0012). Never shown to the athlete as the name. Avoid: full name, raw name.
+**Entered Name**: An Exercise's name exactly as the coach wrote it in the name cell, Cadence prefix included (e.g. "2-3:1:0 BB RDL"). It is the Exercise's identity: an Exercise Reference names the Exercise by it, and Exercise History dedups on it (ADR-0012). Never shown to the athlete as the name. Avoid: full name, raw name.
+
+**Exercise Reference**: Which Exercise of a Session a Set belongs to, as the Sheet addresses it: its Entered Name plus how many Exercises above it in the Session share that name. A coach can name two Exercises in one Session the same, as a top single and its back-off Sets both `Back Squat`, so the Entered Name alone can match several rows. A queued write persists one and the Sheet write finds its row by it (ADR-0006), and a conflict names any Exercise past the first of its name by its place among them ("Back Squat number 2" for the second). Avoid: exercise ordinal, exercise index, exercise key.
 
 **Base Name**: An Exercise's Entered Name with the Cadence prefix removed (e.g. "BB RDL"). What the athlete reads as the Exercise's name, so the coach's tempo notation never reads as part of it. The second Last Performed tier matches by it, and the Exercise History fill counts by it. Two Exercises with the same Base Name under different Cadences are still two Exercises.
 

@@ -21,7 +21,7 @@ extension LoadSuggestionInputs {
                 .sorted { $0.index > $1.index }
                 .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } },
             lastPerformed: coordinates.flatMap {
-                history.excluding(session: $0.session).lookup(for: $0.exerciseName)
+                history.excluding(session: $0.session).lookup(for: $0.exercise.name)
             }
         )
     }

@@ -252,7 +252,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         )
         Issue.record("Expected next Week boundary to block Set Log target selection")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Lateral Neck Flexion", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Lateral Neck Flexion"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

@@ -165,7 +165,7 @@ private func writerFixture(_ cells: [String: String]) -> WriterFixture {
         _ = try planner.plan(request, in: client.grid)
         Issue.record("Expected protected Coach Note to keep header unwritable")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Squat"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
@@ -425,7 +425,7 @@ private func multiLineNotesRequest(
         _ = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid)
         Issue.record("Expected the Coach Note Line write to be refused")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Comp BP", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Comp BP"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
@@ -499,7 +499,7 @@ private func multiLineNotesRequest(
         _ = try planner.plan(request, in: client.grid)
         Issue.record("Expected missing set row")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Squat"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }
@@ -540,7 +540,7 @@ private func multiLineNotesRequest(
         _ = try planner.plan(request, in: client.grid)
         Issue.record("Expected legacy log header to block writes when no safe continuation row")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Squat", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Squat"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

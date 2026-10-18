@@ -132,24 +132,22 @@ private func address(_ raw: String) throws -> SetAddress {
         exercise.sets = [set]
     }
 
-    #expect(try SetCoordinates(of: topSingle.sets[0]).exerciseOrdinal == 0)
-    #expect(try SetCoordinates(of: accessory.sets[0]).exerciseOrdinal == 0)
-    #expect(try SetCoordinates(of: backOff.sets[0]).exerciseOrdinal == 1)
+    #expect(try SetCoordinates(of: topSingle.sets[0]).exercise == ExerciseReference(name: "Back Squat", ordinal: 0))
+    #expect(try SetCoordinates(of: accessory.sets[0]).exercise == ExerciseReference(name: "RDL", ordinal: 0))
+    #expect(try SetCoordinates(of: backOff.sets[0]).exercise == ExerciseReference(name: "Back Squat", ordinal: 1))
     #expect(block.setsByID.count == 3)
     let backOffID = SetCoordinates.ID(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-        exerciseName: "Back Squat",
-        exerciseOrdinal: 1,
+        exercise: ExerciseReference(name: "Back Squat", ordinal: 1),
         setIndex: 0
     )
     #expect(block.setsByID[backOffID] === backOff.sets[0])
 }
 
-private func repeatedExerciseRequest(exerciseOrdinal: Int) -> SheetWriteRequest {
+private func backSquatRequest(ordinal: Int) -> SheetWriteRequest {
     SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-        exerciseName: "Back Squat",
-        exerciseOrdinal: exerciseOrdinal,
+        exercise: ExerciseReference(name: "Back Squat", ordinal: ordinal),
         setIndex: 0,
         column: .notes,
         operation: .upsert,
@@ -158,21 +156,50 @@ private func repeatedExerciseRequest(exerciseOrdinal: Int) -> SheetWriteRequest 
     )
 }
 
-@Test func thePlannerAddressesTheNthExerciseOfThatName() throws {
-    let grid = gridFromA1(
+private func backSquatTwiceGrid(_ extra: [String: String] = [:]) -> SheetGrid {
+    gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
             "D14": "Sets", "F14": "Reps", "H14": "Load", "I14": "Last set RPE", "K14": "Notes",
             "C15": "Back Squat", "D15": "1", "C17": "RDL", "D17": "2", "C19": "Back Squat", "D19": "3"
-        ],
+        ].merging(extra) { _, new in new },
         rows: 30,
         cols: 30
     )
+}
+
+@Test func thePlannerAddressesTheNthExerciseOfThatName() throws {
+    let grid = backSquatTwiceGrid()
     let planner = SheetWritePlanner()
 
-    #expect(try planner.plan(repeatedExerciseRequest(exerciseOrdinal: 0), in: grid).row == 14)
-    #expect(try planner.plan(repeatedExerciseRequest(exerciseOrdinal: 1), in: grid).row == 18)
-    #expect(throws: SheetWriterError.exerciseNotFound("Back Squat number 3")) {
-        try planner.plan(repeatedExerciseRequest(exerciseOrdinal: 2), in: grid)
+    #expect(try planner.plan(backSquatRequest(ordinal: 0), in: grid).row == 14)
+    #expect(try planner.plan(backSquatRequest(ordinal: 1), in: grid).row == 18)
+    #expect(throws: SheetWriterError.exerciseNotFound(ExerciseReference(name: "Back Squat", ordinal: 2))) {
+        try planner.plan(backSquatRequest(ordinal: 2), in: grid)
     }
+}
+
+@Test func aCoachNoteOnTheSecondSameNamedExerciseNamesItByItsNumber() throws {
+    let grid = backSquatTwiceGrid(["D19": "1", "K19": "Coach note", "C20": "Bench", "D20": "1"])
+
+    let error = #expect(throws: SheetWriterError.self) {
+        try SheetWritePlanner().plan(backSquatRequest(ordinal: 1), in: grid)
+    }
+
+    #expect(error == .headerNotesBlockSetRow(exercise: ExerciseReference(name: "Back Squat", ordinal: 1), setIndex: 0))
+    #expect(error?.errorDescription?.hasPrefix("Set 1 for Back Squat number 2 cannot be written") == true)
+}
+
+@Test func theWriteAuditNamesAMissingSameNamedExerciseByItsNumber() {
+    let planner = SheetWritePlanner()
+    let request = backSquatRequest(ordinal: 2)
+
+    let audit = planner.auditDetails(
+        for: request,
+        error: .exerciseNotFound(request.exercise),
+        in: planner.snapshot(for: backSquatTwiceGrid()),
+        target: nil
+    )
+
+    #expect(audit.rowScanDetails == "No row selected: Back Squat number 3 was not found in Week 1, Day 1.")
 }

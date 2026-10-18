@@ -293,7 +293,7 @@ import Testing
     try sync.clearWriteTargetAuditLog()
 
     let writes = try context.fetch(FetchDescriptor<PendingWrite>())
-    #expect(writes.map(\.exerciseName).sorted() == ["Back Squat", "Bench Press"])
+    #expect(writes.map(\.exercise.name.entered).sorted() == ["Back Squat", "Bench Press"])
     #expect(try context.fetch(FetchDescriptor<WriteTargetAuditEntry>()).isEmpty)
 }
 

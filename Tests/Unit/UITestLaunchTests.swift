@@ -177,7 +177,7 @@ import Testing
 
         let pending = try await BootedFixture.boot(["-UITEST_PENDING_WRITE"])
         let queued = try pending.context.fetch(FetchDescriptor<PendingWrite>())
-        #expect(queued.map(\.exerciseName) == ["2-3:1:0 BB RDL"])
+        #expect(queued.map(\.exercise) == [.first("2-3:1:0 BB RDL")])
         #expect(queued.map(\.setIndex) == [0])
         #expect(queued.map(\.valueToWrite) == ["225x8@8"])
     }

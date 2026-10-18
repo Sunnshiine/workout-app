@@ -31,7 +31,7 @@ private func makeExercise() -> Exercise {
         #expect(coordinates.session.blockTab == "Block 27")
         #expect(coordinates.session.address.week == 3)
         #expect(coordinates.session.address.day == 4)
-        #expect(coordinates.exerciseName.entered == "3:1:0 Back Squat")
+        #expect(coordinates.exercise == .first("3:1:0 Back Squat"))
         #expect(coordinates.setIndex == 2)
         #expect(coordinates.sessionDate == Date(timeIntervalSinceReferenceDate: 100))
     }

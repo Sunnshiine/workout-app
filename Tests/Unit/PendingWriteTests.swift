@@ -37,7 +37,7 @@ import Testing
 
     let durableText = [
         fetched.recordedSession.blockTab,
-        fetched.exerciseName,
+        fetched.exercise.name.entered,
         fetched.columnRaw,
         fetched.operationRaw,
         fetched.valueToWrite,

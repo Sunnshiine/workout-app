@@ -77,7 +77,7 @@ private func planError(
 @Test func refusesAnExerciseThatIsNotInTheSession() {
     let error = planError(addressingRequest(exerciseName: "Deadlift"), grid: addressingGrid())
 
-    #expect(error == .exerciseNotFound("Deadlift"))
+    #expect(error == .exerciseNotFound(.first("Deadlift")))
     #expect(error?.errorDescription == "Deadlift was not found in the sheet")
 }
 
@@ -116,7 +116,7 @@ private func planError(
         rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error == .exerciseNotFound(.first("Squat")))
     #expect(error?.errorDescription == "Squat was not found in the sheet")
 }
 
@@ -127,7 +127,7 @@ private func planError(
         rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error == .exerciseNotFound(.first("Squat")))
     #expect(error?.errorDescription == "Squat was not found in the sheet")
 }
 
