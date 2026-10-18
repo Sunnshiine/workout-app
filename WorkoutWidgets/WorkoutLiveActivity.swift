@@ -138,7 +138,7 @@ struct WorkoutLiveActivity: Widget {
     private func compactLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
         if let dictation = state.dictation {
             Image(systemName: dictation.symbolName)
-                .foregroundStyle(state.liveActivityColors.accent)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
         } else {
             switch state.variant {
             case .setProgress:
@@ -159,7 +159,7 @@ struct WorkoutLiveActivity: Widget {
         if let dictation = state.dictation {
             Text(dictation.compactText)
                 .font(.caption.weight(.heavy))
-                .foregroundStyle(state.liveActivityColors.accent)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         } else {
@@ -187,7 +187,7 @@ struct WorkoutLiveActivity: Widget {
     private func minimalContent(for state: WorkoutActivityAttributes.ContentState) -> some View {
         if let dictation = state.dictation {
             Image(systemName: dictation.symbolName)
-                .foregroundStyle(state.liveActivityColors.accent)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
         } else {
             switch state.variant {
             case .setProgress:
@@ -357,7 +357,7 @@ private struct DictationReadback: View {
         VStack(alignment: .leading, spacing: 1) {
             Text(dictation.headline)
                 .font(.system(.title3, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
+                .foregroundStyle(colors.readbackText(dictation.tone, onIsland: style == .island))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
 
@@ -394,11 +394,12 @@ private struct DictationSymbol: View {
     let diameter: CGFloat
 
     var body: some View {
+        let symbol = colors.readbackSymbol(dictation.tone)
         Image(systemName: dictation.symbolName)
             .font(.system(size: diameter * 0.45, weight: .semibold))
-            .foregroundStyle(colors.accentText)
+            .foregroundStyle(symbol.glyph)
             .frame(width: diameter, height: diameter)
-            .background(colors.accent, in: Circle())
+            .background(symbol.circle, in: Circle())
             .accessibilityLabel(dictation.headline)
     }
 }

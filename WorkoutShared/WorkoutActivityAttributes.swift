@@ -41,6 +41,21 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         self == .listening
     }
 
+    /// Which colour the readback takes. The action green is for the mic open and a Set Log that
+    /// happened; a skip draws muted on the card, and a press that wrote nothing is no progress, so
+    /// those read in the plain text colour (DESIGN.md, The Green Means Action Rule).
+    enum Tone: Equatable, Sendable {
+        case action
+        case quiet
+    }
+
+    var tone: Tone {
+        switch self {
+        case .listening, .logged: .action
+        case .skipped, .notLogged, .noSetLeft, .noCurrentSession: .quiet
+        }
+    }
+
     /// False when the readback is about the Session rather than a Set: nothing listened, and the
     /// content names no Exercise and no prescription.
     var isAboutASet: Bool {
@@ -228,6 +243,24 @@ enum LiveActivityPalette {
         islandPrimaryText: .white,
         islandSecondaryText: Color.white.opacity(0.68)
     )
+}
+
+extension LiveActivityColors {
+    /// The readback's text in its tone, on the Lock Screen card or the island.
+    func readbackText(_ tone: LiveActivityDictation.Tone, onIsland: Bool) -> Color {
+        switch tone {
+        case .action: accent
+        case .quiet: onIsland ? islandPrimaryText : primaryText
+        }
+    }
+
+    /// The readback's symbol in its tone: the glyph's colour over its circle's fill.
+    func readbackSymbol(_ tone: LiveActivityDictation.Tone) -> (glyph: Color, circle: Color) {
+        switch tone {
+        case .action: (accentText, accent)
+        case .quiet: (primaryText, track)
+        }
+    }
 }
 
 extension WorkoutActivityAttributes.ContentState {
