@@ -118,7 +118,7 @@ struct CurrentSessionDebugInfo: Equatable, Sendable {
             "Current Session Debug Info",
             "Current Block Tab: \(currentBlockTab)",
             "Sheet-derived Session: \(sheetDerivedSession)",
-            "Manual Current Session Override: \(pinnedSession)",
+            "Current Session Pin: \(pinnedSession)",
             "Displayed Session: \(viewedSession)",
             "Resolved Current Session: \(resolvedCurrentSession)",
             "Reason: \(reason)",
@@ -174,7 +174,7 @@ extension CurrentSessionDebugInfo {
     private static func reason(for pin: CurrentSessionResolution.PinStanding) -> String {
         switch pin {
         case .unset:
-            "No manual override is active, so Sheet-derived progress wins."
+            "No Current Session Pin is set, so Sheet-derived progress wins."
         case .inForce(.moveOn):
             "Move On advanced to this Session, so it wins over Sheet-derived progress."
         case .inForce(.madeCurrent):
