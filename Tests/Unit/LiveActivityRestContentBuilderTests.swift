@@ -24,6 +24,49 @@ import Testing
 
         #expect(state.restContextText == "2 sets left")
     }
+
+    @MainActor
+    @Test(arguments: [
+        ("1", "1 rep"),
+        ("5", "5 reps"),
+        ("10", "10 reps"),
+        ("3-5", "3-5 reps"),
+        ("AMRAP", "AMRAP"),
+        ("", "")
+    ])
+    func liveActivityPrescribedRepsTextSaysRepForASingle(prescribedReps: String, expected: String) {
+        let state = restContentState(prescribedReps: prescribedReps, prescribedLoad: "RPE 8")
+
+        #expect(state.prescribedRepsText == expected)
+    }
+
+    @MainActor
+    @Test func liveActivityPrescriptionTextSaysRepForASingle() {
+        let state = restContentState(prescribedReps: "1", prescribedLoad: "405 lb")
+
+        #expect(state.prescriptionText == "1 rep / 405 lb")
+    }
+
+    @MainActor
+    private func restContentState(
+        prescribedReps: String,
+        prescribedLoad: String
+    ) -> WorkoutActivityAttributes.ContentState {
+        WorkoutActivityAttributes.ContentState(
+            restContent: LiveActivityRestContent(
+                exerciseName: "Back Squat",
+                prescribedReps: prescribedReps,
+                prescribedLoad: prescribedLoad,
+                weightValue: "",
+                weightUnit: "lbs",
+                setsDone: 1,
+                setsTotal: 3,
+                variant: .restTimerSetsLeft,
+                restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+                restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+            )
+        )
+    }
 #endif
 
 @MainActor
