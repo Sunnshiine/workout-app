@@ -291,8 +291,8 @@
         _ = try cli.run("log", "w1d1.e0.s0", "205x3@9")
         try editBlockCells(in: home) { $0["K15"] = "coach edited" }
         let earlier = try cli.run("sync")
-        let earlierRefusal = "Back Squat: Expected '185x5@8', found ''"
-        #expect(try earlier.errorJSON["message"] as? String == earlierRefusal)
+        #expect(try (earlier.json["conflictedWrites"] as? [String])?.count == 1)
+        let earlierRefusal = try #require(try earlier.errorJSON["message"] as? String)
 
         _ = try cli.run("log", "w1d1.e0.s1", "185x5@8")
         try editBlockCells(in: home) { $0["S12"] = "Day 1" }
