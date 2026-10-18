@@ -29,6 +29,7 @@ import Testing
     @Test(arguments: [
         ("1", "1 rep"),
         ("5", "5 reps"),
+        ("10", "10 reps"),
         ("3-5", "3-5 reps"),
         ("AMRAP", "AMRAP"),
         ("", "")
