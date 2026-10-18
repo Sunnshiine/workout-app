@@ -140,10 +140,13 @@ func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) 
     #expect(SpokenSet.parse(transcript) == values(.pounds(185), 5, .nine))
 }
 
-/// "135, a representative, RP9" says 135 reps at RPE 9 with no weight, and a Set missing a value is
-/// never written, so the recognizer dropping the rep count costs the athlete a tap, not a wrong Set.
-@Test func aRecognizerThatDropsTheRepCountLeavesAPartialSet() {
-    #expect(SpokenSet.parse("135, a representative, RP9") == values(nil, 135, .nine))
+/// "135, a representative, RP9" is "135, 8 reps, RPE 9" with the rep count dropped. Read as 135 reps
+/// with no weight, it would log on any card that pre-fills a weight, so the "a" keeps the 135 from the
+/// label after it, and the label then labels nothing.
+@Test func aRecognizerThatDropsTheRepCountIsNeverASet() {
+    #expect(SpokenSet.parse("135, a representative, RP9") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 a reps") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135, a triple, RPE 9") == values(.pounds(135), 3, .nine))
     #expect(SpokenSet.parse("225 for 3 RPA") == rpeCutOff(.pounds(225), 3))
 }
 

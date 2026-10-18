@@ -8,6 +8,9 @@ enum SpokenToken: Equatable, Sendable {
     /// "and", "of", "add", or "to" where "at" may have been said, so the number after it is no RPE
     /// heard. "and" and "of" are filler anywhere else.
     case misheardAt(isFiller: Bool)
+    /// The "a" after a number, as in "135, a representative": it starts what comes after it, so the
+    /// number before it labels nothing after it.
+    case article
 
     var amount: SpokenAmount? {
         switch self {
@@ -34,11 +37,11 @@ enum SpokenToken: Equatable, Sendable {
     }
 
     /// A word that adds nothing where no phrase takes it: the "and" and "of" that may be a misheard
-    /// "at", and the "with" before a weight.
+    /// "at", the "with" before a weight, and an article.
     var isFiller: Bool {
         switch self {
         case .misheardAt(let isFiller): isFiller
-        case .marker(.with): true
+        case .marker(.with), .article: true
         default: false
         }
     }

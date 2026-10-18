@@ -56,6 +56,14 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     #expect(values.missingFields == [.weight])
 }
 
+/// The card pre-fills 185 lb, so a reading of 135 reps with no weight would log 185x135@9.
+@Test func aRepCountTheRecognizerDroppedWritesNothingOnACardThatPreFillsAWeight() {
+    #expect(outcome(of: ["135, a representative, RP9"]) == .rejected(.spokenSet(.unrecognized), heard: "135, a representative, RP9"))
+    #expect(
+        outcome(of: ["135, 8 reps, RPE 9"]) == .logged(SetLog(weight: .pounds(135), reps: 8, rpe: .nine), heard: "135, 8 reps, RPE 9")
+    )
+}
+
 @Test func aRejectedTranscriptWritesNothingAndKeepsWhatWasHeard() {
     #expect(outcome(of: ["100 kilos for 5"]) == .rejected(.spokenSet(.kilograms), heard: "100 kilos for 5"))
 }

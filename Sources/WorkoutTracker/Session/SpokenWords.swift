@@ -332,6 +332,8 @@ struct SpokenTokens {
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
             return number.rest
+        } else if word == .a, case .number? = tokens.last {
+            tokens.append(.article)
         } else if let token = try word.alone.get() {
             tokens.append(token)
         }
