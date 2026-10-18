@@ -27,7 +27,7 @@ extension SheetWritePlanner {
     ) -> SheetWriteAuditDetails {
         let currentValue = currentValueForAudit(for: request, target: target, in: snapshot)
         let valueCheckOutcome =
-            SetLogToken.matches(currentValue, request.expectedCurrentValue)
+            request.expects(currentValue)
             ? "Current value matched expected '\(request.expectedCurrentValue)'."
             : "Expected '\(request.expectedCurrentValue)', found '\(currentValue)'."
 

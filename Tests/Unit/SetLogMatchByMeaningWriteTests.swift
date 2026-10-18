@@ -42,6 +42,7 @@ struct SetLogMatchByMeaningWriteTests {
     private func request(
         _ exercise: String = "Comp SQ",
         setIndex: Int,
+        column: PendingWriteColumn = .notes,
         expecting expected: String,
         writing value: String
     ) -> SheetWriteRequest {
@@ -49,7 +50,7 @@ struct SetLogMatchByMeaningWriteTests {
             session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
             exerciseName: exercise,
             setIndex: setIndex,
-            column: .notes,
+            column: column,
             operation: .upsert,
             valueToWrite: value,
             expectedCurrentValue: expected
@@ -153,12 +154,35 @@ struct SetLogMatchByMeaningWriteTests {
         }
     }
 
-    /// A Legacy Log with no RPE is not a structured Set Log, so its spelling is not normalised.
+    /// An Unstructured Set Log with no RPE is not a structured Set Log, so its spelling is not
+    /// normalised.
     @Test func unstructuredSetLogStillComparesByText() {
         #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "185 x 5", actual: "185x5")) {
             try planner.plan(
                 request(setIndex: 0, expecting: "185 x 5", writing: "190x5@8"),
                 in: grid(j15: "185x5")
+            )
+        }
+    }
+
+    /// Last Set RPE is not a Notes token, so no spelling of the expected value matches but its own.
+    @Test(arguments: [("8", "8.0"), ("skip", "SKIP")])
+    func lastSetRPEComparesByText(expected: String, cell: String) {
+        let grid = gridFromA1(
+            [
+                "C12": "Day 1",
+                "D14": "Sets", "I14": "Last set RPE", "J14": "Notes",
+                "C15": "Bench", "D15": "1", "I15": cell,
+                "C17": "Hip Thrust", "D17": "2"
+            ],
+            rows: 26,
+            cols: 30
+        )
+
+        #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: expected, actual: cell)) {
+            try planner.plan(
+                request("Bench", setIndex: 0, column: .lastSetRPE, expecting: expected, writing: "9"),
+                in: grid
             )
         }
     }
