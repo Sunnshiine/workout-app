@@ -257,32 +257,25 @@
         #expect(try sync.json["pendingWriteCount"] as? Int == 1)
     }
 
-    /// A sync that refuses a write names the refusal once on stderr, though the report carries it
-    /// both as a conflicted write and as the outcome's message. The refusal is #768's: a second
-    /// `Day 1` header in Week 1 names the Day as repeated, not as missing.
-    @Test func aSyncThatRefusesAWriteNamesTheRefusalOnce() throws {
+    /// A sync names each refused write once on stderr, though the report carries a refusal both as
+    /// a conflicted write and as the outcome's message (#979). Two Sets refused for the same reason
+    /// stay two lines. The refusal is #768's: a second `Day 1` header in Week 1 names the Day as
+    /// repeated, not as missing.
+    @Test func aSyncNamesEachRefusedWriteOnce() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
         let cli = CLI(home: home, binary: try workoutBinary())
         _ = try cli.run("init")
         _ = try cli.run("log", "w1d1.e0.s0", "185x5@8")
-
-        let workbookURL = home.appendingPathComponent("workbook.json")
-        var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
-        var tabs = try #require(workbook["tabs"] as? [String: Any])
-        var block = try #require(tabs["Block 27"] as? [String: Any])
-        var cells = try #require(block["cells"] as? [String: String])
-        cells["S12"] = "Day 1"
-        block["cells"] = cells
-        tabs["Block 27"] = block
-        workbook["tabs"] = tabs
-        try JSONSerialization.data(withJSONObject: workbook).write(to: workbookURL)
+        _ = try cli.run("log", "w1d1.e0.s1", "185x5@8")
+        try editBlockCells(in: home) { $0["S12"] = "Day 1" }
 
         let sync = try cli.run("sync")
+        let refusal = "Back Squat: Day 1 has more than one header in the sheet"
         #expect(sync.status == 4)
         #expect(try sync.errorJSON["code"] as? String == "sync_conflict")
-        #expect(try sync.errorJSON["message"] as? String == "Back Squat: Day 1 has more than one header in the sheet")
-        #expect(try sync.json["conflictedWrites"] as? [String] == ["Back Squat: Day 1 has more than one header in the sheet"])
+        #expect(try sync.errorJSON["message"] as? String == "\(refusal)\n\(refusal)")
+        #expect(try sync.json["conflictedWrites"] as? [String] == [refusal, refusal])
     }
 
     /// The reason `syncOutcome` exists. Both halves exit 4 and both leave the athlete something to

@@ -128,14 +128,6 @@ enum SheetWriteAddressing: Sendable {
     }
 }
 
-extension SheetLayoutWeek {
-    /// Why this Week names no Session for a Day number: two of its headers read that number
-    /// (#762), or none does.
-    func addressingForAbsentDay(_ day: Int) -> SheetWriteAddressing {
-        ignoredDayHeaders.contains(.repeated(dayNumber: day)) ? .dayRepeated : .dayNotFound
-    }
-}
-
 extension SetLogPlacementResolution {
     /// The cell this resolution addresses, or the writer error it names for this request. The
     /// placement rule decides where a Set Log may go; this is the one place its four outcomes
@@ -266,7 +258,8 @@ struct SheetWritePlanner: Sendable {
         let layout = snapshot.layout
         guard let week = layout.week(number: request.session.address.week) else { return .weekNotFound }
         guard let day = layout.day(at: request.session.address) else {
-            return week.addressingForAbsentDay(request.session.address.day)
+            return week.ignoredDayHeaders.contains(.repeated(dayNumber: request.session.address.day))
+                ? .dayRepeated : .dayNotFound
         }
 
         let (header, col): (String, Int?) =

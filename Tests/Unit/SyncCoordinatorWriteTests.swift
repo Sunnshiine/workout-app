@@ -401,7 +401,7 @@ private func pendingWrite(
 
     await sync.flushPending(spreadsheetId: "sid")
 
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(sync.outcome == .writesRefused(["Squat: Day 1 has more than one header in the sheet"]))
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.status) == [.conflict])
