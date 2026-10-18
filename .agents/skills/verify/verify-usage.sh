@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by verify.sh: usage, the text verify.sh prints for a bad or missing command.
+# Sourced by verify.sh.
 
 usage() {
   cat >&2 <<'EOF'

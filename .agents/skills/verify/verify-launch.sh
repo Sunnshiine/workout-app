@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by verify.sh: refusals, install, launch, ownership of the app, the keyboard preference, and doctor.
+# Sourced by verify.sh.
 
 last_run_named() { [ -f "$state_dir/run" ] && [ ! -f "$state_dir/unnamed" ]; }
 

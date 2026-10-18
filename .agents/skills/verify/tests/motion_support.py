@@ -1,4 +1,3 @@
-"""Imports, paths, and the scenes, frames, and screens that more than one test_motion_* module uses."""
 import contextlib
 import dataclasses
 import io

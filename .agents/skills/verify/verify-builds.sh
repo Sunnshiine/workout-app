@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by verify.sh: app identity, stamps, worktree builds, and the shared app cache.
+# Sourced by verify.sh.
 
 fixture_args() {
   case $1 in

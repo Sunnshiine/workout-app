@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by verify.sh: the simulator, the driver, and the run that holds a task's evidence.
+# Sourced by verify.sh.
 
 resolve_sim() {
   [ -n "$sim" ] && return 0

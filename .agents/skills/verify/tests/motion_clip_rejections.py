@@ -1,5 +1,4 @@
-"""CardFrameOnClips tests on takes cardframe.py turns away: INVALID, no card, or unreadable.
-test_motion_clips.py mixes ClipRejections into CardFrameOnClips, so each test ID stays
+"""test_motion_clips.py mixes ClipRejections into CardFrameOnClips, so each test ID stays
 CardFrameOnClips.test_*."""
 from motion_support import *  # noqa: F401,F403
 
