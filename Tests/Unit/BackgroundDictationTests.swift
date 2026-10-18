@@ -43,6 +43,23 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.dictation.state == .idle)
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7")
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
+    #expect(outcome.refusal == nil)
+}
+
+/// A recording with the app behind must have a Live Activity up, so with Live Activities off for
+/// the app nothing listens, and the press says what to turn on instead of recording unseen.
+@MainActor
+@Test func withLiveActivitiesOffNothingListensAndThePressSaysWhatToTurnOn() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    harness.liveActivity.isUp = false
+
+    let outcome = await harness.background.run()
+
+    #expect(outcome == .liveActivitiesOff)
+    #expect(outcome.refusal?.errorDescription == "Turn on Live Activities for WorkoutTracker to log while locked")
+    #expect(harness.liveActivity.readbacks == [.listening], "it asked for the activity and stopped when none showed")
+    #expect(harness.dictation.state == .idle)
+    try harness.expectNothingWritten()
 }
 
 @MainActor
@@ -676,15 +693,18 @@ private final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var withdrawals = 0
     /// Runs as a readback shows, as the app can come forward while the system draws it.
     var whileShowing: (LiveActivityDictationContent.Readback) -> Void = { _ in }
+    /// Whether a Live Activity shows what is asked of it; false with Live Activities off.
+    var isUp = true
 
     /// What the Live Activity reads once the run is over; nil when nothing is left on it.
     var finalReadback: LiveActivityDictationContent.Readback? {
         withdrawals > 0 ? nil : readbacks.last
     }
 
-    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async {
+    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         shown.append((content, sessionLabel))
         whileShowing(content.readback)
+        return isUp
     }
 
     func show(_ noSet: LiveActivityNoSetReadback) async {

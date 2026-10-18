@@ -4,8 +4,10 @@ import Foundation
 @MainActor
 protocol DictationLiveActivityAdapter: AnyObject {
     /// Shows `content`, starting a Live Activity for the Set when none is up. Returns once it
-    /// shows, because the system stops a recording that has no Live Activity up.
-    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async
+    /// shows, because the system stops a recording that has no Live Activity up, and false when no
+    /// Live Activity shows it, as when the athlete turned them off for the app.
+    @discardableResult
+    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool
     /// Shows why there was no Set to listen for, over a running rest when one is up.
     func show(_ noSet: LiveActivityNoSetReadback) async
     /// Takes the readback off once the card has the Set: a Live Activity started for it ends now,
@@ -30,6 +32,20 @@ final class BackgroundDictation {
         case skipped(at: ActiveSetID)
         case notLogged(NotLogged, at: ActiveSetID)
         case noSetToLog(NoSet)
+        /// Nothing listened: no Live Activity could show the recording, which a recording with the
+        /// app behind must have.
+        case liveActivitiesOff
+    }
+
+    /// Why a press did nothing, in the athlete's words, for the surface that pressed to show.
+    enum Refused: Error, LocalizedError, Equatable, Sendable {
+        case liveActivitiesOff
+
+        var errorDescription: String? {
+            switch self {
+            case .liveActivitiesOff: "Turn on Live Activities for WorkoutTracker to log while locked"
+            }
+        }
     }
 
     /// Listened, and wrote nothing.
@@ -97,17 +113,24 @@ final class BackgroundDictation {
         }
         let shown = LiveActivitySetContent(position)
         let label = session.liveActivityLabel
-        await liveActivity.show(LiveActivityDictationContent(readback: .listening, subject: .set(shown)), sessionLabel: label)
+        let listening = LiveActivityDictationContent(readback: .listening, subject: .set(shown))
+        guard await liveActivity.show(listening, sessionLabel: label) else { return .liveActivitiesOff }
         switch await listen(for: position, in: session, shown: shown) {
         case .withdrawn(let outcome):
             await liveActivity.withdrawReadback()
             return outcome
         case .settled(let settled):
-            await liveActivity.show(settled.content, sessionLabel: label)
-            guard settled.wrote else { return settled.outcome }
-            await flush()
-            return settled.outcome
+            return await readBack(settled, sessionLabel: label)
         }
+    }
+
+    /// The result replaces "Listening…", and a write flushes once it shows.
+    private func readBack(_ settled: Settled, sessionLabel: String) async -> Outcome {
+        await liveActivity.show(settled.content, sessionLabel: sessionLabel)
+        if settled.wrote {
+            await flush()
+        }
+        return settled.outcome
     }
 
     private enum Target {
@@ -269,6 +292,14 @@ final class BackgroundDictation {
         let flushing = Task { @MainActor [app] in try? await app.flush() }
         self.flushing = flushing
         await flushWait.wait(for: flushing, until: clock.now + Self.flushWait, on: clock)
+    }
+}
+
+extension BackgroundDictation.Outcome {
+    /// What the intent throws for the surface that pressed to show; nil when the press ran.
+    var refusal: BackgroundDictation.Refused? {
+        guard case .liveActivitiesOff = self else { return nil }
+        return .liveActivitiesOff
     }
 }
 

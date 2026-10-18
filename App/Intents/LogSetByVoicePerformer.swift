@@ -29,7 +29,7 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
         self.entry = entry
     }
 
-    func logSetByVoice() async {
+    func logSetByVoice() async throws {
         let route = LogSetByVoiceRoute.route(
             appIsInBackground: UIApplication.shared.applicationState == .background,
             hasMic: dictation != nil
@@ -40,11 +40,11 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
         case .nothing:
             break
         case .headless:
-            await listenHeadless()
+            try await listenHeadless()
         }
     }
 
-    private func listenHeadless() async {
+    private func listenHeadless() async throws {
         guard let dictation else { return }
         let background = BackgroundDictation(
             app: app,
@@ -55,7 +55,9 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
             signIn: GoogleSignInRestorer(),
             clock: ContinuousListeningClock()
         )
-        _ = await background.run()
+        if let refusal = await background.run().refusal {
+            throw refusal
+        }
     }
 }
 

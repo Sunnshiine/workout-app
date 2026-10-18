@@ -15,7 +15,7 @@ struct LogSetByVoiceIntent: AudioRecordingIntent, LiveActivityIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let performer = Self.performer else { throw PerformedOutsideTheApp() }
-        await performer.logSetByVoice()
+        try await performer.logSetByVoice()
         return .result()
     }
 }
@@ -34,8 +34,9 @@ extension LogSetByVoiceIntent {
     }
 }
 
-/// What the app does when the intent runs: the one entry for every surface outside the app.
+/// What the app does when the intent runs: the one entry for every surface outside the app. It
+/// throws what the surface should show when the press could not run, in the athlete's words.
 @MainActor
 protocol LogSetByVoicePerforming: AnyObject {
-    func logSetByVoice() async
+    func logSetByVoice() async throws
 }

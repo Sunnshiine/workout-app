@@ -131,14 +131,16 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     /// A logged Set's rest becomes the stage's rest, readback and all, and runs its lifecycle. Any
     /// other readback goes where `LiveActivityReadbackPlan` says: over a running rest, or on an
     /// activity of its own that the result ends with a dismissal `dictationResultLifetime` on.
-    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async {
+    @discardableResult
+    func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         let readback = LiveActivityDictation(content.readback)
         switch content.subject {
         case .rest(let rest):
             startOrUpdate(restContent: rest, dictation: readback, sessionLabel: sessionLabel)
             await startUpdateTask?.value
+            return controller.isActive
         case .set(let set):
-            await show(
+            return await show(
                 readback,
                 else: WorkoutActivityAttributes.ContentState(setContent: set, dictation: readback),
                 sessionLabel: sessionLabel,
@@ -173,12 +175,15 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
+    /// True when a Live Activity shows the readback once the steps are done, an ended one
+    /// included, which stays on the Lock Screen to be read.
+    @discardableResult
     private func show(
         _ readback: LiveActivityDictation,
         else alone: WorkoutActivityAttributes.ContentState,
         sessionLabel: String,
         ridingRestIf rides: (LiveActivityRestContent) -> Bool
-    ) async {
+    ) async -> Bool {
         controller.refreshAuthorizationStatus()
         takeOverRestLeftRunning()
         let plan = LiveActivityReadbackPlan.plan(
@@ -196,20 +201,24 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
             clearLifecycleTasks()
         }
         owner = plan.owner
+        var shows = controller.isActive
         for step in plan.steps {
             switch step {
             case .start:
                 await controller.start(state: state, sessionLabel: sessionLabel, staleDate: nil)
-                guard controller.isActive else {
+                shows = controller.isActive
+                guard shows else {
                     owner = .nobody
-                    return
+                    return false
                 }
             case .update:
                 await controller.update(state: state, staleDate: nil)
+                shows = controller.isActive
             case .endShowing:
                 await controller.end(showing: state, dismissingAt: Date().addingTimeInterval(Self.dictationResultLifetime))
             }
         }
+        return shows
     }
 
     /// A rest an earlier process started may still count down on the Lock Screen. It is read back
