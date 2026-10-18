@@ -437,7 +437,7 @@ git -C "$lane_repo" init -q -b main
 git -C "$lane_repo" remote add origin "$root/lane-origin.git"
 cp "$script_dir/../../.gitignore" "$lane_repo/"
 cp "$script_dir/../../.githooks/post-checkout" "$lane_repo/.githooks/"
-for s in lane.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh; do
+for s in lane.sh lane-help.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh; do
     cp "$script_dir/../$s" "$lane_repo/scripts/"
 done
 GIT_COMMITTER_DATE=2020-01-01T00:00:00 GIT_AUTHOR_DATE=2020-01-01T00:00:00 \
