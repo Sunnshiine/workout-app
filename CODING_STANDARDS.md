@@ -56,8 +56,9 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 ## Vocabulary
 
-- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists bind
-  too, and a synonym is a finding even when the code works. (#572, fixed in #591.)
+- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists, and
+  those of the area files it links (`docs/context/logging.md`), bind too, and a synonym is a
+  finding even when the code works. (#572, fixed in #591.)
 
 ## Comments
 

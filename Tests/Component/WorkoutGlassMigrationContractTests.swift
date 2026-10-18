@@ -36,10 +36,11 @@ import Testing
 // MARK: - The retired 8/16/28 radius scale is deleted (token sheet §6)
 
 @Test func retiredRadiusConstantsAreDeletedFromTheme() throws {
-    let theme = try RepositoryFiles.text(of: "Sources/WorkoutTracker/Theme.swift")
-
-    for retired in ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"] {
-        #expect(!theme.contains(retired), "Theme.swift still defines the retired radius constant \(retired)")
+    for file in ["Theme.swift", "ThemePaint.swift", "ThemePalette.swift"] {
+        let theme = try RepositoryFiles.text(of: "Sources/WorkoutTracker/\(file)")
+        for retired in ["cardCornerRadius", "lensCornerRadius", "rowCornerRadius", "sessionTileCornerRadius", "pillCornerRadius"] {
+            #expect(!theme.contains(retired), "\(file) still defines the retired radius constant \(retired)")
+        }
     }
 }
 
