@@ -395,16 +395,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 }
 
 @MainActor
-@Test func supersetIdentityTellsSessionsWithoutAWeekApartByDay() {
-    func squatIdentity(inDay day: Int?) -> SupersetExerciseIdentity {
-        let squat = Exercise(name: "Squat", coachNote: nil, order: 0)
-        if let day {
-            Session(dayNumber: day, date: nil).exercises = [squat]
-        }
-        return SupersetExerciseIdentity(exercise: squat)
-    }
+@Test func anExerciseOfADetachedSessionCannotJoinASuperset() {
+    let session = makeSupersetSession()
+    session.week = nil
+    let state = SupersetState()
 
-    #expect(squatIdentity(inDay: 2) == squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
+    #expect(SupersetExerciseIdentity(exercise: session.exercises[0]) == nil)
+    #expect(!state.canCreateSuperset(with: Array(session.exercises.prefix(2)), in: session))
+    #expect(!state.createSuperset(with: Array(session.exercises.prefix(2)), in: session))
 }

@@ -14,7 +14,7 @@ private func makeSession() -> Session {
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
     session.exercises = [bench, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makePendingSession() -> Session {
@@ -25,7 +25,7 @@ private func makePendingSession() -> Session {
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     ]
     session.exercises = [squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeMultiExercisePendingSession() -> Session {
@@ -54,7 +54,7 @@ private func makePlannedSupersetSession() -> Session {
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
     session.exercises = [row, squat, bench]
-    return session
+    return placedInBlock(session)
 }
 
 @MainActor

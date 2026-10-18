@@ -14,9 +14,10 @@ struct SetCoordinates: Equatable {
     init(of set: ExerciseSet) throws {
         guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
         guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
-        guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
-        guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
-        self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
+        guard let coordinate = session.placement.coordinate, let block = session.block else {
+            throw WorkoutLoggingError.detachedSession
+        }
+        self.session = coordinate
         self.dayNumbering = block.dayNumbering
         self.exerciseName = exercise.exerciseName
         self.setIndex = set.index

@@ -11,7 +11,7 @@ struct LoadBasisPresentation: Equatable, Sendable {
         case .history(let session, let matchedName):
             let sessionLabel = session.address.sessionLabel
             let place =
-                session.blockTab == set.exercise?.session?.week?.block?.tabName
+                session.blockTab == set.exercise?.session?.placement.coordinate?.blockTab
                 ? sessionLabel : "\(session.blockTab) \(sessionLabel)"
             let entryName = matchedName.map { " as “\($0)”" } ?? ""
             text = "from \(basis.setLog.formatted) · \(place)\(entryName)"

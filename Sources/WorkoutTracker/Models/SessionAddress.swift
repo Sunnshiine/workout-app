@@ -31,20 +31,6 @@ extension Week {
     }
 }
 
-extension Session {
-    var address: SessionAddress? { week?.address(of: self) }
-
-    var reparseIdentity: SessionReparseIdentity {
-        guard let week else { return .weekless(dayNumber: dayNumber) }
-        return .inWeek(week.address(of: self), blockTab: week.block?.tabName)
-    }
-}
-
-enum SessionReparseIdentity: Hashable, Sendable {
-    case inWeek(SessionAddress, blockTab: String?)
-    case weekless(dayNumber: Int)
-}
-
 extension ParsedWeek {
     func address(of session: ParsedSession) -> SessionAddress {
         SessionAddress(week: number, day: session.dayNumber)
