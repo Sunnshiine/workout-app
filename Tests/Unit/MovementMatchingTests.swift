@@ -41,7 +41,96 @@ import Testing
     #expect(MovementMatching.similarity("abc", "abc") == 1)
 }
 
+// Choice Exercises (#428): "A or B" is the same Movement as anything either option is.
+
+@Test func aChoiceMatchesEachOptionWithItsSharedWords() {
+    let choice = ExerciseName(entered: "Incline Machine or DB Bench Press")
+    #expect(choice.isSameMovement(as: "Incline DB Bench Press"))
+    #expect(choice.isSameMovement(as: "Incline Machine Bench Press"))
+    #expect(choice.isSameMovement(as: "Incline Machine Press"))
+    #expect(!choice.isSameMovement(as: "Bench Press"))
+}
+
+@Test func aChoiceOfWholeNamesMatchesEachName() {
+    let choice = ExerciseName(entered: "Leg Press or Hack Squat")
+    #expect(choice.isSameMovement(as: "Leg Press"))
+    #expect(choice.isSameMovement(as: "Hack Squat"))
+}
+
+@Test func aChoiceOfThreeMatchesItsMiddleOptionWithTheSharedWords() {
+    let choice = ExerciseName(entered: "Cable or DB or Machine Lateral Raise")
+    #expect(choice.isSameMovement(as: "DB Lateral Raise"))
+    #expect(choice.isSameMovement(as: "Cable Lateral Raise"))
+    #expect(choice.isSameMovement(as: "Machine Lateral Raise"))
+    #expect(!choice.isSameMovement(as: "Lateral Raise"))
+}
+
+@Test func aLoggedChoiceMatchesAViewedOption() {
+    #expect(ExerciseName(entered: "Incline DB Bench Press").isSameMovement(as: "Incline Machine or DB Bench Press"))
+    #expect(ExerciseName(entered: "Hack Squat").isSameMovement(as: "Leg Press or Hack Squat"))
+}
+
+@Test func twoChoicesMatchWhenAnyOptionsMatch() {
+    #expect(ExerciseName(entered: "Cable or DB Lateral Raise").isSameMovement(as: "DB or Machine Lateral Raise"))
+    #expect(!ExerciseName(entered: "Cable or DB Lateral Raise").isSameMovement(as: "Leg Press or Hack Squat"))
+}
+
+@Test func theChoiceWordSplitsRegardlessOfCaseAndSpacing() {
+    #expect(ExerciseName(entered: "Leg Press  OR   Hack Squat").isSameMovement(as: "Hack Squat"))
+    #expect(ExerciseName(entered: "3:1:0 Leg Press Or Hack Squat").isSameMovement(as: "Leg Press"))
+}
+
+@Test func orInsideAWordIsNotAChoice() {
+    #expect(!ExerciseName(entered: "Floor Press").isSameMovement(as: "Press"))
+    #expect(!ExerciseName(entered: "Good Morning").isSameMovement(as: "Good"))
+    #expect(!ExerciseName(entered: "Or Press").isSameMovement(as: "Press"))
+}
+
+// An option matches whatever the same name standing alone matches, so a choice inherits each
+// option's existing over-matches (ADR-0013, amended for #428). These pin the two known ones.
+
+@Test func aChoiceInheritsHackSquatMatchingBackSquat() {
+    #expect(ExerciseName(entered: "Hack Squat").isSameMovement(as: "Back Squat"))
+    #expect(ExerciseName(entered: "Leg Press or Hack Squat").isSameMovement(as: "Back Squat"))
+    #expect(ExerciseName(entered: "Back Squat").isSameMovement(as: "Leg Press or Hack Squat"))
+}
+
+@Test func aChoiceInheritsItsBareOptionMatchingFlatDBBenchPress() {
+    #expect(ExerciseName(entered: "DB Bench Press").isSameMovement(as: "Flat DB Bench Press"))
+    #expect(ExerciseName(entered: "Incline Machine or DB Bench Press").isSameMovement(as: "Flat DB Bench Press"))
+}
+
 // Tier-3 (Movement-level) ladder in the Last Performed lookup snapshot.
+
+@Test func snapshotTierThreeFindsAnOptionLoggedUnderItsOwnName() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        LastPerformedEntry(
+            exerciseName: "Incline DB Bench Press",
+            resultText: "185x5@7",
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 28 · W1 D1"
+        )
+    ])
+
+    let match = snapshot.lookup(for: "Incline Machine or DB Bench Press")
+    #expect(match?.resultText == "185x5@7")
+    #expect(match?.matchedName == "Incline DB Bench Press")
+}
+
+@Test func snapshotTierThreeFindsAChoiceLoggedUnderTheChoiceName() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        LastPerformedEntry(
+            exerciseName: "Incline Machine or DB Bench Press",
+            resultText: "185x5@7",
+            performedOn: Date(timeIntervalSinceReferenceDate: 100),
+            source: "Block 28 · W1 D1"
+        )
+    ])
+
+    let match = snapshot.lookup(for: "Incline DB Bench Press")
+    #expect(match?.resultText == "185x5@7")
+    #expect(match?.matchedName == "Incline Machine or DB Bench Press")
+}
 
 @Test func snapshotTierThreeFiresWhenExactAndBaseAreBlank() {
     // History carries the coach's misspelling; the viewed Exercise uses a different spelling.
