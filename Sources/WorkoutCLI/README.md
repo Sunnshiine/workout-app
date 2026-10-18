@@ -123,11 +123,14 @@ where a word next to it, or the phrase around it, says which, never by its place
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" and "225 for 3 to
   8" are `missingValues` with the RPE missing, because "185 for 5 and 5" may be five Sets of five. `hear` and the mic
   fill a value the top transcript cut off from the alternative transcripts, when every one that
-  hears the same weight and reps hears the same RPE: "185 for 5 and 8" beside "185 for 5 at 8" logs
-  185x5@8, and beside "185 for 5 at 8" and "185 for 5 at 9" stays `missingValues`.
+  hears the same weight and reps hears the same RPE and it is the number the top wrote in its
+  place: "185 for 5 and 8" beside "185 for 5 at 8" logs 185x5@8, and beside "185 for 5 at 7", or
+  beside "185 for 5 at 8" and "185 for 5 at 9", stays `missingValues`. Where the top wrote no
+  number, the alternatives supply it: "185 for 5 at" beside "185 for 5 at 8" logs 185x5@8.
 - A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
-  cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing. A rep
-  count is whole, so after one it is the RPE that is missing ("185 for 5 and").
+  cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing, and only
+  an alternative that hears 8 and a half settles it. A rep count is whole, so after one it is the
+  RPE that is missing ("185 for 5 and").
 - A value said twice is `conflicting`, even as the same number: "185 for 5 for 5" and "185 for 5
   reps, 5 reps".
 - A Spoken Set holds any weight and rep count the card accepts: "4 for 5", "5 by 5", "135 for 45",
@@ -141,16 +144,20 @@ where a word next to it, or the phrase around it, says which, never by its place
   `ambiguous`.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", and a clock-style "1:35" for 135.
-  "ate" is 8, "single", "double", and "triple" are 1, 2, and 3 ("225 for a triple at 8"), and "to"
+  "ate" is 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for a triple at 8") and
+  never part of a number word ("one eighty single for 5" is `ambiguous`), and "to"
   or "too" is 2 only where a number is asked for. Number words in a row that
   make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
 - A number whose whole part has four or more digits is `fusedNumber`, never a weight: the recognizer
   wrote "40542" for "four oh five for two".
-- A rep count written right after "for", with no "reps" after it and no RPE said, is `ambiguous`
-  as two digits whose second is 6 to 9, and as any three digits: "135 for 19" may be "135 for 1 at
-  9", and "135 for 808" is what the recognizer writes for "135 for 8 at an 8". "135 for 19 reps",
-  "135 for 100 reps", "135 for 15", and "45 for 10" log.
+- A rep count right after "for", with no "reps" after it and no RPE said, is `ambiguous` as two
+  digits whose second is 6 to 9, and as 100 or more in digits or words: "135 for 19" may be "135
+  for 1 at 9", "135 for 808" is what the recognizer writes for "135 for 8 at an 8", and "135 for
+  one hundred" is `ambiguous` too. "135 for 19 reps", "135 for 100 reps", "135 for 101 at 8", "135
+  for 15", and "45 for 10" log.
+- "a" right after a number keeps that number from the label after it, so "135, a representative,
+  RP9", the recognizer dropping the 8 of "135, 8 reps, RPE 9", is `unrecognized`.
 - "bodyweight", "body weight", and "BW" are the BW weight, as are the "body waits" and "Bobby waits"
   the recognizer writes for it.
 - "same again", "same", "same as last", "same as before", "do the same", "repeat", and "again" log
