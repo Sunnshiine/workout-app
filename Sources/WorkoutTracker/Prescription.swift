@@ -41,6 +41,11 @@ enum PrescribedReps: Equatable, Sendable {
         let high = match.2.flatMap { Int($0) } ?? low
         self = low <= high ? .target(low...high) : .uninterpreted
     }
+
+    var target: ClosedRange<Int>? {
+        guard case .target(let reps) = self else { return nil }
+        return reps
+    }
 }
 
 /// The coach's Load cell. A cell is exactly one of these, so no two readers can take the same

@@ -54,6 +54,11 @@ func aRepsCellReadsAsPrescribedReps(cell: String, expected: PrescribedReps) {
     #expect(PrescribedReps(cell) == expected)
 }
 
+@Test func onlyARepTargetNamesARange() {
+    #expect(PrescribedReps("8-10").target == 8...10)
+    #expect(PrescribedReps("AMRAP").target == nil)
+}
+
 @Test(
     "A %1RM cell reads as a percentage",
     arguments: [("75%", 75.0), ("75", 75), (" 72.5% ", 72.5)] as [(String, Double)]

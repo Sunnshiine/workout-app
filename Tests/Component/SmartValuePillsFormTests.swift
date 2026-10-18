@@ -64,22 +64,48 @@ import Testing
 }
 
 @MainActor
-@Test func repsPillShowsNonIntegerPrescriptionAsHint() {
-    let range = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
-        suggestion: .noSuggestion
-    )
+@Test func repsPillShowsUninterpretedRepsTextAsHint() {
     let amrap = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "BW", percentOneRM: nil, state: .pending),
         suggestion: .bodyweight
     )
 
-    #expect(range.repsText == "")
-    #expect(range.repsDisplay == "10-15")
-    #expect(range.isRepsDisplayingPlaceholder)
     #expect(amrap.repsText == "")
     #expect(amrap.repsDisplay == "AMRAP")
     #expect(amrap.isRepsDisplayingPlaceholder)
+}
+
+@MainActor
+@Test func aRepRangePrefillsItsLowEndSoLoggingUntouchedWritesIt() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "11-12", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(200)
+    )
+
+    #expect(form.repsText == "11")
+    #expect(!form.isRepsDisplayingPlaceholder)
+    #expect(form.makeLog() == SetLog(weight: .pounds(200), reps: 11, rpe: .eight))
+}
+
+@MainActor
+@Test func aSpacePaddedRepsCellPrefillsItsNumber() {
+    let form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: " 5 ", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .noSuggestion
+    )
+
+    #expect(form.repsText == "5")
+}
+
+@MainActor
+@Test func aLoggedSetShowsItsLoggedRepsNotTheRange() {
+    let set = ExerciseSet(index: 0, prescribedReps: "11-12", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
+    set.markLogged(SetLog(weight: .pounds(200), reps: 12, rpe: .nine), at: Date(timeIntervalSinceReferenceDate: 0))
+
+    let form = SmartValuePillsForm(set: set, suggestion: .noSuggestion)
+
+    #expect(form.repsText == "12")
+    #expect(form.prescribedReps == .target(11...12))
 }
 
 @MainActor
@@ -163,7 +189,7 @@ import Testing
 @MainActor
 @Test func formValidationMarksInvalidFieldsAndClearsThemAsTheyBecomeValid() {
     var form = SmartValuePillsForm(
-        set: ExerciseSet(index: 0, prescribedReps: "10-15", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
+        set: ExerciseSet(index: 0, prescribedReps: "AMRAP", prescribedLoad: "75%1RM", percentOneRM: nil, state: .pending),
         suggestion: .noSuggestion
     )
 
