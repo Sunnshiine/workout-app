@@ -2,8 +2,10 @@
      Regenerate: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests -->
 # Launch flags
 
-With no Scenario flag, the fixture seeds a Partially Uploaded Block. When a launch passes more
-than one Scenario flag, the lowest Scenario number wins. Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
+With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the
+`partial-upload` workbook scenario, the cells `workout init --scenario partial-upload` also
+reads. When a launch passes more than one Scenario flag, the lowest Scenario number wins.
+Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
 
 | Flag | Kind | Meaning |
 | --- | --- | --- |
