@@ -34,7 +34,7 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(block.weekCount == 2)
     #expect(snapshot.currentSession == SessionAddress(week: 1, day: 1))
     #expect(snapshot.viewedSession == SessionAddress(week: 1, day: 1))
-    #expect(snapshot.currentSessionReason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(snapshot.currentSessionReason == "No Current Session Pin is set, so Sheet-derived progress wins.")
     #expect(snapshot.currentSessionIsOverridden == false)
     #expect(snapshot.canMoveOn == true)
     #expect(snapshot.openExercises == [])
@@ -224,6 +224,31 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test func aMoveOnPinsTheCurrentSessionWithoutReportingAnOverride() async throws {
+    let app = try await makeSelectedApp()
+
+    app.workout.moveOn()
+
+    let snapshot = try app.snapshot()
+    #expect(snapshot.currentSession == SessionAddress(week: 1, day: 2))
+    #expect(snapshot.currentSessionIsOverridden == false)
+    #expect(snapshot.currentSessionReason == "Move On advanced to this Session, so it wins over Sheet-derived progress.")
+}
+
+@MainActor
+@Test func makeCurrentReportsAnOverride() async throws {
+    let app = try await makeSelectedApp()
+
+    _ = try app.view(SessionAddress(week: 2, day: 1))
+    app.workout.makeViewedSessionCurrent()
+
+    let snapshot = try app.snapshot()
+    #expect(snapshot.currentSession == SessionAddress(week: 2, day: 1))
+    #expect(snapshot.currentSessionIsOverridden == true)
+    #expect(snapshot.currentSessionReason == "The athlete made this Session current, so it wins over Sheet-derived progress.")
+}
+
+@MainActor
 @Test func unconfiguredApplicationRefusesSheetVerbsButStillSnapshots() async throws {
     let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
 
@@ -239,7 +264,7 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 
@@ -256,7 +281,7 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 

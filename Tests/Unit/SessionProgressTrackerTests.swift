@@ -143,86 +143,6 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func persistedIdentityRoundTripsToSameSessionAcrossBlock() throws {
-    let block = makeBlock()
-    let tracker = SessionProgressTracker()
-
-    for session in sortedSessions(in: block) {
-        let identity = tracker.persistedIdentity(of: session)
-        let roundTripped = try #require(tracker.session(for: identity, in: block))
-
-        #expect(roundTripped.persistentModelID == session.persistentModelID)
-    }
-}
-
-@MainActor
-@Test func persistedIdentityKeepsTheStoredOverrideEncoding() throws {
-    let block = makeBlock()
-    let tracker = SessionProgressTracker()
-    let sessions = sortedSessions(in: block)
-    let week2Day1 = try #require(sessions.first { $0.week?.number == 2 && $0.dayNumber == 1 })
-    let week1Day2 = try #require(sessions.first { $0.week?.number == 1 && $0.dayNumber == 2 })
-
-    #expect(tracker.persistedIdentity(of: week2Day1).storageValue == 8)
-    #expect(tracker.persistedIdentity(of: week1Day2).storageValue == 2)
-}
-
-@MainActor
-@Test func currentSessionOverrideStorageKeyIsNamespacedPerBlockTab() {
-    let tracker = SessionProgressTracker()
-
-    // Namespaced so a legacy pre-V2 value under `advancedToOrder_*` is orphaned, and
-    // one Block's override never leaks into another's.
-    #expect(tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27") == "advancedToOrderV2_Block 27")
-    #expect(
-        tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 27")
-            != tracker.currentSessionOverrideStorageKey(forBlockTab: "Block 28")
-    )
-}
-
-@MainActor
-@Test func currentSessionUsesValidOverrideEvenWhenBehindDerivedProgress() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[2].exercises[0].sets[0].state = .logged
-    let tracker = SessionProgressTracker()
-
-    let ahead = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[4]))  // W2 D1
-    let behind = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[1]))  // W1 D2
-
-    #expect(ahead?.week?.number == 2)
-    #expect(ahead?.dayNumber == 1)
-    #expect(behind?.week?.number == 1)
-    #expect(behind?.dayNumber == 2)
-}
-
-@MainActor
-@Test func currentSessionIgnoresUnavailableOverride() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[1].exercises = []
-    let tracker = SessionProgressTracker()
-
-    let current = tracker.currentSession(in: block, override: tracker.persistedIdentity(of: sessions[1]))  // W1 D2
-
-    #expect(current?.week?.number == 1)
-    #expect(current?.dayNumber == 1)
-}
-
-@MainActor
-@Test func currentSessionIgnoresInvalidOverride() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[2].exercises[0].sets[0].state = .logged
-
-    // A stale persisted identity that matches no Session in this Block.
-    let current = SessionProgressTracker().currentSession(in: block, override: PersistedSessionIdentity(storageValue: 99))
-
-    #expect(current?.week?.number == 1)
-    #expect(current?.dayNumber == 3)
-}
-
-@MainActor
 @Test func currentSessionUsesPartialNotesLogsAsProgress() throws {
     let grid = gridFromA1(
         [
@@ -416,6 +336,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .advance(to: sessions[1]))
+    #expect(destination.isOffered)
 }
 
 @MainActor
@@ -444,6 +365,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[0], in: block)
 
     #expect(destination == .returnToBlockOverview)
+    #expect(destination.isOffered)
 }
 
 @MainActor
@@ -455,6 +377,21 @@ private func sortedSessions(in block: Block) -> [Session] {
     let destination = tracker.moveOnDestination(from: sessions[7], in: block)
 
     #expect(destination == .returnToBlockOverview)
+}
+
+/// A Session held across a sync is no longer one of the Block's Sessions. Move On from it used to
+/// read a Session with no Week as Week 1, so W2 D3 advanced to W1 D4 (#897).
+@MainActor
+@Test func moveOnIsNotOfferedFromASessionTheBlockNoLongerHolds() throws {
+    let block = makeBlock()
+    let tracker = SessionProgressTracker()
+    let detached = Session(dayNumber: 3, date: nil)
+    let replaced = try #require(sortedSessions(in: makeBlock()).first { $0.week?.number == 2 && $0.dayNumber == 3 })
+
+    #expect(tracker.moveOnDestination(from: detached, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: detached, in: block) == nil)
+    #expect(tracker.moveOnDestination(from: replaced, in: block) == .notOffered)
+    #expect(tracker.nextSession(after: replaced, in: block) == nil)
 }
 
 // MARK: - Current-Week membership

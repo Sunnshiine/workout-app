@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// Where an application's state lives. Values only; nothing about what to do with them.
 public struct AppEnvironment {
@@ -13,7 +12,6 @@ public struct AppEnvironment {
     let sheetsClient: any SheetsClient
     let defaults: AppDefaults
     let now: @MainActor () -> Date
-    let seed: (@MainActor (ModelContext) throws -> Void)?
 
     #if OFFLINE_SHEET
         /// An application whose Sheet is `workbook` and whose store and settings vanish with the process.
@@ -21,13 +19,17 @@ public struct AppEnvironment {
             workbook: LocalWorkbook,
             now: @escaping @MainActor () -> Date = Date.init
         ) -> AppEnvironment {
-            AppEnvironment(
-                storage: .inMemory,
-                sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
-                defaults: .inMemory(),
-                now: now,
-                seed: nil
-            )
+            .inMemory(sheets: LocalWorkbookSheetsClient(workbook: workbook), now: now)
+        }
+
+        /// An application whose spreadsheets are `sheets` and whose store and settings vanish with
+        /// the process. The UI fixture passes a `LocalDrive` it keeps, so it can arm the drive's
+        /// faults after its boot sync.
+        static func inMemory(
+            sheets: any SheetsClient,
+            now: @escaping @MainActor () -> Date = Date.init
+        ) -> AppEnvironment {
+            AppEnvironment(storage: .inMemory, sheetsClient: sheets, defaults: .inMemory(), now: now)
         }
 
         /// An application that keeps its store in `home/store.sqlite`, its settings in
@@ -42,8 +44,7 @@ public struct AppEnvironment {
                 storage: .file(home.appendingPathComponent("store.sqlite")),
                 sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
                 defaults: try .file(home.appendingPathComponent("settings.json")),
-                now: now,
-                seed: nil
+                now: now
             )
         }
     #endif
@@ -53,20 +54,7 @@ public struct AppEnvironment {
             storage: .deviceDefault,
             sheetsClient: GoogleSheetsClient(),
             defaults: .device(),
-            now: Date.init,
-            seed: nil
+            now: Date.init
         )
     }
-
-    #if DEBUG
-        static func uiTestFixture(launch: UITestLaunch) -> AppEnvironment {
-            AppEnvironment(
-                storage: .inMemory,
-                sheetsClient: UITestFixture.makeSheetsClient(launch: launch),
-                defaults: .inMemory(),
-                now: Date.init,
-                seed: { try UITestFixture.seed(into: $0, launch: launch) }
-            )
-        }
-    #endif
 }

@@ -22,7 +22,7 @@ struct BlockScenario {
 enum WorkoutScenarios {
     @MainActor
     static func freshConfiguredApp(
-        block: Block = WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock()
+        block: Block = WorkbookScenario.currentSessionWithPendingSets.block()
     ) throws -> ConfiguredAppScenario {
         let container = try ModelContainer(
             for: Block.self,
@@ -49,17 +49,17 @@ enum WorkoutScenarios {
 
     @MainActor
     static func currentSessionWithPendingSets() -> BlockScenario {
-        scenario(from: WorkoutFixtureScenarios.currentSessionWithPendingSetsBlock())
+        scenario(from: WorkbookScenario.currentSessionWithPendingSets.block())
     }
 
     @MainActor
     static func partiallyLoggedSession() -> BlockScenario {
-        scenario(from: WorkoutFixtureScenarios.partiallyLoggedSessionBlock())
+        scenario(from: WorkbookScenario.partiallyLoggedSession.block())
     }
 
     @MainActor
     static func openExercises() -> BlockScenario {
-        scenario(from: WorkoutFixtureScenarios.openExercisesBlock())
+        scenario(from: WorkbookScenario.openExercises.block())
     }
 
     static func syncFailure() -> SyncOutcome {
@@ -72,7 +72,7 @@ enum WorkoutScenarios {
 
     @MainActor
     static func blockOverviewWithMixedSessionStates() -> BlockScenario {
-        let block = WorkoutFixtureScenarios.blockOverviewWithMixedSessionStatesBlock()
+        let block = WorkbookScenario.blockOverviewWithMixedSessionStates.block()
         let currentSession = block.weeks
             .first { $0.number == 1 }?
             .sessions.first { $0.dayNumber == 3 }
@@ -81,7 +81,7 @@ enum WorkoutScenarios {
 
     @MainActor
     static func partiallyUploadedBlock() -> BlockScenario {
-        scenario(from: WorkoutFixtureScenarios.partiallyUploadedBlock())
+        scenario(from: WorkbookScenario.partialUpload.block())
     }
 
     @MainActor

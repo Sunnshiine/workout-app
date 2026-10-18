@@ -95,13 +95,15 @@ struct GoogleSheetsClient: SheetsClient {
         self.load = load
     }
 
-    /// The sheet-picker client for the running environment: a deterministic fixture client under
-    /// UI-test launch arguments, otherwise a live `GoogleSheetsClient`. Centralises the fixture/live
-    /// decision so every sheet-picker entry point (Onboarding and Settings) shares one source.
+    /// The sheet-picker client for the running environment: the fixture application's own drive
+    /// under UI-test launch arguments, otherwise a live `GoogleSheetsClient`. Centralises the
+    /// fixture/live decision so every sheet-picker entry point (Onboarding and Settings) shares one
+    /// source.
+    @MainActor
     static func forCurrentEnvironment() -> any SheetsClient {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.makeSheetsClient(launch: UITestFixture.launch)
+                return UITestFixture.sheets
             }
         #endif
         return GoogleSheetsClient()

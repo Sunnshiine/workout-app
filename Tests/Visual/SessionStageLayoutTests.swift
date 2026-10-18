@@ -416,20 +416,7 @@ private struct SessionPage: View {
 
 @MainActor
 private func boundCoordinator(to session: Session, store: WorkoutStore) -> SessionCoordinator {
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: store,
-        sync: InertSessionSync(),
-        navigation: store,
-        motion: ImmediateSessionMotion()
-    )
-    return coordinator
-}
-
-private struct InertSessionSync: SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error) {}
-    func requestPendingWriteFlush() {}
+    SessionCoordinator(session: session, wiring: .fixture(logging: store, navigation: store))
 }
 
 @MainActor
@@ -486,7 +473,7 @@ private enum SessionPageHost {
 
     static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(
-            block: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock()
+            block: WorkbookScenario.completedOpenExercises.block()
         )
         VisualFixtureRetainer.retain(scenario)
         let session = try #require(scenario.store.viewedSession)

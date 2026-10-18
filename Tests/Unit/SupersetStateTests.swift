@@ -234,12 +234,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let firstBlock = makeSupersetSession(blockTab: "Block 29")
     let squat = try #require(firstBlock.exercises.first { $0.exerciseName == "Squat" })
     let bench = try #require(firstBlock.exercises.first { $0.exerciseName == "Bench Press" })
-    let coordinator = SessionCoordinator(session: firstBlock)
+    let coordinator = SessionCoordinator(session: firstBlock, wiring: .fixture())
     #expect(coordinator.createSuperset(from: squat, to: bench, in: firstBlock))
     #expect(coordinator.stage(in: firstBlock, lookup: .empty).queue.rows.map(\.id) == ["superset-0", "exercise-2"])
 
     let secondBlock = makeSupersetSession(blockTab: "Block 30")
-    coordinator.bind(to: secondBlock)
+    coordinator.view(secondBlock)
 
     let rows = coordinator.stage(in: secondBlock, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
@@ -395,16 +395,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 }
 
 @MainActor
-@Test func supersetIdentityTellsSessionsWithoutAWeekApartByDay() {
-    func squatIdentity(inDay day: Int?) -> SupersetExerciseIdentity {
-        let squat = Exercise(name: "Squat", coachNote: nil, order: 0)
-        if let day {
-            Session(dayNumber: day, date: nil).exercises = [squat]
-        }
-        return SupersetExerciseIdentity(exercise: squat)
-    }
+@Test func anExerciseOfADetachedSessionCannotJoinASuperset() {
+    let session = makeSupersetSession()
+    session.week = nil
+    let state = SupersetState()
 
-    #expect(squatIdentity(inDay: 2) == squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
+    #expect(SupersetExerciseIdentity(exercise: session.exercises[0]) == nil)
+    #expect(!state.canCreateSuperset(with: Array(session.exercises.prefix(2)), in: session))
+    #expect(!state.createSuperset(with: Array(session.exercises.prefix(2)), in: session))
 }

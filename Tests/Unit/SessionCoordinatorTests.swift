@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftData
 import Testing
 
@@ -65,20 +66,23 @@ private final class SpySessionSyncAdapter: SessionSyncAdapter {
 }
 
 @MainActor
+@Observable
 private final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var canMoveOn = false
     var openExercises: [Exercise] = []
-    var liveEdge: (Session) -> LiveEdge
+    /// The Viewed Session's live edge, which the rest Live Activity is reconciled at.
+    var liveEdge: LiveEdge = .browsedAway
+    var liveEdgeOfSession: (Session) -> LiveEdge
     var readAtCelebrationRequest: () -> Bool = { false }
     private(set) var celebrationRequests: [Bool] = []
     private(set) var shownAddresses: [SessionAddress] = []
 
     init(liveEdge: @escaping (Session) -> LiveEdge = { _ in .browsedAway }) {
-        self.liveEdge = liveEdge
+        self.liveEdgeOfSession = liveEdge
     }
 
     func liveEdge(for session: Session) -> LiveEdge {
-        liveEdge(session)
+        liveEdgeOfSession(session)
     }
 
     func requestMoveOnCelebration() {
@@ -107,6 +111,18 @@ private final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     func endIfInvalidated(at liveEdge: LiveEdge) {
         invalidationCalls.append(liveEdge)
     }
+}
+
+/// A real `SettingsStore` holding these rest lengths, read at each rest's start.
+@MainActor
+private func restDurations(
+    standard: Int = RestDurationSetting.standard.seconds,
+    superset: Int = RestDurationSetting.superset.seconds
+) -> SettingsStore {
+    let settings = SettingsStore(defaults: .inMemory())
+    settings.setStandardRestDuration(RestDurationSetting(seconds: standard))
+    settings.setSupersetRestDuration(RestDurationSetting(seconds: superset))
+    return settings
 }
 
 private enum SessionVerbEntry: Equatable {
@@ -194,18 +210,25 @@ private final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAd
 }
 
 @MainActor
-private func makeLedgerCoordinator(session: Session, restTimer: RestTimer? = nil) -> (SessionCoordinator, SessionVerbLedger) {
+private func makeLedgerCoordinator(
+    session: Session,
+    restTimer: RestTimer = RestTimer(
+        clock: ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 0)),
+        expiryScheduler: HeldRestExpiry()
+    )
+) -> (SessionCoordinator, SessionVerbLedger) {
     let ledger = SessionVerbLedger()
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: ledger,
-        sync: ledger,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        liveActivity: ledger,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ledger
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: ledger,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: ledger,
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 210),
+            liveActivity: ledger,
+            motion: ledger
+        )
     )
     ledger.coordinator = coordinator
     return (coordinator, ledger)
@@ -276,7 +299,7 @@ private func makeCoordinatorSession() -> Session {
     ]
 
     session.exercises = [row, bench, completedSquat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makePlannedPairingSession() -> Session {
@@ -298,7 +321,7 @@ private func makePlannedPairingSession() -> Session {
     ]
 
     session.exercises = [bench, press, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeSquatAndRDLSession() -> Session {
@@ -311,7 +334,7 @@ private func makeSquatAndRDLSession() -> Session {
         }
     }
     session.exercises = [squat, rdl]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeFourExercisePairingSession() -> Session {
@@ -338,7 +361,7 @@ private func makeFourExercisePairingSession() -> Session {
     ]
 
     session.exercises = [row, bench, press, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeIntegratedCoordinatorSession() -> Session {
@@ -377,7 +400,7 @@ private func makeIntegratedCoordinatorSession() -> Session {
     ]
 
     session.exercises = [pulldown, row, bench, squat]
-    return session
+    return placedInBlock(session)
 }
 
 private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: ExerciseSet) {
@@ -386,13 +409,14 @@ private func makeSingleSetSession(dayNumber: Int) -> (session: Session, set: Exe
     let set = ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     exercise.sets = [set]
     session.exercises = [exercise]
-    return (session, set)
+    return (placedInBlock(session), set)
 }
 
 @MainActor
 private func connectCoordinatorWeek(_ sessions: [Session]) {
     let week = Week(number: 1)
     week.sessions = sessions
+    week.block = Block(tabName: "Block 27")
 }
 
 private struct CoordinatorActionFixture {
@@ -432,8 +456,7 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
     let sync = SpySessionSyncAdapter()
     let coordinator = SessionCoordinator(
         session: session,
-        logging: logging,
-        sync: sync,
+        wiring: .fixture(logging: logging, sync: sync),
         transitionClock: ManualSessionTransitionClock()
     )
     return CoordinatorActionFixture(
@@ -446,22 +469,23 @@ private func makeActionFixture() throws -> CoordinatorActionFixture {
 
 @MainActor
 private func makeRestActionFixture(
-    liveActivity: (any SessionLiveActivityAdapter)? = nil
+    liveActivity: any SessionLiveActivityAdapter = InertSessionLiveActivity()
 ) throws -> CoordinatorRestActionFixture {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: sync,
+            restTimer: restTimer,
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     return CoordinatorRestActionFixture(
         session: session,
@@ -473,9 +497,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorBindExposesInitialFocusThroughCoordinatorInterface() {
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator()
-
-    coordinator.bind(to: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
 
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }
@@ -484,7 +506,7 @@ private func makeRestActionFixture(
 @Test func theStageListsOrdinaryExercisesInSessionOrderWithTheirPairingRoles() throws {
     let session = makeCoordinatorSession()
     let clock = ManualSessionTransitionClock()
-    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(), transitionClock: clock)
     let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -509,7 +531,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorExpandsLoggedSetReviewWithoutChangingActivePendingSet() throws {
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let completedSquatSet = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
 
     coordinator.focus(on: completedSquatSet)
@@ -533,7 +555,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func theStageFusesASupersetAtItsLowerOrderedSideInSessionOrder() throws {
     let session = makeFourExercisePairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let press = try #require(session.exercises.first { $0.order == 0 })
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -563,7 +585,7 @@ private func makeRestActionFixture(
     )
     try context.save()
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
 
     let stage = coordinator.stage(in: session, lookup: LastPerformedLookupStore(context: context).snapshot)
 
@@ -580,7 +602,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorBeginsPairingOnlyFromEligibleExercise() throws {
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let completedSquat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
 
@@ -594,7 +616,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorHandlesSourceAndUnavailablePairingTaps() throws {
     let session = makeCoordinatorSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let completedSquat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
 
@@ -610,7 +632,7 @@ private func makeRestActionFixture(
 @Test func coordinatorSourceTapCancelsPairingConfirmation() throws {
     let session = makeCoordinatorSession()
     let clock = ManualSessionTransitionClock()
-    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(), transitionClock: clock)
     let completedSquat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -629,7 +651,7 @@ private func makeRestActionFixture(
 @Test func coordinatorCreatesSupersetAfterClockControlledPairingConfirmation() async throws {
     let session = makePlannedPairingSession()
     let clock = ManualSessionTransitionClock()
-    let coordinator = SessionCoordinator(session: session, transitionClock: clock)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(), transitionClock: clock)
     let initialActiveSetID = coordinator.activeSetID
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -656,7 +678,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorDismissesSupersetClearsPairingModeAndReconcilesFocus() throws {
     let session = makeFourExercisePairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let press = try #require(session.exercises.first { $0.order == 0 })
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -674,7 +696,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func unlinkingTheSupersetFromItsQueueRowKeepsTheFocusedSideOnStage() throws {
     let session = makeFourExercisePairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let press = try #require(session.exercises.first { $0.order == 0 })
     let squat = try #require(session.exercises.first { $0.order == 1 })
 
@@ -693,7 +715,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorFocusesPairedExerciseNextPendingSet() throws {
     let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
 
@@ -733,7 +755,7 @@ private func makeRestActionFixture(
 @MainActor
 @Test func coordinatorMembershipAgreesForPlannedButNotYetActiveSuperset() throws {
     let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let press = try #require(session.exercises.first { $0.order == 0 })
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -762,7 +784,7 @@ private func makeRestActionFixture(
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let rdl = try #require(session.exercises.first { $0.order == 1 })
     let logging = SpySessionLoggingAdapter()
-    let coordinator = SessionCoordinator(session: session, logging: logging, sync: SpySessionSyncAdapter())
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(logging: logging, sync: SpySessionSyncAdapter()))
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     #expect(supersetStage(coordinator, in: session)?.card?.cardIdentity == "superset-active-0-0")
@@ -787,7 +809,7 @@ private func makeRestActionFixture(
     let session = makeIntegratedCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let coordinator = SessionCoordinator(session: session, logging: logging, sync: sync)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(logging: logging, sync: sync))
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     let finalSquatSet = try #require(squat.sets.first { $0.index == 1 })
@@ -856,10 +878,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -881,11 +900,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        supersetRestDuration: { 45 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210, superset: 45))
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -910,11 +925,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        supersetRestDuration: { 45 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210, superset: 45))
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -943,10 +954,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -971,16 +979,17 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: sync,
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 210),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1009,16 +1018,17 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: sync,
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 210),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1044,16 +1054,17 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: sync,
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 210),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1074,16 +1085,17 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let clock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: clock)
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: browsed,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 },
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: current.session) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: browsed,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { LiveEdge.resolve(viewedSession: $0, currentSession: current.session) }),
+            sync: sync,
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 210),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(browsed.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1151,10 +1163,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: current.session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
 
     coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1192,15 +1201,16 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
     navigation.readAtCelebrationRequest = { restTimer.isRunning }
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        liveActivity: liveActivity,
-        navigation: navigation,
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: navigation,
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let firstBenchSet = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1220,7 +1230,7 @@ private func makeRestActionFixture(
     earlier.exercises = [makeup]
     connectCoordinatorWeek([earlier, session])
     let navigation = SpySessionNavigationAdapter()
-    let coordinator = SessionCoordinator(session: session, navigation: navigation)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(navigation: navigation))
     let bench = try #require(session.exercises.first { $0.order == 1 })
     #expect(coordinator.beginPairing(from: bench, in: session))
 
@@ -1238,14 +1248,15 @@ private func makeRestActionFixture(
     navigation.canMoveOn = true
     navigation.openExercises = [makeup]
     var isAtLiveEdge = true
-    navigation.liveEdge = { isAtLiveEdge ? .atLiveEdge(currentSession: $0) : .browsedAway }
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        navigation: navigation,
-        motion: ImmediateSessionMotion()
+    navigation.liveEdgeOfSession = { isAtLiveEdge ? .atLiveEdge(currentSession: $0) : .browsedAway }
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: navigation,
+            sync: SpySessionSyncAdapter(),
+            motion: ImmediateSessionMotion()
+        )
     )
 
     let atLiveEdge = coordinator.stage(in: session, lookup: .empty).queue
@@ -1259,53 +1270,29 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func aCompletedStageReadBeforeTheBindHearsTheBindThatBringsMoveOn() throws {
+@Test func aStageReadBeforeTheBindAlreadyOffersMoveOn() throws {
     let (session, set) = makeSingleSetSession(dayNumber: 1)
     set.state = .logged
     let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
     navigation.canMoveOn = true
-    let coordinator = SessionCoordinator()
-    let changes = ObservedChanges()
-    changes.watch { _ = coordinator.stage(in: session, lookup: .empty) }
+    let coordinator = SessionCoordinator(wiring: .fixture(navigation: navigation))
 
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        navigation: navigation,
-        motion: ImmediateSessionMotion()
-    )
-
-    #expect(changes.fired == 1)
     #expect(coordinator.stage(in: session, lookup: .empty).queue.showsMoveOn)
 }
 
 @MainActor
-@Test func rebindingToTheSameNavigationAdapterLeavesAStageReadAlone() throws {
+@Test func rebindingToTheSameSessionLeavesAStageReadAlone() throws {
     let (session, set) = makeSingleSetSession(dayNumber: 1)
     set.state = .logged
     let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
     navigation.canMoveOn = true
-    let coordinator = SessionCoordinator()
-    let bindToSession = {
-        coordinator.bind(
-            to: session,
-            logging: SpySessionLoggingAdapter(),
-            sync: SpySessionSyncAdapter(),
-            navigation: navigation,
-            motion: ImmediateSessionMotion()
-        )
-    }
-    let firstBind = ObservedChanges()
-    firstBind.watch { _ = coordinator.stage(in: session, lookup: .empty) }
-    bindToSession()
-    let secondBind = ObservedChanges()
-    secondBind.watch { _ = coordinator.stage(in: session, lookup: .empty) }
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(navigation: navigation))
+    let rebind = ObservedChanges()
+    rebind.watch { _ = coordinator.stage(in: session, lookup: .empty) }
 
-    bindToSession()
+    coordinator.view(session)
 
-    #expect(firstBind.fired == 1)
-    #expect(secondBind.fired == 0)
+    #expect(rebind.fired == 0)
     #expect(coordinator.stage(in: session, lookup: .empty).queue.showsMoveOn)
 }
 
@@ -1319,10 +1306,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: current.session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
 
     coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1344,10 +1328,7 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: current.session,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
 
     coordinator.log(current.set, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
@@ -1369,13 +1350,10 @@ private func makeRestActionFixture(
     let restTimer = RestTimer(clock: clock)
     let coordinator = SessionCoordinator(
         session: nil,
-        logging: logging,
-        sync: sync,
-        restTimer: restTimer,
-        standardRestDuration: { 210 }
+        wiring: .fixture(logging: logging, sync: sync, restTimer: restTimer, restDurations: restDurations(standard: 210))
     )
 
-    coordinator.bind(to: current.session)
+    coordinator.view(current.session)
 
     #expect(restTimer.interval == nil)
     #expect(logging.loggedSets.isEmpty)
@@ -1525,7 +1503,7 @@ private func makeRestActionFixture(
 
     fixture.coordinator.focus(on: squatSet)
     fixture.coordinator.updateLoggedSet(squatSet, as: updatedLog)
-    fixture.coordinator.bind(to: next.session)
+    fixture.coordinator.view(next.session)
 
     #expect(fixture.coordinator.savedLoggedSetID == nil)
 }
@@ -1584,7 +1562,7 @@ private func makeRestActionFixture(
     let new = makeSingleSetSession(dayNumber: 2)
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let coordinator = SessionCoordinator(session: old.session, logging: logging, sync: sync)
+    let coordinator = SessionCoordinator(session: old.session, wiring: .fixture(logging: logging, sync: sync))
     let log = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
     coordinator.log(new.set, as: log)
@@ -1603,7 +1581,7 @@ private func makeRestActionFixture(
     let new = makeSingleSetSession(dayNumber: 2)
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let coordinator = SessionCoordinator(session: old.session, logging: logging, sync: sync)
+    let coordinator = SessionCoordinator(session: old.session, wiring: .fixture(logging: logging, sync: sync))
     new.set.state = .logged
     new.set.setLog = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
 
@@ -1622,14 +1600,14 @@ private func makeRestActionFixture(
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
-    let coordinator = SessionCoordinator()
-
-    coordinator.bind(
-        to: session,
-        logging: logging,
-        sync: sync,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: logging,
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: sync,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1647,17 +1625,16 @@ private func makeRestActionFixture(
     let session = makeCoordinatorSession()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator()
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        supersetRestDuration: { 77 },
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 123, superset: 77),
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1673,17 +1650,16 @@ private func makeRestActionFixture(
     let session = makeCoordinatorSession()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator()
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        supersetRestDuration: { 77 },
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 123, superset: 77),
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -1698,62 +1674,32 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func sessionScreenWiringDrivesTheBoundLiveActivityAdapter() throws {
+@Test func sessionWiringDrivesItsLiveActivityAdapter() throws {
     let session = makeCoordinatorSession()
     connectCoordinatorWeek([session])
-    let configured = SpySessionLiveActivityAdapter()
     let bound = SpySessionLiveActivityAdapter()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator(liveActivity: configured)
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        liveActivity: bound,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 123),
+            liveActivity: bound,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
     coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
-    #expect(configured.calls.isEmpty)
-    #expect(configured.invalidationCalls.isEmpty)
     #expect(bound.calls.count == 1)
     #expect(bound.calls.first?.sessionLabel == "Week 1 - Day 1")
     #expect(bound.calls.first?.content.exerciseName == "Bench Press")
     #expect(bound.invalidationCalls.count == 1)
-}
-
-@MainActor
-@Test func sessionScreenWiringKeepsTheConfiguredLiveActivityAdapterWhenNoneIsBound() throws {
-    let session = makeCoordinatorSession()
-    connectCoordinatorWeek([session])
-    let configured = SpySessionLiveActivityAdapter()
-    let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
-    let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator(liveActivity: configured)
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
-    )
-    let bench = try #require(session.exercises.first { $0.order == 1 })
-    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
-    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
-
-    #expect(configured.calls.count == 1)
-    #expect(configured.calls.first?.sessionLabel == "Week 1 - Day 1")
-    #expect(configured.invalidationCalls.count == 1)
 }
 
 @MainActor
@@ -1763,16 +1709,19 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator(liveActivity: liveActivity)
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
+    navigation.liveEdge = .atLiveEdge(currentSession: session)
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: navigation,
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 123),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1782,6 +1731,102 @@ private func makeRestActionFixture(
     #expect(liveActivity.invalidationCalls.map(\.isAtLiveEdge) == [true])
 }
 
+/// The real stores over the fresh-block workbook, with the coordinator built on the store the app
+/// hands it. Only the Live Activity is a spy, so a reconcile is visible.
+@MainActor
+private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, SessionCoordinator, SpySessionLiveActivityAdapter) {
+    let app = try WorkoutApplication(
+        environment: .inMemory(
+            workbook: WorkbookScenario.freshBlock.workbook(),
+            now: { Date(timeIntervalSince1970: 1_780_000_000) }
+        )
+    )
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let coordinator = SessionCoordinator(
+        session: app.workout.viewedSession,
+        wiring: .fixture(logging: app.workout, navigation: app.workout, liveActivity: liveActivity)
+    )
+    return (app, coordinator, liveActivity)
+}
+
+/// Polls on the main actor, where the store's change and the coordinator's reconcile both run.
+@MainActor
+private func waitForReconciles(
+    _ count: Int,
+    on liveActivity: SpySessionLiveActivityAdapter,
+    sourceLocation: SourceLocation = #_sourceLocation
+) async {
+    for _ in 0..<10_000 {
+        if liveActivity.invalidationCalls.count >= count { return }
+        await Task.yield()
+    }
+    Issue.record("Expected \(count) reconciles, saw \(liveActivity.invalidationCalls.count)", sourceLocation: sourceLocation)
+}
+
+/// A sync replaces every Session model, so the Session the coordinator is bound to is a stale
+/// instance whose own live edge reads browsed away while the athlete is still at the live edge.
+@MainActor
+@Test func aSyncThatReplacesTheBlockReconcilesTheRestLiveActivityAtTheReplacementsLiveEdge() async throws {
+    let (app, coordinator, liveActivity) = try await makeStoreDrivenCoordinator()
+    let stale = try #require(coordinator.session)
+
+    _ = try await app.sync()
+    await waitForReconciles(1, on: liveActivity)
+
+    let replacement = try #require(app.workout.currentSession)
+    #expect(replacement !== stale)
+    #expect(!app.workout.liveEdge(for: stale).isAtLiveEdge)
+    #expect(liveActivity.invalidationCalls == [.atLiveEdge(currentSession: replacement)])
+}
+
+/// Each Make Current moves the Current Session. Every change in one main-actor turn lands in one
+/// reconcile, and the coordinator keeps listening after it.
+@MainActor
+@Test func eachMakeCurrentReconcilesTheRestLiveActivityAtTheNewCurrentSession() async throws {
+    let (app, coordinator, liveActivity) = try await makeStoreDrivenCoordinator()
+    defer { withExtendedLifetime(coordinator) {} }
+
+    app.workout.show(SessionAddress(week: 1, day: 2))
+    app.workout.makeViewedSessionCurrent()
+    await waitForReconciles(1, on: liveActivity)
+    let firstCurrent = try #require(app.workout.currentSession)
+
+    app.workout.show(SessionAddress(week: 2, day: 1))
+    app.workout.makeViewedSessionCurrent()
+    await waitForReconciles(2, on: liveActivity)
+    let secondCurrent = try #require(app.workout.currentSession)
+
+    #expect(firstCurrent.address == SessionAddress(week: 1, day: 2))
+    #expect(secondCurrent.address == SessionAddress(week: 2, day: 1))
+    #expect(
+        liveActivity.invalidationCalls == [
+            .atLiveEdge(currentSession: firstCurrent), .atLiveEdge(currentSession: secondCurrent)
+        ]
+    )
+}
+
+@MainActor
+@Test func viewingASessionReseedsFocusAndReconcilesTheRestLiveActivity() throws {
+    let first = makeCoordinatorSession()
+    let second = makeCoordinatorSession()
+    let firstBench = try #require(first.exercises.first { $0.order == 1 })
+    let liveActivity = SpySessionLiveActivityAdapter()
+    let navigation = SpySessionNavigationAdapter()
+    navigation.liveEdge = .atLiveEdge(currentSession: second)
+    let coordinator = SessionCoordinator(
+        session: first,
+        wiring: .fixture(navigation: navigation, liveActivity: liveActivity)
+    )
+    coordinator.focus(on: try #require(firstBench.sets.first { $0.index == 1 }))
+
+    coordinator.view(second)
+
+    #expect(coordinator.session === second)
+    #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    #expect(liveActivity.invalidationCalls == [.atLiveEdge(currentSession: second)])
+}
+
 @MainActor
 @Test func loggingWhileBrowsingAwayAsksTheRestLiveActivityToEnd() throws {
     let session = makeCoordinatorSession()
@@ -1789,16 +1834,17 @@ private func makeRestActionFixture(
     let liveActivity = SpySessionLiveActivityAdapter()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator(liveActivity: liveActivity)
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        standardRestDuration: { 123 },
-        navigation: SpySessionNavigationAdapter(liveEdge: { _ in .browsedAway }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { _ in .browsedAway }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            restDurations: restDurations(standard: 123),
+            liveActivity: liveActivity,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
@@ -1809,19 +1855,19 @@ private func makeRestActionFixture(
 }
 
 @MainActor
-@Test func sessionScreenWiringFallsBackToTheStandardAndSupersetRestDefaults() throws {
+@Test func sessionRestsStartAtTheSettingsStoreDefaultsWhenNothingWasChosen() throws {
     let session = makeCoordinatorSession()
     let restClock = ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))
     let restTimer = RestTimer(clock: restClock)
-    let coordinator = SessionCoordinator()
-
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: restTimer,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: ImmediateSessionMotion()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: restTimer,
+            motion: ImmediateSessionMotion()
+        )
     )
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
@@ -1838,9 +1884,35 @@ private func makeRestActionFixture(
 }
 
 @MainActor
+@Test func aRestLengthChangedMidSessionTakesEffectOnTheNextSet() throws {
+    let session = makeCoordinatorSession()
+    let restTimer = RestTimer(
+        clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000)),
+        expiryScheduler: HeldRestExpiry()
+    )
+    let settings = restDurations(standard: 120)
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(logging: SpySessionLoggingAdapter(), restTimer: restTimer, restDurations: settings)
+    )
+    let bench = try #require(session.exercises.first { $0.order == 1 })
+    let firstBenchSet = try #require(bench.sets.first { $0.index == 0 })
+    let secondBenchSet = try #require(bench.sets.first { $0.index == 1 })
+
+    coordinator.log(firstBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+    #expect(restTimer.remaining == 120)
+    restTimer.dismiss()
+
+    settings.setStandardRestDuration(RestDurationSetting(seconds: 180))
+    coordinator.log(secondBenchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .eight))
+
+    #expect(restTimer.remaining == 180)
+}
+
+@MainActor
 @Test func readingTheStageWritesNoObservedState() throws {
     let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session)
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture())
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
     #expect(coordinator.createSuperset(from: squat, to: bench, in: session))
@@ -1877,6 +1949,7 @@ private func makeRestActionFixture(
             .ended(focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
             .began(.momentumFlow, focus: ActiveSetID(exerciseOrder: 1, setIndex: 0)),
             .logged,
+            .liveActivityStarted,
             .liveActivityReconciled,
             .ended(focus: ActiveSetID(exerciseOrder: 0, setIndex: 0)),
             .flushRequested,
@@ -2005,7 +2078,10 @@ private func makeRestActionFixture(
 @MainActor
 @Test func aSupersetEndedByLoggingOneSidesLastSetStaysEndedWhenThatLogIsDeleted() throws {
     let session = makePlannedPairingSession()
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    )
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
     let lastSquatSet = try #require(squat.sets.first)
@@ -2026,15 +2102,16 @@ private func makeRestActionFixture(
     connectCoordinatorWeek([session])
     let liveActivity = SpySessionLiveActivityAdapter()
     let motion = SampleAroundMotion()
-    let coordinator = SessionCoordinator()
-    coordinator.bind(
-        to: session,
-        logging: SpySessionLoggingAdapter(),
-        sync: SpySessionSyncAdapter(),
-        restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
-        liveActivity: liveActivity,
-        navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
-        motion: motion
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(
+            logging: SpySessionLoggingAdapter(),
+            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            sync: SpySessionSyncAdapter(),
+            restTimer: RestTimer(clock: ManualCoordinatorRestClock(now: Date(timeIntervalSinceReferenceDate: 2_000))),
+            liveActivity: liveActivity,
+            motion: motion
+        )
     )
     let squat = try #require(session.exercises.first { $0.order == 1 })
     let bench = try #require(session.exercises.first { $0.order == 2 })
@@ -2059,12 +2136,15 @@ private func makeRestActionFixture(
     let rdl = try #require(session.exercises.first { $0.order == 1 })
     let firstSquatSet = try #require(squat.sets.first { $0.index == 0 })
     let pressSet = try #require(press.sets.first)
-    let coordinator = SessionCoordinator(session: session, logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter())
+    )
     coordinator.focus(on: pressSet)
     #expect(coordinator.createSuperset(from: squat, to: rdl, in: session))
     coordinator.log(firstSquatSet, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
 
-    coordinator.bind(to: session)
+    coordinator.view(session)
 
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 }

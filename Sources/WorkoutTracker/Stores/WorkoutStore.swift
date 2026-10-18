@@ -4,8 +4,9 @@ import SwiftData
 enum WorkoutLoggingError: Error, Equatable {
     case missingExercise
     case missingSession
-    case missingWeek
-    case missingBlock
+    /// The sync that replaced its Block took the Session out of it, so the Set has no place in the
+    /// Sheet to write to.
+    case detachedSession
 }
 
 struct BlockOverviewNavigationRequest: Equatable, Identifiable {
@@ -30,11 +31,14 @@ final class WorkoutStore {
     /// sync deletes the whole Block and inserts the re-parsed one, and the deleted Session no
     /// longer reliably knows its own Week.
     private var browsedTo: SessionAddress?
-    private var currentSessionOverrideRevision = 0
+    /// The Session the Move On Celebration closes, by address for the same reason as `browsedTo`:
+    /// `reload()` re-resolves `moveOnCelebrationSession` from it, so a Move On from a celebration a
+    /// sync landed under advances from the re-parsed Session.
+    private var moveOnCelebrationAddress: SessionAddress?
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
-    private let defaults: AppDefaults
+    private let pin: CurrentSessionPin
     private let lastPerformed: any LastPerformedIndexing
     private let now: @MainActor () -> Date
 
@@ -45,12 +49,15 @@ final class WorkoutStore {
         now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.context = context
-        self.defaults = defaults
+        self.pin = CurrentSessionPin(defaults: defaults)
         self.lastPerformed = lastPerformed
         self.now = now
     }
 
-    var canMoveOn: Bool { block != nil && currentSession != nil }
+    var canMoveOn: Bool {
+        guard let block, let currentSession else { return false }
+        return tracker.moveOnDestination(from: currentSession, in: block).isOffered
+    }
 
     var liveEdge: LiveEdge { LiveEdge.resolve(viewedSession: viewedSession, currentSession: currentSession) }
 
@@ -64,51 +71,17 @@ final class WorkoutStore {
         return tracker.openExercises(for: currentSession).map(\.exercise)
     }
 
+    /// Nil while no Block is loaded.
+    var currentSessionResolution: CurrentSessionResolution? { block.map(pin.resolve(in:)) }
+
     var currentSessionDebugInfo: CurrentSessionDebugInfo {
-        _ = currentSessionOverrideRevision
-        guard let block else {
-            return CurrentSessionDebugInfo(
-                currentBlockTab: "None",
-                sheetDerivedSession: "None",
-                manualOverrideSession: "None",
-                viewedSession: sessionLabel(for: viewedSession),
-                resolvedCurrentSession: "None",
-                reason: "No Block is loaded, so no Current Session is resolved.",
-                localOnlyNote: nil
-            )
-        }
-
-        let override = currentSessionOverride(in: block)
-        let overrideSession = override.flatMap { tracker.session(for: $0, in: block) }
-        let sheetDerivedSession = tracker.currentSession(in: block)
-        let resolvedSession = tracker.currentSession(in: block, override: override)
-        let isManualOverrideActive = overrideSession?.persistentModelID == resolvedSession?.persistentModelID
-
-        return CurrentSessionDebugInfo(
-            currentBlockTab: block.tabName,
-            sheetDerivedSession: sessionLabel(for: sheetDerivedSession),
-            manualOverrideSession: manualOverrideLabel(hasOverride: override != nil, session: overrideSession),
-            viewedSession: sessionLabel(for: viewedSession),
-            resolvedCurrentSession: sessionLabel(for: resolvedSession),
-            reason: resolutionReason(
-                hasOverride: override != nil,
-                isManualOverrideActive: isManualOverrideActive,
-                hasSheetDerivedSession: sheetDerivedSession != nil
-            ),
-            localOnlyNote: isManualOverrideActive
-                ? "Manual Current Session override is local-only and is not Sheet data."
-                : nil
-        )
-    }
-
-    var hasCurrentSessionOverride: Bool {
-        guard let block else { return false }
-        return currentSessionOverride(in: block) != nil
+        CurrentSessionDebugInfo(resolution: currentSessionResolution, viewedSession: viewedSession)
     }
 
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
         refreshCurrentSession()
+        refreshMoveOnCelebration()
 
         guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
             view(currentSession)
@@ -128,13 +101,14 @@ final class WorkoutStore {
 
     func makeViewedSessionCurrent() {
         guard let block, let viewedSession else { return }
-        writeCurrentSessionOverride(tracker.persistedIdentity(of: viewedSession), in: block)
+        pinCurrentSession(viewedSession, in: block, by: .madeCurrent)
         view(viewedSession)
     }
 
-    func resetCurrentSessionOverride() {
+    func clearCurrentSessionPin() {
         guard let block else { return }
-        writeCurrentSessionOverride(nil, in: block)
+        pin.clear(in: block)
+        refreshCurrentSession()
         view(currentSession)
     }
 
@@ -143,8 +117,14 @@ final class WorkoutStore {
     func clearBlockOverviewRequest() { pendingBlockOverviewRequest = nil }
 
     func requestMoveOnCelebration() {
-        guard canMoveOn, let currentSession else { return }
+        guard
+            let block,
+            let currentSession,
+            let address = currentSession.address,
+            tracker.moveOnDestination(from: currentSession, in: block).isOffered
+        else { return }
 
+        moveOnCelebrationAddress = address
         moveOnCelebrationSession = currentSession
         moveOnCelebrationRequestedAt = now()
         view(currentSession)
@@ -152,8 +132,7 @@ final class WorkoutStore {
 
     func dismissMoveOnCelebration() {
         guard let session = moveOnCelebrationSession else { return }
-        moveOnCelebrationSession = nil
-        moveOnCelebrationRequestedAt = nil
+        endMoveOnCelebration()
         advance(after: session)
     }
 
@@ -166,10 +145,12 @@ final class WorkoutStore {
         guard let block else { return }
 
         switch tracker.moveOnDestination(from: session, in: block) {
+        case .notOffered:
+            return
         case .returnToBlockOverview:
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):
-            writeCurrentSessionOverride(tracker.persistedIdentity(of: nextSession), in: block)
+            pinCurrentSession(nextSession, in: block, by: .moveOn)
             view(nextSession)
         }
     }
@@ -177,7 +158,26 @@ final class WorkoutStore {
     // MARK: - Private Helpers
 
     private func refreshCurrentSession() {
-        currentSession = block.flatMap { tracker.currentSession(in: $0, override: currentSessionOverride(in: $0)) }
+        currentSession = currentSessionResolution?.session
+    }
+
+    /// A sync that took the celebrated Session out of the Block ends the celebration, since there
+    /// is no longer a Session to Move On from.
+    private func refreshMoveOnCelebration() {
+        guard let moveOnCelebrationAddress else { return }
+        moveOnCelebrationSession = block?.session(at: moveOnCelebrationAddress)
+        if moveOnCelebrationSession == nil { endMoveOnCelebration() }
+    }
+
+    private func endMoveOnCelebration() {
+        moveOnCelebrationAddress = nil
+        moveOnCelebrationSession = nil
+        moveOnCelebrationRequestedAt = nil
+    }
+
+    private func pinCurrentSession(_ session: Session, in block: Block, by author: CurrentSessionPin.Author) {
+        pin.pin(session, in: block, by: author)
+        refreshCurrentSession()
     }
 
     private func view(_ session: Session?) {
@@ -246,56 +246,6 @@ final class WorkoutStore {
             valueToWrite: mirror.valueToWrite,
             expectedCurrentValue: mirror.expectedCurrentValue
         )
-    }
-
-    /// The persisted manual Current-Session override for `block`, resolved through the
-    /// navigation module's opaque identity token so the store never reasons about the
-    /// order encoding or its versioning.
-    private func currentSessionOverride(in block: Block) -> PersistedSessionIdentity? {
-        let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
-        return defaults.integer(forKey: key).map(PersistedSessionIdentity.init(storageValue:))
-    }
-
-    private func writeCurrentSessionOverride(_ identity: PersistedSessionIdentity?, in block: Block) {
-        let key = tracker.currentSessionOverrideStorageKey(forBlockTab: block.tabName)
-        if let identity {
-            defaults.set(identity.storageValue, forKey: key)
-        } else {
-            defaults.removeValue(forKey: key)
-        }
-        currentSessionOverrideRevision += 1
-        refreshCurrentSession()
-    }
-
-    private func sessionLabel(for session: Session?) -> String {
-        guard let address = session?.address else { return "None" }
-        return "Week \(address.week), Day \(address.day)"
-    }
-
-    private func manualOverrideLabel(hasOverride: Bool, session: Session?) -> String {
-        guard hasOverride else { return "None" }
-        guard let session else { return "Saved override no longer matches this Block" }
-        return sessionLabel(for: session)
-    }
-
-    private func resolutionReason(
-        hasOverride: Bool,
-        isManualOverrideActive: Bool,
-        hasSheetDerivedSession: Bool
-    ) -> String {
-        if isManualOverrideActive {
-            return "Manual override is active for this Block."
-        }
-
-        if hasOverride {
-            return "Saved manual override no longer matches this Block, so Sheet-derived progress wins."
-        }
-
-        if hasSheetDerivedSession {
-            return "No manual override is active, so Sheet-derived progress wins."
-        }
-
-        return "No Sheet-derived Session is available for this Block."
     }
 }
 

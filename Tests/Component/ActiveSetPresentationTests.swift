@@ -15,64 +15,14 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     )
 }
 
-@Test func holdToSkipPolicyDefaultsToTheIdleSetHold() {
-    let policy = HoldToSkipPolicy()
-    #expect(policy.holdDuration == 0.85)
-    #expect(policy.revealDelay == 0.25)
-}
-
-@Test func holdToSkipPolicyDefersQuickReleaseToButtonTap() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.1, skipCompleted: false)
-
-    #expect(outcome == .deferToTap)
-    #expect(!policy.shouldRevealProgress(elapsed: 0.1))
-
+@Test func holdToSkipButtonPresentationShowsTheLogTitleBeforeAHold() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
+
     #expect(presentation.logOpacity == 1)
     #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
+    #expect(presentation.accessibilityValue == "")
     #expect(presentation.tone == .primary)
-}
-
-@Test func holdToSkipPolicyDoesNotTreatCanceledHoldAsLogTap() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    #expect(policy.releaseOutcome(elapsed: 0.19, skipCompleted: false) == .cancelSkip)
-    #expect(policy.releaseOutcome(elapsed: 0.4, skipCompleted: false) == .cancelSkip)
-}
-
-@Test func holdToSkipPolicyCancelsSkipOnEarlyHoldRelease() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.4, skipCompleted: false)
-
-    #expect(outcome == .cancelSkip)
-}
-
-@Test func holdToSkipPolicyRevealsProgressOnlyAfterDelay() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    #expect(!policy.shouldRevealProgress(elapsed: 0.249))
-    #expect(policy.shouldRevealProgress(elapsed: 0.25))
-    #expect(policy.progressAnimationDuration == 0.55)
-}
-
-@Test func holdToSkipPolicyIgnoresReleaseAfterCompletedSkip() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: true)
-
-    #expect(outcome == .ignore)
-}
-
-@Test func holdToSkipPolicyCompletesSkipWhenReleaseReachesHoldDuration() {
-    let policy = HoldToSkipPolicy(holdDuration: 0.8, tapMaximumDuration: 0.18, revealDelay: 0.25)
-
-    let outcome = policy.releaseOutcome(elapsed: 0.9, skipCompleted: false)
-
-    #expect(outcome == .skip)
 }
 
 @Test func holdToSkipButtonPresentationFadesTowardSkippedState() {
@@ -81,6 +31,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     #expect(abs(presentation.logOpacity - 0.35) < 0.001)
     #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityValue == "65% Skip")
 }
 
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
@@ -96,6 +47,39 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 
     #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
+}
+
+@Test func holdToSkipButtonPresentationOffersSkipOnAPendingOrLoggedSet() {
+    for state in [SetState.pending, .logged] {
+        let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8", setState: state)
+
+        #expect(presentation.offersSkip)
+        #expect(!presentation.showsSkippedBed)
+        #expect(presentation.longPressDuration == presentation.holdPolicy?.holdDuration)
+    }
+}
+
+@Test func holdToSkipButtonPresentationReadsASkippedSetsCapsuleAsSkippedWithNoHold() {
+    let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Complete Set Log", setState: .skipped)
+
+    #expect(presentation.showsSkippedBed)
+    #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityHint == "Double tap to log.")
+    #expect(!presentation.offersSkip)
+    #expect(presentation.holdPolicy == nil)
+    #expect(presentation.longPressDuration == 0.85)
+}
+
+@Test func holdToSkipButtonPresentationHintsWhatIsMissingOnASkippedSetWithAnIncompleteDraft() {
+    let presentation = HoldToSkipButtonPresentation(
+        progress: 0,
+        logTitle: "Choose RPE to log",
+        canLog: false,
+        setState: .skipped
+    )
+
+    #expect(presentation.accessibilityLabel == "Skipped")
+    #expect(presentation.accessibilityHint == "Double tap to show what is missing.")
 }
 
 @MainActor
@@ -301,6 +285,7 @@ struct SetCardPresentationTests {
 @MainActor
 @Test func sessionProgressHeaderRunlineDropsTheBlockPrefixWhenNoBlockIsKnown() {
     let week = Week(number: 4)
+    week.block = Block(tabName: "Block 27")
     let session = Session(dayNumber: 1, date: nil)
     let exercise = Exercise(name: "Squat", coachNote: nil)
     exercise.sets = [
@@ -314,6 +299,17 @@ struct SetCardPresentationTests {
 
     #expect(presentation.runlineText == "Week 4 · Day 1")
     #expect(presentation.remainingText == "2 Sets left")
+}
+
+/// A Session the sync took out of its Block reads as its Day, never `Week 0 · Day 3` (#897).
+@MainActor
+@Test func sessionProgressHeaderForADetachedSessionReadsAsItsDay() {
+    let session = Session(dayNumber: 3, date: nil)
+
+    let presentation = SessionProgressHeaderPresentation(session: session)
+
+    #expect(presentation.runlineText == "Day 3")
+    #expect(presentation.locationActionAccessibilityLabel == "Open Block Overview for Day 3")
 }
 
 @MainActor

@@ -249,7 +249,7 @@ private func makeStore(
 
 @MainActor
 @Test func ignoresLegacyOrderOverrideKeyFromBeforeStrideChange() throws {
-    // A pre-V2 build persisted the manual Current Session override under "advancedToOrder_<tab>"
+    // A pre-V2 build persisted the Current Session Pin under "advancedToOrder_<tab>"
     // with the old stride-4 encoding. Under the new stride-7 encoding that same integer can map
     // to a DIFFERENT Session, so the new key must ignore the legacy value and fall back to the
     // derived Current Session rather than silently resolving to the wrong one.
@@ -295,7 +295,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoManualOverride() throws {
+@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoPin() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -309,16 +309,16 @@ private func makeStore(
 
     #expect(info.currentBlockTab == "Block 27")
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
-    #expect(info.manualOverrideSession == "None")
+    #expect(info.pinnedSession == "None")
     #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 3")
-    #expect(info.reason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(info.reason == "No Current Session Pin is set, so Sheet-derived progress wins.")
     #expect(info.localOnlyNote == nil)
     #expect(info.copyText.contains("Sheet-derived Session: Week 1, Day 3"))
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsLocalOnlyManualOverrideWhenPresent() throws {
+@Test func currentSessionDebugInfoShowsLocalOnlyPinWhenPresent() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -332,16 +332,90 @@ private func makeStore(
     let info = store.currentSessionDebugInfo
 
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
-    #expect(info.manualOverrideSession == "Week 1, Day 1")
+    #expect(info.pinnedSession == "Week 1, Day 1 (Make current)")
     #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 1")
-    #expect(info.reason == "Manual override is active for this Block.")
-    #expect(info.localOnlyNote == "Manual Current Session override is local-only and is not Sheet data.")
-    #expect(info.copyText.contains("Manual Current Session override is local-only and is not Sheet data."))
+    #expect(info.reason == "The athlete made this Session current, so it wins over Sheet-derived progress.")
+    #expect(info.localOnlyNote == "The Current Session Pin is local-only and is not Sheet data.")
+    #expect(info.canClearPin)
+    #expect(info.copyText.contains("Current Session Pin: Week 1, Day 1 (Make current)"))
+    #expect(info.copyText.contains("The Current Session Pin is local-only and is not Sheet data."))
 }
 
 @MainActor
-@Test func resetCurrentSessionOverrideReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
+@Test func currentSessionDebugInfoNarratesAMoveOnAsAPinNotAnOverride() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+
+    let info = store.currentSessionDebugInfo
+    #expect(info.pinnedSession == "Week 1, Day 2 (Move On)")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 2")
+    #expect(info.reason == "Move On advanced to this Session, so it wins over Sheet-derived progress.")
+    #expect(info.localOnlyNote == "The Current Session Pin is local-only and is not Sheet data.")
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesAPinOnASessionThatBecameUnavailable() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    store.show(SessionAddress(week: 1, day: 2))
+    store.makeViewedSessionCurrent()
+
+    let pinned = try #require(store.block?.session(at: SessionAddress(week: 1, day: 2)))
+    pinned.exercises = []
+    store.reload()
+
+    let info = store.currentSessionDebugInfo
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(info.pinnedSession == "Week 1, Day 2, Unavailable (Make current)")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 1")
+    #expect(info.reason == "The Current Session Pin names an Unavailable Session, so Sheet-derived progress wins.")
+    #expect(info.localOnlyNote == nil)
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesAPinThatNoLongerMatchesTheBlock() throws {
+    let defaults = AppDefaults.inMemory()
+    defaults.set(99, forKey: "advancedToOrderV2_Block 27")
+    let fixture = try makeStore(defaults: defaults)
+    defer { withExtendedLifetime(fixture.container) {} }
+
+    let info = fixture.store.currentSessionDebugInfo
+
+    #expect(fixture.store.currentSession?.dayNumber == 1)
+    #expect(info.pinnedSession == "Saved pin no longer matches this Block (Move On)")
+    #expect(info.reason == "The Current Session Pin no longer matches this Block, so Sheet-derived progress wins.")
+    #expect(info.localOnlyNote == nil)
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesABlockWithNoAvailableSession() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let block = try #require(store.block)
+    for session in block.weeks.flatMap(\.sessions) {
+        session.exercises = []
+    }
+    store.reload()
+
+    let info = store.currentSessionDebugInfo
+
+    #expect(info.sheetDerivedSession == "None")
+    #expect(info.resolvedCurrentSession == "None")
+    #expect(info.reason == "No Sheet-derived Session is available for this Block.")
+    #expect(!info.canClearPin)
+}
+
+@MainActor
+@Test func clearingThePinReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -351,18 +425,18 @@ private func makeStore(
     store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
 
-    store.resetCurrentSessionOverride()
+    store.clearCurrentSessionPin()
 
     let info = store.currentSessionDebugInfo
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
-    #expect(info.manualOverrideSession == "None")
+    #expect(info.pinnedSession == "None")
     #expect(store.currentSession?.dayNumber == 3)
     #expect(store.viewedSession?.dayNumber == 3)
     #expect(writes.isEmpty)
 }
 
 @MainActor
-@Test func resetCurrentSessionOverrideDoesNotClearOtherBlockOverride() throws {
+@Test func clearingThePinDoesNotClearAnotherBlocksPin() throws {
     let defaults = AppDefaults.inMemory()
     let block27 = try makeStore(tabName: "Block 27", defaults: defaults)
     let block28 = try makeStore(tabName: "Block 28", defaults: defaults)
@@ -375,12 +449,12 @@ private func makeStore(
     block28.store.show(SessionAddress(week: 1, day: 3))
     block28.store.makeViewedSessionCurrent()
 
-    block27.store.resetCurrentSessionOverride()
+    block27.store.clearCurrentSessionPin()
     block28.store.reload()
 
-    #expect(block27.store.currentSessionDebugInfo.manualOverrideSession == "None")
+    #expect(block27.store.currentSessionDebugInfo.pinnedSession == "None")
     #expect(block27.store.currentSession?.dayNumber == 1)
-    #expect(block28.store.currentSessionDebugInfo.manualOverrideSession == "Week 1, Day 3")
+    #expect(block28.store.currentSessionDebugInfo.pinnedSession == "Week 1, Day 3 (Make current)")
     #expect(block28.store.currentSession?.dayNumber == 3)
 }
 
@@ -462,6 +536,69 @@ private func makeStore(
     #expect(store.currentSession?.dayNumber == 2)
     #expect(store.viewedSession?.week?.number == 1)
     #expect(store.viewedSession?.dayNumber == 2)
+}
+
+/// On disk, as on the device: an in-memory store keeps a deleted Session's Week, so it cannot show
+/// a Session held across a sync losing its place.
+@MainActor
+private func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("workout-store-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let container = try ModelContainer(
+        for: Block.self,
+        PendingWrite.self,
+        WriteTargetAuditEntry.self,
+        configurations: ModelConfiguration("workout-store", url: directory.appendingPathComponent("store.sqlite"))
+    )
+    let context = container.mainContext
+    context.insert(makeStoreBlock(weekCount: weekCount))
+    try context.save()
+    let store = WorkoutStore(context: context, defaults: .inMemory())
+    store.reload()
+    try withExtendedLifetime(container) { try body(store, context) }
+}
+
+/// `SyncCoordinator.replacePersistedBlock`, inlined.
+@MainActor
+private func replaceBlock(in context: ModelContext, with block: Block) throws {
+    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
+    context.insert(block)
+    try context.save()
+}
+
+@MainActor
+@Test func dismissingMoveOnCelebrationAfterASyncAdvancesFromTheCelebratedSession() throws {
+    try withOnDiskStore(weekCount: 2) { store, context in
+        store.show(SessionAddress(week: 2, day: 3))
+        store.makeViewedSessionCurrent()
+        store.requestMoveOnCelebration()
+
+        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2))
+        store.reload()
+        #expect(store.moveOnCelebrationSession?.address == SessionAddress(week: 2, day: 3))
+        store.dismissMoveOnCelebration()
+
+        #expect(store.currentSession?.address == SessionAddress(week: 2, day: 4))
+        #expect(store.viewedSession?.address == SessionAddress(week: 2, day: 4))
+    }
+}
+
+@MainActor
+@Test func aSyncThatRemovesTheCelebratedSessionEndsTheCelebrationWithoutMovingOn() throws {
+    try withOnDiskStore(weekCount: 2) { store, context in
+        store.show(SessionAddress(week: 2, day: 3))
+        store.makeViewedSessionCurrent()
+        store.requestMoveOnCelebration()
+
+        try replaceBlock(in: context, with: makeStoreBlock(weekCount: 2, dayCount: 2))
+        store.reload()
+        #expect(store.moveOnCelebrationSession == nil)
+        #expect(store.moveOnCelebrationRequestedAt == nil)
+        store.dismissMoveOnCelebration()
+
+        #expect(store.currentSession?.address == SessionAddress(week: 1, day: 1))
+    }
 }
 
 @MainActor
@@ -591,7 +728,7 @@ private func makeStore(
     store.show(SessionAddress(week: 1, day: 2))
     store.makeViewedSessionCurrent()
     record()
-    store.resetCurrentSessionOverride()
+    store.clearCurrentSessionPin()
     record()
     store.moveOn()
     record()
@@ -663,4 +800,19 @@ private final class CurrentSessionChanges {
     counts.append(changes.count)
 
     #expect(counts == [0, 0, 1, 2])
+}
+
+/// The write path refuses a Set the sync took out of the Block, whichever link the store dropped.
+@MainActor
+@Test func loggingASetHeldAcrossASyncQueuesNoWrite() throws {
+    try withOnDiskStore(weekCount: 1) { store, context in
+        let held = try #require(store.currentSession?.exercises.first?.sets.first)
+        try replaceBlock(in: context, with: makeStoreBlock())
+        store.reload()
+
+        #expect(throws: WorkoutLoggingError.self) {
+            try store.log(held, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+        }
+        #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+    }
 }

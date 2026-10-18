@@ -76,3 +76,12 @@ func makeBenchPress(
     }
     return exercise
 }
+
+/// Puts `session` in Week 1 of a Block, the shape every Session the app reads has. A Session no
+/// Block holds is a Detached Session, which Superset pairing and the rest target refuse.
+func placedInBlock(_ session: Session, blockTab: String = "Block 27") -> Session {
+    let week = Week(number: 1)
+    week.sessions = [session]
+    week.block = Block(tabName: blockTab)
+    return session
+}

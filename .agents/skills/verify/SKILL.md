@@ -171,8 +171,8 @@ without it that moved, show one cut from the old screen to the new for these: a 
 weight keyboard closed, a skip's commit, a Superset log, the Move On celebration opening and
 closing, and the pairing state inside the queue sheet. The tapped button can show its pressed
 colour for up to about 90 ms before that cut. A Superset log's retiring card never draws. After a
-log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced`, and
-moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
+log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced` under
+`-UITEST_OFFLINE`, and moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
 saved for issues 618 and 696 caught the new card with no sync pill.
 
 Some states still change under the flag (issue 739). The rest pill's countdown and progress line
@@ -228,11 +228,11 @@ after the simulator is gone. `launch` names the run from
 captures the action and the resulting state, not just the final screen. Shoot before, drive, shoot
 after. The second `shot` prints the tree lines that changed with positions ignored, so a row that
 only moved is not a change; quote those lines verbatim. Prove side effects alongside the screen.
-After a log, the header reads `Sync status: 1 unsynced` and the branch gains a `Set 1, 237.5x5@6`
-button. For store or sync effects with no UI question, run the same operation through the CLI and
-quote its JSON, or run the covering `swift test --filter` suite. The fixture sheets client accepts
-every write and never reaches the network, so a green flush in fixture mode proves the queue, not
-Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
+After a log under `-UITEST_OFFLINE`, the header reads `Sync status: 1 unsynced` and the branch
+gains a `Set 1, 237.5x5@6` button. For store or sync effects with no UI question, run the same operation through the CLI and
+quote its JSON, or run the covering `swift test --filter` suite. The fixture sheet is a local workbook,
+and a log flushes into it as it would into the coach's Sheet. `-UITEST_OFFLINE` makes it read as
+Offline after the boot, so a log stays queued. A green flush in fixture mode proves the queue and the cells, not Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
 jumps to the end state.
 
 Finish every UI proof with `sheet` and Read every image it prints, one per 12 shots. The read is
