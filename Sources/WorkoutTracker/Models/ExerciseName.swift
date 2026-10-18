@@ -30,14 +30,18 @@ struct ExerciseName: Hashable, Sendable, ExpressibleByStringLiteral {
     }
 
     /// The Movement-level question (ADR-0013, Last Performed's third tier and Exercise History):
-    /// whether the two Base Names canonicalize to the same text or fuzzy-match at
-    /// `MovementMatching.threshold`. Coarser than equality, so "Standing Calve Raises" and
-    /// "Standing Calf Raise" are one Movement while "Paused Bench Press" and "Bench Press" are two.
+    /// whether any of the two Base Names' options (`MovementMatching.options(of:)`) canonicalize to
+    /// the same text or fuzzy-match at `MovementMatching.threshold`. Coarser than equality, so
+    /// "Standing Calve Raises" and "Standing Calf Raise" are one Movement while "Paused Bench Press"
+    /// and "Bench Press" are two, and the choice "Leg Press or Hack Squat" is one Movement with each
+    /// of its options.
     func isSameMovement(as other: ExerciseName) -> Bool {
-        let left = MovementMatching.canonicalize(base)
-        let right = MovementMatching.canonicalize(other.base)
-        if left == right { return true }
-        return MovementMatching.similarity(left, right) >= MovementMatching.threshold
+        let theirs = MovementMatching.options(of: other.base)
+        return MovementMatching.options(of: base).contains { left in
+            theirs.contains { right in
+                left == right || MovementMatching.similarity(left, right) >= MovementMatching.threshold
+            }
+        }
     }
 
     /// Whether an Exercise History entry spells its Base Name differently from the viewed

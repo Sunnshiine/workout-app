@@ -55,6 +55,33 @@ private func historyEntry(
     #expect(history.allSatisfy { $0.exerciseName.base != "Paused Bench Press" })
 }
 
+@Test func historyQueryForAChoiceCollectsEachOption() {
+    let snapshot = LastPerformedLookupSnapshot(entries: [
+        historyEntry(
+            name: "Incline DB Bench Press",
+            resultText: "185x5@7",
+            source: "Block 28 · W1 D1",
+            daysAgo: 14
+        ),
+        historyEntry(
+            name: "Incline Machine Bench Press",
+            resultText: "200x8@8",
+            source: "Block 28 · W2 D1",
+            daysAgo: 7
+        ),
+        historyEntry(
+            name: "Bench Press",
+            resultText: "275x3@8",
+            source: "Block 28 · W2 D2",
+            daysAgo: 6
+        )
+    ])
+
+    let history = snapshot.history(for: "Incline Machine or DB Bench Press")
+
+    #expect(history.map(\.resultText) == ["200x8@8", "185x5@7"])
+}
+
 @Test func historyQueryProjectsDisplayResultTextAndSource() throws {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
