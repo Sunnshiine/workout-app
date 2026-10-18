@@ -19,9 +19,9 @@ It holds `manifest.json` (the ownership marker: scenario, spreadsheet id, versio
 exist, an empty directory, or a directory carrying this tool's manifest; a file or a foreign
 directory is refused with exit 3.
 
-The home also holds `settings.json`: the selected spreadsheet, the appearance, and the Current
-Session override, rewritten after every change. `init` resets it with the rest of the home, and
-deleting or moving the home takes it along. A home made before settings moved into it is refused
+The home also holds `settings.json`: the selected spreadsheet, the appearance, and each Block
+tab's Current Session Pin, rewritten after every change. `init` resets it with the rest of the
+home, and deleting or moving the home takes it along. A home made before settings moved into it is refused
 with exit 3; run `init` again.
 
 `workbook.json` is a sparse A1 map you can edit by hand:
@@ -37,7 +37,7 @@ with exit 3; run `init` again.
 
 | Command | Calls | Prints |
 |---|---|---|
-| `init [--scenario fresh-block]` | wipes the home, seeds the workbook, `selectSpreadsheet` (the onboarding path, which syncs) | home, scenario, spreadsheet, Block summary, Current Session |
+| `init [--scenario <name>]` (`init --help` lists every `WorkbookScenario`) | wipes the home, seeds the workbook, `selectSpreadsheet` (the onboarding path, which syncs) | home, scenario, spreadsheet, Block summary, Current Session |
 | `status` | `snapshot()` | sync outcome, pending write count, Current Session and why, Session index |
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
@@ -143,7 +143,10 @@ file and the manifest before an application exists, and it is the only command t
 line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.moveOn`),
 `pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
 (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
-`WorkbookScenario`; the scenario test requires it to parse with no warnings.
+`WorkbookScenario`; the scenario test requires it to parse with no warnings. Every UI launch
+Scenario flag is its workbook's name in upper snake case (`-UITEST_FULL_BLOCK` boots `full-block`),
+and a launch that names none boots `partial-upload`, so the CLI and the UI suites read the same
+cells under the same names. A misspelt flag stops the UI boot.
 
 The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process
 exits before it runs, so scenarios in this slice have one tab. See ADR-0015.

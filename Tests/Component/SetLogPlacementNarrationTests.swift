@@ -49,6 +49,23 @@ import Testing
             """
     )
 
+    // A Coach Note on Comp BP's anchor Line sends that Line's Set to the Exercise's spare row.
+    #expect(
+        auditRowScan(
+            cells: [
+                "C15": "Comp BP", "D15": "1", "F15": "5", "K15": "Brace hard, controlled descent",
+                "D16": "2", "F16": "7",
+                "C18": "Hip Thrust", "D18": "2"
+            ],
+            exercise: "Comp BP",
+            setIndex: 0
+        )
+            == """
+            Selected row 17: visible writable row below the Exercise's Prescription Lines, taken because \
+            this Line's Notes hold a Coach Note.
+            """
+    )
+
     // A Set past the prescribed count falls through the list rules onto its own visible Set row.
     #expect(
         auditRowScan(

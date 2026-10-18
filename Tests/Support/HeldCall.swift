@@ -20,12 +20,8 @@ final class HeldCall {
     }
 
     func waitUntilHeld(orRecord failure: Comment, sourceLocation: SourceLocation = #_sourceLocation) async {
-        for _ in 0..<10_000 {
-            if isHeld { return }
-            await Task.yield()
-        }
+        if await waitUntil({ isHeld }, orRecord: failure, sourceLocation: sourceLocation) { return }
         abandon()
-        Issue.record(failure, sourceLocation: sourceLocation)
     }
 
     func release() {

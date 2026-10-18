@@ -56,15 +56,11 @@ private final class LiveSheetClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid, rowVisibility: rowVisibility)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        write(values, to: splitA1Range(range)!.reference)
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         updateRequestCount += 1
         if updateRequestCount == failingUpdateRequest { throw URLError(.cannotConnectToHost) }
-        for update in updates {
-            try await updateCells(spreadsheetId: spreadsheetId, range: update.range, values: update.values)
+        for cell in cells {
+            grid.write([[cell.value]], atRow: cell.row, col: cell.col)
         }
     }
 

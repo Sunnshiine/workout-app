@@ -283,8 +283,8 @@ Replaces the 8 / 16 / 28 scale.
   dud) · one swell-and-peak Move On timed to the ceremony · none on form
   fields.
 - Hold-to-skip: reveal 250ms, commit **850ms**, retreat 0.2s ease-out;
-  logged-state hold 900ms, skipped-state hold 1100ms (supersedes the
-  current 0.8s/0.25s constants).
+  logged-state hold 900ms (supersedes the current 0.8s/0.25s constants).
+  A Skipped Set's capsule takes no hold (#820; DESIGN.md §7).
 - Reduced motion: end states via crossfade (ceremony fades in fully
   grown); haptics unaffected.
 

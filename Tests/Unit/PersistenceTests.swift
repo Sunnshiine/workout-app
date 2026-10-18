@@ -12,7 +12,7 @@ import Testing
     let ctx = container.mainContext
 
     let set = ExerciseSet(index: 0, prescribedReps: "12", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
-    let ex = Exercise(name: "0:3:0 Standing Calve Raises", baseName: "Standing Calve Raises", cadence: "0:3:0", coachNote: nil)
+    let ex = Exercise(name: "0:3:0 Standing Calve Raises", coachNote: nil)
     ex.sets = [set]
     let session = Session(dayNumber: 1, date: nil)
     session.exercises = [ex]

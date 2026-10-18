@@ -5,10 +5,17 @@ import Testing
 
 private let frozenNow = Date(timeIntervalSince1970: 1_780_000_000)
 
+/// A test that syncs while the store holds the Block passes `.file`, the device's shape, with a
+/// store file from `withOnDiskStoreFile`.
 @MainActor
-private func makeSelectedApp() async throws -> WorkoutApplication {
+private func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -> WorkoutApplication {
     let app = try WorkoutApplication(
-        environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook(), now: { frozenNow })
+        environment: AppEnvironment(
+            storage: storage,
+            sheetsClient: LocalWorkbookSheetsClient(workbook: WorkbookScenario.freshBlock.workbook()),
+            defaults: .inMemory(),
+            now: { frozenNow }
+        )
     )
     _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
     return app
@@ -34,7 +41,7 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(block.weekCount == 2)
     #expect(snapshot.currentSession == SessionAddress(week: 1, day: 1))
     #expect(snapshot.viewedSession == SessionAddress(week: 1, day: 1))
-    #expect(snapshot.currentSessionReason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(snapshot.currentSessionReason == "No Current Session Pin is set, so Sheet-derived progress wins.")
     #expect(snapshot.currentSessionIsOverridden == false)
     #expect(snapshot.canMoveOn == true)
     #expect(snapshot.openExercises == [])
@@ -46,45 +53,48 @@ private func address(_ raw: String) throws -> SetAddress {
 
 @MainActor
 @Test func theArcLogsThroughTheStoreFlushesToTheSheetAndReadsBackThroughTheParser() async throws {
-    let app = try await makeSelectedApp()
+    try await withOnDiskStoreFile { url in
+        let app = try await makeSelectedApp(storage: .file(url))
 
-    let report = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
-    #expect(report.set.state == "logged")
-    #expect(report.set.setLog == "185x5@8")
-    #expect(report.set.loggedAt == frozenNow)
-    #expect(report.pendingWriteCount == 1)
-    #expect(report.exerciseIsComplete == false)
-    #expect(try app.snapshot().syncOutcome.status == .clear)
+        let report = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+        #expect(report.set.state == "logged")
+        #expect(report.set.setLog == "185x5@8")
+        #expect(report.set.loggedAt == frozenNow)
+        #expect(report.pendingWriteCount == 1)
+        #expect(report.exerciseIsComplete == false)
+        #expect(try app.snapshot().syncOutcome.status == .clear)
 
-    let flush = try await app.flush()
-    #expect(
-        flush
-            == FlushReport(
-                attempted: 1,
-                written: 1,
-                conflictedWrites: [],
-                remainingPendingWrites: 0,
-                syncOutcome: SyncOutcomeSnapshot(.clear)
-            )
-    )
+        let flush = try await app.flush()
+        #expect(
+            flush
+                == FlushReport(
+                    attempted: 1,
+                    written: 1,
+                    conflictedWrites: [],
+                    remainingPendingWrites: 0,
+                    syncOutcome: SyncOutcomeSnapshot(.clear)
+                )
+        )
 
-    let sheet = try await app.sheet(tab: nil)
-    #expect(sheet.tab == "Block 27")
-    #expect(sheet.cells["K15"] == "185x5@8")
-    #expect(sheet.cells["I15"] == nil)
+        let sheet = try await app.sheet(tab: nil)
+        #expect(sheet.tab == "Block 27")
+        #expect(sheet.cells["K15"] == "185x5@8")
+        #expect(sheet.cells["I15"] == nil)
 
-    let synced = try await app.sync()
-    #expect(synced.syncOutcome.status == .clear)
-    #expect(synced.currentSession == SessionAddress(week: 1, day: 1))
-    #expect(synced.pendingWriteCount == 0)
+        let synced = try await app.sync()
+        expectShowsOnlySessionsOfItsBlock(app.workout)
+        #expect(synced.syncOutcome.status == .clear)
+        #expect(synced.currentSession == SessionAddress(week: 1, day: 1))
+        #expect(synced.pendingWriteCount == 0)
 
-    let session = try app.session(SessionAddress(week: 1, day: 1))
-    let squat = session.exercises[0]
-    #expect(squat.name == "Back Squat")
-    #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
-    #expect(squat.sets[0].setLog == "185x5@8")
-    #expect(squat.sets[0].loggedAt == frozenNow)
-    #expect(session.completedSetCount == 1)
+        let session = try app.session(SessionAddress(week: 1, day: 1))
+        let squat = session.exercises[0]
+        #expect(squat.name == "Back Squat")
+        #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
+        #expect(squat.sets[0].setLog == "185x5@8")
+        #expect(squat.sets[0].loggedAt == frozenNow)
+        #expect(session.completedSetCount == 1)
+    }
 }
 
 @MainActor
@@ -138,16 +148,43 @@ private func address(_ raw: String) throws -> SetAddress {
 
 @MainActor
 @Test func aCoachNoteRedirectsTheSetLogToTheVisibleWritableRow() async throws {
-    let app = try await makeSelectedApp()
+    try await withOnDiskStoreFile { url in
+        let app = try await makeSelectedApp(storage: .file(url))
 
-    _ = try app.log(address("w1d1.e1.s0"), setLog: "135x8@8")
-    _ = try await app.flush()
+        _ = try app.log(address("w1d1.e1.s0"), setLog: "135x8@8")
+        _ = try await app.flush()
+
+        let sheet = try await app.sheet(tab: nil)
+        #expect(sheet.cells["K19"] == "Start w/ 10 sec hold")
+        #expect(sheet.cells["K20"] == "135x8@8")
+        _ = try await app.sync()
+        expectShowsOnlySessionsOfItsBlock(app.workout)
+        #expect(try app.session(SessionAddress(week: 1, day: 1)).exercises[1].sets[0].state == "logged")
+    }
+}
+
+@MainActor
+@Test func aCoachNoteOnAMultiLineAnchorRedirectsItsFirstLineToTheSpareRow() async throws {
+    // #942: Back Squat becomes a 1-Set anchor Line carrying a Coach Note plus a 2-Set Line on row
+    // 16, leaving rows 17 and 18 spare before the RDL on row 19.
+    let coachNote = "Brace hard off the floor, controlled descent."
+    var workbook = WorkbookScenario.freshBlock.workbook()
+    workbook.tabs["Block 27"]?.cells.merge(["D15": "1", "K15": coachNote, "D16": "2", "F16": "5", "H16": "RPE8"]) { _, new in new }
+    let app = try WorkoutApplication(environment: .inMemory(workbook: workbook, now: { frozenNow }))
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
+
+    _ = try app.log(address("w1d1.e0.s0"), setLog: "235x5@6")
+    let flush = try await app.flush()
+    #expect(flush.conflictedWrites == [])
+    #expect(flush.written == 1)
 
     let sheet = try await app.sheet(tab: nil)
-    #expect(sheet.cells["K19"] == "Start w/ 10 sec hold")
-    #expect(sheet.cells["K20"] == "135x8@8")
+    #expect(sheet.cells["K15"] == coachNote)
+    #expect(sheet.cells["K17"] == "235x5@6")
     _ = try await app.sync()
-    #expect(try app.session(SessionAddress(week: 1, day: 1)).exercises[1].sets[0].state == "logged")
+    let squat = try app.session(SessionAddress(week: 1, day: 1)).exercises[0]
+    #expect(squat.sets.map(\.state) == ["logged", "pending", "pending"])
+    #expect(squat.sets[0].setLog == "235x5@6")
 }
 
 @MainActor
@@ -200,6 +237,49 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
+@Test func aMoveOnPinsTheCurrentSessionWithoutReportingAnOverride() async throws {
+    let app = try await makeSelectedApp()
+
+    app.workout.moveOn()
+
+    let snapshot = try app.snapshot()
+    #expect(snapshot.currentSession == SessionAddress(week: 1, day: 2))
+    #expect(snapshot.currentSessionIsOverridden == false)
+    #expect(snapshot.currentSessionReason == "Move On advanced to this Session, so it wins over Sheet-derived progress.")
+}
+
+/// #972 through the real sync: the sync deletes the celebrated Session, so Continue must Move On
+/// from the re-parsed one.
+@MainActor
+@Test func aMoveOnFromTheCelebrationAfterASyncAdvancesFromTheReparsedSession() async throws {
+    try await withOnDiskStoreFile { url in
+        let app = try await makeSelectedApp(storage: .file(url))
+        _ = try app.view(SessionAddress(week: 2, day: 1))
+        app.workout.makeViewedSessionCurrent()
+        app.workout.requestMoveOnCelebration()
+
+        _ = try await app.sync()
+        expectShowsOnlySessionsOfItsBlock(app.workout)
+        app.workout.dismissMoveOnCelebration()
+
+        #expect(try app.snapshot().currentSession == SessionAddress(week: 2, day: 2))
+    }
+}
+
+@MainActor
+@Test func makeCurrentReportsAnOverride() async throws {
+    let app = try await makeSelectedApp()
+
+    _ = try app.view(SessionAddress(week: 2, day: 1))
+    app.workout.makeViewedSessionCurrent()
+
+    let snapshot = try app.snapshot()
+    #expect(snapshot.currentSession == SessionAddress(week: 2, day: 1))
+    #expect(snapshot.currentSessionIsOverridden == true)
+    #expect(snapshot.currentSessionReason == "The athlete made this Session current, so it wins over Sheet-derived progress.")
+}
+
+@MainActor
 @Test func unconfiguredApplicationRefusesSheetVerbsButStillSnapshots() async throws {
     let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
 
@@ -215,7 +295,7 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 
@@ -232,7 +312,7 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 
@@ -245,6 +325,18 @@ private func address(_ raw: String) throws -> SetAddress {
 
     _ = try await first.value
     #expect(try app.snapshot().spreadsheetId == "held-sheet")
+}
+
+@MainActor
+@Test func selectingASheetWithNoBlockTabIsRefusedWithThatReason() async throws {
+    let workbook = LocalWorkbook(spreadsheetId: "NOTES", title: "Notes", tabs: ["Intro": .init(cells: ["A1": "Hello"])])
+    let app = try WorkoutApplication(environment: .inMemory(workbook: workbook, now: { frozenNow }))
+
+    await #expect(throws: ApplicationError.sheetSwitchFailed("No training blocks found in this sheet")) {
+        try await app.selectSpreadsheet(id: "NOTES", title: "Notes")
+    }
+
+    #expect(try app.snapshot().spreadsheetId == nil)
 }
 
 @MainActor
@@ -263,33 +355,36 @@ private func address(_ raw: String) throws -> SetAddress {
 
 @MainActor
 @Test func aConflictedWriteIsReportedByEveryLaterFlushAndSync() async throws {
-    let app = try await makeSelectedApp()
-    let client = try #require(app.sheetsClient as? LocalWorkbookSheetsClient)
-    _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
-    try await client.updateCells(spreadsheetId: "FIXTURE", range: "'Block 27'!K15", values: [["200x5@8"]])
+    try await withOnDiskStoreFile { url in
+        let app = try await makeSelectedApp(storage: .file(url))
+        let client = try #require(app.sheetsClient as? LocalWorkbookSheetsClient)
+        _ = try app.log(address("w1d1.e0.s0"), setLog: "185x5@8")
+        try await client.write([SheetCellWrite(tabName: "Block 27", a1: "K15", value: "200x5@8")], spreadsheetId: "FIXTURE")
 
-    let first = try await app.flush()
-    #expect(first.attempted == 1)
-    #expect(first.written == 0)
-    #expect(first.conflictedWrites.count == 1)
-    #expect(first.conflictedWrites[0].hasPrefix("Back Squat:"))
-    #expect(first.remainingPendingWrites == 1)
+        let first = try await app.flush()
+        #expect(first.attempted == 1)
+        #expect(first.written == 0)
+        #expect(first.conflictedWrites.count == 1)
+        #expect(first.conflictedWrites[0].hasPrefix("Back Squat:"))
+        #expect(first.remainingPendingWrites == 1)
 
-    let second = try await app.flush()
-    #expect(
-        second
-            == FlushReport(
-                attempted: 0,
-                written: 0,
-                conflictedWrites: first.conflictedWrites,
-                remainingPendingWrites: 1,
-                syncOutcome: SyncOutcomeSnapshot(.clear)
-            )
-    )
+        let second = try await app.flush()
+        #expect(
+            second
+                == FlushReport(
+                    attempted: 0,
+                    written: 0,
+                    conflictedWrites: first.conflictedWrites,
+                    remainingPendingWrites: 1,
+                    syncOutcome: SyncOutcomeSnapshot(.clear)
+                )
+        )
 
-    let synced = try await app.sync()
-    #expect(synced.conflictedWrites == first.conflictedWrites)
-    #expect(synced.pendingWriteCount == 1)
+        let synced = try await app.sync()
+        expectShowsOnlySessionsOfItsBlock(app.workout)
+        #expect(synced.conflictedWrites == first.conflictedWrites)
+        #expect(synced.pendingWriteCount == 1)
+    }
 }
 
 @MainActor
@@ -346,15 +441,18 @@ private func wire(_ suggestion: LoadSuggestionSnapshot) throws -> String {
 
 @MainActor
 @Test func skippingTheOnlyLoggedSetLeavesNoBasisAfterFlushAndSync() async throws {
-    let app = try await makeSelectedApp()
-    _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
-    _ = try app.skip(address("w1d1.e0.s0"))
-    _ = try await app.flush()
-    _ = try await app.sync()
+    try await withOnDiskStoreFile { url in
+        let app = try await makeSelectedApp(storage: .file(url))
+        _ = try app.log(address("w1d1.e0.s0"), setLog: "315x5@7")
+        _ = try app.skip(address("w1d1.e0.s0"))
+        _ = try await app.flush()
+        _ = try await app.sync()
+        expectShowsOnlySessionsOfItsBlock(app.workout)
 
-    let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
+        let setOne = try app.session(SessionAddress(week: 2, day: 1)).exercises[0].sets[0]
 
-    #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+        #expect(try wire(setOne.loadSuggestion) == #"{"kind":"none"}"#)
+    }
 }
 
 @MainActor

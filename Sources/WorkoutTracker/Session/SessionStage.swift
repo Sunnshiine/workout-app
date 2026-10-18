@@ -119,7 +119,6 @@ struct QueuePosition: Equatable, Sendable {
     let count: Int
 
     var label: String { "\(number) of \(count)" }
-    var accessibilityLabel: String { "Queue, \(number) of \(count)" }
 }
 
 enum QueuePairingRole: Equatable, Sendable {
@@ -378,13 +377,9 @@ private enum StageItem {
     }
 
     static func upNext(after onStage: StageItem, in items: [StageItem]) -> UpNext? {
-        let next: StageItem?
-        if let index = items.firstIndex(where: { $0.id == onStage.id }),
-            let after = items[items.index(after: index)...].first(where: { !$0.isComplete }) {
-            next = after
-        } else {
-            next = items.first { !$0.isComplete && $0.id != onStage.id }
-        }
+        let index = items.firstIndex { $0.id == onStage.id }
+        let after = index.flatMap { items[items.index(after: $0)...].first { !$0.isComplete } }
+        let next = after ?? items.first { !$0.isComplete && $0.id != onStage.id }
         return next.map { UpNext(title: $0.title, target: $0.nextPendingSet) }
     }
 
@@ -416,7 +411,7 @@ private enum StageItem {
     }
 
     var title: String {
-        exercises.map(\.baseName).joined(separator: " + ")
+        exercises.map(\.exerciseName.base).joined(separator: " + ")
     }
 
     var isComplete: Bool { exercises.allSetsComplete }

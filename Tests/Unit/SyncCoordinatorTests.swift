@@ -15,7 +15,7 @@ private struct StubClient: SheetsClient {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         SheetSnapshot(values: grid)
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 @MainActor
@@ -118,7 +118,7 @@ private struct StubClient: SheetsClient {
     let syncedSet = try #require(
         syncedBlock.weeks.first { $0.number == 1 }?
             .sessions.first { $0.dayNumber == 1 }?
-            .exercises.first { $0.name == "Squat" }?
+            .exercises.first { $0.exerciseName == "Squat" }?
             .sets.first { $0.index == 0 }
     )
     #expect(syncedSet.loggedAt == loggedAt)
@@ -161,8 +161,6 @@ private func makeLoggedSquatBlock() -> Block {
 private func loggedSquatExercise() -> ParsedExercise {
     ParsedExercise(
         name: "Squat",
-        baseName: "Squat",
-        cadence: nil,
         coachNote: nil,
         sets: [
             ParsedSet(
@@ -190,18 +188,17 @@ private func loggedSquatGrid() -> SheetGrid {
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncLaunchesTheExerciseHistoryFillWithoutWaitingForIt() async throws {
+@Test func syncLaunchesTheExerciseHistoryFillWithoutWaitingForIt() async throws {
     let container = try makeSyncContainer()
     let client = HistoryFillStubClient(
         titles: ["Block 26", "Block 27"],
         grids: [
             "Block 27": currentGridWithPendingSquat(),
             "Block 26": historicalGrid(exerciseName: "Squat", log: "245x5@8", date: "4/24/2026")
-        ],
-        suspendedTabs: ["Block 26"]
+        ]
     )
     let lookupStore = LastPerformedLookupStore(context: container.mainContext)
-    let fill = ExerciseHistoryFill(client: client, context: container.mainContext, index: lookupStore)
+    let fill = makeHistoryFill(client: client, context: container.mainContext, index: lookupStore)
     let sync = SyncCoordinator(
         client: client,
         context: container.mainContext,
@@ -211,13 +208,14 @@ private func loggedSquatGrid() -> SheetGrid {
 
     await sync.sync(spreadsheetId: "sid")
 
-    // Block 26's read is still parked, so sync returned while the fill was mid-flight.
+    // Sync launches the fill as its last step and returns without suspending, so this line runs
+    // before the main actor gives the fill its first turn. A sync that waited for the fill returns
+    // with Block 26 already ingested and fails here. An `await` in sync after the launch would let
+    // the fill run first, so keep the launch last.
     #expect(sync.outcome == .clear)
     #expect(sync.isSyncing == false)
     #expect(lookupStore.snapshot.lookup(for: "Squat") == nil)
     let inFlight = try #require(sync.inFlightHistoryFill)
-
-    await client.recorder.release()
 
     #expect(await inFlight.value == .tabsExhausted(tabsIngested: 1))
     #expect(lookupStore.snapshot.lookup(for: "Squat")?.resultText == "245x5@8")
@@ -242,7 +240,7 @@ private func loggedSquatGrid() -> SheetGrid {
         client: client,
         context: container.mainContext,
         lastPerformed: index,
-        historyFill: ExerciseHistoryFill(client: client, context: container.mainContext, index: index)
+        historyFill: makeHistoryFill(client: client, context: container.mainContext, index: index)
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -270,7 +268,7 @@ private func loggedSquatGrid() -> SheetGrid {
         client: client,
         context: container.mainContext,
         lastPerformed: lookupStore,
-        historyFill: ExerciseHistoryFill(client: client, context: container.mainContext, index: lookupStore)
+        historyFill: makeHistoryFill(client: client, context: container.mainContext, index: lookupStore)
     )
 
     await sync.sync(spreadsheetId: "sid")
@@ -327,7 +325,7 @@ struct SyncOutcomeCharacterizationTests {
         await sync.flushPending(spreadsheetId: "sid")
 
         #expect(sync.outcome == .writesRefused(["Squat: Expected '', found 'coach edited'"]))
-        #expect(client.updates.isEmpty)
+        #expect(client.writes.isEmpty)
     }
 
     @Test func aSpreadsheetWithNoBlockTabReportsNoBlockTab() async throws {
@@ -394,7 +392,7 @@ struct SyncOutcomeCharacterizationTests {
         let write = try #require(try sync.fetchPendingWriteRecords().first)
         #expect(write.status == .conflict)
         #expect(write.lastError == "Expected '', found 'coach edited'")
-        #expect(client.updates.isEmpty)
+        #expect(client.writes.isEmpty)
     }
 
     @Test func flushingAnEmptyQueueClearsALocalWriteFailure() async throws {
@@ -424,7 +422,7 @@ struct SyncOutcomeCharacterizationTests {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = OutcomePinClient(grid: writableGrid())
-        client.updatesFail = true
+        client.writesFail = true
         let sync = SyncCoordinator(client: client, context: container.mainContext)
 
         await sync.sync(spreadsheetId: "sid")
@@ -602,8 +600,8 @@ private struct LocalWriteFailure: LocalizedError {
 private final class OutcomePinClient: SheetsClient {
     var grid: SheetGrid
     var isOffline = false
-    var updatesFail = false
-    private(set) var updates: [String] = []
+    var writesFail = false
+    private(set) var writes: [SheetCellWrite] = []
     private let titles: [String]
 
     init(titles: [String] = ["Intro", "Block 27"], grid: SheetGrid) {
@@ -621,9 +619,9 @@ private final class OutcomePinClient: SheetsClient {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        if updatesFail { throw URLError(.timedOut) }
-        updates.append(range)
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        if writesFail { throw URLError(.timedOut) }
+        writes.append(contentsOf: cells)
     }
 }
 
@@ -660,7 +658,7 @@ private final class HeldOutcomePinClient: SheetsClient {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 
     func waitUntilHeld() async {
         await held.waitUntilHeld(orRecord: "the coordinator never reached the Sheet call this client holds")

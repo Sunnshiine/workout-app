@@ -3,7 +3,7 @@ import XCTest
 final class WorkoutTrackerUISmokeTests: XCTestCase {
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
-        let app = launchCurrentSessionSmokeApp()
+        let app = launchCurrentSessionSmokeApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -56,21 +56,24 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         XCTAssertTrue(trainingSheetRow.appears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
+        let confirmSignOut = app.buttons["sign-out-confirm-button"]
         app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
-        app.alerts.buttons["Cancel"].tap()
+        XCTAssertTrue(app.staticTexts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
+        XCTAssertEqual(confirmSignOut.label, "Sign Out")
+        app.buttons["Cancel"].tap()
+        XCTAssertFalse(confirmSignOut.appears(within: 1))
 
-        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
         app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
-        app.alerts.buttons["Sign Out"].tap()
+        XCTAssertTrue(confirmSignOut.appears(within: 3))
+        confirmSignOut.tap()
 
-        XCTAssertFalse(app.alerts["You have unsynced changes. Sign out anyway?"].appears(within: 1))
+        XCTAssertFalse(confirmSignOut.appears(within: 1))
+        waitForLabel("Training Sheet, Google Sheet", on: trainingSheetRow)
     }
 
     @MainActor
-    private func launchCurrentSessionSmokeApp() -> XCUIApplication {
-        launchWorkoutApp(fixture: .currentSession)
+    private func launchCurrentSessionSmokeApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(fixture: .currentSession, options: options)
     }
 
     @MainActor
