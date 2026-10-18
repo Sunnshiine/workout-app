@@ -125,7 +125,7 @@ final class SyncCoordinator {
             if !lastPerformedEntries.isEmpty {
                 try lastPerformed.ingest(lastPerformedEntries)
             }
-            try retractEntriesClearedInTheSheet(parsed.block)
+            try retractEntriesClearedInTheSheet(parsed)
             outcome = .sync(sheetRead: SyncOutcome(parseWarnings: parsed.warnings), flush: flushOutcome)
             syncLogger.info("Done, outcome: \(String(describing: self.outcome), privacy: .public)")
             launchHistoryFill(
@@ -154,26 +154,40 @@ final class SyncCoordinator {
     }
 
     /// The Sheet no longer holds a Set Log for these Exercises, so their entries go (#812, ADR-0018).
-    /// A Session still waiting on a queued Set Log keeps its entry, since the Sheet has not seen it.
-    private func retractEntriesClearedInTheSheet(_ block: ParsedBlockModel) throws {
-        let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
-        let queued = Set(
-            writes.filter { $0.status == .pending && $0.column == .notes }.map {
+    /// A Session the layout read with no Notes column keeps its entries, since its Set Logs went
+    /// unread rather than missing. So does an Exercise the overlay shows Logged from a queued write.
+    private func retractEntriesClearedInTheSheet(_ parsed: ParsedBlock) throws {
+        let tab = parsed.block.tabName
+        let unread = Set(
+            parsed.layout.weeks.flatMap { week in
+                week.days.filter { $0.columns.notes == nil }.map {
+                    SessionCoordinate(blockTab: tab, address: SessionAddress(week: week.number, day: $0.number))
+                        .storageValue
+                }
+            }
+        )
+        let shownLocally = Set(
+            notesWritesOverlaid(onTab: tab, layout: parsed.layout).map {
                 LastPerformedEntryKey(fullName: $0.exerciseName, source: $0.recordedSession.storageValue)
             }
         )
-        for key in LastPerformedExtractor.keysWithoutEntry(from: block).subtracting(queued) {
+        for key in LastPerformedExtractor.keysWithoutEntry(from: parsed.block).subtracting(shownLocally)
+        where !unread.contains(key.source) {
             try lastPerformed.retract(fullName: key.fullName, source: key.source)
         }
     }
 
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
-        let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
-        for write in writes where write.recordedSession.blockTab == block.tabName && write.column == .notes {
-            guard write.overlays(on: layout) else { continue }
+        for write in notesWritesOverlaid(onTab: block.tabName, layout: layout) {
             sets[SetCoordinates.ID(write)]?.apply(write)
         }
+    }
+
+    /// The queued Notes writes a sync lays over the Sheet's read, so the athlete keeps seeing them.
+    private func notesWritesOverlaid(onTab tab: String, layout: SheetLayout) -> [PendingWrite] {
+        let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
+        return writes.filter { $0.recordedSession.blockTab == tab && $0.column == .notes && $0.overlays(on: layout) }
     }
 
     /// Only an index refusal is the athlete's business: it leaves Exercise History short and the

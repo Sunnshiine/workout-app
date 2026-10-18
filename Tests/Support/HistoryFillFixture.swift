@@ -68,9 +68,9 @@ private struct HistoryFillIngestFailure: Error, LocalizedError {
     var errorDescription: String? { "the index is full" }
 }
 
-/// A full index that refuses every new entry, so a test can drive the halt the athlete hears
-/// about. Retracting frees room, so it still succeeds, which lets a sync retract the entries of a
-/// current tab that holds no Set Logs (#812).
+/// An index that refuses every new entry, so a test can drive the halt the athlete hears about.
+/// Its retract accepts the call and does nothing, so the retractions a sync makes for a current
+/// tab with no Set Logs (#812) do not halt it first.
 @MainActor
 final class RefusingIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws { throw HistoryFillIngestFailure() }
