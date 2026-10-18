@@ -25,11 +25,6 @@ enum SpokenToken: Equatable, Sendable {
         }
     }
 
-    var isCutOff: Bool {
-        guard case .number(let number) = self else { return false }
-        return number.isCutOff
-    }
-
     /// Two digits, the second 6 to 9, or any three, that may be a rep count and an RPE run together, as
     /// "49" for "4 at 9" and "808" for "8 at an 8".
     var mayBeRepsAtAnRPE: Bool {
@@ -74,14 +69,15 @@ enum SpokenAmount: Equatable, Sendable {
     case bodyweight
 }
 
-/// A value a phrase gives one field, or the field whose number the recognizer cut off.
+/// A value a phrase gives one field, or the field whose number the recognizer cut off and what it
+/// wrote in the number's place.
 enum SpokenClaim: Equatable, Sendable {
     case value(SetLogDraft.Field, SpokenAmount)
-    case cutOff(SetLogDraft.Field)
+    case cutOff(SetLogDraft.Field, SpokenRemnant)
 
     var field: SetLogDraft.Field {
         switch self {
-        case .value(let field, _), .cutOff(let field): field
+        case .value(let field, _), .cutOff(let field, _): field
         }
     }
 }
@@ -112,12 +108,14 @@ enum SpokenReading: Equatable, Sendable {
 
     func claims(_ token: SpokenToken) -> [SpokenClaim]? {
         guard let amount = token.amount, takes(amount) else { return nil }
-        return self == .unheardRPE || token.isCutOff ? cutOff(amount) : [.value(field, amount)]
+        guard case .number(let number) = token, self == .unheardRPE || number.isCutOff else { return [.value(field, amount)] }
+        return cutOff(number)
     }
 
     /// A rep count is whole, so what the recognizer cut off after one is the RPE said after the reps.
-    private func cutOff(_ amount: SpokenAmount) -> [SpokenClaim] {
-        field == .reps ? [.value(.reps, amount), .cutOff(.rpe)] : [.cutOff(field)]
+    private func cutOff(_ number: SpokenNumber) -> [SpokenClaim] {
+        guard field != .reps else { return [.value(.reps, .number(number.value)), .cutOff(.rpe, .nothing)] }
+        return [.cutOff(field, number.isCutOff ? .wholePart(number.value) : .number(number.value))]
     }
 
     private func takes(_ amount: SpokenAmount) -> Bool {
@@ -186,7 +184,7 @@ struct SpokenMatch {
     func cutOff(at step: SpokenStep) -> SpokenMatch? {
         guard rest.isEmpty, last?.asksForAValue ?? false, let field = step.cutOffField else { return nil }
         var match = self
-        match.claims.append(.cutOff(field))
+        match.claims.append(.cutOff(field, .nothing))
         return match
     }
 }
@@ -276,7 +274,7 @@ struct SpokenPhrase: Sendable {
     /// is dropped.
     private static func leftover(_ token: SpokenToken, isLast: Bool) throws(SpokenSet.Rejection) -> [SpokenClaim] {
         switch token {
-        case .misheardAt where isLast: return [.cutOff(.rpe)]
+        case .misheardAt where isLast: return [.cutOff(.rpe, .nothing)]
         default:
             guard token.isFiller else { throw .unrecognized }
             return []
@@ -307,7 +305,7 @@ struct SpokenPhrase: Sendable {
 /// bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set Log.
 struct SpokenSlots {
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
-    private var cutOff: Set<SetLogDraft.Field> = []
+    private var cutOff: [SetLogDraft.Field: SpokenRemnant] = [:]
 
     init(_ claims: [SpokenClaim]) throws(SpokenSet.Rejection) {
         for claim in claims { try self.claim(claim) }
@@ -319,12 +317,12 @@ struct SpokenSlots {
         guard !said(claim.field) else { throw .conflicting(claim.field) }
         switch claim {
         case .value(let field, let amount): amounts[field] = amount
-        case .cutOff(let field): cutOff.insert(field)
+        case .cutOff(let field, let remnant): cutOff[field] = remnant
         }
     }
 
     func said(_ field: SetLogDraft.Field) -> Bool {
-        amounts[field] != nil || cutOff.contains(field)
+        amounts[field] != nil || cutOff[field] != nil
     }
 
     func spokenSet() throws(SpokenSet.Rejection) -> SpokenSet {
@@ -333,9 +331,9 @@ struct SpokenSlots {
         return .values(weight: spoken(.weight, weight), reps: spoken(.reps, reps), rpe: spoken(.rpe, try Self.rpe(amounts[.rpe])))
     }
 
-    private func spoken<Value: Equatable & Sendable>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {
+    private func spoken<Value: SpokenQuantity>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {
         if let value { return .heard(value) }
-        return cutOff.contains(field) ? .cutOff : .notSaid
+        return cutOff[field].map(SpokenValue.cutOff) ?? .notSaid
     }
 
     private static func weight(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Weight? {
