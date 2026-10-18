@@ -52,8 +52,37 @@ import Testing
 }
 
 @MainActor
-@Test func withoutThePendingWriteLaunchTheFixtureSheetIsOfflineAfterTheBoot() async throws {
-    let app = try await BootedFixture.boot([]).app
+@Test func aLogOnTheFixtureSheetFlushesIntoItsWorkbook() async throws {
+    let app = try await BootedFixture.boot(["-UITEST_FULL_BLOCK"]).app
+
+    _ = try app.log(try #require(SetAddress("w1d1.e0.s0")), setLog: "235x5@6")
+    let flush = try await app.flush()
+
+    #expect(flush.written == 1)
+    #expect(flush.conflictedWrites == [])
+    #expect(flush.remainingPendingWrites == 0)
+    // Back Squat's first Line holds the Coach Note, so its Set Log goes to the Exercise's spare row.
+    #expect(try await app.sheet(tab: nil).cells["K15"] == "Brace hard off the floor, controlled descent.")
+    #expect(try await app.sheet(tab: nil).cells["K18"] == "235x5@6")
+}
+
+@MainActor
+@Test func aSyncAfterTheBootKeepsTheScenariosSetLogs() async throws {
+    let app = try await BootedFixture.boot(["-UITEST_OPEN_EXERCISES"]).app
+
+    let synced = try await app.sync()
+
+    #expect(synced.syncOutcome.status == .clear)
+    for (session, log) in [("w1d1", "235x5@6"), ("w1d2", "155x5@6"), ("w1d3", "305x3@6")] {
+        let lift = try #require(try app.session(try #require(SessionAddress(session))).exercises.first)
+        #expect(lift.sets.map(\.state) == ["logged", "pending"], "\(session)")
+        #expect(lift.sets.map(\.setLog) == [log, nil], "\(session)")
+    }
+}
+
+@MainActor
+@Test func theOfflineLaunchLeavesTheFixtureSheetUnreachableAfterTheBoot() async throws {
+    let app = try await BootedFixture.boot(["-UITEST_OFFLINE"]).app
 
     await #expect(throws: ApplicationError.self) { try await app.sync() }
 
@@ -62,7 +91,7 @@ import Testing
 
 @MainActor
 @Test func aLogOnTheOfflineFixtureSheetStaysQueued() async throws {
-    let app = try await BootedFixture.boot(["-UITEST_FULL_BLOCK"]).app
+    let app = try await BootedFixture.boot(["-UITEST_FULL_BLOCK", "-UITEST_OFFLINE"]).app
 
     _ = try app.log(try #require(SetAddress("w1d1.e0.s0")), setLog: "235x5@6")
     let flush = try await app.flush()

@@ -146,9 +146,7 @@ line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.mo
 `WorkbookScenario`; the scenario test requires it to parse with no warnings. Every UI launch
 Scenario flag is its workbook's name in upper snake case (`-UITEST_FULL_BLOCK` boots `full-block`),
 and a launch that names none boots `partial-upload`, so the CLI and the UI suites read the same
-cells under the same names. A misspelt flag stops the UI boot. The one exception is a scenario's `unwritableSetLogs`: Set Logs
-on a Coach Note Line, which have no cell until #942. The UI fixture logs them over the parse, but
-`init` does not, so those Sets read Pending here.
+cells under the same names. A misspelt flag stops the UI boot.
 
 The Exercise History fill runs as a fire-and-forget task after a multi-tab sync; a CLI process
 exits before it runs, so scenarios in this slice have one tab. See ADR-0015.

@@ -1,6 +1,5 @@
 #if DEBUG
     import Foundation
-    import SwiftData
 
     /// Boots the app into a deterministic, populated `SessionView` for unattended UI verification.
     ///
@@ -39,19 +38,24 @@
 
         /// Brings a fresh fixture application to the state `launch` names, through the calls a
         /// phone makes: a sync of the fixture Sheet, the Exercise History its earlier fills left, and
-        /// for a pending-write launch a log that was never flushed. Then the drive's faults are
-        /// armed: unless a pending write wants a sync to land, FIXTURE disconnects, so a log stays
-        /// queued as it always has in the fixture, and a slow-sync launch holds every later tab
-        /// list. The faults wait for the boot, so it never stalls on them.
+        /// for a pending-write launch a log that was never flushed. Then the faults the launch asks
+        /// for are armed: an offline launch disconnects FIXTURE, so a log stays queued, and a
+        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
+        /// stalls on them.
         @MainActor
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             try launch.checkFlags()
             app.settings.setAppearance(try launch.appearance)
             app.settings.isSignedIn = !launch.signsInLate
-            try await load(launch.scenario, into: app)
+            try await syncFixtureSheet(into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()
-            try await queueOrDisconnect(app: app, launch: launch, sheets: sheets)
+            if launch.startsWithPendingWrite {
+                _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
+            }
+            if launch.startsOffline {
+                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
+            }
             if launch.slowsSync {
                 await sheets.holdTabListings(for: .seconds(20))
             }
@@ -64,30 +68,12 @@
             present(launch, on: app.workout)
         }
 
-        /// Syncs the scenario's workbook, then logs its `unwritableSetLogs` over the stored Block, as
-        /// the app holds a log the Sheet has not taken.
+        /// Syncs the scenario's workbook, which the drive already holds as FIXTURE.
         @MainActor
-        private static func load(_ workbook: WorkbookScenario, into app: WorkoutApplication) async throws {
+        private static func syncFixtureSheet(into app: WorkoutApplication) async throws {
             guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
                 throw BootSyncFailed(outcome: app.sync.outcome)
             }
-            guard !workbook.unwritableSetLogs.isEmpty else { return }
-            let context = app.container.mainContext
-            for block in try context.fetch(FetchDescriptor<Block>()) {
-                workbook.applyUnwritableSetLogs(to: block)
-            }
-            try context.save()
-        }
-
-        /// A pending-write launch logs and leaves FIXTURE reachable for the sync that lands it;
-        /// every other launch disconnects FIXTURE.
-        @MainActor
-        private static func queueOrDisconnect(app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
-            guard launch.startsWithPendingWrite else {
-                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
-                return
-            }
-            _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
         }
 
         @MainActor
