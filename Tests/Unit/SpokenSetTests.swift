@@ -519,14 +519,21 @@ func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
 }
 
 /// "4 at 9" can reach the transcript as "49", but "1 at 5" is rarely said, so only a second digit of
-/// 6 to 9 reads two ways. Three digits read two ways whatever they are: the recognizer writes "808"
-/// for "8 at an 8", "343" for "3 for 3", and "110" for "1 at 10", and nobody logs 100 reps unlabelled.
+/// 6 to 9 reads two ways. A count of 100 or more reads two ways whatever its digits and however it was
+/// said: the recognizer writes "808" for "8 at an 8", "343" for "3 for 3", and "110" for "1 at 10", and
+/// nobody logs 100 reps unlabelled.
 @Test func aRepCountAfterForThatMayBeRepsAtAnRPEIsAmbiguous() {
     #expect(SpokenSet.parse("135 for 49") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 for 808") == .failure(.ambiguous))
     #expect(SpokenSet.parse("225 for 343") == .failure(.ambiguous))
     #expect(SpokenSet.parse("405 for 110") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 for 100") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("four hundred five for one hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for one hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 for one hundred and ten") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for a hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for one hundred reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("135 for 101 at 8") == values(.pounds(135), 101, .eight))
     #expect(SpokenSet.parse("BW for 129") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 for 100 reps") == values(.pounds(135), 100, nil))
     #expect(SpokenSet.parse("135 for 808 at 8") == values(.pounds(135), 808, .eight))

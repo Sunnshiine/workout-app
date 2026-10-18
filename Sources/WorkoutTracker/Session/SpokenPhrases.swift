@@ -25,11 +25,12 @@ enum SpokenToken: Equatable, Sendable {
         }
     }
 
-    /// Two digits, the second 6 to 9, or any three, that may be a rep count and an RPE run together, as
-    /// "49" for "4 at 9" and "808" for "8 at an 8".
+    /// Two digits, the second 6 to 9, that may be a rep count and an RPE run together, as "49" for "4 at
+    /// 9", or a count of 100 or more however it was said, which the recognizer writes for "8 at an 8" as
+    /// "808" far more often than a lifter logs a hundred reps.
     var mayBeRepsAtAnRPE: Bool {
         guard case .number(let number) = self else { return false }
-        return number.digits?.wholeMatch(of: /[1-9][6-9]|[1-9][0-9]{2}/) != nil
+        return number.value >= 100 || number.digits?.wholeMatch(of: /[1-9][6-9]/) != nil
     }
 
     /// A word that adds nothing where no phrase takes it: the "and" and "of" that may be a misheard
@@ -235,9 +236,9 @@ struct SpokenPhrase: Sendable {
         return match
     }
 
-    /// The values the phrases read from the tokens. A rep count written right after "for", with no
-    /// "reps" after it and no RPE said, is ambiguous as two digits whose second is 6 to 9, and as any
-    /// three digits, because "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808".
+    /// The values the phrases read from the tokens. A rep count right after "for", with no "reps" after
+    /// it and no RPE said, is ambiguous as two digits whose second is 6 to 9, and as 100 or more, because
+    /// "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
         let (claims, unplaced) = try claims(in: tokens)
