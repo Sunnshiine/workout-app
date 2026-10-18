@@ -397,6 +397,27 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
 }
 
 @MainActor
+@Test func aFlushThatStopsForRetryAfterAnEarlierRefusalCountsOnlyTheWritesStillQueued() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .headerNumber, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.failingUpdates = 2
+    let sync = SyncCoordinator(client: client, context: ctx)
+    await sync.flushPending(spreadsheetId: "sid")
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesQueued(1))
+    #expect(client.writes.isEmpty)
+    let records = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(records.map(\.status) == [.conflict, .pending])
+}
+
+@MainActor
 @Test func aRefusedHeaderRankWriteStaysUnloggedOnceTheCoachRestoresTheHeadersSoItsRelogLands() async throws {
     let container = try makeHeaderRankContainer()
     let ctx = container.mainContext
