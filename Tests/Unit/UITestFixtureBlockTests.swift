@@ -2,8 +2,8 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// `UITestFixture.blocks` is a table, so the compiler cannot tell a new scenario that it needs a
-/// row. These expectations do: every scenario must resolve, and each must resolve to its own
+/// `UITestFixture.sources` is a table, so the compiler cannot tell a new scenario that it needs a
+/// row. These expectations do: every scenario must boot, and each must boot into its own
 /// distinctly shaped Block, so a missing or swapped row fails here rather than in a UI run. The
 /// shape also lists every seeded `loggedAt`. The Sheet never carries one, so no fixture Set does.
 
@@ -17,11 +17,12 @@ private struct BlockShape: Hashable {
     var loggedAt: [String] = []
 }
 
+/// Read in address order, because a Block fetched back from the store holds its relationships in
+/// no particular order.
 @MainActor
-private func shape(of scenario: UITestLaunch.Scenario) -> BlockShape {
-    let block = UITestFixture.block(for: scenario)
-    let sessions = block.weeks.flatMap(\.sessions)
-    let exercises = sessions.flatMap(\.exercises)
+private func shape(of block: Block) -> BlockShape {
+    let sessions = block.weeks.sorted { $0.number < $1.number }.flatMap { $0.sessions.sorted { $0.dayNumber < $1.dayNumber } }
+    let exercises = sessions.flatMap { $0.exercises.sorted { $0.order < $1.order } }
     return BlockShape(
         tabName: block.tabName,
         weeks: block.weeks.count,
@@ -29,7 +30,7 @@ private func shape(of scenario: UITestLaunch.Scenario) -> BlockShape {
         exercises: exercises.count,
         sets: exercises.flatMap(\.sets).count,
         firstExercise: exercises.first?.exerciseName.entered ?? "",
-        loggedAt: exercises.flatMap(\.sets).compactMap { $0.loggedAt?.ISO8601Format() }
+        loggedAt: exercises.flatMap { $0.sets.sorted { $0.index < $1.index } }.compactMap { $0.loggedAt?.ISO8601Format() }
     )
 }
 
@@ -85,9 +86,10 @@ private let expectedShapes: [UITestLaunch.Scenario: BlockShape] = [
 ]
 
 @MainActor
-@Test func everyScenarioSeedsItsOwnFixtureBlock() {
+@Test func everyScenarioSeedsItsOwnFixtureBlock() async throws {
     #expect(Set(expectedShapes.values).count == expectedShapes.count)
     for scenario in UITestLaunch.Scenario.allCases {
-        #expect(shape(of: scenario) == expectedShapes[scenario], "\(scenario) seeded the wrong Block")
+        let booted = try await BootedFixture.boot(scenario)
+        #expect(shape(of: try booted.block()) == expectedShapes[scenario], "\(scenario) seeded the wrong Block")
     }
 }
