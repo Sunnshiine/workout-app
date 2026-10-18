@@ -667,7 +667,7 @@ private func sync(
 }
 
 @MainActor
-@Test func canMoveOnIsFalseOnLastSession() throws {
+@Test func moveOnFromTheLastSessionReturnsToTheBlockGrid() throws {
     let fixture = try makeStore(weekCount: 4)
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -680,7 +680,11 @@ private func sync(
 
     #expect(store.currentSession?.week?.number == 4)
     #expect(store.currentSession?.dayNumber == 4)
-    #expect(!store.canMoveOn)
+    #expect(store.canMoveOn)
+
+    store.moveOn()
+
+    #expect(store.pendingBlockOverviewRequest != nil)
 }
 
 @MainActor

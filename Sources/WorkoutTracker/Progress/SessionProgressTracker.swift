@@ -20,22 +20,22 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
     }
 }
 
-/// The single outcome of a Move On, encoding the full `CONTEXT.md` Move On table
-/// as one value so callers ask for the decision instead of re-deriving it from the
-/// `hasSessionAhead` (Available *and* Unavailable) / `nextSession` (Available only)
-/// asymmetry.
+/// The single outcome of a Move On, encoding the `CONTEXT.md` Move On rule as one
+/// value so callers ask for the decision instead of re-deriving it.
 enum MoveOnDestination: Equatable {
     /// Advance to the next Available Session, skipping any Unavailable Sessions in between.
     case advance(to: Session)
-    /// No Available Session remains ahead, but the Block still holds Unavailable
-    /// Sessions ahead — Move On returns the athlete to the Block grid.
+    /// No Available Session lies ahead, either because only Unavailable Sessions
+    /// remain or because the Block is finished, so Move On returns the athlete to
+    /// the Block grid.
     case returnToBlockOverview
-    /// Nothing lies ahead — Move On is not offered.
+    /// The Block does not hold the Session, as for one held across the sync that
+    /// replaced its Block, so Move On is not offered rather than guessing where it sat.
     case notOffered
 
-    /// Whether Move On is offered from here — true unless nothing lies ahead. Lets a
-    /// caller gating a control ask the decision directly instead of comparing against a
-    /// case (and avoids the `Optional.none` footgun a `.none` case would invite).
+    /// Whether Move On is offered from here. Lets a caller gating a control ask the
+    /// decision directly instead of comparing against a case (and avoids the
+    /// `Optional.none` footgun a `.none` case would invite).
     var isOffered: Bool { self != .notOffered }
 }
 
@@ -45,30 +45,25 @@ struct SessionProgressTracker {
     /// The first Available Session after `session` in Block order, or nil when none lies ahead or
     /// `block` does not hold `session`.
     func nextSession(after session: Session, in block: Block) -> Session? {
-        sessions(after: session, in: block).first(where: isAvailable)
-    }
-
-    func hasSessionAhead(after session: Session, in block: Block) -> Bool {
-        !sessions(after: session, in: block).isEmpty
+        sessions(after: session, in: block)?.first(where: isAvailable)
     }
 
     /// Where a Move On from `session` lands, per the `CONTEXT.md` Move On rule:
-    /// advance to the next Available Session (skipping Unavailable ones), or — when
-    /// no Available Session remains ahead but the Block still holds Unavailable
-    /// Sessions ahead — return to the Block grid; otherwise nothing lies ahead.
+    /// advance to the next Available Session (skipping Unavailable ones), or return
+    /// to the Block grid when no Available Session remains ahead.
     func moveOnDestination(from session: Session, in block: Block) -> MoveOnDestination {
-        guard hasSessionAhead(after: session, in: block) else { return .notOffered }
-        if let nextSession = nextSession(after: session, in: block) {
+        guard let ahead = sessions(after: session, in: block) else { return .notOffered }
+        if let nextSession = ahead.first(where: isAvailable) {
             return .advance(to: nextSession)
         }
         return .returnToBlockOverview
     }
 
-    /// Empty when `block` does not hold `session`, as for a Session held across the sync that
+    /// Nil when `block` does not hold `session`, as for a Session held across the sync that
     /// replaced its Block: navigation refuses such a Session rather than guessing where it sat.
-    private func sessions(after session: Session, in block: Block) -> ArraySlice<Session> {
+    private func sessions(after session: Session, in block: Block) -> ArraySlice<Session>? {
         let sessions = allSessions(block)
-        guard let index = sessions.firstIndex(where: { $0.persistentModelID == session.persistentModelID }) else { return [] }
+        guard let index = sessions.firstIndex(where: { $0.persistentModelID == session.persistentModelID }) else { return nil }
         return sessions[(index + 1)...]
     }
 

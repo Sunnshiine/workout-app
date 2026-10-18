@@ -143,20 +143,6 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func hasSessionAheadIncludesUnavailableSessions() {
-    let block = makeBlock()
-    let sessions = sortedSessions(in: block)
-    sessions[1].exercises = []
-    sessions[2].exercises = []
-    sessions[3].exercises = []
-
-    let tracker = SessionProgressTracker()
-
-    #expect(tracker.hasSessionAhead(after: sessions[0], in: block))
-    #expect(!tracker.hasSessionAhead(after: sessions[7], in: block))
-}
-
-@MainActor
 @Test func currentSessionUsesPartialNotesLogsAsProgress() throws {
     let grid = gridFromA1(
         [
@@ -383,15 +369,14 @@ private func sortedSessions(in block: Block) -> [Session] {
 }
 
 @MainActor
-@Test func moveOnDestinationIsNoneWhenNothingLiesAhead() throws {
+@Test func moveOnDestinationReturnsToBlockOverviewFromTheLastSession() throws {
     let block = makeBlock()
     let sessions = sortedSessions(in: block)
     let tracker = SessionProgressTracker()
 
     let destination = tracker.moveOnDestination(from: sessions[7], in: block)
 
-    #expect(destination == .notOffered)
-    #expect(!destination.isOffered)
+    #expect(destination == .returnToBlockOverview)
 }
 
 /// A Session held across a sync is no longer one of the Block's Sessions. Move On from it used to
@@ -406,7 +391,7 @@ private func sortedSessions(in block: Block) -> [Session] {
     #expect(tracker.moveOnDestination(from: detached, in: block) == .notOffered)
     #expect(tracker.nextSession(after: detached, in: block) == nil)
     #expect(tracker.moveOnDestination(from: replaced, in: block) == .notOffered)
-    #expect(!tracker.hasSessionAhead(after: replaced, in: block))
+    #expect(tracker.nextSession(after: replaced, in: block) == nil)
 }
 
 // MARK: - Current-Week membership

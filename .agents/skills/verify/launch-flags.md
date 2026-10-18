@@ -27,6 +27,6 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_SLOW_SYNC` | Switch | Makes every tab list after the boot wait 20 seconds, so a sync stays in flight. |
 | `-UITEST_LATE_SIGN_IN` | Switch | Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device. |
 | `-UITEST_CURRENT_SESSION_OVERRIDE` | Switch | Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays. |
-| `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration, which shows only when the Current Session offers Move On. |
+| `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration for the Current Session. |
 | `-UITEST_APPEARANCE` | Switch | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
 | `-UITEST_LONG_CELEBRATION_QUOTE` | Switch | Shows a long fixture quote in the Move On Celebration in place of a random approved one. |
