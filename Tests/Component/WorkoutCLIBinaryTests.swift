@@ -293,6 +293,28 @@
         #expect(refusedOutcome["status"] as? String == "writesRefused")
     }
 
+    @Test func aChoiceExerciseSuggestsALoadFromHistoryLoggedUnderOneOption() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init", "--scenario", "fresh-block")
+        try editBlockCells(in: home) { cells in
+            cells["C15"] = "Incline DB Bench Press"
+            cells["C40"] = "Incline Machine or DB Bench Press"
+        }
+        _ = try cli.run("sync")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@7")
+
+        let session = try cli.run("session", "w2d1")
+        let exercises = try #require(try session.json["exercises"] as? [[String: Any]])
+        let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
+        let suggestion = try #require(sets[0]["loadSuggestion"] as? [String: Any])
+        #expect(suggestion["kind"] as? String == "estimate")
+        #expect(suggestion["weight"] as? Int == 185)
+        let basis = try #require(suggestion["basis"] as? [String: Any])
+        #expect(basis["text"] as? String == "from 185x5@7 · W1 D1 as “Incline DB Bench Press”")
+    }
+
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
