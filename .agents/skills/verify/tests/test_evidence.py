@@ -234,7 +234,7 @@ class Flat(unittest.TestCase):
                      "AXGroup\t\tRPE\t\t@207,612 474x83"]:
             self.assertIn(line, out.splitlines(), "a card wider than the screen is still on it")
 
-    def test_the_captured_trees_keep_what_intersects_the_screen(self):
+    def test_the_captured_trees_keep_what_has_a_whole_point_on_the_screen(self):
         for fixture, kept, total in [("01-before.all.txt", 42, 139),
                                      ("02-after-log.all.txt", 47, 142),
                                      ("03-queue.all.txt", 59, 154)]:
@@ -545,10 +545,9 @@ class TapPoint(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "sliver", stdin=on_screen_of_402x874(sliver)),
                          (1, "", "off-screen: swipe it into view before tapping\n"),
                          "y 873.5 to 874 is on the screen, but no whole point of it is")
-        self.assertEqual(tree_py("flat", stdin=on_screen_of_402x874(sliver)),
-                         (0, "", "1 off-screen elements hidden; `verify.sh tree --all` lists them\n"
-                                 "1 elements with neither id nor label hidden; `verify.sh tree --all` lists them\n"),
-                         "tree leaves out what find and tappable call off-screen")
+        code, out, err = tree_py("flat", stdin=on_screen_of_402x874(sliver))
+        self.assertEqual((code, out), (0, ""), "tree leaves out what find and tappable call off-screen")
+        self.assertIn("1 off-screen element", err, "and counts it among the off-screen ones")
 
     def test_an_element_whose_drawn_part_is_outside_its_clip_is_refused(self):
         tree = on_screen_of_402x874({
