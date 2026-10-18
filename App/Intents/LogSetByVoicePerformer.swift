@@ -30,11 +30,21 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
     }
 
     func logSetByVoice() async {
-        guard UIApplication.shared.applicationState == .background else {
+        let route = LogSetByVoiceRoute.route(
+            appIsInBackground: UIApplication.shared.applicationState == .background,
+            hasMic: dictation != nil
+        )
+        switch route {
+        case .card:
             entry.deliver(.dictateCurrentSet)
-            return
+        case .nothing:
+            break
+        case .headless:
+            await listenHeadless()
         }
-        // The Simulator has no SpeechAnalyzer, so a launch that names no transcript has no mic.
+    }
+
+    private func listenHeadless() async {
         guard let dictation else { return }
         let background = BackgroundDictation(
             app: app,

@@ -17,6 +17,11 @@ final class LiveActivityController {
         isActive = currentActivity != nil
     }
 
+    /// What the live activity shows now; nil with none up.
+    var currentState: WorkoutActivityAttributes.ContentState? {
+        currentActivity?.content.state
+    }
+
     private static var activitiesEnabled: Bool {
         #if DEBUG
             if UITestFixture.launch.disablesLiveActivities {

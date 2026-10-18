@@ -81,6 +81,26 @@ extension LiveActivityDictation {
     }
 }
 
+extension LiveActivityRestContent {
+    /// The rest a running activity shows, read back off it, leading to no Set this process knows.
+    init?(leftRunning state: WorkoutActivityAttributes.ContentState) {
+        guard let restStartDate = state.restStartDate, let restEndDate = state.restEndDate else { return nil }
+        self.init(
+            exerciseName: state.exerciseName,
+            prescribedReps: state.prescribedReps,
+            prescribedLoad: state.prescribedLoad,
+            weightValue: state.weightValue,
+            weightUnit: state.weightUnit,
+            setsDone: state.setsDone,
+            setsTotal: state.setsTotal,
+            variant: .restTimerSetsLeft,
+            restStartDate: restStartDate,
+            restEndDate: restEndDate,
+            target: nil
+        )
+    }
+}
+
 extension LiveActivityWrittenSet {
     init(_ set: LiveActivityDictationContent.WrittenSet) {
         self.init(exerciseName: set.exerciseName, setOrdinal: set.setOrdinal, setsTotal: set.setsTotal)
