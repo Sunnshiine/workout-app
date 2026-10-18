@@ -216,7 +216,7 @@ struct PendingWriteDiagnostic: Equatable, Identifiable, Sendable {
         block = write.recordedSession.blockTab
         week = "Week \(write.recordedSession.address.week)"
         day = "Day \(write.recordedSession.address.day)"
-        exercise = write.exercise.name.entered
+        exercise = write.exercise.label
         set = "Set \(write.setIndex + 1)"
         column = Self.columnLabel(for: write.column)
         value = write.valueToWrite ?? "Delete"
