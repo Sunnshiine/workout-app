@@ -545,6 +545,10 @@ class TapPoint(unittest.TestCase):
         self.assertEqual(tree_py("tappable", "sliver", stdin=on_screen_of_402x874(sliver)),
                          (1, "", "off-screen: swipe it into view before tapping\n"),
                          "y 873.5 to 874 is on the screen, but no whole point of it is")
+        self.assertEqual(tree_py("flat", stdin=on_screen_of_402x874(sliver)),
+                         (0, "", "1 off-screen elements hidden; `verify.sh tree --all` lists them\n"
+                                 "1 elements with neither id nor label hidden; `verify.sh tree --all` lists them\n"),
+                         "tree leaves out what find and tappable call off-screen")
 
     def test_an_element_whose_drawn_part_is_outside_its_clip_is_refused(self):
         tree = on_screen_of_402x874({
@@ -628,32 +632,42 @@ GEAR_COVERED = ("covered: at 356,87 the screen has AXStaticText session-remainin
 
 class Landing(unittest.TestCase):
     def test_the_target_itself_at_its_centre_lands(self):
-        self.assertEqual(tree_py("landing", GEAR, APP, stdin=GEAR_UP), (0, "", ""), "the live read with the controls up")
-        self.assertEqual(tree_py("landing", GEAR.replace("@334,65", "@334,40"), APP, stdin=GEAR_UP), (0, "", ""),
+        self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=GEAR_UP), (0, "", ""), "the live read with the controls up")
+        self.assertEqual(tree_py("landing", GEAR.replace("@334,65", "@334,40"), APP, "356", "62", stdin=GEAR_UP), (0, "", ""),
                          "its own id lands even when its frame moved between the two reads")
 
     def test_a_child_inside_the_target_lands(self):
         child = [{"role": "AXStaticText", "AXLabel": "237.5", "pid": 53393,
                   "frame": {"x": 110, "y": 545, "width": 180, "height": 40}}]
-        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, stdin=json.dumps(child)), (0, "", ""),
+        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "201", "564", stdin=json.dumps(child)), (0, "", ""),
                          "the text drawn inside the pill wins the hit test, and the tap still lands on the pill")
 
     def test_the_alert_backdrop_over_the_sign_out_row_is_covered(self):
         backdrop = (FIXTURES / "sign-out-row-under-alert.describe-ui.json").read_text()
         row = "AXButton\tsettings-sign-out-button\tSign Out\t\t@16,657 370x52"
-        self.assertEqual(tree_py("landing", row, "62389", stdin=backdrop), (1, "", (
+        self.assertEqual(tree_py("landing", row, "62389", "201", "683", stdin=backdrop), (1, "", (
             "covered: at 201,683 the screen has AXGroup @0,0 402x874, not AXButton settings-sign-out-button" + COVERED
         )), "the full tree still lists the row under the alert; the live point read returned the backdrop")
 
     def test_the_header_text_where_the_hidden_gear_was_is_covered(self):
-        self.assertEqual(tree_py("landing", GEAR, APP, stdin=GEAR_HIDDEN), (1, "", GEAR_COVERED),
+        self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=GEAR_HIDDEN), (1, "", GEAR_COVERED),
                          "the controls hid 2.5 s after the drag, between the tree read and the point read")
 
     def test_nothing_at_the_point_is_covered(self):
         for answer in ["", "[]"]:
             with self.subTest(answer=answer):
-                self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, stdin=answer), (
+                self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "201", "564", stdin=answer), (
                     1, "", "covered: at 201,564 the screen has nothing, not AXButton weight-pill" + COVERED))
+
+    def test_the_note_names_the_point_tapped_not_the_frame_centre(self):
+        self.assertEqual(tree_py("landing", WEIGHT_PILL, APP, "110", "540", stdin=""), (
+            1, "", "covered: at 110,540 the screen has nothing, not AXButton weight-pill" + COVERED),
+            "tappable may aim off the centre, at the part of the pill the screen shows")
+
+    def test_a_landing_without_the_point_tapped_is_refused(self):
+        code, out, err = tree_py("landing", WEIGHT_PILL, APP, stdin="")
+        self.assertEqual((code, out), (1, ""), "no point to name, so no landing to judge")
+        self.assertIn("tree.py landing LINE FRONT_PID X Y", err, "the usage names the point it needs")
 
     def test_a_frame_within_a_point_of_the_printed_edges_lands(self):
         done = "AXButton\t\tDone\t\t@316,66 66x36"
@@ -662,11 +676,11 @@ class Landing(unittest.TestCase):
             return json.dumps({"role": "AXStaticText", "AXLabel": "Done", "pid": 53393,
                                "frame": {"x": x, "y": 65.667, "width": 65.667, "height": 36.333}})
 
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(316.333)), (0, "", ""),
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(316.333)), (0, "", ""),
                          "the button's own fractional frame, printed as @316,66 66x36")
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(317)), (0, "", ""),
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(317)), (0, "", ""),
                          "a child whose right edge, 382.667, passes the printed 382 by less than a point")
-        self.assertEqual(tree_py("landing", done, APP, stdin=hit_at(314.6)), (1, "", (
+        self.assertEqual(tree_py("landing", done, APP, "349", "84", stdin=hit_at(314.6)), (1, "", (
             "covered: at 349,84 the screen has AXStaticText Done @315,66 66x36, not AXButton Done" + COVERED
         )), "a frame more than a point past the left edge is something else")
 
@@ -674,7 +688,7 @@ class Landing(unittest.TestCase):
         for hit in [{"role": "AXButton", "AXLabel": "Allow", "pid": 111}, {"role": "AXButton", "AXLabel": "Allow"}]:
             with self.subTest(pid=hit.get("pid")):
                 hit["frame"] = {"x": 334, "y": 65, "width": 44, "height": 44}
-                self.assertEqual(tree_py("landing", GEAR, APP, stdin=json.dumps(hit)), (1, "", (
+                self.assertEqual(tree_py("landing", GEAR, APP, "356", "87", stdin=json.dumps(hit)), (1, "", (
                     "covered: at 356,87 the screen has AXButton Allow @334,65 44x44, "
                     "not AXButton session-controls-settings-button" + COVERED
                 )), "a system prompt the size of the gear, or a hit with no process, is not the app's gear")

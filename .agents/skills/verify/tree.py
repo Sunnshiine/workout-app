@@ -24,10 +24,10 @@ Reads an `axe describe-ui` JSON tree on stdin:
   tree.py center <id>    "x y" of the element with that accessibility identifier; exit 1 if absent
 
 Reads a `describe-ui --point` answer on stdin (an object, a list led by it, or empty):
-  tree.py landing LINE FRONT_PID [X Y]
+  tree.py landing LINE FRONT_PID X Y
                          exit 0 when the answer belongs to FRONT_PID, the tree's application, and is
                          LINE's element or lies within a point of LINE's frame; else exit 1 with a
-                         covered: note naming X,Y, the point tapped, or LINE's centre without them
+                         covered: note naming X,Y, the point tapped
 
 Reads saved trees:
   tree.py diff A.tree.txt B.tree.txt   the lines that changed, frames ignored
@@ -85,12 +85,6 @@ class Frame(NamedTuple):
     def center(self) -> Tuple[float, float]:
         return self.x + self.width / 2, self.y + self.height / 2
 
-    def intersects(self, other: "Frame") -> bool:
-        return (
-            self.x < other.x + other.width and self.x + self.width > other.x
-            and self.y < other.y + other.height and self.y + self.height > other.y
-        )
-
     def covers(self, other: "Frame") -> bool:
         return (
             self.x <= other.x and self.x + self.width >= other.x + other.width
@@ -102,12 +96,12 @@ class Frame(NamedTuple):
         return self.x <= x < self.x + self.width and self.y <= y < self.y + self.height
 
     def overlap(self, other: "Frame") -> Optional["Frame"]:
+        """The part of this frame inside other, or None when that part holds no whole point."""
         left, top = max(self.x, other.x), max(self.y, other.y)
         right = min(self.x + self.width, other.x + other.width)
         bottom = min(self.y + self.height, other.y + other.height)
-        if right <= left or bottom <= top:
-            return None
-        return Frame(left, top, right - left, bottom - top)
+        shared = Frame(left, top, right - left, bottom - top)
+        return shared if whole_point(shared) is not None else None
 
 
 Point = Tuple[int, int]
@@ -134,9 +128,10 @@ class Reach(NamedTuple):
 def reach(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Reach:
     """The nearest ancestor that clips the element, and the point a tap on what is left of it takes.
 
-    An ancestor clips when its frame misses the element's centre, or misses every point of the
-    element the screen and the nearer ancestors still show. One with a zero side, or one that
-    covers the screen, never clips.
+    An ancestor clips when its frame misses every whole point of the element the screen and the
+    nearer ancestors still show. It also clips when it misses the element's centre, the rule from
+    before taps aimed at the visible part, kept for compatibility so `find` and `tappable` still
+    refuse what they refused. One with a zero side, or one that covers the screen, never clips.
     """
     shown = frame.overlap(screen)
     clipped_by = None
@@ -144,11 +139,11 @@ def reach(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Reach:
         bounds = Frame.of(ancestor)
         if bounds.width == 0 or bounds.height == 0 or bounds.covers(screen):
             continue
-        was_reachable = whole_point(shown) is not None
-        shown = shown and shown.overlap(bounds)
-        if clipped_by is None and (not bounds.holds(frame.center) or (was_reachable and whole_point(shown) is None)):
+        left = shown and shown.overlap(bounds)
+        if clipped_by is None and (not bounds.holds(frame.center) or (shown and not left)):
             name = clean(ancestor.get("AXUniqueId") or ancestor.get("AXLabel"))
             clipped_by = " ".join(part for part in (clean(ancestor.get("role")), name, bounds.text) if part)
+        shown = left
     return Reach(clipped_by, whole_point(shown))
 
 
@@ -170,7 +165,7 @@ class TreeLine(NamedTuple):
         clipped_by, point = reach(frame, ancestors, screen)
         return cls(
             clean(node.get("role")), clean(ident), clean(label), clean(node.get("AXValue")), frame,
-            node.get("enabled") is not False, clipped_by, whole_point(frame.overlap(screen)) is not None, point,
+            node.get("enabled") is not False, clipped_by, frame.overlap(screen) is not None, point,
         )
 
     @classmethod
@@ -220,10 +215,6 @@ def lines(root: dict) -> List[TreeLine]:
     return [line for line in every_line(root) if line.named]
 
 
-def on_screen(all_lines: List[TreeLine], screen: Frame) -> List[TreeLine]:
-    return [line for line in all_lines if line.frame.intersects(screen)]
-
-
 def by_id(root: dict, ident: str) -> List[TreeLine]:
     return [line for line in lines(root) if line.ident == ident]
 
@@ -247,7 +238,7 @@ def tap_candidates(matches: List[TreeLine]) -> List[TreeLine]:
     return controls or matches
 
 
-def obstacles(found: List[TreeLine], screen: Frame) -> List[str]:
+def obstacles(found: List[TreeLine]) -> List[str]:
     notes = []
     if not all(line.on_screen for line in found):
         notes.append("off-screen: swipe it into view before tapping")
@@ -361,10 +352,11 @@ def main() -> None:
         crop(sys.argv[2:])
         return
     if mode == "landing":
+        if len(sys.argv) != 6:
+            sys.exit(__doc__)
         answer = sys.stdin.read().strip()
-        target = TreeLine.parse(sys.argv[2])
-        point = (int(sys.argv[4]), int(sys.argv[5])) if len(sys.argv) > 5 else target.aim
-        note = covered(target, json.loads(answer) if answer else None, sys.argv[3], point)
+        note = covered(TreeLine.parse(sys.argv[2]), json.loads(answer) if answer else None, sys.argv[3],
+                       (int(sys.argv[4]), int(sys.argv[5])))
         if note:
             sys.exit(note)
         return
@@ -383,7 +375,7 @@ def main() -> None:
                 print(line.text)
             return
         named = [line for line in every if line.named]
-        shown = on_screen(named, screen)
+        shown = [line for line in named if line.on_screen]
         for line in shown:
             print(line.text)
         for count, kind in [(len(named) - len(shown), "off-screen elements"),
@@ -396,7 +388,7 @@ def main() -> None:
             sys.exit(1)
         for line in found:
             print(line.text)
-        for note in obstacles(found, screen):
+        for note in obstacles(found):
             print(note, file=sys.stderr)
     elif mode == "frame-of":
         found = by_id(root, sys.argv[2])
@@ -419,12 +411,12 @@ def main() -> None:
             if not found:
                 sys.exit(f"no element with id {sys.argv[2]}")
         for line in found:
-            if line.point is not None and not obstacles([line], screen):
+            if line.point is not None and not obstacles([line]):
                 x, y = line.point
                 print(f"{x} {y}")
                 print(line.text)
                 return
-        sys.exit("\n".join(obstacles(found, screen)))
+        sys.exit("\n".join(obstacles(found)))
     elif mode == "center":
         for line in lines(root):
             if line.ident == sys.argv[2]:
