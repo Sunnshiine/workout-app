@@ -921,7 +921,10 @@ class VerifyStop(unittest.TestCase):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
 
     def test_stop_refuses_to_end_a_run_that_is_not_the_callers(self):
-        (self.state / "pid").write_text("%d\n" % os.getpid())
+        app = subprocess.Popen(FIXTURE_APP, start_new_session=True)
+        self.addCleanup(app.wait)
+        self.addCleanup(app.kill)
+        (self.state / "pid").write_text("%d\n" % app.pid)
         code, out, err = self.stop("issue-660")
         self.assertEqual(code, 75, "the code launch already uses for a simulator another run owns")
         self.assertIn(self.owner, err, "whose app it is about to end")
@@ -942,6 +945,17 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 75, "its app died, but stop would still uninstall it and end the run's Live Activity")
         self.assertIn("VERIFY_RUN=%s" % self.owner, err)
         self.assertTrue((self.state / "args").exists(), "the owner's own stop can still uninstall")
+
+    def test_a_pid_another_process_reused_is_forgotten_not_terminated(self):
+        (self.state / "pid").write_text("%d\n" % os.getpid())
+        (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
+        code, out, err = self.stop(self.owner)
+        self.assertEqual(
+            (code, out, err), (0, "", ""),
+            "the pid is live but not a fixture launch, so simctl terminate would exit 3 or end someone else's app (#728)",
+        )
+        self.assertFalse((self.state / "pid").exists(), "a stale pid file left behind fails every later stop")
+        self.assertFalse((self.state / "args").exists())
 
     def test_a_dead_pid_that_stop_would_only_forget_is_not_refused(self):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_LIVE_ACTIVITIES\n")
