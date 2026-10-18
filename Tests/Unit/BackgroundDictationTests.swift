@@ -37,6 +37,8 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(rest.setsDone == 1)
     #expect(rest.restStartDate == frozenNow)
     #expect(rest.restEndDate == frozenNow.addingTimeInterval(harness.app.settings.standardRestDuration.timeInterval))
+    let restDuration = rest.restEndDate.timeIntervalSince(rest.restStartDate)
+    #expect(harness.restTimer.interval == RestInterval(start: rest.restStartDate, duration: restDuration, kind: .standard))
     #expect(try harness.app.session(nil).exercises[0].sets[0].state == "logged")
     #expect(harness.dictation.state == .idle)
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7")
@@ -83,6 +85,74 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let restTowardIt = restContent(toward: rdl.target)
     #expect(!result.rides(restTowardIt), "the stage's rest led to the Set just logged, so it is over")
     #expect(result.rides(restContent(toward: LiveActivityRestTarget(session: rdl.target.session, setID: firstSet))))
+    #expect(harness.restTimer.isRunning, "the week has Sets left, so the stage would rest toward the next Session")
+}
+
+/// The stage rests only toward a Set left in the week; a locked log of the week's last one, with no
+/// rest running, starts none and schedules no notification.
+@MainActor
+@Test func aLockedLogOfTheWeeksLastSetStartsNoRest() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let last = try #require(SessionSetOrder.orderedSets(in: session).last)
+    for weekSession in SessionProgressTracker().sessionsInCurrentWeek(for: session) {
+        for position in SessionSetOrder.orderedSets(in: weekSession) where position.set !== last.set {
+            try harness.app.workout.log(position.set, as: SetLog(weight: .pounds(225), reps: 5, rpe: .seven))
+        }
+    }
+    // The Sheet moves the Current Session past a Session logged elsewhere; the athlete keeps it here.
+    harness.app.workout.show(try #require(session.address))
+    harness.app.workout.makeViewedSessionCurrent()
+    #expect(harness.app.workout.currentSession === session)
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .logged(logged235, at: last.setID))
+    #expect(harness.restTimer.interval == nil)
+    #expect(harness.restNotifications.scheduledDeadlines.isEmpty)
+    #expect(harness.liveActivity.subjects.last == .set(LiveActivitySetContent(last)))
+}
+
+/// The rest a locked log starts is the stage's own: the pill shows it when the app comes forward,
+/// and the rest-end notification fires with no scene to schedule it.
+@MainActor
+@Test func aLockedLogStartsTheRestTheStageShowsAndSchedulesItsEndNotification() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+
+    _ = await harness.runUntilQuiet()
+
+    let duration = harness.app.settings.standardRestDuration.timeInterval
+    let end = frozenNow.addingTimeInterval(duration)
+    #expect(harness.restTimer.interval == RestInterval(start: frozenNow, duration: duration, kind: .standard))
+    #expect(harness.restTimer.origin == firstSet)
+    #expect(harness.restNotifications.scheduledDeadlines == [end])
+    #expect(harness.restExpiry.scheduledDeadlines == [end])
+    guard case .rest(let rest) = harness.liveActivity.subjects.last else {
+        Issue.record("Logged showed \(String(describing: harness.liveActivity.subjects.last)), not the rest")
+        return
+    }
+    #expect(rest.restStartDate == harness.restTimer.interval?.start)
+    #expect(rest.restEndDate == harness.restTimer.interval?.end, "the Live Activity counts the same rest down")
+    #expect(stage.activeSetID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
+}
+
+/// Deleting the Set Log on the card afterwards ends the rest, as it does for a tapped Log, since
+/// the rest was started for that Set.
+@MainActor
+@Test func theStageCancelsTheRestALockedLogStartedWhenItsSetLogIsDeleted() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let session = try #require(harness.app.workout.currentSession)
+    let stage = harness.stage(on: session)
+    let first = try #require(session.exercises.first { $0.order == 0 }?.sets.first { $0.index == 0 })
+    _ = await harness.runUntilQuiet()
+    #expect(harness.restTimer.isRunning)
+
+    stage.deleteLog(for: first)
+
+    #expect(!harness.restTimer.isRunning)
+    #expect(harness.restNotifications.cancelCount == 1)
 }
 
 @MainActor
@@ -268,6 +338,8 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
     }
     #expect(rest.target?.setID == ActiveSetID(exerciseOrder: squat.order, setIndex: 1), "the rest leads where the card goes")
     #expect(rest.restEndDate == frozenNow.addingTimeInterval(harness.app.settings.supersetRestDuration.timeInterval))
+    #expect(harness.restTimer.interval?.kind == .superset, "the stage's rest is the Superset's")
+    #expect(harness.restTimer.interval?.end == rest.restEndDate)
 
     let second = await harness.runUntilQuiet()
 
@@ -515,6 +587,11 @@ private struct Harness {
     let signIn = FakeSignIn()
     /// The process's focus, which a stage binds when a test puts one up.
     let focus = ActiveSetFocusManager(session: nil)
+    /// The process's one rest, which the stage's pill, the Live Activity, and the rest-end
+    /// notification all read.
+    let restTimer: RestTimer
+    let restNotifications = MockRestNotificationScheduler()
+    let restExpiry = MockRestExpiryScheduler()
     let background: BackgroundDictation
 
     init(hearing candidates: [String], selectingSpreadsheet: Bool = true, sheet: HeldWriteSheetsClient? = nil) async throws {
@@ -539,14 +616,15 @@ private struct Harness {
             _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
         }
         dictation = SetDictation(transcriber: transcriber, clock: clock)
+        restTimer = RestTimer(clock: ManualRestClock(now: frozenNow), notificationScheduler: restNotifications, expiryScheduler: restExpiry)
         background = BackgroundDictation(
             app: app,
             dictation: dictation,
             focus: focus,
+            restTimer: restTimer,
             liveActivity: liveActivity,
             signIn: signIn,
-            clock: clock,
-            now: { frozenNow }
+            clock: clock
         )
     }
 
@@ -575,7 +653,7 @@ private struct Harness {
 
     /// A Session screen up behind the intent, its stage on `session`, as with the app backgrounded.
     func stage(on session: Session) -> SessionCoordinator {
-        let stage = SessionCoordinator(logging: app.workout, dictation: dictation, focus: focus)
+        let stage = SessionCoordinator(logging: app.workout, restTimer: restTimer, dictation: dictation, focus: focus)
         stage.bind(to: session)
         return stage
     }

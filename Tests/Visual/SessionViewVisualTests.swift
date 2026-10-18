@@ -35,7 +35,7 @@ struct SessionViewVisualTests {
         )
 
         let view = NavigationStack {
-            SessionView()
+            SessionView(restTimer: RestTimer())
         }
         .environment(scenario.store)
         .environment(sync)

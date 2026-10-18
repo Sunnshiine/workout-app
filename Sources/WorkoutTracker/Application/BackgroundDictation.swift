@@ -61,10 +61,12 @@ final class BackgroundDictation {
     private let dictation: SetDictation
     /// The stage's focus, so this listens on the Set the card shows and moves the card past it.
     private let focus: ActiveSetFocusManager
+    /// The process's one rest, which a write here starts as the stage would: its pill, the Live
+    /// Activity, and the rest-end notification all read it.
+    private let restTimer: RestTimer
     private let liveActivity: any DictationLiveActivityAdapter
     private let signIn: any SignInRestoring
     private let clock: any ListeningClock
-    private let now: () -> Date
     /// Held so the flush outlives `flushWait`; nil until a write asks for one.
     private(set) var flushing: Task<FlushReport?, Never>?
     private let flushWait = BoundedWait()
@@ -73,18 +75,18 @@ final class BackgroundDictation {
         app: WorkoutApplication,
         dictation: SetDictation,
         focus: ActiveSetFocusManager,
+        restTimer: RestTimer,
         liveActivity: any DictationLiveActivityAdapter,
         signIn: any SignInRestoring,
-        clock: any ListeningClock,
-        now: @escaping () -> Date
+        clock: any ListeningClock
     ) {
         self.app = app
         self.dictation = dictation
         self.focus = focus
+        self.restTimer = restTimer
         self.liveActivity = liveActivity
         self.signIn = signIn
         self.clock = clock
-        self.now = now
     }
 
     func run() async -> Outcome {
@@ -223,23 +225,30 @@ final class BackgroundDictation {
         )
     }
 
-    /// The rest the stage would start after this Set, toward the Set it would focus next. With no
-    /// rest to start, the logged Set's Exercise as it now stands.
+    /// Starts the rest the stage would after this Set, on the stage's own timer, and reads it back
+    /// toward the Set the card focuses next. With no rest to start, the logged Set's Exercise as it
+    /// now stands.
     private func restSubject(
         afterLogging position: SessionSetPosition,
         in session: Session,
         wasSupersetMember: Bool
     ) -> LiveActivityDictationContent.Subject {
         let set = position.set
-        let kind = RestTriggerPolicy.restKind(afterLogging: set, in: session, isSupersetMember: wasSupersetMember, isRestRunning: false)
-        let start = now()
-        let content = kind.flatMap { kind in
-            focus.liveActivityRestContent(
-                afterLogging: set,
-                in: session,
-                restStartDate: start,
-                restEndDate: start.addingTimeInterval(restDuration(kind).timeInterval)
-            )
+        let kind = RestTriggerPolicy.restKind(
+            afterLogging: set,
+            in: session,
+            isSupersetMember: wasSupersetMember,
+            isRestRunning: restTimer.isRunning
+        )
+        guard let kind else { return .set(LiveActivitySetContent(position)) }
+        restTimer.start(
+            duration: restDuration(kind).timeInterval,
+            origin: position.setID,
+            originSetObjectID: ObjectIdentifier(set),
+            kind: kind
+        )
+        let content = restTimer.interval.flatMap { interval in
+            focus.liveActivityRestContent(afterLogging: set, in: session, restStartDate: interval.start, restEndDate: interval.end)
         }
         guard let content else { return .set(LiveActivitySetContent(position)) }
         return .rest(content)

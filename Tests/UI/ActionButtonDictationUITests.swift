@@ -27,6 +27,7 @@ final class ActionButtonDictationUITests: XCTestCase {
         app.activate()
         XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 5), "the headless Dictation logged the active Set")
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3), "the card moved on to the next Set")
+        XCTAssertTrue(app.otherElements["rest-pill"].appears(within: 3), "the stage shows the rest the locked log started")
         XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].exists, "the write waits for the Sheet")
     }
 

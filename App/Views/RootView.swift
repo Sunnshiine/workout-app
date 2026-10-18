@@ -3,6 +3,7 @@ import SwiftUI
 struct RootView: View {
     let dictation: SetDictation?
     let focus: ActiveSetFocusManager
+    let restTimer: RestTimer
     let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(\.colorScheme) private var colorScheme
@@ -69,7 +70,7 @@ struct RootView: View {
 
     private var sessionDestination: some View {
         NavigationStack {
-            SessionView(liveActivityAdapter: liveActivityAdapter, dictation: dictation, focus: focus)
+            SessionView(liveActivityAdapter: liveActivityAdapter, dictation: dictation, focus: focus, restTimer: restTimer)
         }
         .transition(handoff)
     }

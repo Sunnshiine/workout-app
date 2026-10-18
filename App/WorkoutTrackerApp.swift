@@ -9,6 +9,9 @@ struct WorkoutTrackerApp: App {
     @State private var dictation: SetDictation?
     /// One active Set per process: the card and the headless intent listen on the same one.
     @State private var focus: ActiveSetFocusManager
+    /// One rest per process: whichever write starts it, the stage's pill, the Live Activity, and
+    /// the rest-end notification read the same one.
+    @State private var restTimer: RestTimer
     /// One owner of the Live Activity per process, whichever surface asked for it.
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
@@ -24,6 +27,8 @@ struct WorkoutTrackerApp: App {
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)
+        let restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
+        _restTimer = State(initialValue: restTimer)
         let liveActivityAdapter = LiveActivityProductionAdapter()
         _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
@@ -34,6 +39,7 @@ struct WorkoutTrackerApp: App {
             app: app,
             dictation: dictation,
             focus: focus,
+            restTimer: restTimer,
             liveActivity: liveActivityAdapter,
             entry: entry
         )
@@ -127,7 +133,7 @@ struct WorkoutTrackerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(dictation: dictation, focus: focus, liveActivityAdapter: liveActivityAdapter)
+            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
                 .environment(app.settings)
                 .environment(app.workout)
                 .environment(app.sync)

@@ -9,6 +9,7 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
     private let app: WorkoutApplication
     private let dictation: SetDictation?
     private let focus: ActiveSetFocusManager
+    private let restTimer: RestTimer
     private let liveActivity: LiveActivityProductionAdapter
     private let entry: AppEntryInbox
 
@@ -16,12 +17,14 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
         app: WorkoutApplication,
         dictation: SetDictation?,
         focus: ActiveSetFocusManager,
+        restTimer: RestTimer,
         liveActivity: LiveActivityProductionAdapter,
         entry: AppEntryInbox
     ) {
         self.app = app
         self.dictation = dictation
         self.focus = focus
+        self.restTimer = restTimer
         self.liveActivity = liveActivity
         self.entry = entry
     }
@@ -37,10 +40,10 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
             app: app,
             dictation: dictation,
             focus: focus,
+            restTimer: restTimer,
             liveActivity: liveActivity,
             signIn: GoogleSignInRestorer(),
-            clock: ContinuousListeningClock(),
-            now: Date.init
+            clock: ContinuousListeningClock()
         )
         _ = await background.run()
     }

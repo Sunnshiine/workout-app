@@ -12,11 +12,8 @@ struct SessionView: View {
     @Environment(LastPerformedLookupStore.self) private var lastPerformed
     @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionCoordinator
-    #if canImport(UserNotifications)
-        @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
-    #else
-        @State private var restTimer = RestTimer()
-    #endif
+    /// The process's rest, which a locked log may have started before this screen came forward.
+    let restTimer: RestTimer
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
@@ -24,9 +21,11 @@ struct SessionView: View {
     init(
         liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter(),
         dictation: SetDictation? = nil,
-        focus: ActiveSetFocusManager? = nil
+        focus: ActiveSetFocusManager? = nil,
+        restTimer: RestTimer
     ) {
         self.liveActivityAdapter = liveActivityAdapter
+        self.restTimer = restTimer
         _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: dictation, focus: focus))
     }
 
