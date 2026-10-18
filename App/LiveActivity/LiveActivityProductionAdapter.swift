@@ -205,14 +205,14 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         for step in plan.steps {
             switch step {
             case .start:
-                await controller.start(state: state, sessionLabel: sessionLabel, staleDate: nil)
+                await controller.start(state: state, sessionLabel: sessionLabel, staleDate: plan.canvas.staleDate)
                 shows = controller.isActive
                 guard shows else {
                     owner = .nobody
                     return false
                 }
             case .update:
-                await controller.update(state: state, staleDate: nil)
+                await controller.update(state: state, staleDate: plan.canvas.staleDate)
                 shows = controller.isActive
             case .endShowing:
                 await controller.end(showing: state, dismissingAt: Date().addingTimeInterval(Self.dictationResultLifetime))

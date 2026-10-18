@@ -31,6 +31,11 @@ private let rest = LiveActivityRestContent(
     }
 }
 
+@Test func aReadbackOverTheRestKeepsTheRestsStaleDateAndOneAloneHasNone() {
+    #expect(LiveActivityReadbackPlan.Canvas.overRest(rest).staleDate == LiveActivityInvalidationPolicy.postRestCapEndDate(for: rest))
+    #expect(LiveActivityReadbackPlan.Canvas.alone.staleDate == nil)
+}
+
 /// A write used up the rest that led to its Set, so its readback takes the activity and ends it.
 @Test func aReadbackThatMayNotRideTheRestTakesTheActivityAsItsOwn() {
     let listening = LiveActivityReadbackPlan.plan(isFinal: false, owner: .rest(rest), activityIsUp: true) { _ in false }

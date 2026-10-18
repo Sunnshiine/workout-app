@@ -18,6 +18,15 @@ struct LiveActivityReadbackPlan: Equatable, Sendable {
         case overRest(LiveActivityRestContent)
         /// Over the Set alone.
         case alone
+
+        /// When the system greys the activity out: over a rest, when the rest's would, so a
+        /// readback leaves the rest's lifecycle as it was.
+        var staleDate: Date? {
+            switch self {
+            case .overRest(let rest): LiveActivityInvalidationPolicy.postRestCapEndDate(for: rest)
+            case .alone: nil
+            }
+        }
     }
 
     enum Step: Equatable, Sendable {
