@@ -188,8 +188,7 @@ extension CurrentSessionDebugInfo {
 
     @MainActor
     private static func label(for session: Session?) -> String {
-        guard let address = session?.address else { return "None" }
-        return "Week \(address.week), Day \(address.day)"
+        session?.placement.locationText(separator: ", ") ?? "None"
     }
 
     private static func label(for author: CurrentSessionPin.Author) -> String {
