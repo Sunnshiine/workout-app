@@ -8,6 +8,9 @@ private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var writes: [SheetCellWrite] = []
     var offlineFetches = 0
+    var failingUpdates = 0
+    var offlineFromFetch = Int.max
+    private var fetches = 0
 
     init(grid: SheetGrid) {
         self.grid = grid
@@ -20,10 +23,18 @@ private final class HeaderRankStubClient: SheetsClient, @unchecked Sendable {
             offlineFetches -= 1
             throw URLError(.notConnectedToInternet)
         }
+        fetches += 1
+        if fetches >= offlineFromFetch {
+            throw URLError(.notConnectedToInternet)
+        }
         return SheetSnapshot(values: grid)
     }
 
     func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        if failingUpdates > 0 {
+            failingUpdates -= 1
+            throw URLError(.notConnectedToInternet)
+        }
         writes.append(contentsOf: cells)
     }
 }
@@ -363,6 +374,102 @@ private func flushLandsAQueuedWriteWhereItsDayNamesOneSession(_ landing: QueuedW
     #expect(writes.map(\.lastError) == [dayHeadersChangedMeaning])
     let loggedAfterALaterSync = try loggedSquatSets(in: ctx)
     #expect(loggedAfterALaterSync == ["w1d2 s0=185x5@8"])
+}
+
+@MainActor
+@Test func aFlushThatRefusesAWriteAndThenStopsForRetryReportsTheRefusal() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .headerNumber, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.failingUpdates = 1
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    #expect(client.writes.isEmpty)
+    let afterTheStoppedFlush = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(afterTheStoppedFlush.map(\.status) == [.conflict, .pending])
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .clear)
+    #expect(client.writes.map(\.target) == [SheetWriteTarget(tabName: "Block 27", a1: "AA15")])
+    let afterTheRetry = try ctx.fetch(FetchDescriptor<PendingWrite>())
+    #expect(afterTheRetry.map(\.status) == [.conflict])
+}
+
+@MainActor
+@Test func aFlushThatStopsForRetryAfterAnEarlierRefusalCountsOnlyTheWritesStillQueued() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .legacyHeaderRank, valueToWrite: "190x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .headerNumber, setIndex: 1, valueToWrite: "195x5@8"))
+    try ctx.save()
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.failingUpdates = 2
+    let sync = SyncCoordinator(client: client, context: ctx)
+    await sync.flushPending(spreadsheetId: "sid")
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesQueued(1))
+    #expect(client.writes.isEmpty)
+    let records = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(records.map(\.status) == [.conflict, .pending])
+}
+
+@MainActor
+private func queueLandingRefusedAndOverlappingWrites(
+    overlapping overlap: PendingWrite,
+    in ctx: ModelContext
+) throws {
+    ctx.insert(headerRankPendingWrite(createdAt: 1, dayNumbering: .headerNumber, valueToWrite: "190x5@8"))
+    ctx.insert(headerRankPendingWrite(createdAt: 2, dayNumbering: .legacyHeaderRank, valueToWrite: "185x5@8"))
+    ctx.insert(overlap)
+    try ctx.save()
+}
+
+@MainActor
+@Test func aFlushWhoseBatchFailsMidLoopAfterAnEarlierRefusalReportsTheRefusal() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    try queueLandingRefusedAndOverlappingWrites(
+        overlapping: headerRankPendingWrite(createdAt: 3, dayNumbering: .headerNumber, setIndex: 1, valueToWrite: "195x5@8"),
+        in: ctx
+    )
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.failingUpdates = 1
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    #expect(client.writes.isEmpty)
+    let records = try ctx.fetch(FetchDescriptor<PendingWrite>(sortBy: [SortDescriptor(\.createdAt)]))
+    #expect(records.map(\.status) == [.pending, .conflict, .pending])
+}
+
+@MainActor
+@Test func aFlushWhoseRefetchFailsAfterAnEarlierRefusalReportsTheRefusal() async throws {
+    let container = try makeHeaderRankContainer()
+    let ctx = container.mainContext
+    let relog = headerRankPendingWrite(createdAt: 3, dayNumbering: .headerNumber, valueToWrite: "195x5@8")
+    try queueLandingRefusedAndOverlappingWrites(overlapping: relog, in: ctx)
+    let client = HeaderRankStubClient(grid: threeSquatDayGroups(headedBy: ["Day 2", "Day 1"]))
+    client.offlineFromFetch = 2
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(sync.outcome == .writesRefused(["Squat: \(dayHeadersChangedMeaning)"]))
+    #expect(client.writes == [SheetCellWrite(tabName: "Block 27", a1: "AA15", value: "190x5@8")])
+    #expect(relog.status == .pending)
+    #expect(relog.retryCount == 1)
 }
 
 @MainActor
