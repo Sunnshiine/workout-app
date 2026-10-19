@@ -36,7 +36,7 @@ struct DayColumns: Sendable {
     let load: Int?
     let lastSetRPE: Int?
     let notes: Int?
-    let span: Range<Int>  // [dayStart, nextDayStart), or past the last Day's rightmost role column
+    let span: Range<Int>  // [dayStart, nextDayStart); a last Day: the first Day's width, extended past its rightmost role column
 }
 
 struct SheetLayout: Sendable {
