@@ -101,6 +101,10 @@ jobs:
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'swift-tests (edit, base unchanged)' || 'swift-tests' }}
     runs-on: xcode-27
     timeout-minutes: 30
+    # issues: read lets a failing run name each failing test's open issue.
+    permissions:
+      contents: read
+      issues: read
     steps:
       - uses: actions/checkout@v4
       - name: Cache the CRAP scorer build
@@ -126,6 +130,8 @@ jobs:
       - name: Test the CRAP scorer
         run: swift test --package-path tools/crap
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"
       - name: Save the compilation cache
         if: github.event_name == 'push'

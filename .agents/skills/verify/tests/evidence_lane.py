@@ -24,7 +24,7 @@ def fake_checkout(root):
     skill = checkout / ".agents" / "skills" / "verify"
     skill.mkdir(parents=True)
     (checkout / "scripts").mkdir()
-    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
+    for name in ["test-sim.sh", "test-log-summary.awk", "test-log-summary.sh", "sim-lock.sh", "ensure-simulator.sh"]:
         (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
     for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py"]:
         (skill / name).symlink_to(SKILL / name)

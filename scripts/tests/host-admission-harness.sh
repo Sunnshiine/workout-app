@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=HOST-ADMISSION-TEST-$$
@@ -15,7 +17,7 @@ repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
-    "$script_dir/../test-log-summary.awk" "$repo/scripts/"
+    "$script_dir/../test-log-summary.awk" "$script_dir/../test-log-summary.sh" "$repo/scripts/"
 cp "$script_dir/../../.agents/skills/verify/"verify.sh "$script_dir/../../.agents/skills/verify/"verify-*.sh "$repo/.agents/skills/verify/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 mkdir -p "$products/Debug-iphonesimulator/WorkoutTracker.app" "$repo/.build/verify/node_modules/xcodebuildmcp/bundled"
@@ -110,6 +112,7 @@ fi
 echo "** BUILD FAILED **"
 exit 65
 STUB
+printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
 # shellcheck disable=SC2046
