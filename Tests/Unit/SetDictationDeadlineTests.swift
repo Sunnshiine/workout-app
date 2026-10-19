@@ -141,3 +141,21 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.transcribes == 0)
 }
+
+@MainActor
+@Test func aReadDroppedAtTheDeadlineIsLateAndNothingRecordedIsNeverRead() async {
+    let reader = HeldRecordingTranscriber()
+    let clock = ManualListeningClock()
+    let reading = SetDictation.Reading(of: DictationRecording(samples: silence, isTruncated: false), by: reader)
+    await reader.waitUntilCalled()
+    let dropping = Task { await reading.decode(by: .seconds(1), on: clock) }
+    await clock.waitUntilSleeping(until: .seconds(1), orRecord: "The read never waited for its deadline")
+
+    clock.advance(by: .seconds(1))
+
+    #expect(await dropping.value == .missing(.late))
+    #expect(reader.wasCancelled)
+    let unrecorded = SetDictation.Reading(of: DictationRecording(samples: [], isTruncated: false), by: reader)
+    #expect(await unrecorded.decode(by: .seconds(1), on: clock) == .missing(.nothingRecorded))
+    #expect(reader.transcribes == 1)
+}

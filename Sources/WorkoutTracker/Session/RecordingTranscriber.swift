@@ -29,6 +29,11 @@ struct RecordingDecode: Equatable, Sendable {
     /// Nil when nothing was decoded.
     let timings: DecodeTimings?
 
+    /// Nothing read, and why.
+    static func missing(_ miss: RecordingMiss) -> RecordingDecode {
+        RecordingDecode(result: .missing(miss), timings: nil)
+    }
+
     /// The Recording Transcript. A reading with no words in it is nothing heard, which no transcript
     /// should lead a press with.
     var transcript: String? {

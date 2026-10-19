@@ -256,7 +256,7 @@ final class SetDictation {
             live = .failed(error, caption: state.heard)
         }
         let decode = await reading.decode(by: deadline, on: clock)
-        return Self.decision(of: Hearing(live: live, recording: decode?.transcript), in: context).outcome
+        return Self.decision(of: Hearing(live: live, recording: decode.transcript), in: context).outcome
     }
 
     /// Stops a press that has not begun finishing, writing nothing. The press stays in flight
@@ -310,13 +310,15 @@ extension SetDictation {
             }
         }
 
-        /// The decode once it is in, or nil at `deadline` on `clock`, which cancels the read. One
+        /// The decode once it is in, or `late` at `deadline` on `clock`, which cancels the read. One
         /// already in decides whatever the clock says.
-        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode? {
-            guard let decoding else { return nil }
+        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode {
+            guard let decoding else { return .missing(.nothingRecorded) }
             if let arrived { return arrived }
-            let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock)
-            if decode == nil { decoding.cancel() }
+            guard let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock) else {
+                decoding.cancel()
+                return .missing(.late)
+            }
             return decode
         }
     }
