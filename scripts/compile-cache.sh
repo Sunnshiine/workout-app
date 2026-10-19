@@ -36,3 +36,11 @@ compile_cache_settings+=(
   'COMPILER_INDEX_STORE_ENABLE=$(WORKOUT_INDEX_STORE_$(PROJECT_NAME:c99extidentifier):default=Default)'
   WORKOUT_INDEX_STORE_WorkoutTracker=NO
 )
+
+# WorkoutTrackerTests compiles in 6 batch jobs, not one per core. Each job type-checks its first
+# Swift Testing macro expansion for about 1.5 CPU seconds whatever else it holds, so 12 jobs cost a
+# fresh unit build about 21 more CPU seconds than 6, for about 3 seconds less wall time.
+compile_cache_settings+=(
+  'OTHER_SWIFT_FLAGS=$(inherited) $(WORKOUT_SWIFT_FLAGS_$(TARGET_NAME:c99extidentifier))'
+  'WORKOUT_SWIFT_FLAGS_WorkoutTrackerTests=-driver-batch-count 6'
+)

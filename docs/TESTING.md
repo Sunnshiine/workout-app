@@ -66,7 +66,8 @@ test targets stay uncached, because their mapped compiles read `#filePath` as `/
 the warm edit loop. A build log counts what it reused with
 `grep -c '^Cache hit' .build/test-sim/<stamp>-build.log`. `WORKOUT_COMPILE_CACHE=0` builds without
 the cache. With or without it, the same file builds the project's own targets with no index store,
-which no lane tool reads.
+which no lane tool reads, and `WorkoutTrackerTests` in 6 batch jobs rather than one per core, since
+each job pays about 1.5 CPU seconds to start type-checking Swift Testing's macros.
 
 ## AI-Generated Code Gate
 
