@@ -14,6 +14,8 @@ requested suite in one test-without-building session from that build's xctestrun
 uses test-sim.xcscheme, a copy of the WorkoutTracker scheme that keeps only the selected test
 targets, written under WorkoutTracker.xcodeproj/xcuserdata. --no-build reuses the last build when
 it covered every selected test target, and otherwise exits 65 naming the targets it covered.
+A build into a DerivedData dir with no Swift packages yet clones them from the dependency store, and
+one that had to resolve them publishes them (scripts/seed-packages.sh; WORKOUT_SEED_PACKAGES=0 skips both).
 Prints the test log path before the run starts. The summary at the end holds the run counts, the
 first three issues each test recorded with the values each one compared, every failing test, and
 any error or crash that stopped xcodebuild before the run finished.
@@ -93,6 +95,7 @@ trap 'exit 129' HUP
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
 . "$repo/scripts/compile-cache.sh"
+. "$repo/scripts/seed-packages.sh"
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -144,10 +147,13 @@ if [ $build = 1 ]; then
     { print }
     END { for (name in wanted) { print "no test target " name " in the WorkoutTracker scheme" > "/dev/stderr"; bad = 1 }; exit bad }
   ' "$project/xcshareddata/xcschemes/WorkoutTracker.xcscheme" > "$schemes/test-sim.xcscheme" || exit 2
+  seed_packages "$project"
+  build_rc=0
   with_build_slot xcodebuild build-for-testing -project "$project" -scheme test-sim -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO ${compile_cache_settings[@]+"${compile_cache_settings[@]}"} \
-    > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+    > "$logs/$stamp-build.log" 2>&1 || build_rc=$?
+  seed_packages_after "$build_rc" "$logs/$stamp-build.log"
+  [ $build_rc = 0 ] || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
