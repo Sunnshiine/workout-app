@@ -11,8 +11,8 @@ private let dayOneHeaders: [String: String] = [
     let grid = gridFromA1(
         dayOneHeaders.merging([
             "S12": "Day 2", "T14": "Sets", "V14": "Reps", "W14": "%1RM", "X14": "Load", "Y14": "Last set RPE",
-            "Z14": "Tempo", "AI14": "Notes",
-            "S15": "Bench Press", "T15": "3", "V15": "5", "AI15": "315x5@7"
+            "Z14": "Tempo", "AI14": "Notes", "AM14": "Notes",
+            "S15": "Bench Press", "T15": "3", "V15": "5", "AI15": "315x5@7", "AM15": "Coach: deload next week"
         ]) { $1 },
         rows: 20,
         cols: 60
@@ -59,4 +59,36 @@ private let dayOneHeaders: [String: String] = [
 
     #expect(dayTwo.columns.notes == 26)  // AA
     #expect(dayTwo.columns.span == 18..<34)
+}
+
+@Test func layoutInterpreterLeavesAMiddleDayWithoutARoleItLacks() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "D14": "Sets", "K14": "Notes",
+            "S12": "Day 2", "T14": "Sets", "Y14": "Last set RPE", "AA14": "Notes"
+        ],
+        rows: 20,
+        cols: 40
+    )
+
+    let dayOne = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 1)))
+
+    #expect(dayOne.columns.lastSetRPE == nil)
+    #expect(dayOne.columns.span == 2..<18)
+}
+
+@Test func layoutInterpreterKeepsTheFirstDayWidthForALastDayNarrowerThanIt() throws {
+    let grid = gridFromA1(
+        [
+            "C12": "Day 1", "D14": "Sets", "K14": "Notes",
+            "M12": "Day 2", "N14": "Sets", "Q14": "Notes", "Y14": "Notes"
+        ],
+        rows: 20,
+        cols: 40
+    )
+
+    let dayTwo = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 2)))
+
+    #expect(dayTwo.columns.notes == 16)  // Q
+    #expect(dayTwo.columns.span == 12..<22)
 }
