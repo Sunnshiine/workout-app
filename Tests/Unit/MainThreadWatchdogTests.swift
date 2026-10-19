@@ -42,7 +42,7 @@ private final class HeldMainThread: Sendable {
     let watchdog = main.watchdog()
 
     for _ in 0..<10 {
-        main.advance(by: MainThreadWatchdog.interval)
+        main.advance(by: .milliseconds(50))
         watchdog.ping()
         main.advance(by: .milliseconds(2))
         main.runNextPing()
@@ -56,16 +56,16 @@ private final class HeldMainThread: Sendable {
     let main = HeldMainThread()
     let watchdog = main.watchdog()
 
-    main.advance(by: MainThreadWatchdog.interval)
+    main.advance(by: .milliseconds(50))
     watchdog.ping()
     for _ in 0..<6 {
-        main.advance(by: MainThreadWatchdog.interval)
+        main.advance(by: .milliseconds(50))
         watchdog.ping()
     }
     #expect(main.queued == 1)
     main.advance(by: .milliseconds(30))
     main.runNextPing()
-    main.advance(by: MainThreadWatchdog.interval)
+    main.advance(by: .milliseconds(50))
     watchdog.ping()
     main.advance(by: .milliseconds(2))
     main.runNextPing()
@@ -77,11 +77,11 @@ private final class HeldMainThread: Sendable {
     let main = HeldMainThread()
     let watchdog = main.watchdog()
 
-    main.advance(by: MainThreadWatchdog.interval)
+    main.advance(by: .milliseconds(50))
     watchdog.ping()
     main.advance(by: .milliseconds(2))
     main.runNextPing()
-    main.advance(by: MainThreadWatchdog.interval)
+    main.advance(by: .milliseconds(50))
     watchdog.ping()
     main.advance(by: .milliseconds(400))
 
