@@ -64,6 +64,7 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
     #expect(
         decided.recording
             == DictationRecord.Recording(
+                version: .shipped,
                 modelAtPress: .absent,
                 modelAtEnd: .absent,
                 result: .missing(.nothingRecorded),

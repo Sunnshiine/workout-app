@@ -29,12 +29,6 @@ struct RecordingPrompt: Equatable, Sendable {
     )
 }
 
-/// Where the recording engine's model stands on this phone.
-enum SpeechModelState: String, Equatable, Sendable, Codable {
-    case absent
-    case ready
-}
-
 /// What the recording engine did with one press.
 struct RecordingDecode: Equatable, Sendable {
     enum Result: Equatable, Sendable {
