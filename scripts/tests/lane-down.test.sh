@@ -286,5 +286,25 @@ expect "down refusing a crashed add's lane leaves git's lock in place" \
     "75 lane.sh: pid $sleeper (sleep) works in $lanes/stuck; stop it or cd out | initializing"
 lane down stuck
 
+lane up stored "$c1"
+mkdir -p "$root/payload/checkouts/pkg" "$dd/WorkoutTracker-stored"
+echo 'let x = 1' >"$root/payload/checkouts/pkg/x.swift"
+# shellcheck disable=SC2016  # sh -c expands them
+"$scripts/dep-store.sh" publish k1 sh -c 'cp -R "$0"/. "$DEP_STORE_OUT"' "$root/payload" 2>/dev/null
+python3 -c 'import plistlib, sys
+plistlib.dump({"WorkspacePath": sys.argv[2]}, open(sys.argv[1], "wb"))' "$dd/WorkoutTracker-stored/info.plist" "$lanes/stored/WorkoutTracker.xcodeproj"
+"$scripts/dep-store.sh" clone k1 "$dd/WorkoutTracker-stored/SourcePackages"
+sleep 60 &
+producer=$!
+mkdir -p "$WORKOUT_DEP_STORE/staging/$producer.k2.aaaaaa" "$WORKOUT_DEP_STORE/staging/999999.k3.bbbbbb"
+entry_sums() { (cd "$WORKOUT_DEP_STORE/entries" && find . -type f ! -name used | sort | xargs shasum); }
+before=$(entry_sums)
+lane down stored
+kill "$producer"
+wait "$producer" 2>/dev/null
+expect "down removes the lane's DerivedData and prunes the store, which keeps the entry the lane cloned and a live producer's staging dir" \
+    "$status $([ -e "$dd/WorkoutTracker-stored" ] && echo dd) | $([ "$(entry_sums)" = "$before" ] && echo entry-whole) | $(ls "$WORKOUT_DEP_STORE/staging")" \
+    "0  | entry-whole | $producer.k2.aaaaaa"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
