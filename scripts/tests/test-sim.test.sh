@@ -150,7 +150,7 @@ cache_settings() {
 # shellcheck disable=SC2016  # Xcode, not the shell, expands the $(...) macros per target
 want_cache='COMPILATION_CACHE_ENABLE_CACHING=$(WORKOUT_COMPILE_CACHE_$(PROJECT_NAME:c99extidentifier):default=YES)'"
 WORKOUT_COMPILE_CACHE_WorkoutTracker=NO
-COMPILATION_CACHE_CAS_PATH=$root/home/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+COMPILATION_CACHE_CAS_PATH=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker.CompilationCache.noindex
 COMPILATION_CACHE_LIMIT_SIZE=2G
 COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES
 SWIFT_ENABLE_PREFIX_MAPPING=YES
@@ -161,9 +161,9 @@ SWIFT_OTHER_PREFIX_MAPPINGS=$(WORKSPACE_DIR:dir:standardizepath)=/^wt $(OBJROOT:
 CLANG_OTHER_PREFIX_MAPPINGS=$(WORKSPACE_DIR:dir:standardizepath)=/^wt $(OBJROOT:dir:standardizepath:dir:standardizepath)=/^dd'
 got=$(cache_settings)
 if [ "$got" = "$want_cache" ]; then
-    ok "a build puts package targets on the host-wide compilation cache, with macros left for Xcode to expand"
+    ok "a build puts package targets on the repo's own compilation cache, with macros left for Xcode to expand"
 else
-    bad "a build puts package targets on the host-wide compilation cache, with macros left for Xcode to expand"
+    bad "a build puts package targets on the repo's own compilation cache, with macros left for Xcode to expand"
     printf '    got:\n%s\n    want:\n%s\n' "$got" "$want_cache"
 fi
 got=$(WORKOUT_COMPILE_CACHE=0 cache_settings)

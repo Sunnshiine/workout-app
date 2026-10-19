@@ -3,7 +3,7 @@
 Agents work in parallel lanes, each a worktree with its own DerivedData (ADR-0020). A lane's first
 `test-sim.sh` build compiles everything, about 190 to 210 CPU seconds, on a host whose CPU limits
 throughput. Xcode 27 can replay a compile from a content-addressed cache (CAS) instead of running it.
-The default CAS, `~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex`, already serves
+Xcode's default CAS, `~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex`, serves
 every project on the default DerivedData root. Lanes still could not share entries. A cache key holds
 absolute paths, and two roots differ per lane: the checkout, and its
 `DerivedData/WorkoutTracker-<hash>` dir, which also holds SourcePackages. Xcode's prefix mapping can
@@ -15,7 +15,8 @@ We measured on 2026-10-19 on the Mac mini from ADR-0020, with Xcode 27.0 (27A266
 loads of 6 to 730 from other sessions. Each row runs test-sim.sh's `build-for-testing` line under a
 build slot, in a fresh `scripts/lane.sh up` lane, or in a warm lane that had built and then took an
 edit. CPU seconds are user plus system from
-`/usr/bin/time -l`. On and off ran alternately, so drift reaches both. Wall time is noisier.
+`/usr/bin/time -l`. On and off ran alternately, so drift reaches both. Wall time is noisier. These
+runs used Xcode's default CAS, before the decision below gave the repo its own.
 
 | Configuration and scenario | Runs | Hits | Misses | CPU s, median (range) | Wall s, median (range) |
 |---|---|---|---|---|---|
@@ -77,11 +78,20 @@ What the numbers say:
 - **The default DerivedData root stays.** `lane.sh down` and the prune scripts still find a lane's dir
   by its `WorkspacePath`. The CAS path is passed explicitly, so `verify.sh install`'s app-cache
   builds, which pass `-derivedDataPath`, share it too.
+- **The CAS is the repo's own.** It is
+  `~/Library/Developer/Xcode/DerivedData/WorkoutTracker.CompilationCache.noindex`, one per host, and
+  every worktree of the repo shares it, because the maps keep paths out of the keys. Xcode's default
+  CAS also holds other projects' entries, and those projects and other sessions write and prune it:
+  its size moved during cache-off runs, and the 2 GB limit below made our builds prune their entries
+  too, from 3.92 to 1.75 GB within one build. Beside the default CAS, deleting DerivedData resets it
+  with every other build cache. The dot, not a hyphen, keeps it out of the `WorkoutTracker-*` globs
+  the scripts use to find a worktree's DerivedData.
 - **The cache is capped at 2 GB.** An empty CAS grew to 316 MB from one cold package-only build,
   and each later fresh lane added about 47 MB though every package compile hit. Xcode starts a new
   generation at about half the limit and keeps the two newest, so 2 GB holds the working set three
-  times over and settles near 2 GB. `df -h /` showed 13 to 29 GiB free during the measurements, and
-  the default limit, half of the cache plus free space, would let it take 7 to 15 GiB.
+  times over and settles near 2 GB. The limit now prunes only this repo's entries. `df -h /` showed
+  13 to 29 GiB free during the measurements, and the default limit, half of the cache plus free
+  space, would let it take 7 to 15 GiB.
 - **Diagnostic remarks stay on.** A build log then says `Cache hit` or `Cache miss` per cached task.
 
 ## Considered alternatives
@@ -109,5 +119,5 @@ What the numbers say:
   but starts a new one only when it closes the CAS and no other process holds it open. While lanes
   overlap, the cache can grow past 2 GB until the last of them exits. Concurrent builds share the
   CAS safely; it is built for many processes.
-- The CAS is the default one every Xcode project on this Mac uses, so its size is not this
-  project's alone. Deleting it costs one cold build.
+- The CAS holds only this repo's package compiles, from every worktree on the host. Deleting it
+  costs one cold build.

@@ -58,11 +58,12 @@ judges a set of takes against a control commit. A UI test that needs motion laun
 `animated: true`.
 
 Lane builds share one compilation cache for the Swift package targets,
-`~/Library/Developer/Xcode/DerivedData/CompilationCache.noindex`. `test-sim.sh`, `verify.sh`, and
-`check-each-commit.sh` pass the settings in `scripts/compile-cache.sh`, whose prefix maps keep each
-worktree's paths out of the cache keys (ADR-0021). A fresh lane replays the package compiles, 12 to 24
-of its 190 CPU seconds. The app and test targets stay uncached, because their mapped compiles read
-`#filePath` as `/^wt/...` and slow the warm edit loop. A build log counts what it reused with
+`~/Library/Developer/Xcode/DerivedData/WorkoutTracker.CompilationCache.noindex`, which no other
+project writes. `test-sim.sh`, `verify.sh`, and `check-each-commit.sh` pass the settings in
+`scripts/compile-cache.sh`, whose prefix maps keep each worktree's paths out of the cache keys
+(ADR-0021). A fresh lane replays the package compiles, 12 to 24 of its 190 CPU seconds. The app and
+test targets stay uncached, because their mapped compiles read `#filePath` as `/^wt/...` and slow
+the warm edit loop. A build log counts what it reused with
 `grep -c '^Cache hit' .build/test-sim/<stamp>-build.log`. `WORKOUT_COMPILE_CACHE=0` builds without
 the cache.
 
