@@ -156,3 +156,13 @@ COVERED = "; something is over it, or it left the screen after the tree was read
 GEAR_COVERED = ("covered: at 356,87 the screen has AXStaticText session-remaining-count @317,77 55x19, "
                 "not AXButton session-controls-settings-button" + COVERED)
 BEFORE_TREE = str(FIXTURES / "01-before.tree.txt")
+
+
+def on_screen_of_402x874(*children):
+    return json.dumps([{"role": "AXApplication", "pid": 1, "frame": {"x": 0, "y": 0, "width": 402, "height": 874},
+                        "children": list(children)}])
+
+
+HALF_ROW = {"role": "AXButton", "AXUniqueId": "half-row", "AXLabel": "Row",
+            "frame": {"x": 23, "y": 850, "width": 312, "height": 52}}
+WIDE_CARD = {"role": "AXGroup", "AXUniqueId": "active-set-card", "frame": {"x": -83, "y": 476, "width": 4770, "height": 308}}

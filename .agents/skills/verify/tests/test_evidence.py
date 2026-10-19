@@ -3,6 +3,7 @@ import unittest
 
 from test_evidence_tree import *  # noqa: F401,F403
 from test_evidence_tappable import *  # noqa: F401,F403
+from test_evidence_tap_point import *  # noqa: F401,F403
 from test_evidence_tree_commands import *  # noqa: F401,F403
 from test_evidence_verify_commands import *  # noqa: F401,F403
 from test_evidence_simulator_lock import *  # noqa: F401,F403
