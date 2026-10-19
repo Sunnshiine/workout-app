@@ -230,7 +230,7 @@ private final class FailingSetTranscriber: SetTranscriber {
         (self.heard, startFailure, finishFailure) = (heard, nil, error)
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
         if let startFailure { throw startFailure }
         hearing(heard)
     }

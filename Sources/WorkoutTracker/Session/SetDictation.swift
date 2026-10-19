@@ -10,13 +10,14 @@ enum SetTranscriberError: Error, Equatable, Sendable {
     case failed
 }
 
-/// Speech-to-text for one Spoken Set: listens from `start` until `finish`.
+/// Speech-to-text heard while the athlete speaks: the caption, the auto-stop, and the Live
+/// Transcript, from `start` until `finish`.
 @MainActor
 protocol SetTranscriber: AnyObject {
     /// Returns once the microphone is live. `hearing` receives the whole transcript so far each
-    /// time it changes, until `finish` or `cancel` returns. A start that throws leaves nothing
-    /// listening.
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError)
+    /// time it changes, and `recording` the mic's audio at 16 kHz mono, until `finish` or `cancel`
+    /// returns. A start that throws leaves nothing listening.
+    func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberError)
     /// Stops listening, even when it throws, and returns the transcripts heard, the most likely
     /// first.
     func finish() async throws(SetTranscriberError) -> [String]
@@ -129,34 +130,40 @@ final class SetDictation {
     private(set) var state: State = .idle
     @ObservationIgnored private let transcriber: any SetTranscriber
     @ObservationIgnored private let clock: any ListeningClock
-    /// Held from `start` until `finish` or `cancel` takes it: nil means no press is in flight.
-    @ObservationIgnored private var starting: Task<SetTranscriberError?, Never>?
-    @ObservationIgnored private var wentLiveAt: Duration?
-    @ObservationIgnored private var lastHeardAt: Duration?
+    /// Nil means no press is in flight; `finish` and `cancel` take it.
+    @ObservationIgnored private var press: Press?
 
     init(transcriber: any SetTranscriber, clock: any ListeningClock = ContinuousListeningClock()) {
         self.transcriber = transcriber
         self.clock = clock
     }
 
+    /// One press of the mic, from `start` until `finish` or `cancel` takes it.
+    private struct Press {
+        let set: ActiveSetID
+        let recorder: DictationRecorder
+        let starting: Task<SetTranscriberError?, Never>
+        var timeline: PressTimeline
+    }
+
     /// Ignored, returning false, while another press is in flight, so one transcriber never
     /// listens twice.
     @discardableResult
     func start(for set: ActiveSetID) -> Bool {
-        guard starting == nil, state.listeningSetID == nil else { return false }
+        guard press == nil, state.pressSetID == nil else { return false }
         state = .preparing(set)
-        wentLiveAt = nil
-        lastHeardAt = nil
         let transcriber = transcriber
-        starting = Task { [weak self] in
+        let recorder = DictationRecorder()
+        let starting = Task<SetTranscriberError?, Never> { [weak self] in
             do throws(SetTranscriberError) {
-                try await transcriber.start { [weak self] heard in self?.hear(heard, for: set) }
+                try await transcriber.start(hearing: { [weak self] heard in self?.hear(heard, for: set) }, recording: recorder)
                 self?.hear(nil, for: set)
                 return nil
             } catch {
                 return error
             }
         }
+        press = Press(set: set, recorder: recorder, starting: starting, timeline: PressTimeline())
         return true
     }
 
@@ -164,24 +171,30 @@ final class SetDictation {
     /// a release would. Nothing heard by the cap writes nothing. A tap that finishes the press
     /// first, or a cancel, leaves this nil, as does a press already in flight.
     func listenUntilQuiet(for set: ActiveSetID, in context: () -> SpokenSetContext) async -> Outcome? {
-        guard start(for: set), let press = starting else { return nil }
-        guard await press.value == nil else { return await finish(for: set, in: context()) }
-        return await listen(through: press, for: set, in: context)
+        guard start(for: set), let starting = press?.starting else { return nil }
+        guard await starting.value == nil else { return await finish(for: set, in: context()) }
+        return await listen(through: starting, for: set, in: context)
     }
 
     private func listen(
-        through press: Task<SetTranscriberError?, Never>,
+        through starting: Task<SetTranscriberError?, Never>,
         for set: ActiveSetID,
         in context: () -> SpokenSetContext
     ) async -> Outcome? {
-        while starting == press, let wentLiveAt {
-            switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: lastHeardAt) {
+        while let timeline = timeline(of: starting), let wentLiveAt = timeline.wentLiveAt {
+            switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: timeline.lastHeardAt) {
             case .wake(let deadline): await clock.sleep(until: deadline)
             case .stop(.nothingHeard): return await giveUpHearingNothing(for: set)
             case .stop(.silence), .stop(.cap): return await finish(for: set, in: context())
             }
         }
         return nil
+    }
+
+    /// The timeline of the press `starting` began, nil once `finish` or `cancel` took it.
+    private func timeline(of starting: Task<SetTranscriberError?, Never>) -> PressTimeline? {
+        guard let press, press.starting == starting else { return nil }
+        return press.timeline
     }
 
     /// Hands-free listening stops at the first of `silenceWindow` after the last word and
@@ -196,7 +209,7 @@ final class SetDictation {
     }
 
     private func giveUpHearingNothing(for set: ActiveSetID) async -> Outcome {
-        starting = nil
+        press = nil
         await transcriber.cancel()
         let outcome = Outcome.rejected(.transcriber(.nothingHeard), heard: "")
         state = .finished(set, outcome)
@@ -206,10 +219,10 @@ final class SetDictation {
     /// Waits for the transcriber to start if it has not, so a release during `preparing` still
     /// finishes. Nil when no press for `set` is in flight.
     func finish(for set: ActiveSetID, in context: SpokenSetContext) async -> Outcome? {
-        guard let starting, state.listeningSetID == set else { return nil }
-        self.starting = nil
+        guard let press, press.set == set else { return nil }
+        self.press = nil
         let outcome: Outcome
-        if let error = await starting.value {
+        if let error = await press.starting.value {
             outcome = .rejected(.transcriber(error), heard: "")
         } else {
             let live: LiveHearing
@@ -227,9 +240,9 @@ final class SetDictation {
     /// Stops a press that has not begun finishing, writing nothing. The press stays in flight
     /// until the transcriber stops, so the next one cannot start under it.
     func cancel() async {
-        guard let starting else { return }
-        self.starting = nil
-        _ = await starting.value
+        guard let press else { return }
+        self.press = nil
+        _ = await press.starting.value
         await transcriber.cancel()
         state = .idle
     }
@@ -241,20 +254,26 @@ final class SetDictation {
 
     /// `heard` nil is the transcriber going live.
     private func hear(_ heard: String?, for set: ActiveSetID) {
-        guard state.listeningSetID == set else { return }
+        guard state.pressSetID == set else { return }
         guard let heard else {
-            wentLiveAt = clock.now
+            press?.timeline.wentLiveAt = clock.now
             state = .listening(set, heard: state.heard)
             return
         }
-        if !heard.isEmpty, heard != state.heard { lastHeardAt = clock.now }
+        if !heard.isEmpty, heard != state.heard { press?.timeline.lastHeardAt = clock.now }
         state = .listening(set, heard: heard)
     }
 }
 
+/// When a press's events happened, on the press's clock. Auto-stop reads it.
+struct PressTimeline: Equatable, Sendable {
+    var wentLiveAt: Duration?
+    var lastHeardAt: Duration?
+}
+
 extension SetDictation.State {
     /// The Set a press in flight is for.
-    var listeningSetID: ActiveSetID? {
+    var pressSetID: ActiveSetID? {
         switch self {
         case .preparing(let set), .listening(let set, _): set
         case .idle, .finished: nil

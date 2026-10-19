@@ -592,7 +592,7 @@ extension SessionCoordinator {
     /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
     /// another Set, or for a Set no longer Pending once the transcript is in, writes nothing.
     func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
-        guard let dictation, let setID = dictation.state.listeningSetID else { return nil }
+        guard let dictation, let setID = dictation.state.pressSetID else { return nil }
         guard let session = sessionOfPress(for: setID, releasedOn: set) else {
             await dictation.cancel()
             return nil
@@ -640,7 +640,7 @@ extension SessionCoordinator {
     /// leaves while another card's press runs, as an outgoing card's can after the incoming one
     /// starts listening, stops nothing.
     func cancelDictation(of set: ExerciseSet) async {
-        guard let dictation, let setID = dictation.state.listeningSetID, Self.activeSetID(for: set) == setID,
+        guard let dictation, let setID = dictation.state.pressSetID, Self.activeSetID(for: set) == setID,
             set.exercise?.session === dictatingSession
         else { return }
         await dictation.cancel()
@@ -761,7 +761,7 @@ extension SessionCoordinator {
 
     /// True while the mic is idle and the Current Session still has a Pending Set to log.
     private var micIsFreeForAPendingSet: Bool {
-        guard let dictation, dictation.state.listeningSetID == nil, let current = navigationAdapter.currentSession else { return false }
+        guard let dictation, dictation.state.pressSetID == nil, let current = navigationAdapter.currentSession else { return false }
         return SessionSetOrder.firstPendingSet(in: current) != nil
     }
 

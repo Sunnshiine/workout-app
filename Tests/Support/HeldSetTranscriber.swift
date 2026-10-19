@@ -14,7 +14,7 @@ final class HeldSetTranscriber: SetTranscriber {
         self.candidates = candidates
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
         await starting.hold()
         hearing(candidates.first ?? "")
     }

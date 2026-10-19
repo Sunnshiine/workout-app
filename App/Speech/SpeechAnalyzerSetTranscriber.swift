@@ -13,7 +13,7 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
     private var listening: Listening?
 
     /// Asks for the microphone on the first press, and installs the speech model on first use.
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
         guard await AVAudioApplication.requestRecordPermission() else { throw .microphoneDenied }
         let speech = try await SpeechListening.start(hearing: hearing, installing: { _ in })
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [speech.module]) else {

@@ -153,7 +153,7 @@ final class BackgroundDictation {
         guard let position = focus.activeSet(in: session) else {
             return await noSet(.everythingLogged, .noSetLeft(session: session.liveActivityLabel))
         }
-        guard dictation.state.listeningSetID == nil else { return .noSet(.noSetToLog(.micBusy)) }
+        guard dictation.state.pressSetID == nil else { return .noSet(.noSetToLog(.micBusy)) }
         return .set(position, in: session)
     }
 

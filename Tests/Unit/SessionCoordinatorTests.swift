@@ -2940,14 +2940,14 @@ private func makeHandsFreeFixture(
     let fixture = makeHandsFreeFixture(showing: session, current: session, requested: false)
     let slot = try fixture.card(in: session)
     fixture.coordinator.startDictation(for: slot.set)
-    #expect(fixture.dictation?.state.listeningSetID == firstBench)
+    #expect(fixture.dictation?.state.pressSetID == firstBench)
 
     fixture.entry.deliver(.dictateCurrentSet)
     fixture.coordinator.answerEntry()
 
     #expect(fixture.entry.pending == nil)
     #expect(fixture.entry.coverClosings == 0)
-    #expect(fixture.dictation?.state.listeningSetID == firstBench)
+    #expect(fixture.dictation?.state.pressSetID == firstBench)
 }
 
 @MainActor
@@ -2996,7 +2996,7 @@ private func makeHandsFreeFixture(
 
     await coordinator.cancelDictation(of: otherSessionsSet)
 
-    #expect(dictation.state.listeningSetID == SessionCoordinator.activeSetID(for: currentSet))
+    #expect(dictation.state.pressSetID == SessionCoordinator.activeSetID(for: currentSet))
     let cancelling = Task { await coordinator.cancelDictation(of: currentSet) }
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
     transcriber.starting.release()
