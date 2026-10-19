@@ -4,7 +4,7 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// The main queue and the clock as a test holds them: a ping waits until the test runs it, and
+/// The main queue and the clock as a test holds them. A ping waits until the test runs it, and
 /// time moves only when the test advances it.
 private final class HeldMainThread: Sendable {
     private let start = ContinuousClock.now
@@ -93,8 +93,8 @@ private func holdTheMainThread(for seconds: TimeInterval) {
     Thread.sleep(forTimeInterval: seconds)
 }
 
-/// The real timer and main queue. Only a floor: a loaded machine stalls the main thread longer,
-/// never shorter.
+/// The real timer and main queue. It asserts only a floor, because a loaded machine stalls the
+/// main thread longer, never shorter.
 @MainActor
 @Test func aMainThreadHeldBusyIsTheLongestStall() async {
     let watchdog = MainThreadWatchdog()
