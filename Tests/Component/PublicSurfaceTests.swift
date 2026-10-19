@@ -98,6 +98,9 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     #expect((rejected["rejection"] as? [String: Any])?["reason"] as? String == "offLadderRPE")
     #expect((rejected["rejection"] as? [String: Any])?["value"] as? Double == 11)
 
+    let implausible = try json(try app.say("135 for 101 at 8", at: set))
+    #expect(implausible["rejection"] as? [String: String] == ["reason": "implausible", "field": "reps"])
+
     let logged = try json(try app.say("185 for 5 at 8", at: set))
     #expect(Set(logged.keys) == ["heard", "outcome", "setLog", "set", "pendingWriteCount", "exerciseIsComplete"])
     #expect(logged["setLog"] as? String == "185x5@8")

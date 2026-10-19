@@ -336,15 +336,15 @@ extension SayReport {
 
 public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
     public enum Reason: String, Encodable, Sendable {
-        case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, offLadderRPE
-        case nothingToRepeat
+        case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, implausible
+        case offLadderRPE, nothingToRepeat
         /// The recognizer, not the words: the mic is off in Settings, speech is not available, or
         /// listening failed.
         case microphoneDenied, speechUnavailable, listeningFailed
     }
 
     public let reason: Reason
-    /// `conflicting` and `outOfRange` only: `weight`, `reps`, or `rpe`.
+    /// `conflicting`, `outOfRange`, and `implausible` only: `weight`, `reps`, or `rpe`.
     public let field: String?
     /// `offLadderRPE` only: the number heard.
     public let value: Double?
@@ -370,6 +370,7 @@ extension SpokenSetRejectionSnapshot {
         case .ambiguous: self.init(reason: .ambiguous, field: nil, value: nil)
         case .conflicting(let field): self.init(reason: .conflicting, field: field.rawValue, value: nil)
         case .outOfRange(let field): self.init(reason: .outOfRange, field: field.rawValue, value: nil)
+        case .implausible(let field): self.init(reason: .implausible, field: field.rawValue, value: nil)
         case .offLadderRPE(let value): self.init(reason: .offLadderRPE, field: nil, value: value)
         case .nothingToRepeat: self.init(reason: .nothingToRepeat, field: nil, value: nil)
         }

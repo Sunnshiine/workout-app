@@ -42,6 +42,15 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     #expect(filled == .filled(SetLogDraft(weight: .pounds(135), reps: 4, rpe: .nine), heard: "13549"))
 }
 
+@Test func aSetNoLifterLogsDefersToTheAlternativesAndWritesNothing() {
+    #expect(
+        outcome(of: ["135 for 101 at 8", "135 for 10 at 8"])
+            == .filled(SetLogDraft(weight: .pounds(135), reps: 10, rpe: .eight), heard: "135 for 101 at 8")
+    )
+    #expect(outcome(of: ["135 for 101 at 8"]) == .rejected(.spokenSet(.implausible(.reps)), heard: "135 for 101 at 8"))
+    #expect(outcome(of: ["12.47 for 3", "12.47 for 3."]) == .rejected(.spokenSet(.implausible(.weight)), heard: "12.47 for 3"))
+}
+
 @Test func aSkipReadOnlyFromAnAlternativeWritesNothing() {
     #expect(outcome(of: ["skit", "skip it"]) == .rejected(.spokenSet(.ambiguous), heard: "skit"))
 }

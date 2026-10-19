@@ -471,6 +471,7 @@ func sayingAWeightOfAThousandOrMoreWritesItAsSaid(transcript: String, setLog: St
     let conflicting = try app.say("135 for 4, 8 reps", at: address("w1d1.e0.s0"))
     let fused = try app.say("40542 at nine.", at: address("w1d1.e0.s0"))
     let ambiguous = try app.say("135 for 49", at: address("w1d1.e0.s0"))
+    let implausible = try app.say("12.47 for 3", at: address("w1d1.e0.s0"))
 
     #expect(offLadder.outcome == .rejected)
     #expect(offLadder.rejection == SpokenSetRejectionSnapshot(reason: .offLadderRPE, field: nil, value: 4))
@@ -478,6 +479,7 @@ func sayingAWeightOfAThousandOrMoreWritesItAsSaid(transcript: String, setLog: St
     #expect(conflicting.rejection == SpokenSetRejectionSnapshot(reason: .conflicting, field: "reps", value: nil))
     #expect(fused.rejection == SpokenSetRejectionSnapshot(reason: .fusedNumber, field: nil, value: nil))
     #expect(ambiguous.rejection == SpokenSetRejectionSnapshot(reason: .ambiguous, field: nil, value: nil))
+    #expect(implausible.rejection == SpokenSetRejectionSnapshot(reason: .implausible, field: "weight", value: nil))
     #expect(conflicting.set.state == "pending")
     #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
 }
@@ -567,16 +569,16 @@ func aTranscriptNoSetLogHoldsQueuesNoWrite(transcript: String) async throws {
     #expect(try app.sync.fetchPendingWriteRecords().count == 1)
 }
 
-/// Speaking logs what typing on the card logs, however light the weight, fine its decimal, or many its reps.
+/// Speaking logs what typing on the card logs, however light the weight, fine its fraction, or many its reps.
 @MainActor
 @Test(
-    "A Spoken Set of any weight and rep count the card accepts queues its write",
+    "A Spoken Set of any weight and rep count a lifter logs queues its write",
     arguments: [
         ("5 by 5", "5x5@7"), ("4 for 5", "4x5@7"), ("10 for 12 at 9", "10x12@9"), ("135 for 45", "135x45@7"),
-        ("187.55 for 5", "187.55x5@7"), ("8 reps at 12", "12x8@7"), ("5 reps with 12", "12x5@7"), ("19 per 5", "19x5@7")
+        ("187.25 for 5", "187.25x5@7"), ("8 reps at 12", "12x8@7"), ("5 reps with 12", "12x5@7"), ("19 per 5", "19x5@7")
     ]
 )
-func aSpokenSetOfAnyValueTheCardAcceptsQueuesItsWrite(transcript: String, setLog: String) async throws {
+func aSpokenSetOfAnyValueALifterLogsQueuesItsWrite(transcript: String, setLog: String) async throws {
     let app = try await appWhoseSecondSetCardHoldsEveryValue()
 
     let report = try app.say(transcript, at: address("w1d1.e0.s1"))

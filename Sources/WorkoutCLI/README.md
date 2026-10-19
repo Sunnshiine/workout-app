@@ -96,9 +96,10 @@ on a locked phone writes through the same call.
 `rejection.reason` is `nothingHeard`, `unrecognized`, `kilograms`, `fusedNumber` (numbers the
 recognizer ran together), `ambiguous` (a number no word places, or words that may mean another Set),
 `conflicting` (a `field` said twice, even as the same number, which reads as two Sets),
-`outOfRange` (reps that are 0 or not whole, or a weight of 0 pounds),
-`offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same again" with no
-earlier Set Log of the Exercise in the Session). A Dictation that listened, rather than read a
+`outOfRange` (reps that are 0 or not whole, or a weight of 0 pounds), `implausible` (a `field` no
+lifter logs, more likely misheard than said: more than 100 reps, or a weight that is not a multiple
+of 0.25 pounds), `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same
+again" with no earlier Set Log of the Exercise in the Session). A Dictation that listened, rather than read a
 transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`. A rejected
 `say` prints its report, then a `spoken_set_rejected` error.
 
@@ -133,10 +134,13 @@ where a word next to it, or the phrase around it, says which, never by its place
   RPE that is missing ("185 for 5 and").
 - A value said twice is `conflicting`, even as the same number: "185 for 5 for 5" and "185 for 5
   reps, 5 reps".
-- A Spoken Set holds any weight and rep count the card accepts: "4 for 5", "5 by 5", "135 for 45",
-  and "187.55 for 5" each read as said. Reps that are 0 or not whole, or a weight of 0 pounds, is
-  `outOfRange` ("135 for 0", "315 for 19.5", "0 for 5"), because a Set with no load is bodyweight
-  and a Set not done is Skipped.
+- A Spoken Set holds any weight and rep count a lifter logs: "4 for 5", "5 by 5", "135 for 45",
+  "135 for 100 reps", and "182.25 for 3" each read as said. Reps that are 0 or not whole, or a
+  weight of 0 pounds, is `outOfRange` ("135 for 0", "315 for 19.5", "0 for 5"), because a Set with
+  no load is bodyweight and a Set not done is Skipped. More than 100 reps, or a weight that is not a
+  multiple of 0.25 pounds, is `implausible` ("135 for 101 at 8", "12.47 for 3", which the recognizer
+  writes for "1247"), though the card takes either typed, because a value no lifter logs is more
+  likely misheard than said.
 - A number no word places is `ambiguous`, never filled into a free value: "185, 5, 8", "5 at 8",
   "for 5, 8", and "eight" alone. The one exception is a number that leads the transcript when words
   label both the reps and the RPE after it: "135, 8 reps, RPE 9" logs 135x8@9, because the recognizer
@@ -159,10 +163,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   "1358 at 9", "40542 at nine", "1000 for 5", "1000, 5 reps, RPE 8", "ten fifty", and "135 for
   1000 at 8" are rejected. The weight has no upper bound, as on the card.
 - A rep count right after "for", with no "reps" after it and no RPE said, is `ambiguous` as two
-  digits whose second is 6 to 9, and as 100 or more in digits or words: "135 for 19" may be "135
-  for 1 at 9", "135 for 808" is what the recognizer writes for "135 for 8 at an 8", and "135 for
-  one hundred" is `ambiguous` too. "135 for 19 reps", "135 for 100 reps", "135 for 101 at 8", "135
-  for 15", and "45 for 10" log.
+  digits whose second is 6 to 9, and as 100 in digits or words: "135 for 19" may be "135 for 1 at
+  9", and "135 for one hundred" is `ambiguous` too. More than 100 reps is `implausible` wherever it
+  sits, as "135 for 808", which the recognizer writes for "135 for 8 at an 8". "135 for 19 reps",
+  "135 for 100 reps", "135 for 15", and "45 for 10" log.
 - "a" right after a number, or between "for" and a number, keeps the number from the label across
   it, so "135, a representative, RP9", the recognizer dropping the 8 of "135, 8 reps, RPE 9", and
   "135 for a 9", the recognizer's "a" for the "8 at" of "135 for 8 at 9", are `unrecognized`. "225
