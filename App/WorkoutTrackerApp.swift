@@ -25,7 +25,14 @@ struct WorkoutTrackerApp: App {
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
         let speech = Self.speech()
-        let dictation = speech.map { SetDictation(transcriber: $0.live, reader: $0.recording, journal: app.dictationJournal) }
+        let dictation = speech.map {
+            SetDictation(
+                transcriber: $0.live,
+                reader: $0.recording,
+                journal: app.dictationJournal,
+                decisionDeadline: Self.decisionDeadline()
+            )
+        }
         speechModelCaption = speech?.caption
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
@@ -86,12 +93,7 @@ struct WorkoutTrackerApp: App {
     private static func speech() -> Speech? {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.launch.dictatedTranscript.map {
-                    Speech(
-                        live: CannedSetTranscriber(candidates: [$0]),
-                        recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
-                    )
-                }
+                return UITestFixture.launch.dictatedTranscript.map(fixtureSpeech)
             }
         #endif
         #if targetEnvironment(simulator)
@@ -100,6 +102,35 @@ struct WorkoutTrackerApp: App {
             let engine = WhisperEngine(models: .applicationSupport)
             return Speech(live: SpeechAnalyzerSetTranscriber(), recording: engine, caption: { engine.caption })
         #endif
+    }
+
+    #if DEBUG
+        /// A fixture's mic hears `transcript`. A Simulator proof launch also records a WAV file on
+        /// each press and reads it with the real recording engine, its model from a host folder.
+        private static func fixtureSpeech(hearing transcript: String) -> Speech {
+            let launch = UITestFixture.launch
+            let live = CannedSetTranscriber(candidates: [transcript], recording: launch.recordingPath.map(ProofLaunchFiles.recording) ?? [])
+            guard let models = launch.speechModelsPath else {
+                return Speech(live: live, recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))))
+            }
+            let engine = WhisperEngine(models: .host(ProofLaunchFiles.speechModels(at: models)))
+            return Speech(live: live, recording: engine, caption: { engine.caption })
+        }
+    #endif
+
+    /// A Simulator proof launch may wait longer for the Recording Transcript, which takes seconds
+    /// there to decode.
+    private static func decisionDeadline() -> Duration {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                do {
+                    return try UITestFixture.launch.decisionDeadline ?? SetDictation.decisionDeadline
+                } catch {
+                    fatalError("\(error)")
+                }
+            }
+        #endif
+        return SetDictation.decisionDeadline
     }
 
     /// Returns nil when there is no sign-in to write. A fixture launch already set it at init

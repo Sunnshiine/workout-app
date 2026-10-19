@@ -96,8 +96,41 @@
 
         /// What the fixture's mic hears on every press; nil leaves the card without a mic.
         var dictatedTranscript: String? {
-            guard let flagIndex = arguments.firstIndex(of: LaunchFlag.dictation.argument) else { return nil }
+            value(of: .dictation)
+        }
+
+        /// The WAV file the fixture's mic records on every press; nil records nothing.
+        var recordingPath: String? {
+            value(of: .recording)
+        }
+
+        /// The host folder the real recording engine reads its model from; nil keeps the stand-in.
+        var speechModelsPath: String? {
+            value(of: .speechModels)
+        }
+
+        /// How long a press waits for the Recording Transcript; nil keeps the shipped Decision
+        /// Deadline.
+        var decisionDeadline: Duration? {
+            get throws(UnreadableDecisionDeadline) {
+                guard let value = value(of: .decisionDeadline) else { return nil }
+                guard let seconds = Double(value), seconds > 0 else { throw UnreadableDecisionDeadline(value: value) }
+                return .milliseconds(Int((seconds * 1000).rounded()))
+            }
+        }
+
+        /// The argument after `flag`, empty when it comes last; nil when the launch lacks `flag`.
+        private func value(of flag: LaunchFlag) -> String? {
+            guard let flagIndex = arguments.firstIndex(of: flag.argument) else { return nil }
             return arguments.dropFirst(flagIndex + 1).first ?? ""
+        }
+
+        struct UnreadableDecisionDeadline: Error, Equatable, CustomStringConvertible {
+            let value: String
+
+            var description: String {
+                "\(LaunchFlag.decisionDeadline.argument) takes a number of seconds above 0, not \"\(value)\""
+            }
         }
 
         struct UnknownAppearance: Error, Equatable, CustomStringConvertible {

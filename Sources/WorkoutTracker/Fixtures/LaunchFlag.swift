@@ -121,6 +121,26 @@
                 + " in place of SpeechAnalyzer, which does not run in the Simulator."
         )
 
+        static let recording = LaunchFlag(
+            argument: "-UITEST_RECORDING",
+            meaning: "Takes the path of a 16 kHz mono WAV file as the next argument, which the fixture's mic records on"
+                + " every press for the recording engine to read. Acts only with `-UITEST_DICTATION`."
+        )
+
+        static let speechModels = LaunchFlag(
+            argument: "-UITEST_SPEECH_MODELS",
+            meaning: "Takes a host folder holding Whisper small and its tokenizer in the Hugging Face download layout,"
+                + " and reads each press's recording with the real recording engine from it in place of the stand-in."
+                + " Acts only with `-UITEST_DICTATION`, and stops the launch if the folder lacks the model."
+        )
+
+        static let decisionDeadline = LaunchFlag(
+            argument: "-UITEST_DECISION_DEADLINE",
+            meaning: "Takes seconds as the next argument and waits that long for the Recording Transcript in place of"
+                + " the shipped Decision Deadline, since a Simulator decode takes seconds. Any value but seconds above 0"
+                + " stops the app."
+        )
+
         static let all: [LaunchFlag] = [
             .fixture,
             .session,
@@ -142,7 +162,10 @@
             .moveOnCelebration,
             .appearance,
             .longCelebrationQuote,
-            .dictation
+            .dictation,
+            .recording,
+            .speechModels,
+            .decisionDeadline
         ]
     }
 #endif

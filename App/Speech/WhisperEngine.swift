@@ -80,6 +80,13 @@ actor WhisperEngine: RecordingTranscriber {
         observers.withLock { $0.forEach(NotificationCenter.default.removeObserver) }
     }
 
+    #if DEBUG
+        /// The files a host folder lacks for the engine to load from it.
+        static func missingFiles(inHost folder: URL) -> [URL] {
+            SpeechModelStore(.host(folder)).missingFiles
+        }
+    #endif
+
     nonisolated var readiness: SpeechModelState {
         status.withLock(\.state)
     }
@@ -389,11 +396,14 @@ private struct SpeechModelStore: Sendable {
         try Data(Self.system.utf8).write(to: specializedMarker)
     }
 
-    private var isComplete: Bool {
+    /// The files a load reads that are not on disk.
+    var missingFiles: [URL] {
         let files =
             Self.modelFiles.map { modelFolder.appending(path: $0) } + Self.tokenizerFiles.map { tokenizerFolder.appending(path: $0) }
-        return files.allSatisfy { FileManager.default.fileExists(atPath: $0.path) }
+        return files.filter { !FileManager.default.fileExists(atPath: $0.path) }
     }
+
+    private var isComplete: Bool { missingFiles.isEmpty }
 
     /// Before the first byte lands.
     private func excludeFromBackup() throws {

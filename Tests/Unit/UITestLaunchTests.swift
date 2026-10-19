@@ -100,6 +100,27 @@ import Testing
         #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION"]).dictatedTranscript == "")
     }
 
+    @Test func proofLaunchArgumentsNameTheRecordingTheModelsAndTheDeadline() throws {
+        let plain = UITestLaunch(arguments: ["WorkoutTracker"])
+        #expect(plain.recordingPath == nil)
+        #expect(plain.speechModelsPath == nil)
+        #expect(try plain.decisionDeadline == nil)
+
+        let proof = UITestLaunch(arguments: [
+            "WorkoutTracker", "-UITEST_RECORDING", "/tmp/set.wav", "-UITEST_SPEECH_MODELS", "/tmp/models",
+            "-UITEST_DECISION_DEADLINE", "20.5"
+        ])
+        #expect(proof.recordingPath == "/tmp/set.wav")
+        #expect(proof.speechModelsPath == "/tmp/models")
+        #expect(try proof.decisionDeadline == .milliseconds(20_500))
+    }
+
+    @Test(arguments: ["", "soon", "0", "-1"])
+    func aDecisionDeadlineThatIsNotSecondsAboveZeroStopsTheLaunch(value: String) {
+        let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DECISION_DEADLINE", value])
+        #expect(throws: UITestLaunch.UnreadableDecisionDeadline(value: value)) { try launch.decisionDeadline }
+    }
+
     @MainActor
     @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() throws {
         let seeded = try seed(arguments: ["-UITEST_FULL_BLOCK"])
