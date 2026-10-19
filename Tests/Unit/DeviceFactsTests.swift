@@ -10,6 +10,7 @@ import Testing
 
     #expect(!facts.model.isEmpty)
     #expect(facts.model != "unknown")
+    #expect(!facts.model.contains("\0"))
     #expect(facts.os == "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)")
     #expect(facts.footprintMB > 0)
 }
