@@ -30,6 +30,7 @@ scripts/crap.sh [measure|gate|baseline] [options]
   -h, --help         Show this message.
 
 Artifacts: .build/crap/coverage.lcov, .build/crap/report.json, tools/crap/baseline.tsv
+Without --xcodebuild the tests build in .build/coverage, apart from plain swift test's .build.
 EOF
 }
 
@@ -76,7 +77,10 @@ OUT=".build/crap"
 LCOV="$OUT/coverage.lcov"
 REPORT="$OUT/report.json"
 BASELINE="tools/crap/baseline.tsv"
-PROFDATA=".build/debug/codecov/default.profdata"
+# Coverage flags change every compile, so sharing .build with plain swift test would rebuild it all on
+# each switch between the two.
+SCRATCH=".build/coverage"
+PROFDATA="$SCRATCH/debug/codecov/default.profdata"
 PROFILES="$(dirname "$PROFDATA")"
 if [[ -n $XCODEBUILD_DIR ]]; then
     PROFILES="$XCODEBUILD_DIR/DerivedData/Build/ProfileData"
@@ -105,7 +109,7 @@ run_tests() {
 
 test_command() {
     if [[ -z $XCODEBUILD_DIR ]]; then
-        swift test --enable-code-coverage
+        swift test --enable-code-coverage --scratch-path "$SCRATCH"
         return
     fi
     # The sibling WorkoutTracker.xcodeproj would win over Package.swift, so name the package
@@ -129,7 +133,7 @@ export_lcov() {
         PROFDATA="$(find "$PROFILES" -name Coverage.profdata 2>/dev/null | head -1 || true)"
         bin="$XCODEBUILD_DIR/DerivedData/Build/Products/Debug"
     else
-        bin="$(swift build --show-bin-path)"
+        bin="$(swift build --scratch-path "$SCRATCH" --show-bin-path)"
     fi
     if [[ ! -f $PROFDATA ]]; then
         echo "crap.sh: no coverage profile in $PROFILES. Run without --no-test first." >&2

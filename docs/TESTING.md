@@ -10,6 +10,9 @@ scores above its recorded value, when a baseline row no longer applies, or when 
 After lowering a score, run `scripts/crap.sh baseline` and commit the smaller baseline. A new function
 that stays above 6 needs a row from `scripts/crap.sh baseline` with a written reason, or the gate keeps
 failing. ADR-0016 records the decision; the counting rules and their tests live in `tools/crap/`.
+Locally the gate builds in `.build/coverage`, about 360 MB, so it and a plain `swift test` keep separate
+builds. The first gate in a worktree builds everything once. After that, switching between the two
+rebuilds only what changed.
 
 Coverage counts only lines `swift test` executes. A test that covers a function through the interface
 its callers use is the intended way to lower a score; a test that calls internals to paint lines green
