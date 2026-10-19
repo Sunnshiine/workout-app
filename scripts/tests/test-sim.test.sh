@@ -169,6 +169,17 @@ fi
 got=$(WORKOUT_COMPILE_CACHE=0 cache_settings)
 if [ -z "$got" ] && [ -s "$STUB_ARGS.build" ]; then ok "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings"
 else bad "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings: $got"; fi
+# shellcheck disable=SC2016  # Xcode, not the shell, expands the $(...) macros per target
+want_lean='COMPILER_INDEX_STORE_ENABLE=$(WORKOUT_INDEX_STORE_$(PROJECT_NAME:c99extidentifier):default=Default)
+WORKOUT_INDEX_STORE_WorkoutTracker=NO
+OTHER_SWIFT_FLAGS=$(inherited) $(WORKOUT_SWIFT_FLAGS_$(TARGET_NAME:c99extidentifier))
+WORKOUT_SWIFT_FLAGS_WorkoutTrackerTests=-driver-batch-count 6'
+for cache in 1 0; do
+    got=$(WORKOUT_COMPILE_CACHE=$cache cache_settings >/dev/null
+        grep -E '^(COMPILER_INDEX_STORE_ENABLE|WORKOUT_INDEX_STORE_|OTHER_SWIFT_FLAGS|WORKOUT_SWIFT_FLAGS_)' "$STUB_ARGS.build")
+    if [ "$got" = "$want_lean" ]; then ok "WORKOUT_COMPILE_CACHE=$cache builds the project's own targets without an index store, the tests in 6 batches"
+    else bad "WORKOUT_COMPILE_CACHE=$cache builds the project's own targets without an index store, the tests in 6 batches: $got"; fi
+done
 
 run_sim() {
     rm -f "$root/seen" "$root/load-read" "$STUB_ARGS.build"
