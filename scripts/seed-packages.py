@@ -68,6 +68,15 @@ def moved(value, old, new):
     return value
 
 
+# Xcode leaves each checkout's git files read-only, so a new file with the same mode replaces each.
+def replace(path, text):
+    mode = os.stat(path).st_mode & 0o7777
+    with open(path + ".seeding", "w") as f:
+        f.write(text)
+    os.chmod(path + ".seeding", mode)
+    os.replace(path + ".seeding", path)
+
+
 # The producer's SourcePackages path is in workspace-state.json (the SwiftLint artifact bundle) and
 # in each checkout's git origin URL and object alternates, which point at repositories/.
 def install(staging, final):
@@ -87,11 +96,9 @@ def install(staging, final):
         return 1
     old = roots.pop() if roots else final
     if old != final:
-        with open(state_path, "w") as f:
-            json.dump(moved(state, old, final), f, indent=2)
+        replace(state_path, json.dumps(moved(state, old, final), indent=2))
         for path, text in git_files.items():
-            with open(path, "w") as f:
-                f.write(text.replace(old + "/", final + "/"))
+            replace(path, text.replace(old + "/", final + "/"))
     try:
         os.rename(staging, final)
     except OSError:

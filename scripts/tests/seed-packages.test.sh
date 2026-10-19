@@ -23,6 +23,7 @@ printf '{"object": {"artifacts": [{"path": "%s/artifacts/swiftlintplugins/SwiftL
 printf '[remote "origin"]\n\turl = %s/repositories/pkg-1\n' "$named" >"$dir/checkouts/pkg/.git/config"
 printf '%s/repositories/pkg-1/objects\n' "$named" >"$dir/checkouts/pkg/.git/objects/info/alternates"
 echo 'let x = 1' >"$dir/checkouts/pkg/Sources/x.swift"
+chmod a-w "$dir/checkouts/pkg/.git/config" "$dir/checkouts/pkg/.git/objects/info/alternates"
 STUB
 # Xcode's part: write info.plist into STUB_DD, resolve when SourcePackages is absent, else reuse it.
 cat >"$root/bin/xcodebuild" <<'STUB'
@@ -83,9 +84,9 @@ run
 expect "the next fresh lane clones them, and Xcode reuses them, repointed at its own DerivedData" \
     "$status $(seeded_line) | $(calls)" \
     "0 1 | reused $dd/SourcePackages/artifacts/swiftlintplugins/SwiftLintBinary/SwiftLintBinary.artifactbundle"
-expect "no file the build reads still names the producer's DerivedData: not the git origin, not the object alternates" \
-    "$(/usr/bin/grep -rl "$foreign" "$dd/SourcePackages") | $(cat "$dd/SourcePackages/checkouts/pkg/.git/objects/info/alternates")" \
-    " | $dd/SourcePackages/repositories/pkg-1/objects"
+expect "no file the build reads still names the producer's DerivedData: not the read-only git origin, not the object alternates" \
+    "$(/usr/bin/grep -rl "$foreign" "$dd/SourcePackages") | $(cat "$dd/SourcePackages/checkouts/pkg/.git/objects/info/alternates") $(stat -f %Lp "$dd/SourcePackages/checkouts/pkg/.git/config")" \
+    " | $dd/SourcePackages/repositories/pkg-1/objects 444"
 expect "the store's entry keeps the producer's paths, since the lane rewrote its own clone" \
     "$(/usr/bin/grep -rl "$foreign" "$WORKOUT_DEP_STORE/entries/$key/payload" | grep -c .) $(ls -d "$dd"/SourcePackages.seeding.* 2>/dev/null)" "3 "
 
