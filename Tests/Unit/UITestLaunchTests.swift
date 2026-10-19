@@ -219,11 +219,15 @@ import Testing
 
     @MainActor
     @Test func aSlowSyncLaunchBootsWithoutWaitingOnTheHold() async throws {
-        let clock = ContinuousClock()
-        let elapsed = try await clock.measure {
-            _ = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
-        }
-        #expect(elapsed < .seconds(10))
+        let booted = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
+        let heldDuringBoot = await booted.sheets.heldTabListings
+        #expect(heldDuringBoot == 0, "the boot never waited on the hold")
+
+        let laterListing = Task { try await booted.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) }
+        laterListing.cancel()
+        _ = try? await laterListing.value
+        let heldAfterBoot = await booted.sheets.heldTabListings
+        #expect(heldAfterBoot == 1, "a listing after the boot waits on the hold until cancelled")
     }
 
     @MainActor
