@@ -115,6 +115,26 @@ custom_rules:
       - string
     severity: error
 
+  # WhisperKit is an App-target dependency only (ADR-0021), so swift test, the CLI, and lanes never
+  # compile it. One file keeps its types, and those of the packages it brings, from spreading.
+  whisperkit_import_is_confined:
+    name: "WhisperKit is imported only by the recording engine"
+    message: >
+      Only App/Speech/WhisperEngine.swift imports WhisperKit, Hub, Tokenizers, or ArgmaxCore.
+      Reach the recording engine through RecordingTranscriber, and keep every decision about it
+      in Sources/WorkoutTracker, where swift test and the CLI reach it.
+    regex: '\bimport[ \t]+((struct|class|enum|protocol|func|var|let|typealias)[ \t]+)?(WhisperKit|Hub|Tokenizers|ArgmaxCore)\b'
+    included:
+      - '.*/(App|Sources|WorkoutShared|WorkoutWidgets)/.*'
+      - '.*/Tests/.*'
+    excluded:
+      - '.*/App/Speech/WhisperEngine\.swift'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
   optional_bool_needs_a_nil_answer:
     name: "Optional Bool compared to a literal"
     message: >
