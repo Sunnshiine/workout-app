@@ -11,6 +11,7 @@ on:
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/test-log-summary.awk"
+      - "scripts/test-log-summary.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
   push:
@@ -24,6 +25,7 @@ on:
       - "scripts/sim-lock.sh"
       - "scripts/test-sim.sh"
       - "scripts/test-log-summary.awk"
+      - "scripts/test-log-summary.sh"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/ci.yml"
 

@@ -12,8 +12,9 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
 Builds once with build-for-testing, then runs every requested suite in one test-without-building
 session from the xctestrun file. --no-build reuses the last build when only the selection changed.
 Prints the test log path before the run starts. The summary at the end holds the run counts, the
-first three issues each test recorded with the values each one compared, every failing test, and
-any error or crash that stopped xcodebuild before the run finished.
+first three issues each test recorded with the values each one compared, every failing test, the
+open issue whose title names each failing test, and any error or crash that stopped xcodebuild
+before the run finished.
 The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
 With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
 Refuses (exit 75) while another test-sim.sh run holds that simulator, or a verify run whose app
@@ -169,7 +170,7 @@ if [ -n "$fault" ]; then
   echo "simulator fault, not a test result: xcodebuild reported \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first" >&2
   rc=69
 fi
-if ! awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq; then
+if ! "$repo/scripts/test-log-summary.sh" "$log"; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2
   exit 65

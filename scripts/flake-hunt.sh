@@ -44,5 +44,5 @@ swift test --skip-build ${filter[@]+"${filter[@]}"} --repeat-until fail --maximu
 rc=$?
 set -e
 
-awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq || true
+"$repo/scripts/test-log-summary.sh" "$log" || true
 exit $(( rc == 0 ? 0 : 1 ))

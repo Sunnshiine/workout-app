@@ -6,7 +6,7 @@ root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
-cp "$script_dir/../flake-hunt.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
+cp "$script_dir/../flake-hunt.sh" "$script_dir/../test-log-summary.awk" "$script_dir/../test-log-summary.sh" "$repo/scripts/"
 pass=0
 fail=0
 
@@ -19,7 +19,8 @@ cat >"$root/bin/swift" <<'STUB'
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
-chmod +x "$root/bin/swift"
+printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
+chmod +x "$root/bin/swift" "$root/bin/gh"
 
 check() {
     local name=$1 want_status=$2 want_out=$3 swift_status=$4 log=$5
