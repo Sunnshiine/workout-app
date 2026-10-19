@@ -7,7 +7,8 @@ Usage: scripts/measure-host.sh [--settle SECONDS] [--keep] N <unit|visual|ui|all
 Measures how this Mac holds up with N simulators testing at once, as ADR-0020 did. Creates the pool
 clones workout-lane-measure-1..N, boots them, waits --settle seconds (default 120, past the CPU a
 boot costs, #912), then starts N scripts/test-sim.sh --no-build runs of the selection at once, one
-per clone, 2 s apart. The runs reuse this checkout's last build; run scripts/test-sim.sh once first.
+per clone, 2 s apart. The runs reuse this checkout's last build; run scripts/test-sim.sh once first
+with a selection that covers the same test targets.
 The admission gates are lifted for these runs (WORKOUT_SIM_CAP, WORKOUT_MEM_FLOOR=0), since this
 measures the host, not admission. Waits up to 5 minutes for the 1-minute load to fall under 10
 before it boots anything. Samples every 2 s: the 1-minute load, CPU busy percent, free memory

@@ -122,7 +122,7 @@ class SimulatorPick(unittest.TestCase):
         return "** BUILD FAILED **\nbuild log: %s\n" % log
 
     def build_for_testing_on(self, udid):
-        return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
+        return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme test-sim "
                 "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
                 "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid) + cache_settings(self.home))
 

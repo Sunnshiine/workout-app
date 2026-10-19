@@ -36,6 +36,9 @@ def fake_checkout(root):
         (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
     for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py"]:
         (skill / name).symlink_to(SKILL / name)
+    scheme = Path("WorkoutTracker.xcodeproj", "xcshareddata", "xcschemes", "WorkoutTracker.xcscheme")
+    (checkout / scheme.parent).mkdir(parents=True)
+    (checkout / scheme).symlink_to(REPO / scheme)
     return checkout
 
 

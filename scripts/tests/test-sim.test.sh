@@ -170,5 +170,50 @@ got=$(WORKOUT_COMPILE_CACHE=0 cache_settings)
 if [ -z "$got" ] && [ -s "$STUB_ARGS.build" ]; then ok "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings"
 else bad "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings: $got"; fi
 
+run_sim() {
+    rm -f "$root/seen" "$root/load-read" "$STUB_ARGS.build"
+    printf '✔ Test run with 1 test in 1 suite passed after 0.001 seconds.\n** TEST EXECUTE SUCCEEDED **\n' >"$root/xcodebuild.log"
+    STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" "$@" >"$root/out" 2>"$root/err"
+}
+built_targets() {
+    grep -qx test-sim "$STUB_ARGS.build" 2>/dev/null || { echo "no build of the test-sim scheme"; return; }
+    sed -nE 's/.*BlueprintName = "(WorkoutTracker[A-Za-z]*Tests)".*/\1/p' \
+        "$repo/WorkoutTracker.xcodeproj/xcuserdata/$(id -un).xcuserdatad/xcschemes/test-sim.xcscheme" | paste -sd ' ' -
+}
+while IFS='|' read -r selection want; do
+    # shellcheck disable=SC2086  # the selection is several words
+    run_sim --sim "$sim" $selection
+    got=$(built_targets)
+    if [ "$got" = "$want" ]; then ok "a build of '$selection' builds only $want"
+    else bad "a build of '$selection' builds only $want: got '$got'"; fi
+done <<'CASES'
+unit|WorkoutTrackerTests
+visual WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testLaunch|WorkoutTrackerSnapshotTests WorkoutTrackerUITests
+all|WorkoutTrackerTests WorkoutTrackerSnapshotTests WorkoutTrackerUITests
+CASES
+
+run_sim --sim "$sim" WorkoutTrackerTest/RPETableTests
+status=$?
+if [ $status = 2 ] && [ "$(cat "$root/err")" = "no test target WorkoutTrackerTest in the WorkoutTracker scheme" ] && [ ! -e "$root/seen" ]; then
+    ok "a TEST-ID whose target the scheme does not test exits 2 before xcodebuild runs"
+else
+    bad "a TEST-ID whose target the scheme does not test exits 2 before xcodebuild runs: exit $status, stderr '$(cat "$root/err")'"
+fi
+
+xctestrun WorkoutTrackerTests >"$products/test-sim_iphonesimulator27.0-arm64.xctestrun"
+run_sim --no-build --sim "$sim" unit visual
+status=$?
+want="the last build covered WorkoutTrackerTests but not WorkoutTrackerSnapshotTests; run without --no-build"
+if [ $status = 65 ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ]; then
+    ok "--no-build refuses a test target the last build left out, before xcodebuild runs"
+else
+    bad "--no-build refuses a test target the last build left out, before xcodebuild runs: exit $status, stderr '$(cat "$root/err")'"
+fi
+run_sim --no-build --sim "$sim" WorkoutTrackerTests/RPETableTests
+status=$?
+if [ $status = 0 ] && [ -e "$root/seen" ]; then ok "--no-build runs a TEST-ID in a target the last build covered"
+else bad "--no-build runs a TEST-ID in a target the last build covered: exit $status, stderr '$(cat "$root/err")'"; fi
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

@@ -17,7 +17,11 @@ mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
     "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" "$repo/scripts/"
 cp "$script_dir/../../.agents/skills/verify/"verify.sh "$script_dir/../../.agents/skills/verify/"verify-*.sh "$repo/.agents/skills/verify/"
-touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
+mkdir -p "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes"
+cp "$script_dir/../../WorkoutTracker.xcodeproj/xcshareddata/xcschemes/WorkoutTracker.xcscheme" "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes/"
+touch "$products/../../info.plist"
+printf '<plist version="1.0">\n<dict>\n\t<key>WorkoutTrackerTests</key>\n\t<dict>\n\t\t<key>BlueprintName</key>\n\t\t<string>WorkoutTrackerTests</string>\n\t</dict>\n</dict>\n</plist>\n' \
+    >"$products/test-sim_iphonesimulator27.0-arm64.xctestrun"
 mkdir -p "$products/Debug-iphonesimulator/WorkoutTracker.app" "$repo/.build/verify/node_modules/xcodebuildmcp/bundled"
 printf '#!/bin/sh\n' > "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"
 chmod +x "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"

@@ -9,8 +9,11 @@ Usage: scripts/test-sim.sh [--no-build] [--sim UDID] <unit|visual|ui|all|TEST-ID
   ui       WorkoutTrackerUITests
   TEST-ID  any -only-testing identifier, e.g.
            WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
-Builds once with build-for-testing, then runs every requested suite in one test-without-building
-session from the xctestrun file. --no-build reuses the last build when only the selection changed.
+Builds the app and only the selected test targets once with build-for-testing, then runs every
+requested suite in one test-without-building session from that build's xctestrun file. The build
+uses test-sim.xcscheme, a copy of the WorkoutTracker scheme that keeps only the selected test
+targets, written under WorkoutTracker.xcodeproj/xcuserdata. --no-build reuses the last build when
+it covered every selected test target, and otherwise exits 65 naming the targets it covered.
 Prints the test log path before the run starts. The summary at the end holds the run counts, the
 first three issues each test recorded with the values each one compared, every failing test, and
 any error or crash that stopped xcodebuild before the run finished.
@@ -112,6 +115,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ ${#targets[@]} -gt 0 ] || usage
+test_targets=$(printf '%s\n' "${targets[@]#-only-testing:}" | cut -d/ -f1 | awk '!seen[$0]++' | tr '\n' ' ')
 
 picked=$(pick_sim "$sim" create)
 read -r sim state <<< "$picked"
@@ -125,7 +129,22 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
-  with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
+  # build-for-testing builds every test target its scheme lists, whatever -only-testing says.
+  schemes=$project/xcuserdata/$(id -un).xcuserdatad/xcschemes
+  mkdir -p "$schemes"
+  awk -v keep="$test_targets" '
+    BEGIN { n = split(keep, names, " "); for (i = 1; i <= n; i++) wanted[names[i]] = 1 }
+    /<TestableReference/ { ref = ""; inref = 1 }
+    inref {
+      ref = ref $0 "\n"
+      if (match($0, /BlueprintName = "[^"]*"/)) name = substr($0, RSTART + 17, RLENGTH - 18)
+      if (/<\/TestableReference>/) { inref = 0; if (name in wanted) { printf "%s", ref; delete wanted[name] } }
+      next
+    }
+    { print }
+    END { for (name in wanted) { print "no test target " name " in the WorkoutTracker scheme" > "/dev/stderr"; bad = 1 }; exit bad }
+  ' "$project/xcshareddata/xcschemes/WorkoutTracker.xcscheme" > "$schemes/test-sim.xcscheme" || exit 2
+  with_build_slot xcodebuild build-for-testing -project "$project" -scheme test-sim -destination "$destination" \
     -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO ${compile_cache_settings[@]+"${compile_cache_settings[@]}"} \
     > "$logs/$stamp-build.log" 2>&1 \
     || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
@@ -133,10 +152,17 @@ fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
   if [ "$(plutil -extract WorkspacePath raw "$plist")" = "$project" ]; then
-    ls -t "$(dirname "$plist")"/Build/Products/WorkoutTracker_iphonesimulator*.xctestrun 2>/dev/null
+    ls -t "$(dirname "$plist")"/Build/Products/test-sim_iphonesimulator*.xctestrun 2>/dev/null
   fi
 done | head -1) || true
 [ -n "$xctestrun" ] || { echo "no xctestrun for $project; run without --no-build" >&2; exit 65; }
+covered=$(awk '/<key>BlueprintName<\/key>/ { getline; gsub(/.*<string>|<\/string>.*/, ""); print }' "$xctestrun" | tr '\n' ' ')
+for name in $test_targets; do
+  case " $covered" in *" $name "*) ;; *)
+    echo "the last build covered ${covered:-no test target }but not $name; run without --no-build" >&2
+    exit 65 ;;
+  esac
+done
 
 log=$logs/$stamp-test.log
 echo "log: $log"
