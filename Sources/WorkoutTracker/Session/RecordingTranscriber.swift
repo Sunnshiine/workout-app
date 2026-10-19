@@ -86,24 +86,3 @@ struct DecodeTimings: Equatable, Sendable {
     let tokens: Int
     let fallbacks: Int
 }
-
-/// A recording engine with one answer for every press: a phone with no model yet, and a Simulator
-/// or fixture launch, which never has one.
-final class CannedRecordingTranscriber: RecordingTranscriber {
-    private let answer: RecordingDecode.Result
-
-    init(answering answer: RecordingDecode.Result) {
-        self.answer = answer
-    }
-
-    var readiness: SpeechModelState {
-        guard case .heard = answer else { return .absent }
-        return .ready
-    }
-
-    func expectRecording() {}
-
-    @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode {
-        RecordingDecode(result: answer, timings: nil)
-    }
-}

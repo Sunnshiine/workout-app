@@ -23,9 +23,9 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        // No phone has a recording engine's model yet, so the Live Transcript decides every press.
-        let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
-        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0, reader: reader, journal: app.dictationJournal) }
+        let dictation = Self.speech().map {
+            SetDictation(transcriber: $0.live, reader: $0.recording, journal: app.dictationJournal)
+        }
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)
@@ -70,18 +70,31 @@ struct WorkoutTrackerApp: App {
         return .device()
     }
 
+    /// The two engines a press listens with: SpeechAnalyzer for the Live Transcript and Whisper for
+    /// the Recording Transcript.
+    private struct Speech {
+        let live: any SetTranscriber
+        let recording: any RecordingTranscriber
+    }
+
     /// SpeechAnalyzer does not run in the Simulator, so a Simulator card has a mic only when a
-    /// fixture launch names what it hears.
-    private static func setTranscriber() -> (any SetTranscriber)? {
+    /// fixture launch names what it hears. Only a phone makes the recording engine, so no Simulator
+    /// or lane ever downloads its model.
+    private static func speech() -> Speech? {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.launch.dictatedTranscript.map { CannedSetTranscriber(candidates: [$0]) }
+                return UITestFixture.launch.dictatedTranscript.map {
+                    Speech(
+                        live: CannedSetTranscriber(candidates: [$0]),
+                        recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
+                    )
+                }
             }
         #endif
         #if targetEnvironment(simulator)
             return nil
         #else
-            return SpeechAnalyzerSetTranscriber()
+            return Speech(live: SpeechAnalyzerSetTranscriber(), recording: WhisperEngine(models: .applicationSupport))
         #endif
     }
 
