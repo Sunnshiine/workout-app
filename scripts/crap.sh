@@ -21,8 +21,9 @@ scripts/crap.sh [measure|gate|baseline] [options]
 
   --no-test          Reuse the existing coverage profile instead of running swift test.
   --xcodebuild DIR   Run the tests with xcodebuild and its compilation cache instead of swift test.
-                     DIR holds DerivedData, SourcePackages, and CompilationCache. Cache hits need
-                     the same absolute paths for the checkout and DIR on every run (CI).
+                     DIR holds DerivedData, SourcePackages, and CompilationCache. This run maps
+                     no path prefixes, so cache hits need the same absolute paths for the checkout
+                     and DIR on every run, as CI keeps them (ADR-0021 maps them for local builds).
   --top N            Rows to print for measure (default 25).
   --threshold N      CRAP a function must stay at or below (default 6).
   --tolerance N      Slack before a baselined function counts as worsened (default 0.5).

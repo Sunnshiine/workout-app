@@ -174,9 +174,11 @@ jobs:
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
-      # Compilation cache keys embed absolute paths, and Xcode's prefix mapping does not remove
-      # them for this project, so DerivedData, the package checkouts, and the cache stay pinned
-      # under runner.temp. Moving any of them turns every cached compile into a miss.
+      # Compilation cache keys embed absolute paths. Prefix maps for the checkout and DerivedData
+      # would remove them, but a mapped compile also bakes the mapped path into #filePath, which
+      # the snapshot tests read to find their references (ADR-0021). This job maps none, so
+      # DerivedData, the package checkouts, and the cache stay pinned under runner.temp. Moving any
+      # of them turns every cached compile into a miss.
       - name: Restore package checkouts
         uses: actions/cache@v4
         with:
