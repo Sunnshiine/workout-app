@@ -115,6 +115,11 @@ import Testing
         #expect(try proof.decisionDeadline == .milliseconds(20_500))
     }
 
+    @Test func aDecisionDeadlineUnderASecondIsReadToTheMillisecond() throws {
+        let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DECISION_DEADLINE", "0.25"])
+        #expect(try launch.decisionDeadline == .milliseconds(250))
+    }
+
     @Test(arguments: ["", "soon", "0", "-1"])
     func aDecisionDeadlineThatIsNotSecondsAboveZeroStopsTheLaunch(value: String) {
         let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DECISION_DEADLINE", value])
