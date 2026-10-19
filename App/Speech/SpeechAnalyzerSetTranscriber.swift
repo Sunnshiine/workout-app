@@ -94,50 +94,14 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
     ) throws {
         let node = engine.inputNode
         let hardwareFormat = node.outputFormat(forBus: 0)
-        guard let toAnalyzer = Conversion(from: hardwareFormat, to: analyzerFormat),
-            let recordingFormat = AVAudioFormat(
-                commonFormat: .pcmFormatFloat32,
-                sampleRate: Double(DictationRecorder.sampleRate),
-                channels: 1,
-                interleaved: false
-            ),
-            let toRecording = Conversion(from: hardwareFormat, to: recordingFormat)
+        guard let toAnalyzer = MicConversion(from: hardwareFormat, to: analyzerFormat),
+            let toRecording = MicConversion.toRecording(from: hardwareFormat)
         else { throw SetTranscriberError.failed }
         node.installTap(onBus: 0, bufferSize: 4096, format: hardwareFormat) { buffer, _ in
             if let converted = toAnalyzer.convert(buffer) {
                 input.yield(AnalyzerInput(buffer: converted))
             }
-            if let converted = toRecording.convert(buffer), let samples = converted.floatChannelData {
-                recorder.append(UnsafeBufferPointer(start: samples[0], count: Int(converted.frameLength)))
-            }
-        }
-    }
-
-    /// One converter from the mic's format, kept across buffers so a resampler carries its state
-    /// from each buffer to the next.
-    private struct Conversion {
-        let converter: AVAudioConverter
-        let format: AVAudioFormat
-        let ratio: Double
-
-        init?(from source: AVAudioFormat, to format: AVAudioFormat) {
-            guard let converter = AVAudioConverter(from: source, to: format) else { return nil }
-            converter.primeMethod = .none
-            self.converter = converter
-            self.format = format
-            ratio = format.sampleRate / source.sampleRate
-        }
-
-        func convert(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
-            let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up))
-            guard let converted = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: capacity) else { return nil }
-            var consumed = false
-            let status = converter.convert(to: converted, error: nil) { _, inputStatus in
-                defer { consumed = true }
-                inputStatus.pointee = consumed ? .noDataNow : .haveData
-                return consumed ? nil : buffer
-            }
-            return status != .error && converted.frameLength > 0 ? converted : nil
+            toRecording.record(buffer, into: recorder)
         }
     }
 }
