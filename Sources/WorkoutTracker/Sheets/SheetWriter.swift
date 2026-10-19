@@ -2,7 +2,7 @@ import Foundation
 
 struct SheetWriteRequest: Sendable, Equatable {
     var session: SessionCoordinate
-    var exerciseName: String
+    var exercise: ExerciseReference
     var setIndex: Int
     var column: PendingWriteColumn
     var operation: PendingWriteOperation
@@ -14,7 +14,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         guard write.namesOneSession(on: layout) else { return nil }
         self.init(
             session: write.recordedSession,
-            exerciseName: write.exerciseName,
+            exercise: write.exercise,
             setIndex: write.setIndex,
             column: write.column,
             operation: write.operation,
@@ -25,7 +25,7 @@ struct SheetWriteRequest: Sendable, Equatable {
 
     init(
         session: SessionCoordinate,
-        exerciseName: String,
+        exercise: ExerciseReference,
         setIndex: Int,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -33,7 +33,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         expectedCurrentValue: String
     ) {
         self.session = session
-        self.exerciseName = exerciseName
+        self.exercise = exercise
         self.setIndex = setIndex
         self.column = column
         self.operation = operation
@@ -53,9 +53,9 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
     case dayRepeated(Int)
     case dayHeadersChangedMeaning
     case columnNotFound(String)
-    case exerciseNotFound(String)
-    case setRowNotFound(exerciseName: String, setIndex: Int)
-    case headerNotesBlockSetRow(exerciseName: String, setIndex: Int)
+    case exerciseNotFound(ExerciseReference)
+    case setRowNotFound(exercise: ExerciseReference, setIndex: Int)
+    case headerNotesBlockSetRow(exercise: ExerciseReference, setIndex: Int)
     case unexpectedCurrentValue(expected: String, actual: String)
 
     var errorDescription: String? {
@@ -66,11 +66,11 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
         case .dayHeadersChangedMeaning:
             return "The sheet's Day headers changed meaning since this Set was logged. Log it again."
         case .columnNotFound(let column): return "\(column) column was not found"
-        case .exerciseNotFound(let name): return "\(name) was not found in the sheet"
-        case .setRowNotFound(let name, let index): return "Set \(index + 1) row was not found for \(name)"
-        case .headerNotesBlockSetRow(let name, let index):
+        case .exerciseNotFound(let exercise): return "\(exercise.label) was not found in the sheet"
+        case .setRowNotFound(let exercise, let index): return "Set \(index + 1) row was not found for \(exercise.label)"
+        case .headerNotesBlockSetRow(let exercise, let index):
             return """
-                Set \(index + 1) for \(name) cannot be written because existing header Notes prevent writing there, \
+                Set \(index + 1) for \(exercise.label) cannot be written because existing header Notes prevent writing there, \
                 and no safe Set row exists before the next Exercise. Add a row in the Sheet, clear or migrate the \
                 existing header note, then sync again.
                 """
@@ -119,7 +119,7 @@ enum SheetWriteAddressing: Sendable {
         case .columnNotFound(let header):
             throw SheetWriterError.columnNotFound(header)
         case .exerciseNotFound:
-            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+            throw SheetWriterError.exerciseNotFound(request.exercise)
         case .lastSetRPE(let anchor, let col):
             return (anchor.row, col)
         case .setLog(_, let resolution):
@@ -137,12 +137,9 @@ extension SetLogPlacementResolution {
         case .placed(let placement):
             return (placement.row, placement.col)
         case .protectedHeaderBlocksSetRow:
-            throw SheetWriterError.headerNotesBlockSetRow(
-                exerciseName: request.exerciseName,
-                setIndex: request.setIndex
-            )
+            throw SheetWriterError.headerNotesBlockSetRow(exercise: request.exercise, setIndex: request.setIndex)
         case .setRowNotFound:
-            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+            throw SheetWriterError.setRowNotFound(exercise: request.exercise, setIndex: request.setIndex)
         case .notesColumnMissing:
             throw SheetWriterError.columnNotFound("Notes")
         }
@@ -269,9 +266,9 @@ struct SheetWritePlanner: Sendable {
             }
         guard let col else { return .columnNotFound(header: header) }
 
-        guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
-            return .exerciseNotFound
-        }
+        let sameNamed = day.exerciseAnchors.filter { $0.name == request.exercise.name.entered }
+        guard sameNamed.indices.contains(request.exercise.ordinal) else { return .exerciseNotFound }
+        let anchor = sameNamed[request.exercise.ordinal]
         switch request.column {
         case .lastSetRPE:
             return .lastSetRPE(anchor: anchor, col: col)

@@ -313,7 +313,7 @@ extension SyncCoordinator {
         let message = conflict.error.errorDescription ?? String(describing: conflict.error)
         write.markConflict(message)
         recordWriteTargetAudit(for: write, details: conflict.auditDetails, finalStatus: .conflict, message: message)
-        return "\(write.exerciseName): \(message)"
+        return "\(write.exercise.name.entered): \(message)"
     }
 
     fileprivate func recordRetry(for write: PendingWrite, error: any Error) {
@@ -405,7 +405,7 @@ extension SyncCoordinator {
         context.insert(
             WriteTargetAuditEntry(
                 recordedSession: write.recordedSession,
-                exerciseName: write.exerciseName,
+                exerciseName: write.exercise.name.entered,
                 setIndex: write.setIndex,
                 column: write.column,
                 selectedA1Target: details.selectedA1Target,

@@ -209,7 +209,7 @@ extension WorkoutApplication {
     }
 
     fileprivate func conflictMessages(in writes: [PendingWrite]) -> [String] {
-        writes.filter { $0.status == .conflict }.map { "\($0.exerciseName): \($0.lastError ?? "conflict")" }
+        writes.filter { $0.status == .conflict }.map { "\($0.exercise.name.entered): \($0.lastError ?? "conflict")" }
     }
 
     fileprivate func orderedSessions() -> [AddressedSession] {

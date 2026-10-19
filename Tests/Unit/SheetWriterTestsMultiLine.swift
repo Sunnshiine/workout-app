@@ -118,7 +118,7 @@ private func multiLineNotesRequest(
         _ = try planner.plan(multiLineNotesRequest("Comp BP", 0, value: "95x5@6"), in: grid)
         Issue.record("Expected the Coach Note Line write to be refused")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Comp BP", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Comp BP"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

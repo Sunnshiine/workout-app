@@ -33,7 +33,7 @@
                 createdAt: Date(timeIntervalSinceReferenceDate: 0),
                 session: SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: 1, day: 1)),
                 dayNumbering: .headerNumber,
-                exerciseName: "Back Squat",
+                exercise: ExerciseReference(name: "Back Squat", ordinal: 0),
                 setIndex: 0,
                 column: .notes,
                 operation: .upsert,

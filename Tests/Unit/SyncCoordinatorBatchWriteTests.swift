@@ -340,7 +340,7 @@ private func batchPendingWrite(
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.count == 1)
     let conflict = try #require(writes.first)
-    #expect(conflict.exerciseName == "Bench Press")
+    #expect(conflict.exercise == .first("Bench Press"))
     #expect(conflict.status == .conflict)
     #expect(refusedWrites(sync.outcome) != nil)
 }
