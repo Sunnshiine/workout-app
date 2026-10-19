@@ -168,7 +168,7 @@ actor DictationRecordFiles: DictationRecordStore {
 
     func append(_ record: DictationRecord) throws {
         var counts = try counts ?? keptCounts()
-        let file = directory.appending(path: "records-\(record.pressedAt.formatted(.iso8601.year().month())).jsonl")
+        let file = directory.appending(path: Self.fileName(for: record.pressedAt))
         let line = try DictationRecord.lineEncoder().encode(record) + Data("\n".utf8)
         if let handle = try? FileHandle(forWritingTo: file) {
             defer { try? handle.close() }
@@ -183,6 +183,11 @@ actor DictationRecordFiles: DictationRecordStore {
             counts[oldest] = nil
         }
         self.counts = counts
+    }
+
+    /// The month's file a press made at `pressedAt` goes in, as "records-2026-10.jsonl".
+    static func fileName(for pressedAt: Date) -> String {
+        "records-\(pressedAt.formatted(.iso8601.year().month())).jsonl"
     }
 
     func records() throws -> [DictationRecord] {

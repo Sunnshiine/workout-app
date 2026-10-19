@@ -222,8 +222,13 @@ transcript the model heard.
 
 ## Dictation Records
 
-A journal copied off a phone is what `summary` and `replay` read, with the `labels.json` an export
-writes beside it.
+Settings > Speech > Export shares one archive, `Dictation Records.zip`, through
+the share sheet. It holds the phone's journal as `records-YYYY-MM.jsonl` files, a `labels.json`,
+and, once iOS has delivered any, a `MetricKit` folder of its hang and memory payloads. The export labels each
+record whose outcome wrote a Set with what that Set holds now, read from the cached Block. The
+same Set Log means the write stood, another means the athlete corrected it, and Pending means they
+cleared it. A record whose Set is gone, because the Block moved on or the Exercise changed, has no
+label.
 
 `replay` scores those presses under every `MergeRule` from the outcomes each record kept in
 `byRule`, so `lead`, which ships, can be weighed against `gate` on real presses. It groups them by
@@ -235,8 +240,8 @@ and says so. With them, each rule scores the labelled presses in the classes
 scores with.
 
 ```console
-$ ditto -x -k ~/Downloads/"Dictation Records.zip" ~/Downloads/dictations
-$ workout dictations replay ~/Downloads/dictations --labels ~/Downloads/dictations/labels.json \
+$ ditto -x -k ~/Downloads/"Dictation Records.zip" ~/Downloads && cd ~/Downloads/"Dictation Records"
+$ workout dictations replay . --labels labels.json \
     | jq -c '.versions[0].rules | map_values(.scored)'
 {"gate":{"CORRECT":1,"NOWRITE":1,"WRONG":0,"unscored":2},"lead":{"CORRECT":1,"NOWRITE":0,"WRONG":1,"unscored":2},...}
 ```
