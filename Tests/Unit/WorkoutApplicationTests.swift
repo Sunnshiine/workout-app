@@ -215,7 +215,14 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(
+            storage: .inMemory,
+            dictationRecords: .inMemory,
+            sheetsClient: client,
+            defaults: .inMemory(),
+            now: { frozenNow },
+            seed: nil
+        )
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 
@@ -232,7 +239,14 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow }, seed: nil)
+        environment: AppEnvironment(
+            storage: .inMemory,
+            dictationRecords: .inMemory,
+            sheetsClient: client,
+            defaults: .inMemory(),
+            now: { frozenNow },
+            seed: nil
+        )
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 

@@ -23,6 +23,13 @@ struct RecordingDecode: Equatable, Sendable {
     enum Result: Equatable, Sendable {
         case heard(String, segments: [SegmentScore])
         case missing(RecordingMiss)
+
+        /// The Recording Transcript. A reading with no words in it is nothing heard, which no
+        /// transcript should lead a press with.
+        var transcript: String? {
+            guard case .heard(let text, _) = self, !text.allSatisfy(\.isWhitespace) else { return nil }
+            return text
+        }
     }
 
     let result: Result
@@ -34,12 +41,7 @@ struct RecordingDecode: Equatable, Sendable {
         RecordingDecode(result: .missing(miss), timings: nil)
     }
 
-    /// The Recording Transcript. A reading with no words in it is nothing heard, which no transcript
-    /// should lead a press with.
-    var transcript: String? {
-        guard case .heard(let text, _) = result, !text.allSatisfy(\.isWhitespace) else { return nil }
-        return text
-    }
+    var transcript: String? { result.transcript }
 }
 
 /// Why the recording engine read nothing for a press.

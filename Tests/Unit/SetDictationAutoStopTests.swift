@@ -27,7 +27,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func handsFreeListeningEndsTheSilenceWindowAfterTheLastWordAndWritesWhatWasHeard() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation()
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: window, orRecord: "Nothing heard, it never looked again a silence window on")
 
     clock.advance(by: .milliseconds(500))
@@ -49,7 +49,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func aTranscriptHeardAgainUnchangedDoesNotRestartTheSilenceWindow() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation()
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
 
     clock.advance(by: .milliseconds(500))
@@ -66,7 +66,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func handsFreeListeningThatHearsNothingByTheCapWritesNothing() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation()
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
 
     clock.advance(by: cap - .milliseconds(100))
@@ -83,7 +83,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func theCapEndsHandsFreeListeningThatNeverFallsQuiet() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation()
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
 
     clock.advance(by: cap - .milliseconds(500))
@@ -98,7 +98,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func theCapCountsFromWhenTheMicWentLiveNotFromThePress() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation(holdingStart: true)
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
 
     clock.advance(by: cap + .seconds(2))
@@ -114,7 +114,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @MainActor
 @Test func aTapOnTheMicFinishesHandsFreeListeningAndTheAutoStopWritesNothingMore() async {
     let (dictation, transcriber, clock) = makeHandsFreeDictation()
-    let listening = Task { await dictation.listenUntilQuiet(for: firstSet) { squat } }
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
     transcriber.say("skip")
 
@@ -130,7 +130,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
 @Test func aMicThatWillNotStartRejectsHandsFreeListeningAtOnce() async {
     let (dictation, _, _) = makeHandsFreeDictation(failingToStart: .microphoneDenied)
 
-    let rejected = await dictation.listenUntilQuiet(for: firstSet) { squat }
+    let rejected = await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat }
 
     #expect(rejected == .rejected(.transcriber(.microphoneDenied), heard: ""))
 }
@@ -141,19 +141,77 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
     let secondSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
     #expect(dictation.start(for: secondSet))
 
-    #expect(await dictation.listenUntilQuiet(for: firstSet) { squat } == nil)
+    #expect(await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } == nil)
     #expect(dictation.state.pressSetID == secondSet)
     #expect(!dictation.start(for: firstSet))
 }
 
 @MainActor
+@Test func aHandsFreePressRecordsWhenItWentLiveWasHeardAndStopped() async throws {
+    let journal = DictationJournal(storage: .inMemory)
+    let (dictation, transcriber, clock) = makeHandsFreeDictation(holdingStart: true, keepingRecordsIn: journal)
+    let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .headless) { squat } }
+    await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
+    clock.advance(by: .milliseconds(150))
+    transcriber.starting.release()
+    await clock.waitUntilSleeping(until: .milliseconds(150) + window, orRecord: "It never waited for a first word")
+
+    clock.advance(by: .milliseconds(250))
+    transcriber.say("135 for")
+    clock.advance(by: .milliseconds(600))
+    transcriber.say("135 for 4 at 9")
+    clock.advance(by: .milliseconds(350))
+    await clock.waitUntilSleeping(until: .milliseconds(1000) + window, orRecord: "It never waited out the silence")
+    clock.advance(by: .milliseconds(850))
+    _ = await listening.value
+
+    let record = try #require(try await journal.records().first)
+    #expect(record.surface == .headless)
+    #expect(
+        record.timeline
+            == DictationRecord.Timeline(
+                live: 150,
+                firstHeard: 400,
+                lastHeard: 1000,
+                ended: 2200,
+                liveFinished: 2200,
+                recordingRead: nil,
+                recordingDropped: nil,
+                decided: 2200
+            )
+    )
+    #expect(record.decided?.end == .silence)
+    #expect(record.decided?.live.captionChanges == 2)
+}
+
+@MainActor
+@Test func aHandsFreePressThatHeardNothingOrNeverStartedNeverAsksTheRecordingEngine() async throws {
+    let journal = DictationJournal(storage: .inMemory)
+    let (unheard, _, clock) = makeHandsFreeDictation(keepingRecordsIn: journal)
+    let listening = Task { await unheard.listenUntilQuiet(for: firstSet, on: .card) { squat } }
+    await clock.waitUntilSleeping(until: window, orRecord: "It never started waiting")
+    clock.advance(by: cap)
+    _ = await listening.value
+    let (unstarted, _, _) = makeHandsFreeDictation(failingToStart: .microphoneDenied, keepingRecordsIn: journal)
+    _ = await unstarted.listenUntilQuiet(for: firstSet, on: .card) { squat }
+
+    let records = try await journal.records().compactMap(\.decided)
+    #expect(records.map(\.end) == [.nothingHeard, .unstarted])
+    #expect(records.map(\.live.failure) == [.nothingHeard, .microphoneDenied])
+    #expect(records.map(\.recording.result) == [.missing(.notAsked), .missing(.notAsked)])
+    #expect(records.map(\.decision.outcome.kind) == [.rejected, .rejected])
+}
+
+@MainActor
 private func makeHandsFreeDictation(
     holdingStart: Bool = false,
-    failingToStart failure: SetTranscriberError? = nil
+    failingToStart failure: SetTranscriberError? = nil,
+    keepingRecordsIn journal: DictationJournal = DictationJournal(storage: .inMemory)
 ) -> (SetDictation, OpenMicTranscriber, ManualListeningClock) {
     let transcriber = OpenMicTranscriber(holdingStart: holdingStart, failingToStart: failure)
     let clock = ManualListeningClock()
-    return (SetDictation(transcriber: transcriber, clock: clock), transcriber, clock)
+    let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
+    return (SetDictation(transcriber: transcriber, reader: reader, journal: journal, clock: clock), transcriber, clock)
 }
 
 /// A transcriber that hears whatever the test says, when the test says it.

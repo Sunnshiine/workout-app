@@ -14,6 +14,8 @@ public final class WorkoutApplication {
     let historyFill: ExerciseHistoryFill
     let connection: SheetConnection
     let sheetsClient: any SheetsClient
+    /// Every press's Dictation Record, whichever surface pressed.
+    let dictationJournal: DictationJournal
 
     static let schema = Schema([
         Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
@@ -24,6 +26,7 @@ public final class WorkoutApplication {
         let context = container.mainContext
         try environment.seed?(context)
         sheetsClient = environment.sheetsClient
+        dictationJournal = DictationJournal(storage: environment.dictationRecords)
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,

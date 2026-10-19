@@ -49,6 +49,21 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 /// A recording with the app behind must have a Live Activity up, so with Live Activities off for
 /// the app nothing listens, and the press says what to turn on instead of recording unseen.
 @MainActor
+@Test func aPressWithThePhoneLockedIsRecordedHeadlessForTheSetItWasFor() async throws {
+    let harness = try await Harness(hearing: ["235 for 5 at 7"])
+    let exercise = try harness.app.session(nil).exercises[0]
+
+    _ = await harness.runUntilQuiet()
+
+    let record = try #require(try await harness.app.dictationJournal.records().first)
+    #expect(record.surface == .headless)
+    let set = try #require(record.decided?.set.set)
+    #expect(set.exercise == exercise.name)
+    #expect(set.address.description == "w1d1.e0.s0")
+    #expect(set.block == "Block 27")
+}
+
+@MainActor
 @Test func withLiveActivitiesOffNothingListensAndThePressSaysWhatToTurnOn() async throws {
     let harness = try await Harness(hearing: ["235 for 5 at 7"])
     harness.liveActivity.isUp = false
@@ -650,6 +665,7 @@ private struct Harness {
         app = try WorkoutApplication(
             environment: AppEnvironment(
                 storage: .inMemory,
+                dictationRecords: .inMemory,
                 sheetsClient: sheet ?? HeldWriteSheetsClient(holding: false),
                 defaults: .inMemory(),
                 now: { frozenNow },
@@ -659,7 +675,12 @@ private struct Harness {
         if selectingSpreadsheet {
             _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
         }
-        dictation = SetDictation(transcriber: transcriber, clock: clock)
+        dictation = SetDictation(
+            transcriber: transcriber,
+            reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+            journal: app.dictationJournal,
+            clock: clock
+        )
         restTimer = RestTimer(clock: ManualRestClock(now: frozenNow), notificationScheduler: restNotifications, expiryScheduler: restExpiry)
         background = BackgroundDictation(
             app: app,

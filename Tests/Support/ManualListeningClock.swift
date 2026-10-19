@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import WorkoutTracker
@@ -7,6 +8,7 @@ import Testing
 @MainActor
 final class ManualListeningClock: ListeningClock {
     private(set) var now: Duration = .zero
+    var date: Date { Date(timeIntervalSince1970: 1_792_400_000) + TimeInterval(now.wholeMilliseconds) / 1000 }
     private var sleepers: [(deadline: Duration, wake: CheckedContinuation<Void, Never>)] = []
 
     func sleep(until deadline: Duration) async {

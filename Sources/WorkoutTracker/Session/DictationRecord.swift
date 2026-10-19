@@ -32,6 +32,8 @@ struct DictationRecord: Equatable, Sendable {
     /// How a decided press ended: the athlete let go, or listening with no hand on the mic stopped.
     enum PressEnd: String, Codable, Sendable {
         case released, silence, cap, nothingHeard
+        /// Listening with no hand on the mic never began: the live engine failed to start.
+        case unstarted
     }
 
     struct Live: Codable, Equatable, Sendable {
@@ -120,6 +122,70 @@ extension DictationRecord {
             (timeline.recordingDropped == nil ? .recordingTranscript : .decisionDeadline, decided - finalized)
         ]
         return shares.max { $0.1 < $1.1 }?.0
+    }
+}
+
+extension DictationRecord.PressEnd {
+    init(_ reason: SetDictation.StopReason) {
+        switch reason {
+        case .silence: self = .silence
+        case .cap: self = .cap
+        case .nothingHeard: self = .nothingHeard
+        }
+    }
+}
+
+extension DictationRecord.Live {
+    init(_ live: LiveHearing, captionChanges: Int) {
+        switch live {
+        case .transcripts(let candidates): self.init(candidates: candidates, failure: nil, captionChanges: captionChanges)
+        case .failed(let failure, _): self.init(candidates: [], failure: failure, captionChanges: captionChanges)
+        }
+    }
+}
+
+extension DictationRecord.Recording {
+    init(modelAtPress: SpeechModelState, modelAtEnd: SpeechModelState, decode: RecordingDecode, of recording: DictationRecording) {
+        self.init(
+            modelAtPress: modelAtPress,
+            modelAtEnd: modelAtEnd,
+            result: decode.result,
+            audioSeconds: Double(recording.samples.count) / Double(DictationRecorder.sampleRate),
+            truncated: recording.isTruncated,
+            decodeMs: decode.timings
+        )
+    }
+}
+
+extension DictationRecord.Decision {
+    /// `decision`, the shipped rule's, beside what every rule decides from the same hearing.
+    init(_ decision: SetDictation.Decision, of hearing: Hearing, in context: SpokenSetContext) {
+        self.init(
+            rule: .shipped,
+            agreement: decision.agreement,
+            outcome: DictationRecord.Outcome(decision.outcome),
+            live: DictationRecord.Outcome(decision.live),
+            recording: decision.recording.map(DictationRecord.Outcome.init),
+            byRule: Dictionary(
+                uniqueKeysWithValues: MergeRule.allCases.map { ($0, DictationRecord.Outcome($0.decide(hearing, in: context).outcome)) }
+            )
+        )
+    }
+}
+
+extension DictationRecord.Timeline {
+    init(_ timeline: PressTimeline) {
+        func since(_ instant: Duration) -> Int { (instant - timeline.pressedAt).wholeMilliseconds }
+        self.init(
+            live: timeline.wentLiveAt.map(since),
+            firstHeard: timeline.firstHeardAt.map(since),
+            lastHeard: timeline.lastHeardAt.map(since),
+            ended: since(timeline.endedAt ?? timeline.pressedAt),
+            liveFinished: timeline.liveFinishedAt.map(since),
+            recordingRead: timeline.recordingReadAt.map(since),
+            recordingDropped: timeline.recordingDroppedAt.map(since),
+            decided: timeline.decidedAt.map(since)
+        )
     }
 }
 

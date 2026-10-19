@@ -10,6 +10,7 @@ public struct AppEnvironment {
     }
 
     let storage: Storage
+    let dictationRecords: DictationJournal.Storage
     let sheetsClient: any SheetsClient
     let defaults: AppDefaults
     let now: @MainActor () -> Date
@@ -23,6 +24,7 @@ public struct AppEnvironment {
         ) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
+                dictationRecords: .inMemory,
                 sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
                 defaults: .inMemory(),
                 now: now,
@@ -31,8 +33,8 @@ public struct AppEnvironment {
         }
 
         /// An application that keeps its store in `home/store.sqlite`, its settings in
-        /// `home/settings.json`, and its Sheet in `workbookFile`, writing the workbook back after every
-        /// successful Sheet update.
+        /// `home/settings.json`, its Dictation Records in `home/dictation-records`, and its Sheet in
+        /// `workbookFile`, writing the workbook back after every successful Sheet update.
         public static func directory(
             _ home: URL,
             workbookFile: URL,
@@ -40,6 +42,7 @@ public struct AppEnvironment {
         ) throws -> AppEnvironment {
             AppEnvironment(
                 storage: .file(home.appendingPathComponent("store.sqlite")),
+                dictationRecords: .directory(home.appending(path: "dictation-records")),
                 sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
                 defaults: try .file(home.appendingPathComponent("settings.json")),
                 now: now,
@@ -48,9 +51,12 @@ public struct AppEnvironment {
         }
     #endif
 
+    static let deviceDictationRecords = URL.applicationSupportDirectory.appending(path: "Dictation Records")
+
     static func device() -> AppEnvironment {
         AppEnvironment(
             storage: .deviceDefault,
+            dictationRecords: .directory(Self.deviceDictationRecords),
             sheetsClient: GoogleSheetsClient(),
             defaults: .device(),
             now: Date.init,
@@ -62,6 +68,8 @@ public struct AppEnvironment {
         static func uiTestFixture(launch: UITestLaunch) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
+                // On disk, so a fixture press's record can be read from the Simulator's container.
+                dictationRecords: .directory(Self.deviceDictationRecords),
                 sheetsClient: UITestFixture.makeSheetsClient(launch: launch),
                 defaults: .inMemory(),
                 now: Date.init,

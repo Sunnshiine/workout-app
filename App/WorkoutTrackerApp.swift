@@ -25,7 +25,7 @@ struct WorkoutTrackerApp: App {
         _app = State(initialValue: app)
         // No phone has a recording engine's model yet, so the Live Transcript decides every press.
         let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
-        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0, reader: reader) }
+        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0, reader: reader, journal: app.dictationJournal) }
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)
