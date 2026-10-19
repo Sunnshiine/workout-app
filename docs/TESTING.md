@@ -67,6 +67,14 @@ the warm edit loop. A build log counts what it reused with
 `grep -c '^Cache hit' .build/test-sim/<stamp>-build.log`. `WORKOUT_COMPILE_CACHE=0` builds without
 the cache.
 
+A lane's first `test-sim.sh` build also skips resolving the Swift packages. `scripts/seed-packages.sh`
+clones them from the dependency store (`docs/agents/dependency-store.md`) into a DerivedData dir that
+has none, keyed by `Package.resolved` and the Xcode build, and a build that had to resolve them
+publishes them for the next lane. A seeded lane fetches none of the 12 packages, keeps about 2 MB
+of its own blocks instead of 397 MB, and spends about 2 s less resolving at moderate load. It prints one `seed-packages:` line on stderr
+whenever it seeds, misses, or falls back. `WORKOUT_SEED_PACKAGES=0` resolves as Xcode does, and
+`lane.sh down` prunes the store to 2 GB.
+
 ## AI-Generated Code Gate
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the
