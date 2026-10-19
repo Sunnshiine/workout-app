@@ -87,7 +87,6 @@ final class BackgroundDictation {
     private let clock: any ListeningClock
     /// Held so the flush outlives `flushWait`; nil until a write asks for one.
     private(set) var flushing: Task<FlushReport?, Never>?
-    private let flushWait = BoundedWait()
 
     init(
         app: WorkoutApplication,
@@ -297,7 +296,7 @@ final class BackgroundDictation {
         }
         let flushing = Task { @MainActor [app] in try? await app.flush() }
         self.flushing = flushing
-        await flushWait.wait(for: flushing, until: clock.now + Self.flushWait, on: clock)
+        await BoundedWait.wait(for: flushing, until: clock.now + Self.flushWait, on: clock)
     }
 }
 
@@ -358,28 +357,37 @@ extension SetLogDraft.Field {
 
 /// Waits for an operation or a deadline, whichever comes first, and lets the operation run on.
 @MainActor
-final class BoundedWait {
-    private var waiting: CheckedContinuation<Void, Never>?
+final class BoundedWait<Value: Sendable> {
+    private var waiting: CheckedContinuation<Value?, Never>?
     private var operationWatch: Task<Void, Never>?
     private var deadlineWatch: Task<Void, Never>?
 
-    func wait<Value: Sendable>(for operation: Task<Value, Never>, until deadline: Duration, on clock: any ListeningClock) async {
-        await withCheckedContinuation { continuation in
-            waiting = continuation
-            operationWatch = Task { @MainActor [weak self] in
-                _ = await operation.value
-                self?.finish()
+    private init() {}
+
+    /// The operation's value when it finishes first, nil at the deadline. A deadline already past
+    /// is nil at once, so a finished operation never races a passed deadline.
+    @discardableResult
+    static func wait(for operation: Task<Value, Never>, until deadline: Duration, on clock: any ListeningClock) async -> Value? {
+        guard clock.now < deadline else { return nil }
+        let wait = BoundedWait()
+        return await withCheckedContinuation { continuation in
+            wait.waiting = continuation
+            wait.operationWatch = Task { @MainActor in
+                let value = await operation.value
+                wait.settle(value)
             }
-            deadlineWatch = Task { @MainActor [weak self] in
+            wait.deadlineWatch = Task { @MainActor in
                 await clock.sleep(until: deadline)
-                self?.finish()
+                wait.settle(nil)
             }
         }
     }
 
-    private func finish() {
-        let waiting = waiting
+    private func settle(_ value: Value?) {
+        guard let waiting else { return }
         self.waiting = nil
-        waiting?.resume()
+        waiting.resume(returning: value)
+        operationWatch?.cancel()
+        deadlineWatch?.cancel()
     }
 }
