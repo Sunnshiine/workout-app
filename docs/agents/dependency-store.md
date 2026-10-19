@@ -3,9 +3,10 @@
 <!-- doc-symbols: not-in-tree workspace-state.json info.plist PbxCp.swift -->
 
 `scripts/dep-store.sh` keeps one copy of each large, immutable build input on this Mac and hands
-every lane an APFS clone of it. Ten lanes that need the same 384 MB of resolved Swift packages,
-or the same 465 MB Core ML model, cost one copy on disk plus about 1.5 MB of metadata per clone,
-not ten copies. `scripts/dep-store.sh --help` is the interface; this note is the design.
+every lane an APFS clone of it. Ten lanes that need the same resolved Swift packages (about 250 MB
+of blocks per lane today) or the same 465 MB Core ML model cost one copy on disk plus about 1.5 MB
+of metadata per clone, not ten copies. `scripts/dep-store.sh --help` is the interface; this note is
+the design.
 
 ## Data shape
 
@@ -181,8 +182,10 @@ at all, so the git-file rewrite costs nothing. The rest of a seeded lane's 3.3 s
 the first build in a new worktree path, not to packages: three first builds at load under 130
 spent 3.3 to 3.8 s, and three later seeded builds in the same worktree 1.2 to 1.3 s. The cause
 is not measured. Seeding itself took 0.9 to 1.2 s, publishing 0.9 s once, and one clone used 0.3 to 2.2 MB
-of blocks (`df` on the Data volume) against 397 MB, of which the SwiftLint artifact is 211 MB, for
-a resolved `SourcePackages`. The unit suite from a seeded lane's full `test-sim.sh` run passed:
+of blocks (`df` on the Data volume). A cold lane's `SourcePackages` is 397 MB by `du`, of which the
+SwiftLint artifact is 211 MB, but its `repositories` are already clones of SwiftPM's shared cache
+(`~/Library/Caches/org.swift.swiftpm`), so a cold lane spends about 250 MB of its own blocks.
+The unit suite from a seeded lane's full `test-sim.sh` run passed:
 1263 passed, 1 expected failure, 0 failed. Its SwiftLint plugin ran from that lane's own
 DerivedData, and the producer's path survived only in the checkouts' reflogs, after the producing
 lane was already down.
