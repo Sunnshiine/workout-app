@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2016  # stubs hold literal $
 set -uo pipefail
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3

@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=HOST-ADMISSION-TEST-$$
