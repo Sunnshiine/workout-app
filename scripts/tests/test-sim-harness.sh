@@ -9,7 +9,7 @@ repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" \
-    "$repo/scripts/"
+    "$script_dir/../seed-packages.sh" "$script_dir/../seed-packages.py" "$script_dir/../dep-store.sh" "$repo/scripts/"
 mkdir -p "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes"
 cp "$script_dir/../../WorkoutTracker.xcodeproj/xcshareddata/xcschemes/WorkoutTracker.xcscheme" "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes/"
 touch "$products/../../info.plist"
@@ -28,7 +28,7 @@ echo "keyboard: stub"
 exit "${STUB_KEYBOARD_RC:-0}"
 STUB
 chmod +x "$repo/scripts/sim-keyboard.sh"
-export WORKOUT_MEM_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
+export WORKOUT_MEM_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks WORKOUT_DEP_STORE=$root/dep-store
 pass=0
 fail=0
 

@@ -24,7 +24,7 @@ exec "$real_git" "\$@"
 STUB
 chmod +x "$root/bin/git"
 export PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
-export WORKOUT_MEM_FLOOR=0
+export WORKOUT_MEM_FLOOR=0 WORKOUT_DEP_STORE="$root/dep-store"
 unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
@@ -73,7 +73,7 @@ g remote add origin "$root/origin.git"
 mkdir -p "$primary/scripts" "$primary/.githooks"
 cp "$scripts/../.gitignore" "$primary/.gitignore"
 cp "$scripts/../.githooks/post-checkout" "$primary/.githooks/"
-for s in lane.sh lane-help.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh; do
+for s in lane.sh lane-help.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh dep-store.sh; do
     cp "$scripts/$s" "$primary/scripts/"
 done
 printf '\000\001\002binary\n' >"$primary/app.bin"

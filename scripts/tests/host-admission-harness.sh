@@ -15,7 +15,8 @@ repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
-    "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" "$repo/scripts/"
+    "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" \
+    "$script_dir/../seed-packages.sh" "$script_dir/../seed-packages.py" "$script_dir/../dep-store.sh" "$repo/scripts/"
 cp "$script_dir/../../.agents/skills/verify/"verify.sh "$script_dir/../../.agents/skills/verify/"verify-*.sh "$repo/.agents/skills/verify/"
 mkdir -p "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes"
 cp "$script_dir/../../WorkoutTracker.xcodeproj/xcshareddata/xcschemes/WorkoutTracker.xcscheme" "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes/"
