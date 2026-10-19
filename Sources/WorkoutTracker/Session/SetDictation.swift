@@ -212,11 +212,13 @@ final class SetDictation {
         if let error = await starting.value {
             outcome = .rejected(.transcriber(error), heard: "")
         } else {
+            let live: LiveHearing
             do throws(SetTranscriberError) {
-                outcome = Self.outcome(of: try await transcriber.finish(), in: context)
+                live = .transcripts(try await transcriber.finish())
             } catch {
-                outcome = .rejected(.transcriber(error), heard: state.heard)
+                live = .failed(error, caption: state.heard)
             }
+            outcome = Self.decision(of: Hearing(live: live, recording: nil), in: context).outcome
         }
         state = .finished(set, outcome)
         return outcome
@@ -247,29 +249,6 @@ final class SetDictation {
         }
         if !heard.isEmpty, heard != state.heard { lastHeardAt = clock.now }
         state = .listening(set, heard: heard)
-    }
-
-    /// The write policy. A transcript writes only when the most likely one reads as a complete
-    /// Set Log or a skip, with a value it cut off settled by every alternative that hears the same
-    /// Set: a less likely transcript that reads on its own is a guess the athlete confirms.
-    nonisolated static func outcome(of candidates: [String], in context: SpokenSetContext) -> Outcome {
-        let heard = candidates.first ?? ""
-        let resolved = SpokenSet.parse(candidates: candidates).flatMap { chosen in
-            chosen.spokenSet.resolved(against: context.draft, previous: context.previous).map { (chosen.source, $0) }
-        }
-        switch resolved {
-        case .success((let source, let resolution)): return outcome(of: resolution, from: source, heard: heard)
-        case .failure(let rejection): return .rejected(.spokenSet(rejection), heard: heard)
-        }
-    }
-
-    private nonisolated static func outcome(of resolution: SpokenSetOutcome, from source: SpokenSet.Source, heard: String) -> Outcome {
-        let writes = source == .top
-        switch resolution {
-        case .log(let setLog): return writes ? .logged(setLog, heard: heard) : .filled(SetLogDraft(setLog), heard: heard)
-        case .skip: return writes ? .skipped(heard: heard) : .rejected(.spokenSet(.ambiguous), heard: heard)
-        case .missingValues(let values): return .filled(values, heard: heard)
-        }
     }
 }
 

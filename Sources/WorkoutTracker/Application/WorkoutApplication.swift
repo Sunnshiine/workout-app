@@ -145,7 +145,8 @@ extension WorkoutApplication {
     /// card, headless or from a recording, ends here.
     public func dictate(_ candidates: [String], at address: SetAddress) throws -> SayReport {
         let set = try resolveSet(address)
-        let outcome = SetDictation.outcome(of: candidates, in: SpokenSetContext(for: set, history: lastPerformed.snapshot))
+        let context = SpokenSetContext(for: set, history: lastPerformed.snapshot)
+        let outcome = SetDictation.decision(of: Hearing(live: .transcripts(candidates), recording: nil), in: context).outcome
         try write(outcome, to: set)
         return SayReport(outcome, report: try report(on: set, at: address))
     }

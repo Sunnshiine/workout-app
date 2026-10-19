@@ -124,7 +124,7 @@ private func segment(_ top: String, _ alternatives: String...) -> TranscriptSegm
     #expect(segments.candidates == ["", "185 for 5 at 8."])
     let unsaid = SpokenSetContext(draft: SetLogDraft(weight: nil, reps: nil, rpe: nil), previous: nil)
     #expect(
-        SetDictation.outcome(of: segments.candidates, in: unsaid)
+        SetDictation.decision(of: Hearing(live: .transcripts(segments.candidates), recording: nil), in: unsaid).outcome
             == .filled(SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight), heard: "")
     )
 }

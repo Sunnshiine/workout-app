@@ -7,7 +7,7 @@ private let squat = SpokenSetContext(draft: SetLogDraft(weight: .pounds(185), re
 private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 
 private func outcome(of candidates: [String], in context: SpokenSetContext = squat) -> SetDictation.Outcome {
-    SetDictation.outcome(of: candidates, in: context)
+    SetDictation.decision(of: Hearing(live: .transcripts(candidates), recording: nil), in: context).outcome
 }
 
 @Test func aCompleteSetLogReadFromTheTopTranscriptIsLogged() {
