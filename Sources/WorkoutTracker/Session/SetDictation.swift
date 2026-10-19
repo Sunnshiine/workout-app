@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 /// Why a transcriber returned no transcript.
-enum SetTranscriberError: Error, Equatable, Sendable {
+enum SetTranscriberError: String, Error, Equatable, Sendable, Codable {
     case microphoneDenied
     /// The device has no on-device speech model for the locale, or its assets would not install.
     case unavailable
@@ -47,6 +47,8 @@ final class ContinuousListeningClock: ListeningClock {
 
 /// What the Spoken Set for one Set resolves against.
 struct SpokenSetContext: Equatable, Sendable {
+    /// Which Set this is, for the press's Dictation Record. Nil for a Set the Block no longer holds.
+    let set: DictatedSet?
     /// What the Set's card shows, which fills what the athlete leaves unsaid.
     let draft: SetLogDraft
     /// The Exercise's nearest earlier structured Set Log in the Session, which "same again" logs.
@@ -63,7 +65,7 @@ extension SpokenSetContext {
     /// A Set whose card shows `draft`, which the athlete may have changed.
     @MainActor
     init(for set: ExerciseSet, showing draft: SetLogDraft) {
-        self.init(draft: draft, previous: set.earlierSetLogs.first?.setLog)
+        self.init(set: DictatedSet(set), draft: draft, previous: set.earlierSetLogs.first?.setLog)
     }
 
     /// What a Spoken Set for `set` resolves against on every path, the card's mic or a press with
@@ -79,6 +81,24 @@ extension SpokenSetContext {
     }
 }
 
+/// Which Set a press was for, in the terms that find it again after a reload.
+struct DictatedSet: Equatable, Sendable {
+    let block: String
+    let address: SetAddress
+    let exercise: String
+}
+
+extension DictatedSet {
+    @MainActor
+    init?(_ set: ExerciseSet) {
+        guard let exercise = set.exercise, let session = exercise.session, let week = session.week, let block = week.block else {
+            return nil
+        }
+        let address = ExerciseAddress(session: week.address(of: session), order: exercise.order)
+        self.init(block: block.tabName, address: SetAddress(exercise: address, index: set.index), exercise: exercise.name)
+    }
+}
+
 /// One press of the Active Set Card's mic, from the first word heard to the Spoken Set's outcome.
 @MainActor
 @Observable
@@ -91,6 +111,12 @@ final class SetDictation {
         /// The press ended and its outcome waits on the engines, for at most the Decision Deadline.
         case deciding(ActiveSetID, heard: String)
         case finished(ActiveSetID, Outcome)
+    }
+
+    /// Where a press came from: the card's mic, held or listening hands-free with the app on
+    /// screen, or a press that runs headless.
+    enum Surface: String, Codable, Sendable {
+        case card, headless
     }
 
     /// What a press does to its Set. Only `logged` and `skipped` write; `heard` is the top transcript.

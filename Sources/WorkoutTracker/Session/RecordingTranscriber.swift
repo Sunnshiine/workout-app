@@ -13,7 +13,7 @@ protocol RecordingTranscriber: Sendable {
 }
 
 /// Where the recording engine's model stands on this phone.
-enum SpeechModelState: Equatable, Sendable, Codable {
+enum SpeechModelState: String, Equatable, Sendable, Codable {
     case absent
     case ready
 }
@@ -43,7 +43,7 @@ struct RecordingDecode: Equatable, Sendable {
 }
 
 /// Why the recording engine read nothing for a press.
-enum RecordingMiss: Equatable, Sendable, Codable {
+enum RecordingMiss: Equatable, Sendable {
     case modelNotReady(SpeechModelState)
     /// Still decoding at the Decision Deadline, and cancelled.
     case late
@@ -63,7 +63,7 @@ struct SegmentScore: Equatable, Sendable, Codable {
     let temperature: Float
 }
 
-struct DecodeTimings: Equatable, Sendable, Codable {
+struct DecodeTimings: Equatable, Sendable {
     /// Waiting behind a previous, cancelled decode still unwinding.
     let queued: Duration
     let melSpectrogram: Duration
