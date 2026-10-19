@@ -317,7 +317,7 @@ extension WorkoutApplication {
         return exercise
     }
 
-    fileprivate func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
+    func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
         let exercise = try resolveExercise(address.exercise)
         guard let set = exercise.sets.first(where: { $0.index == address.index }) else {
             throw ApplicationError.notFound(
