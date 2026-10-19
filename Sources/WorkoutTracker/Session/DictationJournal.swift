@@ -14,7 +14,14 @@ final class DictationJournal: Sendable {
 
     private enum Entry: Sendable {
         case record(DictationRecord)
-        case read(CheckedContinuation<[DictationRecord], any Error>)
+        case payload(MetricKitPayload)
+        case read(CheckedContinuation<Kept, any Error>)
+    }
+
+    /// Everything a journal keeps, as one read sees it.
+    struct Kept: Equatable, Sendable {
+        let records: [DictationRecord]
+        let payloads: [MetricKitPayload]
     }
 
     private let inbox: AsyncStream<Entry>.Continuation
@@ -34,21 +41,32 @@ final class DictationJournal: Sendable {
         self.inbox = inbox
         writing = Task(priority: .utility) {
             for await entry in entries {
-                switch entry {
-                case .record(let record):
-                    do {
-                        try await store.append(record)
-                    } catch {
-                        journalLogger.error("A Dictation Record was not kept: \(error, privacy: .public)")
-                    }
-                case .read(let reading):
-                    do {
-                        reading.resume(returning: try await store.records())
-                    } catch {
-                        reading.resume(throwing: error)
-                    }
-                }
+                await Self.take(entry, into: store)
             }
+        }
+    }
+
+    private static func take(_ entry: Entry, into store: any DictationRecordStore) async {
+        switch entry {
+        case .record(let record):
+            await keeping("A Dictation Record") { try await store.append(record) }
+        case .payload(let payload):
+            await keeping("A MetricKit payload") { try await store.keep(payload) }
+        case .read(let reading):
+            do {
+                reading.resume(returning: Kept(records: try await store.records(), payloads: try await store.payloads()))
+            } catch {
+                reading.resume(throwing: error)
+            }
+        }
+    }
+
+    /// A write that fails is logged and dropped, so one bad write never stops the writer.
+    private static func keeping(_ what: String, _ write: () async throws -> Void) async {
+        do {
+            try await write()
+        } catch {
+            journalLogger.error("\(what, privacy: .public) was not kept: \(error, privacy: .public)")
         }
     }
 
@@ -61,9 +79,44 @@ final class DictationJournal: Sendable {
         inbox.yield(.record(record))
     }
 
+    /// Returns at once. Keeps a payload MetricKit delivered beside the records, so an export
+    /// carries the hangs and memory of the presses around it.
+    func keep(_ payload: MetricKitPayload) {
+        inbox.yield(.payload(payload))
+    }
+
     /// Every record kept, once every record appended before this call is written.
     func records() async throws -> [DictationRecord] {
+        try await kept().records
+    }
+
+    /// Every record and payload kept, once everything handed over before this call is written.
+    func kept() async throws -> Kept {
         try await withCheckedThrowingContinuation { inbox.yield(.read($0)) }
+    }
+}
+
+/// One payload as MetricKit delivered it, its JSON untouched: a day's metrics, or the diagnostics,
+/// hangs among them, it gathered.
+struct MetricKitPayload: Equatable, Sendable {
+    enum Kind: String, Sendable {
+        case metrics, diagnostics
+    }
+
+    /// Sorts payloads oldest first, as "2026-10-19T17-00-00Z-diagnostics.json". The same payload
+    /// delivered twice keeps one name.
+    let fileName: String
+    let json: Data
+
+    /// `endedAt` is the end of the window the payload covers.
+    init(kind: Kind, endedAt: Date, json: Data) {
+        fileName = "\(endedAt.formatted(.iso8601).replacingOccurrences(of: ":", with: "-"))-\(kind.rawValue).json"
+        self.json = json
+    }
+
+    fileprivate init(fileName: String, json: Data) {
+        self.fileName = fileName
+        self.json = json
     }
 }
 
@@ -71,10 +124,14 @@ final class DictationJournal: Sendable {
 protocol DictationRecordStore: Sendable {
     func append(_ record: DictationRecord) async throws
     func records() async throws -> [DictationRecord]
+    func keep(_ payload: MetricKitPayload) async throws
+    /// Oldest first.
+    func payloads() async throws -> [MetricKitPayload]
 }
 
 actor DictationRecordMemory: DictationRecordStore {
     private var kept: [DictationRecord] = []
+    private var keptPayloads: [String: MetricKitPayload] = [:]
 
     func append(_ record: DictationRecord) {
         kept.append(record)
@@ -82,6 +139,14 @@ actor DictationRecordMemory: DictationRecordStore {
 
     func records() -> [DictationRecord] {
         kept
+    }
+
+    func keep(_ payload: MetricKitPayload) {
+        keptPayloads[payload.fileName] = payload
+    }
+
+    func payloads() -> [MetricKitPayload] {
+        keptPayloads.sorted { $0.key < $1.key }.map(\.value)
     }
 }
 
@@ -123,6 +188,32 @@ actor DictationRecordFiles: DictationRecordStore {
     func records() throws -> [DictationRecord] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
         return try DictationRecordLines(at: directory).records
+    }
+
+    /// About a month of a day's metrics and the diagnostics between them.
+    static let payloadCapacity = 60
+
+    private var payloadDirectory: URL { directory.appending(path: "MetricKit") }
+
+    /// Keeps the newest `payloadCapacity` payloads.
+    func keep(_ payload: MetricKitPayload) throws {
+        if counts == nil { counts = try keptCounts() }
+        try FileManager.default.createDirectory(at: payloadDirectory, withIntermediateDirectories: true)
+        try payload.json.write(to: payloadDirectory.appending(path: payload.fileName))
+        for stale in try payloadFiles().dropLast(Self.payloadCapacity) {
+            try FileManager.default.removeItem(at: stale)
+        }
+    }
+
+    func payloads() throws -> [MetricKitPayload] {
+        try payloadFiles().map { MetricKitPayload(fileName: $0.lastPathComponent, json: try Data(contentsOf: $0)) }
+    }
+
+    private func payloadFiles() throws -> [URL] {
+        guard FileManager.default.fileExists(atPath: payloadDirectory.path) else { return [] }
+        return try FileManager.default.contentsOfDirectory(at: payloadDirectory, includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "json" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     /// Creates the directory, kept out of device backups, on the first append of a launch.

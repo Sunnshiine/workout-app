@@ -16,6 +16,7 @@ struct WorkoutTrackerApp: App {
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
     private let speechModelCaption: (@Sendable () -> String)?
+    private let metricKit: DictationMetricKit
 
     init() {
         #if canImport(UserNotifications)
@@ -24,6 +25,7 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
+        metricKit = DictationMetricKit(journal: app.dictationJournal)
         let speech = Self.speech()
         let dictation = speech.map {
             SetDictation(

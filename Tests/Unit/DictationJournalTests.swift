@@ -102,6 +102,15 @@ private actor BrokenDictationRecordStore: DictationRecordStore {
     func records() throws -> [DictationRecord] {
         throw BrokenDisk()
     }
+
+    func keep(_ payload: MetricKitPayload) throws {
+        appends += 1
+        throw BrokenDisk()
+    }
+
+    func payloads() throws -> [MetricKitPayload] {
+        throw BrokenDisk()
+    }
 }
 
 @Test func aWriteTheDiskRefusesIsDroppedAndTheJournalKeepsWriting() async throws {
@@ -109,8 +118,47 @@ private actor BrokenDictationRecordStore: DictationRecordStore {
     let journal = DictationJournal(store: store)
 
     journal.append(try DictationRecordFixtures.cancelled(1, pressedAt: "2026-10-19T17:00:00Z"))
+    journal.keep(MetricKitPayload(kind: .metrics, endedAt: Date(timeIntervalSince1970: 1_780_000_000), json: Data()))
     journal.append(try DictationRecordFixtures.cancelled(2, pressedAt: "2026-10-19T17:01:00Z"))
 
     await #expect(throws: BrokenDisk.self) { try await journal.records() }
-    #expect(await store.appends == 2)
+    #expect(await store.appends == 3)
+}
+
+private let payloadDay = Date(timeIntervalSince1970: 1_780_000_000)
+
+private func payload(_ kind: MetricKitPayload.Kind, day: Int) -> MetricKitPayload {
+    MetricKitPayload(kind: kind, endedAt: payloadDay.addingTimeInterval(Double(day) * 86_400), json: Data(#"{"day":\#(day)}"#.utf8))
+}
+
+@Test func aJournalKeepsMetricKitPayloadsBesideItsRecordsInOneRead() async throws {
+    let journal = DictationJournal(storage: .inMemory)
+    let record = try DictationRecordFixtures.record(DictationRecordFixtures.lines[0])
+
+    journal.keep(payload(.metrics, day: 1))
+    journal.append(record)
+    journal.keep(payload(.diagnostics, day: 0))
+
+    let kept = try await journal.kept()
+    #expect(kept.records == [record])
+    #expect(kept.payloads.map(\.fileName) == ["2026-05-28T20-26-40Z-diagnostics.json", "2026-05-29T20-26-40Z-metrics.json"])
+}
+
+@Test func filesKeepTheNewestMetricKitPayloadsInTheirOwnFolderAndOneOfAPayloadDeliveredTwice() async throws {
+    let directory = temporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let files = DictationRecordFiles(directory: directory, keeping: 2)
+
+    for day in 0...DictationRecordFiles.payloadCapacity {
+        try await files.keep(payload(.metrics, day: day))
+    }
+    try await files.keep(payload(.metrics, day: DictationRecordFiles.payloadCapacity))
+
+    let kept = try await files.payloads()
+    #expect(kept.count == DictationRecordFiles.payloadCapacity)
+    #expect(kept.first == payload(.metrics, day: 1))
+    #expect(kept.last == payload(.metrics, day: DictationRecordFiles.payloadCapacity))
+    #expect(FileManager.default.fileExists(atPath: directory.appending(path: "MetricKit/\(kept[0].fileName)").path))
+    #expect(try await files.records().isEmpty)
+    #expect(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup == true)
 }
