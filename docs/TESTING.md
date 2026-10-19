@@ -57,6 +57,23 @@ motion with `verify.sh launch --animated` and `verify.sh record`. Its
 judges a set of takes against a control commit. A UI test that needs motion launches with
 `animated: true`.
 
+`scripts/dev-usage.sh` meters what each agent, simulator, and build costs the host. The numbers are
+exact: they come from `proc_pid_rusage`, which adds a reaped child's CPU to its parent, so a
+compiler that ran for a second between two samples still counts. Never measure CPU with `ps`,
+which misses those. `scripts/dev-usage.sh install` loads a user LaunchAgent that runs
+`scripts/dev-usage.sh sample` every 60 s, and `uninstall` removes it; no other script installs it.
+The agent runs a copy of the scripts kept in the ledger, so rerun `install` after pulling a change
+to them.
+The ledger is in `~/Library/Logs/WorkoutTracker/dev-usage/` (`WORKOUT_DEV_USAGE_DIR`). Each sample
+appends one row per agent, keyed by the worktree holding its cwd, one per booted simulator, keyed
+by device name, and one for the host. `scripts/dev-usage.sh report --since 2h` prints each one's
+CPU seconds (`cpu_s`), those seconds per second of the window (`cores`), its part of the host's
+busy CPU (`share`), and its peak memory footprint (`peak_mb`). The `rest` row is host CPU outside every
+agent and simulator. `scripts/build-slot.sh` runs its command under `scripts/dev-usage.sh record`,
+which appends one row per run, and `report --by command` gives each command's count, median and p90
+CPU seconds, and peak RSS. An in-process subagent counts toward its parent's worktree, since it
+shares the parent's process.
+
 ## AI-Generated Code Gate
 
 The acceptance gate prioritizes behavior correctness first. Simulator user-flow tests protect the

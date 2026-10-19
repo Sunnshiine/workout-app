@@ -47,8 +47,10 @@ expect "and builds once memory frees" "$status $(builds)" "65 build"
 echo "build-slot.sh"
 build_slot() { "$repo/scripts/build-slot.sh" "$@" >"$root/out" 2>"$root/err"; }
 reset
-build_slot sh -c 'echo ran; exit 3'; status=$?
+(cd "$repo" && build_slot sh -c 'echo ran; exit 3'); status=$?
 expect "it runs the command and exits with the command's status, saying nothing" "$status $(cat "$root/out") $(cat "$root/err")" "3 ran "
+expect "and meters it into the dev-usage ledger" \
+    "$(tail -1 "$HOME/Library/Logs/WorkoutTracker/dev-usage/commands.tsv" | cut -f2-4)" "$(cd "$repo" && pwd -P)	sh -c	3"
 reset
 WORKOUT_BUILD_SLOTS=1 "$repo/scripts/build-slot.sh" sh -c 'touch "$1/holding"; while [ ! -f "$1/release" ]; do sleep 0.1; done' _ "$root" &
 first=$!
@@ -59,7 +61,11 @@ expect "the command holds a build slot that test-sim.sh builds wait for" "$statu
 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 build_slot touch "$root/ran"; status=$?
 expect "with every slot taken it exits 75 after the max wait, without running the command" "$status $([ -f "$root/ran" ] && echo ran) $(refusal)" \
     "75  gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): build-slot.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
-touch "$root/release"; wait "$first"
+kill -9 "$first"; wait "$first" 2>/dev/null
+WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 build_slot touch "$root/ran"; status=$?
+expect "the metered command keeps its slot when build-slot.sh is killed" "$status $([ -f "$root/ran" ] && echo ran)" "75 "
+touch "$root/release"
+for _ in $(seq 1 50); do WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 build_slot true && break; sleep 0.1; done
 rm -f "$root/ran"
 STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 build_slot touch "$root/ran"; status=$?
 expect "with free memory under the floor it exits 75 without running the command" "$status $([ -f "$root/ran" ] && echo ran) $(refusal)" \
