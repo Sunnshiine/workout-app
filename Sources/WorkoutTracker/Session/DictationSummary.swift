@@ -57,17 +57,20 @@ public struct DictationSummary: Encodable, Equatable, Sendable {
     let hazards: Hazards
     let longestMainThreadStallMs: Percentiles?
     let footprintMB: Percentiles?
+    /// The outcome that decided each press, against its export's labels. Nil without labels.
+    let scored: DictationScore?
     let caveats: [String]
 
+    static let unlabelled = "No press is labelled yet, so nothing here says whether a write was right."
+
     static let caveats = [
-        "No press is labelled yet, so nothing here says whether a write was right.",
         "Agreement compares the engines only where both read the press. A press with no Recording Transcript is liveOnly.",
         "promptEcho compares the Recording Transcript with the Live Transcript, not with what the athlete said."
     ]
 }
 
 extension DictationSummary {
-    init(_ records: [DictationRecord], unreadableLines: Int) {
+    init(_ records: [DictationRecord], unreadableLines: Int, labels: DictationLabels?) {
         let decided = records.compactMap(\.decided)
         let timed = records.compactMap { record in record.waitMs.map { (record, $0) } }
         let fields = SetLogDraft.Field.allCases.map(\.rawValue)
@@ -108,7 +111,15 @@ extension DictationSummary {
         hazards = Hazards(promptEcho: decided.count { $0.echoes(.p1) })
         longestMainThreadStallMs = Percentiles(records.map(\.longestMainThreadStallMs))
         footprintMB = Percentiles(records.map(\.device.footprintMB))
-        caveats = Self.caveats
+        scored = labels.map { labels in
+            let byRecord = labels.byRecord
+            return DictationScore(
+                records.compactMap { record in
+                    record.decided.map { ($0.decision.outcome, byRecord[record.id]?.truth) }
+                }
+            )
+        }
+        caveats = (labels == nil ? [Self.unlabelled] : DictationScore.caveats) + Self.caveats
     }
 
     private static func counts(_ keys: [String], of every: [String] = []) -> [String: Int] {
@@ -188,6 +199,39 @@ enum DictationScoring {
         guard let written else { return truth == .reject ? .correct : .nowrite }
         return truth == .write(written) ? .correct : .wrong
     }
+}
+
+/// How one rule's outcomes scored against what the athlete meant, every class through
+/// `DictationScoring.classify`. A press with nothing to say what was meant is unscored.
+public struct DictationScore: Encodable, Equatable, Sendable {
+    let correct: Int
+    let wrong: Int
+    let nowrite: Int
+    let unscored: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case correct = "CORRECT"
+        case wrong = "WRONG"
+        case nowrite = "NOWRITE"
+        case unscored
+    }
+
+    init(_ presses: [(outcome: DictationRecord.Outcome, truth: DictationScoring.Truth?)]) {
+        let classes = presses.compactMap { press in
+            press.truth.map { DictationScoring.classify(written: press.outcome.written, truth: $0) }
+        }
+        correct = classes.count { $0 == .correct }
+        wrong = classes.count { $0 == .wrong }
+        nowrite = classes.count { $0 == .nowrite }
+        unscored = presses.count - classes.count
+    }
+
+    static let caveats = [
+        "Only a press whose outcome wrote a Set has a label, so the rule that decided a press never scores NOWRITE.",
+        "Another rule's write on a press nothing wrote is unscored.",
+        "A correction is a lower bound on wrong writes. An athlete who never notices a wrong write never corrects it.",
+        "A Set the athlete cleared and left Pending is unscored."
+    ]
 }
 
 extension DictationRecord.Outcome {

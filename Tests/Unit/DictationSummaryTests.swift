@@ -87,7 +87,7 @@ func aRecordingTranscriptEchoesThePromptWithANumeralTheLiveTranscriptLacks(live:
     let within = try DictationRecordFixtures.record(DictationRecordFixtures.lines[0])
     let late = try DictationRecordFixtures.record(DictationRecordFixtures.lines[1])
 
-    let summary = DictationSummary([within, within, late], unreadableLines: 0)
+    let summary = DictationSummary([within, within, late], unreadableLines: 0, labels: nil)
 
     #expect(summary.latency.withinTarget == 2)
     #expect(summary.latency.missedTarget == 1)
@@ -95,9 +95,9 @@ func aRecordingTranscriptEchoesThePromptWithANumeralTheLiveTranscriptLacks(live:
 }
 
 @Test func anEmptyJournalSummarizesAsNoPresses() throws {
-    let summary = DictationSummary([], unreadableLines: 0)
+    let summary = DictationSummary([], unreadableLines: 0, labels: nil)
 
     #expect(summary.presses == 0)
     #expect(summary.latency.waitMs == nil)
-    #expect(summary.caveats == DictationSummary.caveats)
+    #expect(summary.caveats == [DictationSummary.unlabelled] + DictationSummary.caveats)
 }

@@ -38,6 +38,14 @@ struct DictationLabels: Equatable, Sendable {
 
     let labels: [DictationRecord.Label]
 
+    init(labels: [DictationRecord.Label]) {
+        self.labels = labels
+    }
+
+    init(at url: URL) throws {
+        self = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+    }
+
     /// Each label by the record it labels.
     var byRecord: [UUID: DictationRecord.Label] {
         Dictionary(labels.map { ($0.record, $0) }) { first, _ in first }
