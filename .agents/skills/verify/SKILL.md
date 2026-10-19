@@ -61,21 +61,8 @@ the launch wanted. When `simctl install` leaves bytes that differ from the build
 
 ### Control and head on one simulator
 
-```bash
-VERIFY_RUN=ui12-control verify.sh launch --at 9a72f8dc session  # builds 9a72f8dc into the app cache once, installs, launches
-verify.sh stop
-verify.sh install                                              # the head: this worktree's build, replacing the control
-VERIFY_RUN=ui12-head verify.sh launch session
-```
-
-`install <commit>` and `launch --at <commit>` build that commit in a scratch worktree the first
-time any worktree asks, and every later call reuses the build. Give that first call a 10 minute
-timeout. Two lanes that ask at once build it once, and the second says it is waiting. A build that
-was killed resumes in its scratch worktree on the next call for that commit, and a call for any
-other commit removes it. A bare `launch` refuses (exit 65) to replace an installed
-cached build, so a head phase that skipped `install` stops instead of running the control. The cache
-is `<main checkout>/.claude/work/app-cache/<sha>/`. Nothing prunes it; remove an entry by hand, and
-it costs one rebuild.
+To run a control commit's app and then this worktree's on one simulator (`install <commit>`,
+`launch --at <commit>`, the shared app cache), read [control-and-head.md](control-and-head.md).
 
 For the CLI there is no server. Build once, then every drive gets its own home:
 
@@ -131,76 +118,15 @@ still leave that preference on, so `launch` reads it and resets it before it sta
 says so on stderr.
 
 Target elements by accessibility identifier (`tap --id`) first, by label second, by coordinates
-only when the element has neither. Alert buttons have labels but no identifiers. `tap --id` polls
-up to 3 s for that element to be enabled, on screen, and with its centre inside the frame of every
-element that contains it. A container with a zero width or height holds no point, so it is skipped,
-and so is one that covers the whole screen, such as a full-screen scroll area, whose edges the
-screen check already covers.
-The keyboard toolbar wraps `Done` in a 0x0 group. The tap point is the centre of the part of the
-element that the screen and those containers show, rounded to a whole point inside that part, so a
-row half below the fold is tapped in its visible half. When no point of it is left, the tap is
-refused as `off-screen` or `clipped`. Last, `tap --id` asks axe what is on top at that point. The
-answer must belong to the app in front and be the element or something inside its frame, and then
-it taps that point. A system prompt over the app is covered. The pid file that
-`launch` writes decides when this check runs:
-
-- While the app `launch` started is in front, the check runs.
-- While another pid is in front, the check stands aside and the tap goes by the tree alone. `tap`
-  prints `not checked for cover:` on stderr with both pids. This covers the Home Screen, another
-  app, and the app relaunched under a new pid, which `doctor` flags.
-- With no pid file, after `stop` or for an app `launch` did not start, the check runs for whatever
-  is in front. On the Home Screen axe's point read can name a neighbouring icon, and then the tap
-  is refused as `covered`.
-
-That second read makes a tap that lands take about 3 s, against about 2 s without it.
-
-When `tap --id` never gets a hit that passes every check, it exits 1 and says `off-screen`,
-`clipped`, `disabled`, or `covered`. A refusal takes 4 s or more, because it polls the full 3 s and
-then reads once more. A `clipped` note names the container whose frame misses the centre, or
-misses every point of the element the screen shows, such as the RPE track. A `covered` note names what is on top instead, such as an alert's backdrop, or
-whatever took the place of an element that went away after the tree was read. So a tap that reports
-success aimed at an element that was on screen, enabled, inside every container that clips it, and
-on top, unless it printed `not checked for cover:`. The tap lands up to about a second after that
-last look, and an element that leaves in that second still reports success. So prove a tap by
-what it changed.
-
-`tap --label` resolves its element through the tree the same way, with the same poll and the same
-notes. It matches the whole label as `tree` prints it, case included. When a control and a text
-carry the label, it taps the control. When more than one is left, it exits 1 and lists each with
-its centre. With the sign-out confirmation up, `tap --label "Sign Out"` lists the Settings row and the
-confirmation's own button, so tap that button by its id, `sign-out-confirm-button`. `tap -x -y` resolves no
-element, so it still reports success whatever is under the point.
+only when the element has neither. Alert buttons have labels but no identifiers. Read
+[tap.md](tap.md) for what `tap` checks before it taps, how long that takes, and what each refusal
+(`off-screen`, `clipped`, `disabled`, `covered`) and `not checked for cover:` mean.
 
 After a tap, re-read the tree before asserting. `tree` has no enabled column, so prove a disabled
 state with `find <id>`, which says `disabled` on stderr and still exits 0.
-`-UITEST_DISABLE_ANIMATIONS` stops UIKit animations and clears the animation on every SwiftUI
-transaction in the main window. Bursts and screen recordings under it, each checked against a run
-without it that moved, show one cut from the old screen to the new for these: a log with the
-weight keyboard closed, a skip's commit, a Superset log, the Move On celebration opening and
-closing, and the pairing state inside the queue sheet. The tapped button can show its pressed
-colour for up to about 90 ms before that cut. A Superset log's retiring card never draws. After a
-log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced` under
-`-UITEST_OFFLINE`, and moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
-saved for issues 618 and 696 caught the new card with no sync pill.
 
-Some states still change under the flag (issue 739). The rest pill's countdown and progress line
-change on their own while rest runs. Every rest after the first on the Session screen starts with
-the rest pill about 3% larger and brighter for about 150 ms; a burst caught that on a log while
-rest ran. Each second from `0:05` to `0:00` the countdown digits grow about 3% for about 230 ms. A
-skip hold's fill jumps to a full `Skipped` 250 ms into the press, and the skip lands about 900 ms
-in, so a shot in between shows a skip that has not happened. The Log capsule jumps to 0.97 scale at
-touch-down and sits there until the finger lifts or the skip lands. In the history sheet the Volume chip
-still fades for about 250 ms after a tap (issue 739).
-
-`burst` takes its first frame before the drive command runs and the other eleven after it returns,
-timed from the return. In the issue 696 runs the first frame came 1.3 to 8.7 s before it, and a
-`hold` spends its whole press inside the drive, so a burst never shows the middle of a hold. After
-the return, frames land about 200 ms apart, more than 2 s apart on a busy simulator, and the first
-lands 140 to 750 ms after it. A burst that shows only a before and an after says nothing about a
-state shorter than those gaps, and a 3% change is easy to miss on the tile, so read the full-size
-frames in `<name>.burst/`. Any other path is unproved under the flag; prove it under Motion below. A state an action has not
-caused within one second will not appear later. `burst` shows frame by frame what an action
-changed.
+What still moves under `-UITEST_DISABLE_ANIMATIONS`, and what a `burst` can and cannot show, is in
+[motion.md](motion.md). Read it before you prove a transition with `burst`.
 
 `tree` lists what is on screen and says on stderr how many elements it left out. A scrolled-out
 row and the tail of the reps picker are out; a card wider than the screen is in. `find <id>`
@@ -261,72 +187,8 @@ while the tree changed. It saves nothing, prints the changed lines, and exits 70
 
 Under `-UITEST_DISABLE_ANIMATIONS` a slide, a fade, or a fly-in is one cut, so `shot` and `burst`
 cannot show it. Prove a change to anything that moves with a measured take that has motion on.
-
-```bash
-VERIFY_RUN=card-in verify.sh launch --animated session                 # same lock, pid and install path; motion on
-verify.sh record log --tail 3 -- tap --id log-active-set-button          # log.mp4, log.take, log.end.txt
-verify.sh stop && verify.sh record appear -- launch --animated session   # a first appear: the launch is the drive
-uv run .agents/skills/verify/motion/cardframe.py <run dir>/appear.mp4    # the Active Set Card's box and look per frame
-uv run .agents/skills/verify/motion/cardstill.py --control <a commit whose card moves>   # 15 min
-```
-
-`record` first waits while the 1-minute load is over `WORKOUT_LOAD_LIMIT` (50), because a loaded host
-films a move as a cut. A take whose load ends over it is INVALID. It drives once the recorder
-is capturing and stops it with SIGINT. Exit 0 is a VALID take. Exit 3 is INVALID, files kept, reasons
-on stderr. Exit 70 means the recorder or ffprobe failed, or the screen size or the card's frame could
-not be read from the accessibility tree after the take, and nothing is kept, a VALID take included.
-Exit 75 means nothing ran.
-The recorder writes a frame only when the screen changes, so a still screen is one frame. A take is
-also INVALID when the screen never changed after the drive began, or, with no drive, never changed at
-all. Any change counts, the rest pill's countdown included, so `VALID` says the recorder was capturing.
-It does not say the drive did anything. While the rest pill counts down, a drive that changes nothing
-is `VALID`. `record` also saves the tree at the take's end as `NAME.end.txt`; read it to see that the
-drive landed. Whether the card moved is `still=`'s answer. `cardframe.py` is the one frame metric, and it
-times frames by their own pts, because ffmpeg's clock puts simctl frames about 0.8 s early. It reads
-two things: the card's box, from its edges, and its look, the luminance inside the settled box.
-A neighbour such as the rest pill joins the box across a gap only while the pair fits the
-height of the `card_pt=` frame `record` stamps from the accessibility tree, and an unbroken run counts at
-any height, so a card that shrinks during the take reads its whole range. `still=no` means the box or the
-look moved, and `box=` and `look=` say which, on a take whose INVALID reasons, if any, only hide motion
-(load, a short window), animations on or off. `still=yes` needs `edges=full` and a card where the tree
-puts it: nothing moved on a VALID take with animations on, the card's edges were read from the window's
-first frame, and the box sits on the `card_pt=` frame: its middle within 8 pt and its height within 24 pt.
-A box still moving in its last frame is held to its height and x only, because the tree is read after the
-recorder stops and holds where the card was going. `still=unknown` covers the rest: nothing moved but the take is INVALID,
-has animations off, or has `edges=partial`; or something moved on a take INVALID for any other reason,
-such as a launch with no fade from black. A take whose tree held no `active-set-card`, or whose box is not
-where the tree put it, exits 1 with `no card:` and its reason. A label that swaps in one frame reads
-`look=cut` and stays still. A take that presses the Log capsule reads `look=changed` from the press's
-0.97 scale, so judge the card there by `box=`. A launch take's window opens at the end of iOS's fade-in, the full-screen
-frames in the 0.5 s after the screen leaves black; any later frame that changes three quarters of the
-screen makes the take INVALID. So first-appear motion that ends inside that fade is invisible to a launch
-take. From the fade's end the window must watch 1.5 s or the take is INVALID. `cardstill.py` prints PASS
-only when the control commit moved the card on one of its eight takes and the head held it still on all
-eight. Each take's `.end.txt` must show where its drive leads (the next Set active, the review open, then
-closed, the partner in front, the rest pill gone), or the take is INVALID.
-
-Judge a take by its reads, never by its numbers. The contract is the exit codes, `VALID` or `INVALID`,
-`still=`, `box=`, `look=` and `edges=`. `cardframe.py` exits 0 when it measured, 1 with no card, and 3
-when the take is INVALID or animations are not on. A first-appear launch take with `--animated` reads
-as follows:
-
-- A card that slides in reads `still=no box=changed look=changed edges=partial`.
-- A card that fades in place reads `still=no look=changed edges=partial`. Its `box=` can read `changed`
-  by under 1 pt, as two of r6's five fade takes did. `look=changed` decides `still=no` either way, so for
-  a fade read `look=`, not `box=`. `cardstill.py` judges the box alone, so there a box that changed by
-  over 0.5 pt is a FAIL.
-- A card already in place when the window opens reads `still=yes box=still edges=full`.
-
-Without `--animated`, the sliding card reads `still=unknown` and `cardframe.py` exits 3, because
-animations off hides the slide.
-
-The numbers vary with the host's load and the build, so take them as rough examples, not limits. They
-come from one Mac at load 4 to 12, on two builds of the app after the UI refactor stack (717737ad and
-8e495e47). With the default 2 s `--tail`, the launch window watched about 2.2 to 2.9 s. A card sliding
-in 300 pt from the right read `worst_edge_range` about 13 to 18 and `look_ms` about 1150. A fade read
-`look_ms` just under 1000. At load 34 to 38 the same slide read `worst_edge_range` 1.7 on a VALID take,
-with the reads above. A take with those reads is read correctly even when its numbers fall outside these.
-After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
+Read [motion.md](motion.md) before `launch --animated`, `record`, `cardframe.py`, or `cardstill.py`:
+it holds the commands, the exit codes, and how to read `still=`, `box=`, `look=` and `edges=`.
 
 ## Cleanup
 
@@ -353,53 +215,17 @@ directory yourself once its proof is filed.
 
 ## Isolation
 
-One app instance per simulator, and one run owns it. `launch`, `install`, and `scripts/test-sim.sh`
-refuse (exit 75) while another run's app is alive on the same simulator and that run's lease is live:
-some command for the run came in the last `WORKOUT_LEASE_MINUTES` (60). Every command but `build`,
-`install`, `diff`, `sheet`, and `crop` renews the lease. A command with no `VERIFY_RUN` keeps a live lease
-going but cannot revive an expired one. A run quiet for longer counts as abandoned. The next claim
-reclaims the simulator, stops the run's app, and says so. From then on every command for the
-reclaimed run but `build`, `install`, `diff`, `sheet`, and `crop`, `stop` included, exits 75 naming who
-reclaimed it and when, until the run launches again. A command with no `VERIFY_RUN` acts for the
-run that launched last on the simulator, so after a `launch` reclaims your run it drives the new
-run's app. Name your run on every command. Pass the same `VERIFY_RUN` to take your own run's app with a second `launch` or a
-`test-sim.sh` run; otherwise run `stop` or pick another `SIM`.
-`stop` refuses the same way when it would act on another run's app, so a
-command that lands on the wrong simulator cannot end another agent's drive (issue 660). It can
-only refuse what it can tell apart, and that cuts both ways. An unset `VERIFY_RUN` gives it
-nothing to compare against, so it steps aside, except that a drive with no `VERIFY_RUN` acts for
-the run the last launch on this simulator started, and refuses after that run's launch was
-refused. Unless that run was named, a refused `launch` with no `VERIFY_RUN` counts as a refused
-launch of that run, so an agent that never names a run cannot drive the app its own refused
-relaunch left behind. The refusal prints the way out, which is `stop` and then `launch`. `SIM` has no default, so no command lands on a shared simulator by accident. With
-`VERIFY_RUN` set, `tap`, `hold`, `type`, `swipe`, `shot`,
-`burst`, and `axe` refuse (exit 75) while another run's app is alive on the simulator, and after a
-`launch` of the same run was refused, until a `launch` of it succeeds. So a driver that missed its
-own launch's refusal cannot drive or film the app that refusal left behind. Your drive is protected from a
-sibling only when the sibling names its own run. Set both on every call whenever another agent
-might be on this machine. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
-simulator. `test-sim.sh` refuses while a run whose lease is live has its app on it. Each refusal names
-the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBuildMCP `test_sim` or
-a raw `xcodebuild test` on the same UDID is invisible to it. Before a `launch` when another agent
-may be testing, run `pgrep -fl "id=<udid>"`. Two CLI drives never collide if each has its own
-`WORKOUT_HOME`.
-
-Every claim also waits for the host, up to `WORKOUT_ADMIT_WAIT` seconds (540), while free memory
-(`kern.memorystatus_level`, percent) is under `WORKOUT_MEM_FLOOR` (25), and exits 75 with the reason
-if it never clears. A claim on a shut-down simulator also waits while `WORKOUT_SIM_CAP` other
-simulators are booted (10), and boots it once admitted. At the cap it first shuts down the least
-recently used `workout-lane-*` simulator that no run holds, that runs no app but a verify app past
-its lease, and that went unclaimed for `WORKOUT_IDLE_MINUTES` (2), and names it on stderr. Each
-`build`, each build into the app cache (`install COMMIT`, `launch --at`), and each `test-sim.sh`
-build waits for the same floor and takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the
-same way. `build` boots nothing. Admission never reads the load. Run anything else heavy as
-`scripts/build-slot.sh <command>` instead of a hand-written `uptime` loop.
+One app instance per simulator, and one run owns it. Read [isolation.md](isolation.md) when a command
+exits 75, when another agent may be driving or testing on this machine, or when a claim waits for the
+host.
 
 ## Changing this skill
 
-After an edit to `verify.sh`, `tree.py`, `frames.py`, `scripts/contact-sheet.swift`, or
-`scripts/sim-lock.sh`, run `python3 .agents/skills/verify/tests/test_evidence.py`. Also run
-`scripts/tests/host-admission.test.sh` after an edit to `verify.sh`, `scripts/sim-lock.sh`, or
-`scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
+After an edit to `verify.sh` or the `verify-*.sh` helpers it sources, `tree.py`, `frames.py`,
+`scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run
+`python3 .agents/skills/verify/tests/test_evidence.py`. Also run
+every `scripts/tests/host-admission*.test.sh` after an edit to `verify.sh`, a `verify-*.sh` helper,
+`scripts/sim-lock.sh`, or `scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
 `test_evidence.py` through `.github/workflows/verify-tools.yml` and every script test through
 `.github/workflows/script-tests.yml`.
+After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.

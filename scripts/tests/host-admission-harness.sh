@@ -16,7 +16,7 @@ products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Buil
 mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
     "$script_dir/../test-log-summary.awk" "$repo/scripts/"
-cp "$script_dir/../../.agents/skills/verify/verify.sh" "$repo/.agents/skills/verify/"
+cp "$script_dir/../../.agents/skills/verify/"verify.sh "$script_dir/../../.agents/skills/verify/"verify-*.sh "$repo/.agents/skills/verify/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 mkdir -p "$products/Debug-iphonesimulator/WorkoutTracker.app" "$repo/.build/verify/node_modules/xcodebuildmcp/bundled"
 printf '#!/bin/sh\n' > "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"
