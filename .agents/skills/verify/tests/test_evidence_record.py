@@ -140,10 +140,10 @@ class Record(Lane):
 
     def test_load_that_stays_over_the_limit_is_waited_on_then_refused(self):
         self.launch()
-        code, out, err = self.record(STUB_LOAD_BEFORE="50.01", WORKOUT_ADMIT_WAIT="1")
+        code, out, err = self.record(STUB_LOAD_BEFORE="50.01", WORKOUT_ADMIT_WAIT="2")
         self.assertEqual((code, out), (75, ""))
         self.assertRegex(err, (
-            r"^waiting up to 1 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
+            r"^waiting up to 2 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
             r"\(WORKOUT_LOAD_LIMIT\)\ngave up after \d+ s waiting for the load to fall to 50 before recording: the "
             r"1-minute load is 50\.01, over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
         self.assertEqual(self.calls(), [])
