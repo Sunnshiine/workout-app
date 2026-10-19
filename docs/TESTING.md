@@ -33,10 +33,10 @@ Two shapes caused every flake found so far, and neither survives the hunt:
   expectation (#978).
 
 A wait for work the test does not control is bounded, or a regression that skips the work hangs the run
-instead of failing it. A continuation ignores the time limit's cancellation, so a fake never parks the
-test on one. It polls state on the main actor, where the work that sets it runs, and records a failure
-when the poll runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to
-copy, as `ManualSessionTransitionClock.waitForSleep()` does (#746).
+instead of failing it. A continuation ignores cancellation, so a fake never parks the test on one. It
+polls state on the main actor, where the work that sets it runs, and records a failure when the poll
+runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to copy, as
+`ManualSessionTransitionClock.waitForSleep()` does (#746).
 
 ## Parallel Agents
 
