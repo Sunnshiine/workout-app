@@ -1,7 +1,7 @@
 #if DEBUG
     import AVFoundation
 
-    /// What a Simulator proof launch reads from the host: a press's recording and the recording
+    /// What a Simulator proof launch reads from the host, a press's recording and the recording
     /// engine's model, neither of them bundled. Each stops the launch, naming the path, when it is
     /// not there, so a proof never quietly runs without them.
     enum ProofLaunchFiles {

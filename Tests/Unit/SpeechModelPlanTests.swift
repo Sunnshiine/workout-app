@@ -29,8 +29,8 @@ typealias ModelStep = SpeechModelPlan.Step
         (.specializing, .finished(.specialize, succeeded: false), ModelStep(.failed(.specialize), .none)),
         (.loading, .finished(.load, succeeded: true), ModelStep(.ready, .none)),
         (.loading, .finished(.load, succeeded: false), ModelStep(.failed(.load), .none)),
-        // Work the model moved on from changes nothing: a download stopped for the network, a load
-        // a memory warning stopped.
+        // Work the model moved on from changes nothing, as a download stopped for the network or a
+        // load a memory warning stopped.
         (.waitingForNetwork, .finished(.download, succeeded: false), ModelStep(.waitingForNetwork, .none)),
         (.unloaded(.memoryWarning), .finished(.load, succeeded: true), ModelStep(.unloaded(.memoryWarning), .none)),
         // A press loads a model out of memory, and nothing else.

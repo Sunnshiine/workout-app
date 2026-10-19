@@ -35,7 +35,7 @@ enum SpeechModelState: Hashable, Sendable {
     case waitingForNetwork
     case downloading
     /// Core ML compiling the model for this chip, once after a download and again after an OS
-    /// update: seconds to minutes.
+    /// update. It takes seconds to minutes.
     case specializing
     /// On disk and specialized, not loaded since launch. The next press loads it.
     case downloaded

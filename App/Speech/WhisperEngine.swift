@@ -44,7 +44,7 @@ actor WhisperEngine: RecordingTranscriber {
     private var working: Task<Void, Never>?
     /// Counts the work started, so work the model has moved on from reports nothing.
     private var attempt = 0
-    /// Decodes run one at a time: the actor is reentrant across WhisperKit's awaits, and one
+    /// Decodes run one at a time, since the actor is reentrant across WhisperKit's awaits and one
     /// WhisperKit must not decode twice at once.
     private var decoding: Task<RecordingDecode, Never>?
     /// Models let go, each once the decode in flight when it went is done.
@@ -264,8 +264,8 @@ actor WhisperEngine: RecordingTranscriber {
         ]
     }
 
-    /// The speech bench's settings, shipped as is: temperature 0, no timestamps, and the prompt as
-    /// prompt tokens. `windowClipTime` 0 keeps a clip under a second from decoding nothing.
+    /// The speech bench's settings, shipped as is, are temperature 0, no timestamps, and the prompt
+    /// as prompt tokens. `windowClipTime` 0 keeps a clip under a second from decoding nothing.
     private static func options(for kit: WhisperKit) -> DecodingOptions? {
         guard let tokenizer = kit.tokenizer else { return nil }
         var options = DecodingOptions(

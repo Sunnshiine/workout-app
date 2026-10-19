@@ -78,7 +78,7 @@ struct WorkoutTrackerApp: App {
         return .device()
     }
 
-    /// The two engines a press listens with: SpeechAnalyzer for the Live Transcript and Whisper for
+    /// The two engines a press listens with, SpeechAnalyzer for the Live Transcript and Whisper for
     /// the Recording Transcript.
     private struct Speech {
         let live: any SetTranscriber
