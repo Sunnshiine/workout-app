@@ -7,6 +7,9 @@ import Synchronization
 final class MainThreadWatchdog: Sendable {
     nonisolated static let interval: Duration = .milliseconds(50)
 
+    /// Runs a ping on the main queue.
+    typealias MainQueue = @Sendable (@escaping @Sendable () -> Void) -> Void
+
     private struct State {
         /// When the ping still waiting on the main queue was sent.
         var waitingSince: ContinuousClock.Instant?
@@ -19,41 +22,66 @@ final class MainThreadWatchdog: Sendable {
     }
 
     private let state = Mutex(State())
-    private let timer: any DispatchSourceTimer
+    private let clock: @Sendable () -> ContinuousClock.Instant
+    private let mainQueue: MainQueue
+    /// Nil when a test pings in its place.
+    private let timer: (any DispatchSourceTimer)?
 
-    init() {
-        timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+    /// Pings the main queue every `interval` until `stop()`.
+    convenience init() {
+        let timer = DispatchSource.makeTimerSource(queue: .global(qos: .utility))
+        self.init(clock: { .now }, mainQueue: { DispatchQueue.main.async(execute: $0) }, timer: timer)
         let interval = DispatchTimeInterval.milliseconds(Self.interval.wholeMilliseconds)
         timer.schedule(deadline: .now() + interval, repeating: interval)
         timer.setEventHandler { [weak self] in self?.ping() }
         timer.resume()
     }
 
+    /// Pings only when a test calls `ping()`, reading the test's clock and sending to its queue.
+    convenience init(clock: @escaping @Sendable () -> ContinuousClock.Instant, mainQueue: @escaping MainQueue) {
+        self.init(clock: clock, mainQueue: mainQueue, timer: nil)
+    }
+
+    private init(
+        clock: @escaping @Sendable () -> ContinuousClock.Instant,
+        mainQueue: @escaping MainQueue,
+        timer: (any DispatchSourceTimer)?
+    ) {
+        self.clock = clock
+        self.mainQueue = mainQueue
+        self.timer = timer
+    }
+
     deinit {
-        timer.cancel()
+        timer?.cancel()
     }
 
     /// The longest wait so far, counting a ping still waiting. The watchdog stops pinging.
     func stop() -> Duration {
-        timer.cancel()
+        timer?.cancel()
+        let now = clock()
         return state.withLock { state in
-            state.waited(until: .now)
+            state.waited(until: now)
             return state.longest
         }
     }
 
-    private func ping() {
+    /// One tick of the timer. A ping still waiting holds the next one back, so a stalled main
+    /// thread has one ping queued, not one per interval.
+    func ping() {
+        let now = clock()
         let isWaiting = state.withLock { state in
-            let now = ContinuousClock.now
             state.waited(until: now)
             guard state.waitingSince == nil else { return true }
             state.waitingSince = now
             return false
         }
         guard !isWaiting else { return }
-        DispatchQueue.main.async { [weak self] in
-            self?.state.withLock { state in
-                state.waited(until: .now)
+        mainQueue { [weak self] in
+            guard let self else { return }
+            let now = clock()
+            state.withLock { state in
+                state.waited(until: now)
                 state.waitingSince = nil
             }
         }
