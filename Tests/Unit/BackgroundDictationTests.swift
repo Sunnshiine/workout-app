@@ -261,6 +261,17 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 }
 
 @MainActor
+@Test func aSetNoLifterLogsWritesNothingAndAsksForItAgain() async throws {
+    let harness = try await Harness(hearing: ["180 for 546"])
+
+    let outcome = await harness.runUntilQuiet()
+
+    #expect(outcome == .notLogged(.rejected(.spokenSet(.implausible(.reps)), heard: "180 for 546"), at: firstSet))
+    #expect(harness.liveActivity.readbacks == [.listening, .notLogged("“180 for 546”, say it again")])
+    try harness.expectNothingWritten()
+}
+
+@MainActor
 @Test func nothingHeardByTheCapWritesNothing() async throws {
     let harness = try await Harness(hearing: [])
 

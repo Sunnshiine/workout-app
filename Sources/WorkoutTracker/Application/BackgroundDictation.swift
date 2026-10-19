@@ -337,7 +337,7 @@ extension BackgroundDictation.NotLogged {
         case .transcriber(.microphoneDenied), .transcriber(.unavailable): "Open WorkoutTracker once to allow the mic"
         case .transcriber(.failed): "Couldn’t listen. Unlock to log"
         case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
-        case .spokenSet: quoted(heard)
+        case .spokenSet: rejection.readback(of: heard)
         }
     }
 

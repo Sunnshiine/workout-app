@@ -244,9 +244,10 @@ private final class FailingSetTranscriber: SetTranscriber {
 }
 
 @Test(
-    "The card's caption for a rejected press says what was heard, or why nothing was",
+    "The card's caption for a rejected press says what was heard, or why nothing was, and asks again for a Set no lifter logs",
     arguments: [
         (SetDictation.Rejection.spokenSet(.kilograms), "100 kilos for 5", "“100 kilos for 5”"),
+        (.spokenSet(.implausible(.reps)), "180 for 546 at 8", "“180 for 546 at 8”, say it again"),
         (.spokenSet(.nothingHeard), "", "Nothing heard"),
         (.transcriber(.nothingHeard), "", "Nothing heard"),
         (.transcriber(.failed), "135 for", "“135 for”"),
