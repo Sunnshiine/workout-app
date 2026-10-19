@@ -175,6 +175,12 @@ scripts/test-sim.sh ui
 
 Reading a `scripts/test-sim.sh` run:
 
+- A build compiles the app and only the test targets the selection names, so `unit` skips the
+  Visual and UI test targets and the snapshot package. `build-for-testing` builds every test target
+  of its scheme whatever `-only-testing` says, so the script builds a copy of the WorkoutTracker
+  scheme named test-sim with only those test targets, written under the git-ignored
+  `WorkoutTracker.xcodeproj/xcuserdata`. `--no-build` runs only test targets the last build
+  covered; for any other it exits 65 and names the ones it covered.
 - A selection that includes `WorkoutTrackerUITests` first runs `scripts/sim-keyboard.sh ensure`.
   It sets `AutomaticMinimizationEnabled` in the simulator's `com.apple.keyboard.preferences` to 0
   when it reads 1, the state that hides the software keyboard below the window (#700). An AXe key

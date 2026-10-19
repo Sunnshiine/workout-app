@@ -10,7 +10,17 @@ products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Buil
 mkdir -p "$repo/scripts" "$root/bin" "$products"
 cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" \
     "$repo/scripts/"
-touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
+mkdir -p "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes"
+cp "$script_dir/../../WorkoutTracker.xcodeproj/xcshareddata/xcschemes/WorkoutTracker.xcscheme" "$repo/WorkoutTracker.xcodeproj/xcshareddata/xcschemes/"
+touch "$products/../../info.plist"
+xctestrun() {
+    printf '<plist version="1.0">\n<dict>\n'
+    for target; do
+        printf '\t<key>%s</key>\n\t<dict>\n\t\t<key>BlueprintName</key>\n\t\t<string>%s</string>\n\t</dict>\n' "$target" "$target"
+    done
+    printf '</dict>\n</plist>\n'
+}
+xctestrun WorkoutTrackerTests WorkoutTrackerSnapshotTests WorkoutTrackerUITests >"$products/test-sim_iphonesimulator27.0-arm64.xctestrun"
 cat >"$repo/scripts/sim-keyboard.sh" <<'STUB'
 #!/bin/sh
 echo "$*" >>"$STUB_KEYBOARD_CALLS"
