@@ -351,6 +351,10 @@ lane_down() {
     removed=$((removed + 1))
   done < <(derived_data_of "$wt/WorkoutTracker.xcodeproj")
   [ "$removed" -eq 0 ] || echo "lane.sh: removed $removed DerivedData dir(s)" >&2
+  if [ -n "$reg" ] || [ "$removed" -gt 0 ]; then
+    "$here/dep-store.sh" prune --keep-bytes 2000000000 >&2 5>&- 6>&- \
+      || echo "lane.sh: dep-store.sh prune failed; the lane is down regardless" >&2
+  fi
 }
 
 [ $# -ge 1 ] || usage

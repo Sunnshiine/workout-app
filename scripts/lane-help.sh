@@ -26,7 +26,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           or tag holds, copies of the results dirs .build/test-sim, .build/verify without its
           node_modules, .build/crap, .build/flake-hunt, .build/mutate, .build/check-each-commit,
           and .build/measure-host);
-          then remove the worktree and its DerivedData. Each step skips what is already gone, so a
+          then remove the worktree and its DerivedData, and prune the dependency store
+          (scripts/dep-store.sh) to 2 GB. Each step skips what is already gone, so a
           second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it
           for every detached worktree under .claude/worktrees/. Keeps a lane that is not a registered
