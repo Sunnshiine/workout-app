@@ -124,7 +124,7 @@ class SimulatorPick(unittest.TestCase):
     def build_for_testing_on(self, udid):
         return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
                 "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
-                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
+                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid) + cache_settings(self.home))
 
     def test_test_sim_creates_the_missing_iphone_17_pro_on_the_baseline_runtime_and_runs_on_it(self):
         self.fresh_machine()

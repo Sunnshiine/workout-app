@@ -24,6 +24,8 @@ EOF
 script_dir=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=scripts/scratch-tree.sh
 . "$script_dir/scratch-tree.sh"
+# shellcheck source=scripts/compile-cache.sh
+. "$script_dir/compile-cache.sh"
 
 case ${1:-} in
     -h | --help) usage; exit 0 ;;
@@ -55,7 +57,7 @@ run_step() {
         xcode-bft)
             xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
                 -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation -skipMacroValidation \
-                CODE_SIGNING_ALLOWED=NO
+                CODE_SIGNING_ALLOWED=NO ${compile_cache_settings[@]+"${compile_cache_settings[@]}"}
             ;;
     esac
 }

@@ -25,7 +25,8 @@ class AppCache(Lane):
         self.assertEqual([call for call in self.calls() if call.startswith("xcodebuild")], [
             "xcodebuild build -project {c}/{a}.build/src/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
             "-destination platform=iOS Simulator,id={sim} -derivedDataPath {c}/{a}.build/dd -skipPackagePluginValidation "
-            "-skipMacroValidation CODE_SIGNING_ALLOWED=NO".format(c=self.cache, a=self.a, sim=self.sim)])
+            "-skipMacroValidation CODE_SIGNING_ALLOWED=NO".format(c=self.cache, a=self.a, sim=self.sim)
+            + cache_settings(self.tmp / "home")])
         self.assertEqual(self.entries(), [self.a, self.a + ".lock", "logs"],
                          "the abbreviated SHA keys the full one, and the scratch worktree and DerivedData are gone")
         self.assertEqual((self.cache / self.a / "WorkoutTracker.app" / "verify-stamp").read_text(),

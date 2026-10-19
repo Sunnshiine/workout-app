@@ -140,5 +140,35 @@ else
     bad "a simctl failure prints simctl's error, not a refused UDID: exit $status, stderr '$(cat "$root/err")'"
 fi
 
+cache_settings() {
+    rm -f "$STUB_ARGS.build"
+    printf '** TEST EXECUTE SUCCEEDED **\n' >"$root/xcodebuild.log"
+    STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" --sim "$sim" unit >/dev/null 2>&1
+    grep -E '^(COMPILATION_CACHE_|WORKOUT_COMPILE_CACHE_|(SWIFT|CLANG)_.*PREFIX_MAPPING)' "$STUB_ARGS.build"
+}
+# shellcheck disable=SC2016  # Xcode, not the shell, expands the $(...) macros per target
+want_cache='COMPILATION_CACHE_ENABLE_CACHING=$(WORKOUT_COMPILE_CACHE_$(PROJECT_NAME:c99extidentifier):default=YES)'"
+WORKOUT_COMPILE_CACHE_WorkoutTracker=NO
+COMPILATION_CACHE_CAS_PATH=$root/home/Library/Developer/Xcode/DerivedData/CompilationCache.noindex
+COMPILATION_CACHE_LIMIT_SIZE=2G
+COMPILATION_CACHE_ENABLE_DIAGNOSTIC_REMARKS=YES
+SWIFT_ENABLE_PREFIX_MAPPING=YES
+CLANG_ENABLE_PREFIX_MAPPING=YES
+SWIFT_ENABLE_PROJECT_PREFIX_MAPPING=YES
+CLANG_ENABLE_PROJECT_PREFIX_MAPPING=YES"'
+SWIFT_OTHER_PREFIX_MAPPINGS=$(WORKSPACE_DIR:dir:standardizepath)=/^wt $(OBJROOT:dir:standardizepath:dir:standardizepath)=/^dd
+CLANG_OTHER_PREFIX_MAPPINGS=$(WORKSPACE_DIR:dir:standardizepath)=/^wt $(OBJROOT:dir:standardizepath:dir:standardizepath)=/^dd'
+got=$(cache_settings)
+if [ "$got" = "$want_cache" ]; then
+    ok "a build puts package targets on the host-wide compilation cache, with macros left for Xcode to expand"
+else
+    bad "a build puts package targets on the host-wide compilation cache, with macros left for Xcode to expand"
+    printf '    got:\n%s\n    want:\n%s\n' "$got" "$want_cache"
+fi
+got=$(WORKOUT_COMPILE_CACHE=0 cache_settings)
+if [ -z "$got" ] && [ -s "$STUB_ARGS.build" ]; then ok "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings"
+else bad "WORKOUT_COMPILE_CACHE=0 builds with none of the cache settings: $got"; fi
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
