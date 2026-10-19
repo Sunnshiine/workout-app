@@ -80,6 +80,7 @@ private func timeline(live: Int?, liveFinished: Int?, dropped: Int? = nil, decid
     (timeline(live: 100, liveFinished: 1100, decided: 1500), nil),
     (timeline(live: 100, liveFinished: 1400, decided: 1600), DictationRecord.WaitCause.liveFinalize),
     (timeline(live: 100, liveFinished: 1050, decided: 1700), .recordingTranscript),
+    (timeline(live: 100, liveFinished: 1300, decided: 1600), .liveFinalize),
     (timeline(live: 100, liveFinished: 1050, dropped: 2500, decided: 2500), .decisionDeadline),
     (timeline(live: 1600, liveFinished: 1650, decided: 1700), .liveStart),
     (timeline(live: nil, liveFinished: nil, decided: 1900), .liveStart)

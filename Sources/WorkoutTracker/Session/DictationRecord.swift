@@ -110,7 +110,8 @@ extension DictationRecord {
         waitMs.map { $0 <= SetDictation.latencyTarget.wholeMilliseconds }
     }
 
-    /// Nil for a press within the target, or cancelled.
+    /// Nil for a press within the target, or cancelled. The earlier step wins a tie, as the one
+    /// the press waited on first.
     var waitCause: WaitCause? {
         guard isWithinTarget == false, let decided = timeline.decided else { return nil }
         let ended = timeline.ended
