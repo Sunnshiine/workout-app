@@ -15,6 +15,7 @@ struct WorkoutTrackerApp: App {
     /// One owner of the Live Activity per process, whichever surface asked for it.
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
+    private let speechModelCaption: (@Sendable () -> String)?
 
     init() {
         #if canImport(UserNotifications)
@@ -23,9 +24,9 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        let dictation = Self.speech().map {
-            SetDictation(transcriber: $0.live, reader: $0.recording, journal: app.dictationJournal)
-        }
+        let speech = Self.speech()
+        let dictation = speech.map { SetDictation(transcriber: $0.live, reader: $0.recording, journal: app.dictationJournal) }
+        speechModelCaption = speech?.caption
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)
@@ -75,6 +76,8 @@ struct WorkoutTrackerApp: App {
     private struct Speech {
         let live: any SetTranscriber
         let recording: any RecordingTranscriber
+        /// The Settings row's words for the recording engine's model, where a real one runs.
+        var caption: (@Sendable () -> String)?
     }
 
     /// SpeechAnalyzer does not run in the Simulator, so a Simulator card has a mic only when a
@@ -94,7 +97,8 @@ struct WorkoutTrackerApp: App {
         #if targetEnvironment(simulator)
             return nil
         #else
-            return Speech(live: SpeechAnalyzerSetTranscriber(), recording: WhisperEngine(models: .applicationSupport))
+            let engine = WhisperEngine(models: .applicationSupport)
+            return Speech(live: SpeechAnalyzerSetTranscriber(), recording: engine, caption: { engine.caption })
         #endif
     }
 
@@ -159,6 +163,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.historyFill)
                 .environment(app.connection)
                 .environment(entry)
+                .environment(\.speechModelCaption, speechModelCaption)
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }

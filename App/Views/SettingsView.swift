@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.speechModelCaption) private var speechModelCaption
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
     @State private var pendingSwitch: SheetSelection?
@@ -84,6 +85,25 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
                 .listRowBackground(palette.surface)
+
+                if let speechModelCaption {
+                    Section {
+                        // The model downloads, prepares, and loads on its own, so the row reads
+                        // where it stands each second while Settings is open.
+                        TimelineView(.periodic(from: .now, by: 1)) { _ in
+                            LabeledContent {
+                                RowValue(text: speechModelCaption())
+                            } label: {
+                                Text("Speech model")
+                            }
+                        }
+                        .accessibilityIdentifier("settings-speech-model")
+                    } header: {
+                        Text("Speech").foregroundStyle(palette.textSecondary)
+                    }
+                    .labeledContentStyle(StackedAtAccessibilitySizes())
+                    .listRowBackground(palette.surface)
+                }
 
                 Section {
                     Button(role: .destructive) {
@@ -398,4 +418,10 @@ extension View {
             DestructiveConfirmation(title: title, isPresented: isPresented, action: action, onConfirm: onConfirm)
         )
     }
+}
+
+extension EnvironmentValues {
+    /// Where the recording engine's model stands, in the Settings row's words. Nil where no
+    /// recording engine runs, which shows no row.
+    @Entry var speechModelCaption: (@Sendable () -> String)?
 }
