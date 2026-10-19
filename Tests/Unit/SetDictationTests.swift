@@ -98,7 +98,7 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
 }
 
 @MainActor
-@Test func dictationPreparesThenListensWithWhatIsHeardThenFinishesWithTheOutcome() async {
+@Test func dictationPreparesThenListensWithWhatIsHeardThenDecidesThenFinishesWithTheOutcome() async {
     let transcriber = HeldSetTranscriber(candidates: ["135 for 4 at 9"])
     let dictation = SetDictation(transcriber: transcriber)
 
@@ -109,7 +109,7 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     transcriber.starting.release()
     let finishing = Task { await dictation.finish(for: firstSet, in: squat) }
     await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
-    #expect(dictation.state == .listening(firstSet, heard: "135 for 4 at 9"))
+    #expect(dictation.state == .deciding(firstSet, heard: "135 for 4 at 9"))
 
     transcriber.finishing.release()
     let logged = SetDictation.Outcome.logged(SetLog(weight: .pounds(135), reps: 4, rpe: .nine), heard: "135 for 4 at 9")
@@ -267,12 +267,20 @@ func theCardsCaptionForARejectedPress(rejection: SetDictation.Rejection, heard: 
 
     #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: firstSet) == .listening(caption: "135 for"))
     #expect(SetCardDictation(.listening(firstSet, heard: "135 for"), for: secondSet) == .ready)
+    #expect(SetCardDictation(.deciding(firstSet, heard: "135 for"), for: firstSet) == .deciding(caption: "135 for"))
+    #expect(SetCardDictation(.deciding(firstSet, heard: "135 for"), for: secondSet) == .ready)
+}
+
+@Test func theCardKeepsTheCaptionWhileThePressIsDeciding() {
+    #expect(SetCardDictation(.deciding(firstSet, heard: "135 for 4"), for: firstSet) == .deciding(caption: "135 for 4"))
+    #expect(SetCardDictation(.deciding(firstSet, heard: ""), for: firstSet) == .deciding(caption: "Listening"))
 }
 
 @Test func theCapsuleCaptionsAPressInFlightOrRejectedAndTheMicShowsItIsListening() {
     let cases: [(SetCardDictation, String?, Bool)] = [
         (.ready, nil, false),
         (.listening(caption: "135 for"), "135 for", true),
+        (.deciding(caption: "135 for"), "135 for", false),
         (.rejected(caption: "Nothing heard"), "Nothing heard", false),
         (.filled(SetLogDraft(weight: nil, reps: 4, rpe: .nine)), nil, false)
     ]

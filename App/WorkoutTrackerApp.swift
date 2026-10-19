@@ -23,7 +23,9 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
+        // No phone has a recording engine's model yet, so the Live Transcript decides every press.
+        let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
+        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0, reader: reader) }
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)

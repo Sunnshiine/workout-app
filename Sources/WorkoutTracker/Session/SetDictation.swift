@@ -88,6 +88,8 @@ final class SetDictation {
         /// The press began and the transcriber is not yet listening.
         case preparing(ActiveSetID)
         case listening(ActiveSetID, heard: String)
+        /// The press ended and its outcome waits on the engines, for at most the Decision Deadline.
+        case deciding(ActiveSetID, heard: String)
         case finished(ActiveSetID, Outcome)
     }
 
@@ -126,15 +128,23 @@ final class SetDictation {
     nonisolated static let silenceWindow: Duration = .milliseconds(1200)
     /// The longest hands-free listening runs, counted from when the mic went live.
     nonisolated static let listeningCap: Duration = .seconds(8)
+    /// How long after a press ends its outcome may wait for the Recording Transcript, the live
+    /// engine's finalize included. A safety bound, not the target: a press should decide within
+    /// `latencyTarget`.
+    nonisolated static let decisionDeadline: Duration = .milliseconds(1500)
+    /// How long a press should take to decide once it ends, which each press is measured against.
+    nonisolated static let latencyTarget: Duration = .milliseconds(500)
 
     private(set) var state: State = .idle
     @ObservationIgnored private let transcriber: any SetTranscriber
+    @ObservationIgnored private let reader: any RecordingTranscriber
     @ObservationIgnored private let clock: any ListeningClock
     /// Nil means no press is in flight; `finish` and `cancel` take it.
     @ObservationIgnored private var press: Press?
 
-    init(transcriber: any SetTranscriber, clock: any ListeningClock = ContinuousListeningClock()) {
+    init(transcriber: any SetTranscriber, reader: any RecordingTranscriber, clock: any ListeningClock = ContinuousListeningClock()) {
         self.transcriber = transcriber
+        self.reader = reader
         self.clock = clock
     }
 
@@ -152,6 +162,7 @@ final class SetDictation {
     func start(for set: ActiveSetID) -> Bool {
         guard press == nil, state.pressSetID == nil else { return false }
         state = .preparing(set)
+        reader.expectRecording()
         let transcriber = transcriber
         let recorder = DictationRecorder()
         let starting = Task<SetTranscriberError?, Never> { [weak self] in
@@ -225,16 +236,27 @@ final class SetDictation {
         if let error = await press.starting.value {
             outcome = .rejected(.transcriber(error), heard: "")
         } else {
-            let live: LiveHearing
-            do throws(SetTranscriberError) {
-                live = .transcripts(try await transcriber.finish())
-            } catch {
-                live = .failed(error, caption: state.heard)
-            }
-            outcome = Self.decision(of: Hearing(live: live, recording: nil), in: context).outcome
+            outcome = await decide(press, in: context)
         }
         state = .finished(set, outcome)
         return outcome
+    }
+
+    /// Closes the recording and has the recording engine read it the instant the press ends,
+    /// alongside the live engine's finalize, then decides at the first of both answers and the
+    /// Decision Deadline. A Recording Transcript still being read at the deadline is dropped.
+    private func decide(_ press: Press, in context: SpokenSetContext) async -> Outcome {
+        let deadline = clock.now + Self.decisionDeadline
+        let reading = Reading(of: press.recorder.close(), by: reader)
+        state = .deciding(press.set, heard: state.heard)
+        let live: LiveHearing
+        do throws(SetTranscriberError) {
+            live = .transcripts(try await transcriber.finish())
+        } catch {
+            live = .failed(error, caption: state.heard)
+        }
+        let decode = await reading.decode(by: deadline, on: clock)
+        return Self.decision(of: Hearing(live: live, recording: decode?.transcript), in: context).outcome
     }
 
     /// Stops a press that has not begun finishing, writing nothing. The press stays in flight
@@ -261,7 +283,7 @@ final class SetDictation {
             return
         }
         if !heard.isEmpty, heard != state.heard { press?.timeline.lastHeardAt = clock.now }
-        state = .listening(set, heard: heard)
+        state = state.hearing(heard)
     }
 }
 
@@ -271,18 +293,59 @@ struct PressTimeline: Equatable, Sendable {
     var lastHeardAt: Duration?
 }
 
+extension SetDictation {
+    /// One press's recording being read by the recording engine, off the main actor, from the
+    /// instant the press ends. Nothing recorded is never read.
+    @MainActor
+    final class Reading {
+        private var decoding: Task<RecordingDecode, Never>?
+        private var arrived: RecordingDecode?
+
+        init(of recording: DictationRecording, by reader: any RecordingTranscriber) {
+            guard !recording.samples.isEmpty else { return }
+            decoding = Task { @MainActor [weak self] in
+                let decode = await reader.transcribe(recording)
+                self?.arrived = decode
+                return decode
+            }
+        }
+
+        /// The decode once it is in, or nil at `deadline` on `clock`, which cancels the read. One
+        /// already in decides whatever the clock says.
+        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode? {
+            guard let decoding else { return nil }
+            if let arrived { return arrived }
+            let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock)
+            if decode == nil { decoding.cancel() }
+            return decode
+        }
+    }
+}
+
 extension SetDictation.State {
-    /// The Set a press in flight is for.
+    /// The Set a press in flight is for, from its start until its outcome.
     var pressSetID: ActiveSetID? {
         switch self {
-        case .preparing(let set), .listening(let set, _): set
+        case .preparing(let set), .listening(let set, _), .deciding(let set, _): set
         case .idle, .finished: nil
         }
     }
 
     fileprivate var heard: String {
-        guard case .listening(_, let heard) = self else { return "" }
-        return heard
+        switch self {
+        case .listening(_, let heard), .deciding(_, let heard): heard
+        case .idle, .preparing, .finished: ""
+        }
+    }
+
+    /// This press captioned `heard`, in the same phase: a caption the live engine delivers as it
+    /// finalizes does not put a deciding press back to listening.
+    fileprivate func hearing(_ heard: String) -> Self {
+        switch self {
+        case .preparing(let set), .listening(let set, _): .listening(set, heard: heard)
+        case .deciding(let set, _): .deciding(set, heard: heard)
+        case .idle, .finished: self
+        }
     }
 }
 
@@ -291,6 +354,8 @@ enum SetCardDictation: Equatable {
     case ready
     /// The capsule shows what is heard in place of the Log button.
     case listening(caption: String)
+    /// The capsule keeps what was heard, with the mic off, until the press's outcome is in.
+    case deciding(caption: String)
     /// The capsule shows what was heard, or why nothing was, until the athlete taps it.
     case rejected(caption: String)
     /// The card's values become these, with nothing written.
@@ -298,17 +363,18 @@ enum SetCardDictation: Equatable {
 
     init(_ state: SetDictation.State, for setID: ActiveSetID) {
         switch state {
-        case .preparing(setID), .listening(setID, _): self = .listening(caption: state.heard.isEmpty ? "Listening" : state.heard)
+        case .preparing(setID), .listening(setID, _): self = .listening(caption: Self.caption(hearing: state.heard))
+        case .deciding(setID, let heard): self = .deciding(caption: Self.caption(hearing: heard))
         case .finished(setID, .rejected(let rejection, let heard)): self = .rejected(caption: Self.caption(rejection, heard: heard))
         case .finished(setID, .filled(let values, _)): self = .filled(values)
-        case .idle, .preparing, .listening, .finished: self = .ready
+        case .idle, .preparing, .listening, .deciding, .finished: self = .ready
         }
     }
 
     /// What the capsule says in place of the Log button; nil leaves the Log button.
     var caption: String? {
         switch self {
-        case .listening(let caption), .rejected(let caption): caption
+        case .listening(let caption), .deciding(let caption), .rejected(let caption): caption
         case .ready, .filled: nil
         }
     }
@@ -316,6 +382,10 @@ enum SetCardDictation: Equatable {
     var isListening: Bool {
         guard case .listening = self else { return false }
         return true
+    }
+
+    private static func caption(hearing heard: String) -> String {
+        heard.isEmpty ? "Listening" : heard
     }
 
     private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
