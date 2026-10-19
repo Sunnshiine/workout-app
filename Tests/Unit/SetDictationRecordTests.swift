@@ -106,10 +106,3 @@ private func waitUntilListening(_ dictation: SetDictation) async {
     }
     Issue.record("The press never went live")
 }
-
-extension DictationRecord {
-    var decided: Decided? {
-        guard case .decided(let decided) = ending else { return nil }
-        return decided
-    }
-}

@@ -28,7 +28,7 @@ func aRecordReadsBackAsItWasWritten(line: String) throws {
 
 /// Replay decides a recorded press again from what the engines heard and what the card showed, so
 /// both must come back from the record exactly.
-@Test(arguments: DictationRecordFixtures.lines.prefix(2))
+@Test(arguments: DictationRecordFixtures.decided)
 func aDecidedPressIsDecidedTheSameAgainFromItsRecord(line: String) throws {
     let press = try decided(try decoded(line))
     let hearing = Hearing(

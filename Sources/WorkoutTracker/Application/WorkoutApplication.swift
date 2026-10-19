@@ -236,6 +236,13 @@ extension WorkoutApplication {
         let snapshot = try await sheetsClient.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: resolved)
         return SheetTabSnapshot(tab: resolved, snapshot: snapshot)
     }
+
+    /// What the Dictation Records in `records`, a journal file or a directory of them, add up to.
+    /// It reads the records alone, so a journal copied off a phone needs no application.
+    public static func dictationSummary(reading records: URL) throws -> DictationSummary {
+        let lines = try DictationRecordLines(at: records)
+        return DictationSummary(lines.records, unreadableLines: lines.unreadable)
+    }
 }
 
 extension WorkoutApplication {

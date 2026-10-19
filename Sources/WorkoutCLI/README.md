@@ -47,6 +47,7 @@ with exit 3; run `init` again.
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
+| `dictations summary records.jsonl` | `WorkoutApplication.dictationSummary(reading:)`, over a journal file or a `Dictation Records` directory copied off a phone; it opens no home | presses by surface and end, outcomes under the shipped rule and under each `MergeRule`, engine agreement, Recording Transcripts read and missed by reason, release-to-outcome wait against the 500 ms target with the cause of each miss, `implausible` rejections by engine and field, `promptEcho`, stall and footprint percentiles, unreadable lines, and the caveats |
 
 `init`, `sync`, and `flush` converge: running them twice gives the same state. `log` twice
 enqueues twice, because that is what the store does; the report shows it.

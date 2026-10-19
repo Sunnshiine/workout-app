@@ -3,9 +3,10 @@ import Foundation
 @testable import WorkoutTracker
 
 enum DictationRecordFixtures {
-    /// Three presses as a journal holds them: one both engines agreed on, one decided by the Live
-    /// Transcript after the Recording Transcript missed the deadline, and one cancelled. Each is one
-    /// line once the source's line breaks are gone.
+    /// Five presses as a journal holds them: one both engines agreed on, one decided by the Live
+    /// Transcript after the Recording Transcript missed the deadline, one cancelled, one whose
+    /// Recording Transcript a lifter would never log, and one whose Recording Transcript wrote the
+    /// prompt back. Each is one line once the source's line breaks are gone.
     static let lines = [
         #"""
         {"app":{"build":"431","commit":"6aba617","version":"1.9"},"decision":{"agreement":"agreed",
@@ -45,8 +46,47 @@ enum DictationRecordFixtures {
         "os":"26.1.0","thermal":"nominal"},"end":"cancelled","id":"6F1C2D0E-0000-4000-8000-000000000003",
         "longestMainThreadStallMs":3,"pressedAt":"2026-10-19T17:09:02Z","schema":1,"surface":"card",
         "timelineMs":{"ended":800,"live":120}}
+        """#,
+        #"""
+        {"app":{"build":"431","commit":"6aba617","version":"1.9"},"decision":{"agreement":"liveFills",
+        "byRule":{"gate":{"draft":{"reps":5,"rpe":8,"weight":"1247"},"heard":"1247 for 5 at 8","kind":"filled"},
+        "lead":{"heard":"12.47 for 5 at 8.","kind":"rejected","rejection":{"field":"weight","reason":"implausible"}},
+        "liveOnly":{"heard":"1247 for 5 at 8","kind":"logged","setLog":"1247x5@8"},
+        "recordingOnly":{"heard":"12.47 for 5 at 8.","kind":"rejected","rejection":{"field":"weight",
+        "reason":"implausible"}}},"live":{"heard":"1247 for 5 at 8","kind":"logged","setLog":"1247x5@8"},
+        "outcome":{"heard":"12.47 for 5 at 8.","kind":"rejected","rejection":{"field":"weight","reason":"implausible"}},
+        "recording":{"heard":"12.47 for 5 at 8.","kind":"rejected","rejection":{"field":"weight",
+        "reason":"implausible"}},"rule":"lead"},"device":{"footprintMB":455,"lowPower":false,"model":"iPhone17,1",
+        "os":"26.1.0","thermal":"serious"},"end":"released","id":"6F1C2D0E-0000-4000-8000-000000000004",
+        "live":{"candidates":["1247 for 5 at 8"],"captionChanges":4},"longestMainThreadStallMs":38,
+        "pressedAt":"2026-10-19T17:12:30Z","recording":{"audioSeconds":2.5,"modelAtEnd":"ready","modelAtPress":"ready",
+        "segments":[],"transcript":"12.47 for 5 at 8.","truncated":false},"schema":1,"set":{"address":"w1d1.e1.s0",
+        "block":"Block 27","draft":{"reps":5,"rpe":8,"weight":"225"},"exercise":"Bench Press"},"surface":"card",
+        "timelineMs":{"decided":2900,"ended":2100,"firstHeard":700,"lastHeard":1600,"live":140,"liveFinished":2350,
+        "recordingRead":2900}}
+        """#,
+        #"""
+        {"app":{"build":"431","commit":"6aba617","version":"1.9"},"decision":{"agreement":"disagreed",
+        "byRule":{"gate":{"draft":{"reps":11,"rpe":9,"weight":"62"},"heard":"62 pounds for 11 at 9.","kind":"filled"},
+        "lead":{"heard":"62 pounds for 11 at 9.","kind":"logged","setLog":"62x11@9"},
+        "liveOnly":{"heard":"135 for 5 at 8","kind":"logged","setLog":"135x5@8"},
+        "recordingOnly":{"heard":"62 pounds for 11 at 9.","kind":"logged","setLog":"62x11@9"}},
+        "live":{"heard":"135 for 5 at 8","kind":"logged","setLog":"135x5@8"},
+        "outcome":{"heard":"62 pounds for 11 at 9.","kind":"logged","setLog":"62x11@9"},
+        "recording":{"heard":"62 pounds for 11 at 9.","kind":"logged","setLog":"62x11@9"},"rule":"lead"},
+        "device":{"footprintMB":470,"lowPower":false,"model":"iPhone17,1","os":"26.1.0","thermal":"serious"},
+        "end":"released","id":"6F1C2D0E-0000-4000-8000-000000000005","live":{"candidates":["135 for 5 at 8"],
+        "captionChanges":4},"longestMainThreadStallMs":9,"pressedAt":"2026-10-19T17:15:00Z",
+        "recording":{"audioSeconds":2.5,"modelAtEnd":"ready","modelAtPress":"ready","segments":[],
+        "transcript":"62 pounds for 11 at 9.","truncated":false},"schema":1,"set":{"address":"w1d1.e1.s0",
+        "block":"Block 27","draft":{"reps":5,"rpe":8,"weight":"225"},"exercise":"Bench Press"},"surface":"card",
+        "timelineMs":{"decided":2050,"ended":1800,"firstHeard":600,"lastHeard":1400,"live":160,"liveFinished":1830,
+        "recordingRead":2050}}
         """#
     ].map { $0.replacingOccurrences(of: "\n", with: "") }
+
+    /// The decided presses.
+    static let decided = [lines[0], lines[1], lines[3], lines[4]]
 
     static func record(_ line: String) throws -> DictationRecord {
         try DictationRecord.lineDecoder().decode(DictationRecord.self, from: Data(line.utf8))

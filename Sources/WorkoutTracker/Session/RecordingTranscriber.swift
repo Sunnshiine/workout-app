@@ -12,6 +12,23 @@ protocol RecordingTranscriber: Sendable {
     @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode
 }
 
+/// The made-up earlier sentences the recording engine reads a press after, which steer it toward
+/// writing numerals. Their numerals appear in no real phrasing, so one in a Recording Transcript
+/// was more likely read back from the prompt than said.
+struct RecordingPrompt: Equatable, Sendable {
+    enum ID: String, Codable, Sendable {
+        case p1
+    }
+
+    let id: ID
+    let text: String
+
+    static let p1 = RecordingPrompt(
+        id: .p1,
+        text: "317.5 for 3 at 6.5. 62 pounds for 11 at 9. 1290 pounds, 14 reps, RPE 7.5. For 13 at 10. Skip."
+    )
+}
+
 /// Where the recording engine's model stands on this phone.
 enum SpeechModelState: String, Equatable, Sendable, Codable {
     case absent
