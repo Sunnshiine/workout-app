@@ -97,9 +97,15 @@ this load (deltas of -5.5, +0.1 and -1.2 s against run-to-run spread of 60 s), b
 on a host at load 150 is bounded by CPU scheduling, not by its own phases; CPU time was 166 to
 184 s user on both sides. Seeding a lane costs one `clone` of 0.7 to 2.6 s and 1.5 MB of disk,
 against 384 MB and a 5 to 16 s resolve per lane today. xcodebuild left the seeded
-`workspace-state.json` untouched and wrote only `prebuilts/swift-syntax/603.0.1`. The unit suite
+`workspace-state.json` untouched, because this experiment kept Xcode's formatting, and wrote only
+`prebuilts/swift-syntax/603.0.1`; it rewrites a reformatted state file, harmlessly. The unit suite
 run from the seeded build (`scripts/test-sim.sh --no-build unit`) passed: 1264 tests, 1263
 passed, 1 expected failure, 0 failed.
+
+These runs reused one worktree per side and removed only its DerivedData between runs, so the
+seeded side skipped a cost the first build in a new worktree pays. The integration runs below,
+each in a new `lane.sh up` worktree, are the ones that describe a fresh lane: about 1.8 s saved,
+not 11.6 s.
 
 ## Consumer: resolved Swift packages
 
