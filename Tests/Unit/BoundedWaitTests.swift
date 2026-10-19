@@ -38,11 +38,15 @@ import Testing
 }
 
 @MainActor
-@Test func aDeadlineAlreadyPastIsNilAtOnceEvenForAFinishedOperation() async {
+@Test(
+    "A deadline reached or already past is nil at once, even for a finished operation",
+    arguments: [Duration.seconds(1), .seconds(2)]
+)
+func aDeadlineReachedOrPastIsNilAtOnceEvenForAFinishedOperation(now: Duration) async {
     let clock = ManualListeningClock()
     let work = Task { @MainActor in 7 }
     _ = await work.value
-    clock.advance(by: .seconds(2))
+    clock.advance(by: now)
 
     #expect(await BoundedWait.wait(for: work, until: .seconds(1), on: clock) == nil)
 }

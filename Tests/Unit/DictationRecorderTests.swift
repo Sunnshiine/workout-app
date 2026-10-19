@@ -38,6 +38,7 @@ private func append(_ samples: [Float], to recorder: DictationRecorder) {
 
     let recording = recorder.close()
     #expect(recording.samples.count == capacity)
+    #expect(capacity == 480_000, "30 seconds at 16 kHz")
     #expect(recording.samples.last == 0.6)
     #expect(recording.isTruncated)
 }

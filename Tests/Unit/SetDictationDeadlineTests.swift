@@ -8,6 +8,7 @@ private let said = "185 for 5 at 8"
 private let liveLogs = SetDictation.Outcome.logged(SetLog(weight: .pounds(185), reps: 5, rpe: .eight), heard: said)
 private let recordingSkips = RecordingDecode(result: .heard("skip", segments: []), timings: nil)
 private let silence = [Float](repeating: 0, count: DictationRecorder.sampleRate)
+private let deadline = Duration.milliseconds(1500)
 
 /// A press that went live hearing `said` and ended: its live engine's finalize is parked until the
 /// test releases it, and its recording, when there is one, is being read until the test answers.
@@ -58,9 +59,9 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
 @Test func aReadStillRunningAtTheDeadlineIsCancelledAndTheLiveTranscriptDecides() async {
     let press = await endPress()
     await press.finalizeLive()
-    await press.clock.waitUntilSleeping(until: SetDictation.decisionDeadline, orRecord: "The press never waited for the read")
+    await press.clock.waitUntilSleeping(until: deadline, orRecord: "The press never waited for the read")
 
-    press.clock.advance(by: SetDictation.decisionDeadline)
+    press.clock.advance(by: deadline)
 
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.wasCancelled)
@@ -73,8 +74,8 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
     press.clock.advance(by: .milliseconds(400))
     await press.finalizeLive()
 
-    await press.clock.waitUntilSleeping(until: SetDictation.decisionDeadline, orRecord: "The deadline moved with the live engine")
-    press.clock.advance(by: SetDictation.decisionDeadline - .milliseconds(400))
+    await press.clock.waitUntilSleeping(until: deadline, orRecord: "The deadline moved with the live engine")
+    press.clock.advance(by: deadline - .milliseconds(400))
 
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.wasCancelled)
