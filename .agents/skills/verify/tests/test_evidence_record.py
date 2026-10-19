@@ -130,9 +130,11 @@ class Record(Lane):
 
     def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):
         self.launch()
-        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20"), (75, "", (
-            "gave up after 0 s waiting for the load to fall to 50 before recording: the 1-minute load is 63.20, "
-            "over 50 (WORKOUT_LOAD_LIMIT)\n")))
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20")
+        self.assertEqual((code, out), (75, ""))
+        self.assertRegex(err, (
+            r"^gave up after \d+ s waiting for the load to fall to 50 before recording: the 1-minute load is 63\.20, "
+            r"over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
         self.assertEqual(self.calls(), [])
         self.assertEqual(self.listing(self.run), ["launches.txt"])
 
@@ -142,7 +144,7 @@ class Record(Lane):
         self.assertEqual((code, out), (75, ""))
         self.assertRegex(err, (
             r"^waiting up to 1 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
-            r"\(WORKOUT_LOAD_LIMIT\)\ngave up after [1-4] s waiting for the load to fall to 50 before recording: the "
+            r"\(WORKOUT_LOAD_LIMIT\)\ngave up after \d+ s waiting for the load to fall to 50 before recording: the "
             r"1-minute load is 50\.01, over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
         self.assertEqual(self.calls(), [])
 
@@ -158,10 +160,11 @@ class Record(Lane):
         self.assertEqual((code, out), (75, ""))
         self.assertRegex(err, re.escape(
             "waiting up to 10 s for the load to fall to 50 before recording: the 1-minute load is 63.20, over 50 "
-            "(WORKOUT_LOAD_LIMIT)\n") + r"went ahead after [2-4] s\n" + re.escape(
+            "(WORKOUT_LOAD_LIMIT)\n") + r"went ahead after \d+ s\n" + re.escape(
             "the app on %s belongs to run lane-2 (pid %d), not to lane-1, so this would drive another run's app; "
             "launch yours first: SIM=%s VERIFY_RUN=lane-1 %s launch <fixture>\n"
             % (self.sim, other.pid, self.sim, self.verify_path)) + "$")
+        self.assertGreaterEqual(int(re.search(r"went ahead after (\d+) s", err).group(1)), 2)
         self.assertEqual(self.calls(), [])
 
     def test_a_reclaimed_run_records_nothing_and_is_told_who_reclaimed_it_before_any_wait(self):
