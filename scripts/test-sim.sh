@@ -89,6 +89,7 @@ trap 'exit 129' HUP
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
+. "$repo/scripts/compile-cache.sh"
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -125,7 +126,8 @@ stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
   with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
-    -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
+    -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO ${compile_cache_settings[@]+"${compile_cache_settings[@]}"} \
+    > "$logs/$stamp-build.log" 2>&1 \
     || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 

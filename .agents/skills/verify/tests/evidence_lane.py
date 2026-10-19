@@ -19,12 +19,20 @@ def built_app(home, code):
     return app
 
 
+def cache_settings(home):
+    """The settings scripts/compile-cache.sh adds to every local build (ADR-0021), as a call string tail."""
+    done = subprocess.run(["bash", "-c", '. "$1"; printf " %s" "${compile_cache_settings[@]}"', "_",
+                           str(REPO / "scripts" / "compile-cache.sh")], env=dict(os.environ, HOME=str(home)),
+                          stdout=subprocess.PIPE, universal_newlines=True, check=True)
+    return done.stdout
+
+
 def fake_checkout(root):
     checkout = root / "checkout"
     skill = checkout / ".agents" / "skills" / "verify"
     skill.mkdir(parents=True)
     (checkout / "scripts").mkdir()
-    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
+    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh", "compile-cache.sh"]:
         (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
     for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py"]:
         (skill / name).symlink_to(SKILL / name)
@@ -160,7 +168,7 @@ class Lane(unittest.TestCase):
         for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py", "take.py"]:
             (skill / name).symlink_to(SKILL / name)
         (checkout / "scripts").mkdir()
-        for name in ["sim-lock.sh", "bootstrap-xcode-worktree.sh"]:
+        for name in ["sim-lock.sh", "bootstrap-xcode-worktree.sh", "compile-cache.sh"]:
             (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
         return skill / "verify.sh"
 

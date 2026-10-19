@@ -19,7 +19,8 @@ expect() {
 }
 
 mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources" "$repo/App"
-cp "$script_dir/../check-each-commit.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
+cp "$script_dir/../check-each-commit.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" \
+    "$script_dir/../compile-cache.sh" "$repo/scripts/"
 
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash
@@ -93,8 +94,10 @@ FAIL  $c6  spm-build Ns  spm-test ✘  xcode-bft -  add a failing test
 3 of 6 commits failed
 "
 expect "the logs sit under the caller's .build/check-each-commit" "${logs%/*}" "$repo/.build/check-each-commit"
-expect "xcodebuild builds for testing on a generic simulator destination" "$(sort -u "$STUB_XCODE_SEEN")" \
-    "build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination generic/platform=iOS Simulator -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO"
+# shellcheck source=scripts/compile-cache.sh
+. "$script_dir/../compile-cache.sh"
+expect "xcodebuild builds for testing on a generic simulator destination on the shared compilation cache" "$(sort -u "$STUB_XCODE_SEEN")" \
+    "build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination generic/platform=iOS Simulator -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO ${compile_cache_settings[*]}"
 expect "the caller's HEAD and status never change while commits build" "$(sort -u "$STUB_WATCH")" "$(sort -u <<<"$before")"
 expect "the caller's uncommitted edit is still there after the run" "$(git -C "$repo" status --porcelain; git -C "$repo" rev-parse HEAD)" "$before"
 

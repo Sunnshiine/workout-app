@@ -105,9 +105,11 @@ logged_to() { local log=$1; shift; "$@" > "$log" 2>&1; }
 xcodebuild_build() {
   local derived=()
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
+  . "$repo/scripts/compile-cache.sh"
   mkdir -p "$(dirname "$3")"
   with_build_slot logged_to "$3" xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
     ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO \
+    ${compile_cache_settings[@]+"${compile_cache_settings[@]}"} \
     || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
 }
 

@@ -8,7 +8,8 @@ trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$other_sim"
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
-cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
+cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../test-log-summary.awk" "$script_dir/../compile-cache.sh" \
+    "$repo/scripts/"
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 cat >"$repo/scripts/sim-keyboard.sh" <<'STUB'
 #!/bin/sh
@@ -31,6 +32,7 @@ STUB
 cat >"$root/bin/xcodebuild" <<'STUB'
 #!/bin/sh
 printf '%s\n' "$@" >"$STUB_ARGS"
+[ "$1" != build-for-testing ] || printf '%s\n' "$@" >"$STUB_ARGS.build"
 while [ $# -gt 0 ]; do
     [ "$1" != -resultBundlePath ] || [ -z "${STUB_SUMMARY:-}" ] || { mkdir -p "$2" && printf '%s\n' "$STUB_SUMMARY" >"$2/summary"; }
     shift
