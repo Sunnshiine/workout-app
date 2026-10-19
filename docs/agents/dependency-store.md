@@ -1,6 +1,6 @@
 # Dependency store
 
-<!-- doc-symbols: not-in-tree workspace-state.json stringByStandardizingPath info.plist PbxCp.swift -->
+<!-- doc-symbols: not-in-tree workspace-state.json info.plist PbxCp.swift -->
 
 `scripts/dep-store.sh` keeps one copy of each large, immutable build input on this Mac and hands
 every lane an APFS clone of it. Ten lanes that need the same 384 MB of resolved Swift packages,
@@ -103,12 +103,17 @@ passed, 1 expected failure, 0 failed.
 
 ## Consumer: resolved Swift packages
 
-The first consumer is each lane's `DerivedData/WorkoutTracker-<hash>/SourcePackages`. Xcode's
-`workspace-state.json` records the artifact bundle's absolute path, so a clone rewrites that
-prefix to its own `SourcePackages` path before the first build. The rewrite is required: a seeded
+The first consumer is each lane's `DerivedData/WorkoutTracker-<hash>/SourcePackages`. A resolved
+tree names its own absolute path in three places a build reads: `workspace-state.json` records
+the SwiftLint artifact bundle's path, and each `checkouts/<pkg>/.git/config` (the origin URL) and
+`checkouts/<pkg>/.git/objects/info/alternates` point at `repositories/`. Only the reflogs under
+`checkouts/<pkg>/.git/logs/` also hold it, and nothing reads them. A clone rewrites all three
+to its own `SourcePackages` path before the first build. The rewrite is required: a seeded
 build without it (one run) still skipped the resolve and left the state file alone, but ran the
 SwiftLint build tool plugin's binary from the path the state named, which was the producing
-lane's DerivedData, so that lane's `lane.sh down` would have broken this lane's builds.
+lane's DerivedData, so that lane's `lane.sh down` would have broken this lane's builds. The git
+files matter the same way the first time a lane's `Package.resolved` moves a checkout: git reads
+objects through the alternates and fetches from the origin.
 
 Xcode names the DerivedData dir from the project path after `stringByStandardizingPath`
 (a leading `/private` is dropped, so `/private/tmp/x` hashes as `/tmp/x`): MD5 of the path, each
@@ -119,11 +124,62 @@ costs about 50 ms in Python (20 runs in 0.99 s at load 190). The alternative,
 DerivedData (one run, load 95 to 213), because it resolves and extracts every package to answer,
 leaving a 396 MB DerivedData behind: the cost the store exists to avoid.
 
-Integration (not wired yet; a worker is editing `test-sim.sh`): before `build-for-testing`, when
-`<dd>/SourcePackages` is absent, `clone` the key for `Package.resolved` plus the Xcode build
-version into it and rewrite the artifact path. After a build that resolved cold, `publish` the
-key with `cp -c -R <dd>/SourcePackages/ "$DEP_STORE_OUT"` as the producer, which costs the lane
-about one second and nothing on disk.
+### How test-sim.sh uses it
+
+`scripts/seed-packages.sh`, sourced by `test-sim.sh`, runs around `build-for-testing`, and
+`scripts/seed-packages.py` does its path work. The key is
+`dep-store.sh key <project>/project.xcworkspace/xcshareddata/swiftpm/Package.resolved -s "<xcodebuild -version, one line>"`.
+
+1. **Before the build.** Nothing happens when `Package.resolved` is missing,
+   `WORKOUT_SEED_PACKAGES=0`, or `<dd>/SourcePackages` exists, which covers every lane that has
+   built once. A `<dd>` whose `info.plist` names another project is never touched. Otherwise
+   `clone` the key into `<dd>/SourcePackages.seeding.<pid>`, rewrite the three paths there, and
+   rename it to `<dd>/SourcePackages`, so an interrupted seed leaves only a staging dir, which
+   the next seed removes once its pid is dead. A miss (exit 3), a failed clone, or a tree naming
+   two roots resolves cold.
+2. **After the build.** When the `info.plist` in `<dd>` does not name this project, Xcode built elsewhere
+   and the hash guessed wrong: remove only the seeded `SourcePackages`, then `rmdir <dd>`, which
+   succeeds only if nothing else is in it. When a seeded build fails with error lines that name
+   `SourcePackages/`, a package, or an artifact bundle, remove the seeded tree and leave
+   `<dd>/seed-packages.refused`, so the next run resolves cold. `lane.sh down` removes the marker
+   with the dir. An app compile error keeps the seed.
+3. **Publish.** After a build that succeeded on a cold resolve, recompute the key, and when it
+   still matches, `publish` it with `sh -c 'cp -c -R "$0"/. "$DEP_STORE_OUT"' <dd>/SourcePackages`.
+   A changed key, from a build that rewrote `Package.resolved`, publishes nothing. Publishing
+   never fails the run.
+4. **Prune.** `lane.sh down`, after it removes a lane, runs `dep-store.sh prune --keep-bytes
+   2000000000`, about five `Package.resolved` versions.
+
+`verify.sh` and `check-each-commit.sh` also make first builds and still resolve cold.
+
+### Measured through the integration
+
+Fresh lanes from `lane.sh up`, each a first `build-for-testing` with test-sim.sh's flags through a
+build slot, seeded against `WORKOUT_SEED_PACKAGES=0`, alternating, 3 pairs. Every run built the
+same 1301 tasks clean. Every cold run logged 12 `Fetching from ... (cached)` lines and 12 working
+copies; no seeded run logged any. The fetches come from SwiftPM's shared cache in
+`~/Library/Caches/org.swift.swiftpm`, so a cold resolve on this Mac copies and checks out locally
+rather than downloading, which bounds what seeding can save.
+
+| pair | load | cold resolve phase | seeded resolve phase | cold CPU | seeded CPU |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 53 to 85 | 5.2 s | 3.3 s | 168.8 s | 168.8 s |
+| 2 | 40 to 95 | 5.1 s | 3.5 s | 169.8 s | 173.1 s |
+| 3 | 182 to 535 | 9.1 s | 9.0 s | 173.0 s | 177.6 s |
+
+Seeding saves about 1.8 s of the resolve phase at moderate load and nothing measurable at load
+500; build wall time and CPU show no measurable difference. In `xcodebuild
+-resolvePackageDependencies` alone (3 rounds, load 256 to 381) a seeded resolve took 0.9 to 1.5 s
+against 4.4 to 8.8 s cold, the same as a clone with only `workspace-state.json` repointed or none
+at all, so the git-file rewrite costs nothing. The rest of a seeded lane's 3.3 s appears to belong to
+the first build in a new worktree path, not to packages: three first builds at load under 130
+spent 3.3 to 3.8 s, and three later seeded builds in the same worktree 1.2 to 1.3 s. The cause
+is not measured. Seeding itself took 0.9 to 1.2 s, publishing 0.9 s once, and one clone used 0.3 to 2.2 MB
+of blocks (`df` on the Data volume) against 397 MB, of which the SwiftLint artifact is 211 MB, for
+a resolved `SourcePackages`. The unit suite from a seeded lane's full `test-sim.sh` run passed:
+1263 passed, 1 expected failure, 0 failed. Its SwiftLint plugin ran from that lane's own
+DerivedData, and the producer's path survived only in the checkouts' reflogs, after the producing
+lane was already down.
 
 ## Consumer: a large model file
 
