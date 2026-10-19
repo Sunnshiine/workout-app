@@ -36,7 +36,7 @@ struct DayColumns: Sendable {
     let load: Int?
     let lastSetRPE: Int?
     let notes: Int?
-    let span: Range<Int>  // [dayStart, nextDayStart)
+    let span: Range<Int>  // [dayStart, nextDayStart), or past the last Day's rightmost role column
 }
 
 struct SheetLayout: Sendable {
@@ -210,6 +210,11 @@ private nonisolated(unsafe) let sheetLayoutDayHeaderPattern = /^Day (\d+)$/
 /// Columns are never hardcoded (ADR 0003). `bodyRows` is the day's exercise-row range,
 /// used only to disambiguate a role header that is repeated across columns; the empty
 /// default (`0..<0`) skips disambiguation and returns the first matching column.
+///
+/// A Day ends where the next Day starts. The last Day has no next start, so it takes the first
+/// Day's width (16 for a one-Day week) and grows to reach any role it lacks within that width:
+/// the first matching header to its right, so a coach cell further out cannot shadow the Day's
+/// own column (#1045). Its span then ends after its rightmost role column.
 func resolveDayColumns(
     in grid: SheetGrid,
     section: WeekSection,
@@ -218,16 +223,17 @@ func resolveDayColumns(
 ) -> DayColumns {
     let starts = section.dayStartCols
     let start = starts[headerIndex]
-    let end =
-        headerIndex + 1 < starts.count
-        ? starts[headerIndex + 1]
-        : start + (starts.count > 1 ? starts[1] - starts[0] : 16)
-    let span = start..<end
+    let isLastDay = headerIndex + 1 == starts.count
+    let end = isLastDay ? start + (starts.count > 1 ? starts[1] - starts[0] : 16) : starts[headerIndex + 1]
+    let roleHeaderWidth = grid.indices.contains(section.roleHeaderRow) ? grid[section.roleHeaderRow].count : 0
+    let pastEnd = isLastDay ? end..<max(end, roleHeaderWidth) : end..<end
 
+    func isHeaded(_ col: Int, _ label: String) -> Bool {
+        grid.cell(row: section.roleHeaderRow, col: col).caseInsensitiveCompare(label) == .orderedSame
+    }
     func find(_ label: String) -> Int? {
-        let matches = span.filter {
-            grid.cell(row: section.roleHeaderRow, col: $0).caseInsensitiveCompare(label) == .orderedSame
-        }
+        let matches = (start..<end).filter { isHeaded($0, label) }
+        guard !matches.isEmpty else { return pastEnd.first { isHeaded($0, label) } }
         guard matches.count > 1 else { return matches.first }
         // A coach sheet can repeat a role header across adjacent columns where only one
         // carries data (e.g. a stray duplicate "Sets" header). Prefer the column with
@@ -236,15 +242,22 @@ func resolveDayColumns(
             bodyRows.contains { !grid.cell(row: $0, col: col).trimmed.isEmpty }
         } ?? matches.first
     }
+    let sets = find("Sets")
+    let reps = find("Reps")
+    let percentOneRM = find("%1RM")
+    let load = find("Load")
+    let lastSetRPE = find("Last set RPE")
+    let notes = find("Notes")
+    let roleColumns = [sets, reps, percentOneRM, load, lastSetRPE, notes].compactMap { $0 }
     return DayColumns(
         name: start,
-        sets: find("Sets"),
-        reps: find("Reps"),
-        percentOneRM: find("%1RM"),
-        load: find("Load"),
-        lastSetRPE: find("Last set RPE"),
-        notes: find("Notes"),
-        span: span
+        sets: sets,
+        reps: reps,
+        percentOneRM: percentOneRM,
+        load: load,
+        lastSetRPE: lastSetRPE,
+        notes: notes,
+        span: start..<roleColumns.reduce(end) { max($0, $1 + 1) }
     )
 }
 
