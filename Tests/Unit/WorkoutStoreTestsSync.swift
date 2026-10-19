@@ -96,16 +96,60 @@ private func sync(
     }
 }
 
-/// The write path refuses a Set the sync took out of the Block, whichever link the store dropped.
+private enum SetWrite: CaseIterable {
+    case log
+    case skip
+    case deleteLog
+    case editLog
+
+    static let firstLog = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+
+    var needsALoggedSet: Bool { self == .deleteLog || self == .editLog }
+
+    @MainActor
+    func run(on store: WorkoutStore, _ set: ExerciseSet) throws {
+        switch self {
+        case .log: try store.log(set, as: Self.firstLog)
+        case .skip: try store.skip(set)
+        case .deleteLog: try store.deleteLog(for: set)
+        case .editLog: try store.log(set, as: SetLog(weight: .pounds(190), reps: 4, rpe: .nine))
+        }
+    }
+}
+
+/// The write path refuses a Set the sync took out of the Block, whichever links the cascade delete
+/// left it, and leaves the Set as the athlete last saw it.
 @MainActor
-@Test func loggingASetHeldAcrossASyncQueuesNoWrite() async throws {
+@Test(arguments: SetWrite.allCases)
+private func writingASetHeldAcrossASyncQueuesNoWrite(_ write: SetWrite) async throws {
     try await withOnDiskStore(weekCount: 1) { store, context in
         let held = try #require(store.currentSession?.exercises.first?.sets.first)
+        if write.needsALoggedSet { try store.log(held, as: SetWrite.firstLog) }
+        let queued = try context.fetchCount(FetchDescriptor<PendingWrite>())
+        let (state, setLog) = (held.state, held.setLog)
         try sync(store, replacingBlockWith: makeStoreBlock(), in: context)
 
-        #expect(throws: WorkoutLoggingError.self) {
-            try store.log(held, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-        }
-        #expect(try context.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
+        #expect(throws: WorkoutLoggingError.detachedSession) { try write.run(on: store, held) }
+        #expect(try context.fetchCount(FetchDescriptor<PendingWrite>()) == queued)
+        #expect(held.state == state)
+        #expect(held.setLog == setLog)
     }
+}
+
+/// A Set the sync took out of the Block reads every link up to the Block it left in about one run
+/// in eighty (#1036), so the test above meets it only now and then. A Set of a Block the store
+/// does not hold is that Set on every run.
+@MainActor
+@Test(arguments: SetWrite.allCases)
+private func writingASetOfABlockTheStoreDoesNotHoldQueuesNoWrite(_ write: SetWrite) throws {
+    let fixture = try makeStore()
+    let otherBlock = makeStoreBlock(tabName: "Block 28")
+    let other = try #require(otherBlock.weeks.first?.sessions.first?.exercises.first?.sets.first)
+    if write.needsALoggedSet { other.markLogged(SetWrite.firstLog, at: Date(timeIntervalSinceReferenceDate: 0)) }
+    let (state, setLog) = (other.state, other.setLog)
+
+    #expect(throws: WorkoutLoggingError.detachedSession) { try write.run(on: fixture.store, other) }
+    #expect(try fixture.container.mainContext.fetchCount(FetchDescriptor<PendingWrite>()) == 0)
+    #expect(other.state == state)
+    #expect(other.setLog == setLog)
 }
