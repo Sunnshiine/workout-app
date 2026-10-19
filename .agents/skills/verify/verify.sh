@@ -22,8 +22,10 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               the running instance ours, current, and answering, and is the software
                               keyboard hidden by the preference issue 700 names?
   tree [--all]                what is on screen, one element per line: role  id  label  value  @x,y wxh
+                              an element with neither id nor label prints with empty id and label
+                              columns when it has a value or a control, text, or image role;
                               --all adds the off-screen ones (scrolled-out rows, picker tails) and
-                              the ones with neither id nor label, by role, value and frame
+                              the unnamed layout groups
   find <id>                   one element by accessibility identifier, on screen or off; exit 1 if absent;
                               says on stderr when it is off-screen, clipped, or disabled
   tap --id ID | --label TEXT | -x X -y Y

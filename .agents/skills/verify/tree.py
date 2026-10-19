@@ -2,9 +2,10 @@
 """The accessibility tree as text, and the owner of the tree line format.
 
 Reads an `axe describe-ui` JSON tree on stdin:
-  tree.py flat [--all]   one line per labeled or identified element: role, id, label, value, @x,y wxh
-                         on-screen elements only; --all keeps the off-screen ones and the elements
-                         with neither id nor label too
+  tree.py flat [--all]   one line per element: role, id, label, value, @x,y wxh
+                         on-screen elements only, and of those with neither id nor label only the
+                         ones with a value or a control, text, or image role, with empty id and
+                         label columns; --all keeps the off-screen ones and the unnamed layout too
   tree.py find <id>      that element's line wherever it is, on screen or off; exit 1 if absent
                          says on stderr when it is off-screen (no whole point on the screen), clipped
                          (its centre, or every point of it the screen shows, outside the frame of an
@@ -147,6 +148,15 @@ def reach(frame: Frame, ancestors: Tuple[dict, ...], screen: Frame) -> Reach:
     return Reach(clipped_by, whole_point(shown))
 
 
+AXE_ACTIONABLE_ROLES = frozenset({
+    "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
+    "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
+    "AXTextField", "AXToggle",
+})
+# An unnamed element with one of these roles still shows the reader something, so flat prints it.
+READABLE_ROLES = AXE_ACTIONABLE_ROLES | {"AXImage", "AXStaticText"}
+
+
 class TreeLine(NamedTuple):
     role: str
     ident: str
@@ -187,6 +197,10 @@ class TreeLine(NamedTuple):
         return bool(self.ident or self.label)
 
     @property
+    def readable(self) -> bool:
+        return self.named or bool(self.value) or self.role in READABLE_ROLES
+
+    @property
     def text(self) -> str:
         return f"{self.role}\t{self.ident}\t{self.label}\t{self.value}\t{self.frame.text}"
 
@@ -216,6 +230,8 @@ def lines(root: dict) -> List[TreeLine]:
 
 
 def by_id(root: dict, ident: str) -> List[TreeLine]:
+    if not ident:
+        return []
     return [line for line in lines(root) if line.ident == ident]
 
 
@@ -224,13 +240,6 @@ def by_label(root: dict, label: str) -> List[TreeLine]:
     if not wanted:
         return []
     return [line for line in lines(root) if line.label.strip() == wanted]
-
-
-AXE_ACTIONABLE_ROLES = frozenset({
-    "AXButton", "AXCell", "AXCheckBox", "AXLink", "AXMenuItem", "AXPopUpButton", "AXRadioButton",
-    "AXSecureTextField", "AXSegmentedControl", "AXSlider", "AXSwitch", "AXTab", "AXTabBarButton",
-    "AXTextField", "AXToggle",
-})
 
 
 def tap_candidates(matches: List[TreeLine]) -> List[TreeLine]:
@@ -374,14 +383,15 @@ def main() -> None:
             for line in every:
                 print(line.text)
             return
-        named = [line for line in every if line.named]
-        shown = [line for line in named if line.on_screen]
+        readable = [line for line in every if line.readable]
+        shown = [line for line in readable if line.on_screen]
         for line in shown:
             print(line.text)
-        for count, kind in [(len(named) - len(shown), "off-screen elements"),
-                            (len(every) - len(named), "elements with neither id nor label")]:
+        for count, what, suffix in [(len(readable) - len(shown), "off-screen", ""),
+                                    (len(every) - len(readable), "unnamed layout", " with no value")]:
             if count:
-                print(f"{count} {kind} hidden; `verify.sh tree --all` lists them", file=sys.stderr)
+                print(f"{count} {what} element{'s' * (count != 1)}{suffix} hidden; `verify.sh tree --all` lists them",
+                      file=sys.stderr)
     elif mode == "find":
         found = by_id(root, sys.argv[2])
         if not found:
@@ -418,12 +428,11 @@ def main() -> None:
                 return
         sys.exit("\n".join(obstacles(found)))
     elif mode == "center":
-        for line in lines(root):
-            if line.ident == sys.argv[2]:
-                x, y = line.frame.center
-                print(f"{x:.0f} {y:.0f}")
-                return
-        sys.exit(1)
+        found = by_id(root, sys.argv[2])
+        if not found:
+            sys.exit(1)
+        x, y = found[0].frame.center
+        print(f"{x:.0f} {y:.0f}")
 
 
 if __name__ == "__main__":
