@@ -24,10 +24,13 @@ edit. CPU seconds are user plus system from
 | Every target cached, one line added to `RPETable.swift` | 3 | 342 | 39 | 171.0 (170.3 to 183.0) | 96.9 (67.2 to 123.3) |
 | Every target cached, warm lane, one member added, on | 3 | 0 | 29 | 110.8 (110.4 to 122.0) | 18.7 (16.7 to 37.3) |
 | Same edit, warm lane, off | 3 | 0 | 0 | 16.1 (13.8 to 17.2) | 11.5 (9.9 to 15.0) |
+| Packages cached, empty cache | 1 | 18 | 428 | 197.6 | 30.5 |
 | Packages cached, cache off | 3 | 0 | 0 | 188.5 (186.6 to 188.6) | 34.8 (27.9 to 35.8) |
 | Packages cached, same commit | 3 | 315 | 0 | 176.2 (166.1 to 178.4) | 39.9 (26.1 to 45.3) |
-| Packages cached, warm lane, one member added, on | 2 | 0 | 0 | 14.2 (13.7 to 14.6) | 10.2 (9.7 to 10.7) |
-| Same edit, warm lane, off | 2 | 0 | 0 | 13.8 (13.6 to 13.9) | 9.8 (9.6 to 10.0) |
+| Packages cached, one line added to `RPETable.swift`, on | 3 | 315 | 0 | 167.9 (167.2 to 176.0) | 28.7 (28.0 to 39.4) |
+| Same edit, off | 3 | 0 | 0 | 191.7 (187.3 to 196.4) | 36.1 (29.8 to 39.5) |
+| Packages cached, warm lane, one member added, on | 5 | 0 | 0 | 14.6 (13.7 to 19.0) | 10.9 (9.7 to 17.4) |
+| Same edit, warm lane, off | 5 | 0 | 0 | 14.1 (13.6 to 15.4) | 10.2 (9.6 to 11.7) |
 
 What the numbers say:
 
@@ -49,11 +52,13 @@ What the numbers say:
   in its module, and `Sources/WorkoutTracker` compiles into the app target (ADR-0017). One body-only
   edit missed only the app's 13 tasks (68.8 CPU s, one run). An edit that adds a member changes the
   emitted module, so both unit test bundles missed too.
-- **Packages alone save about 12 CPU seconds, 6% of a fresh lane's build.** Every package compile hit.
-  The on range sits below the off range, so the gap is real, but the app module and the test bundles
-  are most of the work. Wall time showed no difference at this load. Project targets built exactly
-  as with the cache off: the warm edit loop matched, the unit suite passed 1,263, and the built
-  bundles hold no mapped path.
+- **Packages alone save 12 to 24 CPU seconds, 6 to 12% of a fresh lane's build.** Every package
+  compile hit, whether or not the lane's commit edited the app. In both scenarios the on range sits
+  below the off range, so the gap is real, but the app module and the test bundles are most of the
+  work. Wall time showed no clear difference at this load. Project targets built as with the cache
+  off: the warm edit loop's ranges overlap, the unit suite passed 1,263, and the built bundles hold
+  no mapped path. An empty cache costs what the cache off does. It logged 446 cached tasks, 118 of
+  them explicit Clang module builds, where later lanes logged 315 hits and no miss.
 
 ## Decision
 
@@ -94,7 +99,7 @@ What the numbers say:
 
 ## Consequences
 
-- A fresh lane saves the package compiles, about 12 CPU seconds. Nothing else changes for it.
+- A fresh lane saves the package compiles, 12 to 24 CPU seconds. Nothing else changes for it.
 - CI is unchanged. It caches every target with no maps and pins its paths under `runner.temp`.
 - Worktrees on an older commit build with their own `test-sim.sh`, without the cache, until they
   rebase.
