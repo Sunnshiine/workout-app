@@ -64,95 +64,6 @@ import Testing
     }
 }
 
-@Test func splitsCadencePrefix() {
-    #expect(splitCadence("2-3:1:0 BB RDL").cadence == "2-3:1:0")
-    #expect(splitCadence("2-3:1:0 BB RDL").base == "BB RDL")
-    #expect(splitCadence("0:3:0 Standing Calve Raises").base == "Standing Calve Raises")
-    #expect(splitCadence("Lateral Raises").cadence == nil)
-    #expect(splitCadence("Lateral Raises").base == "Lateral Raises")
-}
-
-@Test func parsesTrainingMaxValuesFromHeaderArea() {
-    let grid = gridFromA1(
-        [
-            "E6": "Training Max",
-            "C7": "Squat", "E7": "365",
-            "C8": "Bench Press", "E8": "245",
-            "C9": "Deadlift", "E9": "455"
-        ],
-        rows: 20,
-        cols: 10
-    )
-
-    let tm = parseTrainingMax(from: grid)
-
-    #expect(tm[.squat] == 365)
-    #expect(tm[.bench] == 245)
-    #expect(tm[.deadlift] == 455)
-}
-
-@Test func parsesTrainingMaxValuesFromShiftedHeaderArea() {
-    let grid = gridFromA1(
-        [
-            "G7": "Training Max",
-            "E8": "Squat", "G8": "405",
-            "E9": "Bench Press", "G9": "275",
-            "E10": "Deadlift", "G10": "495"
-        ],
-        rows: 20,
-        cols: 10
-    )
-
-    let tm = parseTrainingMax(from: grid)
-
-    #expect(tm[.squat] == 405)
-    #expect(tm[.bench] == 275)
-    #expect(tm[.deadlift] == 495)
-}
-
-@Test func trainingMaxValuesAreNilWhenHeaderIsMissingOrValuesAreBlank() {
-    let missingHeader = parseTrainingMax(from: gridFromA1([:], rows: 20, cols: 10))
-    #expect(missingHeader[.squat] == nil)
-    #expect(missingHeader[.bench] == nil)
-    #expect(missingHeader[.deadlift] == nil)
-
-    let blankValues = parseTrainingMax(
-        from: gridFromA1(
-            [
-                "E6": "Training Max",
-                "C7": "Squat", "E7": "",
-                "C8": "Bench Press", "E8": " ",
-                "C9": "Deadlift"
-            ],
-            rows: 20,
-            cols: 10
-        )
-    )
-    #expect(blankValues[.squat] == nil)
-    #expect(blankValues[.bench] == nil)
-    #expect(blankValues[.deadlift] == nil)
-}
-
-@Test func aRepeatedTrainingMaxLabelTakesTheFirstParsableValue() {
-    let blankThenValue = parseTrainingMax(
-        from: gridFromA1(
-            ["E6": "Training Max", "C7": "Squat", "E7": "", "C8": "Squat", "E8": "365"],
-            rows: 20,
-            cols: 10
-        )
-    )
-    #expect(blankThenValue[.squat] == 365)
-
-    let twoValues = parseTrainingMax(
-        from: gridFromA1(
-            ["E6": "Training Max", "C7": "Squat", "E7": "365", "C8": "Squat", "E8": "400"],
-            rows: 20,
-            cols: 10
-        )
-    )
-    #expect(twoValues[.squat] == 365)
-}
-
 @Test func parsesAnchorAndContinuationRows() {
     // Real rows: C15 anchor "0:3:0 Standing Calve Raises", D15 Sets=2, F15 Reps=12,
     // H15 Load "RPE9, RPE10", K15 coach/log "Superset cue". Next anchor C22.
@@ -170,14 +81,14 @@ import Testing
 
     let exercises = parseDay(in: grid, section: section, headerIndex: 0)
     #expect(exercises.count == 2)
-    #expect(exercises[0].name == "0:3:0 Standing Calve Raises")
-    #expect(exercises[0].baseName == "Standing Calve Raises")
+    #expect(exercises[0].exerciseName.entered == "0:3:0 Standing Calve Raises")
+    #expect(exercises[0].exerciseName.base == "Standing Calve Raises")
     #expect(exercises[0].coachNote == "Superset cue")
     #expect(exercises[0].sets.count == 2)  // "2" sets
     #expect(exercises[0].sets[0].prescribedReps == "12")
     #expect(exercises[0].sets[0].prescribedLoad == "RPE9")
     #expect(exercises[0].sets[1].prescribedLoad == "RPE10")
-    #expect(exercises[1].baseName == "Pull Up")
+    #expect(exercises[1].exerciseName.base == "Pull Up")
     #expect(exercises[1].sets[0].prescribedReps == "AMRAP")
     #expect(exercises[1].sets[0].prescribedLoad == "BW")
 }
@@ -208,7 +119,7 @@ import Testing
     #expect(parsed.block.trainingMaxes[.deadlift] == 455)
     #expect(parsed.block.weeks[0].number == 1)
     #expect(parsed.block.weeks[0].days.count == 4)
-    #expect(parsed.block.weeks[0].days[0].exercises[0].baseName == "Standing Calve Raises")
+    #expect(parsed.block.weeks[0].days[0].exercises[0].exerciseName.base == "Standing Calve Raises")
     #expect(parsed.block.weeks[1].days[0].exercises[0].sets[0].prescribedReps == "11 - 12")
 }
 
@@ -243,7 +154,7 @@ import Testing
     )
     let section = locateWeekSections(in: grid)[0]
 
-    #expect(parseDay(in: grid, section: section, headerIndex: 1).map(\.name) == ["Squat"])
+    #expect(parseDay(in: grid, section: section, headerIndex: 1).map(\.exerciseName.entered) == ["Squat"])
 }
 
 @Test func perSetLoadAndRepsAreSplitByComma() {
@@ -318,7 +229,7 @@ import Testing
     #expect(exercises.count == 2)
 
     let compSQ = exercises[0]
-    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.exerciseName.base == "Comp SQ")
     #expect(compSQ.sets.count == 2)
     #expect(compSQ.sets[0].prescribedReps == "5")
     #expect(compSQ.sets[0].prescribedLoad == "RPE6")
@@ -326,7 +237,7 @@ import Testing
     #expect(compSQ.sets[1].prescribedLoad == "Drop 20%")
 
     let compBP = exercises[1]
-    #expect(compBP.baseName == "Comp BP")
+    #expect(compBP.exerciseName.base == "Comp BP")
     #expect(compBP.sets.count == 3)
     #expect(compBP.sets[0].prescribedLoad == "RPE6")
     #expect(compBP.sets[1].prescribedReps == "7")
@@ -355,7 +266,7 @@ import Testing
     let exercises = parseDay(in: grid, section: section, headerIndex: 0)
 
     let compSQ = exercises[0]
-    #expect(compSQ.baseName == "Comp SQ")
+    #expect(compSQ.exerciseName.base == "Comp SQ")
     #expect(compSQ.sets.count == 2)
     // Legacy-Log line cell is protected: the Set stays Pending, not read as a Set Log.
     #expect(compSQ.sets[0].state == .pending)
@@ -410,7 +321,7 @@ import Testing
 
     #expect(exercises.count == 1)
     let lunges = exercises[0]
-    #expect(lunges.baseName == "Walking Lunges")
+    #expect(lunges.exerciseName.base == "Walking Lunges")
     #expect(lunges.sets.count == 2)  // 1 with the duplicate-header bug
     #expect(lunges.sets[0].prescribedReps == "12/leg")
     #expect(lunges.sets[0].prescribedLoad == "RPE7")
@@ -476,6 +387,6 @@ import Testing
     let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block 27")
     let day = try #require(parsed.block.weeks.first?.days.first)
 
-    #expect(day.exercises.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
+    #expect(day.exercises.map(\.exerciseName.entered) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exercises.map { $0.sets.count } == [3, 2])
 }

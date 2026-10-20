@@ -187,7 +187,7 @@ import Testing
     #expect(store.validatingSpreadsheetId == "sheet-1")
     store.cancelSelection()
     #expect(store.validatingSpreadsheetId == nil)
-    settings.setSheetURL("https://docs.google.com/spreadsheets/d/pasted-sheet/edit")
+    settings.setSpreadsheet(id: "pasted-sheet")
 
     await client.waitForRequest(spreadsheetId: "sheet-1")
     client.complete(spreadsheetId: "sheet-1", titles: ["Block 27"])
@@ -232,7 +232,7 @@ private final class StubPickerClient: SheetsClient, @unchecked Sendable {
         SheetSnapshot(values: [])
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 @MainActor
@@ -257,7 +257,7 @@ private final class ControlledValidationClient: SheetsClient {
         SheetSnapshot(values: [])
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 
     func waitForRequest(spreadsheetId: String) async {
         let request = heldRequest(for: spreadsheetId)

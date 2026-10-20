@@ -27,243 +27,20 @@ enum Theme {
         case night
     }
 
-    // MARK: - Paint box
-
-    /// The small set of pigments every role is mixed from (token sheet §2). Most roles are
-    /// `paint @ opacity`; wash recipes, glows and `tileCurrentBorder` are honest literals.
-    enum Paint {
-        static let ink = rgb(21, 33, 24) // #152118 — day text
-        static let inkNight = rgb(239, 243, 227) // #EFF3E3 — night text
-        static let muted = rgb(64, 78, 68) // #404E44 — day secondary
-        static let mutedNight = rgb(154, 170, 155) // #9AAA9B — night secondary
-        static let mutedNightLight = rgb(170, 186, 170) // #AABAAA — night Superset partner name
-        static let cream = rgb(242, 247, 232) // #F2F7E8 — the workhorse
-        static let actionDay = rgb(13, 107, 64) // #0D6B40 — day action / leaf / stem / bird
-        static let actionNight = rgb(31, 133, 82) // #1F8552 — night action (mint is banned at night)
-        static let actionDayInk = rgb(10, 89, 54)
-        static let actionNightInk = rgb(168, 207, 180)
-        static let foliage = rgb(87, 145, 104) // #579168 — the night pigment
-        static let foliageDeep = rgb(63, 106, 75) // #3F6A4B — day Superset partner name
-        static let paperDayTop = rgb(233, 238, 220) // #E9EEDC
-        static let paperDayBottom = rgb(203, 225, 194) // #CBE1C2
-        static let paperNightTop = rgb(35, 44, 32) // #232C20
-        static let paperNightBottom = rgb(18, 29, 20) // #121D14
-        // The Sunbird colophon's three-stop glass greens (token sheet §Bird & colophon). The glass
-        // mark keeps its icon greens in both appearances — "unchanged at night".
-        static let colophonGlassTop = rgb(74, 160, 108) // #4AA06C
-        static let colophonGlassMid = rgb(14, 110, 67) // #0E6E43
-        static let colophonGlassBottom = rgb(8, 78, 47) // #084E2F
-    }
-
-    // MARK: - Paper wash
-
-    /// One radial light wash in the living-paper recipe. Fractions and centre come straight from
-    /// the token-sheet CSS; the SwiftUI render is an elliptical approximation revalidated by the
-    /// visual gate (ADR-0007).
-    struct RadialWash: Equatable {
-        let color: Color
-        let center: UnitPoint
-        let radiusFraction: Double
-    }
-
-    /// The layered living-paper recipe for one appearance: a base sage pair under four radial
-    /// washes (token sheet §3, `paperWash`). Replaces the retired two-stop `gradientStops`.
-    struct PaperRecipe: Equatable {
-        let baseTop: Color
-        let baseBottom: Color
-        /// Bottom-to-top paint order (base first when rendered).
-        let washes: [RadialWash]
-    }
-
-    // MARK: - Elevation & light kit
-
-    /// A single CSS box-shadow transcribed verbatim from the token sheet. Offsets, `blur` and
-    /// `spread` keep the sheet's px values; `swiftUIRadius` maps CSS blur onto SwiftUI's radius
-    /// (≈ blur / 2). `isInset` distinguishes the night "border-as-light" recipes (an inset stroke,
-    /// not a drop) from the day drops. These are foundation roles: later composition slices consume
-    /// them, so slice 1 verifies the values behind the seam even before a view reads them.
-    struct BoxShadow: Equatable {
-        let xOffset: CGFloat
-        let yOffset: CGFloat
-        let blur: CGFloat
-        let spread: CGFloat
-        let color: Color
-        let isInset: Bool
-
-        init(
-            x xOffset: CGFloat = 0,
-            y yOffset: CGFloat,
-            blur: CGFloat,
-            spread: CGFloat = 0,
-            color: Color,
-            inset isInset: Bool = false
-        ) {
-            self.xOffset = xOffset
-            self.yOffset = yOffset
-            self.blur = blur
-            self.spread = spread
-            self.color = color
-            self.isInset = isInset
-        }
-
-        /// The nearest SwiftUI `.shadow(radius:)` for this CSS blur.
-        var swiftUIRadius: CGFloat { blur / 2 }
-    }
-
-    /// A radial light recipe with explicit multi-stop colour ramp (the page sunbeam and a tile's
-    /// top-light are multi-stop, unlike the single-colour `RadialWash`).
-    struct RadialLight: Equatable {
-        /// Gradient stops with `location` in 0…1.
-        let stops: [Gradient.Stop]
-        let center: UnitPoint
-        let radiusFraction: Double
-    }
-
-    /// An Exercise-History data-point marker (token sheet §Exercise History). `lineWidth == 0`
-    /// means a filled dot; a non-zero width is a hollow outline. `hasPaperCore` punches the paper
-    /// through a solid dot so it reads as a plotted point, not a blob.
-    struct DotSpec: Equatable {
-        let radius: CGFloat
-        let lineWidth: CGFloat
-        let hasPaperCore: Bool
-    }
-
-    enum LightKit {
-        /// The collapsed week card's quiet shade (`cardLow`) — it sits "in shade" under the focus card.
-        static let cardLow: [BoxShadow] = [
-            BoxShadow(y: 1, blur: 2, color: Paint.ink.opacity(0.06)),
-            BoxShadow(y: 3, blur: 8, color: Paint.ink.opacity(0.07))
-        ]
-
-        /// The volume chart's plotted points: a solid ink dot with a paper core, and the
-        /// approximate-value dot as a hollow ink outline.
-        static let dataDot = DotSpec(radius: 4.5, lineWidth: 0, hasPaperCore: true)
-        static let approxDot = DotSpec(radius: 4, lineWidth: 1.5, hasPaperCore: false)
-    }
-
-    // MARK: - Palette (flat semantic roles)
-
-    struct Palette {
-        let preferredColorScheme: ColorScheme
-        let paper: PaperRecipe
-
-        // Text inks
-        let textPrimary: Color
-        let textSecondary: Color
-        let actionInk: Color
-
-        // Stage & branch
-        let stem: Color
-        let leafFill: Color
-        let leafRib: Color
-        let budFill: Color
-        let budStroke: Color
-        let futureStroke: Color
-        let skipStroke: Color
-        /// The page's one glow: the active bud is lit at Night, unlit by Day (nil).
-        let budGlow: Color?
-        let supersetPartnerBranch: Color
-        let supersetPartnerName: Color
-
-        // Active Set Card & input block
-        let surface: Color
-        let surfaceShadow: [BoxShadow]
-        let pillFill: Color
-        let pillStroke: Color
-        let stepperGlyph: Color
-        let railFill: Color
-        /// The selected rail chip's cream fill, lit under the inset action ring (token sheet
-        /// §Active Set Card, "rail chip selected").
-        let railSelectedFill: Color
-        let prescriptionTick: Color
-
-        // Log capsule / action
-        let action: Color
-        let actionText: Color
-        /// The Log capsule's elevation: a day green drop; at Night a green light (glow, no drop).
-        let logShadow: [BoxShadow]
-        let skipFillOverlay: Color?
-
-        // Stage foot
-        let footFill: Color
-        let queueStroke: Color
-
-        // Block grid
-        let tileCurrentFill: Color
-        let tileCurrentBorder: Color
-        let tileGhostStroke: Color
-        let weekCardShade: Color
-
-        // Exercise History sheet
-        let sheetFill: Color
-        let chipCarvedFill: Color
-        let chipCarveShadow: Color
-        /// The carve's light bottom edge (`0 1px 0 rgba(255,255,255,0.6)`), the highlight lip below
-        /// the pressed fill; cream-toned at Night.
-        let chipCarveEdge: Color
-        let chartLine: Color
-        let blockSeam: Color
-
-        // Bird & colophon
-        let birdFill: Color
-        let birdRib: Color
-
-        // Destructive
-        let danger: Color
-
-        let lighting: Lighting
-
-        // MARK: Legacy role aliases
-        //
-        // The existing screens (rebuilt screen-by-screen in later Greenhouse slices) still consume
-        // the pre-Greenhouse role names. These map onto the reshaped seam so those compositions keep
-        // compiling and simply re-light; each alias retires when its last consumer migrates.
-        var accent: Color { action }
-        var accentDarkText: Color { actionText }
-        var progressTrack: Color { futureStroke }
-        var activeCardFill: Color { surface }
-        var activeCardStroke: Color { queueStroke }
-        var lastPerformedCardFill: Color { footFill }
-        var lastPerformedCardStroke: Color { queueStroke }
-        var sessionTileComplete: Color { leafFill }
-        var sessionTileIncomplete: Color { footFill }
-        var sessionTileUnavailable: Color { tileGhostStroke }
-        var valueText: Color { textPrimary }
-        var badgeFill: Color { chipCarvedFill }
-        var bannerFill: Color { surface }
-        var bannerStroke: Color { queueStroke }
-        var sessionTileCompleteText: Color { actionText }
-        var sessionTileIncompleteText: Color { textSecondary }
-        var sessionTileUnavailableText: Color { textSecondary }
-        var sessionTileRestingBorder: Color { queueStroke }
-
-        /// The retired two-stop `gradientStops` background, re-expressed as the living-paper base
-        /// pair so un-rebuilt screens keep a page background and simply re-light. The full four-wash
-        /// paper (`paperBackground`) lands with each composition slice; this alias retires with the
-        /// last `.gradient` consumer.
-        var gradient: LinearGradient {
-            LinearGradient(
-                colors: [paper.baseTop, paper.baseBottom],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        }
-    }
-
     // MARK: - Radius family (token sheet §6)
     //
     // A named concentric family replacing the retired 8 / 16 / 28 scale. Approved pixel values are
     // kept verbatim, not rounded. `soft` belongs only to the one soft container and sheet shoulders.
 
     enum Radius {
-        static let capsule: CGFloat = 999 // ∞ — all controls
-        static let soft: CGFloat = 30 // the one soft container: Active Set Card, ceremony stats, sheets
-        static let focusCard: CGFloat = 24 // the Block grid's focus card
-        static let card: CGFloat = 20 // collapsed week cards
-        static let rail: CGFloat = 18 // reps/RPE rails
-        static let tile: CGFloat = 15 // day tiles
-        static let cell: CGFloat = 14 // rail chips
-        static let mini: CGFloat = 6 // week mini-chips
+        static let capsule: CGFloat = 999  // ∞ — all controls
+        static let soft: CGFloat = 30  // the one soft container: Active Set Card, ceremony stats, sheets
+        static let focusCard: CGFloat = 24  // the Block grid's focus card
+        static let card: CGFloat = 20  // collapsed week cards
+        static let rail: CGFloat = 18  // reps/RPE rails
+        static let tile: CGFloat = 15  // day tiles
+        static let cell: CGFloat = 14  // rail chips
+        static let mini: CGFloat = 6  // week mini-chips
     }
 
     // MARK: - Motion & haptics (token sheet §7)
@@ -312,18 +89,17 @@ enum Theme {
     }
 
     enum Motion {
-        static let leafInk = 0.42 // a leaf inks in
-        static let budOpen = 0.34 // the next bud wakes…
-        static let budOpenDelay = 0.26 // …starting inside the leaf's tail (One Log, One Fill)
+        static let leafInk = 0.42  // a leaf inks in
+        static let budOpen = 0.34  // the next bud wakes…
+        static let budOpenDelay = 0.26  // …starting inside the leaf's tail (One Log, One Fill)
         static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
         static let ceremonyBird = 0.35
-        static let holdToSkipReveal = 0.25 // reveal at 250ms
-        static let holdToSkipCommit = 0.85 // commit at 850ms
+        static let holdToSkipReveal = 0.25  // reveal at 250ms
+        static let holdToSkipCommit = 0.85  // commit at 850ms
         static let holdToSkipRetreat = 0.2
-        static let holdToSkipLoggedCommit = 0.9 // logged-state hold
-        static let holdToSkipSkippedCommit = 1.1 // skipped-state hold
+        static let holdToSkipLoggedCommit = 0.9  // logged-state hold
     }
 
     /// A Crisp haptic tuning: `intensity` and `sharpness` for a Core Haptics transient (token
@@ -351,13 +127,13 @@ enum Theme {
     // The focus-week grid: wordless, wider-than-tall tiles whose fill + stroke alone say state.
     // Geometry constants (not palette); the named radius family owns the corners.
 
-    static let blockTileHeight: CGFloat = 52 // full day tile — wider-than-tall
-    static let blockTileMiniHeight: CGFloat = 16 // collapsed card's mini day-strip
+    static let blockTileHeight: CGFloat = 52  // full day tile — wider-than-tall
+    static let blockTileMiniHeight: CGFloat = 16  // collapsed card's mini day-strip
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
-    static let blockTileStroke: CGFloat = 1 // quiet available / mini strokes
-    static let blockTileCurrentStroke: CGFloat = 1.5 // the current tile's rim
-    static let blockTileGhostStroke: CGFloat = 1.5 // the empty bed's dashed outline
+    static let blockTileStroke: CGFloat = 1  // quiet available / mini strokes
+    static let blockTileCurrentStroke: CGFloat = 1.5  // the current tile's rim
+    static let blockTileGhostStroke: CGFloat = 1.5  // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
@@ -375,16 +151,17 @@ enum Theme {
 
     static let cardContentPadding = EdgeInsets(top: 16, leading: 16, bottom: 14, trailing: 16)
     static let inputBlockSpacing: CGFloat = 16
-    static let weightStepperDiameter: CGFloat = 54 // the round ± steppers flanking the weight
-    static let railCellWidth: CGFloat = 48 // one rail chip cell (48×44)
+    static let weightStepperDiameter: CGFloat = 54  // the round ± steppers flanking the weight
+    static let railCellWidth: CGFloat = 48  // one rail chip cell (48×44)
     static let railCellHeight: CGFloat = 44
-    static let railTrackHeight: CGFloat = 58 // the rail track the cells sit inside, concentric with cell 14
-    static let railCellInset: CGFloat = 3 // the selected chip's inset within its cell
+    static let railTrackHeight: CGFloat = 58  // the rail track the cells sit inside, concentric with cell 14
+    static let railCellInset: CGFloat = 3  // the selected chip's inset within its cell
     static let railEdgeFadeWidth: CGFloat = 18
-    static let prescriptionTickWidth: CGFloat = 18 // last-week tick under the rail value (18×3, r2)
+    static let prescriptionTickWidth: CGFloat = 18  // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
 
-    static let holdToSkipTapMaximumDuration = 0.18
+    static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
+    static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
     static let momentumFlowTotalDuration = 0.65
     static let skipFadeUpDuration = 0.45
     static let focusMorphDuration = 0.28
@@ -406,236 +183,6 @@ enum Theme {
 
     static var stageCompositionAnimation: Animation {
         .easeInOut(duration: stageCompositionDuration)
-    }
-}
-
-// MARK: - Lighting
-
-extension Theme {
-    struct Lighting: Equatable {
-        let pageSunbeam: RadialLight?
-        let tileTopLight: RadialLight?
-        let focusCardFill: Color
-        let focusCardElevation: [BoxShadow]
-        let raisedControlFill: Color
-        let raisedControlShadow: [BoxShadow]
-        let currentTileGlow: [BoxShadow]
-
-        static let day = Lighting(
-            pageSunbeam: RadialLight(
-                stops: [
-                    Gradient.Stop(color: rgb(253, 254, 242, 0.85), location: 0),
-                    Gradient.Stop(color: rgb(250, 252, 238, 0.28), location: 0.46),
-                    Gradient.Stop(color: .clear, location: 0.70)
-                ],
-                center: UnitPoint(x: 0.82, y: -0.08),
-                radiusFraction: 0.85
-            ),
-            tileTopLight: RadialLight(
-                stops: [
-                    Gradient.Stop(color: rgb(255, 255, 245, 0.85), location: 0),
-                    Gradient.Stop(color: .clear, location: 0.55)
-                ],
-                center: UnitPoint(x: 0.78, y: -0.30),
-                radiusFraction: 0.55
-            ),
-            focusCardFill: rgb(248, 251, 238, 0.96),
-            focusCardElevation: LightKit.cardLow + [
-                BoxShadow(y: 0, blur: 0, spread: 5, color: rgb(250, 252, 238, 0.5)),
-                BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95))
-            ],
-            raisedControlFill: Paint.cream.opacity(0.90),
-            raisedControlShadow: LightKit.cardLow,
-            currentTileGlow: [
-                BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
-                BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
-            ]
-        )
-
-        static let night = Lighting(
-            pageSunbeam: nil,
-            tileTopLight: nil,
-            focusCardFill: nightSurface,
-            focusCardElevation: nightSurfaceShadow,
-            raisedControlFill: nightSurface,
-            raisedControlShadow: nightSurfaceShadow,
-            currentTileGlow: [BoxShadow(y: 0, blur: 14, color: nightBudGlow)]
-        )
-    }
-
-    private static let nightSurface = Paint.cream.opacity(0.07)
-    private static let nightSurfaceShadow = [
-        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
-    ]
-    private static let nightBud = rgb(120, 240, 178) // #78F0B2 — the bud carries the page's one glow
-    private static let nightBudGlow = rgb(120, 240, 178, 0.32)
-}
-
-// MARK: - Appearance resolution
-
-extension Theme {
-    static func palette(for preference: AppearancePreference, colorScheme: ColorScheme = .light) -> Palette {
-        switch preference {
-        case .light:
-            palette(for: .day)
-        case .night:
-            palette(for: .night)
-        case .system:
-            switch colorScheme {
-            case .light:
-                palette(for: .day)
-            case .dark:
-                palette(for: .night)
-            @unknown default:
-                palette(for: .day)
-            }
-        }
-    }
-
-    static func colorSchemeOverride(for preference: AppearancePreference) -> ColorScheme? {
-        switch preference {
-        case .system:
-            nil
-        case .light:
-            .light
-        case .night:
-            .dark
-        }
-    }
-
-    static func palette(for appearance: Appearance) -> Palette {
-        switch appearance {
-        case .day:
-            dayPalette
-        case .night:
-            nightPalette
-        }
-    }
-
-    // MARK: - Hand-lit value sheets
-
-    private static let dayPalette = Palette(
-        preferredColorScheme: .light,
-        paper: PaperRecipe(
-            baseTop: Paint.paperDayTop,
-            baseBottom: Paint.paperDayBottom,
-            washes: [
-                RadialWash(color: rgb(255, 250, 224, 0.85), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.54),
-                RadialWash(color: rgb(163, 205, 154, 0.55), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
-                RadialWash(color: rgb(214, 232, 197, 0.70), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
-                RadialWash(color: rgb(151, 189, 140, 0.75), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
-            ]
-        ),
-        textPrimary: Paint.ink,
-        textSecondary: Paint.muted,
-        actionInk: Paint.actionDayInk,
-        stem: Paint.actionDay,
-        leafFill: Paint.actionDay,
-        leafRib: Paint.cream.opacity(0.50),
-        budFill: Paint.cream.opacity(0.95),
-        budStroke: Paint.actionDay,
-        futureStroke: Paint.actionDay.opacity(0.40),
-        skipStroke: Paint.muted.opacity(0.42),
-        budGlow: nil,
-        supersetPartnerBranch: Paint.foliage, // Day quiets the partner by pigment
-        supersetPartnerName: Paint.foliageDeep,
-
-        surface: Paint.cream.opacity(0.52),
-        surfaceShadow: [
-            BoxShadow(y: 1, blur: 2, color: rgb(21, 33, 24, 0.04)),
-            BoxShadow(y: 14, blur: 30, color: rgb(21, 33, 24, 0.07))
-        ],
-        pillFill: Paint.cream.opacity(0.85),
-        pillStroke: rgb(82, 111, 90, 0.34),
-        stepperGlyph: Paint.actionDay,
-        railFill: Paint.cream.opacity(0.55),
-        railSelectedFill: Paint.cream.opacity(0.95),
-        prescriptionTick: Paint.actionDay,
-        action: Paint.actionDay,
-        actionText: Paint.cream,
-        logShadow: [
-            BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
-            BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16))
-        ],
-        skipFillOverlay: Paint.muted.opacity(0.30),
-        footFill: Paint.cream.opacity(0.50),
-        queueStroke: rgb(82, 111, 90, 0.38),
-        tileCurrentFill: Paint.cream.opacity(0.95),
-        tileCurrentBorder: rgb(31, 133, 82), // literal #1F8552 — kept exactly as approved
-        tileGhostStroke: Paint.muted.opacity(0.38),
-        weekCardShade: rgb(226, 233, 214, 0.72),
-        sheetFill: rgb(239, 244, 228), // #EFF4E4
-        chipCarvedFill: Paint.ink.opacity(0.055),
-        chipCarveShadow: rgb(21, 33, 24, 0.14), // inset top shadow — carves the chip below flat
-        chipCarveEdge: Color.white.opacity(0.6), // the light bottom lip
-        chartLine: Paint.ink.opacity(0.35),
-        blockSeam: Paint.ink.opacity(0.14),
-        birdFill: Paint.actionDay,
-        birdRib: Paint.cream.opacity(0.50),
-        danger: rgb(255, 59, 48), // system red, carried forward pending danger pass
-        lighting: .day
-    )
-
-    private static let nightPalette = Palette(
-        preferredColorScheme: .dark,
-        paper: PaperRecipe(
-            baseTop: Paint.paperNightTop,
-            baseBottom: Paint.paperNightBottom,
-            washes: [
-                RadialWash(color: rgb(255, 233, 170, 0.14), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.48),
-                RadialWash(color: rgb(87, 145, 104, 0.16), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
-                RadialWash(color: rgb(87, 145, 104, 0.10), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
-                RadialWash(color: rgb(9, 18, 12, 0.70), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
-            ]
-        ),
-        textPrimary: Paint.inkNight,
-        textSecondary: Paint.mutedNight,
-        actionInk: Paint.actionNightInk,
-        stem: Paint.foliage,
-        leafFill: Paint.foliage,
-        leafRib: Paint.cream.opacity(0.55),
-        budFill: Paint.cream.opacity(0.92),
-        budStroke: nightBud,
-        futureStroke: Paint.foliage.opacity(0.45),
-        skipStroke: Paint.mutedNight.opacity(0.40),
-        budGlow: nightBudGlow,
-        supersetPartnerBranch: Paint.foliage.opacity(0.55), // Night quiets the partner by translucency
-        supersetPartnerName: Paint.mutedNightLight,
-        surface: nightSurface,
-        surfaceShadow: nightSurfaceShadow,
-        pillFill: Paint.cream.opacity(0.06),
-        pillStroke: Paint.cream.opacity(0.16),
-        stepperGlyph: Paint.cream,
-        railFill: Paint.cream.opacity(0.06),
-        railSelectedFill: Paint.cream.opacity(0.14),
-        prescriptionTick: Paint.actionNight,
-        action: Paint.actionNight,
-        actionText: Paint.cream,
-        logShadow: [
-            BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35)) // green light — glow, no drop
-        ],
-        skipFillOverlay: Paint.mutedNight.opacity(0.30), // muted hold-to-skip overlay, re-lit for Night (#488)
-        footFill: Paint.cream.opacity(0.06),
-        queueStroke: Paint.cream.opacity(0.20),
-        tileCurrentFill: Paint.foliage,
-        tileCurrentBorder: nightBud,
-        tileGhostStroke: Paint.mutedNight.opacity(0.38),
-        weekCardShade: Paint.cream.opacity(0.06),
-        sheetFill: rgb(31, 40, 29), // night sheet follows the #418 recipe (flagged for build validation)
-        chipCarvedFill: Paint.cream.opacity(0.06),
-        chipCarveShadow: rgb(9, 18, 12, 0.45), // deep sage-ink inset — the room re-lit, never black
-        chipCarveEdge: Paint.cream.opacity(0.10), // cream-toned bottom lip at Night
-        chartLine: Paint.inkNight.opacity(0.35),
-        blockSeam: Paint.inkNight.opacity(0.14),
-        birdFill: Paint.foliage,
-        birdRib: Paint.cream.opacity(0.55),
-        danger: rgb(255, 59, 48),
-        lighting: .night
-    )
-
-    /// 0–255 sRGB channel helper so the value sheets read like the token-sheet hex/rgba literals.
-    static func rgb(_ red: Double, _ green: Double, _ blue: Double, _ opacity: Double = 1) -> Color {
-        Color(.sRGB, red: red / 255, green: green / 255, blue: blue / 255, opacity: opacity)
     }
 }
 
@@ -833,102 +380,4 @@ extension Theme {
             tag.utf8.reduce(0) { ($0 << 8) + UInt32($1) }
         }
     #endif
-}
-
-// MARK: - Radial light
-
-extension Theme.RadialLight {
-    /// The multi-stop radial recipe (the Block-grid page sunbeam, a tile's top-light) rendered
-    /// as a fillable view — an elliptical gradient carrying the exact stops, centre and reach
-    /// transcribed from the token sheet. Drop it into an `.overlay`/`.background` over the surface
-    /// it lights.
-    var gradientView: some View {
-        EllipticalGradient(
-            gradient: Gradient(stops: stops),
-            center: center,
-            startRadiusFraction: 0,
-            endRadiusFraction: radiusFraction
-        )
-    }
-}
-
-// MARK: - Living-paper background
-
-extension Theme.Palette {
-    /// The living-paper wash rendered as the background of every non-system surface (token sheet
-    /// §3). One recipe per appearance; the base sage pair sits under the four radial washes.
-    var paperBackground: some View {
-        ZStack {
-            LinearGradient(
-                colors: [paper.baseTop, paper.baseBottom],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            ForEach(Array(paper.washes.enumerated()), id: \.offset) { _, wash in
-                EllipticalGradient(
-                    colors: [wash.color, .clear],
-                    center: wash.center,
-                    startRadiusFraction: 0,
-                    endRadiusFraction: wash.radiusFraction
-                )
-            }
-        }
-    }
-}
-
-// MARK: - Elevation
-
-extension View {
-    /// Applies a token-sheet elevation recipe (`surfaceShadow`, `logShadow`, the light kit). Drop
-    /// shadows stack as SwiftUI shadows; an inset recipe — the Night "border-as-light" — renders as
-    /// an inset stroke on `shape` instead of a drop (token sheet §Active Set Card / §Log capsule).
-    func themeElevation(_ shadows: [Theme.BoxShadow], in shape: some InsettableShape) -> some View {
-        modifier(Theme.Elevation(shadows: shadows, shape: shape))
-    }
-
-    func themeCarve(_ palette: Theme.Palette, in shape: some InsettableShape) -> some View {
-        background {
-            shape
-                .fill(palette.chipCarvedFill.shadow(.inner(color: palette.chipCarveShadow, radius: 1, y: 1)))
-                .overlay {
-                    // The light bottom lip — the stroke masked to the lower edge so only the bottom lights.
-                    shape
-                        .strokeBorder(palette.chipCarveEdge, lineWidth: 1)
-                        .mask {
-                            LinearGradient(
-                                colors: [.clear, .clear, .black],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        }
-                }
-        }
-    }
-}
-
-extension Theme {
-    struct Elevation<Bed: InsettableShape>: ViewModifier {
-        let shadows: [BoxShadow]
-        let shape: Bed
-
-        func body(content: Content) -> some View {
-            let drops = shadows.filter { !$0.isInset }
-            let insets = shadows.filter(\.isInset)
-            return drops.reduce(AnyView(content)) { view, shadow in
-                AnyView(
-                    view.shadow(
-                        color: shadow.color,
-                        radius: shadow.swiftUIRadius,
-                        x: shadow.xOffset,
-                        y: shadow.yOffset
-                    )
-                )
-            }
-            .overlay {
-                ForEach(Array(insets.enumerated()), id: \.offset) { _, shadow in
-                    shape.strokeBorder(shadow.color, lineWidth: max(shadow.spread, 1))
-                }
-            }
-        }
-    }
 }

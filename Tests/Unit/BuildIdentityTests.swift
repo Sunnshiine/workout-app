@@ -71,13 +71,15 @@ import Testing
         "RunNumber": "7"
     ])
 
-    #expect(identity.copyText == """
-    Version: 0.372 (7)
-    Commit: 6aba617
-    Branch: agent/issue-374
-    PR: #372
-    Run: 7
-    """)
+    #expect(
+        identity.copyText == """
+            Version: 0.372 (7)
+            Commit: 6aba617
+            Branch: agent/issue-374
+            PR: #372
+            Run: 7
+            """
+    )
 }
 
 @Test func buildIdentityCopyTextForLocalBuildNotesMissingStamp() {
@@ -86,8 +88,10 @@ import Testing
         "CFBundleVersion": "1"
     ])
 
-    #expect(identity.copyText == """
-    Version: 0.0 (1)
-    Local build (no CI stamp)
-    """)
+    #expect(
+        identity.copyText == """
+            Version: 0.0 (1)
+            Local build (no CI stamp)
+            """
+    )
 }

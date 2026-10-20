@@ -50,14 +50,6 @@ enum RPE: Double, CaseIterable, Codable, Hashable, Sendable {
         self.init(rawValue: point)
     }
 
-    init?(prescribedLoad: String) {
-        let trimmed = prescribedLoad.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let match = trimmed.wholeMatch(of: /RPE\s*(.+)/.ignoresCase()) else {
-            return nil
-        }
-        self.init(text: String(match.1))
-    }
-
     var label: String {
         Int(exactly: rawValue).map(String.init) ?? String(rawValue)
     }

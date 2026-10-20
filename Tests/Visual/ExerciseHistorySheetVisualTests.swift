@@ -9,15 +9,13 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct ExerciseHistorySheetVisualTests {
     private func historyEntry(
-        fullName: String,
-        baseName: String,
+        name: ExerciseName,
         resultText: String,
         source: String,
         daysAgo: Int
     ) -> LastPerformedOccurrence {
         LastPerformedOccurrence(
-            fullName: fullName,
-            baseName: baseName,
+            exerciseName: name,
             resultText: resultText,
             performedOn: Date(timeIntervalSinceReferenceDate: 1_000_000) - Double(daysAgo) * 86_400,
             source: source
@@ -26,20 +24,32 @@ struct ExerciseHistorySheetVisualTests {
 
     private var historyPresentation: ExerciseHistorySheetPresentation {
         ExerciseHistorySheetPresentation(
-            anchorBaseName: "Bench Press",
+            anchor: "Bench Press",
             entries: [
-                historyEntry(fullName: "Bench Press", baseName: "Bench Press",
-                             resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
-                             source: "Block 27 · W2 D1", daysAgo: 1),
-                historyEntry(fullName: "2-0:1:0 Bench Press", baseName: "Bench Press",
-                             resultText: "185x5@8, skip, 185x4@9, felt heavy",
-                             source: "Block 27 · W1 D1", daysAgo: 8),
-                historyEntry(fullName: "Benh Press", baseName: "Benh Press",
-                             resultText: "180x5@8",
-                             source: "Block 26 · W2 D1", daysAgo: 30),
-                historyEntry(fullName: "Bench Press", baseName: "Bench Press",
-                             resultText: "worked up to 315, felt smooth",
-                             source: "Block 26 · W1 D1", daysAgo: 37)
+                historyEntry(
+                    name: "Bench Press",
+                    resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
+                    source: "Block 27 · W2 D1",
+                    daysAgo: 1
+                ),
+                historyEntry(
+                    name: "2-0:1:0 Bench Press",
+                    resultText: "185x5@8, skip, 185x4@9, felt heavy",
+                    source: "Block 27 · W1 D1",
+                    daysAgo: 8
+                ),
+                historyEntry(
+                    name: "Benh Press",
+                    resultText: "180x5@8",
+                    source: "Block 26 · W2 D1",
+                    daysAgo: 30
+                ),
+                historyEntry(
+                    name: "Bench Press",
+                    resultText: "worked up to 315, felt smooth",
+                    source: "Block 26 · W1 D1",
+                    daysAgo: 37
+                )
             ]
         )
     }
@@ -80,14 +90,20 @@ struct ExerciseHistorySheetVisualTests {
     /// per-tab detail shown above readable entries — never mint, never a dead spinner (#366).
     @Test func exerciseHistorySheetFillInProgressMatchesVisualBaseline() {
         let presentation = ExerciseHistorySheetPresentation(
-            anchorBaseName: "Bench Press",
+            anchor: "Bench Press",
             entries: [
-                historyEntry(fullName: "Bench Press", baseName: "Bench Press",
-                             resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
-                             source: "Block 27 · W2 D1", daysAgo: 1),
-                historyEntry(fullName: "2-0:1:0 Bench Press", baseName: "Bench Press",
-                             resultText: "185x5@8, skip, 185x4@9",
-                             source: "Block 27 · W1 D1", daysAgo: 8)
+                historyEntry(
+                    name: "Bench Press",
+                    resultText: "27.5x10@8, 27.5x10@8, 27.5x9@9",
+                    source: "Block 27 · W2 D1",
+                    daysAgo: 1
+                ),
+                historyEntry(
+                    name: "2-0:1:0 Bench Press",
+                    resultText: "185x5@8, skip, 185x4@9",
+                    source: "Block 27 · W1 D1",
+                    daysAgo: 8
+                )
             ]
         )
 

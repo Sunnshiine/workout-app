@@ -27,7 +27,7 @@ private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer,
 @Test func restModuleSurfacesEachFinalFiveTapExactlyOnce() {
     let (timer, clock) = startedTimer(duration: 120, at: Date(timeIntervalSinceReferenceDate: 0))
 
-    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true) // seed previous elapsed = 0
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)  // seed previous elapsed = 0
 
     var surfaced: [RestHapticEvent] = []
     for _ in 0..<120 {
@@ -51,7 +51,7 @@ private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer,
 @Test func restModuleSuppressesTapsWhenSceneInactiveWithoutReplayingThem() {
     let (timer, clock) = startedTimer(duration: 120, at: Date(timeIntervalSinceReferenceDate: 0))
 
-    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true) // previous elapsed = 0
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)  // previous elapsed = 0
 
     clock.advance(by: 116)
     // Backgrounded: the 115 and 116 taps come due but are suppressed…
@@ -86,7 +86,7 @@ private func startedTimer(duration: TimeInterval, at start: Date) -> (RestTimer,
 
     _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)
     clock.advance(by: 200)
-    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true) // drains every event
+    _ = timer.dueHapticEvents(at: clock.now, sceneActive: true)  // drains every event
 
     timer.start(duration: 120, origin: ActiveSetID(exerciseOrder: 2, setIndex: 0))
 
