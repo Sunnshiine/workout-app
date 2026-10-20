@@ -119,6 +119,8 @@ actor WhisperEngine: RecordingTranscriber {
     }
 
     private func decode(_ recording: DictationRecording, with pipe: Pipe, queued: Duration) async -> RecordingDecode {
+        let interval = SpeechModelInterval("Decode")
+        defer { interval.end() }
         do {
             let results: [TranscriptionResult] = try await pipe.kit.transcribe(
                 audioArray: recording.samples,
@@ -207,6 +209,8 @@ actor WhisperEngine: RecordingTranscriber {
 
     /// Core ML compiles each model for this chip, one in memory at a time, and lets it go.
     private func specialize() async -> Bool {
+        let interval = SpeechModelInterval("Specialize")
+        defer { interval.end() }
         do {
             _ = try await WhisperKit(store.config(prewarm: true))
             try store.markSpecialized()
@@ -217,6 +221,8 @@ actor WhisperEngine: RecordingTranscriber {
     }
 
     private func load(attempt: Int) async -> Bool {
+        let interval = SpeechModelInterval("Load")
+        defer { interval.end() }
         guard let kit = try? await WhisperKit(store.config(prewarm: false)), let options = Self.options(for: kit) else {
             return false
         }

@@ -41,6 +41,12 @@ final class HeldDictationRecordStore: DictationRecordStore {
         state.withLock { $0.kept }
     }
 
+    func keep(_ payload: MetricKitPayload) {}
+
+    func payloads() -> [MetricKitPayload] {
+        []
+    }
+
     /// Returns once a write has parked, so what the test does next happens with the disk stalled.
     func waitUntilAppending() async {
         await withCheckedContinuation { continuation in

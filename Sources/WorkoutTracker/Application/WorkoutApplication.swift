@@ -236,11 +236,19 @@ extension WorkoutApplication {
         return SheetTabSnapshot(tab: resolved, snapshot: snapshot)
     }
 
-    /// What the Dictation Records in `records`, a journal file or a directory of them, add up to.
-    /// It reads the records alone, so a journal copied off a phone needs no application.
-    public static func dictationSummary(reading records: URL) throws -> DictationSummary {
+    /// What the Dictation Records in `records`, a journal file or a directory of them, add up to,
+    /// scored against the `labels` file an export wrote beside them when there is one. It reads the
+    /// files alone, so a journal copied off a phone needs no application.
+    public static func dictationSummary(reading records: URL, labels: URL?) throws -> DictationSummary {
         let lines = try DictationRecordLines(at: records)
-        return DictationSummary(lines.records, unreadableLines: lines.unreadable)
+        return DictationSummary(lines.records, unreadableLines: lines.unreadable, labels: try labels.map(DictationLabels.init(at:)))
+    }
+
+    /// The Dictation Records in `records` under every `MergeRule`, scored against `labels` when
+    /// there are any, as `dictationSummary(reading:labels:)` reads them.
+    public static func dictationReplay(reading records: URL, labels: URL?) throws -> DictationReplay {
+        let lines = try DictationRecordLines(at: records)
+        return DictationReplay(lines.records, unreadableLines: lines.unreadable, labels: try labels.map(DictationLabels.init(at:)))
     }
 }
 
@@ -316,7 +324,7 @@ extension WorkoutApplication {
         return exercise
     }
 
-    fileprivate func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
+    func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
         let exercise = try resolveExercise(address.exercise)
         guard let set = exercise.sets.first(where: { $0.index == address.index }) else {
             throw ApplicationError.notFound(
