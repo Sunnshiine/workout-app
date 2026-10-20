@@ -248,14 +248,16 @@ struct SpokenPhrase: Sendable {
 
     /// The values the phrases read from the tokens. A rep count right after "for", with no "reps" after
     /// it and no RPE said, is ambiguous as two digits whose second is 6 to 9, and as 100 or more, because
-    /// "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808".
+    /// "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808". A value no lifter logs is
+    /// implausible before it is ambiguous, so "135 for 808" asks the athlete to say it again.
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
         guard tokens.indices.allSatisfy({ hidesNoValue(tokens, at: $0) }) else { throw .fusedNumber }
         let (claims, unplaced) = try claims(in: tokens[...])
         let slots = try SpokenSlots(claims + placing(unplaced, in: tokens, beside: claims))
+        let spokenSet = try slots.spokenSet()
         guard slots.said(.rpe) || !tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else { throw .ambiguous }
-        return try slots.spokenSet()
+        return spokenSet
     }
 
     /// The claims the phrases make, and the index of each number no phrase takes.
@@ -334,10 +336,15 @@ struct SpokenPhrase: Sendable {
     }
 }
 
-/// Weight, reps, and RPE as the phrases claim them, each claimed once, and read as any value the
+/// Weight, reps, and RPE as the phrases claim them, each claimed once, and read as a value the
 /// card's Set Log form accepts, so speaking logs nothing typing could not. A Set with no load is
-/// bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set Log.
+/// bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set Log. A value the card
+/// accepts but no lifter logs is more likely misheard than said, so it is not read either.
 struct SpokenSlots {
+    private static let mostReps = 100
+    /// The lightest fractional plate.
+    private static let finestPounds = 0.25
+
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
     private var cutOff: [SetLogDraft.Field: SpokenRemnant] = [:]
 
@@ -373,12 +380,14 @@ struct SpokenSlots {
     private static func weight(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Weight? {
         guard case .number(let pounds) = amount else { return amount.map { _ in .bodyweight } }
         guard pounds > 0 else { throw .outOfRange(.weight) }
+        guard pounds.truncatingRemainder(dividingBy: finestPounds) == 0 else { throw .implausible(.weight) }
         return .pounds(pounds)
     }
 
     private static func reps(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Int? {
         guard case .number(let count) = amount else { return nil }
         guard let reps = Int(exactly: count), reps > 0 else { throw .outOfRange(.reps) }
+        guard reps <= mostReps else { throw .implausible(.reps) }
         return reps
     }
 

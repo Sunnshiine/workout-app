@@ -325,8 +325,18 @@ enum SetCardDictation: Equatable {
         case .transcriber(.microphoneDenied): "Microphone is off in Settings"
         case .transcriber(.unavailable): "Speech isn’t available"
         case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
-        case .spokenSet, .transcriber(.failed): heard.isEmpty ? "Nothing heard" : "“\(heard)”"
+        case .spokenSet, .transcriber(.failed): rejection.readback(of: heard)
         }
+    }
+}
+
+extension SetDictation.Rejection {
+    /// What the card and the Live Activity say of a rejected transcript: the words heard, and for a
+    /// Set no lifter logs, an ask to say it again.
+    func readback(of heard: String) -> String {
+        guard !heard.isEmpty else { return "Nothing heard" }
+        guard case .spokenSet(.implausible) = self else { return "“\(heard)”" }
+        return "“\(heard)”, say it again"
     }
 }
 

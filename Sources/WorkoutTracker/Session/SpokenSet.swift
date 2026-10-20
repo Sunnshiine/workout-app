@@ -29,6 +29,9 @@ enum SpokenSet: Equatable, Sendable {
         case conflicting(SetLogDraft.Field)
         /// Reps not whole or 0, as "135 for 8.5", or a weight of 0 pounds.
         case outOfRange(SetLogDraft.Field)
+        /// A value said that no lifter logs, so the transcript is more likely misheard than true:
+        /// more than 100 reps, or a weight finer than a quarter pound, as "12.47" for "1247".
+        case implausible(SetLogDraft.Field)
         /// The number heard for the RPE is not one of the ten RPE points.
         case offLadderRPE(Double)
         /// "Same again" with no earlier structured Set Log of the Exercise to repeat.
