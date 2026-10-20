@@ -2,12 +2,6 @@ import Foundation
 
 @MainActor
 struct SmartValuePillsForm {
-    enum Field: Hashable, Sendable {
-        case weight
-        case reps
-        case rpe
-    }
-
     var weightText: String
     var repsText: String
     var rpeText: String
@@ -46,7 +40,7 @@ struct SmartValuePillsForm {
         repsText.isEmpty && repsPlaceholder != nil
     }
 
-    var invalidFields: Set<Field> {
+    var invalidFields: Set<SetLogDraft.Field> {
         guard showsInvalidFields else { return [] }
         return currentInvalidFields
     }
@@ -89,16 +83,11 @@ struct SmartValuePillsForm {
         let prescription = set.prescription
         prescribedReps = prescription.reps
         prescribedRPE = prescription.load.rpeTarget
-        if let setLog = set.setLog {
-            weightText = setLog.weight.label
-            repsText = String(setLog.reps)
-            rpeText = setLog.rpe.label
-            estimateBasisText = nil
-        } else {
-            (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
-            repsText = Self.initialRepsText(for: prescribedReps)
-            rpeText = prescribedRPE?.label ?? ""
-        }
+        let draft = SetLogDraft(prefilling: set, suggestion: suggestion)
+        weightText = draft.weight?.label ?? ""
+        repsText = draft.reps.map(String.init) ?? ""
+        rpeText = draft.rpe?.label ?? ""
+        estimateBasisText = Self.estimateBasisText(from: suggestion, for: set)
         repsPlaceholder = repsText.isEmpty ? set.prescribedReps : nil
         initialWeightText = weightText
         initialRepsText = repsText
@@ -109,7 +98,8 @@ struct SmartValuePillsForm {
     /// lands. It replaces the pre-fill only while the athlete has not touched the weight.
     mutating func refreshPrefill(from suggestion: LoadSuggestion, for set: ExerciseSet) {
         guard set.setLog == nil, weightText == initialWeightText else { return }
-        (weightText, estimateBasisText) = Self.prefill(from: suggestion, for: set)
+        weightText = SetLogDraft(prefilling: set, suggestion: suggestion).weight?.label ?? ""
+        estimateBasisText = Self.estimateBasisText(from: suggestion, for: set)
         initialWeightText = weightText
     }
 
@@ -140,18 +130,11 @@ struct SmartValuePillsForm {
     }
 
     func makeLog() -> SetLog? {
-        guard
-            let weight = validWeight,
-            let reps = validReps,
-            let rpe = validRPE
-        else {
-            return nil
-        }
-        return SetLog(weight: weight, reps: reps, rpe: rpe)
+        entered.setLog
     }
 
     @discardableResult
-    mutating func markInvalidFieldsForDisplay() -> Set<Field> {
+    mutating func markInvalidFieldsForDisplay() -> Set<SetLogDraft.Field> {
         showsInvalidFields = true
         return invalidFields
     }
@@ -171,22 +154,16 @@ struct SmartValuePillsForm {
         showsInvalidFields = false
     }
 
-    private var currentInvalidFields: Set<Field> {
-        var fields: Set<Field> = []
-        if validWeight == nil {
-            fields.insert(.weight)
-        }
-        if validReps == nil {
-            fields.insert(.reps)
-        }
-        if validRPE == nil {
-            fields.insert(.rpe)
-        }
-        return fields
+    private var currentInvalidFields: Set<SetLogDraft.Field> {
+        entered.missingFields
     }
 
     private var incompleteLogButtonTitle: String {
         currentInvalidFields == [.rpe] ? "Choose RPE to log" : "Complete Set Log"
+    }
+
+    private var entered: SetLogDraft {
+        SetLogDraft(weight: validWeight, reps: validReps, rpe: validRPE)
     }
 
     private var validWeight: Weight? {
@@ -205,25 +182,8 @@ struct SmartValuePillsForm {
         RPE(text: rpeText)
     }
 
-    private static func prefill(
-        from suggestion: LoadSuggestion,
-        for set: ExerciseSet
-    ) -> (weightText: String, basisText: String?) {
-        switch suggestion {
-        case .prescribedWeight(let weight):
-            (Weight.pounds(weight).label, nil)
-        case .estimate(let weight, let basis):
-            (Weight.pounds(weight).label, LoadBasisPresentation(basis, for: set).text)
-        case .bodyweight:
-            ("BW", nil)
-        case .noSuggestion:
-            ("", nil)
-        }
-    }
-
-    /// A range pre-fills its low end. The weight for it is still estimated at its midpoint
-    /// (ADR-0018), and the athlete moves the rail to the reps they did.
-    private static func initialRepsText(for prescribedReps: PrescribedReps) -> String {
-        prescribedReps.target.map { String($0.lowerBound) } ?? ""
+    private static func estimateBasisText(from suggestion: LoadSuggestion, for set: ExerciseSet) -> String? {
+        guard set.setLog == nil, case .estimate(_, let basis) = suggestion else { return nil }
+        return LoadBasisPresentation(basis, for: set).text
     }
 }

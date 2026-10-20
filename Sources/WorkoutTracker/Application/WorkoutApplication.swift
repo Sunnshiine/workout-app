@@ -121,22 +121,28 @@ extension WorkoutApplication {
         guard let parsed = SetLog(formatted: setLog) else { throw ApplicationError.invalidSetLog(setLog) }
         let set = try resolveSet(address)
         try workout.log(set, as: parsed)
-        return LogReport(
-            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
-            pendingWriteCount: try queuedWrites().count,
-            exerciseIsComplete: set.exercise?.isComplete ?? false
-        )
+        return try report(on: set, at: address)
     }
 
     /// `WorkoutStore.skip(_:)`: the same call the Session stage makes.
     public func skip(_ address: SetAddress) throws -> LogReport {
         let set = try resolveSet(address)
         try workout.skip(set)
-        return LogReport(
-            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
-            pendingWriteCount: try queuedWrites().count,
-            exerciseIsComplete: set.exercise?.isComplete ?? false
-        )
+        return try report(on: set, at: address)
+    }
+
+    /// A Spoken Set read over what the Set's card pre-fills, then `log` or `skip` through the same
+    /// store calls. One still missing a value, or rejected, writes nothing and reports why.
+    public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
+        let set = try resolveSet(address)
+        let draft = SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: lastPerformed.snapshot))
+        let outcome = SpokenSet.parse(transcript).flatMap { $0.resolved(against: draft, previous: set.earlierSetLogs.first?.setLog) }
+        switch outcome {
+        case .success(.log(let setLog)): try workout.log(set, as: setLog)
+        case .success(.skip): try workout.skip(set)
+        case .success(.missingValues), .failure: break
+        }
+        return SayReport(heard: transcript, outcome: outcome, report: try report(on: set, at: address))
     }
 
     /// `SyncCoordinator.flushPending(spreadsheetId:)`: what the stage requests after every log.
@@ -202,6 +208,14 @@ extension WorkoutApplication {
     fileprivate func configuredSpreadsheetId() throws -> String {
         guard let spreadsheetId = settings.spreadsheetId else { throw ApplicationError.notConfigured }
         return spreadsheetId
+    }
+
+    fileprivate func report(on set: ExerciseSet, at address: SetAddress) throws -> LogReport {
+        LogReport(
+            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
+            pendingWriteCount: try queuedWrites().count,
+            exerciseIsComplete: set.exercise?.isComplete ?? false
+        )
     }
 
     fileprivate func queuedWrites() throws -> [PendingWrite] {

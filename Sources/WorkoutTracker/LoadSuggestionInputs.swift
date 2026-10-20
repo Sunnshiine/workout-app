@@ -16,10 +16,7 @@ extension LoadSuggestionInputs {
         self.init(
             prescription: set.prescription,
             trainingMax: exercise?.trainingMax,
-            earlierSets: (exercise?.sets ?? [])
-                .filter { $0.index < set.index }
-                .sorted { $0.index > $1.index }
-                .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } },
+            earlierSets: set.earlierSetLogs,
             lastPerformed: coordinates.flatMap {
                 history.excluding(session: $0.session).lookup(for: $0.exercise.name)
             }

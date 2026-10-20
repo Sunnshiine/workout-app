@@ -8,7 +8,7 @@ private let frozenNow = Date(timeIntervalSince1970: 1_780_000_000)
 /// A test that syncs while the store holds the Block passes `.file`, the device's shape, with a
 /// store file from `withOnDiskStoreFile`.
 @MainActor
-private func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -> WorkoutApplication {
+func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -> WorkoutApplication {
     let app = try WorkoutApplication(
         environment: AppEnvironment(
             storage: storage,
