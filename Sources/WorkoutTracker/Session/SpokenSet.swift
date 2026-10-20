@@ -16,8 +16,8 @@ enum SpokenSet: Equatable, Sendable {
         case unrecognized
         /// Every Set Log is in pounds.
         case kilograms
-        /// Numbers the recognizer ran together, as "40542" for "405 for 2": a number whose whole part
-        /// has four or more digits, which no Set holds.
+        /// Numbers the recognizer ran together: a number of 1,000 or more that may hide another value,
+        /// as "40542" for "405 for 2" and "1358 at 9" for "135 for 8 at 9".
         case fusedNumber
         /// A number no word places, as both numbers of "185, 5"; number words in a row that make no
         /// one number, as "nine five"; "135 for 49", which may be "135 for 4 at 9"; "or", a choice; a
@@ -59,14 +59,14 @@ enum SpokenSet: Equatable, Sendable {
 }
 
 /// One of a Spoken Set's values.
-enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
+enum SpokenValue<Value: SpokenQuantity>: Equatable, Sendable {
     case notSaid
     case heard(Value)
     /// Said but not heard: its marker was said last and the recognizer cut off the number after it, as
     /// the RPE of "185 for 5 at" or the reps of "185 for", the recognizer cut off its half or decimal,
     /// as the RPE of "185 for 5 at 8 and a", or its number followed a misheard "at", as the RPE of
     /// "185 for 5 and 8".
-    case cutOff
+    case cutOff(SpokenRemnant)
 
     /// A value not said keeps the pre-fill. A value cut off was said, so the pre-fill is not it.
     func over(_ prefilled: Value?) -> Value? {
@@ -76,6 +76,70 @@ enum SpokenValue<Value: Equatable & Sendable>: Equatable, Sendable {
         case .cutOff: nil
         }
     }
+
+    var isCutOff: Bool {
+        guard case .cutOff = self else { return false }
+        return true
+    }
+
+    /// Whether `other` hears this value: the same value, or any one heard where this was cut off.
+    func isHeard(by other: SpokenValue<Value>) -> Bool {
+        switch (self, other) {
+        case (.cutOff, .heard): true
+        case (.cutOff, _): false
+        default: self == other
+        }
+    }
+
+    /// Whether `other` is this value as the recognizer heard it: the value itself, or, where this was
+    /// cut off, one heard that the remnant left in its place admits.
+    func admits(_ other: SpokenValue<Value>) -> Bool {
+        switch (self, other) {
+        case (.cutOff(let remnant), .heard(let value)): remnant.admits(value.spokenNumber)
+        default: self == other
+        }
+    }
+}
+
+/// What the recognizer wrote where it cut a value off.
+enum SpokenRemnant: Equatable, Sendable {
+    /// Nothing, as after the "at" of "185 for 5 at".
+    case nothing
+    /// The number after a misheard "at", as the 8 of "185 for 5 and 8".
+    case number(Double)
+    /// A number whose half or decimal was cut off, as the 8 of "at 8 and a".
+    case wholePart(Double)
+
+    /// Whether the value said may be `number`, nil for bodyweight: anything where nothing was heard,
+    /// and otherwise only a number that agrees with the one heard.
+    func admits(_ number: Double?) -> Bool {
+        switch self {
+        case .nothing: true
+        case .number(let heard): number == heard
+        case .wholePart(let whole): number.map { $0 > whole && $0 < whole + 1 } ?? false
+        }
+    }
+}
+
+/// A value of a Set Log, as the number that says it.
+protocol SpokenQuantity: Equatable, Sendable {
+    /// nil for a value no number says, as bodyweight.
+    var spokenNumber: Double? { get }
+}
+
+extension Weight: SpokenQuantity {
+    var spokenNumber: Double? {
+        guard case .pounds(let pounds) = self else { return nil }
+        return pounds
+    }
+}
+
+extension Int: SpokenQuantity {
+    var spokenNumber: Double? { Double(self) }
+}
+
+extension RPE: SpokenQuantity {
+    var spokenNumber: Double? { rawValue }
 }
 
 extension SpokenSet {
@@ -89,13 +153,46 @@ extension SpokenSet {
         let source: Source
     }
 
-    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. The
-    /// alternatives are read only when the top is rejected, and stand in for it only when every one
-    /// that reads agrees, because two readings of one Set are two different Set Logs.
+    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. A
+    /// value the top cut off is settled by its alternatives when every one that hears the same Set
+    /// hears that value the same, and that value is the number the top heard in its place, if the top
+    /// heard one. Otherwise the alternatives are read only when the top is rejected, and stand in for
+    /// it only when every one that reads agrees, because two readings of one Set are two different
+    /// Set Logs.
     static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
         guard let top = candidates.first else { return .failure(.nothingHeard) }
-        return parse(top).map { Chosen(spokenSet: $0, source: .top) }
+        return parse(top).map { Chosen(spokenSet: $0.settled(by: candidates.dropFirst()), source: .top) }
             .flatMapError { agreed(candidates.dropFirst(), else: $0) }
+    }
+
+    /// This Set with the value the recognizer cut off heard from the alternatives that hear every
+    /// other value as the top did, when they all hear it the same and it is the number the top heard
+    /// in its place. The recognizer writes "and" or "add" for "at" in a top transcript and "at" in an
+    /// alternative, so the RPE of "185 for 5 and 8" is the 8 of "185 for 5 at 8", never the 7 of
+    /// "185 for 5 at 7". Alternatives that hear two RPEs settle nothing.
+    private func settled(by alternatives: ArraySlice<String>) -> SpokenSet {
+        guard hasACutOffValue else { return self }
+        let settling = alternatives.compactMap { try? Self.parse($0).get() }.filter(isHeard(by:))
+        guard let settled = settling.first, settling.allSatisfy({ $0 == settled }), admits(settled) else { return self }
+        return settled
+    }
+
+    private var hasACutOffValue: Bool {
+        guard case .values(let weight, let reps, let rpe) = self else { return false }
+        return weight.isCutOff || reps.isCutOff || rpe.isCutOff
+    }
+
+    /// Whether `other` hears every value of this Set as it was heard, and the one cut off.
+    private func isHeard(by other: SpokenSet) -> Bool {
+        guard case .values(let weight, let reps, let rpe) = self, case .values(let otherWeight, let otherReps, let otherRPE) = other
+        else { return false }
+        return weight.isHeard(by: otherWeight) && reps.isHeard(by: otherReps) && rpe.isHeard(by: otherRPE)
+    }
+
+    private func admits(_ other: SpokenSet) -> Bool {
+        guard case .values(let weight, let reps, let rpe) = self, case .values(let otherWeight, let otherReps, let otherRPE) = other
+        else { return false }
+        return weight.admits(otherWeight) && reps.admits(otherReps) && rpe.admits(otherRPE)
     }
 
     private static func agreed(_ alternatives: ArraySlice<String>, else rejection: Rejection) -> Result<Chosen, Rejection> {

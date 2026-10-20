@@ -25,6 +25,17 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     #expect(outcome(of: ["same again"], in: secondSquat) == .logged(previous, heard: "same again"))
 }
 
+@Test func aValueTheTopTranscriptCutOffThatEveryAlternativeSettlesIsLogged() {
+    #expect(
+        outcome(of: ["135 for 4 and 9", "135 for 4 at 9"])
+            == .logged(SetLog(weight: .pounds(135), reps: 4, rpe: .nine), heard: "135 for 4 and 9")
+    )
+    #expect(
+        outcome(of: ["135 for 4 and 9", "135 for 4 at 9", "135 for 4 at 8"])
+            == .filled(SetLogDraft(weight: .pounds(135), reps: 4, rpe: nil), heard: "135 for 4 and 9")
+    )
+}
+
 @Test func aSetLogReadOnlyFromAnAlternativeFillsTheCardAndWritesNothing() {
     let filled = outcome(of: ["13549", "135 for 4 at 9"])
 
@@ -43,6 +54,14 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     #expect(filled == .filled(SetLogDraft(weight: nil, reps: 5, rpe: .nine), heard: "RPE 9"))
     guard case .filled(let values, _) = filled else { return }
     #expect(values.missingFields == [.weight])
+}
+
+/// The card pre-fills 185 lb, so a reading of 135 reps with no weight would log 185x135@9.
+@Test func aRepCountTheRecognizerDroppedWritesNothingOnACardThatPreFillsAWeight() {
+    #expect(outcome(of: ["135, a representative, RP9"]) == .rejected(.spokenSet(.unrecognized), heard: "135, a representative, RP9"))
+    #expect(
+        outcome(of: ["135, 8 reps, RPE 9"]) == .logged(SetLog(weight: .pounds(135), reps: 8, rpe: .nine), heard: "135, 8 reps, RPE 9")
+    )
 }
 
 @Test func aRejectedTranscriptWritesNothingAndKeepsWhatWasHeard() {

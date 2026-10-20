@@ -5,9 +5,11 @@ enum SpokenTranscript {
     /// Lowercased words, digit runs, a written "1/2", and every other symbol on its own, with
     /// punctuation dropped and spelled-out abbreviations ("r p e", "b w", "body weight") joined into
     /// one word. A pound sign is the "pounds" after its number, "½" is "1/2", a clock time is the
-    /// number its digits spell ("1:35"), and a "-" that starts a number is a minus sign, never dropped.
+    /// number its digits spell ("1:35"), a comma before exactly three digits separates thousands
+    /// ("1,005"), and a "-" that starts a number is a minus sign, never dropped.
     static func words(in transcript: String) -> [String] {
         let tokens = transcript.lowercased()
+            .replacing(/([0-9]),(?=[0-9]{3}(?![0-9]))/) { "\($0.1)" }
             .replacing("×", with: " x ")
             .replacing("½", with: " 1/2 ")
             .replacing(/['‘’]/, with: "")
@@ -19,9 +21,13 @@ enum SpokenTranscript {
         return joiningPhrases(tokens)
     }
 
+    /// The joined words include what the recognizer writes for "RPE" ("our fee") and "body weight"
+    /// ("Bobby waits") when a lifter says them fast.
     private static let phrases: [(words: [String], word: String)] = [
-        (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"), (["k", "g"], "kg"),
-        (["thank", "you"], "thanks")
+        (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["our", "pe"], "rpe"), (["are", "pe"], "rpe"), (["our", "fee"], "rpe"),
+        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
+        (["body", "weights"], "bw"), (["body", "wait"], "bw"), (["body", "waits"], "bw"), (["bobby", "wait"], "bw"),
+        (["bobby", "waits"], "bw"), (["k", "g"], "kg"), (["thank", "you"], "thanks")
     ]
 
     private static func joiningPhrases(_ tokens: [String]) -> [String] {
@@ -47,6 +53,7 @@ enum SpokenWord: Equatable, Sendable {
     case teen(Int)
     case tens(Int)
     case hundred
+    case thousand
     /// The one of "a hundred" and the a of "and a half".
     case a
     /// The zero of "four oh five".
@@ -57,12 +64,16 @@ enum SpokenWord: Equatable, Sendable {
     case half
     /// A written "1/2".
     case halfSign
+    /// "single", "double", and "triple": a rep count said with its label, as "a triple" is "3 reps",
+    /// and never part of a number, so "one eighty single" is no 181.
+    case repCount(Int)
     case token(SpokenToken)
     /// A choice, as in "20 or 25 reps", though the recognizer writes it for the "for" of "135 or 5".
     case or
     /// The "for" of "95 pounds per six" after bodyweight or a weight heavier than the reps.
     case per
-    /// "to" and "too", the 2 of "185 for to" and "to reps".
+    /// "to" and "too", the 2 of "185 for to" and "to reps", and otherwise the "at" the recognizer
+    /// mishears in "225 for 3 to 8".
     case to
     case kilograms
     case filler
@@ -78,6 +89,7 @@ enum SpokenWord: Equatable, Sendable {
         switch self {
         case .token(let token): .success(token)
         case .and: .success(.misheardAt(isFiller: true))
+        case .to: .success(.misheardAt(isFiller: false))
         case .a, .oh, .filler: .success(nil)
         case .kilograms: .failure(.kilograms)
         default: .failure(.unrecognized)
@@ -100,8 +112,10 @@ enum SpokenWord: Equatable, Sendable {
         }
     }
 
-    /// The number of hundreds this word gives the "hundred" after it.
-    var multiplier: Int? { self == .a ? 1 : unit }
+    var teen: Int? {
+        guard case .teen(let teen) = self else { return nil }
+        return teen
+    }
 
     /// The digits this word spells after "point": "five" is 5, "25" is 25.
     var decimalDigits: String? {
@@ -114,19 +128,20 @@ enum SpokenWord: Equatable, Sendable {
     )
 
     private static let entries: [(words: [String], word: SpokenWord)] = [
-        (["zero"], .unit(0)), (["one"], .unit(1)), (["two"], .unit(2)), (["three"], .unit(3)), (["four"], .four),
+        (["zero"], .unit(0)), (["one"], .unit(1)), (["two"], .unit(2)), (["three"], .unit(3)),
+        (["four"], .four),
         (["five"], .unit(5)), (["six"], .unit(6)), (["seven"], .unit(7)), (["eight", "ate"], .unit(8)), (["nine"], .unit(9)),
         (["ten"], .teen(10)), (["eleven"], .teen(11)), (["twelve"], .teen(12)), (["thirteen"], .teen(13)),
         (["fourteen"], .teen(14)), (["fifteen"], .teen(15)), (["sixteen"], .teen(16)), (["seventeen"], .teen(17)),
         (["eighteen"], .teen(18)), (["nineteen"], .teen(19)),
         (["twenty"], .tens(20)), (["thirty"], .tens(30)), (["forty"], .tens(40)), (["fifty"], .tens(50)),
         (["sixty"], .tens(60)), (["seventy"], .tens(70)), (["eighty"], .tens(80)), (["ninety"], .tens(90)),
-        (["hundred"], .hundred), (["a"], .a), (["oh"], .oh), (["and"], .and), (["point"], .point), (["half"], .half),
-        (["1/2"], .halfSign),
+        (["hundred"], .hundred), (["thousand"], .thousand), (["a"], .a), (["oh"], .oh), (["and"], .and), (["point"], .point),
+        (["half"], .half), (["1/2"], .halfSign), (["single"], .repCount(1)), (["double"], .repCount(2)), (["triple"], .repCount(3)),
         (["for", "x", "by", "times"], .token(.marker(.separator))),
         (["pound", "pounds", "lb", "lbs"], .token(.marker(.pounds))),
-        (["rep", "reps"], .token(.marker(.reps))),
-        (["rpe", "rp", "@", "rte", "rtd", "rtv"], .token(.marker(.rpe))),
+        (["rep", "reps", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
+        (["rpe", "rp", "@", "rte", "rtd", "rtv", "rpa", "pe"], .token(.marker(.rpe))),
         (["at"], .token(.marker(.at))),
         (["with"], .token(.marker(.with))),
         (["bw", "bodyweight"], .token(.bodyweight)),
@@ -188,7 +203,8 @@ struct SpokenCommand {
 }
 
 /// One number as an athlete says it: "185", "one thirty five", "a hundred and eighty five",
-/// "four oh five", "eight and a half", "one eighty seven point five". `digits` is the number as the
+/// "four oh five", "eight and a half", "one eighty seven point five", "one thousand and five",
+/// "eleven hundred", "ten fifty". `digits` is the number as the
 /// transcriber wrote it, before any half or "point" said after it, and nil when it was said in words.
 struct SpokenNumber: Equatable, Sendable {
     let value: Double
@@ -197,8 +213,6 @@ struct SpokenNumber: Equatable, Sendable {
     /// point": the recognizer cut off the rest of the number.
     var isCutOff = false
 
-    /// Four or more digits before any point, which no Set holds: numbers the recognizer ran together.
-    var isFused: Bool { (digits?.prefix { $0 != "." }.count ?? 0) >= 4 }
 }
 
 extension SpokenNumber {
@@ -222,28 +236,41 @@ extension SpokenNumber {
     }
 
     private static func said(_ words: Words) -> Reading<SpokenNumber>? {
-        (hundreds(words) ?? colloquialHundreds(words) ?? twoDigits(words)).map {
+        (thousands(words) ?? hundreds(words) ?? colloquialHundreds(words) ?? twoDigits(words)).map {
             Reading(number: SpokenNumber(value: Double($0.number), digits: nil), rest: $0.rest)
         }
     }
 
-    /// "one hundred thirty five", "a hundred and eighty five", "hundred eighty five", "two hundred".
+    /// "one thousand", "a thousand and five", "two thousand two hundred", "thousand fifty".
+    private static func thousands(_ words: Words) -> Reading<Int>? {
+        scaled(words, by: .thousand, 1000).map { adding({ hundreds($0) ?? twoDigits($0) }, to: $0) }
+    }
+
+    /// "one hundred thirty five", "a hundred and eighty five", "hundred eighty five", "eleven hundred".
     private static func hundreds(_ words: Words) -> Reading<Int>? {
-        guard let hundreds = hundredsWord(words) else { return nil }
-        let rest = hundreds.rest.first == .and ? hundreds.rest.dropFirst() : hundreds.rest
-        guard let tail = twoDigits(rest) else { return hundreds }
-        return Reading(number: hundreds.number + tail.number, rest: tail.rest)
+        scaled(words, by: .hundred, 100).map { adding(twoDigits, to: $0) }
     }
 
-    private static func hundredsWord(_ words: Words) -> Reading<Int>? {
-        if words.first == .hundred { return Reading(number: 100, rest: words.dropFirst()) }
-        guard let multiplier = words.first?.multiplier, words.dropFirst().first == .hundred else { return nil }
-        return Reading(number: multiplier * 100, rest: words.dropFirst(2))
+    /// "hundred" or "thousand" alone, or after how many: "a hundred", "two thousand", "fifteen hundred".
+    private static func scaled(_ words: Words, by word: SpokenWord, _ scale: Int) -> Reading<Int>? {
+        if words.first == word { return Reading(number: scale, rest: words.dropFirst()) }
+        guard let count = words.first == .a ? Reading(number: 1, rest: words.dropFirst()) : twoDigits(words),
+            count.rest.first == word
+        else { return nil }
+        return Reading(number: count.number * scale, rest: count.rest.dropFirst())
     }
 
-    /// "one thirty five", "three fifteen", "four oh five": the hundreds digit, then the rest.
+    /// The number after `head`, with or without "and" before it, added to it, as the 5 of "a hundred
+    /// and five" and "one thousand five". With no number after it, an "and" is left for a half.
+    private static func adding(_ tail: (Words) -> Reading<Int>?, to head: Reading<Int>) -> Reading<Int> {
+        let rest = head.rest.first == .and ? head.rest.dropFirst() : head.rest
+        guard let tail = tail(rest) else { return head }
+        return Reading(number: head.number + tail.number, rest: tail.rest)
+    }
+
+    /// "one thirty five", "three fifteen", "four oh five", "ten fifty": the hundreds, then the rest.
     private static func colloquialHundreds(_ words: Words) -> Reading<Int>? {
-        guard let hundreds = words.first?.unit else { return nil }
+        guard let hundreds = words.first?.unit ?? words.first?.teen else { return nil }
         let rest = words.dropFirst()
         return (ohUnit(rest) ?? tensOrTeen(rest)).map { Reading(number: hundreds * 100 + $0.number, rest: $0.rest) }
     }
@@ -306,10 +333,16 @@ extension SpokenNumber {
 struct SpokenTokens {
     private(set) var tokens: [SpokenToken] = []
 
+    /// A word the grammar rejects after a number that may be fused, as the "is" of "1358 is known",
+    /// leaves no words to show the number hides no value, so the number is the first thing wrong.
     init(_ words: [SpokenWord]) throws(SpokenSet.Rejection) {
         var rest = words[...]
-        while let word = rest.first {
-            rest = try read(word, rest)
+        do throws(SpokenSet.Rejection) {
+            while let word = rest.first {
+                rest = try read(word, rest)
+            }
+        } catch {
+            throw tokens.contains(where: \.mayBeFused) ? .fusedNumber : error
         }
     }
 
@@ -319,15 +352,27 @@ struct SpokenTokens {
         } else if let number = SpokenNumber.read(words) {
             try append(number.number)
             return number.rest
-        } else if let token = try word.alone.get() {
-            tokens.append(token)
+        } else {
+            try readOutsideANumber(word, before: words.dropFirst())
         }
         return words.dropFirst()
     }
 
+    /// A word no number takes: a rep count with its label, an article, or the word read alone.
+    private mutating func readOutsideANumber(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) {
+        switch word {
+        case .repCount(let count):
+            try append(SpokenNumber(value: Double(count), digits: nil))
+            tokens.append(.marker(.reps))
+        case .a where isArticle(before: next): tokens.append(.article)
+        default:
+            if let token = try word.alone.get() { tokens.append(token) }
+        }
+    }
+
     /// "four" between a weight and a number is the "for" of "135 four 5", and "per" is too before
     /// fewer reps. "or" sounds like "for" but offers a choice, so it is ambiguous. "to" and "too" are
-    /// 2 only where a number is asked for: "315 for to", "to reps".
+    /// 2 only where a number is asked for: "315 for to", "to reps", and a misheard "at" elsewhere.
     private func homophone(_ word: SpokenWord, before next: SpokenNumber.Words) throws(SpokenSet.Rejection) -> SpokenToken? {
         switch word {
         case .four: separator(before: next)
@@ -353,6 +398,17 @@ struct SpokenTokens {
         return .marker(.separator)
     }
 
+    /// "a" right after a number, or between "for" and a number, as in "135, a representative" and "135
+    /// for a 9": a lifter counts with a bare number, so the "a" the recognizer wrote stands for words it
+    /// lost, as the "8 at" of "135 for 8 at 9", and the number on either side of it is not the reps.
+    private func isArticle(before next: SpokenNumber.Words) -> Bool {
+        switch tokens.last {
+        case .number?: true
+        case .marker(.separator)?: SpokenNumber.read(next) != nil
+        default: false
+        }
+    }
+
     private var lastValue: SpokenToken? {
         tokens.last { $0 != .marker(.pounds) }
     }
@@ -364,7 +420,6 @@ struct SpokenTokens {
 
     /// Two numbers said in words in a row, as "nine five", make no one number.
     private mutating func append(_ number: SpokenNumber) throws(SpokenSet.Rejection) {
-        guard !number.isFused else { throw .fusedNumber }
         guard case .number(let previous)? = tokens.last, previous.digits == nil, number.digits == nil else {
             tokens.append(.number(number))
             return

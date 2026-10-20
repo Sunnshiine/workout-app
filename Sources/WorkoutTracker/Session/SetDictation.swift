@@ -250,7 +250,8 @@ final class SetDictation {
     }
 
     /// The write policy. A transcript writes only when the most likely one reads as a complete
-    /// Set Log or a skip: a less likely transcript that reads is a guess the athlete confirms.
+    /// Set Log or a skip, with a value it cut off settled by every alternative that hears the same
+    /// Set: a less likely transcript that reads on its own is a guess the athlete confirms.
     nonisolated static func outcome(of candidates: [String], in context: SpokenSetContext) -> Outcome {
         let heard = candidates.first ?? ""
         let resolved = SpokenSet.parse(candidates: candidates).flatMap { chosen in

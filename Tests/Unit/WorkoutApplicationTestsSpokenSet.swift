@@ -61,6 +61,27 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(report.pendingWriteCount == 2)
 }
 
+/// A typed Set Log takes any weight, so a spoken one does too, wherever the words show it hides no value.
+@MainActor
+@Test(
+    "Saying a weight of 1,000 or more writes it to the Sheet as said",
+    arguments: [
+        ("1000 for 5 at 8", "1000x5@8"), ("1005 for 5 at 8", "1005x5@8"), ("1500 for 5 at 8", "1500x5@8"),
+        ("1000 pounds for 1 at 10", "1000x1@10"), ("1,000 for 5 at 8", "1000x5@8"), ("1,005 pounds for 5 at 8", "1005x5@8"),
+        ("one thousand for 5 at 8", "1000x5@8"), ("a thousand for 2 at 9", "1000x2@9")
+    ]
+)
+func sayingAWeightOfAThousandOrMoreWritesItAsSaid(transcript: String, setLog: String) async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.say(transcript, at: address("w1d1.e0.s0"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == setLog)
+    _ = try await app.flush()
+    #expect(try await app.sheet(tab: nil).cells["K15"] == setLog)
+}
+
 @MainActor
 @Test func sayingSkipSkipsTheSetAndWritesSkip() async throws {
     let app = try await makeSelectedApp()
@@ -113,12 +134,17 @@ private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutAppli
     #expect(try app.sync.fetchPendingWriteRecords().count == 2)
 }
 
-/// "185 for 5 and 5" once logged RPE 5 over the card's RPE, so a number after "and" leaves the RPE to the athlete.
+/// "185 for 5 and 5" once logged RPE 5 over the card's RPE, so a number after "and" or a misheard
+/// "to" leaves the RPE to the athlete.
 @MainActor
-@Test func aWeightForRepsAndANumberOnACardThatHoldsEveryValueIsMissingTheRPEAndQueuesNothing() async throws {
+@Test(
+    "A weight for reps and a number on a card that holds every value is missing the RPE and queues nothing",
+    arguments: ["185 for 5 and 5", "Body weight for 12 to 7"]
+)
+func aWeightForRepsAndANumberOnACardThatHoldsEveryValueIsMissingTheRPEAndQueuesNothing(transcript: String) async throws {
     let app = try await appWhoseSecondSetCardHoldsEveryValue()
 
-    let report = try app.say("185 for 5 and 5", at: address("w1d1.e0.s1"))
+    let report = try app.say(transcript, at: address("w1d1.e0.s1"))
 
     #expect(report.outcome == .missingValues)
     #expect(report.missing == ["rpe"])
@@ -136,8 +162,7 @@ private func appWhoseSecondSetCardHoldsEveryValue() async throws -> WorkoutAppli
         "8 reps of 135", "nine five for five", "at nine five for five", "five or six reps at eight",
         "twenty five or thirty reps at eight", "1854.5 for 5",
         "135 for 16", "Two.", "245 for three 8 1/2", "185+58", "315 for 19.5", "185 for 5 at 80%",
-        "185 for 5 and 8 reps", "185 for 5 at 8 reps", "185 for 5, 185 for 5", "same weight", "8½", "Body weight for 12 to 7",
-        "95 pounds to 67"
+        "185 for 5 and 8 reps", "185 for 5 at 8 reps", "185 for 5, 185 for 5", "same weight", "8½", "95 pounds to 67"
     ]
 )
 func aRejectedTranscriptQueuesNoWrite(transcript: String) async throws {

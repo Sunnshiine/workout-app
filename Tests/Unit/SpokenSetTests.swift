@@ -13,8 +13,8 @@ private func values(_ weight: Weight?, _ reps: Int?, _ rpe: RPE?) -> Heard {
     .success(.values(weight: spoken(weight), reps: spoken(reps), rpe: spoken(rpe)))
 }
 
-private func rpeCutOff(_ weight: Weight, _ reps: Int) -> Heard {
-    .success(.values(weight: .heard(weight), reps: .heard(reps), rpe: .cutOff))
+private func rpeCutOff(_ weight: Weight, _ reps: Int, _ remnant: SpokenRemnant = .nothing) -> Heard {
+    .success(.values(weight: .heard(weight), reps: .heard(reps), rpe: .cutOff(remnant)))
 }
 
 @Test(
@@ -117,10 +117,64 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
 
 @Test(
     "Bodyweight in any spelling is the BW weight",
-    arguments: ["bodyweight for 12 at 7", "body weight for 12 at 7", "BW for 12 at 7", "B.W. for 12 at 7", "BWx12@7"]
+    arguments: [
+        "bodyweight for 12 at 7", "body weight for 12 at 7", "BW for 12 at 7", "B.W. for 12 at 7", "BWx12@7",
+        "Body weights for 12 at 7", "Body waits for 12 at 7", "Body wait for 12 at 7", "Bobby waits for 12 at 7",
+        "Bobby, wait for 12 at 7"
+    ]
 )
 func bodyweightInAnySpellingIsBW(transcript: String) {
     #expect(SpokenSet.parse(transcript) == values(.bodyweight, 12, .seven))
+}
+
+/// Verbatim from the matrix of voices: what the recognizer writes for "reps" and "RPE" said fast.
+@Test(
+    "The words the recognizer writes for reps and RPE label the number as those do",
+    arguments: [
+        "5 ribs with 185 pounds, RPE 9", "185 for 5 rips at 9", "185 for 5 representatives at 9", "185, 5 representatives, RPE 9",
+        "185 for 5 RPA 9", "185 for 5 reps, 9 PE", "185 for 5 reps, 9 are fee", "185 for five, our fee 9", "185 for 5 at our fee 9",
+        "185 for 5 at 9 are fee", "185 for 5 R fee 9", "185 for 5 reps at our pe 9"
+    ]
+)
+func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == values(.pounds(185), 5, .nine))
+}
+
+/// "135, a representative, RP9" is "135, 8 reps, RPE 9" with the rep count dropped. Read as 135 reps
+/// with no weight, it would log on any card that pre-fills a weight, so the "a" keeps the 135 from the
+/// label after it, and the label then labels nothing.
+@Test func aRecognizerThatDropsTheRepCountIsNeverASet() {
+    #expect(SpokenSet.parse("135, a representative, RP9") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 a reps") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135, a triple, RPE 9") == values(.pounds(135), 3, .nine))
+    #expect(SpokenSet.parse("225 for 3 RPA") == rpeCutOff(.pounds(225), 3))
+}
+
+/// Verbatim from the matrix: in every "for a" before a number, the "a" stood for the "8 at" of "135
+/// for 8 at 9", so the number after it is no rep count.
+@Test func aBetweenForAndANumberLetsForLabelNothing() {
+    #expect(SpokenSet.parse("135 for a 9.") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("135 for a 9 RP.") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("225 for a triple at 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("135 for a hundred reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("225 for 3 at a 9") == values(.pounds(225), 3, .nine))
+}
+
+@Test func aSingleADoubleAndATripleAreOneTwoAndThreeReps() {
+    #expect(SpokenSet.parse("225 for a triple at 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("315 for a single at 9") == values(.pounds(315), 1, .nine))
+    #expect(SpokenSet.parse("225 for a double RPE 8") == values(.pounds(225), 2, .eight))
+    #expect(SpokenSet.parse("225 for a triple 8") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225, a triple, RPE 8") == values(.pounds(225), 3, .eight))
+    #expect(SpokenSet.parse("8 reps at a triple") == .failure(.unrecognized))
+}
+
+/// A single, a double, or a triple is a rep count with its own label, never a digit of a number.
+@Test func aSingleADoubleOrATripleNeverJoinsANumberWord() {
+    #expect(SpokenSet.parse("one eighty single for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for twenty triple") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("one hundred double for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for 3 triple") == .failure(.conflicting(.reps)))
 }
 
 @Test func aPartialSetHearsOnlyWhatWasSaid() {
@@ -145,6 +199,35 @@ func bodyweightInAnySpellingIsBW(transcript: String) {
 )
 func aNumberNoWordPlacesIsAmbiguous(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
+}
+
+/// The recognizer writes the "for" of "135 for 8 reps, RPE 9" as a comma more often than not. With the
+/// reps and the RPE both labelled after it, the weight is the only value left for a number that leads.
+@Test(
+    "A leading number is the weight when words label the reps and the RPE after it",
+    arguments: [
+        "135, 8 reps, RPE 9", "135 8 reps, RPE9.", "135, 8 reps, at 9", "135 8 reps RPE 9", "135, eight reps, RPE nine",
+        "one thirty five, 8 reps, RPE 9"
+    ]
+)
+func aLeadingNumberIsTheWeightWhenWordsLabelTheRepsAndTheRPEAfterIt(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == values(.pounds(135), 8, .nine))
+}
+
+/// "RPE" after a number labels that number, so "135, RPE 9, 8 reps" reads an RPE of 135 and leaves the 9.
+@Test(
+    "A number stays ambiguous unless it leads and both other values are labelled",
+    arguments: [
+        "8 reps, RPE 9, 135", "8 reps, 135, RPE 9", "135, 8 reps", "135, RPE 9", "135, 5, 8 reps, RPE 9",
+        "135, 8 reps, 9", "135 pounds, 8, RPE 9", "9, 8 reps, 135 pounds", "135, 8 reps, at 12", "135, RPE 9, 8 reps"
+    ]
+)
+func aNumberThatDoesNotLeadWithBothOtherValuesLabelledIsAmbiguous(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.ambiguous))
+}
+
+@Test func aLeadingWeightNeverExcusesARepCountSaidTwice() {
+    #expect(SpokenSet.parse("135, 8 reps, RPE 9, 5 reps") == .failure(.conflicting(.reps)))
 }
 
 @Test(
@@ -345,7 +428,7 @@ private let anyValueTheCardAccepts: [(transcript: String, weight: Weight?, reps:
     ("12 reps at 12 pounds", .pounds(12), 12, nil), ("10 for 45", .pounds(10), 45, nil), ("12 for 95", .pounds(12), 95, nil),
     ("twelve for ninety five", .pounds(12), 95, nil), ("8 four 95", .pounds(8), 95, nil),
     ("135 for 45", .pounds(135), 45, nil), ("135 for forty five", .pounds(135), 45, nil), ("135 for 31", .pounds(135), 31, nil),
-    ("135 for 30", .pounds(135), 30, nil), ("135 for 100", .pounds(135), 100, nil), ("135 for 101", .pounds(135), 101, nil),
+    ("135 for 30", .pounds(135), 30, nil), ("135 for 100 reps", .pounds(135), 100, nil), ("135 for 101 at 8", .pounds(135), 101, .eight),
     ("135 for 49 reps", .pounds(135), 49, nil), ("135 for 49 at 8", .pounds(135), 49, .eight),
     ("RPE 8, 135 for 49", .pounds(135), 49, .eight), ("49 reps", nil, 49, nil), ("bodyweight for 50", .bodyweight, 50, nil),
     ("187.55 for 5", .pounds(187.55), 5, nil), ("135.123456 for 5", .pounds(135.123456), 5, nil),
@@ -388,7 +471,7 @@ func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: We
 @Test func anythingElseIsUnrecognized() {
     let transcripts = [
         "banana", "the quick brown fox", "reps", "RPE", "for", "nan for 5", "for bodyweight", "185 and a half point five",
-        "one thousand for 5", "185 for 5 at 8¾", "185 for 5 at 80%", "185+58", "185 for 5 and 8 reps", "185 for 5 at 8 reps"
+        "185 for 5 at 8¾", "185 for 5 at 80%", "185+58", "185 for 5 and 8 reps", "185 for 5 at 8 reps"
     ]
     for transcript in transcripts {
         #expect(SpokenSet.parse(transcript) == .failure(.unrecognized), "\(transcript)")
@@ -400,7 +483,7 @@ func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: We
     "What Apple's transcribers wrote for a spoken Set reads as the Set said",
     arguments: [
         ("135 for 4 at RPE9.", values(.pounds(135), 4, .nine)),
-        ("185 for 5 and 8.", rpeCutOff(.pounds(185), 5)),
+        ("185 for 5 and 8.", rpeCutOff(.pounds(185), 5, .number(8))),
         ("Body weight for 12 at 7.", values(.bodyweight, 12, .seven)),
         ("135 for 8 reps, RPE9.", values(.pounds(135), 8, .nine)),
         ("Same again.", .success(.sameAgain)),
@@ -412,7 +495,8 @@ func everyWeightForRepsInTheGridReadsAsTheSetSaid(transcript: String, weight: We
         ("£95 for 6 at RPE 7.", values(.pounds(95), 6, .seven)),
         ("95 pounds per six of RPE 7.", values(.pounds(95), 6, .seven)),
         ("95 pounds for six and RPE seven", values(.pounds(95), 6, .seven)),
-        ("135 for four of nine.", rpeCutOff(.pounds(135), 4)),
+        ("135 for four of nine.", rpeCutOff(.pounds(135), 4, .number(9))),
+        ("Body weight for 12 to 7", rpeCutOff(.bodyweight, 12, .number(7))),
         ("135 for four at RPE nine", values(.pounds(135), 4, .nine)),
         ("135 for four RTE nine", values(.pounds(135), 4, .nine)),
         ("225 for three at 8 1/2", values(.pounds(225), 3, .eightPointFive)),
@@ -431,7 +515,7 @@ func whatTheTranscribersWroteReadsAsTheSetSaid(transcript: String, heard: Result
     "What Apple's transcribers misheard for a spoken Set is rejected, never logged",
     arguments: [
         ("135 before an RPM.", SpokenSet.Rejection.unrecognized), ("135 for Florida RP", .unrecognized),
-        ("185+58", .unrecognized), ("Body weight for sale at seven.", .unrecognized), ("Body weight for 12 to 7", .unrecognized),
+        ("185+58", .unrecognized), ("Body weight for sale at seven.", .unrecognized),
         ("Body weight for sale seven", .unrecognized), ("135 parade reps, RPE9.", .unrecognized),
         ("135, Toyota, RTV9.", .unrecognized), ("135 parade rat RTD nine", .unrecognized), ("135 RT nine", .unrecognized),
         ("Play again", .unrecognized), ("Yes", .nothingHeard), ("Two.", .ambiguous), ("245 for three 8 1/2", .ambiguous),
@@ -447,20 +531,116 @@ func whatTheTranscribersMisheardIsRejected(transcript: String, rejection: Spoken
 }
 
 @Test(
-    "A number whose whole part has four or more digits is numbers run together, never a weight",
+    "Five or more digits with no for or pounds right after them are numbers run together",
+    arguments: ["40542 at nine.", "18545 at 8.", "13544 at RPE 9.", "31541 at 9.5.", "405429", "13544, 8 reps, RPE 9", "13548"]
+)
+func fiveOrMoreDigitsThatMayHideAValueAreFused(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
+}
+
+@Test(
+    "A number of 1,000 or more is the weight when for, then the reps and the RPE, or pounds, then the reps, follow it",
     arguments: [
-        "40542 at nine.", "18545 at 8.", "13544 at RPE 9.", "31541 at 9.5.", "4510", "405-4209", "405429", "2000 for 1 at 10",
-        "2000.5 for 5", "1854.5 for 5"
+        ("1000 for 5 at 8", values(.pounds(1000), 5, .eight)), ("1005 for 5 at 8", values(.pounds(1005), 5, .eight)),
+        ("1500 for 5 at 8", values(.pounds(1500), 5, .eight)), ("1000 pounds for 1 at 10", values(.pounds(1000), 1, .ten)),
+        ("2000 for 1 at 10", values(.pounds(2000), 1, .ten)), ("1002.5 for 3 at 9.5", values(.pounds(1002.5), 3, .ninePointFive)),
+        ("1005 by 1, RPE 10", values(.pounds(1005), 1, .ten)), ("1005 pounds for 1", values(.pounds(1005), 1, nil)),
+        ("1005 lb, 5 reps", values(.pounds(1005), 5, nil)), ("9999 x 1 @ 10", values(.pounds(9999), 1, .ten)),
+        ("10000 for 5 at 8", values(.pounds(10000), 5, .eight)), ("25,000 pounds for 1", values(.pounds(25000), 1, nil)),
+        ("1000 for 5 and 8", rpeCutOff(.pounds(1000), 5, .number(8))), ("1005 for one to 10", rpeCutOff(.pounds(1005), 1, .number(10)))
     ]
 )
-func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
+private func aNumberOfAThousandOrMoreThatHidesNoValueIsTheWeight(transcript: String, heard: Heard) {
+    #expect(SpokenSet.parse(transcript) == heard)
+}
+
+@Test(
+    "A thousand, a teen of hundreds, and a teen before the tens read as one number, as athletes say them",
+    arguments: [
+        ("one thousand for 5 at 8", values(.pounds(1000), 5, .eight)), ("a thousand for 2 at 9", values(.pounds(1000), 2, .nine)),
+        ("one thousand five for 5 at 8", values(.pounds(1005), 5, .eight)),
+        ("one thousand and five for 1 at 10", values(.pounds(1005), 1, .ten)),
+        ("one thousand five hundred for 1 at 10", values(.pounds(1500), 1, .ten)),
+        ("two thousand two hundred and fifty pounds for 1", values(.pounds(2250), 1, nil)),
+        ("one thousand and a half for 1 at 10", values(.pounds(1000.5), 1, .ten)),
+        ("thousand fifty for 1 at 10", values(.pounds(1050), 1, .ten)),
+        ("eleven hundred for 5 at 8", values(.pounds(1100), 5, .eight)),
+        ("fifteen hundred and fifty for 1 at 10", values(.pounds(1550), 1, .ten)),
+        ("twenty five hundred pounds for 1", values(.pounds(2500), 1, nil)), ("ten fifty for 5 at 8", values(.pounds(1050), 5, .eight)),
+        ("ten oh five for 1 at 10", values(.pounds(1005), 1, .ten)), ("twelve twenty five for 3 at 9", values(.pounds(1225), 3, .nine)),
+        ("one thousand pounds for 1 at 10", values(.pounds(1000), 1, .ten)),
+        ("ten thousand for 5 at 8", values(.pounds(10000), 5, .eight)),
+        ("twenty five thousand pounds for 1", values(.pounds(25000), 1, nil))
+    ]
+)
+private func thousandsSaidInWordsReadAsTheNumberMeant(transcript: String, heard: Heard) {
+    #expect(SpokenSet.parse(transcript) == heard)
+}
+
+/// "one thousand five" may be "1000 for 5" and "ten fifty" "10 for 50", so a number of 1,000 or more
+/// said in words meets the same rule as one in digits.
+@Test(
+    "A number of 1,000 or more said in words that may hide another value is numbers run together",
+    arguments: [
+        "one thousand for 5", "one thousand five", "ten fifty", "eleven hundred", "a thousand at 8", "twelve twenty reps",
+        "135 for twelve ten", "135 for one thousand at 8", "ten thousand at 8"
+    ]
+)
+func aNumberOfAThousandOrMoreInWordsThatMayHideAValueIsFused(transcript: String) {
+    #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
+}
+
+/// The recognizer writes a weight of 1,000 or more with a comma before its last three digits, and a
+/// comma before anything else is punctuation.
+@Test func aCommaBeforeThreeDigitsSeparatesThousands() {
+    #expect(SpokenSet.parse("1,000 for 5 at 8") == values(.pounds(1000), 5, .eight))
+    #expect(SpokenSet.parse("1,005 pounds for 5 at 8") == values(.pounds(1005), 5, .eight))
+    #expect(SpokenSet.parse("£1,005 for 1 at 10") == values(.pounds(1005), 1, .ten))
+    #expect(SpokenSet.parse("1,002.5 for 3 at 9") == values(.pounds(1002.5), 3, .nine))
+    #expect(SpokenSet.parse("1,000") == .failure(.fusedNumber))
+    #expect(SpokenSet.parse("1,000,000 for 5 at 8") == values(.pounds(1_000_000), 5, .eight))
+    #expect(SpokenSet.parse("135, 8 reps, RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135,8 reps, RPE 9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135,85 for 5") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 for 5,8") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("1,0005 for 5 at 8") == .failure(.unrecognized))
+}
+
+/// "1358" may be "135 for 8" and "4510" "45 for 10", so a number of 1,000 or more that words do not
+/// show hides no value is numbers run together, even where the rest would read.
+@Test(
+    "A number of 1,000 or more that may hide another value is numbers run together",
+    arguments: [
+        "1358", "1358 at 9", "4510", "405-4209", "1000 for 5", "1005 for 1, 8", "1358 reps at 9", "1358 reps, RPE 9", "1005 pounds",
+        "1005 pounds at 8", "135 for 1000 at 8", "135 for 5 at 1000", "8 reps at 1005 pounds", "2000.5 for 5", "1854.5 for 5",
+        "2543 at an island", "4105 or one at 10", "1854 5 rips at our PE8.", "1005, 1 rep, RPE 10",
+        "1000 at 8 for 5"
+    ]
+)
+func aNumberOfAThousandOrMoreThatMayHideAValueIsFused(transcript: String) {
     #expect(SpokenSet.parse(transcript) == .failure(.fusedNumber))
 }
 
 /// "4 at 9" can reach the transcript as "49", but "1 at 5" is rarely said, so only a second digit of
-/// 6 to 9 reads two ways.
+/// 6 to 9 reads two ways. A count of 100 or more reads two ways whatever its digits and however it was
+/// said: the recognizer writes "808" for "8 at an 8", "343" for "3 for 3", and "110" for "1 at 10", and
+/// nobody logs 100 reps unlabelled.
 @Test func aRepCountAfterForThatMayBeRepsAtAnRPEIsAmbiguous() {
     #expect(SpokenSet.parse("135 for 49") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 808") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("225 for 343") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("405 for 110") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 100") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("four hundred five for one hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for one hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("185 for one hundred and ten") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for a hundred") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for one hundred reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("135 for 101 at 8") == values(.pounds(135), 101, .eight))
+    #expect(SpokenSet.parse("BW for 129") == .failure(.ambiguous))
+    #expect(SpokenSet.parse("135 for 100 reps") == values(.pounds(135), 100, nil))
+    #expect(SpokenSet.parse("135 for 808 at 8") == values(.pounds(135), 808, .eight))
+    #expect(SpokenSet.parse("100 reps") == values(nil, 100, nil))
     #expect(SpokenSet.parse("for 16") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 x 15") == values(.pounds(135), 15, nil))
     #expect(SpokenSet.parse("135 for 15") == values(.pounds(135), 15, nil))
@@ -479,30 +659,35 @@ func aNumberWithFourOrMoreWholeDigitsIsFused(transcript: String) {
 @Test(
     "And, of, or add before a number after a weight for reps cuts the RPE off, never reads it",
     arguments: [
-        ("185 for 5 and 8", Weight.pounds(185), 5), ("185 for 5 and 5", .pounds(185), 5), ("50 for 10 and 10", .pounds(50), 10),
-        ("bodyweight for 10 and 10", .bodyweight, 10), ("135 for 8 and 6", .pounds(135), 8), ("185 for 5 and 3", .pounds(185), 5),
-        ("185 for 5 reps and 5", .pounds(185), 5), ("185 for 5 of 5", .pounds(185), 5), ("135 for four of nine", .pounds(135), 4),
-        ("185 for 5 add 8", .pounds(185), 5), ("185 pounds for 5 reps and 8.5", .pounds(185), 5), ("185 for 5 and 12", .pounds(185), 5)
+        ("185 for 5 and 8", Weight.pounds(185), 5, 8.0), ("185 for 5 and 5", .pounds(185), 5, 5), ("50 for 10 and 10", .pounds(50), 10, 10),
+        ("bodyweight for 10 and 10", .bodyweight, 10, 10), ("135 for 8 and 6", .pounds(135), 8, 6), ("185 for 5 and 3", .pounds(185), 5, 3),
+        ("185 for 5 reps and 5", .pounds(185), 5, 5), ("185 for 5 of 5", .pounds(185), 5, 5), ("135 for four of nine", .pounds(135), 4, 9),
+        ("185 for 5 add 8", .pounds(185), 5, 8), ("185 pounds for 5 reps and 8.5", .pounds(185), 5, 8.5),
+        ("185 for 5 and 12", .pounds(185), 5, 12), ("225 for 3 to 8", .pounds(225), 3, 8), ("225 for 3 to 8.5", .pounds(225), 3, 8.5),
+        ("455 for one to 10", .pounds(455), 1, 10), ("10 for 12 too 8", .pounds(10), 12, 8)
     ]
 )
-func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, reps: Int) {
-    #expect(SpokenSet.parse(transcript) == rpeCutOff(weight, reps))
+func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, reps: Int, number: Double) {
+    #expect(SpokenSet.parse(transcript) == rpeCutOff(weight, reps, .number(number)))
 }
 
-@Test func andOrOfBeforeAnRPEMarkerIsFillerAndAddAnywhereElseIsUnrecognized() {
+@Test func andOrOfBeforeAnRPEMarkerIsFillerAndAddOrToAnywhereElseIsUnrecognized() {
     #expect(SpokenSet.parse("135 for 8 and RPE 9") == values(.pounds(135), 8, .nine))
     #expect(SpokenSet.parse("95 pounds per six of RPE 7") == values(.pounds(95), 6, .seven))
     #expect(SpokenSet.parse("add 185 for 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("to 185 for 5") == .failure(.unrecognized))
+    #expect(SpokenSet.parse("185 for 20 to 25 reps") == .failure(.unrecognized))
 }
 
 @Test func aMarkerSaidLastCutsOffTheValueItAskedFor() {
     #expect(SpokenSet.parse("185 for 5 at") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 RTE") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 of") == rpeCutOff(.pounds(185), 5))
+    #expect(SpokenSet.parse("185 for 5 to") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 add um") == rpeCutOff(.pounds(185), 5))
-    #expect(SpokenSet.parse("185 by") == .success(.values(weight: .heard(.pounds(185)), reps: .cutOff, rpe: .notSaid)))
-    #expect(SpokenSet.parse("for 5 and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff)))
-    #expect(SpokenSet.parse("8 reps at") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff)))
+    #expect(SpokenSet.parse("185 by") == .success(.values(weight: .heard(.pounds(185)), reps: .cutOff(.nothing), rpe: .notSaid)))
+    #expect(SpokenSet.parse("for 5 and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff(.nothing))))
+    #expect(SpokenSet.parse("8 reps at") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff(.nothing))))
     #expect(SpokenSet.parse("185 for 5 at 8 RPE") == values(.pounds(185), 5, .eight))
     #expect(SpokenSet.parse("185 pounds") == values(.pounds(185), nil, nil))
     #expect(SpokenSet.parse("at") == .failure(.unrecognized))
@@ -512,27 +697,27 @@ func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, rep
 @Test(
     "A half or a decimal started last cuts its number off, never reads the whole number",
     arguments: [
-        "135 for 5 at 9 and a", "135 for 5 at 8 and", "135 for 5 at eight and a", "135 for 5 at 8 point", "135 for 5 rpe 8 and",
-        "135 for 5 reps at 8 and a", "135 for 5 at 8 and uh", "135 for 5 at 8 and then", "135 for 5 at 8 so and",
-        "135 for 5 at nine point"
+        ("135 for 5 at 9 and a", 9.0), ("135 for 5 at 8 and", 8), ("135 for 5 at eight and a", 8), ("135 for 5 at 8 point", 8),
+        ("135 for 5 rpe 8 and", 8), ("135 for 5 reps at 8 and a", 8), ("135 for 5 at 8 and uh", 8), ("135 for 5 at 8 and then", 8),
+        ("135 for 5 at 8 so and", 8), ("135 for 5 at nine point", 9)
     ]
 )
-func aFractionStartedLastCutsItsNumberOff(transcript: String) {
-    #expect(SpokenSet.parse(transcript) == rpeCutOff(.pounds(135), 5))
+func aFractionStartedLastCutsItsNumberOff(transcript: String, whole: Double) {
+    #expect(SpokenSet.parse(transcript) == rpeCutOff(.pounds(135), 5, .wholePart(whole)))
 }
 
 @Test func aFractionStartedLastAfterARepCountCutsOffTheRPEBecauseRepsAreWhole() {
     #expect(SpokenSet.parse("185 for 5 and") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 and a") == rpeCutOff(.pounds(185), 5))
     #expect(SpokenSet.parse("185 for 5 point") == rpeCutOff(.pounds(185), 5))
-    #expect(SpokenSet.parse("5 reps and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff)))
-    #expect(SpokenSet.parse("8 reps at 9 and") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff)))
+    #expect(SpokenSet.parse("5 reps and") == .success(.values(weight: .notSaid, reps: .heard(5), rpe: .cutOff(.nothing))))
+    #expect(SpokenSet.parse("8 reps at 9 and") == .success(.values(weight: .notSaid, reps: .heard(8), rpe: .cutOff(.wholePart(9)))))
 }
 
 @Test func aFractionStartedLastCutsOffTheWeightOrRPEItFollows() {
-    #expect(SpokenSet.parse("rpe 8 and") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff)))
-    #expect(SpokenSet.parse("at 6 and a") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff)))
-    #expect(SpokenSet.parse("5 reps with 185 and a") == .success(.values(weight: .cutOff, reps: .heard(5), rpe: .notSaid)))
+    #expect(SpokenSet.parse("rpe 8 and") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff(.wholePart(8)))))
+    #expect(SpokenSet.parse("at 6 and a") == .success(.values(weight: .notSaid, reps: .notSaid, rpe: .cutOff(.wholePart(6)))))
+    #expect(SpokenSet.parse("5 reps with 185 and a") == .success(.values(weight: .cutOff(.wholePart(185)), reps: .heard(5), rpe: .notSaid)))
     #expect(SpokenSet.parse("135 for 5 at 8 and 9") == .failure(.ambiguous))
     #expect(SpokenSet.parse("185 and") == .failure(.ambiguous))
     #expect(SpokenSet.parse("135 for 5 at eight and half") == values(.pounds(135), 5, .eightPointFive))
@@ -607,6 +792,10 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
     .success(SpokenSet.Chosen(spokenSet: spokenSet, source: source))
 }
 
+private func chosen(_ heard: Heard) -> Result<SpokenSet.Chosen, SpokenSet.Rejection> {
+    heard.map { SpokenSet.Chosen(spokenSet: $0, source: .top) }
+}
+
 @Test func aTopCandidateThatReadsIsTheSpokenSetWhateverTheAlternativesSay() {
     #expect(SpokenSet.parse(candidates: ["Same again.", "Same again.", "Play again."]) == chosen(.sameAgain, from: .top))
     #expect(
@@ -617,7 +806,7 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
 }
 
 @Test func alternativesThatAgreeStandInForARejectedTopCandidate() {
-    let cutOffRPE = SpokenSet.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff)
+    let cutOffRPE = SpokenSet.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff(.nothing))
     #expect(
         SpokenSet.parse(candidates: ["31541", "31541", "315 for one", "315 by one"])
             == chosen(.values(weight: .heard(.pounds(315)), reps: .heard(1), rpe: .notSaid), from: .alternative)
@@ -627,6 +816,69 @@ private func chosen(_ spokenSet: SpokenSet, from source: SpokenSet.Source) -> Re
         SpokenSet.parse(candidates: ["18545 at", "18545 at", "185 x 5 at", "18545, at", "185, 45, at"])
             == chosen(cutOffRPE, from: .alternative)
     )
+}
+
+/// The recognizer writes "and" or "add" for "at" in a top transcript and "at" in an alternative.
+@Test func alternativesThatHearTheSameSetSettleTheValueTheTopCandidateCutOff() {
+    let settled = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.nine)), from: .top)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for eight and 9.", "135 for 8 at 9.", "135 for 8 and nine."]) == settled)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 add nine.", "135 for 8 at 9.", "135 for 8 at RPE 9."]) == settled)
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 8 at 9 and", "135 for 8 at 9 and a half"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.ninePointFive)), from: .top)
+    )
+}
+
+/// Verbatim from the matrix of voices, where the alternatives heard a number the top cut off as said.
+@Test func alternativesThatAgreeSettleAValueTheTopCutOffWithNoNumberInItsPlace() {
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 8 at", "135 for 8 at 9"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.nine)), from: .top)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["185 for", "185 for 5"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .notSaid), from: .top)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 8 at", "135 for 8 at 9", "135 for 8 at 8"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .cutOff(.nothing)), from: .top)
+    )
+}
+
+/// The parser never contradicts the top transcript: its 9 or 7 is the RPE the recognizer heard, even
+/// where it misheard the "at" before it, so an alternative's 8 is another reading, not the one said.
+@Test func anAlternativeSettlesANumberTheTopCutOffOnlyAsThatNumber() {
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for 8 at 8"]) == chosen(rpeCutOff(.pounds(135), 8, .number(9))))
+    #expect(SpokenSet.parse(candidates: ["225 for 3 add 7", "225 for 3 at 8"]) == chosen(rpeCutOff(.pounds(225), 3, .number(7))))
+    #expect(SpokenSet.parse(candidates: ["135 for 8 at 9 and a", "135 for 8 at 8"]) == chosen(rpeCutOff(.pounds(135), 8, .wholePart(9))))
+    #expect(SpokenSet.parse(candidates: ["135 for 8 at 9 and a", "135 for 8 at 9"]) == chosen(rpeCutOff(.pounds(135), 8, .wholePart(9))))
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for 8 at 9.5"]) == chosen(rpeCutOff(.pounds(135), 8, .number(9))))
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 8 and 9.", "135 for 8 at 9."])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .heard(.nine)), from: .top)
+    )
+}
+
+/// Verbatim from the matrix: Eddy (English (UK)) at 240 words a minute says "1005 for 1 at 10", the
+/// top transcript has "to" for "at", and one alternative hears the "at".
+@Test func anAlternativeSettlesTheRPEAWeightOfAThousandOrMoreLeftCutOff() {
+    let candidates = ["1005 for one to 10.", "105 for one to 10.", "1005 for one at 10.", "1005 for one to 10", "1005 for one to 10?"]
+    #expect(
+        SpokenSet.parse(candidates: candidates)
+            == chosen(.values(weight: .heard(.pounds(1005)), reps: .heard(1), rpe: .heard(.ten)), from: .top)
+    )
+    #expect(SpokenSet.parse(candidates: ["1005 for one to 10.", "1005 for one at 9."]) == chosen(rpeCutOff(.pounds(1005), 1, .number(10))))
+}
+
+@Test func alternativesThatHearTwoValuesForTheOneCutOffOrAnotherSetLeaveItCutOff() {
+    let cutOff = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .cutOff(.number(9))), from: .top)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 9", "135 for 8 at 8"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 4 at 9"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 11"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 and nine"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "skip"]) == cutOff)
+    #expect(SpokenSet.parse(candidates: ["135 for 8 and 9"]) == cutOff)
 }
 
 @Test func alternativesThatDisagreeAreAmbiguous() {

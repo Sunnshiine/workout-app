@@ -5,9 +5,12 @@ enum SpokenToken: Equatable, Sendable {
     case number(SpokenNumber)
     case bodyweight
     case marker(SpokenMarker)
-    /// "and", "of", or "add" where "at" may have been said, so the number after it is no RPE heard.
-    /// "and" and "of" are filler anywhere else.
+    /// "and", "of", "add", or "to" where "at" may have been said, so the number after it is no RPE
+    /// heard. "and" and "of" are filler anywhere else.
     case misheardAt(isFiller: Bool)
+    /// The "a" after a number, as in "135, a representative", or between "for" and a number, as in
+    /// "135 for a 9": no phrase takes it, so no word labels a number across it.
+    case article
 
     var amount: SpokenAmount? {
         switch self {
@@ -25,23 +28,27 @@ enum SpokenToken: Equatable, Sendable {
         }
     }
 
-    var isCutOff: Bool {
-        guard case .number(let number) = self else { return false }
-        return number.isCutOff
-    }
-
-    /// Two digits, the second 6 to 9, that may be a rep count and an RPE run together, as "49" for "4 at 9".
+    /// Two digits, the second 6 to 9, that may be a rep count and an RPE run together, as "49" for "4 at
+    /// 9", or a count of 100 or more however it was said, which the recognizer writes for "8 at an 8" as
+    /// "808" far more often than a lifter logs a hundred reps.
     var mayBeRepsAtAnRPE: Bool {
         guard case .number(let number) = self else { return false }
-        return number.digits?.wholeMatch(of: /[1-9][6-9]/) != nil
+        return number.value >= 100 || number.digits?.wholeMatch(of: /[1-9][6-9]/) != nil
+    }
+
+    /// A number of 1,000 or more, which is a weight or numbers the recognizer ran together, as "1358"
+    /// for "135 for 8".
+    var mayBeFused: Bool {
+        guard case .number(let number) = self else { return false }
+        return number.value >= 1000
     }
 
     /// A word that adds nothing where no phrase takes it: the "and" and "of" that may be a misheard
-    /// "at", and the "with" before a weight.
+    /// "at", the "with" before a weight, and an article.
     var isFiller: Bool {
         switch self {
         case .misheardAt(let isFiller): isFiller
-        case .marker(.with): true
+        case .marker(.with), .article: true
         default: false
         }
     }
@@ -73,14 +80,15 @@ enum SpokenAmount: Equatable, Sendable {
     case bodyweight
 }
 
-/// A value a phrase gives one field, or the field whose number the recognizer cut off.
+/// A value a phrase gives one field, or the field whose number the recognizer cut off and what it
+/// wrote in the number's place.
 enum SpokenClaim: Equatable, Sendable {
     case value(SetLogDraft.Field, SpokenAmount)
-    case cutOff(SetLogDraft.Field)
+    case cutOff(SetLogDraft.Field, SpokenRemnant)
 
     var field: SetLogDraft.Field {
         switch self {
-        case .value(let field, _), .cutOff(let field): field
+        case .value(let field, _), .cutOff(let field, _): field
         }
     }
 }
@@ -111,12 +119,14 @@ enum SpokenReading: Equatable, Sendable {
 
     func claims(_ token: SpokenToken) -> [SpokenClaim]? {
         guard let amount = token.amount, takes(amount) else { return nil }
-        return self == .unheardRPE || token.isCutOff ? cutOff(amount) : [.value(field, amount)]
+        guard case .number(let number) = token, self == .unheardRPE || number.isCutOff else { return [.value(field, amount)] }
+        return cutOff(number)
     }
 
     /// A rep count is whole, so what the recognizer cut off after one is the RPE said after the reps.
-    private func cutOff(_ amount: SpokenAmount) -> [SpokenClaim] {
-        field == .reps ? [.value(.reps, amount), .cutOff(.rpe)] : [.cutOff(field)]
+    private func cutOff(_ number: SpokenNumber) -> [SpokenClaim] {
+        guard field != .reps else { return [.value(.reps, .number(number.value)), .cutOff(.rpe, .nothing)] }
+        return [.cutOff(field, number.isCutOff ? .wholePart(number.value) : .number(number.value))]
     }
 
     private func takes(_ amount: SpokenAmount) -> Bool {
@@ -185,7 +195,7 @@ struct SpokenMatch {
     func cutOff(at step: SpokenStep) -> SpokenMatch? {
         guard rest.isEmpty, last?.asksForAValue ?? false, let field = step.cutOffField else { return nil }
         var match = self
-        match.claims.append(.cutOff(field))
+        match.claims.append(.cutOff(field, .nothing))
         return match
     }
 }
@@ -236,45 +246,86 @@ struct SpokenPhrase: Sendable {
         return match
     }
 
-    /// The values the phrases read from the tokens. A rep count written as two digits right after
-    /// "for", with no "reps" after it and no RPE said, is ambiguous when its second digit is 6 to 9,
-    /// because "4 at 9" can reach the transcript as "49".
+    /// The values the phrases read from the tokens. A rep count right after "for", with no "reps" after
+    /// it and no RPE said, is ambiguous as two digits whose second is 6 to 9, and as 100 or more, because
+    /// "4 at 9" can reach the transcript as "49" and "8 at an 8" as "808".
     static func values(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> SpokenSet {
         guard tokens.contains(where: { $0.amount != nil }) else { throw .unrecognized }
-        let slots = try SpokenSlots(claims(in: tokens))
+        guard tokens.indices.allSatisfy({ hidesNoValue(tokens, at: $0) }) else { throw .fusedNumber }
+        let (claims, unplaced) = try claims(in: tokens[...])
+        let slots = try SpokenSlots(claims + placing(unplaced, in: tokens, beside: claims))
         guard slots.said(.rpe) || !tokens.indices.contains(where: { readsTwoWays(tokens, at: $0) }) else { throw .ambiguous }
         return try slots.spokenSet()
     }
 
-    private static func claims(in tokens: [SpokenToken]) throws(SpokenSet.Rejection) -> [SpokenClaim] {
+    /// The claims the phrases make, and the index of each number no phrase takes.
+    private static func claims(
+        in tokens: ArraySlice<SpokenToken>
+    ) throws(SpokenSet.Rejection) -> (claims: [SpokenClaim], unplaced: [Int]) {
         var claims: [SpokenClaim] = []
+        var unplaced: [Int] = []
         var rest = tokens[...]
         while let token = rest.first {
             if let match = firstMatch(rest) {
                 claims += match.claims
                 rest = match.rest
+            } else if case .number = token {
+                unplaced.append(rest.startIndex)
+                rest = rest.dropFirst()
             } else {
                 claims += try leftover(token, isLast: rest.count == 1)
                 rest = rest.dropFirst()
             }
         }
-        return claims
+        return (claims, unplaced)
+    }
+
+    /// A number that may be fused is the weight only where it cannot hide another value: "for" right
+    /// after it, and the phrases from it on read it as the weight and label the reps and the RPE, as in
+    /// "1005 for 1 at 10" and "1005 for 1 and 10", or "pounds" right after it and the reps labelled, as
+    /// in "1005 pounds for 1". Anywhere else it may be a Set run together, as the 1358 of "1358 at 9"
+    /// for "135 for 8 at 9", or the 1854 of "1854 5 reps at RPE 8", whose 4 is the "for" of "185 for 5".
+    private static func hidesNoValue(_ tokens: [SpokenToken], at index: Int) -> Bool {
+        guard tokens[index].mayBeFused else { return true }
+        let fields: Set<SetLogDraft.Field>
+        switch tokens.dropFirst(index + 1).first {
+        case .marker(.separator)?: fields = [.weight, .reps, .rpe]
+        case .marker(.pounds)?: fields = [.weight, .reps]
+        default: return false
+        }
+        return labelled(tokens.dropFirst(index)).isSuperset(of: fields)
+    }
+
+    private static func labelled(_ tokens: ArraySlice<SpokenToken>) -> Set<SetLogDraft.Field> {
+        Set((try? claims(in: tokens).claims.map(\.field)) ?? [])
     }
 
     private static func firstMatch(_ tokens: ArraySlice<SpokenToken>) -> SpokenMatch? {
         all.lazy.compactMap { $0.match(tokens) }.first
     }
 
-    /// A token no phrase takes. A misheard "at" said last is an RPE cut off and filler anywhere else
-    /// is dropped, but a number no phrase takes is one no word places.
+    /// A word no phrase takes. A misheard "at" said last is an RPE cut off, and filler anywhere else
+    /// is dropped.
     private static func leftover(_ token: SpokenToken, isLast: Bool) throws(SpokenSet.Rejection) -> [SpokenClaim] {
         switch token {
-        case .misheardAt where isLast: return [.cutOff(.rpe)]
-        case .number: throw .ambiguous
+        case .misheardAt where isLast: return [.cutOff(.rpe, .nothing)]
         default:
             guard token.isFiller else { throw .unrecognized }
             return []
         }
+    }
+
+    /// A number no phrase takes is one no word places, and ambiguous, unless it leads the transcript
+    /// and words label both the reps and the RPE after it, as the 135 of "135, 8 reps, RPE 9": then
+    /// the weight is the only value left for it.
+    private static func placing(
+        _ unplaced: [Int],
+        in tokens: [SpokenToken],
+        beside claims: [SpokenClaim]
+    ) throws(SpokenSet.Rejection) -> [SpokenClaim] {
+        guard !unplaced.isEmpty else { return [] }
+        guard unplaced == [0], let amount = tokens[0].amount, Set(claims.map(\.field)) == [.reps, .rpe] else { throw .ambiguous }
+        return [.value(.weight, amount)]
     }
 
     private static func readsTwoWays(_ tokens: [SpokenToken], at index: Int) -> Bool {
@@ -288,7 +339,7 @@ struct SpokenPhrase: Sendable {
 /// bodyweight and a Set not done is Skipped, so 0 pounds and 0 reps are no Set Log.
 struct SpokenSlots {
     private var amounts: [SetLogDraft.Field: SpokenAmount] = [:]
-    private var cutOff: Set<SetLogDraft.Field> = []
+    private var cutOff: [SetLogDraft.Field: SpokenRemnant] = [:]
 
     init(_ claims: [SpokenClaim]) throws(SpokenSet.Rejection) {
         for claim in claims { try self.claim(claim) }
@@ -300,12 +351,12 @@ struct SpokenSlots {
         guard !said(claim.field) else { throw .conflicting(claim.field) }
         switch claim {
         case .value(let field, let amount): amounts[field] = amount
-        case .cutOff(let field): cutOff.insert(field)
+        case .cutOff(let field, let remnant): cutOff[field] = remnant
         }
     }
 
     func said(_ field: SetLogDraft.Field) -> Bool {
-        amounts[field] != nil || cutOff.contains(field)
+        amounts[field] != nil || cutOff[field] != nil
     }
 
     func spokenSet() throws(SpokenSet.Rejection) -> SpokenSet {
@@ -314,9 +365,9 @@ struct SpokenSlots {
         return .values(weight: spoken(.weight, weight), reps: spoken(.reps, reps), rpe: spoken(.rpe, try Self.rpe(amounts[.rpe])))
     }
 
-    private func spoken<Value: Equatable & Sendable>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {
+    private func spoken<Value: SpokenQuantity>(_ field: SetLogDraft.Field, _ value: Value?) -> SpokenValue<Value> {
         if let value { return .heard(value) }
-        return cutOff.contains(field) ? .cutOff : .notSaid
+        return cutOff[field].map(SpokenValue.cutOff) ?? .notSaid
     }
 
     private static func weight(_ amount: SpokenAmount?) throws(SpokenSet.Rejection) -> Weight? {
