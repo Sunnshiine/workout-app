@@ -16,7 +16,7 @@ private func openDictateLinkInTheRunningApp() {
 final class WorkoutTrackerUISmokeTests: XCTestCase {
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
-        let app = launchCurrentSessionSmokeApp()
+        let app = launchCurrentSessionSmokeApp(options: [.offline])
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
@@ -243,8 +243,8 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
-    private func launchCurrentSessionSmokeApp() -> XCUIApplication {
-        launchWorkoutApp(fixture: .currentSession)
+    private func launchCurrentSessionSmokeApp(options: [WorkoutUITestFixtureOption] = []) -> XCUIApplication {
+        launchWorkoutApp(fixture: .currentSession, options: options)
     }
 
     @MainActor

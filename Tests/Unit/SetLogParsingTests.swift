@@ -55,7 +55,7 @@ import Testing
     let set = ExerciseSet(index: 0, prescribedReps: "7", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     set.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
     set.state = .logged
-    let ex = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil)
+    let ex = Exercise(name: "Squat", coachNote: nil)
     ex.sets = [set]
     let session = Session(dayNumber: 1, date: nil)
     session.exercises = [ex]
@@ -67,8 +67,10 @@ import Testing
     ctx.insert(block)
     try ctx.save()
 
-    let fetchedSet = try #require(try ModelContext(container).fetch(FetchDescriptor<Block>())
-        .first?.weeks.first?.sessions.first?.exercises.first?.sets.first)
+    let fetchedSet = try #require(
+        try ModelContext(container).fetch(FetchDescriptor<Block>())
+            .first?.weeks.first?.sessions.first?.exercises.first?.sets.first
+    )
     #expect(fetchedSet.state == .logged)
     #expect(fetchedSet.setLog?.formatted == "185x7@8")
 }

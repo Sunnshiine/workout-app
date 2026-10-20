@@ -154,7 +154,7 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
     try seed.write(to: url)
     let client = LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: url), persistTo: url)
 
-    try await client.updateCells(spreadsheetId: "FIXTURE", range: "'Block 27'!K15", values: [["185x5@8"]])
+    try await client.write([SheetCellWrite(tabName: "Block 27", row: 14, col: 10, value: "185x5@8")], spreadsheetId: "FIXTURE")
 
     let written = try LocalWorkbook.load(from: url)
     #expect(written.tabs["Block 27"]?.cells == ["C15": "Back Squat", "K15": "185x5@8"])
@@ -174,7 +174,7 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
     )
 
     await #expect(throws: (any Error).self) {
-        try await client.updateCells(spreadsheetId: "s", range: "'B'!A1", values: [["changed"]])
+        try await client.write([SheetCellWrite(tabName: "B", row: 0, col: 0, value: "changed")], spreadsheetId: "s")
     }
 
     let fetched = try await client.fetchTab(spreadsheetId: "s", tabName: "B")

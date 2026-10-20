@@ -39,6 +39,13 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     #expect(suggest(load: "RPE6", percentOneRM: "75%") == .noSuggestion)
 }
 
+@Test func aNonFinitePercentOneRMFallsThroughToHistory() throws {
+    #expect(
+        suggest(percentOneRM: "inf%", trainingMax: 400, history: "315x5@7")
+            == .estimate(325, basis: try basis("315x5@7", .history(block27W1D2, matchedName: nil)))
+    )
+}
+
 @Test func dropReadsTheNearestEarlierSet() {
     #expect(
         suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(225))), (index: 0, setLog: logged(.pounds(185)))])
@@ -61,8 +68,7 @@ private let block27W1D2 = SessionCoordinate(blockTab: "Block 27", address: Sessi
 
 private func entry(_ resultText: String) -> LastPerformedOccurrence {
     LastPerformedOccurrence(
-        fullName: "Back Squat",
-        baseName: "Back Squat",
+        exerciseName: "Back Squat",
         resultText: resultText,
         performedOn: Date(timeIntervalSinceReferenceDate: 0),
         source: block27W1D2.storageValue
@@ -79,9 +85,7 @@ private func suggest(
 ) -> LoadSuggestion {
     LoadSuggestionEngine.suggest(
         LoadSuggestionInputs(
-            prescribedReps: reps,
-            prescribedLoad: load,
-            percentOneRM: percentOneRM,
+            prescription: Prescription(reps: reps, load: load, percentOneRM: percentOneRM),
             trainingMax: trainingMax,
             earlierSets: earlierSets,
             lastPerformed: history.map { LastPerformedLookupEntry(occurrence: entry($0)) }
@@ -209,8 +213,7 @@ func aTargetTheRPETableCannotPlaceSuggestsNothing(reps: String, load: String) {
 
 @Test func anEntryFromAnUnrecognizedSourceSuggestsNothing() {
     let legacySource = LastPerformedOccurrence(
-        fullName: "Back Squat",
-        baseName: "Back Squat",
+        exerciseName: "Back Squat",
         resultText: "315x5@7",
         performedOn: Date(timeIntervalSinceReferenceDate: 0),
         source: "W1 D2"
@@ -219,9 +222,7 @@ func aTargetTheRPETableCannotPlaceSuggestsNothing(reps: String, load: String) {
     #expect(
         LoadSuggestionEngine.suggest(
             LoadSuggestionInputs(
-                prescribedReps: "5",
-                prescribedLoad: "RPE8",
-                percentOneRM: nil,
+                prescription: Prescription(reps: "5", load: "RPE8", percentOneRM: nil),
                 trainingMax: nil,
                 earlierSets: [],
                 lastPerformed: LastPerformedLookupEntry(occurrence: legacySource)

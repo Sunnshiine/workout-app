@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 /// Where an application's state lives. Values only; nothing about what to do with them.
 public struct AppEnvironment {
@@ -14,7 +13,6 @@ public struct AppEnvironment {
     let sheetsClient: any SheetsClient
     let defaults: AppDefaults
     let now: @MainActor () -> Date
-    let seed: (@MainActor (ModelContext) throws -> Void)?
 
     #if OFFLINE_SHEET
         /// An application whose Sheet is `workbook` and whose store and settings vanish with the process.
@@ -22,13 +20,24 @@ public struct AppEnvironment {
             workbook: LocalWorkbook,
             now: @escaping @MainActor () -> Date = Date.init
         ) -> AppEnvironment {
+            .inMemory(sheets: LocalWorkbookSheetsClient(workbook: workbook), now: now)
+        }
+
+        /// An application whose spreadsheets are `sheets` and whose store and settings vanish with
+        /// the process. The UI fixture passes a `LocalDrive` it keeps, so it can arm the drive's
+        /// faults after its boot sync, and keeps its Dictation Records on disk, so a fixture press's
+        /// record can be read from the Simulator's container.
+        static func inMemory(
+            sheets: any SheetsClient,
+            dictationRecords: DictationJournal.Storage = .inMemory,
+            now: @escaping @MainActor () -> Date = Date.init
+        ) -> AppEnvironment {
             AppEnvironment(
                 storage: .inMemory,
-                dictationRecords: .inMemory,
-                sheetsClient: LocalWorkbookSheetsClient(workbook: workbook),
+                dictationRecords: dictationRecords,
+                sheetsClient: sheets,
                 defaults: .inMemory(),
-                now: now,
-                seed: nil
+                now: now
             )
         }
 
@@ -45,8 +54,7 @@ public struct AppEnvironment {
                 dictationRecords: .directory(home.appending(path: "dictation-records")),
                 sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
                 defaults: try .file(home.appendingPathComponent("settings.json")),
-                now: now,
-                seed: nil
+                now: now
             )
         }
     #endif
@@ -59,22 +67,7 @@ public struct AppEnvironment {
             dictationRecords: .directory(Self.deviceDictationRecords),
             sheetsClient: GoogleSheetsClient(),
             defaults: .device(),
-            now: Date.init,
-            seed: nil
+            now: Date.init
         )
     }
-
-    #if DEBUG
-        static func uiTestFixture(launch: UITestLaunch) -> AppEnvironment {
-            AppEnvironment(
-                storage: .inMemory,
-                // On disk, so a fixture press's record can be read from the Simulator's container.
-                dictationRecords: .directory(Self.deviceDictationRecords),
-                sheetsClient: UITestFixture.makeSheetsClient(launch: launch),
-                defaults: .inMemory(),
-                now: Date.init,
-                seed: { try UITestFixture.seed(into: $0, launch: launch) }
-            )
-        }
-    #endif
 }

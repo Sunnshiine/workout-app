@@ -8,8 +8,8 @@ read-write client with a local cache (ADR-0001). `CLAUDE.md` is a symlink to thi
 
 Each of these wins over anything written here. Read the one that governs the work before starting.
 
-- `CONTEXT.md` names every domain term and the synonyms to avoid. Use its words in code, tests,
-  and issues.
+- `CONTEXT.md` names every domain term, and with the area files it indexes, the synonyms to avoid.
+  Use its words in code, tests, and issues.
 - `docs/adr/` records decisions. Read the ADRs for the area you change. If your change contradicts
   one, say so in the PR instead of overriding it.
 - `PRODUCT.md` and `DESIGN.md` govern product and UI work.

@@ -1,13 +1,12 @@
 import Foundation
 
 /// Where a Set sits in the Sheet, in the semantic terms a pending write persists
-/// (ADR-0006): Block tab, Week, Day, Exercise, Set index — plus the Session date and the
-/// Exercise base name that the Last Performed index records alongside them.
+/// (ADR-0006): Block tab, Week, Day, Exercise Reference, Set index — plus the Session date that
+/// the Last Performed index records alongside them.
 struct SetCoordinates: Equatable {
     let session: SessionCoordinate
     let dayNumbering: DayNumbering
-    let exerciseName: String
-    let exerciseBaseName: String
+    let exercise: ExerciseReference
     let setIndex: Int
     let sessionDate: Date?
 
@@ -15,23 +14,23 @@ struct SetCoordinates: Equatable {
     init(of set: ExerciseSet) throws {
         guard let exercise = set.exercise else { throw WorkoutLoggingError.missingExercise }
         guard let session = exercise.session else { throw WorkoutLoggingError.missingSession }
-        guard let week = session.week else { throw WorkoutLoggingError.missingWeek }
-        guard let block = week.block else { throw WorkoutLoggingError.missingBlock }
-        self.session = SessionCoordinate(blockTab: block.tabName, address: week.address(of: session))
+        guard let coordinate = session.placement.coordinate, let block = session.block else {
+            throw WorkoutLoggingError.detachedSession
+        }
+        self.session = coordinate
         self.dayNumbering = block.dayNumbering
-        self.exerciseName = exercise.name
-        self.exerciseBaseName = exercise.baseName
+        self.exercise = exercise.reference(in: session)
         self.setIndex = set.index
         self.sessionDate = session.date
     }
 
     /// The part of a Set's coordinates that still names the same Set after a freshly parsed Block
-    /// replaces the cached one, when both Blocks number their Days the same way. The Session date
-    /// and the Exercise base name are re-read from the Sheet on every parse, so they can move while
-    /// the Set stays the one a pending write addressed.
+    /// replaces the cached one, when both Blocks number their Days the same way. The Session date is
+    /// re-read from the Sheet on every parse, so it can move while the Set stays the one a pending
+    /// write addressed.
     struct ID: Hashable {
         let session: SessionCoordinate
-        let exerciseName: String
+        let exercise: ExerciseReference
         let setIndex: Int
     }
 }
@@ -39,11 +38,19 @@ struct SetCoordinates: Equatable {
 extension SetCoordinates.ID {
     @MainActor
     init(_ write: PendingWrite) {
-        self.init(session: write.recordedSession, exerciseName: write.exerciseName, setIndex: write.setIndex)
+        self.init(session: write.recordedSession, exercise: write.exercise, setIndex: write.setIndex)
     }
 }
 
 extension Block {
+    /// A Set a sync took out of this Block can still read every link up to it, by the order
+    /// SwiftData ran the cascade delete in (#1036), so this walks down from the Block instead.
+    @MainActor
+    func holds(_ set: ExerciseSet) -> Bool {
+        let id = set.persistentModelID
+        return weeks.lazy.flatMap(\.sessions).flatMap(\.exercises).flatMap(\.sets).contains { $0.persistentModelID == id }
+    }
+
     /// Every Set in this Block, keyed by the coordinates the Sheet addresses it with. Walking down
     /// from the Block supplies the attachment `SetCoordinates(of:)` has to check for, so no Set
     /// reached this way can be detached.
@@ -52,14 +59,11 @@ extension Block {
         var sets: [SetCoordinates.ID: ExerciseSet] = [:]
         for week in weeks {
             for session in week.sessions {
+                let coordinate = SessionCoordinate(blockTab: tabName, address: week.address(of: session))
                 for exercise in session.exercises {
+                    let reference = exercise.reference(in: session)
                     for set in exercise.sets {
-                        let id = SetCoordinates.ID(
-                            session: SessionCoordinate(blockTab: tabName, address: week.address(of: session)),
-                            exerciseName: exercise.name,
-                            setIndex: set.index
-                        )
-                        sets[id] = set
+                        sets[SetCoordinates.ID(session: coordinate, exercise: reference, setIndex: set.index)] = set
                     }
                 }
             }

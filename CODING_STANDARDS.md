@@ -56,8 +56,9 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 ## Vocabulary
 
-- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists bind
-  too, and a synonym is a finding even when the code works. (#572, fixed in #591.)
+- **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists, and
+  those of the area files it links (`docs/context/logging.md`), bind too, and a synonym is a
+  finding even when the code works. (#572, fixed in #591.)
 
 ## Comments
 
@@ -78,12 +79,13 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   parsed date pinned to an instant rather than the coach's cell text. `SheetParser.parseDate`
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
-  unbounded poll are the three flake shapes. A bounded poll records a failure when it runs out, as
-  `HeldCall` in `Tests/Support/` does. A continuation ignores the time limit's cancellation, so a
-  wait on one with no bound hangs the run instead of failing it (#746). The poll, the state it
-  reads, and the work that sets it share one actor, so each yield gives that work a turn. A poll on
-  another actor can exhaust its count before a loaded main actor runs the work. (#548,
-  `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
+  unbounded poll are the three flake shapes. A fake never parks the test on a bare continuation,
+  because a continuation ignores the time limit's cancellation and a missed release hangs the run
+  instead of failing it (#746). Every wait on work the test does not control goes through
+  `waitUntil` or `HeldCall.waitUntilHeld` in `Tests/Support/`, which record a failure when the
+  bound runs out. The poll, the state it reads, and the work that sets it share one actor, so each
+  yield gives that work a turn. A poll on another actor can exhaust its count before a loaded main
+  actor runs the work. (#548, `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
   empty. It goes on the declaration. (#608. The lint catches a guard below comment lines and
   single-line `let` or `var` bindings. It misses one below a binding that holds a closure, a binding

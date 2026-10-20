@@ -21,7 +21,7 @@ private func makePartiallyUploadedBlockStore() throws -> PartiallyUploadedBlockS
         )
     )
     let context = container.mainContext
-    context.insert(WorkoutFixtureScenarios.partiallyUploadedBlock())
+    context.insert(WorkbookScenario.partialUpload.block())
     try context.save()
 
     let store = WorkoutStore(context: context, defaults: .inMemory())

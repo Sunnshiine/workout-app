@@ -38,11 +38,12 @@ enum MainLift: CaseIterable {
         self = match
     }
 
-    /// Deliberately not `MovementMatching` (ADR-0013): that matcher draws different lines, and
-    /// switching would silently change which Exercises get a Training Max.
-    init?(matchingBaseName baseName: String) {
-        let name = baseName.lowercased()
-        guard let match = Self.matchPrecedence.first(where: { name.contains($0.baseNameKeyword) })
+    /// The Main Lift an Exercise's Base Name claims, by keyword substring in precedence order.
+    /// Deliberately not `ExerciseName.isSameMovement(as:)` (ADR-0013): that matcher draws different
+    /// lines, and switching would silently change which Exercises get a Training Max.
+    init?(claimedBy name: ExerciseName) {
+        let base = name.base.lowercased()
+        guard let match = Self.matchPrecedence.first(where: { base.contains($0.baseNameKeyword) })
         else { return nil }
         self = match
     }

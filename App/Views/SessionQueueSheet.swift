@@ -69,7 +69,9 @@ struct SessionQueueSheet: View {
             .padding(.bottom)
         }
         .safeAreaPadding(.top, 8)
-        .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 0 } action: {
+        .onScrollGeometryChange(for: Bool.self) {
+            $0.contentOffset.y + $0.contentInsets.top > 0
+        } action: {
             isScrolled = $1
         }
         .mask {

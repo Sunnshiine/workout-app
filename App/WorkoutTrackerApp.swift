@@ -52,9 +52,6 @@ struct WorkoutTrackerApp: App {
                     UIView.setAnimationsEnabled(false)
                 }
             #endif
-            if UITestFixture.isEnabled {
-                Self.applyUITestFixtures(to: app)
-            }
             if UITestFixture.launch.endsLiveActivities {
                 liveActivityAdapter.end()
             }
@@ -64,7 +61,7 @@ struct WorkoutTrackerApp: App {
     private static func launchEnvironment() -> AppEnvironment {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return .uiTestFixture(launch: UITestFixture.launch)
+                return .inMemory(sheets: UITestFixture.sheets, dictationRecords: .directory(AppEnvironment.deviceDictationRecords))
             }
         #endif
         return .device()
@@ -102,43 +99,9 @@ struct WorkoutTrackerApp: App {
         return await GoogleAuth.restorePreviousSignIn()
     }
 
-    #if DEBUG
-        private static func applyUITestFixtures(to app: WorkoutApplication) {
-            let settings = app.settings
-            // Pins the fixture's appearance regardless of the seeded Block, so screenshots stay deterministic.
-            do {
-                settings.setAppearance(try UITestFixture.launch.appearance)
-            } catch {
-                fatalError("\(error)")
-            }
-            // A late sign-in leaves the restore running, as a device does, until the launch task ends it.
-            if !UITestFixture.launch.signsInLate {
-                settings.isSignedIn = true
-            }
-            // Onboarding mode leaves the spreadsheet unset so the app lands on the sheet picker,
-            // while the seeded (stale) Block stays in the store to prove it is never shown for the
-            // newly selected sheet.
-            if !UITestFixture.launch.startsInOnboarding {
-                settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: "Fixture Training Log")
-            }
-
-            let workout = app.workout
-            if UITestFixture.launch.startsWithCurrentSessionOverride {
-                workout.show(SessionAddress(week: 1, day: 3))
-                workout.makeViewedSessionCurrent()
-            }
-            if UITestFixture.launch.startsWithMoveOnCelebration || UITestFixture.launch.startsWithPerfectMoveOnCelebration {
-                workout.requestMoveOnCelebration()
-            }
-            if UITestFixture.launch.startsInBlockOverview {
-                workout.requestBlockOverviewPresentation()
-            }
-        }
-    #endif
-
     var body: some Scene {
         WindowGroup {
-            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
+            launchedRoot
                 .environment(app.settings)
                 .environment(app.workout)
                 .environment(app.sync)
@@ -171,4 +134,48 @@ struct WorkoutTrackerApp: App {
         }
         .modelContainer(app.container)
     }
+
+    @ViewBuilder private var launchedRoot: some View {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                UITestFixtureBootGate(app: app) {
+                    RootView(
+                        dictation: dictation,
+                        focus: focus,
+                        restTimer: restTimer,
+                        liveActivityAdapter: liveActivityAdapter
+                    )
+                }
+            } else {
+                RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
+            }
+        #else
+            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
+        #endif
+    }
 }
+
+#if DEBUG
+    /// Shows nothing until `UITestFixture.boot` has filled the fixture application, so the first
+    /// frame a UI test sees is the booted one.
+    private struct UITestFixtureBootGate<Content: View>: View {
+        let app: WorkoutApplication
+        @ViewBuilder let content: () -> Content
+        @State private var isBooted = false
+
+        var body: some View {
+            if isBooted {
+                content()
+            } else {
+                Color.clear.task {
+                    do {
+                        try await UITestFixture.boot(app, launch: UITestFixture.launch, sheets: UITestFixture.sheets)
+                    } catch {
+                        fatalError("\(error)")
+                    }
+                    isBooted = true
+                }
+            }
+        }
+    }
+#endif
