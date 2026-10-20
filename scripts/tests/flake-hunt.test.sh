@@ -15,7 +15,7 @@ bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/sh
-[ "$1" = test ] || exit 0
+[ "$1" = test ] || { [ -z "${STUB_BUILD_LOG:-}" ] || cat "$STUB_BUILD_LOG"; exit "${STUB_BUILD_RC:-0}"; }
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
@@ -80,6 +80,34 @@ check "a test that records many issues prints its first three" 1 \
 ✘ Test grows(n:) recorded an issue with 1 argument n → 5 at GrowSuite.swift:5:9: Expectation failed: n == 0
 ✘ Test grows(n:) failed after 0.001 seconds with 5 issues.
 ✘ Test run with 1 test in 1 suite failed after 0.002 seconds with 5 issues."
+
+build_failure() {
+    local name=$1 log=$2 want_lines=$3
+    printf '%s' "$log" >"$root/build.log"
+    STUB_BUILD_LOG=$root/build.log STUB_BUILD_RC=1 PATH="$root/bin:$PATH" \
+        "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 >"$root/out" 2>"$root/err"
+    local status=$? out err want_err
+    out=$(cat "$root/out")
+    err=$(cat "$root/err")
+    want_err="${want_lines:+$want_lines
+}build log: ${out#log: }"
+    if [ "$status" = 65 ] && [ "$(wc -l <"$root/out")" -eq 1 ] && [ "$err" = "$want_err" ]; then
+        ok "$name"
+    else
+        bad "$name: exit $status (want 65)"
+        printf '    stdout:\n%s\n    stderr:\n%s\n    want stderr:\n%s\n' "$out" "$err" "$want_err"
+    fi
+}
+
+build_failure "a build that fails with no error: line prints its log path and exits 65" \
+"Compiling WorkoutTracker
+Killed: 9
+" ""
+
+many=$(for n in $(seq 20000); do echo "Sources/Foo$n.swift:1:1: error: cannot find 'bar' in scope"; done)
+build_failure "a build with more error lines than it prints stops at 20, then prints its log path, and exits 65" \
+"$many
+" "$(printf '%s\n' "$many" | sed -n 1,20p)"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

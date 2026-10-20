@@ -2,7 +2,7 @@ import Foundation
 
 struct SheetWriteRequest: Sendable, Equatable {
     var session: SessionCoordinate
-    var exerciseName: String
+    var exercise: ExerciseReference
     var setIndex: Int
     var column: PendingWriteColumn
     var operation: PendingWriteOperation
@@ -14,7 +14,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         guard write.namesOneSession(on: layout) else { return nil }
         self.init(
             session: write.recordedSession,
-            exerciseName: write.exerciseName,
+            exercise: write.exercise,
             setIndex: write.setIndex,
             column: write.column,
             operation: write.operation,
@@ -25,7 +25,7 @@ struct SheetWriteRequest: Sendable, Equatable {
 
     init(
         session: SessionCoordinate,
-        exerciseName: String,
+        exercise: ExerciseReference,
         setIndex: Int,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -33,7 +33,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         expectedCurrentValue: String
     ) {
         self.session = session
-        self.exerciseName = exerciseName
+        self.exercise = exercise
         self.setIndex = setIndex
         self.column = column
         self.operation = operation
@@ -50,25 +50,27 @@ struct SheetWriteRequest: Sendable, Equatable {
 enum SheetWriterError: Error, Equatable, LocalizedError {
     case weekNotFound(Int)
     case dayNotFound(Int)
+    case dayRepeated(Int)
     case dayHeadersChangedMeaning
     case columnNotFound(String)
-    case exerciseNotFound(String)
-    case setRowNotFound(exerciseName: String, setIndex: Int)
-    case headerNotesBlockSetRow(exerciseName: String, setIndex: Int)
+    case exerciseNotFound(ExerciseReference)
+    case setRowNotFound(exercise: ExerciseReference, setIndex: Int)
+    case headerNotesBlockSetRow(exercise: ExerciseReference, setIndex: Int)
     case unexpectedCurrentValue(expected: String, actual: String)
 
     var errorDescription: String? {
         switch self {
         case .weekNotFound(let week): return "Week \(week) was not found in the sheet"
         case .dayNotFound(let day): return "Day \(day) was not found in the sheet"
+        case .dayRepeated(let day): return "Day \(day) has more than one header in the sheet"
         case .dayHeadersChangedMeaning:
             return "The sheet's Day headers changed meaning since this Set was logged. Log it again."
         case .columnNotFound(let column): return "\(column) column was not found"
-        case .exerciseNotFound(let name): return "\(name) was not found in the sheet"
-        case .setRowNotFound(let name, let index): return "Set \(index + 1) row was not found for \(name)"
-        case .headerNotesBlockSetRow(let name, let index):
+        case .exerciseNotFound(let exercise): return "\(exercise.label) was not found in the sheet"
+        case .setRowNotFound(let exercise, let index): return "Set \(index + 1) row was not found for \(exercise.label)"
+        case .headerNotesBlockSetRow(let exercise, let index):
             return """
-                Set \(index + 1) for \(name) cannot be written because existing header Notes prevent writing there, \
+                Set \(index + 1) for \(exercise.label) cannot be written because existing header Notes prevent writing there, \
                 and no safe Set row exists before the next Exercise. Add a row in the Sheet, clear or migrate the \
                 existing header note, then sync again.
                 """
@@ -78,7 +80,9 @@ enum SheetWriterError: Error, Equatable, LocalizedError {
     }
 }
 
-struct SheetCellUpdate: Sendable, Equatable {
+/// One planned cell write: the Block tab, the zero-based row and column the planner resolved, and
+/// the value that lands there.
+struct SheetCellWrite: Sendable, Equatable {
     var tabName: String
     var row: Int
     var col: Int
@@ -86,10 +90,6 @@ struct SheetCellUpdate: Sendable, Equatable {
 
     var target: SheetWriteTarget {
         SheetWriteTarget(tabName: tabName, row: row, col: col)
-    }
-
-    var range: String {
-        singleCellRange(tabName: tabName, row: row, col: col)
     }
 }
 
@@ -99,29 +99,10 @@ struct SheetWriteTarget: Sendable, Equatable {
     let col: Int
 }
 
-struct SheetWriter: Sendable {
-    private let client: any SheetsClient
-
-    init(client: any SheetsClient) {
-        self.client = client
-    }
-
-    func write(_ update: SheetCellUpdate, spreadsheetId: String) async throws {
-        try await client.updateCells(spreadsheetId: spreadsheetId, range: update.range, values: [[update.value]])
-    }
-
-    func write(_ updates: [SheetCellUpdate], spreadsheetId: String) async throws {
-        guard !updates.isEmpty else { return }
-        try await client.updateCells(
-            spreadsheetId: spreadsheetId,
-            updates: updates.map { SheetValueRangeUpdate(range: $0.range, values: [[$0.value]]) }
-        )
-    }
-}
-
 enum SheetWriteAddressing: Sendable {
     case weekNotFound
     case dayNotFound
+    case dayRepeated
     case columnNotFound(header: String)
     case exerciseNotFound
     case lastSetRPE(anchor: SheetLayoutExerciseAnchor, col: Int)
@@ -133,10 +114,12 @@ enum SheetWriteAddressing: Sendable {
             throw SheetWriterError.weekNotFound(request.session.address.week)
         case .dayNotFound:
             throw SheetWriterError.dayNotFound(request.session.address.day)
+        case .dayRepeated:
+            throw SheetWriterError.dayRepeated(request.session.address.day)
         case .columnNotFound(let header):
             throw SheetWriterError.columnNotFound(header)
         case .exerciseNotFound:
-            throw SheetWriterError.exerciseNotFound(request.exerciseName)
+            throw SheetWriterError.exerciseNotFound(request.exercise)
         case .lastSetRPE(let anchor, let col):
             return (anchor.row, col)
         case .setLog(_, let resolution):
@@ -154,24 +137,34 @@ extension SetLogPlacementResolution {
         case .placed(let placement):
             return (placement.row, placement.col)
         case .protectedHeaderBlocksSetRow:
-            throw SheetWriterError.headerNotesBlockSetRow(
-                exerciseName: request.exerciseName,
-                setIndex: request.setIndex
-            )
+            throw SheetWriterError.headerNotesBlockSetRow(exercise: request.exercise, setIndex: request.setIndex)
         case .setRowNotFound:
-            throw SheetWriterError.setRowNotFound(exerciseName: request.exerciseName, setIndex: request.setIndex)
+            throw SheetWriterError.setRowNotFound(exercise: request.exercise, setIndex: request.setIndex)
         case .notesColumnMissing:
             throw SheetWriterError.columnNotFound("Notes")
         }
     }
 }
 
+extension SheetWriteRequest {
+    /// Whether the target holds the value this write was planned against (ADR-0003). A Notes
+    /// value matches by meaning, so a coach's spelling of the expected Set Log is not a conflict.
+    /// Last Set RPE compares by text.
+    func expects(_ current: String) -> Bool {
+        switch column {
+        case .notes: SetLogToken.matches(current, expectedCurrentValue)
+        case .lastSetRPE: current == expectedCurrentValue
+        }
+    }
+}
+
 extension SetLogList {
     /// Overwrites the Set's token, refusing when the slot no longer holds the value the write was
-    /// planned against so a concurrent edit conflicts rather than gets clobbered (ADR-0003).
+    /// planned against so a concurrent edit conflicts rather than gets clobbered. The slot matches
+    /// by meaning, so a coach's spelling of the expected Set Log is not a conflict (ADR-0003).
     mutating func replaceToken(at position: Int, expecting expected: String, with value: String) throws {
         let current = token(at: position)
-        guard current == expected else {
+        guard SetLogToken.matches(current, expected) else {
             throw SheetWriterError.unexpectedCurrentValue(expected: expected, actual: current)
         }
         setToken(value, at: position)
@@ -208,11 +201,11 @@ struct SheetWritePlanner: Sendable {
         return SheetWritePlanningSnapshot(snapshot: snapshot, layout: SheetLayoutInterpreter().interpret(snapshot))
     }
 
-    func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellUpdate {
+    func plan(_ request: SheetWriteRequest, in grid: SheetGrid) throws -> SheetCellWrite {
         try plan(request, in: snapshot(for: grid))
     }
 
-    func plan(_ request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetCellUpdate {
+    func plan(_ request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) throws -> SheetCellWrite {
         let target = try target(for: request, in: snapshot)
         return try plan(request, target: target, in: snapshot)
     }
@@ -226,17 +219,17 @@ struct SheetWritePlanner: Sendable {
         _ request: SheetWriteRequest,
         target: SheetWriteTarget,
         in snapshot: SheetWritePlanningSnapshot
-    ) throws -> SheetCellUpdate {
+    ) throws -> SheetCellWrite {
         let actual = snapshot.grid.cell(row: target.row, col: target.col).trimmed
         if let listValue = try setLogListCellValue(for: request, target: target, actual: actual, in: snapshot) {
-            return SheetCellUpdate(tabName: target.tabName, row: target.row, col: target.col, value: listValue)
+            return SheetCellWrite(tabName: target.tabName, row: target.row, col: target.col, value: listValue)
         }
 
-        guard actual == request.expectedCurrentValue else {
+        guard request.expects(actual) else {
             throw SheetWriterError.unexpectedCurrentValue(expected: request.expectedCurrentValue, actual: actual)
         }
 
-        return SheetCellUpdate(
+        return SheetCellWrite(
             tabName: target.tabName,
             row: target.row,
             col: target.col,
@@ -244,24 +237,27 @@ struct SheetWritePlanner: Sendable {
         )
     }
 
-    func applying(_ update: SheetCellUpdate, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
+    func applying(_ cell: SheetCellWrite, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
         let updatedSnapshot = SheetSnapshot(
-            values: applying(update, to: snapshot.grid),
+            values: applying(cell, to: snapshot.grid),
             rowVisibility: snapshot.snapshot.rowVisibility
         )
         return SheetWritePlanningSnapshot(snapshot: updatedSnapshot, layout: snapshot.layout)
     }
 
-    func applying(_ update: SheetCellUpdate, to grid: SheetGrid) -> SheetGrid {
+    func applying(_ cell: SheetCellWrite, to grid: SheetGrid) -> SheetGrid {
         var updated = grid
-        updated.write([[update.value]], atRow: update.row, col: update.col)
+        updated.write([[cell.value]], atRow: cell.row, col: cell.col)
         return updated
     }
 
     func addressing(for request: SheetWriteRequest, in snapshot: SheetWritePlanningSnapshot) -> SheetWriteAddressing {
         let layout = snapshot.layout
-        guard layout.week(number: request.session.address.week) != nil else { return .weekNotFound }
-        guard let day = layout.day(at: request.session.address) else { return .dayNotFound }
+        guard let week = layout.week(number: request.session.address.week) else { return .weekNotFound }
+        guard let day = layout.day(at: request.session.address) else {
+            return week.ignoredDayHeaders.contains(.repeated(dayNumber: request.session.address.day))
+                ? .dayRepeated : .dayNotFound
+        }
 
         let (header, col): (String, Int?) =
             switch request.column {
@@ -270,9 +266,9 @@ struct SheetWritePlanner: Sendable {
             }
         guard let col else { return .columnNotFound(header: header) }
 
-        guard let anchor = day.exerciseAnchors.first(where: { $0.name == request.exerciseName }) else {
-            return .exerciseNotFound
-        }
+        let sameNamed = day.exerciseAnchors.filter { $0.name == request.exercise.name.entered }
+        guard sameNamed.indices.contains(request.exercise.ordinal) else { return .exerciseNotFound }
+        let anchor = sameNamed[request.exercise.ordinal]
         switch request.column {
         case .lastSetRPE:
             return .lastSetRPE(anchor: anchor, col: col)
@@ -285,10 +281,10 @@ struct SheetWritePlanner: Sendable {
     }
 
     /// The Notes-cell value a Set-Log list write produces, or nil when this Set owns its cell
-    /// outright and the direct-write path applies. Three placement kinds share one comma-separated
-    /// list cell — a multi-line Prescription Line's own Notes cell, Kevin's compact aggregate
-    /// header, and the Visible Writable Row a protected header redirects to — and a Set is
-    /// addressed within that cell by its list position.
+    /// outright and the direct-write path applies. Four placement kinds share one comma-separated
+    /// list cell — a multi-line Prescription Line's own Notes cell, the spare row a Line's Coach
+    /// Note redirects to, Kevin's compact aggregate header, and the Visible Writable Row a
+    /// protected header redirects to — and a Set is addressed within that cell by its list position.
     private func setLogListCellValue(
         for request: SheetWriteRequest,
         target: SheetWriteTarget,

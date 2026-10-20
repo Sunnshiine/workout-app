@@ -9,7 +9,7 @@ import Testing
 
 @MainActor
 private func makeExercise(_ states: [SetState], order: Int = 0) -> Exercise {
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: order)
+    let exercise = Exercise(name: "Squat", coachNote: nil, order: order)
     exercise.sets = states.enumerated().map { index, state in
         ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: state)
     }

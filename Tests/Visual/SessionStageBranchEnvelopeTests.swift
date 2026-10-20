@@ -147,7 +147,7 @@ private struct Branch {
     }
 
     private static func sets(count: Int, order: Int, last: SetState) -> [ExerciseSet] {
-        let exercise = Exercise(name: "Back Squat", baseName: "Back Squat", cadence: nil, coachNote: nil, order: order)
+        let exercise = Exercise(name: "Back Squat", coachNote: nil, order: order)
         exercise.sets = (0..<count).map { index in
             let state = index < count - 1 ? SetState.logged : last
             let set = ExerciseSet(

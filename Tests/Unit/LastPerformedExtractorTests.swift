@@ -65,12 +65,20 @@ import Testing
     let block = ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
-            week(1, date: nil, exercises: [
-                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
-            ]),
-            week(2, date: nil, exercises: [
-                exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: .eight)])
-            ])
+            week(
+                1,
+                date: nil,
+                exercises: [
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 155, reps: 6, rpe: .seven)])
+                ]
+            ),
+            week(
+                2,
+                date: nil,
+                exercises: [
+                    exercise("Bench Press", sets: [loggedSet(index: 0, weight: 165, reps: 5, rpe: .eight)])
+                ]
+            )
         ]
     )
 
@@ -369,7 +377,7 @@ private func week(_ number: Int, date: Date?, exercises: [ParsedExercise]) -> Pa
 }
 
 private func exercise(_ name: String, legacyLog: String? = nil, sets: [ParsedSet]) -> ParsedExercise {
-    ParsedExercise(name: name, baseName: name, cadence: nil, coachNote: nil, legacyLog: legacyLog, sets: sets)
+    ParsedExercise(name: ExerciseName(entered: name), coachNote: nil, legacyLog: legacyLog, sets: sets)
 }
 
 private func loggedSet(index: Int, weight: Double, reps: Int, rpe: RPE) -> ParsedSet {

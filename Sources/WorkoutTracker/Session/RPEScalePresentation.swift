@@ -80,16 +80,19 @@ struct RepsScalePresentation: Equatable, Sendable {
     let chips: [ValueRailChip]
     let selectedIndex: Int
 
-    init(prescribedReps: String, selection: String) {
-        let prescribed = Int(prescribedReps.trimmingCharacters(in: .whitespacesAndNewlines))
+    /// Every value of a prescribed range carries the prescription tick, and the rail centers on
+    /// its low end, the value the form pre-fills.
+    init(prescribedReps: PrescribedReps, selection: String) {
+        // Only the rail's own values: a range is Sheet text and can reach Int.max.
+        let prescribed = prescribedReps.target.map { reps in Self.values.filter(reps.contains) } ?? []
         let selected = Int(selection.trimmingCharacters(in: .whitespacesAndNewlines))
-        let centerValue = selected ?? prescribed ?? Self.defaultSelection
+        let centerValue = selected ?? prescribed.first ?? Self.defaultSelection
 
         chips = Self.values.map { value in
             ValueRailChip(
                 label: String(value),
                 isSelected: value == selected,
-                isPrescribed: value == prescribed,
+                isPrescribed: prescribed.contains(value),
                 accessibilityIdentifier: "reps-\(value)"
             )
         }

@@ -115,7 +115,7 @@ struct SmartValuePills: View {
     }
 
     private var repsPresentation: RepsScalePresentation {
-        RepsScalePresentation(prescribedReps: set.prescribedReps, selection: form.repsText)
+        RepsScalePresentation(prescribedReps: form.prescribedReps, selection: form.repsText)
     }
 
     private var rpePresentation: RPEScalePresentation {
@@ -253,8 +253,7 @@ struct SmartValuePills: View {
             HoldToSkipLogButton(
                 logTitle: form.logButtonTitle,
                 canLog: form.canLog,
-                isSkipped: row == .skipped,
-                policy: .forSet(in: set.state),
+                setState: set.state,
                 onLogTap: submitLog,
                 onSkip: skip
             )
@@ -332,173 +331,6 @@ struct SmartValuePills: View {
     }
 }
 
-// MARK: - Value rail (Reps / RPE)
-
-private struct ValueRail: View {
-    let chips: [ValueRailChip]
-    let selectedIndex: Int
-    let label: String
-    var isInvalid = false
-    let onSelect: (String) -> Void
-    @State private var dragAnchorIndex: Int?
-    /// A drag is in flight (or just ended this event turn). It gates the cell buttons: as the strip
-    /// re-centers on the dragged value, the lifted finger sits over a *different* cell, and that
-    /// cell's button firing on release would override the drag — snapping the value back to where the
-    /// finger landed (the reported "release jumps back to the original number"). The flag clears one
-    /// runloop turn after the drag ends, after the synchronous release has been suppressed.
-    @State private var isDragging = false
-    @Environment(\.themePalette) private var palette
-
-    var body: some View {
-        VStack(spacing: 8) {
-            GeometryReader { geo in
-                let offset = ValueRailLayout.contentOffset(
-                    trackWidth: geo.size.width,
-                    cellWidth: Theme.railCellWidth,
-                    spacing: 0,
-                    selectedIndex: selectedIndex
-                )
-
-                HStack(spacing: 0) {
-                    ForEach(chips) { chip in
-                        cell(chip)
-                    }
-                }
-                .frame(height: geo.size.height)
-                .offset(x: offset)
-                .animation(.snappy(duration: 0.22), value: selectedIndex)
-            }
-            .frame(height: Theme.railTrackHeight)
-            .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
-            .clipShape(.rect(cornerRadius: Theme.Radius.rail))
-            .contentShape(.rect(cornerRadius: Theme.Radius.rail))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.rail)
-                    .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
-            }
-            .overlay(alignment: .leading) { edgeFade(leading: true) }
-            .overlay(alignment: .trailing) { edgeFade(leading: false) }
-            .simultaneousGesture(dragToSelect)
-
-            Text(label)
-                .font(Theme.font(.fieldLabel))
-                .foregroundStyle(palette.textSecondary)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(label)
-    }
-
-    /// Sliding the rail follows the finger detent by detent: each cell-width of horizontal travel
-    /// moves the selection one value from where the drag began, with the detent tick on each move.
-    /// Simultaneous with the cell buttons so taps keep working unchanged.
-    private var dragToSelect: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                isDragging = true
-                let anchor = dragAnchorIndex ?? selectedIndex
-                dragAnchorIndex = anchor
-                let target = ValueRailLayout.draggedIndex(
-                    anchorIndex: anchor,
-                    translation: value.translation.width,
-                    cellWidth: Theme.railCellWidth,
-                    spacing: 0,
-                    count: chips.count
-                )
-                guard target != selectedIndex, chips.indices.contains(target) else { return }
-                onSelect(chips[target].label)
-                HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
-            }
-            .onEnded { _ in
-                dragAnchorIndex = nil
-                // Clear on the next runloop turn so the release's cell-button tap — dispatched in
-                // this same event turn — still sees `isDragging` and is suppressed.
-                DispatchQueue.main.async { isDragging = false }
-            }
-    }
-
-    private func cell(_ chip: ValueRailChip) -> some View {
-        Button {
-            // A tap that was actually the tail of a drag must not re-select the cell under the
-            // lifted finger — the drag's selection is authoritative (see `isDragging`).
-            guard !isDragging else { return }
-            onSelect(chip.label)
-            HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
-        } label: {
-            Text(chip.label)
-                .font(Theme.font(.railChipValue))
-                .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
-                .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
-                .contentShape(.rect)
-                .background {
-                    if chip.isSelected {
-                        RoundedRectangle(cornerRadius: Theme.Radius.cell)
-                            .fill(palette.railSelectedFill)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radius.cell)
-                                    .strokeBorder(palette.action, lineWidth: 2)
-                            )
-                            .padding(Theme.railCellInset)
-                    }
-                }
-                .overlay(alignment: .bottom) {
-                    if chip.isPrescribed {
-                        Capsule()
-                            .fill(palette.prescriptionTick)
-                            .frame(width: Theme.prescriptionTickWidth, height: Theme.prescriptionTickHeight)
-                            .padding(.bottom, Theme.railCellInset + 3)
-                            .accessibilityHidden(true)
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(chip.accessibilityIdentifier)
-        .accessibilityLabel("\(label) \(chip.label)")
-        .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)
-    }
-
-    private func edgeFade(leading: Bool) -> some View {
-        LinearGradient(
-            colors: leading
-                ? [palette.railFill, palette.railFill.opacity(0)]
-                : [palette.railFill.opacity(0), palette.railFill],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-        .frame(width: Theme.railEdgeFadeWidth)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
-    }
-}
-
-// MARK: - Weight ± stepper
-
-/// A ~54pt round stepper flanking the weight value. Its triangle is sized by frame, not font, so
-/// the control carries no inline font (token sheet §4 choke point).
-struct WeightStepperButton: View {
-    enum Direction: Equatable { case decrement, increment }
-
-    let direction: Direction
-    let accessibilityIdentifier: String
-    let action: () -> Void
-    @Environment(\.themePalette) private var palette
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(palette.stepperGlyph)
-                .frame(width: 16, height: 16)
-                .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
-                .background(palette.pillFill, in: .circle)
-                .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(direction == .decrement ? "Decrease weight" : "Increase weight")
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-}
-
 // MARK: - Log capsule
 
 /// The Log capsule (DESIGN.md §5.3): a true capsule with `logShadow`, previewing the exact Set Log.
@@ -507,8 +339,7 @@ struct WeightStepperButton: View {
 private struct HoldToSkipLogButton: View {
     let logTitle: String
     let canLog: Bool
-    let isSkipped: Bool
-    let policy: HoldToSkipPolicy
+    let setState: SetState
     let onLogTap: () -> Void
     let onSkip: () -> Void
 
@@ -518,22 +349,27 @@ private struct HoldToSkipLogButton: View {
 
     var body: some View {
         Group {
-            if isSkipped {
+            if presentation.showsSkippedBed {
                 skippedBed
             } else {
                 logButtonSurface
             }
         }
         .onLongPressGesture(
-            minimumDuration: policy.holdDuration,
-            maximumDistance: 44,
+            minimumDuration: presentation.longPressDuration,
+            maximumDistance: HoldToSkipGesture.maximumTravel,
             pressing: { isPressing in
-                apply(isPressing ? gesture.pressBegan(at: .now, policy: policy) : gesture.pressEnded(at: .now))
+                apply(isPressing ? gesture.pressBegan(at: .now, policy: presentation.holdPolicy) : gesture.pressEnded(at: .now))
             },
             perform: { apply(gesture.deadlineReached(at: .now)) }
         )
         .contentShape(.rect)
         .onTapGesture { apply(gesture.tapped(at: .now)) }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: HoldToSkipGesture.maximumTravel)
+                .onChanged { apply(gesture.pressMoved(by: $0.translation)) }
+                .onEnded { _ in apply(gesture.pressEnded(at: .now)) }
+        )
         .task(id: gesture.nextDeadline) {
             guard let deadline = gesture.nextDeadline else { return }
             do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
@@ -542,15 +378,17 @@ private struct HoldToSkipLogButton: View {
         .onDisappear { gesture.disappeared() }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(presentation.accessibilityLabel)
-        .accessibilityValue(skipProgress > 0 ? "\(Int((skipProgress * 100).rounded()))% Skip" : "")
+        .accessibilityValue(presentation.accessibilityValue)
         .accessibilityHint(presentation.accessibilityHint)
         .accessibilityIdentifier("log-active-set-button")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction {
             apply(gesture.tapped(at: .now))
         }
-        .accessibilityAction(named: "Skip") {
-            apply(gesture.skipRequested(at: .now))
+        .accessibilityActions {
+            if presentation.offersSkip {
+                Button("Skip") { apply(gesture.skipRequested(at: .now)) }
+            }
         }
     }
 
@@ -600,7 +438,7 @@ private struct HoldToSkipLogButton: View {
     }
 
     private var presentation: HoldToSkipButtonPresentation {
-        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog)
+        HoldToSkipButtonPresentation(progress: skipProgress, logTitle: logTitle, canLog: canLog, setState: setState)
     }
 
     /// The green drop / green light only rides the primary (loggable) capsule.

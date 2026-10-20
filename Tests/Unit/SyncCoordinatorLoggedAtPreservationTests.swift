@@ -13,7 +13,7 @@ private struct TwoDayStubClient: SheetsClient {
         SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 @MainActor
@@ -33,8 +33,6 @@ private func makeLoggedAtContainer() throws -> ModelContainer {
 private func makeTwoSessionBlock(tabName: String, day1LoggedAt: Date, day2LoggedAt: Date) -> Block {
     let squat = ParsedExercise(
         name: "Squat",
-        baseName: "Squat",
-        cadence: nil,
         coachNote: nil,
         sets: [
             ParsedSet(
@@ -86,7 +84,7 @@ private func loggedAt(in block: Block, day: Int) throws -> Date? {
     try #require(
         block.weeks.first { $0.number == 1 }?
             .sessions.first { $0.dayNumber == day }?
-            .exercises.first { $0.name == "Squat" }?
+            .exercises.first { $0.exerciseName == "Squat" }?
             .sets.first { $0.index == 0 }
     ).loggedAt
 }
