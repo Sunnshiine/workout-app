@@ -14,7 +14,11 @@ scripts/lane.sh calls it; call it directly to inspect or repair the pool.
                  template on first use, and deletes the half-built device when its boot or keyboard
                  step fails. The next create deletes a half-built device a killed build left running,
                  and finishes one left Shutdown, as a build that gave up waiting for the host leaves
-                 it. Leaves the clone Shutdown, so it holds no seat of the host cap.
+                 it. Leaves the clone Shutdown, so it holds no seat of the host cap. Every create
+                 also marks the launchd jobs in scripts/sim-pool-disabled-jobs.txt disabled in the
+                 lane's /private/var/tmp/com.apple.CoreSimulator.SimDevice.<UDID>/disabled.plist,
+                 which its next boot reads, by any route (ADR-0022). That boot costs about a third of
+                 the CPU. For a stock boot, delete that file while the lane is Shutdown.
   boot <lane>    boot it, start its idle clock, and print its UDID. test-sim.sh and verify.sh boot a
                  lane themselves; run this before a raw xcodebuild or XcodeBuildMCP call on a lane.
   delete <lane>  shut it down, delete it, and remove /tmp/workout-verify-<UDID>, holding that
@@ -34,7 +38,8 @@ Every boot, the template's and boot's, goes through the host admission test-sim.
 WORKOUT_MEM_FLOOR or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
 At the cap it first shuts down the least recently used booted lane that no run holds, that runs no
 app but a verify app past its lease, and whose /tmp/workout-verify-<UDID>/lock was last written
-WORKOUT_IDLE_MINUTES or more ago. A claim writes that file when it starts and touches it when it
+WORKOUT_IDLE_MINUTES or more ago. Under the cap it shuts down one such lane last written
+WORKOUT_SLEEP_MINUTES or more ago, and boots. A claim writes that file when it starts and touches it when it
 ends, and boot touches it, so a raw xcodebuild or XcodeBuildMCP run after it, which takes no lock,
 still leaves the lane an idle clock.
 
@@ -47,13 +52,15 @@ Environment:
   WORKOUT_MEM_FLOOR      lowest free memory, kern.memorystatus_level in percent, a boot starts at
                          (default 25; 0 turns it off)
   WORKOUT_IDLE_MINUTES   minutes a lane's lock goes unwritten before the cap may reclaim it (default 2)
+  WORKOUT_SLEEP_MINUTES  minutes a lane's lock goes unwritten before any boot shuts it down
+                         (default 30; 0 turns it off)
   WORKOUT_ADMIT_WAIT     seconds to wait for the pool lock or the host before exit 75 (default 540)
   WORKOUT_HOST_LOCK_DIR  the host-wide lock directory (default /tmp/workout-host-locks)
 
 Exit codes: 0 done, 1 no such lane device (boot), 2 usage or a bad setting, 69 iOS 27.0 runtime or
-iPhone 17 Pro device type missing, 70 simctl failed or two devices share a name, 75 busy: the pool
-lock, the host's memory floor or cap, a test-sim or verify run holding the simulator, or a verify
-run's app still running on it.
+iPhone 17 Pro device type missing, 70 simctl failed, two devices share a name, or the disable list
+could not be written, 75 busy: the pool lock, the host's memory floor or cap, a test-sim or verify
+run holding the simulator, or a verify run's app still running on it.
 EOF
 }
 
@@ -172,23 +179,42 @@ ensure_template() {
   printf '%s\n' "$udid"
 }
 
+# launchd_sim reads a device's disable list from this host file each time it boots. simctl clone
+# does not copy it, so every lane gets its own. Entries already there, such as the runtime's own
+# explicit enables, stay.
+disable_jobs() {
+  local store=/private/var/tmp/com.apple.CoreSimulator.SimDevice.$1
+  [ -d "$store" ] || mkdir -m 700 "$store" || die 70 "could not create $store"
+  python3 - "$store/disabled.plist" "$here/sim-pool-disabled-jobs.txt" <<'EOF' >&2 || die 70 "could not write the launchd disable list of $1 to $store/disabled.plist"
+import os, plistlib, sys, tempfile
+store, jobs = sys.argv[1:]
+labels = [line.split("#")[0].strip() for line in open(jobs)]
+entries = plistlib.load(open(store, "rb")) if os.path.exists(store) else {}
+entries.update((label, True) for label in labels if label)
+fd, temp = tempfile.mkstemp(dir=os.path.dirname(store))
+with os.fdopen(fd, "wb") as f:
+    plistlib.dump(entries, f)
+os.chmod(temp, 0o644)
+os.replace(temp, store)
+EOF
+}
+
 clone_lane() {
   local lane=workout-lane-$1 udid state source err
   find_named "$lane"
-  if [ -n "$udid" ]; then
-    printf '%s\n' "$udid"
-    return
-  fi
-  source=$(ensure_template)
-  shut_down "$source"
-  err=$(mktemp)
-  if ! udid=$(simctl clone "$source" "$lane" 2>"$err"); then
-    grep -q 'current state: Booted' "$err" || die 70 "could not clone $source: $(cat "$err")"
-    echo "sim-pool: $source booted before the clone; shutting it down and cloning again" >&2
+  if [ -z "$udid" ]; then
+    source=$(ensure_template)
     shut_down "$source"
-    udid=$(simctl clone "$source" "$lane" 2>"$err") || die 70 "could not clone $source: $(cat "$err")"
+    err=$(mktemp)
+    if ! udid=$(simctl clone "$source" "$lane" 2>"$err"); then
+      grep -q 'current state: Booted' "$err" || die 70 "could not clone $source: $(cat "$err")"
+      echo "sim-pool: $source booted before the clone; shutting it down and cloning again" >&2
+      shut_down "$source"
+      udid=$(simctl clone "$source" "$lane" 2>"$err") || die 70 "could not clone $source: $(cat "$err")"
+    fi
+    rm -f "$err"
   fi
-  rm -f "$err"
+  disable_jobs "$udid"
   printf '%s\n' "$udid"
 }
 
