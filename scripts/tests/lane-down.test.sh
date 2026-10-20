@@ -40,7 +40,7 @@ lane down results
 saved=$(ls -d "$evidence/detached-results"/down-* 2>/dev/null | head -1)
 expect "down saves every results dir under .build the repo's scripts write, and the CLI's home, but no build products" \
     "$status $results| $(cd "$saved" && find . -type f ! -name head.txt ! -name untracked.tar | sort | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
-    "0 check-each-commit crap flake-hunt measure-host mutate test-sim verify | ./check-each-commit/result.txt ./crap/result.txt ./flake-hunt/result.txt ./measure-host/result.txt ./mutate/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
+    "0 check-each-commit crap flake-guard flake-hunt measure-host mutate test-sim verify | ./check-each-commit/result.txt ./crap/result.txt ./flake-guard/result.txt ./flake-hunt/result.txt ./measure-host/result.txt ./mutate/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
 
 lane up staged "$c1"
 echo staged >"$lanes/staged/staged.txt"
