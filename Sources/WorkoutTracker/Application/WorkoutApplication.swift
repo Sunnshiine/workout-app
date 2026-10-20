@@ -22,7 +22,6 @@ public final class WorkoutApplication {
     public init(environment: AppEnvironment) throws {
         container = try ModelContainer(for: Self.schema, configurations: Self.configuration(for: environment.storage))
         let context = container.mainContext
-        try environment.seed?(context)
         sheetsClient = environment.sheetsClient
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
@@ -85,7 +84,7 @@ extension WorkoutApplication {
             block: workout.block.map(BlockSummary.init),
             currentSession: current.flatMap(\.address),
             currentSessionReason: workout.currentSessionDebugInfo.reason,
-            currentSessionIsOverridden: workout.hasCurrentSessionOverride,
+            currentSessionIsOverridden: workout.currentSessionResolution?.isMadeCurrent ?? false,
             viewedSession: workout.viewedSession.flatMap(\.address),
             canMoveOn: workout.canMoveOn,
             openExercises: workout.openExercises.compactMap(address(of:)),
@@ -259,7 +258,7 @@ extension WorkoutApplication {
     }
 
     fileprivate func conflictMessages(in writes: [PendingWrite]) -> [String] {
-        writes.filter { $0.status == .conflict }.map { "\($0.exerciseName): \($0.lastError ?? "conflict")" }
+        writes.filter { $0.status == .conflict }.map { "\($0.exercise.name.entered): \($0.lastError ?? "conflict")" }
     }
 
     fileprivate func orderedSessions() -> [AddressedSession] {

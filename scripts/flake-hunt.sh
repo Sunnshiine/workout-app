@@ -30,7 +30,7 @@ cd "$repo"
 log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S).log
 mkdir -p "$(dirname "$log")"
 echo "log: $log"
-swift build --build-tests >"$log" 2>&1 || { grep -E "error:" "$log" | head -20 >&2; echo "build log: $log" >&2; exit 65; }
+swift build --build-tests >"$log" 2>&1 || { grep -m 20 -E "error:" "$log" >&2 || true; echo "build log: $log" >&2; exit 65; }
 
 hogs=()
 trap 'kill ${hogs[@]+"${hogs[@]}"} 2>/dev/null || true' EXIT

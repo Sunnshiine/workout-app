@@ -8,17 +8,17 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     week.block = block
     let session = Session(dayNumber: 1, date: nil)
     session.week = week
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let squat = Exercise(name: "Squat", coachNote: nil, order: 0)
     squat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     ]
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 1)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
     bench.sets = [
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
     ]
-    let row = Exercise(name: "DB Row", baseName: "DB Row", cadence: nil, coachNote: nil, order: 2)
+    let row = Exercise(name: "DB Row", coachNote: nil, order: 2)
     row.sets = [
         ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -32,7 +32,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     let squat = try #require(session.exercises.first { $0.order == 0 })
     let bench = try #require(session.exercises.first { $0.order == 1 })
     let row = try #require(session.exercises.first { $0.order == 2 })
-    let otherSessionExercise = Exercise(name: "Lat Pulldown", baseName: "Lat Pulldown", cadence: nil, coachNote: nil, order: 3)
+    let otherSessionExercise = Exercise(name: "Lat Pulldown", coachNote: nil, order: 3)
     otherSessionExercise.sets = [
         ExerciseSet(index: 0, prescribedReps: "10", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
@@ -44,7 +44,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(!state.canCreateSuperset(with: [squat, squat], in: session))
     #expect(!state.canCreateSuperset(with: [squat, otherSessionExercise], in: session))
 
-    bench.sets.forEach { $0.state = .logged }
+    for set in bench.sets { set.state = .logged }
 
     #expect(!state.canCreateSuperset(with: [squat, bench], in: session))
 
@@ -115,7 +115,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(pureBench == ActiveSetID(exerciseOrder: 1, setIndex: 0))
 
     // nil when the Exercise has no Pending Set — matching the mutating path.
-    bench.sets.forEach { $0.state = .logged }
+    for set in bench.sets { set.state = .logged }
     #expect(SupersetState.nextPendingSetID(for: bench) == nil)
     #expect(state.focusNextPendingSet(for: bench, in: session) == nil)
 }
@@ -138,7 +138,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(projected == SessionCoordinator.activeSetID(for: nextSet))
 
     // nil when the Exercise has no Pending Set.
-    squat.sets.forEach { $0.state = .logged }
+    for set in squat.sets { set.state = .logged }
     #expect(SupersetState.nextPendingSet(for: squat) == nil)
     #expect(SupersetState.nextPendingSetID(for: squat) == nil)
 }
@@ -158,7 +158,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     #expect(!state.isPaired(bench))
 
     state.createSuperset(with: [squat, bench], in: session)
-    squat.sets.forEach { $0.state = .logged }
+    for set in squat.sets { set.state = .logged }
     state.refresh(in: session)
 
     #expect(state.supersetCount == 0)
@@ -216,30 +216,30 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 @MainActor
 @Test func supersetDissolvesWhenRefreshedAgainstASecondBlockSharingTheWeekAndDay() throws {
     let firstBlock = makeSupersetSession(blockTab: "Block 29")
-    let squat = try #require(firstBlock.exercises.first { $0.name == "Squat" })
-    let bench = try #require(firstBlock.exercises.first { $0.name == "Bench Press" })
+    let squat = try #require(firstBlock.exercises.first { $0.exerciseName == "Squat" })
+    let bench = try #require(firstBlock.exercises.first { $0.exerciseName == "Bench Press" })
     let state = SupersetState()
     state.createSuperset(with: [squat, bench], in: firstBlock)
-    #expect(state.supersets(in: firstBlock).map { $0.exercises.map(\.name) } == [["Squat", "Bench Press"]])
+    #expect(state.supersets(in: firstBlock).map { $0.exercises.map(\.exerciseName.entered) } == [["Squat", "Bench Press"]])
 
     let secondBlock = makeSupersetSession(blockTab: "Block 30")
     state.refresh(in: secondBlock)
 
-    #expect(state.supersets(in: secondBlock).map { $0.exercises.map(\.name) } == [])
+    #expect(state.supersets(in: secondBlock).map { $0.exercises.map(\.exerciseName.entered) } == [])
     #expect(state.supersetCount == 0)
 }
 
 @MainActor
 @Test func bindingToASecondBlockDissolvesTheSupersetMadeInTheFirst() throws {
     let firstBlock = makeSupersetSession(blockTab: "Block 29")
-    let squat = try #require(firstBlock.exercises.first { $0.name == "Squat" })
-    let bench = try #require(firstBlock.exercises.first { $0.name == "Bench Press" })
-    let coordinator = SessionCoordinator(session: firstBlock)
+    let squat = try #require(firstBlock.exercises.first { $0.exerciseName == "Squat" })
+    let bench = try #require(firstBlock.exercises.first { $0.exerciseName == "Bench Press" })
+    let coordinator = SessionCoordinator(session: firstBlock, wiring: .fixture())
     #expect(coordinator.createSuperset(from: squat, to: bench, in: firstBlock))
     #expect(coordinator.stage(in: firstBlock, lookup: .empty).queue.rows.map(\.id) == ["superset-0", "exercise-2"])
 
     let secondBlock = makeSupersetSession(blockTab: "Block 30")
-    coordinator.bind(to: secondBlock)
+    coordinator.view(secondBlock)
 
     let rows = coordinator.stage(in: secondBlock, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "exercise-1", "exercise-2"])
@@ -255,9 +255,9 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     state.createSuperset(with: [squat, bench], in: session)
 
     let refreshedSession = makeSupersetSession()
-    let refreshedRow = try #require(refreshedSession.exercises.first { $0.name == "DB Row" })
-    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.name == "Squat" })
-    let refreshedBench = try #require(refreshedSession.exercises.first { $0.name == "Bench Press" })
+    let refreshedRow = try #require(refreshedSession.exercises.first { $0.exerciseName == "DB Row" })
+    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.exerciseName == "Squat" })
+    let refreshedBench = try #require(refreshedSession.exercises.first { $0.exerciseName == "Bench Press" })
     refreshedRow.order = 0
     refreshedSquat.order = 1
     refreshedBench.order = 2
@@ -282,9 +282,9 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     )
 
     let refreshedSession = makeSupersetSession()
-    let refreshedRow = try #require(refreshedSession.exercises.first { $0.name == "DB Row" })
-    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.name == "Squat" })
-    let refreshedBench = try #require(refreshedSession.exercises.first { $0.name == "Bench Press" })
+    let refreshedRow = try #require(refreshedSession.exercises.first { $0.exerciseName == "DB Row" })
+    let refreshedSquat = try #require(refreshedSession.exercises.first { $0.exerciseName == "Squat" })
+    let refreshedBench = try #require(refreshedSession.exercises.first { $0.exerciseName == "Bench Press" })
     refreshedRow.order = 0
     refreshedSquat.order = 1
     refreshedBench.order = 2
@@ -301,7 +301,7 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
     state.createSuperset(with: [squat, bench], in: session)
 
     let refreshedSession = makeSupersetSession()
-    refreshedSession.exercises.removeAll { $0.name == "Bench Press" }
+    refreshedSession.exercises.removeAll { $0.exerciseName == "Bench Press" }
     state.refresh(in: refreshedSession)
 
     #expect(state.supersetCount == 0)
@@ -395,16 +395,12 @@ private func makeSupersetSession(blockTab: String = "Block 29", weekNumber: Int 
 }
 
 @MainActor
-@Test func supersetIdentityTellsSessionsWithoutAWeekApartByDay() {
-    func squatIdentity(inDay day: Int?) -> SupersetExerciseIdentity {
-        let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
-        if let day {
-            Session(dayNumber: day, date: nil).exercises = [squat]
-        }
-        return SupersetExerciseIdentity(exercise: squat)
-    }
+@Test func anExerciseOfADetachedSessionCannotJoinASuperset() {
+    let session = makeSupersetSession()
+    session.week = nil
+    let state = SupersetState()
 
-    #expect(squatIdentity(inDay: 2) == squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: 1) != squatIdentity(inDay: 2))
-    #expect(squatIdentity(inDay: nil) == squatIdentity(inDay: 0))
+    #expect(SupersetExerciseIdentity(exercise: session.exercises[0]) == nil)
+    #expect(!state.canCreateSuperset(with: Array(session.exercises.prefix(2)), in: session))
+    #expect(!state.createSuperset(with: Array(session.exercises.prefix(2)), in: session))
 }

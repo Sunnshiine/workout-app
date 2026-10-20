@@ -2,119 +2,12 @@ import Foundation
 import Observation
 
 @MainActor
-protocol SessionLoggingAdapter {
-    func log(_ set: ExerciseSet, as log: SetLog) throws
-    func skip(_ set: ExerciseSet) throws
-    func deleteLog(for set: ExerciseSet) throws
-}
-
-@MainActor
-protocol SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error)
-    func requestPendingWriteFlush()
-}
-
-@MainActor
-protocol SessionLiveActivityAdapter {
-    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
-    func end()
-    func endIfInvalidated(at liveEdge: LiveEdge)
-}
-
-@MainActor
-protocol SessionNavigationAdapter: AnyObject {
-    var canMoveOn: Bool { get }
-    var openExercises: [Exercise] { get }
-    var currentSession: Session? { get }
-    func liveEdge(for session: Session) -> LiveEdge
-    func requestMoveOnCelebration()
-    func show(_ address: SessionAddress)
-    func showCurrent()
-}
-
-@MainActor
 protocol SessionTransitionClock {
     func sleep(for duration: Duration) async
 }
 
 enum SessionCoordinatorError: Error {
     case missingSession
-    case missingLoggingAdapter
-}
-
-enum PairingMode: Equatable, Sendable {
-    case inactive
-    case selecting(sourceOrder: Int)
-    case confirming(sourceOrder: Int, targetOrder: Int)
-
-    var sourceOrder: Int? {
-        switch self {
-        case .inactive: nil
-        case .selecting(let sourceOrder), .confirming(let sourceOrder, _): sourceOrder
-        }
-    }
-}
-
-enum PairingTapResult: Equatable, Sendable {
-    case ignored
-    case cancelled
-    case unavailable
-    case confirming
-}
-
-extension WorkoutStore: SessionLoggingAdapter {}
-
-extension WorkoutStore: SessionNavigationAdapter {}
-
-struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
-    let sync: SyncCoordinator
-    let settings: SettingsStore
-
-    func reportLocalWriteFailure(_ error: any Error) {
-        sync.reportLocalWriteFailure(error)
-    }
-
-    func requestPendingWriteFlush() {
-        guard let id = settings.spreadsheetId else { return }
-        // Awaiting it would keep flushes apart, which changes when Set Logs are flushed (#702).
-        // swiftlint:disable:next unstructured_task_is_held
-        Task { await sync.flushPending(spreadsheetId: id) }
-    }
-}
-
-private struct MissingSessionLoggingAdapter: SessionLoggingAdapter {
-    func log(_ set: ExerciseSet, as log: SetLog) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-
-    func skip(_ set: ExerciseSet) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-
-    func deleteLog(for set: ExerciseSet) throws {
-        throw SessionCoordinatorError.missingLoggingAdapter
-    }
-}
-
-private struct NoopSessionSyncAdapter: SessionSyncAdapter {
-    func reportLocalWriteFailure(_ error: any Error) {}
-    func requestPendingWriteFlush() {}
-}
-
-private struct NoopSessionLiveActivityAdapter: SessionLiveActivityAdapter {
-    func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
-    func end() {}
-    func endIfInvalidated(at liveEdge: LiveEdge) {}
-}
-
-private final class NoopSessionNavigationAdapter: SessionNavigationAdapter {
-    var canMoveOn: Bool { false }
-    var openExercises: [Exercise] { [] }
-    var currentSession: Session? { nil }
-    func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
-    func requestMoveOnCelebration() {}
-    func show(_ address: SessionAddress) {}
-    func showCurrent() {}
 }
 
 private struct TaskSessionTransitionClock: SessionTransitionClock {
@@ -128,70 +21,81 @@ private struct TaskSessionTransitionClock: SessionTransitionClock {
 final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var savedLoggedSetID: ActiveSetID?
-    private(set) var pairingMode: PairingMode = .inactive
 
-    @ObservationIgnored private let focusManager: ActiveSetFocusManager
-    @ObservationIgnored private var loggingAdapter: any SessionLoggingAdapter
-    @ObservationIgnored private var syncAdapter: any SessionSyncAdapter
-    @ObservationIgnored private var liveActivityAdapter: any SessionLiveActivityAdapter
-    private var navigationAdapter: any SessionNavigationAdapter
-    @ObservationIgnored private var motion: any SessionMotionPerforming
+    @ObservationIgnored let focusManager: ActiveSetFocusManager
+    @ObservationIgnored private let pairing: SupersetPairing
+    @ObservationIgnored let wiring: SessionWiring
+    @ObservationIgnored private var liveEdgeReconcile: Task<Void, Never>?
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
-    @ObservationIgnored private var restTimer: RestTimer?
-    @ObservationIgnored private var standardRestDuration: () -> TimeInterval
-    @ObservationIgnored private var supersetRestDuration: () -> TimeInterval
-    /// What a card's first values suggest from, for a Spoken Set on a Set no card has reported.
-    @ObservationIgnored private var history: () -> LastPerformedLookupSnapshot
-    @ObservationIgnored private var pairingConfirmationTask: Task<Void, Never>?
     /// Nil leaves the mic off every card.
-    @ObservationIgnored private let dictation: SetDictation?
-    @ObservationIgnored private var dictatingSession: Session?
+    @ObservationIgnored let dictation: SetDictation?
+    @ObservationIgnored var dictatingSession: Session?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
-    /// Nil until the Session screen binds the stage, which hears no request before then.
-    private var entry: AppEntryInbox?
 
     init(
         session: Session? = nil,
-        logging: any SessionLoggingAdapter = MissingSessionLoggingAdapter(),
-        sync: any SessionSyncAdapter = NoopSessionSyncAdapter(),
+        wiring: SessionWiring,
         transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
-        restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: any SessionLiveActivityAdapter = NoopSessionLiveActivityAdapter(),
-        navigation: any SessionNavigationAdapter = NoopSessionNavigationAdapter(),
-        motion: any SessionMotionPerforming = ImmediateSessionMotion(),
         dictation: SetDictation? = nil,
-        focus: ActiveSetFocusManager? = nil,
-        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
+        focus: ActiveSetFocusManager? = nil
     ) {
         self.session = session
+        self.wiring = wiring
+        self.transitionClock = transitionClock
         self.dictation = dictation
-        self.history = history
-        self.navigationAdapter = navigation
-        self.motion = motion
         // A focus handed in is the process's, which a headless Dictation reads too. It keeps the
         // Session it is about until the stage binds, since SwiftUI builds a coordinator it then
         // throws away on every pass over the Session screen's init.
-        self.focusManager = focus ?? ActiveSetFocusManager(session: session)
-        self.loggingAdapter = logging
-        self.syncAdapter = sync
-        self.liveActivityAdapter = liveActivity
-        self.transitionClock = transitionClock
-        self.restTimer = restTimer
-        self.standardRestDuration = standardRestDuration
-        self.supersetRestDuration = supersetRestDuration
+        let focusManager = focus ?? ActiveSetFocusManager(session: session)
+        self.focusManager = focusManager
+        self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
+        reconcileOnEachLiveEdgeChange()
     }
 
-    var activeSetID: ActiveSetID? { focusManager.activeSetID }
-    var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
-
     deinit {
-        pairingConfirmationTask?.cancel()
+        liveEdgeReconcile?.cancel()
         spokenWriteHoldTask?.cancel()
     }
 
-    func bind(to session: Session?) {
+    var activeSetID: ActiveSetID? { focusManager.activeSetID }
+    var restTimer: RestTimer { wiring.restTimer }
+    var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
+    var pairingMode: PairingMode { pairing.mode }
+
+    /// The athlete is now viewing `session`. Re-points the coordinator at it, with focus
+    /// re-seeded from its first Pending Set, and re-checks the rest Live Activity.
+    func view(_ session: Session) {
+        bind(to: session)
+        reconcileLiveActivity()
+    }
+
+    /// Re-checks the rest Live Activity at the Viewed Session's live edge. The one reconciler, run
+    /// after every Session verb and whenever the store's live edge changes.
+    private func reconcileLiveActivity() {
+        wiring.liveActivity.endIfInvalidated(at: wiring.navigation.liveEdge)
+    }
+
+    /// Covers every store-driven change to the live edge: a sync replacing the Block, Make Current,
+    /// Move On, a reload, and navigating. The observation fires in the store's `willSet`, before
+    /// the new value lands, so the reconcile waits one main-actor turn and reads the settled store.
+    /// Every change in that turn lands in the one reconcile. Listening again before reconciling
+    /// keeps a change made during the reconcile from being missed.
+    private func reconcileOnEachLiveEdgeChange() {
+        withObservationTracking {
+            _ = wiring.navigation.liveEdge
+        } onChange: { [weak self] in
+            // The navigation adapter changes only on the main actor, so its change notice runs there.
+            MainActor.assumeIsolated {
+                self?.liveEdgeReconcile = Task { [weak self] in
+                    guard let self else { return }
+                    reconcileOnEachLiveEdgeChange()
+                    reconcileLiveActivity()
+                }
+            }
+        }
+    }
+
+    private func bind(to session: Session) {
         self.session = session
         savedLoggedSetID = nil
         cancelPairing()
@@ -199,39 +103,6 @@ final class SessionCoordinator {
         dictation?.dismiss()
         focusManager.reset(to: session)
         answerEntry()
-    }
-
-    /// The Session screen hands over everything without a default here, so it cannot forget one.
-    func bind(  // swiftlint:disable:this function_parameter_count
-        to session: Session?,
-        logging: any SessionLoggingAdapter,
-        sync: any SessionSyncAdapter,
-        restTimer: RestTimer? = nil,
-        standardRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.standard.timeInterval },
-        supersetRestDuration: @escaping () -> TimeInterval = { RestDurationSetting.superset.timeInterval },
-        liveActivity: (any SessionLiveActivityAdapter)? = nil,
-        navigation: any SessionNavigationAdapter,
-        motion: any SessionMotionPerforming,
-        entry: AppEntryInbox,
-        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
-    ) {
-        if navigationAdapter !== navigation {
-            navigationAdapter = navigation
-        }
-        self.motion = motion
-        self.history = history
-        self.restTimer = restTimer
-        self.standardRestDuration = standardRestDuration
-        self.supersetRestDuration = supersetRestDuration
-        if let liveActivity {
-            liveActivityAdapter = liveActivity
-        }
-        loggingAdapter = logging
-        syncAdapter = sync
-        if self.entry !== entry {
-            self.entry = entry
-        }
-        bind(to: session)
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -282,17 +153,17 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set)
             try perform(.momentumFlow) {
-                try loggingAdapter.log(set, as: log)
+                try wiring.logging.log(set, as: log)
                 startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
-                reconcileLiveActivity(for: session)
+                reconcileLiveActivity()
                 switch source {
                 case .card: advanceAfterLog(set, in: session)
                 case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
                 }
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -301,32 +172,32 @@ final class SessionCoordinator {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set)
             try perform(.skipFadeUp) {
-                try loggingAdapter.skip(set)
-                reconcileLiveActivity(for: session)
+                try wiring.logging.skip(set)
+                reconcileLiveActivity()
                 switch source {
                 case .card: advanceAfterSkip(set, in: session)
                 case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
                 }
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
     func deleteLog(for set: ExerciseSet) {
         do {
             let session = try actionSession(for: set)
-            try loggingAdapter.deleteLog(for: set)
-            restTimer?.cancel(
+            try wiring.logging.deleteLog(for: set)
+            wiring.restTimer.cancel(
                 ifOriginMatches: Self.activeSetID(for: set),
                 originSetObjectID: ObjectIdentifier(set)
             )
-            reconcileLiveActivity(for: session)
+            reconcileLiveActivity()
             perform(nil) { focusManager.focus(on: set) }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -334,15 +205,15 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             let updatedSetID = Self.activeSetID(for: set)
-            try loggingAdapter.log(set, as: log)
+            try wiring.logging.log(set, as: log)
             savedLoggedSetID = updatedSetID
-            reconcileLiveActivity(for: session)
+            reconcileLiveActivity()
             if focusManager.expandedLoggedSetID == updatedSetID {
                 focusManager.collapseLoggedSetReview()
             }
-            syncAdapter.requestPendingWriteFlush()
+            wiring.sync.requestPendingWriteFlush()
         } catch {
-            syncAdapter.reportLocalWriteFailure(error)
+            wiring.sync.reportLocalWriteFailure(error)
         }
     }
 
@@ -371,13 +242,13 @@ final class SessionCoordinator {
 
     /// Every change to which Set the card shows runs through here, so a press's rejection or fill
     /// never outlives the card it was shown on.
-    private func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
+    func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
         dictation?.dismiss()
-        guard let requested, requested.runs(reducingMotion: motion.reducesMotion) else {
+        guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
             return
         }
-        try motion.animate(requested, change)
+        try wiring.motion.animate(requested, change)
     }
 
     private func actionSession(for set: ExerciseSet) throws -> Session {
@@ -395,19 +266,19 @@ final class SessionCoordinator {
 
 extension SessionCoordinator {
     func cancelRestForSessionExit() {
-        restTimer?.dismiss()
-        liveActivityAdapter.end()
+        wiring.restTimer.dismiss()
+        wiring.liveActivity.end()
     }
 
     func moveOn() {
         cancelRestForSessionExit()
-        navigationAdapter.requestMoveOnCelebration()
+        wiring.navigation.requestMoveOnCelebration()
     }
 
     func showSourceSession(of exercise: Exercise) {
         cancelPairing()
         guard let address = exercise.session?.address else { return }
-        navigationAdapter.show(address)
+        wiring.navigation.show(address)
     }
 
     func stage(in session: Session, lookup: LastPerformedLookupSnapshot) -> SessionStage {
@@ -422,8 +293,8 @@ extension SessionCoordinator {
     }
 
     private func liveEdgeContext(for session: Session) -> LiveEdgeContext {
-        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
-        return .atLiveEdge(canMoveOn: navigationAdapter.canMoveOn, openExercises: navigationAdapter.openExercises)
+        guard wiring.navigation.liveEdge(for: session).isAtLiveEdge else { return .browsedAway }
+        return .atLiveEdge(canMoveOn: wiring.navigation.canMoveOn, openExercises: wiring.navigation.openExercises)
     }
 }
 
@@ -433,26 +304,17 @@ extension SessionCoordinator {
         return focusManager.isPaired(exercise)
     }
 
-    fileprivate func restDuration(for kind: RestKind) -> TimeInterval {
-        switch kind {
-        case .standard:
-            standardRestDuration()
-        case .superset:
-            supersetRestDuration()
-        }
-    }
-
     fileprivate func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
         guard
             let restKind = RestTriggerPolicy.restKind(
                 afterLogging: set,
                 in: session,
                 isSupersetMember: wasSupersetMember,
-                isRestRunning: restTimer?.isRunning ?? false
+                isRestRunning: wiring.restTimer.isRunning
             )
         else { return }
-        restTimer?.start(
-            duration: restDuration(for: restKind),
+        wiring.restTimer.start(
+            duration: wiring.restDurations.restDuration(for: restKind),
             origin: Self.activeSetID(for: set),
             originSetObjectID: ObjectIdentifier(set),
             kind: restKind
@@ -464,11 +326,11 @@ extension SessionCoordinator {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
-            sessionScope: navigationAdapter.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
+            sessionScope: wiring.navigation.liveEdge(for: session).isAtLiveEdge ? .currentSession : .nonCurrentSession
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
-            let restInterval = restTimer?.interval
+            let restInterval = wiring.restTimer.interval
         else { return }
 
         guard
@@ -480,81 +342,23 @@ extension SessionCoordinator {
             )
         else { return }
 
-        liveActivityAdapter.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
-    }
-
-    fileprivate func reconcileLiveActivity(for session: Session) {
-        liveActivityAdapter.endIfInvalidated(at: navigationAdapter.liveEdge(for: session))
+        wiring.liveActivity.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
     }
 }
 
 extension SessionCoordinator {
     @discardableResult
     func beginPairing(from exercise: Exercise, in session: Session) -> Bool {
-        guard focusManager.canPair(exercise, in: session) else { return false }
-        pairingConfirmationTask?.cancel()
-        pairingConfirmationTask = nil
-        pairingMode = .selecting(sourceOrder: exercise.order)
-        return true
+        pairing.begin(from: exercise, in: session)
     }
 
     func cancelPairing() {
-        pairingConfirmationTask?.cancel()
-        pairingConfirmationTask = nil
-        guard pairingMode != .inactive else { return }
-        pairingMode = .inactive
+        pairing.cancel()
     }
 
     @discardableResult
     func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
-        guard let sourceOrder = pairingMode.sourceOrder else {
-            return .ignored
-        }
-        guard exercise.order != sourceOrder else {
-            cancelPairing()
-            return .cancelled
-        }
-        guard focusManager.canPair(exercise, in: session) else {
-            return .unavailable
-        }
-        guard case .selecting = pairingMode else {
-            return .ignored
-        }
-        pairingMode = .confirming(sourceOrder: sourceOrder, targetOrder: exercise.order)
-        confirmPairing(sourceOrder: sourceOrder, targetOrder: exercise.order, in: session)
-        return .confirming
-    }
-
-    private func confirmPairing(sourceOrder: Int, targetOrder: Int, in session: Session) {
-        pairingConfirmationTask?.cancel()
-        let expectedMode = PairingMode.confirming(sourceOrder: sourceOrder, targetOrder: targetOrder)
-        let clock = transitionClock
-        let duration = pairingConfirmationDuration()
-
-        pairingConfirmationTask = Task { @MainActor [weak self] in
-            await clock.sleep(for: duration)
-            guard
-                !Task.isCancelled,
-                let self,
-                self.pairingMode == expectedMode
-            else { return }
-
-            guard
-                let source = session.exercises.first(where: { $0.order == sourceOrder }),
-                let target = session.exercises.first(where: { $0.order == targetOrder })
-            else {
-                self.cancelPairing()
-                return
-            }
-
-            _ = self.createSuperset(from: source, to: target, in: session)
-            self.pairingMode = .inactive
-            self.pairingConfirmationTask = nil
-        }
-    }
-
-    private func pairingConfirmationDuration() -> Duration {
-        .nanoseconds(Int64((Theme.pairingConfirmationDuration * 1_000_000_000).rounded()))
+        pairing.handleTap(on: exercise, in: session)
     }
 }
 
@@ -600,8 +404,8 @@ extension SessionCoordinator {
         return write(await dictation.finish(for: setID, in: spokenSetContext(for: set)), heardFor: setID, in: session)
     }
 
-    private func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
-        SpokenSetContext(for: set, shownBy: focusManager, history: history())
+    func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
+        SpokenSetContext(for: set, shownBy: focusManager, history: wiring.history())
     }
 
     /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
@@ -612,13 +416,13 @@ extension SessionCoordinator {
         return session
     }
 
-    private func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
+    func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
         guard self.session === session, let set = session.set(at: setID), set.isPending else { return nil }
         return set
     }
 
     /// A Set no longer Pending once the transcript is in takes nothing, and its outcome goes.
-    private func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
+    func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
         guard let outcome else { return nil }
         guard let set = pendingSet(at: setID, in: session) else {
             dictation?.dismiss()
@@ -687,92 +491,5 @@ extension SessionCoordinator {
 extension Session {
     fileprivate func set(at setID: ActiveSetID) -> ExerciseSet? {
         exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex }
-    }
-}
-
-/// What a request to say the Current Session's active Set does next.
-enum SetDictationEntryRoute: Equatable {
-    /// The stage has no Session yet, as on a cold launch.
-    case wait
-    case showCurrentSession
-    /// The card shows a logged Set in place of the active one.
-    case uncoverActiveSet
-    /// The card for this Set takes the request when it shows.
-    case listen(ActiveSetID)
-    /// Nothing to listen for, so the request ends with the stage where it is.
-    case drop
-}
-
-extension SessionCoordinator {
-    /// Closes whatever covers the stage and moves it toward the Current Session's active Set for
-    /// a waiting request, or ends a request there is nothing to listen for, leaving the stage as
-    /// it is. Run when a request arrives and on every bind.
-    func answerEntry() {
-        guard let entry, let route = entryRoute else { return }
-        switch route {
-        case .wait:
-            break
-        case .drop:
-            entry.discard()
-        case .showCurrentSession, .uncoverActiveSet, .listen:
-            entry.closeCovers()
-            moveStage(toward: route)
-        }
-    }
-
-    /// The card takes a `.listen` request itself once it shows, so only the other routes move it.
-    private func moveStage(toward route: SetDictationEntryRoute) {
-        switch route {
-        case .showCurrentSession:
-            navigationAdapter.showCurrent()
-        case .uncoverActiveSet:
-            endSpokenWriteHold()
-            perform(nil) { focusManager.collapseLoggedSetReview() }
-        case .wait, .drop, .listen:
-            break
-        }
-    }
-
-    /// True while a request waits for `slot`'s card to listen for its Set.
-    func startsHandsFree(_ slot: SetCardSlot) -> Bool {
-        guard slot.mode == .logging, case .listen(let setID) = entryRoute else { return false }
-        return Self.activeSetID(for: slot.set) == setID
-    }
-
-    /// Takes the waiting request and listens for `set` until the athlete stops talking, writing
-    /// what was said as a release of the mic would, with what was left unsaid read from what the
-    /// card shows when listening ends.
-    func listenHandsFree(to set: ExerciseSet) async -> SetDictation.Outcome? {
-        guard let dictation, let session, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID else { return nil }
-        _ = entry?.take()
-        dictatingSession = session
-        let outcome = await dictation.listenUntilQuiet(for: setID) { spokenSetContext(for: set) }
-        return write(outcome, heardFor: setID, in: session)
-    }
-
-    /// Nil while no request waits.
-    private var entryRoute: SetDictationEntryRoute? {
-        guard entry?.pending != nil else { return nil }
-        guard let session else { return .wait }
-        guard micIsFreeForAPendingSet else { return .drop }
-        guard navigationAdapter.liveEdge(for: session).isAtLiveEdge else { return .showCurrentSession }
-        return entryRoute(onLiveEdgeOf: session)
-    }
-
-    /// True while the mic is idle and the Current Session still has a Pending Set to log.
-    private var micIsFreeForAPendingSet: Bool {
-        guard let dictation, dictation.state.pressSetID == nil, let current = navigationAdapter.currentSession else { return false }
-        return SessionSetOrder.firstPendingSet(in: current) != nil
-    }
-
-    private func entryRoute(onLiveEdgeOf session: Session) -> SetDictationEntryRoute {
-        switch focusManager.visualFocusOwner {
-        case .loggedSetReview, .heldAfterSpokenWrite:
-            return .uncoverActiveSet
-        case .activeSet(let setID) where pendingSet(at: setID, in: session) != nil:
-            return .listen(setID)
-        case .activeSet, nil:
-            return .drop
-        }
     }
 }

@@ -31,18 +31,18 @@ import Testing
 
 @Suite struct MainLiftBaseNameMatchingTests {
     @Test func aBaseNameClaimsTheLiftItContains() {
-        #expect(MainLift(matchingBaseName: "Back Squat") == .squat)
-        #expect(MainLift(matchingBaseName: "Paused Bench Press") == .bench)
-        #expect(MainLift(matchingBaseName: "Deficit Deadlift") == .deadlift)
+        #expect(MainLift(claimedBy: "Back Squat") == .squat)
+        #expect(MainLift(claimedBy: "Paused Bench Press") == .bench)
+        #expect(MainLift(claimedBy: "Deficit Deadlift") == .deadlift)
     }
 
     @Test func aBaseNameContainingNoKeywordClaimsNothing() {
-        #expect(MainLift(matchingBaseName: "RDL") == nil)
-        #expect(MainLift(matchingBaseName: "") == nil)
+        #expect(MainLift(claimedBy: "RDL") == nil)
+        #expect(MainLift(claimedBy: "") == nil)
     }
 
     @Test func matchPrecedenceResolvesSquatBeforeBenchBeforeDeadlift() {
-        #expect(MainLift(matchingBaseName: "Squat Rack Bench Press") == .squat)
-        #expect(MainLift(matchingBaseName: "Bench Press from Deadlift Blocks") == .bench)
+        #expect(MainLift(claimedBy: "Squat Rack Bench Press") == .squat)
+        #expect(MainLift(claimedBy: "Bench Press from Deadlift Blocks") == .bench)
     }
 }
