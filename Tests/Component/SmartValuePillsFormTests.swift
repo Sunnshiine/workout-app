@@ -76,6 +76,39 @@ import Testing
 }
 
 @MainActor
+@Test func theFormsDraftIsWhatTheCardShowsWithAnUnreadableValueLeftOut() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(185)
+    )
+    #expect(form.draft == SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight))
+
+    form.weightText = "190"
+    form.repsText = "five"
+
+    #expect(form.draft == SetLogDraft(weight: .pounds(190), reps: nil, rpe: .eight))
+}
+
+@MainActor
+@Test func aSpokenSetFillsTheCardAndMarksWhatItLeftMissing() {
+    var form = SmartValuePillsForm(
+        set: ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
+        suggestion: .prescribedWeight(185)
+    )
+
+    form.fill(SetLogDraft(weight: nil, reps: 3, rpe: .nine))
+
+    #expect([form.weightText, form.repsText, form.rpeText] == ["", "3", "9"])
+    #expect(form.invalidFields == [.weight])
+    #expect(form.canLog == false)
+
+    form.fill(SetLogDraft(weight: .pounds(135), reps: 4, rpe: .nine))
+
+    #expect(form.invalidFields.isEmpty)
+    #expect(form.logButtonTitle == "Log 135 × 4 @9")
+}
+
+@MainActor
 @Test func aRepRangePrefillsItsLowEndSoLoggingUntouchedWritesIt() {
     let form = SmartValuePillsForm(
         set: ExerciseSet(index: 0, prescribedReps: "11-12", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),

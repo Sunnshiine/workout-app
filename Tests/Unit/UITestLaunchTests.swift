@@ -123,6 +123,12 @@ import Testing
         }
     }
 
+    @Test func dictationLaunchArgumentGivesTheCardTheTranscriptAfterIt() {
+        #expect(UITestLaunch(arguments: ["WorkoutTracker"]).dictatedTranscript == nil)
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION", "185 for 5 at 8"]).dictatedTranscript == "185 for 5 at 8")
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION"]).dictatedTranscript == "")
+    }
+
     @MainActor
     @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() async throws {
         let booted = try await BootedFixture.boot(["-UITEST_FULL_BLOCK"])

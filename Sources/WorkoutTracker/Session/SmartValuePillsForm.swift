@@ -59,6 +59,11 @@ struct SmartValuePillsForm {
         return weight.isFinite
     }
 
+    /// What the card shows, with a value it cannot read left out.
+    var draft: SetLogDraft {
+        SetLogDraft(weight: validWeight, reps: validReps, rpe: validRPE)
+    }
+
     var canLog: Bool {
         makeLog() != nil
     }
@@ -130,7 +135,7 @@ struct SmartValuePillsForm {
     }
 
     func makeLog() -> SetLog? {
-        entered.setLog
+        draft.setLog
     }
 
     @discardableResult
@@ -147,6 +152,15 @@ struct SmartValuePillsForm {
         return log
     }
 
+    /// Shows values heard from a Spoken Set for the athlete to log with a tap, marking any it left
+    /// missing.
+    mutating func fill(_ heard: SetLogDraft) {
+        weightText = heard.weight?.label ?? ""
+        repsText = heard.reps.map(String.init) ?? ""
+        rpeText = heard.rpe?.label ?? ""
+        showsInvalidFields = !heard.missingFields.isEmpty
+    }
+
     mutating func cancel() {
         weightText = initialWeightText
         repsText = initialRepsText
@@ -155,15 +169,11 @@ struct SmartValuePillsForm {
     }
 
     private var currentInvalidFields: Set<SetLogDraft.Field> {
-        entered.missingFields
+        draft.missingFields
     }
 
     private var incompleteLogButtonTitle: String {
         currentInvalidFields == [.rpe] ? "Choose RPE to log" : "Complete Set Log"
-    }
-
-    private var entered: SetLogDraft {
-        SetLogDraft(weight: validWeight, reps: validReps, rpe: validRPE)
     }
 
     private var validWeight: Weight? {

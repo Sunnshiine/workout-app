@@ -102,6 +102,12 @@
             }
         }
 
+        /// What the fixture's mic hears on every press; nil leaves the card without a mic.
+        var dictatedTranscript: String? {
+            guard let flagIndex = arguments.firstIndex(of: LaunchFlag.dictation.argument) else { return nil }
+            return arguments.dropFirst(flagIndex + 1).first ?? ""
+        }
+
         struct UnknownAppearance: Error, Equatable, CustomStringConvertible {
             let value: String
 

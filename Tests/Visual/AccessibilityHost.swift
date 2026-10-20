@@ -59,7 +59,16 @@ extension NSObject {
     }
 
     func accessibilityFrames(where matches: (NSObject) -> Bool) -> [CGRect] {
-        accessibilityTree.filter(matches).map { $0.accessibilityFrame }
+        accessibilityTree.filter(matches).map(\.drawnFrame)
+    }
+
+    /// Without UIKit's accessibility runtime, which this host never loads, a UIKit view reports a zero
+    /// accessibility frame, so read the frame it draws in, as VoiceOver does.
+    var drawnFrame: CGRect {
+        guard accessibilityFrame == .zero, let view = self as? UIView, let screen = view.window?.screen else {
+            return accessibilityFrame
+        }
+        return view.convert(view.bounds, to: screen.coordinateSpace)
     }
 
     var elementIdentifier: String? {

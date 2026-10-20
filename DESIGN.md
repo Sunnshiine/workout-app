@@ -140,10 +140,11 @@ one serif voice — never from hype, density, or gamification.
   flora and the stage's one illustrative icon — **maximum one illustrative
   icon per page**. A control or status glyph does not count against it: any
   glyph on or inside a tappable control (the back arrow, play, X, chevrons, the
-  steppers' triangles, the clear menu's ellipsis, the queue pill's stack, and
-  the queue sheet's pairing stems, §5.4), one that leads a control's data (the
-  Last Performed clock, the runline's calendar, the Superset partner's fork),
-  or one that marks a state beside its word (the Saved check, the danger mark).
+  steppers' triangles, the clear menu's ellipsis, the card's mic, the queue
+  pill's stack, and the queue sheet's pairing stems, §5.4), one that leads a
+  control's data (the Last Performed clock, the runline's calendar, the
+  Superset partner's fork), or one that marks a state beside its word (the
+  Saved check, the danger mark).
 - **Growth is state, not reward.** The branch renders logged reality; the Move
   On ceremony is the single moment growth is performed. Nothing accumulates
   into a persisting garden.

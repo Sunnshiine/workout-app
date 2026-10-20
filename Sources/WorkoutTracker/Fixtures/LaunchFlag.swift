@@ -129,6 +129,12 @@
             actsWithoutFixture: true
         )
 
+        static let dictation = LaunchFlag(
+            argument: "-UITEST_DICTATION",
+            meaning: "Takes a transcript as the next argument and gives the Active Set Card a mic that hears it,"
+                + " in place of SpeechAnalyzer, which does not run in the Simulator."
+        )
+
         static let all: [LaunchFlag] = [
             .fixture,
             .session,
@@ -150,7 +156,8 @@
             .currentSessionOverride,
             .moveOnCelebration,
             .appearance,
-            .longCelebrationQuote
+            .longCelebrationQuote,
+            .dictation
         ]
     }
 #endif

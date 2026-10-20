@@ -280,6 +280,12 @@ func exerciseStage(_ coordinator: SessionCoordinator, in session: Session) -> Ex
 }
 
 @MainActor
+func supersetStage(_ coordinator: SessionCoordinator, in session: Session) -> SupersetStage? {
+    guard case .superset(let stage) = coordinator.stage(in: session, lookup: .empty).focus else { return nil }
+    return stage
+}
+
+@MainActor
 func makeActionFixture() throws -> CoordinatorActionFixture {
     let session = makeCoordinatorSession()
     let logging = SpySessionLoggingAdapter()

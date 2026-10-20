@@ -10,8 +10,9 @@ struct SessionView: View {
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
-    init(wiring: SessionWiring) {
-        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring))
+    /// No transcriber leaves the mic off every card.
+    init(wiring: SessionWiring, transcriber: (any SetTranscriber)? = nil) {
+        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring, dictation: transcriber.map { SetDictation(transcriber: $0) }))
     }
 
     var body: some View {

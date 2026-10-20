@@ -24,13 +24,17 @@ struct SetLogDraft: Equatable, Sendable {
 }
 
 extension SetLogDraft {
+    init(_ setLog: SetLog) {
+        self.init(weight: setLog.weight, reps: setLog.reps, rpe: setLog.rpe)
+    }
+
     /// What the Active Set Card pre-fills before the athlete touches it: a Logged Set's own Set
     /// Log, otherwise the Load Suggestion's weight, the prescribed reps (a range's low end, ADR-0018),
     /// and the prescription's RPE target.
     @MainActor
     init(prefilling set: ExerciseSet, suggestion: LoadSuggestion) {
         if let setLog = set.setLog {
-            self.init(weight: setLog.weight, reps: setLog.reps, rpe: setLog.rpe)
+            self.init(setLog)
         } else {
             let prescription = set.prescription
             self.init(

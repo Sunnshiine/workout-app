@@ -377,9 +377,21 @@ extension ActiveSetCard {
             setOrdinal: slot.ordinal,
             setCount: slot.count,
             mode: slot.mode,
+            mic: coordinator.cardDictation(for: slot).map { dictation in
+                SetCardMic(
+                    dictation: dictation,
+                    start: { coordinator.startDictation(for: slot.set) },
+                    finish: { await coordinator.finishDictation(of: slot.set, resolvingAgainst: $0) },
+                    cancel: { await coordinator.cancelDictation() },
+                    dismiss: { coordinator.dismissDictation() }
+                )
+            },
             onLog: { coordinator.log($0, for: slot) },
-            onSkip: { coordinator.skip(slot.set) },
-            onDelete: { coordinator.deleteLog(for: slot.set) }
+            onSkip: { coordinator.skip(for: slot) },
+            onDelete: { coordinator.deleteLog(for: slot.set) },
+            onTouchWhileHeld: { coordinator.endSpokenWriteHold() },
+            onClearMenuOpened: { coordinator.suspendSpokenWriteHold() },
+            onClearMenuClosed: { coordinator.endSpokenWriteHold() }
         )
     }
 }

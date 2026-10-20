@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    var transcriber: (any SetTranscriber)?
     @Environment(SettingsStore.self) private var settings
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
@@ -71,7 +72,8 @@ struct RootView: View {
                         motion: SwiftUISessionMotion(),
                         restNotifications: RestNotificationCenterScheduler.shared
                     )
-                )
+                ),
+                transcriber: transcriber
             )
         }
         .transition(handoff)

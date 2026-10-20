@@ -135,8 +135,8 @@ extension WorkoutApplication {
     /// store calls. One still missing a value, or rejected, writes nothing and reports why.
     public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
         let set = try resolveSet(address)
-        let draft = SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: lastPerformed.snapshot))
-        let outcome = SpokenSet.parse(transcript).flatMap { $0.resolved(against: draft, previous: set.earlierSetLogs.first?.setLog) }
+        let context = SpokenSetContext(for: set, history: lastPerformed.snapshot)
+        let outcome = SpokenSet.parse(transcript).flatMap { $0.resolved(against: context.draft, previous: context.previous) }
         switch outcome {
         case .success(.log(let setLog)): try workout.log(set, as: setLog)
         case .success(.skip): try workout.skip(set)
