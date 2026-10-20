@@ -124,6 +124,9 @@ where the rules are silent.
   holds for top-level code outside any declaration.
 - **Nested types inside a function.** The chain is positional, so a method of a type declared inside a
   function reads `outer(_:).Local.f()`, and its span is subtracted from `outer`.
+- **One file under two path spellings.** An lcov export can name a file twice, as `/private/tmp/x`
+  and `/tmp/x` when the test bundle and the `workout` binary were compiled from different spellings
+  of the checkout path. Both records count as one file, and a line is covered when either covers it.
 - **A baselined function that becomes unmeasured** is reported as `stale`, like one that dropped to
   the threshold. The baseline records measured violations only, so a line that no longer describes one
   must go.
