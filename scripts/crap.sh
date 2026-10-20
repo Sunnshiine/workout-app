@@ -135,11 +135,19 @@ export_lcov() {
         exit 1
     fi
     local test_binary="$bin/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests"
-    if [[ ! -f $test_binary ]]; then
-        echo "crap.sh: test binary not found at $test_binary. Run without --no-test first." >&2
-        exit 1
-    fi
-    xcrun llvm-cov export -format=lcov -instr-profile "$PROFDATA" "$test_binary" \
+    local cli_binary="$bin/workout"
+    local binary
+    for binary in "$test_binary" "$cli_binary"; do
+        if [[ ! -f $binary ]]; then
+            echo "crap.sh: binary not found at $binary. Run without --no-test first." >&2
+            exit 1
+        fi
+    done
+    # The CLI tests run workout as a child process. Xcode compiles Sources/WorkoutCLI once for it and
+    # once for the test bundle, and when the two compiles spell the checkout path differently (/tmp and
+    # /private/tmp), closures and private members get different profile names in each. Reading the
+    # child's counts through its own binary keeps them from counting as zero.
+    xcrun llvm-cov export -format=lcov -instr-profile "$PROFDATA" "$test_binary" -object "$cli_binary" \
         -ignore-filename-regex='(^|/)(Tests|\.build|SourcePackages)/' >"$LCOV"
 }
 
