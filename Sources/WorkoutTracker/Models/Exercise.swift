@@ -6,22 +6,28 @@ private let exerciseModelLogger = Logger(subsystem: "WorkoutTracker", category: 
 
 @Model
 final class Exercise {
-    var name: String
-    var baseName: String
-    var cadence: String?
+    // The cache keeps the three columns it has always stored, so no migration runs. Only the
+    // initializer writes them, from one `ExerciseName`, and `exerciseName` reads the name back.
+    private var name: String
+    private var baseName: String
+    private var cadence: String?
     var coachNote: String?
     var legacyLog: String?
     var order: Int
     var session: Session?
     @Relationship(deleteRule: .cascade, inverse: \ExerciseSet.exercise) var sets: [ExerciseSet] = []
 
-    init(name: String, baseName: String, cadence: String?, coachNote: String?, legacyLog: String? = nil, order: Int = 0) {
-        self.name = name
-        self.baseName = baseName
-        self.cadence = cadence
+    init(name: ExerciseName, coachNote: String?, legacyLog: String? = nil, order: Int = 0) {
+        self.name = name.entered
+        self.baseName = name.base
+        self.cadence = name.cadence
         self.coachNote = coachNote
         self.legacyLog = legacyLog
         self.order = order
+    }
+
+    var exerciseName: ExerciseName {
+        ExerciseName(entered: name)
     }
 }
 

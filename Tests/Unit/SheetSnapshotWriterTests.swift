@@ -34,7 +34,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
         in: planner.snapshot(for: snapshot)
     )
 
-    #expect(update.range == "'Block 27'!K17")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K17"))
 }
 
 @Test func aggregatesProtectedHeaderSetLogsInFirstVisibleWritableRow() throws {
@@ -72,10 +72,8 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
         in: updatedSnapshot
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!K17")
-    #expect(setOneUpdate.value == "185x5@8")
-    #expect(setTwoUpdate.range == "'Block 27'!K17")
-    #expect(setTwoUpdate.value == "185x5@8, 195x5@9")
+    #expect(setOneUpdate == SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8"))
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8, 195x5@9"))
 }
 
 @Test func protectedHeaderAggregateConflictsOnUnexpectedSelectedTargetContent() throws {
@@ -103,7 +101,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     }
 }
 
-private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: String) throws -> SheetCellUpdate {
+private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: String) throws -> SheetCellWrite {
     let grid = snapshotWriterGrid(["C15": "Squat", "D15": "3", "K15": "Coach note", "K16": notesRow])
     let planner = SheetWritePlanner()
     return try planner.plan(
@@ -123,8 +121,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
 @Test func correctsUnstructuredSetLogOnCoachNoteRedirectedRow() throws {
     let update = try coachNoteSquatCorrection(notesRow: "felt heavy", expectedCurrentValue: "felt heavy")
 
-    #expect(update.range == "'Block 27'!K16")
-    #expect(update.value == "185x5@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "K16", value: "185x5@8"))
 }
 
 @Test func correctsUnstructuredSetLogInCompactListOnCoachNoteRedirectedRow() throws {
@@ -133,8 +130,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         expectedCurrentValue: "felt heavy"
     )
 
-    #expect(update.range == "'Block 27'!K16")
-    #expect(update.value == "185x5@8, 185x7, did 3 sets")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "K16", value: "185x5@8, 185x7, did 3 sets"))
 }
 
 @Test func correctionConflictsWhenSetSlotChangedOnCoachNoteRedirectedRow() throws {
@@ -169,7 +165,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         in: planner.snapshot(for: snapshot)
     )
 
-    #expect(update.range == "'Block 27'!K17")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K17"))
 }
 
 @Test func rowsWithoutVisibilityMetadataRemainWritable() throws {
@@ -189,7 +185,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         in: planner.snapshot(for: SheetSnapshot(values: grid))
     )
 
-    #expect(update.range == "'Block 27'!K16")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K16"))
 }
 
 @Test func lastExerciseMayUseVisibleWritableRowBeforeNextWeek() throws {
@@ -228,9 +224,8 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         in: updatedSnapshot
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!K21")
-    #expect(setTwoUpdate.range == "'Block 27'!K21")
-    #expect(setTwoUpdate.value == "BWx12@7, BWx12@8")
+    #expect(setOneUpdate.target == SheetWriteTarget(tabName: "Block 27", a1: "K21"))
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K21", value: "BWx12@7, BWx12@8"))
 }
 
 @Test func lastExerciseDoesNotUseNextWeekRowAsVisibleWritableTarget() throws {
@@ -257,7 +252,7 @@ private func coachNoteSquatCorrection(notesRow: String, expectedCurrentValue: St
         )
         Issue.record("Expected next Week boundary to block Set Log target selection")
     } catch let error as SheetWriterError {
-        #expect(error == .headerNotesBlockSetRow(exerciseName: "Lateral Neck Flexion", setIndex: 0))
+        #expect(error == .headerNotesBlockSetRow(exercise: .first("Lateral Neck Flexion"), setIndex: 0))
     } catch {
         Issue.record("Expected SheetWriterError, got \(error)")
     }

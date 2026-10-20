@@ -39,7 +39,9 @@ final class PendingWrite {
     private var week: Int
     private var day: Int
     private var dayNumberingRaw: String?
-    var exerciseName: String
+    private var exerciseName: String
+    // Nil on a write queued before #813, which named only the first Exercise of its name.
+    private var exerciseOrdinalRaw: Int?
     var setIndex: Int
     var columnRaw: String
     var operationRaw: String
@@ -48,6 +50,10 @@ final class PendingWrite {
     var statusRaw: String
     var retryCount: Int
     var lastError: String?
+
+    var exercise: ExerciseReference {
+        ExerciseReference(name: ExerciseName(entered: exerciseName), ordinal: exerciseOrdinalRaw ?? 0)
+    }
 
     var column: PendingWriteColumn {
         get { PendingWriteColumn(rawValue: columnRaw) ?? .notes }
@@ -93,7 +99,7 @@ final class PendingWrite {
         createdAt: Date = Date(),
         session: SessionCoordinate,
         dayNumbering: DayNumbering,
-        exerciseName: String,
+        exercise: ExerciseReference,
         setIndex: Int,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
@@ -106,7 +112,8 @@ final class PendingWrite {
         self.week = session.address.week
         self.day = session.address.day
         self.dayNumberingRaw = dayNumbering.rawValue
-        self.exerciseName = exerciseName
+        self.exerciseName = exercise.name.entered
+        self.exerciseOrdinalRaw = exercise.ordinal
         self.setIndex = setIndex
         self.columnRaw = column.rawValue
         self.operationRaw = operation.rawValue

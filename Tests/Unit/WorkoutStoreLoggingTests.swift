@@ -27,7 +27,7 @@ private struct SeededLoggingStore {
     let lookupStore: LastPerformedLookupStore
 }
 
-private func parsedLoggingBlock() -> ParsedBlockModel {
+private func parsedLoggingBlock(exerciseName: ExerciseName) -> ParsedBlockModel {
     ParsedBlockModel(
         tabName: "Block 27",
         weeks: [
@@ -39,9 +39,7 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
                         date: Date(timeIntervalSinceReferenceDate: 100),
                         exercises: [
                             ParsedExercise(
-                                name: "Squat",
-                                baseName: "Squat",
-                                cadence: nil,
+                                name: exerciseName,
                                 coachNote: nil,
                                 sets: [
                                     ParsedSet(
@@ -71,15 +69,13 @@ private func parsedLoggingBlock() -> ParsedBlockModel {
 }
 
 @MainActor
-private func seededStore() throws -> SeededLoggingStore {
-    try seededStore(now: Date.init)
-}
-
-@MainActor
-private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededLoggingStore {
+private func seededStore(
+    exerciseName: ExerciseName = "Squat",
+    now: @escaping @MainActor () -> Date = Date.init
+) throws -> SeededLoggingStore {
     let container = try loggingContainer()
     let ctx = container.mainContext
-    let block = BlockBuilder.makeBlock(from: parsedLoggingBlock())
+    let block = BlockBuilder.makeBlock(from: parsedLoggingBlock(exerciseName: exerciseName))
     ctx.insert(block)
     try ctx.save()
     let lookupStore = LastPerformedLookupStore(context: ctx)
@@ -301,6 +297,22 @@ private func seededStore(now: @escaping @MainActor () -> Date) throws -> SeededL
     #expect(entry.resultText == "185x5@8")
     #expect(entry.performedOn == Date(timeIntervalSinceReferenceDate: 100))
     #expect(entry.sourceText == "Block 27 · W1 D1")
+}
+
+/// The Entered Name is the identity a queued write and an `exercise_history` entry carry, so a
+/// Cadence-prefixed Exercise keeps its Cadence in both; only the entry's Base Name column drops it.
+@MainActor
+@Test func aCadencePrefixedExerciseIsStoredUnderItsEnteredName() throws {
+    let fixture = try seededStore(exerciseName: "2-3:1:0 BB RDL")
+    withExtendedLifetime(fixture.container) {}
+
+    try fixture.store.log(fixture.firstSet, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+
+    let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
+    #expect(writes.map(\.exercise) == [.first("2-3:1:0 BB RDL")])
+    let entries = try fixture.context.fetch(FetchDescriptor<LastPerformedEntry>())
+    #expect(entries.map(\.fullName) == ["2-3:1:0 BB RDL"])
+    #expect(entries.map(\.baseName) == ["BB RDL"])
 }
 
 @MainActor

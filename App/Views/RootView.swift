@@ -3,6 +3,8 @@ import SwiftUI
 struct RootView: View {
     var transcriber: (any SetTranscriber)?
     @Environment(SettingsStore.self) private var settings
+    @Environment(WorkoutStore.self) private var workout
+    @Environment(SyncCoordinator.self) private var sync
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
@@ -68,7 +70,20 @@ struct RootView: View {
 
     private var sessionDestination: some View {
         NavigationStack {
-            SessionView(liveActivityAdapter: liveActivityAdapter, transcriber: transcriber)
+            SessionView(
+                wiring: .live(
+                    workout: workout,
+                    sync: sync,
+                    settings: settings,
+                    entry: entry,
+                    platform: SessionPlatform(
+                        liveActivity: liveActivityAdapter,
+                        motion: SwiftUISessionMotion(),
+                        restNotifications: RestNotificationCenterScheduler.shared
+                    )
+                ),
+                transcriber: transcriber
+            )
         }
         .transition(handoff)
     }

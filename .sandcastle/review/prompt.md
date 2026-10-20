@@ -50,7 +50,7 @@ The skill is read-only and produces a report; it does not edit code. That report
 
 ## 2. Look at the pixels (artifact eyes)
 
-If the diff touches anything the user can see (`App/Views/`, `Theme.swift`, `Tests/Visual/`), verify the branch with your eyes — a gate only catches drift from committed baselines; a sighted reviewer catches baselines that are wrong or missing (that is how PR #467 shipped):
+If the diff touches anything the user can see (`App/Views/`, `Sources/WorkoutTracker/Theme*.swift`, `Tests/Visual/`), verify the branch with your eyes — a gate only catches drift from committed baselines; a sighted reviewer catches baselines that are wrong or missing (that is how PR #467 shipped):
 
 - `Read` every Visual Baseline PNG added or changed under `Tests/Visual/__Snapshots__/` in this diff and compare it against the ground truth: `docs/design/greenhouse-picks/` (its `README.md` maps screen → pick → DESIGN.md section; DESIGN.md wins over pixels).
 - If the diff touches a redesigned surface but records **no** baseline for it — or deletes baselines without replacements — treat that as a spec finding: call it out in the summary and inline comments.

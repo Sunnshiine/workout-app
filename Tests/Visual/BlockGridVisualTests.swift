@@ -134,7 +134,7 @@ private enum GridFixture {
             session.exercises = []  // an un-uploaded day carries no Exercises
             return session
         }
-        let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+        let exercise = Exercise(name: "Squat", coachNote: nil, order: 0)
         exercise.sets = (0..<4).map { index in
             let state: SetState
             switch day {

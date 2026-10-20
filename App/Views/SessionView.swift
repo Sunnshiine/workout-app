@@ -1,8 +1,6 @@
 import SwiftUI
-import UIKit
 
 struct SessionView: View {
-    let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(SettingsStore.self) private var settings
@@ -10,21 +8,12 @@ struct SessionView: View {
     @Environment(\.themePalette) private var palette
     @Environment(AppEntryInbox.self) private var entry
     @State private var coordinator: SessionCoordinator
-    #if canImport(UserNotifications)
-        @State private var restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
-    #else
-        @State private var restTimer = RestTimer()
-    #endif
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
     /// No transcriber leaves the mic off every card.
-    init(
-        liveActivityAdapter: LiveActivityProductionAdapter = LiveActivityProductionAdapter(),
-        transcriber: (any SetTranscriber)? = nil
-    ) {
-        self.liveActivityAdapter = liveActivityAdapter
-        _coordinator = State(initialValue: SessionCoordinator(session: nil, dictation: transcriber.map { SetDictation(transcriber: $0) }))
+    init(wiring: SessionWiring, transcriber: (any SetTranscriber)? = nil) {
+        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring, dictation: transcriber.map { SetDictation(transcriber: $0) }))
     }
 
     var body: some View {
@@ -44,11 +33,11 @@ struct SessionView: View {
                         .onAppear {
                             let isFirstBind = coordinator.session == nil
                             withTransaction(\.disablesAnimations, isFirstBind) {
-                                bindCoordinator(to: session)
+                                coordinator.view(session)
                             }
                         }
                         .onChange(of: session.persistentModelID) { _, _ in
-                            bindCoordinator(to: session)
+                            coordinator.view(session)
                         }
                 }
             } else {
@@ -83,45 +72,14 @@ struct SessionView: View {
         }
         .task {
             workout.reload()
-            reconcileLiveActivity()
             if workout.block == nil, let id = settings.spreadsheetId {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
-                reconcileLiveActivity()
             }
-        }
-        .onChange(of: workout.block?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
-        }
-        .onChange(of: workout.currentSession?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
-        }
-        .onChange(of: workout.viewedSession?.persistentModelID) { _, _ in
-            reconcileLiveActivity()
         }
         .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
         }
-    }
-
-    private func bindCoordinator(to session: Session) {
-        coordinator.bind(
-            to: session,
-            logging: workout,
-            sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
-            restTimer: restTimer,
-            standardRestDuration: { settings.standardRestDuration.timeInterval },
-            supersetRestDuration: { settings.supersetRestDuration.timeInterval },
-            liveActivity: liveActivityAdapter,
-            navigation: workout,
-            motion: SwiftUISessionMotion(),
-            entry: entry
-        )
-        reconcileLiveActivity()
-    }
-
-    private func reconcileLiveActivity() {
-        liveActivityAdapter.endIfInvalidated(at: workout.liveEdge)
     }
 }
 
@@ -131,7 +89,7 @@ extension SessionView {
             session: session,
             coordinator: coordinator,
             composition: stageComposition,
-            restTimer: restTimer
+            restTimer: coordinator.restTimer
         )
         .safeAreaInset(edge: .top, spacing: 0) {
             if stageComposition == .reading {
@@ -178,17 +136,6 @@ extension SessionView {
                 workout.clearBlockOverviewRequest()
             }
         }
-    }
-}
-
-private struct SwiftUISessionMotion: SessionMotionPerforming {
-    var reducesMotion: Bool { UIAccessibility.isReduceMotionEnabled }
-
-    func animate(_ motion: SessionMotion, _ change: () throws -> Void) rethrows {
-        guard let animation = motion.animation else {
-            return try withTransaction(\.disablesAnimations, true, change)
-        }
-        try withAnimation(animation, change)
     }
 }
 

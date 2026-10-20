@@ -88,16 +88,16 @@ private final class RequestRecorder: @unchecked Sendable {
     }
 }
 
-@Test func updateCellsSendsMultipleRangesInOneBatchRequest() async throws {
+@Test func writeSendsEveryCellAsOneRangeInOneBatchRequest() async throws {
     let recorder = RequestRecorder()
     let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
 
-    try await client.updateCells(
-        spreadsheetId: "spreadsheet-id",
-        updates: [
-            SheetValueRangeUpdate(range: "'Block 27'!K16", values: [["185x5@8"]]),
-            SheetValueRangeUpdate(range: "'Block 27'!I15", values: [["8"]])
-        ]
+    try await client.write(
+        [
+            SheetCellWrite(tabName: "Block 27", row: 15, col: 10, value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", row: 14, col: 8, value: "8")
+        ],
+        spreadsheetId: "spreadsheet-id"
     )
 
     let request = try #require(recorder.requests.first)
@@ -115,6 +115,42 @@ private final class RequestRecorder: @unchecked Sendable {
     #expect(body.data.map(\.range) == ["'Block 27'!K16", "'Block 27'!I15"])
     #expect(body.data.map(\.majorDimension) == ["ROWS", "ROWS"])
     #expect(body.data.map(\.values) == [[["185x5@8"]], [["8"]]])
+}
+
+@Test func writeQuotesATabNameAndDoublesItsApostrophes() async throws {
+    let recorder = RequestRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
+
+    try await client.write(
+        [SheetCellWrite(tabName: "Coach's Block", row: 14, col: 10, value: "185x5@8")],
+        spreadsheetId: "spreadsheet-id"
+    )
+
+    let bodyData = try #require(recorder.requests.first?.httpBody)
+    let body = try JSONDecoder().decode(RecordedBatchUpdateBody.self, from: bodyData)
+    #expect(body.data.map(\.range) == ["'Coach''s Block'!K15"])
+}
+
+@Test func writeOfNoCellsSendsNoRequest() async throws {
+    let recorder = RequestRecorder()
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
+
+    try await client.write([], spreadsheetId: "spreadsheet-id")
+
+    #expect(recorder.requests.isEmpty)
+}
+
+@Test func writeThrowsTheStatusOfARejectedBatch() async throws {
+    let recorder = RequestRecorder()
+    recorder.statusCode = 400
+    let client = GoogleSheetsClient(tokenProvider: { "token" }, load: recorder.load)
+
+    await #expect(throws: SheetsError.http(400)) {
+        try await client.write(
+            [SheetCellWrite(tabName: "Block 27", row: 14, col: 10, value: "185x5@8")],
+            spreadsheetId: "spreadsheet-id"
+        )
+    }
 }
 
 @Test func fetchTabSnapshotRequestsFormattedGridDataAndParsesRowVisibility() async throws {
