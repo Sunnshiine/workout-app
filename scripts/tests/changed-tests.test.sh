@@ -24,6 +24,12 @@ import Testing
     let one = 1
     #expect(one == 1)
 }
+@Test func aTestWithABraceInAString() { let brace = "}"
+    #expect(brace == "}")
+}
+@Test func aTestWithABraceInAComment() { // }
+    #expect(Bool(true))
+}
 private func aHelperAfterTheTests() -> Int { 1 }
 SWIFT
 cat >"$repo/Tests/Unit/NestedTests.swift" <<'SWIFT'
@@ -78,6 +84,13 @@ check "deleting a whole test selects nothing" "" ""
 git -C "$repo" checkout -q -- Tests/Unit
 sed -i '' '/let one = 1/d' "$repo/Tests/Unit/TopLevelTests.swift"
 check "deleting a line inside a test selects that test" "Tests/Unit/TopLevelTests.swift:7	aMultiLineTest" ""
+
+git -C "$repo" checkout -q -- Tests/Unit
+sed -i '' -e 's/#expect(brace == "}")/#expect(brace.count == 1)/' -e 's/#expect(Bool(true))/#expect(!false)/' \
+    "$repo/Tests/Unit/TopLevelTests.swift"
+check "a brace in a string or comment on the func line does not end the test" \
+"Tests/Unit/TopLevelTests.swift:11	aTestWithABraceInAString
+Tests/Unit/TopLevelTests.swift:14	aTestWithABraceInAComment" ""
 
 git -C "$repo" checkout -q -- Tests/Unit
 sed -i '' 's/-> Int { 1 }/-> Int { 2 }/' "$repo/Tests/Unit/TopLevelTests.swift"

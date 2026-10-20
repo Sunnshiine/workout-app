@@ -8,8 +8,9 @@ scripts/changed-tests.sh [--base REV]
 Prints every test whose lines this checkout changed since it left REV, committed or not,
 untracked files included, in the .swift files under Tests/Unit, Tests/Component, and
 Tests/Support. A test's lines run from its @Test to the brace that closes its func. Deleting a
-whole test selects nothing. A new file selects every test it declares. REV defaults to origin/main. CI passes the pull request's base, HEAD^1, and
-scripts/flake-guard.sh repeats what this prints.
+whole test selects nothing. A new file selects every test it declares. REV defaults to
+origin/main. CI passes the pull request's base, HEAD^1, and scripts/flake-guard.sh repeats what
+this prints.
 
 One row per test, sorted: the file and line of its func, a tab, and the function's base name.
 Nothing printed means no test changed. A changed file that declares no test, such as a
@@ -57,10 +58,10 @@ trap 'rm -f "$lines"' EXIT
 
 cut -f1 "$lines" | LC_ALL=C sort -u | while IFS= read -r file; do
     # A test spans its @Test line to the brace that closes its func at the @Test line's indent, or
-    # to the func line when the body opens and closes there. A deletion counts only when the lines
-    # on both sides of it belong to the same test, so deleting a whole test selects nothing.
-    # An @Test( whose arguments span lines names its test on the next func line. BSD awk has no \b,
-    # so the boundary after @Test is spelled out.
+    # to the func line when the body opens and closes there, counting no brace in a string or
+    # comment. A deletion counts only when the lines on both sides of it belong to the same test, so
+    # deleting a whole test selects nothing. An @Test( whose arguments span lines names its test on
+    # the next func line. BSD awk has no \b, so the boundary after @Test is spelled out.
     awk -F'\t' -v file="$file" '
         FILENAME == ARGV[1] {
             if ($1 != file) next
@@ -81,8 +82,11 @@ cut -f1 "$lines" | LC_ALL=C sort -u | while IFS= read -r file; do
             name[tests] = substr($0, RSTART + 5, RLENGTH - 5)
             line[tests] = FNR
             armed = 0
-            opens = gsub(/\{/, "{")
-            if (opens && opens == gsub(/\}/, "}")) inside = 0
+            code = $0
+            gsub(/"([^"\\]|\\.)*"/, "", code)
+            sub(/\/\/.*/, "", code)
+            opens = gsub(/\{/, "{", code)
+            if (opens && opens == gsub(/\}/, "}", code)) inside = 0
             next
         }
         inside && !armed && index($0, indent "}") == 1 { inside = 0 }
