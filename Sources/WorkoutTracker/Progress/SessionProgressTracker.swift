@@ -20,116 +20,70 @@ enum SessionTileState: Equatable, Sendable, CaseIterable {
     }
 }
 
-/// The single outcome of a Move On, encoding the full `CONTEXT.md` Move On table
-/// as one value so callers ask for the decision instead of re-deriving it from the
-/// `hasSessionAhead` (Available *and* Unavailable) / `nextSession` (Available only)
-/// asymmetry.
+/// The single outcome of a Move On, encoding the `CONTEXT.md` Move On rule as one
+/// value so callers ask for the decision instead of re-deriving it.
 enum MoveOnDestination: Equatable {
     /// Advance to the next Available Session, skipping any Unavailable Sessions in between.
     case advance(to: Session)
-    /// No Available Session remains ahead, but the Block still holds Unavailable
-    /// Sessions ahead — Move On returns the athlete to the Block grid.
+    /// No Available Session lies ahead, either because only Unavailable Sessions
+    /// remain or because the Block is finished, so Move On returns the athlete to
+    /// the Block grid.
     case returnToBlockOverview
-    /// Nothing lies ahead — Move On is not offered.
+    /// The Block does not hold the Session, as for one held across the sync that
+    /// replaced its Block, so Move On is not offered rather than guessing where it sat.
     case notOffered
 
-    /// Whether Move On is offered from here — true unless nothing lies ahead. Lets a
-    /// caller gating a control ask the decision directly instead of comparing against a
-    /// case (and avoids the `Optional.none` footgun a `.none` case would invite).
+    /// Whether Move On is offered from here. Lets a caller gating a control ask the
+    /// decision directly instead of comparing against a case (and avoids the
+    /// `Optional.none` footgun a `.none` case would invite).
     var isOffered: Bool { self != .notOffered }
-}
-
-/// A Session's identity as persisted for the manual Current-Session override.
-///
-/// Opaque to the persistence layer: `WorkoutStore` writes and reads it verbatim to
-/// restore the athlete's manual Current Session on a later launch, without knowing
-/// that identity is a `(week-1)*stride + day` block order — or that the encoding is
-/// versioned. `storageValue` is the only thing the store persists; it carries no
-/// meaning the store is meant to decode.
-struct PersistedSessionIdentity: Equatable {
-    /// The opaque value the persistence layer stores and restores verbatim.
-    let storageValue: Int
 }
 
 struct SessionProgressTracker {
     private static let weekOrderStride = Week.dayNumbers.count
 
-    private func order(of session: Session) -> Int {
-        session.address.map { ($0.week - 1) * Self.weekOrderStride + $0.day } ?? session.dayNumber
-    }
-
-    private func session(at order: Int, in block: Block) -> Session? {
-        allSessions(block).first { self.order(of: $0) == order }
-    }
-
-    /// Derive the persisted identity for `session`: the token the store writes so it
-    /// can restore this exact Session as the manual Current Session later, without
-    /// reasoning about the order encoding.
-    func persistedIdentity(of session: Session) -> PersistedSessionIdentity {
-        PersistedSessionIdentity(storageValue: order(of: session))
-    }
-
-    /// Resolve the Session a persisted identity points at within `block`, or nil when
-    /// it no longer matches — a re-parsed Block, or a value written under an older
-    /// encoding that this version deliberately orphans (see
-    /// `currentSessionOverrideStorageKey`).
-    func session(for identity: PersistedSessionIdentity, in block: Block) -> Session? {
-        session(at: identity.storageValue, in: block)
-    }
-
-    /// The settings key namespace under which `block`'s manual Current-Session
-    /// override is persisted. Namespaced to the order-encoding version so a value
-    /// written under an older encoding can never resolve to the wrong Session.
-    ///
-    /// V2: the Session order encoding changed stride (4 → 7) to support 2–6 day Weeks.
-    /// Under the new stride the same stored integer can map to a *different* Session,
-    /// so the `V2` namespace orphans any legacy `advancedToOrder_*` value; the override
-    /// simply resets to the derived Current Session once, which the athlete can re-set
-    /// with one tap.
-    func currentSessionOverrideStorageKey(forBlockTab tabName: String) -> String {
-        "advancedToOrderV2_\(tabName)"
-    }
-
+    /// The first Available Session after `session` in Block order, or nil when none lies ahead or
+    /// `block` does not hold `session`.
     func nextSession(after session: Session, in block: Block) -> Session? {
-        let currentOrder = order(of: session)
-        return allSessions(block).first {
-            order(of: $0) > currentOrder && isAvailable($0)
-        }
-    }
-
-    func hasSessionAhead(after session: Session, in block: Block) -> Bool {
-        let currentOrder = order(of: session)
-        return allSessions(block).contains { order(of: $0) > currentOrder }
+        sessions(after: session, in: block)?.first(where: isAvailable)
     }
 
     /// Where a Move On from `session` lands, per the `CONTEXT.md` Move On rule:
-    /// advance to the next Available Session (skipping Unavailable ones), or — when
-    /// no Available Session remains ahead but the Block still holds Unavailable
-    /// Sessions ahead — return to the Block grid; otherwise nothing lies ahead.
+    /// advance to the next Available Session (skipping Unavailable ones), or return
+    /// to the Block grid when no Available Session remains ahead.
     func moveOnDestination(from session: Session, in block: Block) -> MoveOnDestination {
-        guard hasSessionAhead(after: session, in: block) else { return .notOffered }
-        if let nextSession = nextSession(after: session, in: block) {
+        guard let ahead = sessions(after: session, in: block) else { return .notOffered }
+        if let nextSession = ahead.first(where: isAvailable) {
             return .advance(to: nextSession)
         }
         return .returnToBlockOverview
     }
 
-    private func allSessions(_ block: Block) -> [Session] {
-        block.weeks.flatMap { $0.sessions }.sorted { order(of: $0) < order(of: $1) }
+    /// Nil when `block` does not hold `session`, as for a Session held across the sync that
+    /// replaced its Block: navigation refuses such a Session rather than guessing where it sat.
+    private func sessions(after session: Session, in block: Block) -> ArraySlice<Session>? {
+        let sessions = allSessions(block)
+        guard let index = sessions.firstIndex(where: { $0.persistentModelID == session.persistentModelID }) else { return nil }
+        return sessions[(index + 1)...]
     }
 
-    func currentSession(in block: Block, override identity: PersistedSessionIdentity? = nil) -> Session? {
+    private func allSessions(_ block: Block) -> [Session] {
+        block.weeks
+            .flatMap { week in
+                week.sessions.map { (order: (week.number - 1) * Self.weekOrderStride + $0.dayNumber, session: $0) }
+            }
+            .sorted { $0.order < $1.order }
+            .map(\.session)
+    }
+
+    /// The Sheet-derived Current Session: the last logged Session, else the first Available one.
+    /// `CurrentSessionPin.resolve(in:)` decides whether a Current Session Pin wins over it.
+    func currentSession(in block: Block) -> Session? {
         let sessions = allSessions(block)
         let logged = sessions.filter { s in
             s.exercises.contains { $0.sets.contains { $0.state == .logged } }
         }
-        guard let derived = logged.last ?? sessions.first(where: isAvailable) else { return nil }
-
-        if let identity, let overrideSession = session(for: identity, in: block), isAvailable(overrideSession) {
-            return overrideSession
-        }
-
-        return derived
+        return logged.last ?? sessions.first(where: isAvailable)
     }
 
     func currentWeek(in block: Block) -> Week? {

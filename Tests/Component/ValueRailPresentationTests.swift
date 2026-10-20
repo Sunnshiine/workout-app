@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 @Test func repsRailListsOneToOneHundred() {
-    let rail = RepsScalePresentation(prescribedReps: "5", selection: "5")
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("5"), selection: "5")
 
     #expect(rail.chips.count == 100)
     #expect(rail.chips.first?.label == "1")
@@ -14,7 +14,7 @@ import Testing
 
 @MainActor
 @Test func repsRailMarksSelectedAndPrescribedIndependently() {
-    let rail = RepsScalePresentation(prescribedReps: "5", selection: "8")
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("5"), selection: "8")
 
     #expect(rail.chips.filter(\.isSelected).map(\.label) == ["8"])
     #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["5"])
@@ -22,18 +22,50 @@ import Testing
 
 @MainActor
 @Test func repsRailCentersOnSelectionThenPrescribedThenDefault() {
-    #expect(RepsScalePresentation(prescribedReps: "5", selection: "5").selectedIndex == 4)
-    #expect(RepsScalePresentation(prescribedReps: "12", selection: "").selectedIndex == 11)
-    #expect(RepsScalePresentation(prescribedReps: "AMRAP", selection: "").selectedIndex == 4)
+    #expect(RepsScalePresentation(prescribedReps: PrescribedReps("5"), selection: "5").selectedIndex == 4)
+    #expect(RepsScalePresentation(prescribedReps: PrescribedReps("12"), selection: "").selectedIndex == 11)
+    #expect(RepsScalePresentation(prescribedReps: PrescribedReps("AMRAP"), selection: "").selectedIndex == 4)
 }
 
 @MainActor
 @Test func repsRailLeavesNothingSelectedWhenSelectionIsEmpty() {
-    let rail = RepsScalePresentation(prescribedReps: "5", selection: "")
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("5"), selection: "")
 
     #expect(rail.chips.filter(\.isSelected).isEmpty)
     #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["5"])
     // Still centers on the prescription so the athlete taps near their target.
+    #expect(rail.selectedIndex == 4)
+}
+
+@MainActor
+@Test func repsRailTicksEveryValueOfARangeAndCentersOnItsLowEnd() {
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("11-12"), selection: "")
+
+    #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["11", "12"])
+    #expect(rail.selectedIndex == 10)
+}
+
+@MainActor
+@Test func repsRailReadsARangeWrittenWithAnEnDashAndSpaces() {
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("7 – 8"), selection: "")
+
+    #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["7", "8"])
+}
+
+@MainActor
+@Test func repsRailTicksOnlyItsOwnValuesForARangeReachingPastThem() {
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps("1-9223372036854775807"), selection: "")
+
+    #expect(rail.chips.filter(\.isPrescribed).count == 100)
+    #expect(rail.selectedIndex == 0)
+}
+
+@MainActor
+@Test(arguments: ["AMRAP", "12-8", "5+"])
+func repsRailTicksNothingForRepsTextItDoesNotInterpret(prescribedReps: String) {
+    let rail = RepsScalePresentation(prescribedReps: PrescribedReps(prescribedReps), selection: "")
+
+    #expect(rail.chips.filter(\.isPrescribed).isEmpty)
     #expect(rail.selectedIndex == 4)
 }
 

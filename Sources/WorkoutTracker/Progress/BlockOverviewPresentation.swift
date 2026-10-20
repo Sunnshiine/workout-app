@@ -126,7 +126,7 @@ struct BlockOverviewPresentation: Equatable, Sendable {
         currentSession: Session?,
         tracker: SessionProgressTracker
     ) -> BlockOverviewTilePresentation {
-        let address = (session.week ?? week).address(of: session)
+        let address = week.address(of: session)
         let state = tracker.tileState(for: session, currentSession: currentSession)
         return BlockOverviewTilePresentation(
             address: address,

@@ -15,7 +15,7 @@ private struct PendingWriteRow: Equatable {
     @MainActor
     init(_ write: PendingWrite) {
         session = write.recordedSession
-        exerciseName = write.exerciseName
+        exerciseName = write.exercise.name.entered
         setIndex = write.setIndex
         column = write.column
         operation = write.operation
@@ -53,7 +53,7 @@ private func pendingRows(in app: WorkoutApplication) throws -> [PendingWriteRow]
             .exercises.first { $0.order == 0 }?
             .sets.first { $0.index == 2 }
     )
-    let coordinator = SessionCoordinator(session: stageSet.exercise?.session, logging: stageApp.workout)
+    let coordinator = SessionCoordinator(session: stageSet.exercise?.session, wiring: .fixture(logging: stageApp.workout))
     coordinator.log(stageSet, as: setLog)
 
     let report = try facadeApp.log(try #require(SetAddress("w1d1.e0.s2")), setLog: "200x5@9")

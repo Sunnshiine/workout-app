@@ -34,7 +34,7 @@ final class HeldSheetsClient: SheetsClient {
         return SheetSnapshot(values: grid)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 
     func waitUntilHeld() async {
         await held.waitUntilHeld(orRecord: "the sync never reached the Sheet read this client holds")

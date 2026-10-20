@@ -196,7 +196,7 @@ private enum CardHost {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
         let lastPerformed = LastPerformedLookupStore(context: scenario.context)
-        let exercise = Exercise(name: "Competition Bench Press", baseName: "Competition Bench Press", cadence: nil, coachNote: nil)
+        let exercise = Exercise(name: "Competition Bench Press", coachNote: nil)
         exercise.sets = (0..<5).map { index in
             ExerciseSet(index: index, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
         }

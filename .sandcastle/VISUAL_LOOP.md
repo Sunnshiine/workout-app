@@ -1,7 +1,8 @@
 # The sighted inner loop (visual verification for UI-touching changes)
 
 Contract for agents in the sandcastle pipeline (map #468, verdict #469): if your
-change alters anything the user can see — `App/Views/`, `Theme.swift`,
+change alters anything the user can see — `App/Views/`, the `Theme*.swift` files
+(`Theme.swift`, `ThemePaint.swift`, `ThemePalette.swift`),
 or any rendered surface — you must **look at what you built before committing**.
 Two mandatory mechanisms, under one authority:
 
@@ -97,7 +98,7 @@ PRD #497 slice 3. The loop below keeps the build out of the iteration:
    `-only-testing:WorkoutTrackerSnapshotTests` — before committing. This
    single pass is mandatory and unnarrowed: it catches stale PNGs from
    crashed record runs (#479) and cross-cutting drift your narrow filter
-   missed (a `Theme.swift` edit moves every suite). Then **commit the
+   missed (a `Theme*.swift` edit moves every suite). Then **commit the
    recorded baselines together with the code change**. Deleting a baseline
    without recording its replacement is never correct (that is exactly how
    PR #467 shipped wrong). New redesigned surfaces without a Visual test get

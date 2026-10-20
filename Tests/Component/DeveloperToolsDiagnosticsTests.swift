@@ -34,6 +34,22 @@ import Testing
 }
 
 @MainActor
+@Test func pendingWriteDiagnosticNumbersASecondExerciseOfTheSameName() {
+    let write = PendingWrite(
+        session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
+        dayNumbering: .headerNumber,
+        exercise: ExerciseReference(name: ExerciseName(entered: "Back Squat"), ordinal: 1),
+        setIndex: 0,
+        column: .notes,
+        operation: .upsert,
+        valueToWrite: "185x5@8",
+        expectedCurrentValue: ""
+    )
+
+    #expect(PendingWriteDiagnostic(write: write).exercise == "Back Squat number 2")
+}
+
+@MainActor
 @Test func auditDetailsReportsPerLineValueForMultiLineWrite() throws {
     // A multi-line (J. Alarcon) Exercise: Comp BP = a 1-set anchor Line plus a 2-set
     // continuation Line at row 16 whose Notes cell already holds Set 2's log. Logging Set 3
@@ -293,7 +309,7 @@ import Testing
     try sync.clearWriteTargetAuditLog()
 
     let writes = try context.fetch(FetchDescriptor<PendingWrite>())
-    #expect(writes.map(\.exerciseName).sorted() == ["Back Squat", "Bench Press"])
+    #expect(writes.map(\.exercise.name.entered).sorted() == ["Back Squat", "Bench Press"])
     #expect(try context.fetch(FetchDescriptor<WriteTargetAuditEntry>()).isEmpty)
 }
 
@@ -337,5 +353,5 @@ private struct DiagnosticStubClient: SheetsClient {
     func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
         SheetSnapshot(values: [])
     }
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }

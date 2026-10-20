@@ -71,9 +71,9 @@ final class SheetPickerStore {
         do {
             let titles = try await client.listTabTitles(spreadsheetId: spreadsheet.spreadsheetId)
             guard validationToken == token else { return }
-            guard titles.contains(where: { blockNumber(from: $0) != nil }) else {
+            guard currentBlockTab(from: titles) != nil else {
                 sheetPickerLogger.error("Validation failed for \(spreadsheet.spreadsheetId): tab titles \(titles)")
-                rowErrors[spreadsheet.spreadsheetId] = "No training blocks found in this sheet"
+                rowErrors[spreadsheet.spreadsheetId] = DestructiveTransitionFailure.holdsNoBlock.message
                 return
             }
 

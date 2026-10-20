@@ -25,9 +25,8 @@ import Testing
         in: grid
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!E18")
-    #expect(setTwoUpdate.range == "'Block 27'!E18")
-    #expect(setTwoUpdate.value == ", BWx11@8")
+    #expect(setOneUpdate.target == SheetWriteTarget(tabName: "Block 27", a1: "E18"))
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "E18", value: ", BWx11@8"))
 }
 
 @Test func parserAndWriterAgreeOnCompactHeaderAggregateSetLogs() throws {
@@ -46,8 +45,7 @@ import Testing
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E18")
-    #expect(update.value == "BWx12@7, BWx11@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "E18", value: "BWx12@7, BWx11@8"))
 }
 
 @Test func parserAndWriterAgreeOnCompactHeaderSkipMarker() throws {
@@ -69,7 +67,7 @@ import Testing
         in: grid
     )
 
-    #expect(setOneUpdate.range == "'Block 27'!E18")
+    #expect(setOneUpdate.target == SheetWriteTarget(tabName: "Block 27", a1: "E18"))
 }
 
 @Test func writerKeepsExerciseRowTargetWhenContinuationRowHasStaleLog() throws {
@@ -83,8 +81,7 @@ import Testing
         in: grid
     )
 
-    #expect(setTwoUpdate.range == "'Block 27'!E18")
-    #expect(setTwoUpdate.value == "BWx12@7, BWx11@8")
+    #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "E18", value: "BWx12@7, BWx11@8"))
 }
 
 @Test func expectedCurrentValueChecksExerciseRowListEntry() throws {
@@ -117,8 +114,7 @@ import Testing
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E18")
-    #expect(update.value == "BWx12@7")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "E18", value: "BWx12@7"))
 }
 
 /// The header the app writes when Set 2 of a 2-Set compact Exercise is skipped. Shared so the
@@ -136,7 +132,7 @@ private let loggedThenSkippedHeader = "BWx12@7, skip"
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E18")
+    #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "E18"))
     #expect(update.value == loggedThenSkippedHeader)
 }
 
@@ -168,8 +164,7 @@ private let loggedThenSkippedHeader = "BWx12@7, skip"
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E18")
-    #expect(update.value == "BWx12@7, BWx10@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "E18", value: "BWx12@7, BWx10@8"))
 }
 
 @Test func writerProtectsHeaderWhenAnAggregateEntryIsFreeText() throws {
@@ -186,8 +181,7 @@ private let loggedThenSkippedHeader = "BWx12@7, skip"
         in: grid
     )
 
-    #expect(update.range == "'Block 27'!E19")
-    #expect(update.value == ", BWx10@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "E19", value: ", BWx10@8"))
 }
 
 private func compactLayoutGrid(headerNotes: String, continuationNotes: String) -> SheetGrid {

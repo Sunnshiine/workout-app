@@ -1,11 +1,12 @@
 #if DEBUG
     import Foundation
-    import SwiftData
 
     /// Boots the app into a deterministic, populated `SessionView` for unattended UI verification.
     ///
     /// Activated by launching with `LaunchFlag.fixture`. An in-memory store and a faked sign-in keep
-    /// it off real data, Google auth, and the network, and past the OAuth onboarding wall.
+    /// it off real data, Google auth, and the network, and past the OAuth onboarding wall. The
+    /// fixture's spreadsheets are local workbooks in one `LocalDrive`, and `boot` fills the store the
+    /// way a phone's first sync does.
     enum UITestFixture {
         /// The launch configuration this process was started with.
         static let launch = UITestLaunch(arguments: ProcessInfo.processInfo.arguments)
@@ -14,90 +15,79 @@
 
         static let disablesAnimations = isEnabled && launch.disablesAnimations
 
-        static func makeSheetsClient(launch: UITestLaunch) -> any SheetsClient {
-            var sheets = [
-                WorkoutFixtureScenarios.replacementSheetId: LocalWorkbookSheetsClient(
-                    spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
-                    tabs: [WorkoutFixtureScenarios.blockTab: WorkoutFixtureScenarios.replacementSheetGrid]
-                )
-            ]
+        /// The one drive this process's fixture application and its sheet pickers share, so a
+        /// picker lists the spreadsheets the application syncs and both meet the same faults.
+        @MainActor static let sheets = makeSheets(launch: launch)
+
+        /// The REPLACEMENT spreadsheet, and the scenario's workbook as FIXTURE.
+        @MainActor
+        static func makeSheets(launch: UITestLaunch) -> LocalDrive {
+            LocalDrive([WorkoutFixtureScenarios.replacementWorkbook, launch.scenario.workbook()])
+        }
+
+        /// The set the pending-write launch logs at boot and leaves unflushed: Week 1 Day 1's BB RDL,
+        /// whose log a flush writes to the visible row under its Coach Note.
+        static let pendingWriteSet = SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: 1), order: 1), index: 0)
+        static let pendingWriteLog = "225x8@8"
+
+        struct BootSyncFailed: Error, CustomStringConvertible {
+            let outcome: SyncOutcome
+
+            var description: String { "The fixture's boot sync failed: \(outcome)" }
+        }
+
+        /// Brings a fresh fixture application to the state `launch` names, through the calls a
+        /// phone makes: a sync of the fixture Sheet, the Exercise History its earlier fills left, and
+        /// for a pending-write launch a log that was never flushed. Then the faults the launch asks
+        /// for are armed: an offline launch disconnects FIXTURE, so a log stays queued, and a
+        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
+        /// stalls on them.
+        @MainActor
+        static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
+            try launch.checkFlags()
+            app.settings.setAppearance(try launch.appearance)
+            app.settings.isSignedIn = !launch.signsInLate
+            try await syncFixtureSheet(into: app)
+            try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
+            app.workout.reload()
             if launch.startsWithPendingWrite {
-                sheets[WorkoutFixtureScenarios.sheetId] = LocalWorkbookSheetsClient(workbook: WorkoutFixtureScenarios.queuedWriteSheet)
+                _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
             }
-            return FixtureSheetsClient(slowsSync: launch.slowsSync, sheets: sheets)
+            if launch.startsOffline {
+                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
+            }
+            if launch.slowsSync {
+                await sheets.holdTabListings(for: .seconds(20))
+            }
+            // Onboarding leaves the spreadsheet unset so the app lands on the sheet picker, while
+            // the synced (stale) Block stays in the store to prove it is never shown for the newly
+            // selected sheet.
+            if !launch.startsInOnboarding {
+                app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: WorkbookScenario.title)
+            }
+            present(launch, on: app.workout)
+        }
+
+        /// Syncs the scenario's workbook, which the drive already holds as FIXTURE.
+        @MainActor
+        private static func syncFixtureSheet(into app: WorkoutApplication) async throws {
+            guard await app.sync.sync(spreadsheetId: WorkoutFixtureScenarios.sheetId) else {
+                throw BootSyncFailed(outcome: app.sync.outcome)
+            }
         }
 
         @MainActor
-        static func seed(into context: ModelContext, launch: UITestLaunch) throws {
-            context.insert(block(for: launch.scenario))
-            for entry in WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory() {
-                context.insert(entry)
+        private static func present(_ launch: UITestLaunch, on workout: WorkoutStore) {
+            if launch.startsWithCurrentSessionOverride {
+                workout.show(SessionAddress(week: 1, day: 3))
+                workout.makeViewedSessionCurrent()
             }
-            if launch.startsWithPendingWrite {
-                context.insert(WorkoutFixtureScenarios.queuedWrite())
+            if launch.startsWithMoveOnCelebration || launch.startsWithPerfectMoveOnCelebration {
+                workout.requestMoveOnCelebration()
             }
-            try context.save()
-        }
-
-        /// One Block factory per scenario. A table has no compiler exhaustiveness check, so
-        /// `everyScenarioSeedsItsOwnFixtureBlock` in `Tests/Unit/UITestFixtureBlockTests.swift`
-        /// is what keeps a new scenario from reaching `seed` without a row.
-        @MainActor
-        private static let blocks: [UITestLaunch.Scenario: @MainActor () -> Block] = [
-            .perfectMoveOnCelebration: WorkoutFixtureScenarios.perfectMoveOnCelebrationBlock,
-            .completedOpenExercises: WorkoutFixtureScenarios.completedSessionWithOpenExercisesBlock,
-            .openExercises: WorkoutFixtureScenarios.openExercisesBlock,
-            .longSession: WorkoutFixtureScenarios.longSessionBlock,
-            .fullBlock: WorkoutFixtureScenarios.uiLaunchBlock,
-            .partialUpload: WorkoutFixtureScenarios.partiallyUploadedBlock
-        ]
-
-        @MainActor
-        static func block(for scenario: UITestLaunch.Scenario) -> Block {
-            guard let block = blocks[scenario] else {
-                preconditionFailure("No fixture Block for \(scenario)")
+            if launch.startsInBlockOverview {
+                workout.requestBlockOverviewPresentation()
             }
-            return block()
-        }
-    }
-
-    private struct FixtureSheetsClient: SheetsClient {
-        let slowsSync: Bool
-        let sheets: [String: LocalWorkbookSheetsClient]
-
-        func listTabTitles(spreadsheetId: String) async throws -> [String] {
-            if slowsSync {
-                try await Task.sleep(for: .seconds(20))
-            }
-            return ["Block 27"]
-        }
-
-        func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
-            SpreadsheetListPage(
-                spreadsheets: [
-                    SpreadsheetFile(
-                        name: "Replacement Training Log",
-                        spreadsheetId: WorkoutFixtureScenarios.replacementSheetId,
-                        modifiedDate: Date(timeIntervalSinceReferenceDate: 0)
-                    )
-                ],
-                nextPageToken: nil
-            )
-        }
-
-        func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-            guard let sheet = sheets[spreadsheetId] else {
-                throw SheetsError.malformedResponse
-            }
-            return try await sheet.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: tabName)
-        }
-
-        func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-            try await updateCells(spreadsheetId: spreadsheetId, updates: [SheetValueRangeUpdate(range: range, values: values)])
-        }
-
-        func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-            try await sheets[spreadsheetId]?.updateCells(spreadsheetId: spreadsheetId, updates: updates)
         }
     }
 #endif
