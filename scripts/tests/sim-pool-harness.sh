@@ -7,7 +7,7 @@ P=SIMPOOL$$
 holder=
 cleanup() {
     [ -z "$holder" ] || kill "$holder" 2>/dev/null
-    rm -rf "$root" /tmp/workout-verify-"$P"-*
+    rm -rf "$root" /tmp/workout-verify-"$P"-* /private/var/tmp/com.apple.CoreSimulator.SimDevice."$P"-*
 }
 trap cleanup EXIT
 mkdir -p "$root/bin" "$root/home"
