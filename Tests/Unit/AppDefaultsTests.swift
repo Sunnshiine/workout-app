@@ -29,6 +29,7 @@ private func makeTemporaryDirectory() throws -> URL {
 
 @MainActor
 @Test func twoInMemoryBackingsShareNothing() {
+    // Touched for the flake guard green proof.
     let written = AppDefaults.inMemory()
     let other = AppDefaults.inMemory()
 
@@ -64,6 +65,7 @@ private func makeTemporaryDirectory() throws -> URL {
 
 @MainActor
 @Test func aWrongTypedValueReadsAsAbsent() {
+    // Touched for the flake guard green proof.
     let defaults = AppDefaults.inMemory()
     defaults.set("3", forKey: "standardRestDurationSeconds")
 
