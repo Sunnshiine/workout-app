@@ -282,6 +282,24 @@ public struct SayReport: Encodable, Equatable, Sendable {
     public let exerciseIsComplete: Bool
 }
 
+/// `say`'s report for the most likely of `candidates`, with every transcript the recording was
+/// heard as beside it.
+public struct HearReport: Encodable, Equatable, Sendable {
+    /// The most likely first; empty when nothing was said.
+    public let candidates: [String]
+    public let report: SayReport
+
+    private enum CodingKeys: String, CodingKey {
+        case candidates
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        try report.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(candidates, forKey: .candidates)
+    }
+}
+
 extension SayReport {
     init(_ outcome: SetDictation.Outcome, report: LogReport) {
         (set, pendingWriteCount, exerciseIsComplete) = (report.set, report.pendingWriteCount, report.exerciseIsComplete)

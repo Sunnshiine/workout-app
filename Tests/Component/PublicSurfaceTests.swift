@@ -177,6 +177,22 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
             nil, .domain
         ),
         (
+            .speechUnavailable, "speech_unavailable",
+            "This machine has no on-device speech-to-text for en-US: SpeechAnalyzer needs macOS 26 or iOS 26 "
+                + "on hardware that runs it, and its speech assets must install. `workout say` reads a transcript instead.",
+            nil, .unavailable
+        ),
+        (
+            .unreadableRecording("/tmp/set.txt"), "unreadable_recording",
+            "/tmp/set.txt is not an audio file this machine can read. Record one with `say -o set.aiff \"185 for 5 at 8\"`.",
+            nil, .domain
+        ),
+        (
+            .listeningFailed("/tmp/set.aiff"), "listening_failed",
+            "Speech-to-text stopped partway through /tmp/set.aiff. Run `workout hear` again, or `workout say` the transcript.",
+            nil, .environment
+        ),
+        (
             .syncFailed(.clear), "sync_failed",
             "Sync did not complete (clear). Check the workbook and run `workout sync` again.",
             nil, .environment

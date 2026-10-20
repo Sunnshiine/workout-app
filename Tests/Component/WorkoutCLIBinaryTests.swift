@@ -166,6 +166,44 @@
         #expect(try cli.run("sheet", "--cell", "K15").json["value"] as? String == "185x5@8, skip")
     }
 
+    @available(macOS 26, *)
+    @Test func aRecordingThatIsNotAudioExitsOneBeforeAnythingListens() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init")
+        let missing = home.appendingPathComponent("no-such-set.aiff").path
+
+        let run = try cli.run("hear", "w1d1.e0.s0", missing)
+
+        #expect(run.status == 1)
+        #expect(run.stdout.isEmpty)
+        #expect(try run.errorJSON["code"] as? String == "unreadable_recording")
+        #expect(try cli.run("status").json["pendingWriteCount"] as? Int == 0)
+    }
+
+    /// Runs Apple's speech model on a Mac that has its en-US assets, so CI, which may not, skips it.
+    @available(macOS 26, *)
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["WORKOUT_REAL_SPEECH"] == "1"))
+    func aSpokenRecordingLandsInTheSheetThroughTheMicsSpeechModel() throws {
+        let home = try temporaryHome()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let cli = CLI(home: home, binary: try workoutBinary())
+        _ = try cli.run("init", "--scenario", "fresh-block")
+        let recording = home.appendingPathComponent("set.aiff")
+        let say = try Process.run(URL(fileURLWithPath: "/usr/bin/say"), arguments: ["-o", recording.path, "185 for 5 at 8"])
+        say.waitUntilExit()
+
+        let heard = try cli.run("hear", "w1d1.e0.s0", recording.path)
+
+        #expect(heard.status == 0)
+        let candidates = try #require(try heard.json["candidates"] as? [String])
+        #expect(candidates.first == (try heard.json["heard"] as? String))
+        #expect(try heard.json["setLog"] as? String == "185x5@8")
+        #expect(try cli.run("flush").status == 0)
+        #expect(try cli.run("sheet", "--cell", "K15").json["value"] as? String == "185x5@8")
+    }
+
     @Test func aBadSetAddressExitsOneWithCandidatesOnStderrAndNothingOnStdout() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
