@@ -32,3 +32,6 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`,
 | `-UITEST_APPEARANCE` | Switch | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
 | `-UITEST_LONG_CELEBRATION_QUOTE` | Switch | Shows a long fixture quote in the Move On Celebration in place of a random approved one. |
 | `-UITEST_DICTATION` | Switch | Takes a transcript as the next argument and gives the Active Set Card a mic that hears it, in place of SpeechAnalyzer, which does not run in the Simulator. |
+| `-UITEST_RECORDING` | Switch | Takes the path of a 16 kHz mono WAV file as the next argument, which the fixture's mic records on every press for the recording engine to read. Acts only with `-UITEST_DICTATION`. |
+| `-UITEST_SPEECH_MODELS` | Switch | Takes a host folder holding Whisper small and its tokenizer in the Hugging Face download layout, and reads each press's recording with the real recording engine from it in place of the stand-in. Acts only with `-UITEST_DICTATION`, and stops the launch if the folder lacks the model. |
+| `-UITEST_DECISION_DEADLINE` | Switch | Takes seconds as the next argument and waits that long for the Recording Transcript in place of the shipped Decision Deadline, since a Simulator decode takes seconds. Any value but seconds above 0 stops the app. |

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5E1A0C0FFEE0000000000A01 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1A0C0FFEE0000000000A02 /* WhisperKit */; };
 		7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3977E6225F9526AF52619CA9 /* GoogleSignIn */; };
 		A95B852DB4681FE4CB971755 /* WorkoutWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C1A2912337D79EA8DBF43A6D /* WorkoutWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DE81403BC315F840516257F9 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 199091C33B8C7562A86C9A18 /* SnapshotTesting */; };
@@ -166,6 +167,7 @@
 			files = (
 				7DB5C219CA5F71B5CB978133 /* GoogleSignIn in Frameworks */,
 				F04A880C4E2AE6D08487BC0A /* GoogleSignInSwift in Frameworks */,
+				5E1A0C0FFEE0000000000A01 /* WhisperKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,6 +280,7 @@
 			packageProductDependencies = (
 				3977E6225F9526AF52619CA9 /* GoogleSignIn */,
 				CEF7E56EC8A77C77056ABE2A /* GoogleSignInSwift */,
+				5E1A0C0FFEE0000000000A02 /* WhisperKit */,
 			);
 			productName = WorkoutTracker;
 			productReference = 435A665E1EE8F8F82EA527B3 /* WorkoutTracker.app */;
@@ -377,6 +380,7 @@
 				275383CFE0B5CBC009756516 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				DF02ABA5C66340E153B4BD53 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 				108F756125451243E842E9C4 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
+				5E1A0C0FFEE0000000000A03 /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C91759DD6A5BDB578F6ECD07 /* Products */;
@@ -876,6 +880,14 @@
 				minimumVersion = 1.19.2;
 			};
 		};
+		5E1A0C0FFEE0000000000A03 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.18.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -898,6 +910,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 275383CFE0B5CBC009756516 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		5E1A0C0FFEE0000000000A02 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1A0C0FFEE0000000000A03 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

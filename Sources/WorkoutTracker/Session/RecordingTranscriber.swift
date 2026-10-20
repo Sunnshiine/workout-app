@@ -29,12 +29,6 @@ struct RecordingPrompt: Equatable, Sendable {
     )
 }
 
-/// Where the recording engine's model stands on this phone.
-enum SpeechModelState: String, Equatable, Sendable, Codable {
-    case absent
-    case ready
-}
-
 /// What the recording engine did with one press.
 struct RecordingDecode: Equatable, Sendable {
     enum Result: Equatable, Sendable {
@@ -91,25 +85,4 @@ struct DecodeTimings: Equatable, Sendable {
     let total: Duration
     let tokens: Int
     let fallbacks: Int
-}
-
-/// A recording engine with one answer for every press: a phone with no model yet, and a Simulator
-/// or fixture launch, which never has one.
-final class CannedRecordingTranscriber: RecordingTranscriber {
-    private let answer: RecordingDecode.Result
-
-    init(answering answer: RecordingDecode.Result) {
-        self.answer = answer
-    }
-
-    var readiness: SpeechModelState {
-        guard case .heard = answer else { return .absent }
-        return .ready
-    }
-
-    func expectRecording() {}
-
-    @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode {
-        RecordingDecode(result: answer, timings: nil)
-    }
 }

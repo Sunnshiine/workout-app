@@ -57,7 +57,7 @@ The terms for logging a Set by speech live in
 binds as the rest of this glossary does. A new Dictation term goes there, with its name added
 here.
 
-**Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Decision Deadline**, **Dictation Record**
+**Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Speech Model**, **Decision Deadline**, **Dictation Record**
 
 ### Progress
 

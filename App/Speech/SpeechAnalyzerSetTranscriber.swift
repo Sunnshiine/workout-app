@@ -13,7 +13,7 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
     private var listening: Listening?
 
     /// Asks for the microphone on the first press, and installs the speech model on first use.
-    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording recorder: DictationRecorder) async throws(SetTranscriberError) {
         guard await AVAudioApplication.requestRecordPermission() else { throw .microphoneDenied }
         let speech = try await SpeechListening.start(hearing: hearing, installing: { _ in })
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [speech.module]) else {
@@ -27,7 +27,7 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
         do {
             try await analyzer.prepareToAnalyze(in: format)
             try Self.activateAudioSession()
-            try Self.installTap(on: engine, converting: format, into: input)
+            try Self.installTap(on: engine, converting: format, into: input, recording: recorder)
             engine.prepare()
             try engine.start()
             try await analyzer.start(inputSequence: stream)
@@ -83,30 +83,25 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    /// The engine calls the tap on its realtime audio thread, where a main-actor closure traps, and
-    /// SpeechAnalyzer takes only its own format, so each buffer is converted there.
+    /// The engine calls the tap on its realtime audio thread, where a main-actor closure traps.
+    /// SpeechAnalyzer takes only its own format and the recording engine only 16 kHz mono, so each
+    /// buffer is converted there twice, once for each.
     private nonisolated static func installTap(
         on engine: AVAudioEngine,
         converting analyzerFormat: AVAudioFormat,
-        into input: AsyncStream<AnalyzerInput>.Continuation
+        into input: AsyncStream<AnalyzerInput>.Continuation,
+        recording recorder: DictationRecorder
     ) throws {
         let node = engine.inputNode
         let hardwareFormat = node.outputFormat(forBus: 0)
-        guard let converter = AVAudioConverter(from: hardwareFormat, to: analyzerFormat) else { throw SetTranscriberError.failed }
-        converter.primeMethod = .none
+        guard let toAnalyzer = MicConversion(from: hardwareFormat, to: analyzerFormat),
+            let toRecording = MicConversion.toRecording(from: hardwareFormat)
+        else { throw SetTranscriberError.failed }
         node.installTap(onBus: 0, bufferSize: 4096, format: hardwareFormat) { buffer, _ in
-            let ratio = analyzerFormat.sampleRate / hardwareFormat.sampleRate
-            let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up))
-            guard let converted = AVAudioPCMBuffer(pcmFormat: analyzerFormat, frameCapacity: capacity) else { return }
-            var consumed = false
-            let status = converter.convert(to: converted, error: nil) { _, inputStatus in
-                defer { consumed = true }
-                inputStatus.pointee = consumed ? .noDataNow : .haveData
-                return consumed ? nil : buffer
-            }
-            if status != .error, converted.frameLength > 0 {
+            if let converted = toAnalyzer.convert(buffer) {
                 input.yield(AnalyzerInput(buffer: converted))
             }
+            toRecording.record(buffer, into: recorder)
         }
     }
 }

@@ -45,6 +45,8 @@ struct DictationRecord: Equatable, Sendable {
     }
 
     struct Recording: Equatable, Sendable {
+        /// What the press would be read with, whether or not the model was there to read it.
+        let version: SpeechModelVersion
         let modelAtPress: SpeechModelState
         let modelAtEnd: SpeechModelState
         let result: RecordingDecode.Result
@@ -148,6 +150,7 @@ extension DictationRecord.Live {
 extension DictationRecord.Recording {
     init(modelAtPress: SpeechModelState, modelAtEnd: SpeechModelState, decode: RecordingDecode, of recording: DictationRecording) {
         self.init(
+            version: .shipped,
             modelAtPress: modelAtPress,
             modelAtEnd: modelAtEnd,
             result: decode.result,
@@ -263,11 +266,12 @@ extension DictationRecord: Codable {
 
 extension DictationRecord.Recording: Codable {
     private enum CodingKeys: String, CodingKey {
-        case modelAtPress, modelAtEnd, transcript, segments, miss, audioSeconds, truncated, decodeMs
+        case version, modelAtPress, modelAtEnd, transcript, segments, miss, audioSeconds, truncated, decodeMs
     }
 
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(SpeechModelVersion.self, forKey: .version)
         modelAtPress = try container.decode(SpeechModelState.self, forKey: .modelAtPress)
         modelAtEnd = try container.decode(SpeechModelState.self, forKey: .modelAtEnd)
         if let miss = try container.decodeIfPresent(RecordingMiss.self, forKey: .miss) {
@@ -285,6 +289,7 @@ extension DictationRecord.Recording: Codable {
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
         try container.encode(modelAtPress, forKey: .modelAtPress)
         try container.encode(modelAtEnd, forKey: .modelAtEnd)
         switch result {
@@ -304,7 +309,7 @@ extension RecordingMiss: Codable {
     /// The miss as the record and the summary name it, as "modelNotReady.absent".
     var reason: String {
         switch self {
-        case .modelNotReady(let model): "modelNotReady.\(model.rawValue)"
+        case .modelNotReady(let model): "modelNotReady.\(model.name)"
         case .failed: "failed"
         // The case's own name, which the reason table in the tests pins.
         case .late, .tooHot, .nothingRecorded, .notAsked: String(describing: self)
@@ -321,7 +326,7 @@ extension RecordingMiss: Codable {
             return
         }
         let unmissed: [RecordingMiss] = [.late, .tooHot, .nothingRecorded, .notAsked]
-        let misses = unmissed + [SpeechModelState.absent, .ready].map(RecordingMiss.modelNotReady)
+        let misses = unmissed + SpeechModelState.allCases.map(RecordingMiss.modelNotReady)
         guard let miss = misses.first(where: { $0.reason == text }) else {
             throw DecodingError.dataCorruptedError(in: container, debugDescription: "\"\(text)\" is not a recording miss")
         }

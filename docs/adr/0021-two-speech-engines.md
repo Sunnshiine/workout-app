@@ -15,8 +15,8 @@ transcript is the Recording Transcript. The write policy reads the two side by s
 never as one candidate list. Each engine's transcripts first go through the single-engine policy
 that shipped before this decision, so an engine's alternatives settle only its own cut-off values
 (CONTEXT.md, Spoken Set). A `MergeRule` then joins the two outcomes, and `EngineAgreement` names how
-they compared. Until a recording engine exists, no press has a Recording Transcript, and every press
-is decided by the single-engine policy unchanged.
+they compared. A press whose Speech Model is not ready has no Recording Transcript, and the
+single-engine policy decides it unchanged.
 
 **`lead` ships.** The Recording Transcript's outcome decides every press Whisper read, and the Live
 Transcript decides a press Whisper did not read. That is Whisper as the bench measured it, which the
@@ -30,19 +30,33 @@ switching rules is one constant, `MergeRule.shipped`.
 
 **The decision deadline is a safety bound, not the latency target.** The operator accepts up to
 0.5 s from the end of a press to its outcome. That 0.5 s is the target, to be measured on every
-press. Once a recording engine exists, a press waits for its Recording Transcript at most 1.5 s
-after it ends, then takes the Live Transcript's outcome. The Mac decodes a clip in 318 ms at p90,
+press. A press waits for its Recording Transcript at most 1.5 s after it ends, then takes the Live
+Transcript's outcome. The Mac decodes a clip in 318 ms at p90,
 and the iPhone is unmeasured, so a 0.5 s bound could hand most presses back to the 44% engine
 without anyone seeing it happen. The code that waits keeps both numbers as named constants in one
 place.
 
-**The model is downloaded, never bundled.** `openai_whisper-small.en` is 465 MB. The app downloads a
-pinned revision into Application Support, excluded from backup, and Core ML specializes it on its
-first load, which took 35 to 417 s on the Mac. Until the model is ready, the Live Transcript decides
-every press. No Simulator loads or downloads the model by default, because parallel lanes run many
-simulators and fixtures hear canned transcripts from both engines. A DEBUG fixture launch can read
-a model from a host path to prove real decoding in the app, and it is off by default. WhisperKit is
-a dependency of the App target only, so `swift test` and the CLI never compile it.
+**The model is downloaded, never bundled.** `openai_whisper-small.en` is 465 MB. The app downloads
+the model and its tokenizer at pinned revisions into Application Support, excluded from backup, and
+only on a network that is neither expensive nor constrained. A download the network cuts off stops
+and resumes later. Core ML specializes the model once after each download and each OS update, which
+took 35 to 417 s on the Mac. The model is not loaded at launch. The first press that finds it out of
+memory starts loading it, so that press usually misses and the next one reads with it. It leaves
+memory on a memory warning, after 30 minutes with no press, and when the phone runs critically hot.
+`SpeechModelPlan` in `Sources` decides each of those steps as a table the tests pin, and
+`WhisperEngine` in the App carries them out, all off the main actor. No press calls WhisperKit
+unless the model is ready, because WhisperKit would otherwise load it inside the press. On a phone
+the model runs on the CPU and the Neural Engine, never the GPU, which iOS refuses an app in the
+background. Until the model is ready, the Live Transcript decides every press, and Settings shows
+where the model stands.
+
+No Simulator loads or downloads the model by default, because parallel lanes run many simulators
+and fixtures hear canned transcripts from both engines. A DEBUG fixture launch reads a model from a
+host path and a WAV file as the press's recording to prove real decoding in the app, and it is off
+by default. A Simulator has no Neural Engine, so there the model runs on the GPU and decodes a
+two-second clip in about 2.7 s. That launch may therefore set a longer Decision Deadline. No shipped
+path changes it. WhisperKit is a dependency of the App target only, so `swift test` and the CLI
+never compile it, and a lint rule keeps its import to `WhisperEngine`.
 
 **Considered alternatives:**
 - *Whisper alone, with its own voice-activity detection for the auto-stop:* the card loses its live

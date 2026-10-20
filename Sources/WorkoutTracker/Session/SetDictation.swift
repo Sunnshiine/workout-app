@@ -69,6 +69,7 @@ final class SetDictation {
     @ObservationIgnored private let reader: any RecordingTranscriber
     @ObservationIgnored private let journal: DictationJournal
     @ObservationIgnored private let clock: any ListeningClock
+    @ObservationIgnored private let decisionDeadline: Duration
     /// Nil means no press is in flight; `finish` and `cancel` take it.
     @ObservationIgnored private var press: Press?
 
@@ -79,12 +80,14 @@ final class SetDictation {
         transcriber: any SetTranscriber,
         reader: any RecordingTranscriber,
         journal: DictationJournal,
-        clock: any ListeningClock = ContinuousListeningClock()
+        clock: any ListeningClock = ContinuousListeningClock(),
+        decisionDeadline: Duration = SetDictation.decisionDeadline
     ) {
         self.transcriber = transcriber
         self.reader = reader
         self.journal = journal
         self.clock = clock
+        self.decisionDeadline = decisionDeadline
     }
 
     /// One press of the mic, from `start` until `finish` or `cancel` takes it.
@@ -220,7 +223,7 @@ final class SetDictation {
         var press = press
         // A release before the live engine went live took the press before `hear` could stamp it.
         press.timeline.wentLiveAt = press.timeline.wentLiveAt ?? clock.now
-        let deadline = clock.now + Self.decisionDeadline
+        let deadline = clock.now + decisionDeadline
         let recording = press.recorder.close()
         let reading = Reading(of: recording, by: reader, on: clock)
         state = .deciding(press.set, heard: state.heard)

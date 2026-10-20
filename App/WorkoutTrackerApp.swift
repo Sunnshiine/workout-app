@@ -15,6 +15,7 @@ struct WorkoutTrackerApp: App {
     /// One owner of the Live Activity per process, whichever surface asked for it.
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
+    private let speechModelCaption: (@Sendable () -> String)?
 
     init() {
         #if canImport(UserNotifications)
@@ -23,9 +24,16 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        // No phone has a recording engine's model yet, so the Live Transcript decides every press.
-        let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
-        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0, reader: reader, journal: app.dictationJournal) }
+        let speech = Self.speech()
+        let dictation = speech.map {
+            SetDictation(
+                transcriber: $0.live,
+                reader: $0.recording,
+                journal: app.dictationJournal,
+                decisionDeadline: Self.decisionDeadline()
+            )
+        }
+        speechModelCaption = speech?.caption
         _dictation = State(initialValue: dictation)
         let focus = ActiveSetFocusManager(session: nil)
         _focus = State(initialValue: focus)
@@ -67,19 +75,59 @@ struct WorkoutTrackerApp: App {
         return .device()
     }
 
+    /// The two engines a press listens with, SpeechAnalyzer for the Live Transcript and Whisper for
+    /// the Recording Transcript.
+    private struct Speech {
+        let live: any SetTranscriber
+        let recording: any RecordingTranscriber
+        /// The Settings row's words for the recording engine's model, where a real one runs.
+        var caption: (@Sendable () -> String)?
+    }
+
     /// SpeechAnalyzer does not run in the Simulator, so a Simulator card has a mic only when a
-    /// fixture launch names what it hears.
-    private static func setTranscriber() -> (any SetTranscriber)? {
+    /// fixture launch names what it hears. Only a phone makes the recording engine, so no Simulator
+    /// or lane ever downloads its model.
+    private static func speech() -> Speech? {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.launch.dictatedTranscript.map { CannedSetTranscriber(candidates: [$0]) }
+                return UITestFixture.launch.dictatedTranscript.map(fixtureSpeech)
             }
         #endif
         #if targetEnvironment(simulator)
             return nil
         #else
-            return SpeechAnalyzerSetTranscriber()
+            let engine = WhisperEngine(models: .applicationSupport)
+            return Speech(live: SpeechAnalyzerSetTranscriber(), recording: engine, caption: { engine.caption })
         #endif
+    }
+
+    #if DEBUG
+        /// A fixture's mic hears `transcript`. A Simulator proof launch also records a WAV file on
+        /// each press and reads it with the real recording engine, its model from a host folder.
+        private static func fixtureSpeech(hearing transcript: String) -> Speech {
+            let launch = UITestFixture.launch
+            let live = CannedSetTranscriber(candidates: [transcript], recording: launch.recordingPath.map(ProofLaunchFiles.recording) ?? [])
+            guard let models = launch.speechModelsPath else {
+                return Speech(live: live, recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))))
+            }
+            let engine = WhisperEngine(models: .host(ProofLaunchFiles.speechModels(at: models)))
+            return Speech(live: live, recording: engine, caption: { engine.caption })
+        }
+    #endif
+
+    /// A Simulator proof launch may wait longer for the Recording Transcript, which takes seconds
+    /// there to decode.
+    private static func decisionDeadline() -> Duration {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                do {
+                    return try UITestFixture.launch.decisionDeadline ?? SetDictation.decisionDeadline
+                } catch {
+                    fatalError("\(error)")
+                }
+            }
+        #endif
+        return SetDictation.decisionDeadline
     }
 
     /// Returns nil when there is no sign-in to write. A fixture launch already set it at init
@@ -109,6 +157,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.historyFill)
                 .environment(app.connection)
                 .environment(entry)
+                .environment(\.speechModelCaption, speechModelCaption)
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }

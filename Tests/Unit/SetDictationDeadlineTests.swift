@@ -29,12 +29,18 @@ private struct EndedPress {
 }
 
 @MainActor
-private func endPress(recording: [Float] = silence) async -> EndedPress {
+private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadline: Duration = deadline) async -> EndedPress {
     let live = HeldSetTranscriber(candidates: [said], recording: recording)
     let reader = HeldRecordingTranscriber()
     let clock = ManualListeningClock()
     let journal = DictationJournal(storage: .inMemory)
-    let dictation = SetDictation(transcriber: live, reader: reader, journal: journal, clock: clock)
+    let dictation = SetDictation(
+        transcriber: live,
+        reader: reader,
+        journal: journal,
+        clock: clock,
+        decisionDeadline: decisionDeadline
+    )
     dictation.start(for: firstSet)
     #expect(reader.expectations == 1, "the recording engine hears of the press as it starts")
     await live.starting.waitUntilHeld(orRecord: "The live engine never started")
@@ -68,6 +74,20 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.wasCancelled)
     #expect(press.reader.transcribes == 1)
+}
+
+/// The Simulator proof launch waits longer, since a Simulator decode takes seconds.
+@MainActor
+@Test func aLongerDecisionDeadlineWaitsPastTheShippedOneForTheRecordingTranscript() async {
+    let press = await endPress(waitingAtMost: .seconds(20))
+    await press.finalizeLive()
+    await press.clock.waitUntilSleeping(until: .seconds(20), orRecord: "The press never waited for the read")
+
+    press.clock.advance(by: .seconds(3))
+    press.reader.answer(recordingSkips)
+
+    #expect(await press.finishing.value == .skipped(heard: "skip"))
+    #expect(press.reader.wasCancelled == false)
 }
 
 @MainActor

@@ -52,6 +52,8 @@ func aDecidedPressIsDecidedTheSameAgainFromItsRecord(line: String) throws {
 
 @Test(arguments: [
     (RecordingMiss.modelNotReady(.absent), #""modelNotReady.absent""#),
+    (.modelNotReady(.downloading), #""modelNotReady.downloading""#),
+    (.modelNotReady(.unloaded(.memoryWarning)), #""modelNotReady.unloaded.memoryWarning""#),
     (.late, #""late""#),
     (.failed("model crashed"), #""failed: model crashed""#),
     (.tooHot, #""tooHot""#),

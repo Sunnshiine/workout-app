@@ -59,6 +59,7 @@ private func press(live: [String], recording: String) throws -> DictationRecord.
         set: echoed.set,
         live: DictationRecord.Live(candidates: live, failure: nil, captionChanges: 1),
         recording: DictationRecord.Recording(
+            version: .shipped,
             modelAtPress: .ready,
             modelAtEnd: .ready,
             result: .heard(recording, segments: []),
