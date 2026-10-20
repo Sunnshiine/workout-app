@@ -7,13 +7,15 @@ struct SessionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
     @Environment(AppEntryInbox.self) private var entry
+    @Environment(\.scenePhase) private var scenePhase
     @State private var coordinator: SessionCoordinator
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
 
-    /// No transcriber leaves the mic off every card.
-    init(wiring: SessionWiring, transcriber: (any SetTranscriber)? = nil) {
-        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring, dictation: transcriber.map { SetDictation(transcriber: $0) }))
+    /// No Dictation leaves the mic off every card. `focus` is the process's active Set, which a
+    /// headless Dictation reads too.
+    init(wiring: SessionWiring, dictation: SetDictation? = nil, focus: ActiveSetFocusManager? = nil) {
+        _coordinator = State(initialValue: SessionCoordinator(wiring: wiring, dictation: dictation, focus: focus))
     }
 
     var body: some View {
@@ -79,6 +81,12 @@ struct SessionView: View {
         }
         .onChange(of: entry.arrivals) {
             coordinator.answerEntry()
+        }
+        // The hold is for the athlete to glance at the written Set and undo it. Off screen there
+        // is no glance, and a hold its Clear menu suspended would otherwise outlast the lock.
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .background else { return }
+            coordinator.endSpokenWriteHold()
         }
     }
 }

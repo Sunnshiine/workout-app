@@ -11,6 +11,7 @@ import Testing
 
         #expect(launch.disablesAnimations == false)
         #expect(launch.disablesLiveActivities == false)
+        #expect(launch.endsLiveActivities == false)
         #expect(launch.startsWithPendingWrite == false)
         #expect(launch.startsOffline == false)
         #expect(launch.slowsSync == false)
@@ -26,6 +27,7 @@ import Testing
     @Test func eachLaunchFlagParsesFromItsArgument() {
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_ANIMATIONS"]).disablesAnimations)
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_LIVE_ACTIVITIES"]).disablesLiveActivities)
+        #expect(UITestLaunch(arguments: ["-UITEST_END_LIVE_ACTIVITIES"]).endsLiveActivities)
         #expect(UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"]).startsWithPendingWrite)
         #expect(UITestLaunch(arguments: ["-UITEST_OFFLINE"]).startsOffline)
         #expect(UITestLaunch(arguments: ["-UITEST_SLOW_SYNC"]).slowsSync)

@@ -34,9 +34,27 @@ final class ActiveSetFocusManager {
     private(set) var activeSetID: ActiveSetID?
     private var shownInstead: ShownInstead?
     private let supersetState = SupersetState()
+    /// The values the card shows for one Set, as the card last reported them, which fill what a
+    /// Spoken Set leaves unsaid whether the card's mic or a locked press heard it.
+    @ObservationIgnored private var cardDraft: (setID: ActiveSetID, draft: SetLogDraft)?
+    /// The Session the focus is about: the one the stage last bound. An `ActiveSetID` names a Set
+    /// only within it.
+    @ObservationIgnored private(set) var session: Session?
 
     init(session: Session?) {
+        self.session = session
         activeSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
+    }
+
+    /// The Set the card for `session` listens on: the stage's own focus while it is about
+    /// `session`, Superset alternation and the athlete's focus included. A stage about another
+    /// Session, or none yet, holds no Superset of this one, so binding `session` would focus its
+    /// first Pending Set. A focus left on a Set no longer Pending, as by a write that bypassed the
+    /// stage, falls back to the first Pending Set, as the card's own stage does.
+    func activeSet(in session: Session) -> SessionSetPosition? {
+        guard self.session === session else { return SessionSetOrder.firstPendingSet(in: session) }
+        let ordered = SessionSetOrder.orderedSets(in: session)
+        return ordered.first { $0.setID == activeSetID && $0.set.isPending } ?? ordered.first { $0.set.isPending }
     }
 
     var expandedLoggedSetID: ActiveSetID? {
@@ -53,6 +71,7 @@ final class ActiveSetFocusManager {
     }
 
     func reset(to session: Session?) {
+        self.session = session
         let nextSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
         if let session {
             supersetState.refresh(in: session)
@@ -61,6 +80,17 @@ final class ActiveSetFocusManager {
             activeSetID = nil
         }
         shownInstead = nil
+        cardDraft = nil
+    }
+
+    func cardShows(_ draft: SetLogDraft, for setID: ActiveSetID) {
+        cardDraft = (setID, draft)
+    }
+
+    /// What the card shows for `setID`; nil when it has shown nothing for that Set.
+    func cardDraft(for setID: ActiveSetID) -> SetLogDraft? {
+        guard let cardDraft, cardDraft.setID == setID else { return nil }
+        return cardDraft.draft
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -76,8 +106,9 @@ final class ActiveSetFocusManager {
     /// A spoken write lands after the press let go, when the athlete may have moved on. The Active
     /// Set moves past `set` only while it is still `set`, and the card keeps `set` only while it
     /// still showed it. Whatever else the card shows stays. True when the card keeps `set`.
+    @discardableResult
     func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, holding: Bool) -> Bool {
-        guard let setID = Self.id(for: set), activeSetID == setID else { return false }
+        guard self.session === session, let setID = Self.id(for: set), activeSetID == setID else { return false }
         activeSetID = nextActiveSetID(after: set, in: session)
         guard holding, shownInstead == nil else { return false }
         shownInstead = .heldAfterSpokenWrite(setID)

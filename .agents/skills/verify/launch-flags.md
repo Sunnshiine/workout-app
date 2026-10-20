@@ -5,7 +5,7 @@
 With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the
 `partial-upload` workbook scenario, the cells `workout init --scenario partial-upload` also
 reads. When a launch passes more than one Scenario flag, the lowest Scenario number wins.
-Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
+Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`, and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
 
 | Flag | Kind | Meaning |
 | --- | --- | --- |
@@ -22,6 +22,7 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_PARTIAL_UPLOAD` | Scenario 6 | Seeds the partial-upload workbook: four Weeks of four Days, eleven of them Unavailable Sessions. A launch that names no Scenario flag gets it too. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
+| `-UITEST_END_LIVE_ACTIVITIES` | Switch | Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session. |
 | `-UITEST_PENDING_WRITE` | Switch | Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, so a sync writes it to the Scenario's own workbook and reloads the Block from it. |
 | `-UITEST_OFFLINE` | Switch | Makes the fixture Sheet read as Offline after the boot, so a log stays queued and the header reads `N unsynced`. |
 | `-UITEST_SLOW_SYNC` | Switch | Makes every tab list after the boot wait 20 seconds, so a sync stays in flight. |

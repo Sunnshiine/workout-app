@@ -41,11 +41,12 @@ struct SessionViewVisualTests {
                     workout: scenario.store,
                     sync: sync,
                     settings: scenario.settings,
+                    lastPerformed: lastPerformedLookup,
                     entry: entry,
                     platform: SessionPlatform(
                         liveActivity: LiveActivityProductionAdapter(),
                         motion: SwiftUISessionMotion(),
-                        restNotifications: RestNotificationCenterScheduler.shared
+                        restTimer: RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
                     )
                 )
             )

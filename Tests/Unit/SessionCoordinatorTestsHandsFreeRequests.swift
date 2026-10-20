@@ -8,8 +8,7 @@ import Testing
     let session = makeCoordinatorSession()
     let fixture = makeHandsFreeFixture(showing: session, current: session)
     let slot = try fixture.card(in: session)
-    let prefill = SpokenSetContext(for: slot.set, history: .empty).draft
-    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { prefill } }
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
     await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
     let closings = fixture.entry.coverClosings
 
@@ -45,7 +44,7 @@ import Testing
 @Test func aRequestWhileTheCardHoldsASpokenSetMovesTheCardOnAndListensForTheNextSet() async throws {
     let session = makeCoordinatorSession()
     let fixture = makeHandsFreeFixture(showing: session, current: session)
-    _ = await fixture.listenUntilQuiet(on: try fixture.card(in: session)) { SetLogDraft(weight: nil, reps: nil, rpe: nil) }
+    _ = await fixture.listenUntilQuiet(on: try fixture.card(in: session))
     #expect(try fixture.card(in: session).mode == .heldAfterSpokenWrite)
 
     fixture.entry.deliver(.dictateCurrentSet)
@@ -129,6 +128,6 @@ import Testing
     let fixture = makeHandsFreeFixture(showing: session, current: session)
     let other = try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 })
 
-    #expect(await fixture.coordinator.listenHandsFree(to: other) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(await fixture.coordinator.listenHandsFree(to: other) == nil)
     #expect(fixture.entry.pending == .dictateCurrentSet)
 }

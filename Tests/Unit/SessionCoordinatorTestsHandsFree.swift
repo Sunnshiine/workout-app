@@ -23,8 +23,8 @@ struct HandsFreeFixture {
     }
 
     /// Lets the card's listen run until the athlete has been quiet a silence window.
-    func listenUntilQuiet(on slot: SetCardSlot, showing shown: @escaping @MainActor () -> SetLogDraft) async -> SetDictation.Outcome? {
-        let listening = Task { await coordinator.listenHandsFree(to: slot.set, showing: shown) }
+    func listenUntilQuiet(on slot: SetCardSlot) async -> SetDictation.Outcome? {
+        let listening = Task { await coordinator.listenHandsFree(to: slot.set) }
         await clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
         clock.advance(by: SetDictation.silenceWindow)
         return await listening.value
@@ -72,7 +72,7 @@ func makeHandsFreeFixture(
     #expect(fixture.coordinator.startsHandsFree(slot))
     #expect(fixture.entry.coverClosings > 0, "whatever covers the stage closes so the card can listen")
 
-    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+    let outcome = await fixture.listenUntilQuiet(on: slot)
 
     let logged = SetLog(weight: .pounds(185), reps: 6, rpe: .seven)
     #expect(outcome == .logged(logged, heard: "185 for 6 at 7"))
@@ -90,12 +90,12 @@ func makeHandsFreeFixture(
     let fixture = makeHandsFreeFixture(showing: session, current: session)
     let slot = try fixture.card(in: session)
 
-    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } }
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
     await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
 
     #expect(fixture.entry.pending == nil)
     #expect(!fixture.coordinator.startsHandsFree(slot))
-    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) == nil)
     fixture.clock.advance(by: SetDictation.silenceWindow)
     _ = await listening.value
 }
@@ -105,11 +105,10 @@ func makeHandsFreeFixture(
     let session = makeCoordinatorSession()
     let fixture = makeHandsFreeFixture(showing: session, current: session, saying: ["for 5 at 8"])
     let slot = try fixture.card(in: session)
-    var shown = SetLogDraft(weight: nil, reps: nil, rpe: nil)
 
-    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) { shown } }
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
     await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
-    shown = SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven)
+    fixture.coordinator.cardShows(SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven), for: slot.set)
     fixture.clock.advance(by: SetDictation.silenceWindow)
 
     #expect(await listening.value == .logged(SetLog(weight: .pounds(190), reps: 5, rpe: .eight), heard: "for 5 at 8"))
@@ -140,7 +139,7 @@ func makeHandsFreeFixture(
     let slot = try fixture.card(in: current)
 
     #expect(!fixture.coordinator.startsHandsFree(slot))
-    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) { SetLogDraft(weight: nil, reps: nil, rpe: nil) } == nil)
+    #expect(await fixture.coordinator.listenHandsFree(to: slot.set) == nil)
     #expect(fixture.dictation?.state == .idle)
 
     fixture.show(viewed)
@@ -236,7 +235,7 @@ func makeHandsFreeFixture(
 
     let slot = try fixture.card(in: session)
     #expect(fixture.coordinator.startsHandsFree(slot))
-    let outcome = await fixture.listenUntilQuiet(on: slot) { SpokenSetContext(for: slot.set, history: .empty).draft }
+    let outcome = await fixture.listenUntilQuiet(on: slot)
     #expect(outcome == .logged(SetLog(weight: .pounds(185), reps: 6, rpe: .seven), heard: "185 for 6 at 7"))
 }
 

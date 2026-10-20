@@ -1,15 +1,18 @@
 import SwiftUI
 
 struct RootView: View {
-    var transcriber: (any SetTranscriber)?
+    let dictation: SetDictation?
+    let focus: ActiveSetFocusManager
+    let restTimer: RestTimer
+    let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(LastPerformedLookupStore.self) private var lastPerformed
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
     var body: some View {
         Group {
@@ -75,14 +78,16 @@ struct RootView: View {
                     workout: workout,
                     sync: sync,
                     settings: settings,
+                    lastPerformed: lastPerformed,
                     entry: entry,
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,
                         motion: SwiftUISessionMotion(),
-                        restNotifications: RestNotificationCenterScheduler.shared
+                        restTimer: restTimer
                     )
                 ),
-                transcriber: transcriber
+                dictation: dictation,
+                focus: focus
             )
         }
         .transition(handoff)

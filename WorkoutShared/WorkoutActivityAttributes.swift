@@ -15,9 +15,128 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let appearance: LiveActivityAppearance
         let restStartDate: Date?
         let restEndDate: Date?
+        /// Where a Dictation run without opening the app stands; nil when none is showing.
+        let dictation: LiveActivityDictation?
     }
 
     let sessionLabel: String
+}
+
+/// What the Lock Screen and the Dynamic Island read back of a Dictation the athlete ran from the
+/// Action button, a control, or Siri, with the app closed or the phone locked.
+enum LiveActivityDictation: Codable, Hashable, Sendable {
+    case listening
+    /// The Set Log written, as "235×5 @7", and the Set it went to. The content around it may be
+    /// the rest toward another Exercise.
+    case logged(String, to: LiveActivityWrittenSet)
+    case skipped(LiveActivityWrittenSet)
+    /// Why nothing was written.
+    case notLogged(String)
+    /// The named Session has no Pending Set, so nothing listened.
+    case noSetLeft(session: String)
+    /// No Session to log into, so nothing listened.
+    case noCurrentSession
+
+    var isListening: Bool {
+        self == .listening
+    }
+
+    /// Which colour the readback takes. The action green is for the mic open and a Set Log that
+    /// happened; a skip draws muted on the card, and a press that wrote nothing is no progress, so
+    /// those read in the plain text colour (DESIGN.md, The Green Means Action Rule).
+    enum Tone: Equatable, Sendable {
+        case action
+        case quiet
+    }
+
+    var tone: Tone {
+        switch self {
+        case .listening, .logged: .action
+        case .skipped, .notLogged, .noSetLeft, .noCurrentSession: .quiet
+        }
+    }
+
+    /// False when the readback is about the Session rather than a Set: nothing listened, and the
+    /// content names no Exercise and no prescription.
+    var isAboutASet: Bool {
+        switch self {
+        case .listening, .logged, .skipped, .notLogged: true
+        case .noSetLeft, .noCurrentSession: false
+        }
+    }
+
+    /// The Set a write went to, which the readback names in place of the content's Exercise.
+    var writtenSet: LiveActivityWrittenSet? {
+        switch self {
+        case .logged(_, let set), .skipped(let set): set
+        case .listening, .notLogged, .noSetLeft, .noCurrentSession: nil
+        }
+    }
+
+    /// The Session a readback about it names.
+    var sessionName: String? {
+        guard case .noSetLeft(let session) = self else { return nil }
+        return session
+    }
+
+    var symbolName: String {
+        switch self {
+        case .listening: "mic.fill"
+        case .logged, .skipped, .noSetLeft: "checkmark.circle.fill"
+        case .notLogged: "mic.slash.fill"
+        case .noCurrentSession: "exclamationmark.circle.fill"
+        }
+    }
+
+    var headline: String {
+        switch self {
+        case .listening: "Listening…"
+        case .logged(let setLog, _): "Logged \(setLog)"
+        case .skipped: "Skipped"
+        case .notLogged: "Not logged"
+        case .noSetLeft: "No Set left to log"
+        case .noCurrentSession: "No Session"
+        }
+    }
+
+    /// The compact island has room for one short line.
+    var compactText: String {
+        switch self {
+        case .listening: "Listening"
+        case .logged(let setLog, _): setLog
+        case .skipped: "Skipped"
+        case .notLogged: "Not logged"
+        case .noSetLeft: "No Set left"
+        case .noCurrentSession: "No Session"
+        }
+    }
+
+    /// Under the headline, where the Exercise is already named above it.
+    var detail: String? {
+        switch self {
+        case .logged(_, let set), .skipped(let set): set.setText
+        case .notLogged(let reason): reason
+        case .noCurrentSession: "Open WorkoutTracker to choose a Sheet"
+        case .listening, .noSetLeft: nil
+        }
+    }
+}
+
+/// The Set a Dictation wrote: what its readback names, apart from the rest the write began.
+struct LiveActivityWrittenSet: Codable, Hashable, Sendable {
+    let exerciseName: String
+    /// The Set's place among its Exercise's Sets, from 1, as its card numbers it.
+    let setOrdinal: Int
+    let setsTotal: Int
+
+    var setText: String {
+        "Set \(setOrdinal) of \(setsTotal)"
+    }
+
+    /// The Exercise and the Set, for a surface with no line naming the Exercise.
+    var fullText: String {
+        "\(exerciseName), \(setText)"
+    }
 }
 
 extension WorkoutActivityAttributes {
@@ -124,6 +243,24 @@ enum LiveActivityPalette {
         islandPrimaryText: .white,
         islandSecondaryText: Color.white.opacity(0.68)
     )
+}
+
+extension LiveActivityColors {
+    /// The readback's text in its tone, on the Lock Screen card or the island.
+    func readbackText(_ tone: LiveActivityDictation.Tone, onIsland: Bool) -> Color {
+        switch tone {
+        case .action: accent
+        case .quiet: onIsland ? islandPrimaryText : primaryText
+        }
+    }
+
+    /// The readback's symbol in its tone: the glyph's colour over its circle's fill.
+    func readbackSymbol(_ tone: LiveActivityDictation.Tone) -> (glyph: Color, circle: Color) {
+        switch tone {
+        case .action: (accentText, accent)
+        case .quiet: (primaryText, track)
+        }
+    }
 }
 
 extension WorkoutActivityAttributes.ContentState {

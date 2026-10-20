@@ -20,7 +20,8 @@ extension SessionWiring {
         restDurations: any SessionRestDurations = SettingsStore(defaults: .inMemory()),
         liveActivity: any SessionLiveActivityAdapter = InertSessionLiveActivity(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion(),
-        entry: AppEntryInbox = AppEntryInbox()
+        entry: AppEntryInbox = AppEntryInbox(),
+        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
     ) -> SessionWiring {
         SessionWiring(
             logging: logging,
@@ -30,7 +31,8 @@ extension SessionWiring {
             restDurations: restDurations,
             liveActivity: liveActivity,
             motion: motion,
-            entry: entry
+            entry: entry,
+            history: history
         )
     }
 }

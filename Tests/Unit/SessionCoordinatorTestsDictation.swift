@@ -57,7 +57,7 @@ func card(_ coordinator: SessionCoordinator, in session: Session) throws -> SetC
 func sayIntoTheCard(_ coordinator: SessionCoordinator, in session: Session) async throws -> SetDictation.Outcome? {
     let set = try card(coordinator, in: session).set
     coordinator.startDictation(for: set)
-    return await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+    return await coordinator.finishDictation(of: set)
 }
 
 let firstBench = ActiveSetID(exerciseOrder: 1, setIndex: 0)
@@ -96,9 +96,10 @@ let secondBench = ActiveSetID(exerciseOrder: 1, setIndex: 1)
     let session = makeCoordinatorSession()
     let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["for 5 at 8"])
     let set = try card(coordinator, in: session).set
+    coordinator.cardShows(SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven), for: set)
     coordinator.startDictation(for: set)
 
-    let outcome = await coordinator.finishDictation(of: set, resolvingAgainst: SetLogDraft(weight: .pounds(190), reps: 3, rpe: .seven))
+    let outcome = await coordinator.finishDictation(of: set)
 
     let logged = SetLog(weight: .pounds(190), reps: 5, rpe: .eight)
     #expect(outcome == .logged(logged, heard: "for 5 at 8"))
@@ -326,7 +327,7 @@ func aHeldSetTakesNoWriteFromItsCard(saying transcript: String) async throws {
     let slot = try #require(supersetStage(coordinator, in: session)?.card)
 
     coordinator.startDictation(for: slot.set)
-    _ = await coordinator.finishDictation(of: slot.set, resolvingAgainst: SpokenSetContext(for: slot.set, history: .empty).draft)
+    _ = await coordinator.finishDictation(of: slot.set)
 
     let next = try #require(supersetStage(coordinator, in: session)?.card)
     #expect(next.mode == .logging)

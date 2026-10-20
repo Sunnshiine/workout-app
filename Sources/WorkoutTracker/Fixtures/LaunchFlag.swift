@@ -82,6 +82,12 @@
             actsWithoutFixture: true
         )
 
+        static let endLiveActivities = LaunchFlag(
+            argument: "-UITEST_END_LIVE_ACTIVITIES",
+            meaning: "Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session.",
+            actsWithoutFixture: true
+        )
+
         static let pendingWrite = LaunchFlag(
             argument: "-UITEST_PENDING_WRITE",
             meaning:
@@ -151,6 +157,7 @@
             .partialUpload,
             .disableAnimations,
             .disableLiveActivities,
+            .endLiveActivities,
             .pendingWrite,
             .offline,
             .slowSync,

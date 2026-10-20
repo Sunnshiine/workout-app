@@ -225,3 +225,53 @@ func aTranscriptCutOffAfterItsRPEQueuesNoWrite(transcript: String) async throws 
         try app.say("185 for 5 at 8", at: address("w1d1.e0.s9"))
     }
 }
+
+@MainActor
+@Test func dictatingWritesOnlyWhatTheMostLikelyTranscriptReads() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.dictate(["RPE 9", "185 for 5 at 8"], at: address("w1d1.e0.s0"))
+
+    #expect(report.heard == "RPE 9")
+    #expect(report.outcome == .missingValues)
+    #expect(report.missing == ["weight"])
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func dictatingASetOnlyTheLessLikelyTranscriptsReadIsAmbiguousAndWritesNothing() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.dictate(["um", "185 for 5 at 8", "185 for 5 at 8"], at: address("w1d1.e0.s0"))
+
+    #expect(report.heard == "um")
+    #expect(report.outcome == .rejected)
+    #expect(report.rejection == SpokenSetRejectionSnapshot(reason: .ambiguous, field: nil, value: nil))
+    #expect(report.set.state == "pending")
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func dictatingWithNoTranscriptHeardNothing() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.dictate([], at: address("w1d1.e0.s0"))
+
+    #expect(report.heard == "")
+    #expect(report.outcome == .rejected)
+    #expect(report.rejection?.reason == .nothingHeard)
+    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
+}
+
+@MainActor
+@Test func dictatingAWholeSetFromTheMostLikelyTranscriptLogsIt() async throws {
+    let app = try await makeSelectedApp()
+
+    let report = try app.dictate(["185 for 5 at 8", "185 for 5 at 9"], at: address("w1d1.e0.s0"))
+
+    #expect(report.outcome == .logged)
+    #expect(report.setLog == "185x5@8")
+    #expect(report.set.state == "logged")
+    #expect(report.pendingWriteCount == 1)
+}

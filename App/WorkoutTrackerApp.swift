@@ -1,4 +1,3 @@
-import AppIntents
 import GoogleSignIn
 import SwiftData
 import SwiftUI
@@ -6,7 +5,15 @@ import SwiftUI
 @main
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
-    @State private var transcriber = Self.setTranscriber()
+    /// One Dictation per process: the card and the headless intent share the mic through it.
+    @State private var dictation: SetDictation?
+    /// One active Set per process: the card and the headless intent listen on the same one.
+    @State private var focus: ActiveSetFocusManager
+    /// One rest per process: whichever write starts it, the stage's pill, the Live Activity, and
+    /// the rest-end notification read the same one.
+    @State private var restTimer: RestTimer
+    /// One owner of the Live Activity per process, whichever surface asked for it.
+    @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
 
     init() {
@@ -16,10 +23,26 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
-        // Registered before the first scene, so an intent that cold-launches the app finds it.
+        let dictation = Self.setTranscriber().map { SetDictation(transcriber: $0) }
+        _dictation = State(initialValue: dictation)
+        let focus = ActiveSetFocusManager(session: nil)
+        _focus = State(initialValue: focus)
+        let restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
+        _restTimer = State(initialValue: restTimer)
+        let liveActivityAdapter = LiveActivityProductionAdapter()
+        _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
         _entry = State(initialValue: entry)
-        AppDependencyManager.shared.add(dependency: entry)
+        // Set before the first scene, so an intent that launches the app in the background, with
+        // no scene at all, finds it.
+        LogSetByVoiceIntent.performer = LogSetByVoicePerformer(
+            app: app,
+            dictation: dictation,
+            focus: focus,
+            restTimer: restTimer,
+            liveActivity: liveActivityAdapter,
+            entry: entry
+        )
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG
             #if canImport(UIKit)
@@ -27,6 +50,9 @@ struct WorkoutTrackerApp: App {
                     UIView.setAnimationsEnabled(false)
                 }
             #endif
+            if UITestFixture.launch.endsLiveActivities {
+                liveActivityAdapter.end()
+            }
         #endif
     }
 
@@ -110,12 +136,19 @@ struct WorkoutTrackerApp: App {
     @ViewBuilder private var launchedRoot: some View {
         #if DEBUG
             if UITestFixture.isEnabled {
-                UITestFixtureBootGate(app: app) { RootView(transcriber: transcriber) }
+                UITestFixtureBootGate(app: app) {
+                    RootView(
+                        dictation: dictation,
+                        focus: focus,
+                        restTimer: restTimer,
+                        liveActivityAdapter: liveActivityAdapter
+                    )
+                }
             } else {
-                RootView(transcriber: transcriber)
+                RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
             }
         #else
-            RootView(transcriber: transcriber)
+            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
         #endif
     }
 }

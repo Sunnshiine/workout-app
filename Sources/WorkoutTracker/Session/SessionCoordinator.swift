@@ -36,13 +36,17 @@ final class SessionCoordinator {
         session: Session? = nil,
         wiring: SessionWiring,
         transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
-        dictation: SetDictation? = nil
+        dictation: SetDictation? = nil,
+        focus: ActiveSetFocusManager? = nil
     ) {
         self.session = session
         self.wiring = wiring
         self.transitionClock = transitionClock
         self.dictation = dictation
-        let focusManager = ActiveSetFocusManager(session: session)
+        // A focus handed in is the process's, which a headless Dictation reads too. It keeps the
+        // Session it is about until the stage binds, since SwiftUI builds a coordinator it then
+        // throws away on every pass over the Session screen's init.
+        let focusManager = focus ?? ActiveSetFocusManager(session: session)
         self.focusManager = focusManager
         self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
         reconcileOnEachLiveEdgeChange()
@@ -338,14 +342,7 @@ extension SessionCoordinator {
             )
         else { return }
 
-        wiring.liveActivity.startOrUpdate(
-            restContent: content,
-            sessionLabel: liveActivitySessionLabel(for: session)
-        )
-    }
-
-    fileprivate func liveActivitySessionLabel(for session: Session) -> String {
-        session.placement.locationText(separator: " - ")
+        wiring.liveActivity.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
     }
 }
 
@@ -388,17 +385,27 @@ extension SessionCoordinator {
         dictation.start(for: setID)
     }
 
+    /// The card reports what it shows for `set` as the athlete changes it, which fills what a
+    /// Spoken Set leaves unsaid, from the card's mic or a press with the phone locked alike.
+    func cardShows(_ draft: SetLogDraft, for set: ExerciseSet) {
+        guard let setID = Self.activeSetID(for: set) else { return }
+        focusManager.cardShows(draft, for: setID)
+    }
+
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
-    /// they left unsaid read from `shown`, the values of `set`'s card. A press begun on another
-    /// Session or for another Set, or for a Set no longer Pending once the transcript is in, writes
-    /// nothing.
-    func finishDictation(of set: ExerciseSet, resolvingAgainst shown: SetLogDraft) async -> SetDictation.Outcome? {
+    /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
+    /// another Set, or for a Set no longer Pending once the transcript is in, writes nothing.
+    func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
         guard let dictation, let setID = dictation.state.listeningSetID else { return nil }
         guard let session = sessionOfPress(for: setID, releasedOn: set) else {
             await dictation.cancel()
             return nil
         }
-        return write(await dictation.finish(for: setID, in: SpokenSetContext(for: set, showing: shown)), heardFor: setID, in: session)
+        return write(await dictation.finish(for: setID, in: spokenSetContext(for: set)), heardFor: setID, in: session)
+    }
+
+    func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
+        SpokenSetContext(for: set, shownBy: focusManager, history: wiring.history())
     }
 
     /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.

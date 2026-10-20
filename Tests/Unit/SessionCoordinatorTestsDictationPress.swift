@@ -11,7 +11,7 @@ import Testing
     coordinator.startDictation(for: firstSet)
 
     coordinator.view(second)
-    let outcome = await coordinator.finishDictation(of: firstSet, resolvingAgainst: SpokenSetContext(for: firstSet, history: .empty).draft)
+    let outcome = await coordinator.finishDictation(of: firstSet)
 
     #expect(outcome == nil)
     #expect(ledger.entries == [.liveActivityReconciled])
@@ -28,7 +28,7 @@ import Testing
     coordinator.startDictation(for: pressed)
     let entriesBeforeTheRelease = ledger.entries.count
 
-    let outcome = await coordinator.finishDictation(of: next, resolvingAgainst: SpokenSetContext(for: next, history: .empty).draft)
+    let outcome = await coordinator.finishDictation(of: next)
 
     #expect(outcome == nil)
     #expect(ledger.entries.count == entriesBeforeTheRelease)
@@ -47,7 +47,7 @@ import Testing
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
     transcriber.starting.release()
     let releasing = Task {
-        await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+        await coordinator.finishDictation(of: set)
     }
     await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
 
@@ -73,7 +73,7 @@ import Testing
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
     transcriber.starting.release()
     let releasing = Task {
-        await coordinator.finishDictation(of: firstSet, resolvingAgainst: SpokenSetContext(for: firstSet, history: .empty).draft)
+        await coordinator.finishDictation(of: firstSet)
     }
     await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
 
@@ -97,7 +97,7 @@ func letGoOfTheMic(
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
     transcriber.starting.release()
     let releasing = Task {
-        await coordinator.finishDictation(of: set, resolvingAgainst: SpokenSetContext(for: set, history: .empty).draft)
+        await coordinator.finishDictation(of: set)
     }
     await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
     return releasing
