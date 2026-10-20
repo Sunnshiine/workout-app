@@ -71,6 +71,7 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,id=<UDID>' \
   -skipPackagePluginValidation -skipMacroValidation
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
+scripts/changed-tests.sh                           # the tests this branch changed; what CI's flake guard repeats under load
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
 scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill one hand-written mutant; --help for the form
 scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
@@ -88,8 +89,8 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 ## Verification
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
-gate, the simulator-hosted unit and component suite, the visual gate, and swift-format on the
-Swift files the PR changes. CI runs `WorkoutTrackerUITests` only on request, with
+gate, a flake guard that repeats the tests the PR changed under load, the simulator-hosted unit
+and component suite, the visual gate, and swift-format on the Swift files the PR changes. CI runs `WorkoutTrackerUITests` only on request, with
 `gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
 more) starts no run.
