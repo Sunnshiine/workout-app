@@ -6,12 +6,12 @@ import Testing
 /// the ordering owner has to sort them, not merely echo insertion order.
 private func makeMultiExerciseSession() -> Session {
     let session = Session(dayNumber: 1, date: nil)
-    let bench = Exercise(name: "Bench Press", baseName: "Bench Press", cadence: nil, coachNote: nil, order: 1)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
     bench.sets = [
         ExerciseSet(index: 1, prescribedReps: "6", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     ]
-    let squat = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let squat = Exercise(name: "Squat", coachNote: nil, order: 0)
     squat.sets = [
         ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending),
         ExerciseSet(index: 1, prescribedReps: "5", prescribedLoad: "RPE 8", percentOneRM: nil, state: .pending)
@@ -47,7 +47,7 @@ private func makeMultiExerciseSession() -> Session {
 @MainActor
 @Test func orderedSetsForSingleSetLine() {
     let session = Session(dayNumber: 1, date: nil)
-    let exercise = Exercise(name: "Squat", baseName: "Squat", cadence: nil, coachNote: nil, order: 0)
+    let exercise = Exercise(name: "Squat", coachNote: nil, order: 0)
     let onlySet = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
     exercise.sets = [onlySet]
     session.exercises = [exercise]
@@ -79,7 +79,7 @@ private func makeMultiExerciseSession() -> Session {
 @MainActor
 @Test func firstPendingSetIsNilWhenNoSetIsPending() {
     let session = makeMultiExerciseSession()
-    session.exercises.flatMap(\.sets).forEach { $0.state = .logged }
+    for set in session.exercises.flatMap(\.sets) { set.state = .logged }
 
     #expect(SessionSetOrder.firstPendingSet(in: session) == nil)
 }
@@ -115,7 +115,7 @@ private func makeMultiExerciseSession() -> Session {
     let bench = session.exercises.first { $0.order == 1 }!
     let lastSet = bench.sets.first { $0.index == 1 }!
     // Settle the earlier Squat Sets so the wrap target is the first Bench Set.
-    squat.sets.forEach { $0.state = .logged }
+    for set in squat.sets { set.state = .logged }
 
     let next = SessionSetOrder.nextPendingSet(after: lastSet, in: session)
 

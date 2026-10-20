@@ -4,12 +4,12 @@ import Testing
 
 @testable import WorkoutTracker
 
-private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
+final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
     var grid: SheetGrid
     var rowVisibility: [Int: SheetRowVisibility]
     var fetches: [String] = []
-    var attemptedRanges: [String] = []
-    var updates: [(String, [[String]])] = []
+    var attemptedTargets: [SheetWriteTarget] = []
+    var writes: [SheetCellWrite] = []
     var updateRequestCount = 0
     var failedUpdateRequestNumbers: Set<Int> = []
 
@@ -25,47 +25,21 @@ private final class BatchFlushStubClient: SheetsClient, @unchecked Sendable {
         return SheetSnapshot(values: grid, rowVisibility: rowVisibility)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
         updateRequestCount += 1
-        attemptedRanges.append(range)
+        attemptedTargets.append(contentsOf: cells.map(\.target))
         if failedUpdateRequestNumbers.contains(updateRequestCount) {
             throw URLError(.cannotConnectToHost)
         }
-        updates.append((range, values))
-        apply(range: range, values: values)
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        updateRequestCount += 1
-        attemptedRanges.append(contentsOf: updates.map(\.range))
-        if failedUpdateRequestNumbers.contains(updateRequestCount) {
-            throw URLError(.cannotConnectToHost)
+        writes.append(contentsOf: cells)
+        for cell in cells {
+            grid.write([[cell.value]], atRow: cell.row, col: cell.col)
         }
-        self.updates.append(contentsOf: updates.map { ($0.range, $0.values) })
-        for update in updates {
-            apply(range: update.range, values: update.values)
-        }
-    }
-
-    private func apply(range: String, values: [[String]]) {
-        guard
-            let reference = range.split(separator: "!").last,
-            let value = values.first?.first,
-            let target = a1CellIndex(String(reference))
-        else { return }
-
-        if target.row >= grid.count {
-            grid.append(contentsOf: SheetGrid(repeating: [], count: target.row - grid.count + 1))
-        }
-        if target.col >= grid[target.row].count {
-            grid[target.row].append(contentsOf: [String](repeating: "", count: target.col - grid[target.row].count + 1))
-        }
-        grid[target.row][target.col] = value
     }
 }
 
 @MainActor
-private func makeBatchContainer() throws -> ModelContainer {
+func makeBatchContainer() throws -> ModelContainer {
     try ModelContainer(
         for: Block.self,
         PendingWrite.self,
@@ -74,7 +48,7 @@ private func makeBatchContainer() throws -> ModelContainer {
     )
 }
 
-private func batchPendingWrite(
+func batchPendingWrite(
     createdAt: TimeInterval,
     dayNumbering: DayNumbering = .headerNumber,
     exerciseName: String = "Squat",
@@ -133,223 +107,17 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K30", "'Block 27'!K30", "'Block 27'!I30"])
-    #expect(client.updates.map(\.1) == [[["100x10@6"]], [["100x10@6, 100x10@6"]], [["6"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K30", value: "100x10@6"),
+            SheetCellWrite(tabName: "Block 27", a1: "K30", value: "100x10@6, 100x10@6"),
+            SheetCellWrite(tabName: "Block 27", a1: "I30", value: "6")
+        ]
+    )
     #expect(client.grid.cell(row: 29, col: 10) == "100x10@6, 100x10@6")
     #expect(client.grid.cell(row: 30, col: 10) == "")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
     #expect(sync.outcome == .clear)
-}
-
-@MainActor
-@Test func successfulFlushRecordsWriteTargetAuditEntry() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
-    try ctx.save()
-    let client = BatchFlushStubClient(
-        grid: coachNoteHiddenContinuationGrid(),
-        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
-    )
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
-    let entry = try #require(entries.first)
-    #expect(entries.count == 1)
-    #expect(entry.recordedSession.blockTab == "Block 27")
-    #expect(entry.recordedSession.address.week == 1)
-    #expect(entry.recordedSession.address.day == 1)
-    #expect(entry.exerciseName == "Squat")
-    #expect(entry.setIndex == 0)
-    #expect(entry.column == .notes)
-    #expect(entry.selectedA1Target == "'Block 27'!K17")
-    #expect(entry.rowScanDetails.contains("Skipped hidden rows: row 16 hidden by user"))
-    #expect(entry.rowScanDetails.contains("Selected row 17"))
-    #expect(entry.valueCheckOutcome.contains("matched expected"))
-    #expect(entry.finalStatus == .succeeded)
-}
-
-@MainActor
-@Test func conflictFlushRecordsWriteTargetAuditEntryWhenNoWritableRowIsSelected() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, exerciseName: "Bench Press", valueToWrite: "135x5@7"))
-    try ctx.save()
-    let client = BatchFlushStubClient(
-        grid: multiExerciseConflictGrid(),
-        rowVisibility: [17: SheetRowVisibility(hiddenByUser: true)]
-    )
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
-    let entry = try #require(entries.first)
-    #expect(entries.count == 1)
-    #expect(entry.exerciseName == "Bench Press")
-    #expect(entry.selectedA1Target == nil)
-    #expect(entry.rowScanDetails.contains("Skipped hidden rows: row 18 hidden by user"))
-    #expect(entry.rowScanDetails.contains("No row selected"))
-    #expect(entry.valueCheckOutcome == "Not checked because no target was selected.")
-    #expect(entry.finalStatus == .conflict)
-}
-
-@MainActor
-@Test func selectedTargetConflictRecordsWriterReportedValueCheck() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1))
-    try ctx.save()
-    let client = BatchFlushStubClient(
-        grid: coachNoteHiddenContinuationGrid(firstVisibleLog: "coach edited"),
-        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
-    )
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    let entries = try ctx.fetch(FetchDescriptor<WriteTargetAuditEntry>())
-    let entry = try #require(entries.first)
-    #expect(entries.count == 1)
-    #expect(entry.selectedA1Target == "'Block 27'!K17")
-    #expect(entry.currentValue == "coach edited")
-    #expect(entry.valueCheckOutcome == "Expected '', found 'coach edited'.")
-    #expect(entry.finalStatus == .conflict)
-}
-
-@MainActor
-@Test func writeTargetAuditLogKeepsMostRecentOneHundredEntries() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    for index in 0..<100 {
-        ctx.insert(
-            WriteTargetAuditEntry(
-                createdAt: Date(timeIntervalSince1970: TimeInterval(index)),
-                recordedSession: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-                exerciseName: "Old \(index)",
-                setIndex: 0,
-                column: .notes,
-                selectedA1Target: nil,
-                rowScanDetails: "old",
-                expectedCurrentValue: "",
-                currentValue: nil,
-                valueCheckOutcome: "old",
-                finalStatus: .succeeded,
-                message: nil
-            )
-        )
-    }
-    ctx.insert(batchPendingWrite(createdAt: 101, valueToWrite: "185x5@8"))
-    try ctx.save()
-    let client = BatchFlushStubClient(grid: oneSetGrid())
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    let entries = try ctx.fetch(
-        FetchDescriptor<WriteTargetAuditEntry>(sortBy: [SortDescriptor(\.createdAt)])
-    )
-    #expect(entries.count == 100)
-    #expect(entries.first?.exerciseName == "Old 1")
-    #expect(entries.last?.exerciseName == "Squat")
-}
-
-@MainActor
-@Test func flushBatchesIndependentNonOverlappingPendingWrites() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8"))
-    ctx.insert(batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "8"))
-    try ctx.save()
-    let client = BatchFlushStubClient(grid: twoSetGrid())
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    #expect(client.fetches == ["Block 27"])
-    #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["8"]]])
-    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.outcome == .clear)
-}
-
-@MainActor
-@Test func flushSplitsOverlappingTargetRangesIntoOrderedBatches() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, valueToWrite: "185x5@8"))
-    ctx.insert(batchPendingWrite(createdAt: 2, valueToWrite: "185x6@8", expectedCurrentValue: "185x5@8"))
-    try ctx.save()
-    let client = BatchFlushStubClient(grid: oneSetGrid())
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x6@8"]]])
-    #expect(client.grid.cell(row: 14, col: 10) == "185x6@8")
-    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-    #expect(sync.outcome == .clear)
-}
-
-@MainActor
-@Test func flushSplitsExpectedCurrentValueDependenciesIntoOrderedBatches() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, valueToWrite: "185x5@8"))
-    ctx.insert(
-        batchPendingWrite(
-            createdAt: 2,
-            operation: .delete,
-            valueToWrite: nil,
-            expectedCurrentValue: "185x5@8"
-        )
-    )
-    try ctx.save()
-    let client = BatchFlushStubClient(
-        grid: coachNoteHiddenContinuationGrid(),
-        rowVisibility: [15: SheetRowVisibility(hiddenByUser: true)]
-    )
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [[""]]])
-    #expect(client.grid.cell(row: 15, col: 10) == "")
-    #expect(client.grid.cell(row: 16, col: 10) == "")
-    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
-}
-
-@MainActor
-@Test func flushExcludesConflictsFromBatchWithoutBlockingCompatibleWrites() async throws {
-    let container = try makeBatchContainer()
-    let ctx = container.mainContext
-    ctx.insert(batchPendingWrite(createdAt: 1, exerciseName: "Squat", valueToWrite: "185x5@8"))
-    ctx.insert(batchPendingWrite(createdAt: 2, exerciseName: "Bench Press", valueToWrite: "135x5@7"))
-    ctx.insert(batchPendingWrite(createdAt: 3, exerciseName: "Deadlift", valueToWrite: "275x5@8"))
-    try ctx.save()
-    let client = BatchFlushStubClient(
-        grid: multiExerciseConflictGrid(),
-        rowVisibility: [17: SheetRowVisibility(hiddenByUser: true)]
-    )
-    let sync = SyncCoordinator(client: client, context: ctx)
-
-    await sync.flushPending(spreadsheetId: "sid")
-
-    #expect(client.updateRequestCount == 1)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K15", "'Block 27'!K19"])
-    let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
-    #expect(writes.count == 1)
-    let conflict = try #require(writes.first)
-    #expect(conflict.exerciseName == "Bench Press")
-    #expect(conflict.status == .conflict)
-    #expect(refusedWrites(sync.outcome) != nil)
 }
 
 @MainActor
@@ -365,7 +133,7 @@ private func batchPendingWrite(
     await sync.flushPending(spreadsheetId: "sid")
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .conflict })
     let messages = try #require(refusedWrites(sync.outcome))
@@ -397,7 +165,7 @@ private func batchPendingWrite(
     let write = try #require(try ctx.fetch(FetchDescriptor<PendingWrite>()).first)
     let messages = try #require(refusedWrites(sync.outcome))
     let message = try #require(messages.first)
-    #expect(client.updates.isEmpty)
+    #expect(client.writes.isEmpty)
     #expect(write.status == .conflict)
     #expect(message.contains("0:2:0 Hip Thrust of Choice"))
     #expect(message.contains("Set 2"))
@@ -425,7 +193,7 @@ private func batchPendingWrite(
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(sync.outcome == .writesQueued(2))
     #expect(client.updateRequestCount == 1)
-    #expect(client.attemptedRanges == ["'Block 27'!K17"])
+    #expect(client.attemptedTargets == [SheetWriteTarget(tabName: "Block 27", a1: "K17")])
     #expect(writes.count == 2)
     #expect(writes.allSatisfy { $0.status == .pending })
     #expect(writes.map(\.retryCount).sorted() == [0, 1])
@@ -451,8 +219,8 @@ private func batchPendingWrite(
 
     let writes = try ctx.fetch(FetchDescriptor<PendingWrite>())
     #expect(client.updateRequestCount == 1)
-    #expect(client.attemptedRanges == ["'Block 27'!K17", "'Block 27'!I15"])
-    #expect(client.updates.isEmpty)
+    #expect(client.attemptedTargets == [SheetWriteTarget(tabName: "Block 27", a1: "K17"), SheetWriteTarget(tabName: "Block 27", a1: "I15")])
+    #expect(client.writes.isEmpty)
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "185x5@8")
     #expect(client.grid.cell(row: 14, col: 8) == "")
@@ -501,50 +269,19 @@ private func batchPendingWrite(
 
     #expect(client.fetches == ["Block 27"])
     #expect(client.updateRequestCount == 2)
-    #expect(client.updates.map(\.0) == ["'Block 27'!K17", "'Block 27'!K17", "'Block 27'!I15"])
-    #expect(client.updates.map(\.1) == [[["185x5@8"]], [["185x5@8, 195x5@9"]], [["9"]]])
+    #expect(
+        client.writes == [
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8"),
+            SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8, 195x5@9"),
+            SheetCellWrite(tabName: "Block 27", a1: "I15", value: "9")
+        ]
+    )
     #expect(client.grid.cell(row: 15, col: 10) == "")
     #expect(client.grid.cell(row: 16, col: 10) == "185x5@8, 195x5@9")
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).isEmpty)
 }
 
-@MainActor
-@Test func orderPendingWritesForFlushPutsASetLogBeforeItsLastSetRPEMirror() throws {
-    let container = try makeBatchContainer()
-    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
-    let mirror = batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
-    let setLog = batchPendingWrite(createdAt: 1, setIndex: 1, valueToWrite: "195x5@9")
-
-    let ordered = sync.orderPendingWritesForFlush([mirror, setLog])
-
-    #expect(ordered.map(\.column) == [.notes, .lastSetRPE])
-}
-
-@MainActor
-@Test func orderPendingWritesForFlushPutsASetLogBeforeAMirrorQueuedAheadOfIt() throws {
-    let container = try makeBatchContainer()
-    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
-    let mirror = batchPendingWrite(createdAt: 1, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
-    let setLog = batchPendingWrite(createdAt: 2, setIndex: 1, valueToWrite: "195x5@9")
-
-    let ordered = sync.orderPendingWritesForFlush([mirror, setLog])
-
-    #expect(ordered.map(\.column) == [.notes, .lastSetRPE])
-}
-
-@MainActor
-@Test func orderPendingWritesForFlushKeepsWritesForDifferentSetsInQueuedOrder() throws {
-    let container = try makeBatchContainer()
-    let sync = SyncCoordinator(client: BatchFlushStubClient(grid: twoSetGrid()), context: container.mainContext)
-    let secondSet = batchPendingWrite(createdAt: 2, setIndex: 1, column: .lastSetRPE, valueToWrite: "9")
-    let firstSet = batchPendingWrite(createdAt: 1, setIndex: 0, valueToWrite: "185x5@8")
-
-    let ordered = sync.orderPendingWritesForFlush([secondSet, firstSet])
-
-    #expect(ordered.map(\.setIndex) == [0, 1])
-}
-
-private func oneSetGrid() -> SheetGrid {
+func oneSetGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -556,22 +293,7 @@ private func oneSetGrid() -> SheetGrid {
     )
 }
 
-private func twoSetGrid(notesOnly: Bool = false, firstSetLog: String? = nil) -> SheetGrid {
-    var cells = [
-        "C12": "Day 1", "S12": "Day 2",
-        "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
-        "C15": "Squat", "D15": "2"
-    ]
-    if let firstSetLog {
-        cells["K15"] = firstSetLog
-    }
-    if !notesOnly {
-        cells["I14"] = "Last set RPE"
-    }
-    return gridFromA1(cells, rows: 24, cols: 30)
-}
-
-private func coachNoteHiddenContinuationGrid(firstVisibleLog: String? = nil, includesLastSetRPE: Bool = false) -> SheetGrid {
+func coachNoteHiddenContinuationGrid(firstVisibleLog: String? = nil, includesLastSetRPE: Bool = false) -> SheetGrid {
     var cells = [
         "C12": "Day 1", "S12": "Day 2",
         "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
@@ -600,7 +322,7 @@ private func compactHamstringCurlGrid() -> SheetGrid {
     )
 }
 
-private func multiExerciseConflictGrid() -> SheetGrid {
+func multiExerciseConflictGrid() -> SheetGrid {
     gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -642,7 +364,7 @@ private func hipThrustHeaderNotesConflictGrid() -> SheetGrid {
     )
 }
 
-private func refusedWrites(_ outcome: SyncOutcome) -> [String]? {
+func refusedWrites(_ outcome: SyncOutcome) -> [String]? {
     if case .writesRefused(let messages) = outcome { return messages }
     return nil
 }

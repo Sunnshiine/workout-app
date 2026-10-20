@@ -1,61 +1,5 @@
 import Foundation
 
-enum HoldToSkipReleaseOutcome: Equatable, Sendable {
-    case deferToTap
-    case cancelSkip
-    case skip
-    case ignore
-}
-
-struct HoldToSkipPolicy: Equatable, Sendable {
-    let holdDuration: TimeInterval
-    let tapMaximumDuration: TimeInterval
-    let revealDelay: TimeInterval
-
-    init(
-        holdDuration: TimeInterval = Theme.Motion.holdToSkipCommit,
-        tapMaximumDuration: TimeInterval = Theme.holdToSkipTapMaximumDuration,
-        revealDelay: TimeInterval = Theme.Motion.holdToSkipReveal
-    ) {
-        self.holdDuration = holdDuration
-        self.tapMaximumDuration = tapMaximumDuration
-        self.revealDelay = revealDelay
-    }
-
-    /// The idle-Set hold: reveal 250ms, commit 850ms.
-    static let standard = HoldToSkipPolicy()
-
-    /// The longer hold a Set already logged must survive before it re-skips (900ms).
-    static let loggedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipLoggedCommit)
-
-    /// The longest hold, to undo an already-skipped Set (1100ms).
-    static let skippedState = HoldToSkipPolicy(holdDuration: Theme.Motion.holdToSkipSkippedCommit)
-
-    func releaseOutcome(elapsed: TimeInterval, skipCompleted: Bool) -> HoldToSkipReleaseOutcome {
-        if skipCompleted {
-            return .ignore
-        }
-
-        if elapsed >= holdDuration {
-            return .skip
-        }
-
-        if elapsed <= tapMaximumDuration {
-            return .deferToTap
-        }
-
-        return .cancelSkip
-    }
-
-    func shouldRevealProgress(elapsed: TimeInterval) -> Bool {
-        elapsed >= revealDelay && elapsed < holdDuration
-    }
-
-    var progressAnimationDuration: TimeInterval {
-        max(holdDuration - revealDelay, 0)
-    }
-}
-
 enum HoldToSkipButtonTone: Equatable, Sendable {
     case primary
     case incomplete
@@ -65,11 +9,34 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     let progress: Double
     let logTitle: String
     let canLog: Bool
+    let setState: SetState
 
-    init(progress: Double, logTitle: String, canLog: Bool = true) {
+    init(progress: Double, logTitle: String, canLog: Bool = true, setState: SetState = .pending) {
         self.progress = progress
         self.logTitle = logTitle
         self.canLog = canLog
+        self.setState = setState
+    }
+
+    /// The hold a press on this capsule takes; nil when it takes none.
+    var holdPolicy: HoldToSkipPolicy? {
+        .forSet(in: setState)
+    }
+
+    /// How long SwiftUI's long press runs before it reports the press over. It is never shorter
+    /// than the hold, so the reducer's own commit deadline arrives first.
+    var longPressDuration: TimeInterval {
+        (holdPolicy ?? .standard).holdDuration
+    }
+
+    /// The capsule settles into the dashed empty bed once its Set is Skipped (DESIGN.md §5.3).
+    var showsSkippedBed: Bool {
+        setState == .skipped
+    }
+
+    /// Whether the capsule offers Skip at all, by hold or by the accessibility action.
+    var offersSkip: Bool {
+        holdPolicy != nil
     }
 
     var skipOpacity: Double {
@@ -81,14 +48,20 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
     }
 
     var accessibilityLabel: String {
-        clampedProgress > 0 ? "Skipped" : logTitle
+        showsSkippedBed || clampedProgress > 0 ? "Skipped" : logTitle
+    }
+
+    var accessibilityValue: String {
+        clampedProgress > 0 ? "\(Int((clampedProgress * 100).rounded()))% Skip" : ""
     }
 
     var accessibilityHint: String {
-        if canLog {
-            return "Double tap to log. Press and hold to skip."
+        switch (canLog, offersSkip) {
+        case (true, true): "Double tap to log. Press and hold to skip."
+        case (true, false): "Double tap to log."
+        case (false, true): "Double tap to show what is missing. Press and hold to skip this Set."
+        case (false, false): "Double tap to show what is missing."
         }
-        return "Double tap to show what is missing. Press and hold to skip this Set."
     }
 
     var tone: HoldToSkipButtonTone {
@@ -222,15 +195,13 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
     }
 
     init(session: Session, block: Block? = nil) {
-        let weekNumber = session.week?.number ?? 0
-        let dayNumber = session.dayNumber
-        let locationCore = "Week \(weekNumber) · Day \(dayNumber)"
+        let locationCore = session.placement.locationText(separator: " · ")
         if let block {
             runlineText = "\(block.tabName) · \(locationCore)"
         } else {
             runlineText = locationCore
         }
-        locationActionAccessibilityLabel = "Open Block Overview for Week \(weekNumber), Day \(dayNumber)"
+        locationActionAccessibilityLabel = "Open Block Overview for \(session.placement.locationText(separator: ", "))"
 
         let sets = session.exercises
             .sorted { $0.order < $1.order }
@@ -261,7 +232,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     }
 
     init?(exercise: Exercise, lookup: LastPerformedLookupSnapshot) {
-        guard let entry = lookup.lookup(for: exercise.name) else {
+        guard let entry = lookup.lookup(for: exercise.exerciseName) else {
             return nil
         }
         resultText = entry.resultText

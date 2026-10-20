@@ -32,7 +32,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
 
     @MainActor
     init(session: Session, quoteText requestedQuoteText: String? = nil) {
-        let weekNumber = session.week?.number ?? 0
+        let placement = session.placement
         let dayNumber = session.dayNumber
         let sets = session.exercises.flatMap(\.sets)
         let totalSetCount = sets.count
@@ -40,9 +40,9 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         let pendingSetCount = session.pendingSetCount
         let selectedQuote = requestedQuoteText ?? Self.launchQuoteOverride ?? Self.approvedQuotes.randomElement() ?? ""
 
-        let locationCore = "Week \(weekNumber) · Day \(dayNumber)"
+        let locationCore = placement.locationText(separator: " · ")
         titleText = "Day \(dayNumber), done."
-        if let tabName = session.week?.block?.tabName {
+        if let tabName = placement.coordinate?.blockTab {
             contextText = "\(tabName) · \(locationCore)"
         } else {
             contextText = locationCore
@@ -55,7 +55,7 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
             MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
-        accessibilityLabel = "Week \(weekNumber), Day \(dayNumber)"
+        accessibilityLabel = placement.locationText(separator: ", ")
         accessibilityValue = ([titleText, selectedQuote] + stats.map { "\($0.value) \($0.label)" })
             .joined(separator: ", ")
         accessibilityHint = "Double tap to continue"

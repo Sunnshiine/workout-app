@@ -95,13 +95,15 @@ struct GoogleSheetsClient: SheetsClient {
         self.load = load
     }
 
-    /// The sheet-picker client for the running environment: a deterministic fixture client under
-    /// UI-test launch arguments, otherwise a live `GoogleSheetsClient`. Centralises the fixture/live
-    /// decision so every sheet-picker entry point (Onboarding and Settings) shares one source.
+    /// The sheet-picker client for the running environment: the fixture application's own drive
+    /// under UI-test launch arguments, otherwise a live `GoogleSheetsClient`. Centralises the
+    /// fixture/live decision so every sheet-picker entry point (Onboarding and Settings) shares one
+    /// source.
+    @MainActor
     static func forCurrentEnvironment() -> any SheetsClient {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return UITestFixture.makeSheetsClient(launch: UITestFixture.launch)
+                return UITestFixture.sheets
             }
         #endif
         return GoogleSheetsClient()
@@ -163,15 +165,8 @@ struct GoogleSheetsClient: SheetsClient {
         return Self.snapshot(from: response)
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {
-        try await updateCells(
-            spreadsheetId: spreadsheetId,
-            updates: [SheetValueRangeUpdate(range: range, values: values)]
-        )
-    }
-
-    func updateCells(spreadsheetId: String, updates: [SheetValueRangeUpdate]) async throws {
-        guard !updates.isEmpty else { return }
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
+        guard !cells.isEmpty else { return }
         guard
             let url = URL(
                 string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)/values:batchUpdate"
@@ -186,8 +181,12 @@ struct GoogleSheetsClient: SheetsClient {
         req.httpBody = try JSONEncoder().encode(
             GoogleSheetsBatchUpdateBody(
                 valueInputOption: "USER_ENTERED",
-                data: updates.map { update in
-                    GoogleSheetsValueRange(range: update.range, majorDimension: "ROWS", values: update.values)
+                data: cells.map { cell in
+                    GoogleSheetsValueRange(
+                        range: singleCellRange(tabName: cell.tabName, row: cell.row, col: cell.col),
+                        majorDimension: "ROWS",
+                        values: [[cell.value]]
+                    )
                 }
             )
         )

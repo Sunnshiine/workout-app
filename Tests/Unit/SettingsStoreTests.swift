@@ -8,8 +8,8 @@ import Testing
     let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)
     store.isSignedIn = true
-    #expect(store.isConfigured == false)  // no URL yet
-    store.setSheetURL("https://docs.google.com/spreadsheets/d/SHEET123/edit")
+    #expect(store.isConfigured == false)  // no Sheet yet
+    store.setSpreadsheet(id: "SHEET123")
     #expect(store.spreadsheetId == "SHEET123")
     #expect(store.isConfigured == true)
     store.isSignedIn = false

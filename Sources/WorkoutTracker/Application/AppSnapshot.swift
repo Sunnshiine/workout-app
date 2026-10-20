@@ -200,9 +200,9 @@ public struct ExerciseSnapshot: Encodable, Equatable, Sendable {
     init(_ exercise: Exercise, id: ExerciseAddress, history: LastPerformedLookupSnapshot) {
         self.id = id
         order = exercise.order
-        name = exercise.name
-        baseName = exercise.baseName
-        cadence = exercise.cadence
+        name = exercise.exerciseName.entered
+        baseName = exercise.exerciseName.base
+        cadence = exercise.exerciseName.cadence
         coachNote = exercise.coachNote
         legacyLog = exercise.legacyLog
         isComplete = exercise.isComplete
@@ -247,6 +247,8 @@ public struct AppSnapshot: Encodable, Equatable, Sendable {
     public let block: BlockSummary?
     public let currentSession: SessionAddress?
     public let currentSessionReason: String
+    /// True only while a Current Session Pin the athlete wrote with Make current is in force. A
+    /// Move On advance also pins the Current Session, but it is not an override.
     public let currentSessionIsOverridden: Bool
     public let viewedSession: SessionAddress?
     public let canMoveOn: Bool

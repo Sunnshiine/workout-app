@@ -4,13 +4,13 @@
 
     private final class BundleMarker {}
 
-    private func workoutBinary() throws -> URL {
+    func workoutBinary() throws -> URL {
         let candidates = [Bundle(for: BundleMarker.self).bundleURL, Bundle.main.bundleURL]
             .map { $0.deletingLastPathComponent().appendingPathComponent("workout") }
         return try #require(candidates.first { FileManager.default.isExecutableFile(atPath: $0.path) })
     }
 
-    private struct Run {
+    struct Run {
         let status: Int32
         let stdout: Data
         let stderr: Data
@@ -27,7 +27,7 @@
         }
     }
 
-    private struct CLI {
+    struct CLI {
         let home: URL
         let binary: URL
 
@@ -61,12 +61,12 @@
         }
     }
 
-    private func temporaryHome() throws -> URL {
+    func temporaryHome() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("workout-cli-\(UUID().uuidString)")
         return url
     }
 
-    private func editBlockCells(in home: URL, _ transform: (inout [String: String]) -> Void) throws {
+    func editBlockCells(in home: URL, _ transform: (inout [String: String]) -> Void) throws {
         let workbookURL = home.appendingPathComponent("workbook.json")
         var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
         var tabs = try #require(workbook["tabs"] as? [String: Any])
@@ -294,76 +294,26 @@
         #expect(try String(contentsOf: file, encoding: .utf8) == "precious")
     }
 
-    @Test func aConflictedWriteStaysVisibleAndKeepsFlushAndSyncOnExitFour() throws {
+    @Test func aChoiceExerciseSuggestsALoadFromHistoryLoggedUnderOneOption() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
         let cli = CLI(home: home, binary: try workoutBinary())
-        _ = try cli.run("init")
-        _ = try cli.run("log", "w1d1.e0.s0", "185x5@8")
-
-        let workbookURL = home.appendingPathComponent("workbook.json")
-        var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
-        var tabs = try #require(workbook["tabs"] as? [String: Any])
-        var block = try #require(tabs["Block 27"] as? [String: Any])
-        var cells = try #require(block["cells"] as? [String: String])
-        cells["K15"] = "200x5@8"
-        block["cells"] = cells
-        tabs["Block 27"] = block
-        workbook["tabs"] = tabs
-        try JSONSerialization.data(withJSONObject: workbook).write(to: workbookURL)
-
-        let first = try cli.run("flush")
-        #expect(first.status == 4)
-        #expect(try first.errorJSON["code"] as? String == "write_conflict")
-        #expect(try first.json["written"] as? Int == 0)
-        #expect(((try first.json["conflictedWrites"] as? [String]) ?? []).first?.hasPrefix("Back Squat:") == true)
-
-        let second = try cli.run("flush")
-        #expect(second.status == 4)
-        #expect(try second.json["attempted"] as? Int == 0)
-        #expect(try second.json["remainingPendingWrites"] as? Int == 1)
-        #expect(((try second.json["conflictedWrites"] as? [String]) ?? []).count == 1)
-
-        let sync = try cli.run("sync")
-        #expect(sync.status == 4)
-        #expect(try sync.errorJSON["code"] as? String == "sync_conflict")
-        #expect(try sync.json["pendingWriteCount"] as? Int == 1)
-    }
-
-    /// The reason `syncOutcome` exists. Both halves exit 4 and both leave the athlete something to
-    /// do, and the only thing telling them apart is `status`.
-    @Test func aParseWarningAndARefusedWriteReachTheWireUnderDifferentStatuses() throws {
-        let warningHome = try temporaryHome()
-        defer { try? FileManager.default.removeItem(at: warningHome) }
-        let warningCLI = CLI(home: warningHome, binary: try workoutBinary())
-        _ = try warningCLI.run("init")
-        let dayHeader = try Regex(#"^Day \d+$"#)
-        try editBlockCells(in: warningHome) { cells in
-            for key in cells.filter({ (try? dayHeader.wholeMatch(in: $0.value)) != nil }).keys {
-                cells[key] = nil
-            }
+        _ = try cli.run("init", "--scenario", "fresh-block")
+        try editBlockCells(in: home) { cells in
+            cells["C15"] = "Incline DB Bench Press"
+            cells["C40"] = "Incline Machine or DB Bench Press"
         }
+        _ = try cli.run("sync")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@7")
 
-        let warned = try warningCLI.run("sync")
-        let warnedOutcome = try #require(try warned.json["syncOutcome"] as? [String: Any])
-        #expect(warned.status == 4)
-        #expect(warnedOutcome["status"] as? String == "parseWarnings")
-        #expect(((warnedOutcome["messages"] as? [String]) ?? []).isEmpty == false)
-
-        let refusedHome = try temporaryHome()
-        defer { try? FileManager.default.removeItem(at: refusedHome) }
-        let refusedCLI = CLI(home: refusedHome, binary: try workoutBinary())
-        _ = try refusedCLI.run("init")
-        _ = try refusedCLI.run("log", "w1d1.e0.s0", "185x5@8")
-        _ = try refusedCLI.run("flush")
-        _ = try refusedCLI.run("sync")
-        _ = try refusedCLI.run("log", "w1d1.e0.s0", "205x3@9")
-        try editBlockCells(in: refusedHome) { cells in cells["K15"] = "coach edited" }
-
-        let refused = try refusedCLI.run("sync")
-        let refusedOutcome = try #require(try refused.json["syncOutcome"] as? [String: Any])
-        #expect(refused.status == 4)
-        #expect(refusedOutcome["status"] as? String == "writesRefused")
+        let session = try cli.run("session", "w2d1")
+        let exercises = try #require(try session.json["exercises"] as? [[String: Any]])
+        let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
+        let suggestion = try #require(sets[0]["loadSuggestion"] as? [String: Any])
+        #expect(suggestion["kind"] as? String == "estimate")
+        #expect(suggestion["weight"] as? Int == 185)
+        let basis = try #require(suggestion["basis"] as? [String: Any])
+        #expect(basis["text"] as? String == "from 185x5@7 · W1 D1 as “Incline DB Bench Press”")
     }
 
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {

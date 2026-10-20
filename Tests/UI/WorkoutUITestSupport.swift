@@ -30,6 +30,9 @@ enum WorkoutUITestFixtureOption: String {
     case openExercises = "-UITEST_OPEN_EXERCISES"
     case pendingWrite = "-UITEST_PENDING_WRITE"
     case lateSignIn = "-UITEST_LATE_SIGN_IN"
+    /// Keeps a log queued, so the `N unsynced` banner stays up instead of flashing `Syncing` and
+    /// leaving, for a test that reads the banner or measures the layout under it.
+    case offline = "-UITEST_OFFLINE"
 }
 
 extension XCTestCase {

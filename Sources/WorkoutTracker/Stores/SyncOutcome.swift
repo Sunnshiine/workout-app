@@ -29,8 +29,17 @@ extension SyncOutcome {
         self = parseWarnings.isEmpty ? .clear : .parseWarnings(parseWarnings)
     }
 
-    init(refusedWrites: [String]) {
-        self = refusedWrites.isEmpty ? .clear : .writesRefused(refusedWrites)
+    /// The verdict one pending-write flush reports. A refusal wins over the writes still queued,
+    /// because no later flush reports that refusal and the next one reports those writes (#784).
+    init(refusedWrites: [String], queued: Int) {
+        self =
+            if !refusedWrites.isEmpty {
+                .writesRefused(refusedWrites)
+            } else if queued > 0 {
+                .writesQueued(queued)
+            } else {
+                .clear
+            }
     }
 
     /// The verdict one sync reports, from what its Sheet read concluded and what the pending-write

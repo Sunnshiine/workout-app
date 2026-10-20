@@ -23,10 +23,6 @@ final class SettingsStore {
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
     private static let showsLoadBasisKey = "showsLoadBasis"
-    // Matches both the legacy "advancedToOrder_" and the current "advancedToOrderV2_" override
-    // keys (the Session order encoding was re-versioned for 2–6 day Weeks) so prior app state is
-    // still recognised regardless of which one is stored.
-    private static let currentSessionOverrideKeyPrefix = "advancedToOrder"
 
     init(defaults: AppDefaults, hasPriorAppState: Bool = false) {
         self.defaults = defaults
@@ -49,14 +45,6 @@ final class SettingsStore {
     /// False while the launch restores a sign-in that may yet configure the app, though
     /// onboarding shows in the meantime.
     var needsOnboarding: Bool { signIn != .restoring && !isConfigured }
-
-    /// Stores the spreadsheet id parsed from a pasted Sheet URL. Returns false if unparseable.
-    @discardableResult
-    func setSheetURL(_ url: String) -> Bool {
-        guard let id = extractSpreadsheetId(from: url) else { return false }
-        setSpreadsheet(id: id)
-        return true
-    }
 
     func setSpreadsheet(id: String, title: String) {
         spreadsheetId = id
@@ -130,8 +118,6 @@ final class SettingsStore {
     private static func hasStoredAppState(in defaults: AppDefaults) -> Bool {
         defaults.hasValue(forKey: spreadsheetIdKey)
             || defaults.hasValue(forKey: spreadsheetTitleKey)
-            || defaults.keys.contains { key in
-                key.hasPrefix(currentSessionOverrideKeyPrefix)
-            }
+            || CurrentSessionPin.isStored(in: defaults)
     }
 }

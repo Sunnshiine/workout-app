@@ -1,0 +1,9 @@
+# token-budget=exempt: scripts/check-token-budget.sh skips these paths. List only files a tool
+# writes (lockfiles, codegen, captured output). Adding a hand-written file here is not a way
+# around the 5,000-token limit; split the file instead.
+package-lock.json token-budget=exempt
+skills-lock.json token-budget=exempt
+Package.resolved token-budget=exempt
+*.lock token-budget=exempt
+*.pbxproj token-budget=exempt
+.agents/skills/verify/tests/fixtures/*.describe-ui.json token-budget=exempt
