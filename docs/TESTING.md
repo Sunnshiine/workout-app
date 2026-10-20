@@ -21,6 +21,16 @@ A test passes every time or it is a defect. `scripts/flake-hunt.sh [--repetition
 `swift test` until a failure while busy loops hold every core, which surfaces a timing race within a few
 hundred repetitions. Run it on any test that awaits concurrent work before you commit that test.
 
+CI runs a narrower hunt on every pull request. After the gate, `scripts/flake-guard.sh` repeats each test
+whose lines the pull request changed, up to 20 times, on the products the gate built, while three busy
+loops per core hold the CPU. It stops at the first failure or after 300 seconds. A test's lines run from
+its `@Test` to the brace that closes it, so the guard repeats only the tests the diff touched and does
+not go red on a flake the pull request did not add. Deleting a test selects nothing. A moved test counts
+as new. A failure names the test, the repetition, its declaration, its first issues, and the
+`flake-hunt.sh` line that reproduces it. A pull request that changes no test runs nothing. A change to
+`Tests/Support/`, or to a helper or attribute outside every test, selects nothing and prints a note, so
+hunt the tests that use it yourself. `scripts/changed-tests.sh` prints the selection.
+
 Two shapes caused every flake found so far, and neither survives the hunt:
 
 - A fixed number of `Task.yield()` calls before asserting on work another task does. The runtime does not
