@@ -8,7 +8,7 @@
             self.candidates = candidates
         }
 
-        func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+        func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
             hearing(candidates.first ?? "")
         }
 

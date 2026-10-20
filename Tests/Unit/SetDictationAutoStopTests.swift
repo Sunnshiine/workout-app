@@ -142,7 +142,7 @@ func listeningStopsOnItsOwn(liveAt: Duration, lastHeardAt: Duration?, now: Durat
     #expect(dictation.start(for: secondSet))
 
     #expect(await dictation.listenUntilQuiet(for: firstSet) { squat } == nil)
-    #expect(dictation.state.listeningSetID == secondSet)
+    #expect(dictation.state.pressSetID == secondSet)
     #expect(!dictation.start(for: firstSet))
 }
 
@@ -171,7 +171,7 @@ private final class OpenMicTranscriber: SetTranscriber {
         startFailure = failure
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
         await starting.hold()
         if let startFailure { throw startFailure }
         self.hearing = hearing

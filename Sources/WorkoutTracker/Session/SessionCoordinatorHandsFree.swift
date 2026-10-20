@@ -72,7 +72,7 @@ extension SessionCoordinator {
 
     /// True while the mic is idle and the Current Session still has a Pending Set to log.
     private var micIsFreeForAPendingSet: Bool {
-        guard let dictation, dictation.state.listeningSetID == nil, let current = wiring.navigation.currentSession else { return false }
+        guard let dictation, dictation.state.pressSetID == nil, let current = wiring.navigation.currentSession else { return false }
         return SessionSetOrder.firstPendingSet(in: current) != nil
     }
 

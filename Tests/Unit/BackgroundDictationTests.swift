@@ -365,7 +365,7 @@ private final class FailingSetTranscriber: SetTranscriber {
         self.error = error
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
         throw error
     }
 
