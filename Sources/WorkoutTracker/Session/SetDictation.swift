@@ -1,83 +1,6 @@
 import Foundation
 import Observation
-
-/// Why a transcriber returned no transcript.
-enum SetTranscriberError: Error, Equatable, Sendable {
-    case microphoneDenied
-    /// The device has no on-device speech model for the locale, or its assets would not install.
-    case unavailable
-    case nothingHeard
-    case failed
-}
-
-/// Speech-to-text heard while the athlete speaks: the caption, the auto-stop, and the Live
-/// Transcript, from `start` until `finish`.
-@MainActor
-protocol SetTranscriber: AnyObject {
-    /// Returns once the microphone is live. `hearing` receives the whole transcript so far each
-    /// time it changes, and `recording` the mic's audio at 16 kHz mono, until `finish` or `cancel`
-    /// returns. A start that throws leaves nothing listening.
-    func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberError)
-    /// Stops listening, even when it throws, and returns the transcripts heard, the most likely
-    /// first.
-    func finish() async throws(SetTranscriberError) -> [String]
-    func cancel() async
-}
-
-/// The time hands-free Dictation reads: how long a request to listen waits for the stage, and
-/// when the athlete has stopped talking.
-@MainActor
-protocol ListeningClock: AnyObject {
-    /// The time since a fixed origin.
-    var now: Duration { get }
-    /// Returns at `deadline`, or at once when it has passed.
-    func sleep(until deadline: Duration) async
-}
-
-@MainActor
-final class ContinuousListeningClock: ListeningClock {
-    private let origin = ContinuousClock.now
-
-    var now: Duration { ContinuousClock.now - origin }
-
-    func sleep(until deadline: Duration) async {
-        try? await Task.sleep(until: origin + deadline, clock: .continuous)
-    }
-}
-
-/// What the Spoken Set for one Set resolves against.
-struct SpokenSetContext: Equatable, Sendable {
-    /// What the Set's card shows, which fills what the athlete leaves unsaid.
-    let draft: SetLogDraft
-    /// The Exercise's nearest earlier structured Set Log in the Session, which "same again" logs.
-    let previous: SetLog?
-}
-
-extension SpokenSetContext {
-    /// A Set as its card first shows it.
-    @MainActor
-    init(for set: ExerciseSet, history: LastPerformedLookupSnapshot) {
-        self.init(for: set, showing: SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history)))
-    }
-
-    /// A Set whose card shows `draft`, which the athlete may have changed.
-    @MainActor
-    init(for set: ExerciseSet, showing draft: SetLogDraft) {
-        self.init(draft: draft, previous: set.earlierSetLogs.first?.setLog)
-    }
-
-    /// What a Spoken Set for `set` resolves against on every path, the card's mic or a press with
-    /// the phone locked: what the card shows for `set` once it has reported it, the card's first
-    /// values otherwise.
-    @MainActor
-    init(for set: ExerciseSet, shownBy focus: ActiveSetFocusManager, history: LastPerformedLookupSnapshot) {
-        if let setID = ActiveSetFocusManager.id(for: set), let draft = focus.cardDraft(for: setID) {
-            self.init(for: set, showing: draft)
-        } else {
-            self.init(for: set, history: history)
-        }
-    }
-}
+import os
 
 /// One press of the Active Set Card's mic, from the first word heard to the Spoken Set's outcome.
 @MainActor
@@ -91,6 +14,12 @@ final class SetDictation {
         /// The press ended and its outcome waits on the engines, for at most the Decision Deadline.
         case deciding(ActiveSetID, heard: String)
         case finished(ActiveSetID, Outcome)
+    }
+
+    /// Where a press came from: the card's mic, held or listening hands-free with the app on
+    /// screen, or a press that runs headless.
+    enum Surface: String, Codable, Sendable {
+        case card, headless
     }
 
     /// What a press does to its Set. Only `logged` and `skipped` write; `heard` is the top transcript.
@@ -138,30 +67,51 @@ final class SetDictation {
     private(set) var state: State = .idle
     @ObservationIgnored private let transcriber: any SetTranscriber
     @ObservationIgnored private let reader: any RecordingTranscriber
+    @ObservationIgnored private let journal: DictationJournal
     @ObservationIgnored private let clock: any ListeningClock
     /// Nil means no press is in flight; `finish` and `cancel` take it.
     @ObservationIgnored private var press: Press?
 
-    init(transcriber: any SetTranscriber, reader: any RecordingTranscriber, clock: any ListeningClock = ContinuousListeningClock()) {
+    /// Instruments shows a press's phases as intervals beside the main thread's hangs.
+    private static let signposter = OSSignposter(subsystem: "WorkoutTracker", category: "Dictation")
+
+    init(
+        transcriber: any SetTranscriber,
+        reader: any RecordingTranscriber,
+        journal: DictationJournal,
+        clock: any ListeningClock = ContinuousListeningClock()
+    ) {
         self.transcriber = transcriber
         self.reader = reader
+        self.journal = journal
         self.clock = clock
     }
 
     /// One press of the mic, from `start` until `finish` or `cancel` takes it.
     private struct Press {
+        let id = UUID()
         let set: ActiveSetID
+        let surface: Surface
+        let pressedAt: Date
+        let modelAtPress: SpeechModelState
         let recorder: DictationRecorder
         let starting: Task<SetTranscriberError?, Never>
+        let watchdog = MainThreadWatchdog()
+        let signpost: OSSignpostIntervalState
         var timeline: PressTimeline
     }
 
-    /// Ignored, returning false, while another press is in flight, so one transcriber never
-    /// listens twice.
+    /// A press of the card's mic. Ignored, returning false, while another press is in flight, so
+    /// one transcriber never listens twice.
     @discardableResult
     func start(for set: ActiveSetID) -> Bool {
+        start(for: set, on: .card)
+    }
+
+    private func start(for set: ActiveSetID, on surface: Surface) -> Bool {
         guard press == nil, state.pressSetID == nil else { return false }
         state = .preparing(set)
+        let modelAtPress = reader.readiness
         reader.expectRecording()
         let transcriber = transcriber
         let recorder = DictationRecorder()
@@ -174,16 +124,25 @@ final class SetDictation {
                 return error
             }
         }
-        press = Press(set: set, recorder: recorder, starting: starting, timeline: PressTimeline())
+        press = Press(
+            set: set,
+            surface: surface,
+            pressedAt: clock.date,
+            modelAtPress: modelAtPress,
+            recorder: recorder,
+            starting: starting,
+            signpost: Self.signposter.beginInterval("Press"),
+            timeline: PressTimeline(pressedAt: clock.now)
+        )
         return true
     }
 
     /// Listens for `set` with no hand on the mic until the athlete stops talking, then finishes as
     /// a release would. Nothing heard by the cap writes nothing. A tap that finishes the press
     /// first, or a cancel, leaves this nil, as does a press already in flight.
-    func listenUntilQuiet(for set: ActiveSetID, in context: () -> SpokenSetContext) async -> Outcome? {
-        guard start(for: set), let starting = press?.starting else { return nil }
-        guard await starting.value == nil else { return await finish(for: set, in: context()) }
+    func listenUntilQuiet(for set: ActiveSetID, on surface: Surface, in context: () -> SpokenSetContext) async -> Outcome? {
+        guard start(for: set, on: surface), let starting = press?.starting else { return nil }
+        guard await starting.value == nil else { return await finish(for: set, in: context(), ending: .unstarted) }
         return await listen(through: starting, for: set, in: context)
     }
 
@@ -195,8 +154,8 @@ final class SetDictation {
         while let timeline = timeline(of: starting), let wentLiveAt = timeline.wentLiveAt {
             switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: timeline.lastHeardAt) {
             case .wake(let deadline): await clock.sleep(until: deadline)
-            case .stop(.nothingHeard): return await giveUpHearingNothing(for: set)
-            case .stop(.silence), .stop(.cap): return await finish(for: set, in: context())
+            case .stop(.nothingHeard): return await giveUpHearingNothing(for: set, in: context())
+            case .stop(let reason): return await finish(for: set, in: context(), ending: DictationRecord.PressEnd(reason))
             }
         }
         return nil
@@ -219,10 +178,14 @@ final class SetDictation {
         return now >= cap ? .stop(.cap) : .wake(at: min(quiet, cap))
     }
 
-    private func giveUpHearingNothing(for set: ActiveSetID) async -> Outcome {
-        press = nil
+    /// No transcript to read, so the recording engine is not asked.
+    private func giveUpHearingNothing(for set: ActiveSetID, in context: SpokenSetContext) async -> Outcome? {
+        guard var press else { return nil }
+        self.press = nil
+        press.timeline.endedAt = clock.now
         await transcriber.cancel()
-        let outcome = Outcome.rejected(.transcriber(.nothingHeard), heard: "")
+        let unasked = recording(.missing(.notAsked), of: press.recorder.close(), for: press)
+        let outcome = decided(press, .nothingHeard, live: .failed(.nothingHeard, caption: ""), recording: unasked, in: context)
         state = .finished(set, outcome)
         return outcome
     }
@@ -230,14 +193,22 @@ final class SetDictation {
     /// Waits for the transcriber to start if it has not, so a release during `preparing` still
     /// finishes. Nil when no press for `set` is in flight.
     func finish(for set: ActiveSetID, in context: SpokenSetContext) async -> Outcome? {
-        guard let press, press.set == set else { return nil }
+        await finish(for: set, in: context, ending: .released)
+    }
+
+    private func finish(for set: ActiveSetID, in context: SpokenSetContext, ending end: DictationRecord.PressEnd) async -> Outcome? {
+        guard var press, press.set == set else { return nil }
         self.press = nil
+        press.timeline.endedAt = clock.now
+        let deciding = Self.signposter.beginInterval("Deciding")
         let outcome: Outcome
         if let error = await press.starting.value {
-            outcome = .rejected(.transcriber(error), heard: "")
+            let unasked = recording(.missing(.notAsked), of: press.recorder.close(), for: press)
+            outcome = decided(press, end, live: .failed(error, caption: ""), recording: unasked, in: context)
         } else {
-            outcome = await decide(press, in: context)
+            outcome = await decide(press, end, in: context)
         }
+        Self.signposter.endInterval("Deciding", deciding)
         state = .finished(set, outcome)
         return outcome
     }
@@ -245,27 +216,82 @@ final class SetDictation {
     /// Closes the recording and has the recording engine read it the instant the press ends,
     /// alongside the live engine's finalize, then decides at the first of both answers and the
     /// Decision Deadline. A Recording Transcript still being read at the deadline is dropped.
-    private func decide(_ press: Press, in context: SpokenSetContext) async -> Outcome {
+    private func decide(_ press: Press, _ end: DictationRecord.PressEnd, in context: SpokenSetContext) async -> Outcome {
+        var press = press
+        // A release before the live engine went live took the press before `hear` could stamp it.
+        press.timeline.wentLiveAt = press.timeline.wentLiveAt ?? clock.now
         let deadline = clock.now + Self.decisionDeadline
-        let reading = Reading(of: press.recorder.close(), by: reader)
+        let recording = press.recorder.close()
+        let reading = Reading(of: recording, by: reader, on: clock)
         state = .deciding(press.set, heard: state.heard)
+        let finalizing = Self.signposter.beginInterval("LiveFinalize")
         let live: LiveHearing
         do throws(SetTranscriberError) {
             live = .transcripts(try await transcriber.finish())
         } catch {
             live = .failed(error, caption: state.heard)
         }
+        Self.signposter.endInterval("LiveFinalize", finalizing)
+        press.timeline.liveFinishedAt = clock.now
         let decode = await reading.decode(by: deadline, on: clock)
-        return Self.decision(of: Hearing(live: live, recording: decode?.transcript), in: context).outcome
+        press.timeline.recordingReadAt = reading.readAt
+        press.timeline.recordingDroppedAt = reading.droppedAt
+        return decided(press, end, live: live, recording: self.recording(decode, of: recording, for: press), in: context)
+    }
+
+    private func recording(_ decode: RecordingDecode, of recording: DictationRecording, for press: Press) -> DictationRecord.Recording {
+        DictationRecord.Recording(modelAtPress: press.modelAtPress, modelAtEnd: reader.readiness, decode: decode, of: recording)
+    }
+
+    /// Decides the press under the shipped rule and hands its Dictation Record to the journal.
+    private func decided(
+        _ press: Press,
+        _ end: DictationRecord.PressEnd,
+        live: LiveHearing,
+        recording: DictationRecord.Recording,
+        in context: SpokenSetContext
+    ) -> Outcome {
+        var press = press
+        let hearing = Hearing(live: live, recording: recording.result.transcript)
+        let decision = Self.decision(of: hearing, in: context)
+        press.timeline.decidedAt = clock.now
+        let decided = DictationRecord.Decided(
+            end: end,
+            set: context,
+            live: DictationRecord.Live(live, captionChanges: press.timeline.captionChanges),
+            recording: recording,
+            decision: DictationRecord.Decision(decision, of: hearing, in: context)
+        )
+        keep(press, .decided(decided))
+        return decision.outcome
+    }
+
+    /// Never awaits: the journal writes off the main actor.
+    private func keep(_ press: Press, _ ending: DictationRecord.Ending) {
+        journal.append(
+            DictationRecord(
+                id: press.id,
+                pressedAt: press.pressedAt,
+                app: .current,
+                surface: press.surface,
+                ending: ending,
+                timeline: DictationRecord.Timeline(press.timeline),
+                device: .current(),
+                longestMainThreadStallMs: press.watchdog.stop().wholeMilliseconds
+            )
+        )
+        Self.signposter.endInterval("Press", press.signpost)
     }
 
     /// Stops a press that has not begun finishing, writing nothing. The press stays in flight
     /// until the transcriber stops, so the next one cannot start under it.
     func cancel() async {
-        guard let press else { return }
+        guard var press else { return }
         self.press = nil
+        press.timeline.endedAt = clock.now
         _ = await press.starting.value
         await transcriber.cancel()
+        keep(press, .cancelled)
         state = .idle
     }
 
@@ -282,15 +308,36 @@ final class SetDictation {
             state = .listening(set, heard: state.heard)
             return
         }
-        if !heard.isEmpty, heard != state.heard { press?.timeline.lastHeardAt = clock.now }
+        if !heard.isEmpty, heard != state.heard { press?.timeline.heard(at: clock.now) }
         state = state.hearing(heard)
     }
 }
 
-/// When a press's events happened, on the press's clock. Auto-stop reads it.
+/// When a press's events happened, on the press's clock. Auto-stop reads it, and the press's
+/// Dictation Record carries it.
 struct PressTimeline: Equatable, Sendable {
+    let pressedAt: Duration
     var wentLiveAt: Duration?
+    var firstHeardAt: Duration?
     var lastHeardAt: Duration?
+    /// How many times the caption changed while the athlete spoke.
+    var captionChanges = 0
+    /// Nil until the press is released, stops on its own, or is cancelled.
+    var endedAt: Duration?
+    var liveFinishedAt: Duration?
+    var recordingReadAt: Duration?
+    var recordingDroppedAt: Duration?
+    var decidedAt: Duration?
+
+    init(pressedAt: Duration) {
+        self.pressedAt = pressedAt
+    }
+
+    mutating func heard(at now: Duration) {
+        firstHeardAt = firstHeardAt ?? now
+        lastHeardAt = now
+        captionChanges += 1
+    }
 }
 
 extension SetDictation {
@@ -300,23 +347,33 @@ extension SetDictation {
     final class Reading {
         private var decoding: Task<RecordingDecode, Never>?
         private var arrived: RecordingDecode?
+        /// When the decode came in, on the press's clock.
+        private(set) var readAt: Duration?
+        /// When the decode was cancelled at the deadline.
+        private(set) var droppedAt: Duration?
 
-        init(of recording: DictationRecording, by reader: any RecordingTranscriber) {
+        init(of recording: DictationRecording, by reader: any RecordingTranscriber, on clock: any ListeningClock) {
             guard !recording.samples.isEmpty else { return }
             decoding = Task { @MainActor [weak self] in
+                let decoding = SetDictation.signposter.beginInterval("RecordingDecode")
                 let decode = await reader.transcribe(recording)
+                SetDictation.signposter.endInterval("RecordingDecode", decoding)
                 self?.arrived = decode
+                self?.readAt = clock.now
                 return decode
             }
         }
 
-        /// The decode once it is in, or nil at `deadline` on `clock`, which cancels the read. One
+        /// The decode once it is in, or `late` at `deadline` on `clock`, which cancels the read. One
         /// already in decides whatever the clock says.
-        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode? {
-            guard let decoding else { return nil }
+        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode {
+            guard let decoding else { return .missing(.nothingRecorded) }
             if let arrived { return arrived }
-            let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock)
-            if decode == nil { decoding.cancel() }
+            guard let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock) else {
+                decoding.cancel()
+                droppedAt = clock.now
+                return .missing(.late)
+            }
             return decode
         }
     }
@@ -331,7 +388,7 @@ extension SetDictation.State {
         }
     }
 
-    fileprivate var heard: String {
+    var heard: String {
         switch self {
         case .listening(_, let heard), .deciding(_, let heard): heard
         case .idle, .preparing, .finished: ""
@@ -345,81 +402,6 @@ extension SetDictation.State {
         case .preparing(let set), .listening(let set, _): .listening(set, heard: heard)
         case .deciding(let set, _): .deciding(set, heard: heard)
         case .idle, .finished: self
-        }
-    }
-}
-
-/// What the Set card's mic and action capsule show of a press for the card's Set.
-enum SetCardDictation: Equatable {
-    case ready
-    /// The capsule shows what is heard in place of the Log button.
-    case listening(caption: String)
-    /// The capsule keeps what was heard, with the mic off, until the press's outcome is in.
-    case deciding(caption: String)
-    /// The capsule shows what was heard, or why nothing was, until the athlete taps it.
-    case rejected(caption: String)
-    /// The card's values become these, with nothing written.
-    case filled(SetLogDraft)
-
-    init(_ state: SetDictation.State, for setID: ActiveSetID) {
-        switch state {
-        case .preparing(setID), .listening(setID, _): self = .listening(caption: Self.caption(hearing: state.heard))
-        case .deciding(setID, let heard): self = .deciding(caption: Self.caption(hearing: heard))
-        case .finished(setID, .rejected(let rejection, let heard)): self = .rejected(caption: Self.caption(rejection, heard: heard))
-        case .finished(setID, .filled(let values, _)): self = .filled(values)
-        case .idle, .preparing, .listening, .deciding, .finished: self = .ready
-        }
-    }
-
-    /// What the capsule says in place of the Log button; nil leaves the Log button.
-    var caption: String? {
-        switch self {
-        case .listening(let caption), .deciding(let caption), .rejected(let caption): caption
-        case .ready, .filled: nil
-        }
-    }
-
-    var isListening: Bool {
-        guard case .listening = self else { return false }
-        return true
-    }
-
-    private static func caption(hearing heard: String) -> String {
-        heard.isEmpty ? "Listening" : heard
-    }
-
-    private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
-        switch rejection {
-        case .transcriber(.microphoneDenied): "Microphone is off in Settings"
-        case .transcriber(.unavailable): "Speech isn’t available"
-        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
-        case .spokenSet, .transcriber(.failed): rejection.readback(of: heard)
-        }
-    }
-}
-
-extension SetDictation.Rejection {
-    /// What the card and the Live Activity say of a rejected transcript: the words heard, and for a
-    /// Set no lifter logs, an ask to say it again.
-    func readback(of heard: String) -> String {
-        guard !heard.isEmpty else { return "Nothing heard" }
-        guard case .spokenSet(.implausible) = self else { return "“\(heard)”" }
-        return "“\(heard)”, say it again"
-    }
-}
-
-extension SetDictation {
-    /// The mic's press, as a weight step answers a tap.
-    nonisolated static let startHaptic = Haptic.input(Theme.Haptics.stepperTick)
-}
-
-extension SetDictation.Outcome {
-    /// A write feels like the tap it stands in for; anything the athlete still has to act on warns.
-    var haptic: Haptic {
-        switch self {
-        case .logged: .input(Theme.Haptics.logTap)
-        case .skipped: .input(Theme.Haptics.skipDud)
-        case .filled, .rejected: .warning
         }
     }
 }

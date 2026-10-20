@@ -34,6 +34,7 @@ struct BackgroundDictationHarness {
         app = try WorkoutApplication(
             environment: AppEnvironment(
                 storage: .inMemory,
+                dictationRecords: .inMemory,
                 sheetsClient: sheet ?? HeldWriteSheetsClient(holding: false),
                 defaults: .inMemory(),
                 now: { frozenNow }
@@ -42,7 +43,12 @@ struct BackgroundDictationHarness {
         if selectingSpreadsheet {
             _ = try await app.selectSpreadsheet(id: "FIXTURE", title: "Fixture Training Log")
         }
-        dictation = SetDictation(transcriber: transcriber, clock: clock)
+        dictation = SetDictation(
+            transcriber: transcriber,
+            reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+            journal: app.dictationJournal,
+            clock: clock
+        )
         restTimer = RestTimer(clock: ManualRestClock(now: frozenNow), notificationScheduler: restNotifications, expiryScheduler: restExpiry)
         background = BackgroundDictation(
             app: app,

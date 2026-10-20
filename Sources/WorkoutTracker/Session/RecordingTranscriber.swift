@@ -12,8 +12,25 @@ protocol RecordingTranscriber: Sendable {
     @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode
 }
 
+/// The made-up earlier sentences the recording engine reads a press after, which steer it toward
+/// writing numerals. Their numerals appear in no real phrasing, so one in a Recording Transcript
+/// was more likely read back from the prompt than said.
+struct RecordingPrompt: Equatable, Sendable {
+    enum ID: String, Codable, Sendable {
+        case p1
+    }
+
+    let id: ID
+    let text: String
+
+    static let p1 = RecordingPrompt(
+        id: .p1,
+        text: "317.5 for 3 at 6.5. 62 pounds for 11 at 9. 1290 pounds, 14 reps, RPE 7.5. For 13 at 10. Skip."
+    )
+}
+
 /// Where the recording engine's model stands on this phone.
-enum SpeechModelState: Equatable, Sendable, Codable {
+enum SpeechModelState: String, Equatable, Sendable, Codable {
     case absent
     case ready
 }
@@ -23,22 +40,29 @@ struct RecordingDecode: Equatable, Sendable {
     enum Result: Equatable, Sendable {
         case heard(String, segments: [SegmentScore])
         case missing(RecordingMiss)
+
+        /// The Recording Transcript. A reading with no words in it is nothing heard, which no
+        /// transcript should lead a press with.
+        var transcript: String? {
+            guard case .heard(let text, _) = self, !text.allSatisfy(\.isWhitespace) else { return nil }
+            return text
+        }
     }
 
     let result: Result
     /// Nil when nothing was decoded.
     let timings: DecodeTimings?
 
-    /// The Recording Transcript. A reading with no words in it is nothing heard, which no transcript
-    /// should lead a press with.
-    var transcript: String? {
-        guard case .heard(let text, _) = result, !text.allSatisfy(\.isWhitespace) else { return nil }
-        return text
+    /// Nothing read, and why.
+    static func missing(_ miss: RecordingMiss) -> RecordingDecode {
+        RecordingDecode(result: .missing(miss), timings: nil)
     }
+
+    var transcript: String? { result.transcript }
 }
 
 /// Why the recording engine read nothing for a press.
-enum RecordingMiss: Equatable, Sendable, Codable {
+enum RecordingMiss: Equatable, Sendable {
     case modelNotReady(SpeechModelState)
     /// Still decoding at the Decision Deadline, and cancelled.
     case late
@@ -58,7 +82,7 @@ struct SegmentScore: Equatable, Sendable, Codable {
     let temperature: Float
 }
 
-struct DecodeTimings: Equatable, Sendable, Codable {
+struct DecodeTimings: Equatable, Sendable {
     /// Waiting behind a previous, cancelled decode still unwinding.
     let queued: Duration
     let melSpectrogram: Duration

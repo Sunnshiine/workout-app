@@ -18,6 +18,7 @@ private struct EndedPress {
     let live: HeldSetTranscriber
     let reader: HeldRecordingTranscriber
     let clock: ManualListeningClock
+    let journal: DictationJournal
     let finishing: Task<SetDictation.Outcome?, Never>
 
     /// Lets the live engine hand over its transcripts.
@@ -32,14 +33,15 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
     let live = HeldSetTranscriber(candidates: [said], recording: recording)
     let reader = HeldRecordingTranscriber()
     let clock = ManualListeningClock()
-    let dictation = SetDictation(transcriber: live, reader: reader, clock: clock)
+    let journal = DictationJournal(storage: .inMemory)
+    let dictation = SetDictation(transcriber: live, reader: reader, journal: journal, clock: clock)
     dictation.start(for: firstSet)
     #expect(reader.expectations == 1, "the recording engine hears of the press as it starts")
     await live.starting.waitUntilHeld(orRecord: "The live engine never started")
     live.starting.release()
     let finishing = Task { await dictation.finish(for: firstSet, in: squat) }
     if !recording.isEmpty { await reader.waitUntilCalled() }
-    return EndedPress(dictation: dictation, live: live, reader: reader, clock: clock, finishing: finishing)
+    return EndedPress(dictation: dictation, live: live, reader: reader, clock: clock, journal: journal, finishing: finishing)
 }
 
 @MainActor
@@ -66,6 +68,32 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.wasCancelled)
     #expect(press.reader.transcribes == 1)
+}
+
+@MainActor
+@Test func aReadDroppedAtTheDeadlineIsRecordedLateAndTheLiveTranscriptsDecision() async throws {
+    let press = await endPress()
+    press.clock.advance(by: .milliseconds(30))
+    await press.finalizeLive()
+    await press.clock.waitUntilSleeping(until: deadline, orRecord: "The press never waited for the read")
+
+    press.clock.advance(by: deadline - .milliseconds(30))
+    _ = await press.finishing.value
+
+    let record = try #require(try await press.journal.records().first)
+    guard case .decided(let decided) = record.ending else {
+        Issue.record("The press was not decided")
+        return
+    }
+    #expect(decided.recording.result == .missing(.late))
+    #expect(decided.decision.outcome == DictationRecord.Outcome(liveLogs))
+    #expect(decided.decision.agreement == .liveOnly)
+    #expect(record.timeline.live == 0)
+    #expect(record.timeline.liveFinished == 30)
+    #expect(record.timeline.recordingRead == nil)
+    #expect(record.timeline.recordingDropped == 1500)
+    #expect(record.timeline.decided == 1500)
+    #expect(record.waitCause == .decisionDeadline)
 }
 
 @MainActor
@@ -96,7 +124,7 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
 @Test func aDecodeAlreadyInDecidesEvenPastTheDeadline() async {
     let reader = HeldRecordingTranscriber()
     let clock = ManualListeningClock()
-    let reading = SetDictation.Reading(of: DictationRecording(samples: silence, isTruncated: false), by: reader)
+    let reading = SetDictation.Reading(of: DictationRecording(samples: silence, isTruncated: false), by: reader, on: clock)
     await reader.waitUntilCalled()
     reader.answer(recordingSkips)
     #expect(await reading.decode(by: .seconds(1), on: clock) == recordingSkips)
@@ -140,4 +168,22 @@ private func endPress(recording: [Float] = silence) async -> EndedPress {
 
     #expect(await press.finishing.value == liveLogs)
     #expect(press.reader.transcribes == 0)
+}
+
+@MainActor
+@Test func aReadDroppedAtTheDeadlineIsLateAndNothingRecordedIsNeverRead() async {
+    let reader = HeldRecordingTranscriber()
+    let clock = ManualListeningClock()
+    let reading = SetDictation.Reading(of: DictationRecording(samples: silence, isTruncated: false), by: reader, on: clock)
+    await reader.waitUntilCalled()
+    let dropping = Task { await reading.decode(by: .seconds(1), on: clock) }
+    await clock.waitUntilSleeping(until: .seconds(1), orRecord: "The read never waited for its deadline")
+
+    clock.advance(by: .seconds(1))
+
+    #expect(await dropping.value == .missing(.late))
+    #expect(reader.wasCancelled)
+    let unrecorded = SetDictation.Reading(of: DictationRecording(samples: [], isTruncated: false), by: reader, on: clock)
+    #expect(await unrecorded.decode(by: .seconds(1), on: clock) == .missing(.nothingRecorded))
+    #expect(reader.transcribes == 1)
 }

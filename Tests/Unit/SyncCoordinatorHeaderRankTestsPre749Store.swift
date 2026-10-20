@@ -72,6 +72,7 @@ private func openWithThisBuild(_ store: URL, client: HeaderRankStubClient) throw
     try WorkoutApplication(
         environment: AppEnvironment(
             storage: .file(store),
+            dictationRecords: .inMemory,
             sheetsClient: client,
             defaults: .inMemory(),
             now: { Date(timeIntervalSince1970: 2) }

@@ -14,6 +14,8 @@ public final class WorkoutApplication {
     let historyFill: ExerciseHistoryFill
     let connection: SheetConnection
     let sheetsClient: any SheetsClient
+    /// Every press's Dictation Record, whichever surface pressed.
+    let dictationJournal: DictationJournal
 
     static let schema = Schema([
         Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
@@ -23,6 +25,7 @@ public final class WorkoutApplication {
         container = try ModelContainer(for: Self.schema, configurations: Self.configuration(for: environment.storage))
         let context = container.mainContext
         sheetsClient = environment.sheetsClient
+        dictationJournal = DictationJournal(storage: environment.dictationRecords)
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,
@@ -231,6 +234,13 @@ extension WorkoutApplication {
         }
         let snapshot = try await sheetsClient.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: resolved)
         return SheetTabSnapshot(tab: resolved, snapshot: snapshot)
+    }
+
+    /// What the Dictation Records in `records`, a journal file or a directory of them, add up to.
+    /// It reads the records alone, so a journal copied off a phone needs no application.
+    public static func dictationSummary(reading records: URL) throws -> DictationSummary {
+        let lines = try DictationRecordLines(at: records)
+        return DictationSummary(lines.records, unreadableLines: lines.unreadable)
     }
 }
 

@@ -16,7 +16,6 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
         var awaitingCall: CheckedContinuation<Void, Never>?
     }
 
-    private static let late = RecordingDecode(result: .missing(.late), timings: nil)
     private let calls = Mutex(Calls())
 
     let readiness = SpeechModelState.ready
@@ -72,7 +71,7 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
             defer { calls.awaitingCall = nil }
             return (calls.awaitingCall, calls.wasCancelled)
         }
-        if cancelled { continuation.resume(returning: Self.late) }
+        if cancelled { continuation.resume(returning: RecordingDecode.missing(.late)) }
         test?.resume()
     }
 
@@ -82,6 +81,6 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
             defer { calls.answering = nil }
             return calls.answering
         }
-        answering?.resume(returning: Self.late)
+        answering?.resume(returning: RecordingDecode.missing(.late))
     }
 }

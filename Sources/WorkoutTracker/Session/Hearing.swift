@@ -16,7 +16,7 @@ enum LiveHearing: Equatable, Sendable {
 
 /// How the two engines' outcomes for one press compare, whatever the rule. Only `logged` and
 /// `skipped` write.
-enum EngineAgreement: Equatable, Sendable {
+enum EngineAgreement: String, Equatable, Sendable, Codable {
     /// No Recording Transcript.
     case liveOnly
     /// Both write the same Set Log, or both skip.
@@ -34,7 +34,7 @@ enum EngineAgreement: Equatable, Sendable {
 
 /// How the two engines' outcomes become the press's. `shipped` decides every press. The others
 /// stay so a recorded press can be decided again under each before a change of rule ships.
-enum MergeRule: CaseIterable, Sendable {
+enum MergeRule: String, CaseIterable, Sendable, Codable, CodingKeyRepresentable {
     /// The Recording Transcript leads, and a write the Live Transcript reads differently becomes a
     /// guess the athlete confirms.
     case gate

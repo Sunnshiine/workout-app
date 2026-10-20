@@ -336,8 +336,8 @@ extension SayReport {
     }
 }
 
-public struct SpokenSetRejectionSnapshot: Encodable, Equatable, Sendable {
-    public enum Reason: String, Encodable, Sendable {
+public struct SpokenSetRejectionSnapshot: Codable, Equatable, Sendable {
+    public enum Reason: String, Codable, Sendable {
         case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, implausible
         case offLadderRPE, nothingToRepeat
         /// The recognizer, not the words: the mic is off in Settings, speech is not available, or

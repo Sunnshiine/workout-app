@@ -48,7 +48,16 @@ Checking a name against the avoid-lists, or using a Logging term: read
 [docs/context/logging.md](docs/context/logging.md), where each Logging term's definition and
 avoid-list lives and binds as the rest of this glossary does. A new Logging term goes there, with its name added here.
 
-**Set Log**, **Unstructured Set Log**, **Load Suggestion**, **RPE Table**, **Estimated Single**, **Load Basis**, **Last Set RPE**, **Coach Note**, **Legacy Log**, **Header Notes Role**, **Completion Evidence**, **Set State**, **Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Decision Deadline**, **Superset**, **Open Exercise**, **Makeup Day**, **Cadence**, **Entered Name**, **Exercise Reference**, **Base Name**, **Last Performed**, **Exercise History** (and its **entry**), **Session Coordinate**, **Detached Session**, **Exercise History fill**, and **Movement**.
+**Set Log**, **Unstructured Set Log**, **Load Suggestion**, **RPE Table**, **Estimated Single**, **Load Basis**, **Last Set RPE**, **Coach Note**, **Legacy Log**, **Header Notes Role**, **Completion Evidence**, **Set State**, **Superset**, **Open Exercise**, **Makeup Day**, **Cadence**, **Entered Name**, **Exercise Reference**, **Base Name**, **Last Performed**, **Exercise History** (and its **entry**), **Session Coordinate**, **Detached Session**, **Exercise History fill**, and **Movement**.
+
+### Dictation
+
+The terms for logging a Set by speech live in
+[docs/context/dictation.md](docs/context/dictation.md), where each one's definition and avoid-list
+binds as the rest of this glossary does. A new Dictation term goes there, with its name added
+here.
+
+**Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Decision Deadline**, **Dictation Record**
 
 ### Progress
 
