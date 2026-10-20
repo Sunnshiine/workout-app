@@ -46,7 +46,10 @@
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             try launch.checkFlags()
             app.settings.setAppearance(try launch.appearance)
-            app.settings.isSignedIn = !launch.signsInLate
+            // A late sign-in leaves the restore running, as a device does, until the launch task ends it.
+            if !launch.signsInLate {
+                app.settings.isSignedIn = true
+            }
             try await syncFixtureSheet(into: app)
             try app.lastPerformed.ingest(WorkoutFixtureScenarios.backSquatHistory() + WorkoutFixtureScenarios.benchPressHistory())
             app.workout.reload()

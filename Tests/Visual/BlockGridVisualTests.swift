@@ -51,6 +51,7 @@ struct BlockGridVisualTests {
             BlockOverviewView(block: built.block, currentSession: built.currentSession)
         }
         .environment(scenario.store)
+        .environment(AppEntryInbox())
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

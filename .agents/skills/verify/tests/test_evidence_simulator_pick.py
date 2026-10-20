@@ -136,7 +136,6 @@ class SimulatorPick(unittest.TestCase):
             "xcrun simctl list devices available -j",
             "xcrun simctl list devices available -j",
             "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
             "xcrun simctl boot %s" % self.created,
             self.build_for_testing_on(self.created),
         ], "the created simulator is picked from simctl again, admitted on the host's booted count, recounted under the admit lock, booted, and built for")
@@ -205,7 +204,7 @@ class SimulatorPick(unittest.TestCase):
              ["xcrun simctl list devices available -j", self.build_for_testing_on(old)]),
             ("the newest when none is booted", "Shutdown", "Shutdown",
              ["xcrun simctl list devices available -j", "xcrun simctl list devices available -j",
-              "xcrun simctl list devices available -j", "xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
+              "xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
         ]
         for case, old_state, new_state, after_pick in cases:
             with self.subTest(case):
@@ -248,7 +247,6 @@ class SimulatorPick(unittest.TestCase):
         self.assertEqual(calls, [
             "xcrun simctl list devices available -j",
             "plutil -extract WorkspacePath raw %s" % self.plist,
-            "xcrun simctl list devices available -j",
             "xcrun simctl list devices available -j",
             "xcrun simctl list devices available -j",
             "xcrun simctl boot %s" % udid,

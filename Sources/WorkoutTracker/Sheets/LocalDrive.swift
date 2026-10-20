@@ -9,14 +9,12 @@
     /// first sync through before it bites. `disconnect(_:)` makes every later read and write of one
     /// spreadsheet fail as a dropped connection does, which `SyncCoordinator` reports as Offline and
     /// which leaves a log queued. `holdTabListings(for:)` makes every later tab list wait first, so a
-    /// sync stays in flight, and counts each listing it held in `heldTabListings`. The UI fixture
-    /// arms both after its boot sync (`UITestFixture.boot`).
+    /// sync stays in flight. The UI fixture arms both after its boot sync (`UITestFixture.boot`).
     actor LocalDrive: SheetsClient {
         private let workbooks: [String: LocalWorkbookSheetsClient]
         private let files: [SpreadsheetFile]
         private var disconnected: Set<String> = []
         private var tabListingHold: Duration?
-        private(set) var heldTabListings = 0
 
         /// The picker lists `workbooks` in this order. Every file reads as last modified on the
         /// reference date, a fixed instant like the fixture's other dates.
@@ -40,7 +38,6 @@
 
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
             if let tabListingHold {
-                heldTabListings += 1
                 try await Task.sleep(for: tabListingHold)
             }
             return try await workbook(spreadsheetId).listTabTitles(spreadsheetId: spreadsheetId)

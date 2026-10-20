@@ -63,11 +63,26 @@ final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var liveEdge: LiveEdge = .browsedAway
     var liveEdgeOfSession: (Session) -> LiveEdge
     var readAtCelebrationRequest: () -> Bool = { false }
+    var currentSession: Session?
     private(set) var celebrationRequests: [Bool] = []
     private(set) var shownAddresses: [SessionAddress] = []
+    private(set) var currentSessionShows = 0
 
     init(liveEdge: @escaping (Session) -> LiveEdge = { _ in .browsedAway }) {
         self.liveEdgeOfSession = liveEdge
+    }
+
+    /// The live edge is `current`, as the store resolves it.
+    convenience init(current: Session?) {
+        self.init { session in
+            guard let current, session === current else { return .browsedAway }
+            return .atLiveEdge(currentSession: current)
+        }
+        currentSession = current
+    }
+
+    func showCurrent() {
+        currentSessionShows += 1
     }
 
     func liveEdge(for session: Session) -> LiveEdge {

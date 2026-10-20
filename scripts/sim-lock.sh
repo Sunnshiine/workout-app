@@ -242,7 +242,6 @@ admit_claim() {
     [ "$build" = 0 ] || take_build_slot
     return
   fi
-  sleep_idle_lane
   exec 7>>"$host_lock_dir/admit"
   if ! try_flock 7 LOCK_EX 1; then
     busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
@@ -261,17 +260,16 @@ host_room() {
     "Shutting Down") busy_reason="$1 is shutting down" ;;
     Shutdown) [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
       busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
-      idle_lane "$WORKOUT_IDLE_MINUTES" && free_seat "to free a seat: $busy_reason, and it held no run or app for $idle_for min (WORKOUT_IDLE_MINUTES is $WORKOUT_IDLE_MINUTES)" \
-        && return 0 ;;
+      idle_lane && free_seat && return 0 ;;
     *) return 0 ;;
   esac
   return 1
 }
 
-# Booted workout-lane-* devices whose lock was last written $1 or more minutes ago, as
+# Booted workout-lane-* devices whose lock was last written WORKOUT_IDLE_MINUTES or more ago, as
 # "UDID MINUTES NAME", least recently used first. A lane with no lock file has no idle clock.
 stale_lanes() {
-  (exec 3>&- 7>&- 8>&- 9>&-; IDLE=$1 exec python3 -c '
+  (exec 3>&- 7>&- 8>&- 9>&-; IDLE=$WORKOUT_IDLE_MINUTES exec python3 -c '
 import json, os, subprocess, time
 listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
 lanes = []
@@ -286,13 +284,6 @@ for d in (d for ds in json.loads(listing.stdout)["devices"].values() for d in ds
         lanes.append((idle, d["udid"], d["name"]))
 for idle, udid, name in sorted(lanes, reverse=True):
     print(udid, idle, name)' 2>/dev/null)
-}
-
-# A booted lane idles at about 0.12 core, so past WORKOUT_SLEEP_MINUTES unused it has cost more than the
-# boot that brings it back. Each boot shuts one such lane down; 0 turns this off.
-sleep_idle_lane() {
-  [ "$WORKOUT_SLEEP_MINUTES" -gt 0 ] && idle_lane "$WORKOUT_SLEEP_MINUTES" || return 0
-  free_seat "to save its idle CPU: it held no run or app for $idle_for min (WORKOUT_SLEEP_MINUTES is $WORKOUT_SLEEP_MINUTES)" || true
 }
 
 # Leaves fd 3 holding the chosen lane's lock, so no run claims it before free_seat shuts it down.
@@ -310,7 +301,7 @@ idle_lane() {
       fi
     fi
     exec 3>&-
-  done < <(stale_lanes "$1")
+  done < <(stale_lanes)
   return 1
 }
 
@@ -325,16 +316,16 @@ app_on() {
 }
 
 free_seat() {
-  local who="${0##*/}, shutting down an idle lane" err=
+  local who="${0##*/}, freeing a seat" err=
   printf '%s (pid %s)\n' "$who" "$$" > "/tmp/workout-verify-$idle_udid/lock"
   if (exec 3>&- 7>&-; VERIFY_RUN='' settle_run "$idle_udid" "$who") \
     && err=$(exec 3>&- 7>&- 8>&- 9>&-; exec xcrun simctl shutdown "$idle_udid" 2>&1 >/dev/null); then
     exec 3>&-
-    echo "shut down idle lane $idle_name ($idle_udid) $1" >&6
+    echo "shut down idle lane $idle_name ($idle_udid) to free a seat: $busy_reason, and it held no run or app for $idle_for min (WORKOUT_IDLE_MINUTES is $WORKOUT_IDLE_MINUTES)" >&6
     return 0
   fi
   exec 3>&-
-  busy_reason="could not shut down idle lane $idle_name ($idle_udid)${err:+: $err}"
+  busy_reason="could not shut down idle lane $idle_name ($idle_udid) to free a seat${err:+: $err}"
   return 1
 }
 
@@ -414,6 +405,5 @@ host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
 host_knob WORKOUT_IDLE_MINUTES 2 0
-host_knob WORKOUT_SLEEP_MINUTES 30 0
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

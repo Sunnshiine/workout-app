@@ -230,6 +230,7 @@ enum SessionPageHost {
             page
             .environment(scenario.store)
             .environment(lastPerformedLookup)
+            .environment(AppEntryInbox())
             .environment(
                 ExerciseHistoryFill(client: VisualNoopSheetsClient(), context: scenario.context, index: lastPerformedLookup)
             )

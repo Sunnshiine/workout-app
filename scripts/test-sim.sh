@@ -26,9 +26,7 @@ taken. Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540), a budget th
 a build slot changes hands. At the cap, a boot first shuts
 down the least recently used booted workout-lane-* simulator that no run holds, that runs no app
 but a verify app past its lease, and whose last claim ended WORKOUT_IDLE_MINUTES (2) or more ago,
-and says so on stderr. Under the cap, a boot shuts down one such lane whose last claim ended
-WORKOUT_SLEEP_MINUTES (30; 0 turns it off) or more ago, since an idle simulator burns more CPU in
-that time than its next boot does.
+and says so on stderr.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are

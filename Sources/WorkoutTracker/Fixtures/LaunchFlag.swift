@@ -102,7 +102,9 @@
 
         static let lateSignIn = LaunchFlag(
             argument: "-UITEST_LATE_SIGN_IN",
-            meaning: "Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device."
+            meaning:
+                "Restores the sign-in for 3 seconds after launch, showing onboarding meanwhile, then signs in,"
+                + " as restoring a Google sign-in does on a device."
         )
 
         static let currentSessionOverride = LaunchFlag(

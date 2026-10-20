@@ -1,5 +1,18 @@
 import XCTest
 
+private let dictateLink = URL(string: "workouttracker://dictate")!
+
+/// Opens the dictate link in the app already running, as Siri and the Live Activity do.
+/// `XCUIApplication.open(_:)` relaunches the app instead, which drops whatever covered the stage.
+@MainActor
+private func openDictateLinkInTheRunningApp() {
+    XCUIDevice.shared.system.open(dictateLink)
+    let confirm = XCUIApplication(bundleIdentifier: "com.apple.springboard").buttons["Open"]
+    if confirm.appears(within: 2) {
+        confirm.tap()
+    }
+}
+
 final class WorkoutTrackerUISmokeTests: XCTestCase {
     @MainActor
     func testCurrentSessionLogsFirstSetAndAdvancesActiveSet() throws {
@@ -154,6 +167,79 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         heard.tap()
 
         waitForLabel("Log 237.5 × 5 @6", on: app.buttons["log-active-set-button"])
+    }
+
+    @MainActor
+    func testTheDictateLinkLogsTheActiveSetWithNoTouchOnTheMic() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+
+        app.open(dictateLink)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 6), "the Set logs once the athlete stops talking")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists, "the card holds the Set it just logged")
+    }
+
+    @MainActor
+    func testTheDictateLinkClosesSettingsAndTheBlockGridAndLogsOnTheCurrentSession() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        app.buttons["session-location-button"].tap()
+        app.otherElements["session-tile-W1-D3"].tap()
+        waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
+        app.buttons["session-location-button"].tap()
+        tapWhenHittable(app.buttons["block-overview-settings-row"])
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
+
+        openDictateLinkInTheRunningApp()
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 8), "the Current Session's first Set logs")
+        XCTAssertFalse(app.navigationBars["Settings"].exists)
+        XCTAssertFalse(app.navigationBars["Block 27"].exists)
+        waitForLabel("Open Block Overview for Week 1, Day 1", on: app.buttons["session-location-button"])
+    }
+
+    @MainActor
+    func testTheDictateLinkWithNothingToLogLeavesSettingsAndTheBlockGridOpen() throws {
+        let app = launchWorkoutApp(fixture: .completedSessionWithOpenExercises, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Session complete"].appears(within: 3))
+        app.buttons["session-location-button"].tap()
+        tapWhenHittable(app.buttons["block-overview-settings-row"])
+        XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
+
+        openDictateLinkInTheRunningApp()
+
+        XCTAssertFalse(app.staticTexts["Session complete"].appears(within: 3), "a request with nothing to log closes nothing")
+        XCTAssertTrue(app.navigationBars["Settings"].exists)
+    }
+
+    @MainActor
+    func testTheDictateLinkOnOnboardingEndsThereSoChoosingASheetLogsNothing() throws {
+        let app = launchWorkoutApp(fixture: .onboarding, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
+
+        app.open(dictateLink)
+        let replacementRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Replacement Training Log")).firstMatch
+        XCTAssertTrue(replacementRow.appears(within: 3))
+        replacementRow.tap()
+
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
+        XCTAssertFalse(app.staticTexts["Session complete"].appears(within: 5), "the request onboarding met never logs the Set")
+        XCTAssertEqual(app.staticTexts["session-remaining-count"].label, "1 Set left")
+        XCTAssertFalse(app.staticTexts["Saved"].exists)
+    }
+
+    @MainActor
+    func testTheDictateLinkWhileTheSignInRestoresLogsTheSetOnceTheRestoreSignsIn() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, options: [.lateSignIn], dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.buttons["onboarding-connect-button"].appears(within: 3))
+
+        app.open(dictateLink)
+
+        XCTAssertTrue(app.buttons["onboarding-connect-button"].appears(within: 2), "the link lands while the sign-in restores")
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 10), "the Set logs once the restore signs the athlete in")
+        XCTAssertTrue(app.staticTexts["Saved"].exists)
     }
 
     @MainActor

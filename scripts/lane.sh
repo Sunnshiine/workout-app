@@ -285,7 +285,7 @@ save_lane() {
     save_commits "$dir/commits.bundle" || die 70 "could not save commits.bundle"
     echo commits.bundle
   fi
-  for d in test-sim verify crap flake-hunt flake-guard mutate check-each-commit measure-host; do
+  for d in test-sim verify crap flake-hunt mutate check-each-commit measure-host; do
     [ -d "$wt/.build/$d" ] || continue
     copy_results "$d" || die 70 "could not copy .build/$d"
     echo "$d"

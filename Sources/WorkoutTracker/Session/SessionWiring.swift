@@ -32,9 +32,11 @@ protocol SessionNavigationAdapter: AnyObject, Observable {
     var liveEdge: LiveEdge { get }
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
+    var currentSession: Session? { get }
     func liveEdge(for session: Session) -> LiveEdge
     func requestMoveOnCelebration()
     func show(_ address: SessionAddress)
+    func showCurrent()
 }
 
 /// Read at each rest's start, so a rest length changed mid-Session takes effect on the next Set.
@@ -54,6 +56,8 @@ struct SessionWiring {
     let restDurations: any SessionRestDurations
     let liveActivity: any SessionLiveActivityAdapter
     let motion: any SessionMotionPerforming
+    /// Where a request to say the Current Session's active Set waits for the stage to answer it.
+    let entry: AppEntryInbox
 }
 
 /// The Session collaborators only the app can build, because each reaches an iOS-only API: the
@@ -73,6 +77,7 @@ extension SessionWiring {
         workout: WorkoutStore,
         sync: SyncCoordinator,
         settings: SettingsStore,
+        entry: AppEntryInbox,
         platform: SessionPlatform
     ) -> SessionWiring {
         SessionWiring(
@@ -82,7 +87,8 @@ extension SessionWiring {
             restTimer: RestTimer(notificationScheduler: platform.restNotifications),
             restDurations: settings,
             liveActivity: platform.liveActivity,
-            motion: platform.motion
+            motion: platform.motion,
+            entry: entry
         )
     }
 }

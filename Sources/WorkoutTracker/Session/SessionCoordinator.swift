@@ -22,14 +22,14 @@ final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var savedLoggedSetID: ActiveSetID?
 
-    @ObservationIgnored private let focusManager: ActiveSetFocusManager
+    @ObservationIgnored let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
-    @ObservationIgnored private let wiring: SessionWiring
+    @ObservationIgnored let wiring: SessionWiring
     @ObservationIgnored private var liveEdgeReconcile: Task<Void, Never>?
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     /// Nil leaves the mic off every card.
-    @ObservationIgnored private let dictation: SetDictation?
-    @ObservationIgnored private var dictatingSession: Session?
+    @ObservationIgnored let dictation: SetDictation?
+    @ObservationIgnored var dictatingSession: Session?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
 
     init(
@@ -98,6 +98,7 @@ final class SessionCoordinator {
         cancelSpokenWriteHold()
         dictation?.dismiss()
         focusManager.reset(to: session)
+        answerEntry()
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -237,7 +238,7 @@ final class SessionCoordinator {
 
     /// Every change to which Set the card shows runs through here, so a press's rejection or fill
     /// never outlives the card it was shown on.
-    private func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
+    func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
         dictation?.dismiss()
         guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
@@ -397,13 +398,7 @@ extension SessionCoordinator {
             await dictation.cancel()
             return nil
         }
-        guard let outcome = await dictation.finish(for: setID, in: SpokenSetContext(for: set, showing: shown)) else { return nil }
-        guard let set = pendingSet(at: setID, in: session) else {
-            dictation.dismiss()
-            return nil
-        }
-        write(outcome, to: set)
-        return outcome
+        return write(await dictation.finish(for: setID, in: SpokenSetContext(for: set, showing: shown)), heardFor: setID, in: session)
     }
 
     /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
@@ -414,9 +409,20 @@ extension SessionCoordinator {
         return session
     }
 
-    private func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
+    func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
         guard self.session === session, let set = session.set(at: setID), set.isPending else { return nil }
         return set
+    }
+
+    /// A Set no longer Pending once the transcript is in takes nothing, and its outcome goes.
+    func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
+        guard let outcome else { return nil }
+        guard let set = pendingSet(at: setID, in: session) else {
+            dictation?.dismiss()
+            return nil
+        }
+        write(outcome, to: set)
+        return outcome
     }
 
     private func write(_ outcome: SetDictation.Outcome, to set: ExerciseSet) {
@@ -427,9 +433,14 @@ extension SessionCoordinator {
         }
     }
 
-    /// Stops a press whose control left the screen, writing nothing.
-    func cancelDictation() async {
-        await dictation?.cancel()
+    /// Stops the press for `set` whose control left the screen, writing nothing. A control that
+    /// leaves while another card's press runs, as an outgoing card's can after the incoming one
+    /// starts listening, stops nothing.
+    func cancelDictation(of set: ExerciseSet) async {
+        guard let dictation, let setID = dictation.state.listeningSetID, Self.activeSetID(for: set) == setID,
+            set.exercise?.session === dictatingSession
+        else { return }
+        await dictation.cancel()
     }
 
     func dismissDictation() {

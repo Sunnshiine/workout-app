@@ -1,3 +1,4 @@
+import AppIntents
 import GoogleSignIn
 import SwiftData
 import SwiftUI
@@ -6,6 +7,7 @@ import SwiftUI
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
     @State private var transcriber = Self.setTranscriber()
+    @State private var entry: AppEntryInbox
 
     init() {
         #if canImport(UserNotifications)
@@ -14,6 +16,10 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
+        // Registered before the first scene, so an intent that cold-launches the app finds it.
+        let entry = AppEntryInbox()
+        _entry = State(initialValue: entry)
+        AppDependencyManager.shared.add(dependency: entry)
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG
             #if canImport(UIKit)
@@ -74,6 +80,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
                 .environment(app.connection)
+                .environment(entry)
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }
@@ -83,7 +90,10 @@ struct WorkoutTrackerApp: App {
                         transaction.disablesAnimations = true
                     }
                 #endif
-                .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
+                .onOpenURL { url in
+                    guard !entry.receive(url) else { return }
+                    GIDSignIn.sharedInstance.handle(url)
+                }
                 .task {
                     guard let isSignedIn = await Self.restoreSignIn() else { return }
                     // A restore hands back a sign-in the athlete already had, so it must not

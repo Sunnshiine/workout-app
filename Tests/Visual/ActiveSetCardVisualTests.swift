@@ -27,7 +27,15 @@ struct ActiveSetCardVisualTests {
             history: [],
             appearance: .day,
             colorScheme: .light,
-            mic: SetCardMic(dictation: .ready, start: {}, finish: { _ in nil }, cancel: {}, dismiss: {})
+            mic: SetCardMic(
+                dictation: .ready,
+                startsHandsFree: false,
+                start: {},
+                finish: { _ in nil },
+                listenHandsFree: { _ in nil },
+                cancel: {},
+                dismiss: {}
+            )
         )
     }
 

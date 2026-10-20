@@ -4,9 +4,13 @@ import SwiftUI
 /// The card's mic, present only while its Set can be said.
 struct SetCardMic {
     let dictation: SetCardDictation
+    /// True while the Action button, Siri, or the Live Activity waits for this card to listen.
+    let startsHandsFree: Bool
     let start: () -> Void
     /// Takes what the card shows, which fills what the athlete leaves unsaid.
     let finish: (SetLogDraft) async -> SetDictation.Outcome?
+    /// Reads what the card shows when listening ends on its own.
+    let listenHandsFree: @MainActor (() -> SetLogDraft) async -> SetDictation.Outcome?
     let cancel: () async -> Void
     let dismiss: () -> Void
 }
@@ -63,6 +67,9 @@ struct ActiveSetCard: View {
         .onPreferenceChange(ShownSetLogDraftKey.self) { shownDraft = $0 }
         .onChange(of: isPressingMic) { _, isPressing in
             if isPressing { beginPress() } else { endPress() }
+        }
+        .onChange(of: mic?.startsHandsFree ?? false, initial: true) { _, starts in
+            if starts { listenHandsFree() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
@@ -190,6 +197,16 @@ struct ActiveSetCard: View {
         let shown = shownDraft
         Task {
             guard let outcome = await mic.finish(shown) else { return }
+            HapticPlayer.shared.play(outcome.haptic)
+        }
+    }
+
+    private func listenHandsFree() {
+        guard let mic else { return }
+        dismissInputIfLogging()
+        HapticPlayer.shared.play(SetDictation.startHaptic)
+        Task {
+            guard let outcome = await mic.listenHandsFree({ shownDraft }) else { return }
             HapticPlayer.shared.play(outcome.haptic)
         }
     }

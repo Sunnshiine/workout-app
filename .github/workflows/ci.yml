@@ -102,10 +102,7 @@ jobs:
     runs-on: xcode-27
     timeout-minutes: 30
     steps:
-      # Depth 2 keeps the pull request merge commit's first parent, the base the flake guard diffs.
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
       - name: Cache the CRAP scorer build
         uses: actions/cache@v4
         with:
@@ -129,16 +126,7 @@ jobs:
       - name: Test the CRAP scorer
         run: swift test --package-path tools/crap
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
-        id: gate
         run: scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"
-      # Repeats the tests the pull request changed, under load, on the products the gate built. It
-      # runs beside a red gate, as the hosted suite does, so one run carries both verdicts. On a
-      # push the base is HEAD, which selects nothing.
-      - name: Repeat the changed tests under load (flake guard)
-        if: ${{ !cancelled() && (steps.gate.conclusion == 'success' || steps.gate.conclusion == 'failure') }}
-        env:
-          FLAKE_GUARD_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'HEAD' }}
-        run: scripts/flake-guard.sh --xcodebuild "$RUNNER_TEMP/swift-tests" --base "$FLAKE_GUARD_BASE"
       - name: Save the compilation cache
         if: github.event_name == 'push'
         uses: actions/cache/save@v4

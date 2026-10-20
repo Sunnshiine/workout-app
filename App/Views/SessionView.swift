@@ -6,6 +6,7 @@ struct SessionView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.themePalette) private var palette
+    @Environment(AppEntryInbox.self) private var entry
     @State private var coordinator: SessionCoordinator
     @State private var isSettingsPresented = false
     @State private var stageComposition = SessionStageComposition.reading
@@ -75,6 +76,9 @@ struct SessionView: View {
                 await sync.sync(spreadsheetId: id)
                 workout.reload()
             }
+        }
+        .onChange(of: entry.arrivals) {
+            coordinator.answerEntry()
         }
     }
 }

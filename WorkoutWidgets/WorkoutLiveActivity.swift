@@ -62,7 +62,7 @@ struct WorkoutLiveActivity: Widget {
         case .setProgress, .nowLifting:
             PrescribedLoadBadge(state: state)
         case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            EmptyView()
+            SaySetLink(state: state, diameter: 40)
         }
     }
 
@@ -193,6 +193,8 @@ private struct LockScreenWorkoutView: View {
                 if state.variant.isRestTimer {
                     PrescriptionStack(state: state, style: .lockScreen)
                         .minimumScaleFactor(0.75)
+
+                    SaySetLink(state: state, diameter: 44)
                 } else {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(state.weightValue)
@@ -208,6 +210,26 @@ private struct LockScreenWorkoutView: View {
             }
         }
         .padding(16)
+    }
+}
+
+private struct SaySetLink: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let diameter: CGFloat
+
+    var body: some View {
+        if let url = WorkoutActivityAttributes.dictateURL {
+            let colors = state.liveActivityColors
+
+            Link(destination: url) {
+                Image(systemName: "mic")
+                    .font(.system(size: diameter * 0.45, weight: .semibold))
+                    .foregroundStyle(colors.accent)
+                    .frame(width: diameter, height: diameter)
+                    .background(colors.accent.opacity(0.18), in: Circle())
+            }
+            .accessibilityLabel("Say Set")
+        }
     }
 }
 

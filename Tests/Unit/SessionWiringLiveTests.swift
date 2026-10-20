@@ -31,6 +31,7 @@ private struct OfflineSheetsClient: SheetsClient {
         workout: WorkoutStore(context: context, defaults: .inMemory()),
         sync: SyncCoordinator(client: OfflineSheetsClient(), context: context),
         settings: SettingsStore(defaults: .inMemory()),
+        entry: AppEntryInbox(),
         platform: SessionPlatform(
             liveActivity: InertSessionLiveActivity(),
             motion: ImmediateSessionMotion(),

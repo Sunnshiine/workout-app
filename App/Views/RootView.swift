@@ -7,6 +7,7 @@ struct RootView: View {
     @Environment(SyncCoordinator.self) private var sync
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppEntryInbox.self) private var entry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
@@ -46,6 +47,13 @@ struct RootView: View {
             guard newPhase == .active else { return }
             liveActivityAdapter.endIfReadyCapExpired()
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .background else { return }
+            entry.discard()
+        }
+        .onChange(of: settings.needsOnboarding, initial: true) { _, needsOnboarding in
+            entry.reportOnboarding(isShown: needsOnboarding)
+        }
         .onChange(of: settings.spreadsheetId) { oldValue, newValue in
             guard oldValue != newValue else { return }
             liveActivityAdapter.end()
@@ -67,6 +75,7 @@ struct RootView: View {
                     workout: workout,
                     sync: sync,
                     settings: settings,
+                    entry: entry,
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,
                         motion: SwiftUISessionMotion(),
