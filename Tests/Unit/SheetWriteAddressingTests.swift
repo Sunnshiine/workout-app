@@ -70,14 +70,14 @@ private func planError(
         grid: addressingGrid(["S12": "Day 1", "T14": "Sets", "AA14": "Notes", "S15": "Squat", "T15": "2"])
     )
 
-    #expect(error == .dayNotFound(1))
-    #expect(error?.errorDescription == "Day 1 was not found in the sheet")
+    #expect(error == .dayRepeated(1))
+    #expect(error?.errorDescription == "Day 1 has more than one header in the sheet")
 }
 
 @Test func refusesAnExerciseThatIsNotInTheSession() {
     let error = planError(addressingRequest(exerciseName: "Deadlift"), grid: addressingGrid())
 
-    #expect(error == .exerciseNotFound("Deadlift"))
+    #expect(error == .exerciseNotFound(.first("Deadlift")))
     #expect(error?.errorDescription == "Deadlift was not found in the sheet")
 }
 
@@ -116,7 +116,7 @@ private func planError(
         rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error == .exerciseNotFound(.first("Squat")))
     #expect(error?.errorDescription == "Squat was not found in the sheet")
 }
 
@@ -127,7 +127,7 @@ private func planError(
         rowVisibility: [14: SheetRowVisibility(hiddenByUser: true)]
     )
 
-    #expect(error == .exerciseNotFound("Squat"))
+    #expect(error == .exerciseNotFound(.first("Squat")))
     #expect(error?.errorDescription == "Squat was not found in the sheet")
 }
 
@@ -135,6 +135,5 @@ private func planError(
     let planner = SheetWritePlanner()
     let update = try planner.plan(addressingRequest(column: .lastSetRPE), in: addressingGrid())
 
-    #expect(update.range == "'Block 27'!I15")
-    #expect(update.value == "185x5@8")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "I15", value: "185x5@8"))
 }

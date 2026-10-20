@@ -16,26 +16,26 @@ struct SessionStageBranch: View {
         static let fullHeight: CGFloat = 156
         static let leadInset: CGFloat = 24
         static let trailInset: CGFloat = 28
-        static let rootY: CGFloat = 0.82 // fraction of height — the low leading root
+        static let rootY: CGFloat = 0.82  // fraction of height — the low leading root
         static let tipInset: CGFloat = fullHeight * 0.13
         static let bow: CGFloat = 30
-        static let firstNodeT: CGFloat = 0.16 // the span floor node steps never pass
-        static let lastNodeT: CGFloat = 0.80 // the terminal node every cluster anchors to
-        static let maxNodeStep: CGFloat = 0.24 // cap the gap so few Sets cluster like a real sprig
+        static let firstNodeT: CGFloat = 0.16  // the span floor node steps never pass
+        static let lastNodeT: CGFloat = 0.80  // the terminal node every cluster anchors to
+        static let maxNodeStep: CGFloat = 0.24  // cap the gap so few Sets cluster like a real sprig
         static let leafLength: CGFloat = 46
         // Measured off the pick: above-blades stand steeply with a slight back
         // lean, below-blades droop forward — both lean toward the tip.
         static let leafTiltAbove: CGFloat = 43
         static let leafTiltBelow: CGFloat = 50
-        static let ghostScale: CGFloat = 0.72 // a future is a smaller ghost of the leaf to come
+        static let ghostScale: CGFloat = 0.72  // a future is a smaller ghost of the leaf to come
         static let stemWidth: CGFloat = 2
     }
 
     private enum LateralMetrics {
         static let stemWidth: CGFloat = 1.6
         static let forkOnStemT: CGFloat = 0.30
-        static let endX: CGFloat = 0.62 // fraction of width for the drooping tip
-        static let endY: CGFloat = 0.99 // fraction of height — the tip droops low
+        static let endX: CGFloat = 0.62  // fraction of width for the drooping tip
+        static let endY: CGFloat = 0.99  // fraction of height — the tip droops low
         static let droop: CGFloat = 30
         static let firstNodeT: CGFloat = 0.42
         static let lastNodeT: CGFloat = 0.9

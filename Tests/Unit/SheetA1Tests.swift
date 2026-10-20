@@ -24,30 +24,3 @@ import Testing
         #expect(a1CellIndex(reference) == nil, "\(reference)")
     }
 }
-
-@Test func splitsARangeIntoItsTabNameAndCellReference() throws {
-    let bare = try #require(splitA1Range("Block 27!K15"))
-    #expect(bare.tabName == "Block 27")
-    #expect(bare.reference == "K15")
-
-    let escapedApostrophe = try #require(splitA1Range("'Coach''s Block'!B2:C3"))
-    #expect(escapedApostrophe.tabName == "Coach's Block")
-    #expect(escapedApostrophe.reference == "B2:C3")
-
-    let bangInTabName = try #require(splitA1Range("'Week 1!2'!A1"))
-    #expect(bangInTabName.tabName == "Week 1!2")
-    #expect(bangInTabName.reference == "A1")
-}
-
-@Test func rejectsRangesMissingATabNameOrAReference() {
-    for range in ["Block 27", "!A1", "Block 27!", "''!A1", "'unterminated!A1", "Coach's Block!A1"] {
-        #expect(splitA1Range(range) == nil, "\(range)")
-    }
-}
-
-@Test func splitsBackTheRangeSingleCellRangeMints() throws {
-    let split = try #require(splitA1Range(singleCellRange(tabName: "Kevin's Block", row: 15, col: 10)))
-
-    #expect(split.tabName == "Kevin's Block")
-    #expect(try #require(a1CellIndex(split.reference)) == (row: 15, col: 10))
-}

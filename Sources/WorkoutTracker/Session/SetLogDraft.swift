@@ -29,14 +29,19 @@ extension SetLogDraft {
     }
 
     /// What the Active Set Card pre-fills before the athlete touches it: a Logged Set's own Set
-    /// Log, otherwise the Load Suggestion's weight and the reps and RPE the prescription names when
-    /// it names one value.
+    /// Log, otherwise the Load Suggestion's weight, the prescribed reps (a range's low end, ADR-0018),
+    /// and the prescription's RPE target.
     @MainActor
     init(prefilling set: ExerciseSet, suggestion: LoadSuggestion) {
         if let setLog = set.setLog {
             self.init(setLog)
         } else {
-            self.init(weight: suggestion.weight, reps: Int(set.prescribedReps), rpe: RPE(prescribedLoad: set.prescribedLoad))
+            let prescription = set.prescription
+            self.init(
+                weight: suggestion.weight,
+                reps: prescription.reps.target?.lowerBound,
+                rpe: prescription.load.rpeTarget
+            )
         }
     }
 }

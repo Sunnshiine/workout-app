@@ -3,8 +3,9 @@ import SwiftData
 
 /// One `exercise_history` entry — an Exercise as logged in a single past Session.
 ///
-/// The store is append-only (ADR-0012): dedup is app-level on (`fullName`, `source`),
-/// so `fullName` is intentionally **not** unique — the same Exercise keeps a distinct
+/// The store is append-only (ADR-0012): dedup is app-level on (`fullName`, `source`), where
+/// `fullName` is the Entered Name and `baseName` the Base Name, the columns' names since before the
+/// glossary named them. `fullName` is intentionally **not** unique — the same Exercise keeps a distinct
 /// entry per Session it was performed in. Last Performed is the most-recent-entry query
 /// over these rows.
 ///
@@ -27,9 +28,9 @@ final class LastPerformedEntry {
     var performedOn: Date
     var source: String
 
-    init(fullName: String, baseName: String, resultText: String, performedOn: Date, source: String) {
-        self.fullName = fullName
-        self.baseName = baseName
+    init(exerciseName name: ExerciseName, resultText: String, performedOn: Date, source: String) {
+        self.fullName = name.entered
+        self.baseName = name.base
         self.resultText = resultText
         self.performedOn = performedOn
         self.source = source
@@ -37,8 +38,7 @@ final class LastPerformedEntry {
 
     convenience init(_ occurrence: LastPerformedOccurrence) {
         self.init(
-            fullName: occurrence.fullName,
-            baseName: occurrence.baseName,
+            exerciseName: occurrence.exerciseName,
             resultText: occurrence.resultText,
             performedOn: occurrence.performedOn,
             source: occurrence.source
@@ -47,8 +47,7 @@ final class LastPerformedEntry {
 
     var occurrence: LastPerformedOccurrence {
         LastPerformedOccurrence(
-            fullName: fullName,
-            baseName: baseName,
+            exerciseName: ExerciseName(entered: fullName),
             resultText: resultText,
             performedOn: performedOn,
             source: source

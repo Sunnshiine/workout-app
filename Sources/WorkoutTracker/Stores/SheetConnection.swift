@@ -34,6 +34,7 @@ enum DestructiveTransitionFailure: Error, Equatable {
     case pendingCheckFailed
     case discardFailed
     case syncFailed
+    case holdsNoBlock
 
     var message: String {
         switch self {
@@ -41,6 +42,7 @@ enum DestructiveTransitionFailure: Error, Equatable {
         case .pendingCheckFailed: "Couldn't check pending logs. Try again."
         case .discardFailed: "Couldn't discard pending logs. Try again."
         case .syncFailed: "Couldn't sync selected sheet. Try again."
+        case .holdsNoBlock: "No training blocks found in this sheet"
         }
     }
 }
@@ -176,7 +178,9 @@ final class SheetConnection {
     }
 
     private func switchNow(to selection: SheetSelection) async throws(DestructiveTransitionFailure) {
-        guard await sync.sync(spreadsheetId: selection.spreadsheetId) else { throw .syncFailed }
+        guard await sync.sync(spreadsheetId: selection.spreadsheetId) else {
+            throw sync.outcome == .noBlockTab ? .holdsNoBlock : .syncFailed
+        }
         commit(selection)
         onSynced()
     }

@@ -1,9 +1,7 @@
 import Foundation
 
 struct LoadSuggestionInputs: Sendable {
-    let prescribedReps: String
-    let prescribedLoad: String
-    let percentOneRM: String?
+    let prescription: Prescription
     let trainingMax: Double?
     /// Nearest first.
     let earlierSets: [(index: Int, setLog: SetLog)]
@@ -16,13 +14,11 @@ extension LoadSuggestionInputs {
         let exercise = set.exercise
         let coordinates = try? SetCoordinates(of: set)
         self.init(
-            prescribedReps: set.prescribedReps,
-            prescribedLoad: set.prescribedLoad,
-            percentOneRM: set.percentOneRM,
+            prescription: set.prescription,
             trainingMax: exercise?.trainingMax,
             earlierSets: set.earlierSetLogs,
             lastPerformed: coordinates.flatMap {
-                history.excluding(session: $0.session).lookup(for: $0.exerciseName)
+                history.excluding(session: $0.session).lookup(for: $0.exercise.name)
             }
         )
     }
@@ -30,7 +26,7 @@ extension LoadSuggestionInputs {
 
 extension Exercise {
     var trainingMax: Double? {
-        guard let block = session?.week?.block, let lift = MainLift(matchingBaseName: baseName)
+        guard let block = session?.block, let lift = MainLift(claimedBy: exerciseName)
         else { return nil }
         return block.trainingMaxes[lift]
     }

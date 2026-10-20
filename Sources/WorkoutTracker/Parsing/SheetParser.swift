@@ -2,15 +2,6 @@ import Foundation
 
 private let trainingMaxHeaderScanRowLimit = 15
 
-/// Splits a leading tempo prefix (e.g. "2-3:1-2:0") from the base exercise name.
-func splitCadence(_ name: String) -> (cadence: String?, base: String) {
-    let pattern = /^(\d+(?:-\d+)?:\d+(?:-\d+)?:\d+(?:-\d+)?)\s+(.+)$/
-    if let m = name.wholeMatch(of: pattern) {
-        return (String(m.1), String(m.2))
-    }
-    return (nil, name)
-}
-
 private func splitLoadValues(_ load: String) -> [String] {
     let values = load.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
     guard
@@ -84,24 +75,13 @@ struct ParsedSet {
 }
 
 struct ParsedExercise {
-    var name: String
-    var baseName: String
-    var cadence: String?
+    var exerciseName: ExerciseName
     var coachNote: String?
     var legacyLog: String?
     var sets: [ParsedSet]
 
-    init(
-        name: String,
-        baseName: String,
-        cadence: String?,
-        coachNote: String?,
-        legacyLog: String? = nil,
-        sets: [ParsedSet]
-    ) {
-        self.name = name
-        self.baseName = baseName
-        self.cadence = cadence
+    init(name: ExerciseName, coachNote: String?, legacyLog: String? = nil, sets: [ParsedSet]) {
+        self.exerciseName = name
         self.coachNote = coachNote
         self.legacyLog = legacyLog
         self.sets = sets
@@ -141,11 +121,12 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
 
 /// Reads Set `setIndex`'s raw Notes token from wherever the placement query resolves it — the one
 /// addressing decision the write path also consumes (ADR-0010), so display and write targeting
-/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, or
-/// a multi-line Prescription Line) reads the token at the Set's list position via the shared
-/// `SetLogList` codec; a whole-cell placement reads the cell. An unresolved placement — a protected
-/// header with no safe writable row, a Set row out of the Exercise's span, or a missing Notes
-/// column — reads empty, leaving the Set Pending unless a Legacy Log later marks it complete.
+/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, a
+/// multi-line Prescription Line, or its Coach Note's spare row) reads the token at the Set's list
+/// position via the shared `SetLogList` codec; a whole-cell placement reads the cell. An
+/// unresolved placement — a protected header with no safe writable row, a Set row out of the
+/// Exercise's span, or a missing Notes column — reads empty, leaving the Set Pending unless a
+/// Legacy Log later marks it complete.
 private func rawSetLog(
     for setIndex: Int,
     anchor: SheetLayoutExerciseAnchor,
@@ -161,9 +142,9 @@ private func rawSetLog(
 
 /// Builds the Sets for one Prescription Line: the Line's own Reps/Load/%1RM are split
 /// positionally (repeating the last token), and each Set's Set Log is read from the placement query
-/// (the Line's own Notes cell at the Set's list position — the same cell the write path targets). A
-/// protected Line Notes cell (a Coach Note or Legacy Log, ADR-0005) leaves the Line's Sets Pending
-/// rather than reading its coach content out as Set Logs.
+/// (the Line's own Notes cell at the Set's list position, or the spare row a Coach Note sends it to:
+/// the same cell the write path targets). A Legacy Log keeps its Line's cell as the placement, so
+/// that Line's Sets stay Pending rather than read the Legacy Log out as Set Logs (ADR-0005).
 private func parsedSetsForLine(
     snapshot: SheetSnapshot,
     cols: DayColumns,
@@ -174,11 +155,11 @@ private func parsedSetsForLine(
     let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
-    let lineHoldsSetLogs = line.notesRole(in: grid, cols: cols).holdsSetLogs
+    let lineHoldsLegacyLog = line.notesRole(in: grid, cols: cols).legacyLog != nil
 
     return (0..<line.setCount).map { position in
         let setIndex = line.firstSetIndex + position
-        let rawLog = lineHoldsSetLogs ? rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols) : ""
+        let rawLog = lineHoldsLegacyLog ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
         let logState = SetLogToken.classify(rawLog)
         return ParsedSet(
             index: setIndex,
@@ -199,13 +180,10 @@ private func parsedMultiLineExercise(
     lines: [PrescriptionLine]
 ) -> ParsedExercise {
     let grid = snapshot.values
-    let rawName = grid.cell(row: anchor.row, col: cols.name).trimmed
-    let (cadence, base) = splitCadence(rawName)
+    let name = ExerciseName(entered: grid.cell(row: anchor.row, col: cols.name).trimmed)
     let sets = lines.flatMap { parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0) }
     return ParsedExercise(
-        name: rawName,
-        baseName: base,
-        cadence: cadence,
+        name: name,
         coachNote: anchor.headerNotesRole(in: grid, cols: cols).coachNote,
         sets: sets
     )
@@ -222,8 +200,7 @@ private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor
 private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let grid = snapshot.values
     let anchorRow = anchor.row
-    let rawName = grid.cell(row: anchorRow, col: cols.name).trimmed
-    let (cadence, base) = splitCadence(rawName)
+    let name = ExerciseName(entered: grid.cell(row: anchorRow, col: cols.name).trimmed)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
     let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
     let sets = parsedSets(
@@ -239,9 +216,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     )
 
     return ParsedExercise(
-        name: rawName,
-        baseName: base,
-        cadence: cadence,
+        name: name,
         coachNote: role.coachNote,
         legacyLog: role.legacyLog,
         sets: sets
@@ -304,7 +279,7 @@ private func trainingMaxValues(
         guard
             let lift = MainLift(sheetLabel: grid.cell(row: row, col: labelCol).trimmed),
             maxes[lift] == nil,
-            let value = Double(grid.cell(row: row, col: valueCol).trimmed)
+            case .pounds(let value)? = Weight(text: grid.cell(row: row, col: valueCol).trimmed)
         else { continue }
         maxes[lift] = value
     }
@@ -318,7 +293,7 @@ struct ParsedBlockModel {
 
     /// Every Exercise's Cadence-stripped base name: the unit Exercise History coverage counts in (ADR-0012).
     var exerciseBaseNames: Set<String> {
-        Set(weeks.flatMap(\.days).flatMap(\.exercises).map(\.baseName))
+        Set(weeks.flatMap(\.days).flatMap(\.exercises).map(\.exerciseName.base))
     }
 }
 struct ParsedBlock {
