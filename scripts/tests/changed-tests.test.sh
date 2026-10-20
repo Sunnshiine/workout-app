@@ -20,6 +20,11 @@ import Testing
 @Test func aTestToDelete() { #expect(true) }
 @Test func aTestToRename() { #expect(true) }
 @Test func anUntouchedTest() { #expect(true) }
+@Test func aMultiLineTest() {
+    let one = 1
+    #expect(one == 1)
+}
+private func aHelperAfterTheTests() -> Int { 1 }
 SWIFT
 cat >"$repo/Tests/Unit/NestedTests.swift" <<'SWIFT'
 import Testing
@@ -68,7 +73,16 @@ check "an edit selects the test it touches; its untouched siblings and the test 
 
 git -C "$repo" checkout -q -- Tests/Unit
 sed -i '' '/aTestToDelete/d' "$repo/Tests/Unit/TopLevelTests.swift"
-check "a pure deletion selects the test above it" "Tests/Unit/TopLevelTests.swift:3	aTopLevelTest" ""
+check "deleting a whole test selects nothing" "" ""
+
+git -C "$repo" checkout -q -- Tests/Unit
+sed -i '' '/let one = 1/d' "$repo/Tests/Unit/TopLevelTests.swift"
+check "deleting a line inside a test selects that test" "Tests/Unit/TopLevelTests.swift:7	aMultiLineTest" ""
+
+git -C "$repo" checkout -q -- Tests/Unit
+sed -i '' 's/-> Int { 1 }/-> Int { 2 }/' "$repo/Tests/Unit/TopLevelTests.swift"
+check "a change to a helper after a test selects nothing and says so on stderr" "" \
+"note: Tests/Unit/TopLevelTests.swift changed outside its tests; the tests that use it are not repeated. Hunt them with scripts/flake-hunt.sh before you commit."
 
 git -C "$repo" checkout -q -- Tests/Unit
 sed -i '' -e 's/arguments: \[1, 2\]/arguments: [1, 2, 3]/' -e 's/func aHelperThatIsNoTest() {}/func aHelperThatIsNoTest() { _ = 1 }/' \
@@ -77,12 +91,13 @@ printf 'extension NestedTests {\n    @Test func aTestInAnExtension() { #expect(t
 git -C "$repo" commit -qam "extend the nested tests"
 check "a committed change selects by base name a multi-line @Test( whose arguments changed and a test in an extension" \
 "Tests/Unit/NestedTests.swift:12	aTestInAnExtension
-Tests/Unit/NestedTests.swift:8	aParametrizedTest" ""
+Tests/Unit/NestedTests.swift:8	aParametrizedTest" \
+"note: Tests/Unit/NestedTests.swift changed outside its tests; the tests that use it are not repeated. Hunt them with scripts/flake-hunt.sh before you commit."
 
 git -C "$repo" reset -q --hard "$base"
 sed -i '' 's/@Suite("Display name")/@Suite("Renamed")/' "$repo/Tests/Unit/NestedTests.swift"
 check "a change above a file's first test selects nothing and says so on stderr" "" \
-"note: Tests/Unit/NestedTests.swift changed above its first test; the tests that use it are not repeated. Hunt them with scripts/flake-hunt.sh before you commit."
+"note: Tests/Unit/NestedTests.swift changed outside its tests; the tests that use it are not repeated. Hunt them with scripts/flake-hunt.sh before you commit."
 
 git -C "$repo" reset -q --hard "$base"
 printf 'import Testing\n@Test func aBrandNewTest() { #expect(true) }\n@Test func anotherBrandNewTest() { #expect(true) }\n' \
