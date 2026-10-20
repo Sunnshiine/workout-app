@@ -214,7 +214,9 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
   while free memory is under `WORKOUT_MEM_FLOOR` or `WORKOUT_SIM_CAP` other simulators are booted.
   At the cap it first shuts down the least recently used lane simulator that no run holds, that
   runs no app, and that nobody claimed or booted through `sim-pool.sh boot` for
-  `WORKOUT_IDLE_MINUTES` (2). Its next run boots it again. Stop an app you launched through
+  `WORKOUT_IDLE_MINUTES` (2). Under the cap, every boot shuts down one such lane unused for
+  `WORKOUT_SLEEP_MINUTES` (30; 0 turns it off): an idle lane simulator uses about 0.12 core, so in
+  half an hour it burns more CPU than its next boot. Its next run boots it again. Stop an app you launched through
   XcodeBuildMCP when you are done, or its lane never counts as idle.
 - `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
   touches anything else while a run holds the simulator. It then saves any uncommitted or staged
