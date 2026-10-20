@@ -125,12 +125,23 @@ fi
 tally() {
     awk -F'\t' -v want="$1" "$base_name"'
         FILENAME == ARGV[1] { id[++n] = $1; declaration[n] = $2; at[base($1)] = $2; next }
-        / Test (run|case passing .*) started/ { next }
+        / Test run started/ { next }
         /^[^ ]+ Test .* started( \(repetition [0-9]+\))?\.$/ {
             name = $0
-            sub(/^[^ ]+ Test /, "", name)
             k = match(name, / started \(repetition [0-9]+\)\.$/) ? substr(name, RSTART + 21) + 0 : 1
             sub(/ started( \(repetition [0-9]+\))?\.$/, "", name)
+            # A parameterized test logs its own start once; each repetition logs only its cases, as
+            # "Test case passing 1 argument n → 1 to name(n:) started (repetition 2).".
+            if (name ~ /^[^ ]+ Test case passing /) {
+                for (i = 1; i <= n; i++) {
+                    last = id[i]
+                    sub(/.*\//, "", last)
+                    if (substr(name, length(name) - length(last) - 3) == " to " last && k > reached[last]) reached[last] = k
+                }
+                if (k > most) most = k
+                next
+            }
+            sub(/^[^ ]+ Test /, "", name)
             if (k > reached[name]) reached[name] = k
             if (k > most) most = k
             running[name] = 1

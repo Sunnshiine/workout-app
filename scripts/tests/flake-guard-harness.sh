@@ -120,9 +120,11 @@ passing='Running tests multiple times until a failure occurs. Running tests repe
 ◇ Test aNestedTest() started.
 ◇ Test aParametrizedTest(n:) started.
 ◇ Test aNestedTest() started (repetition 2).
-◇ Test aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 1 to aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 2 to aParametrizedTest(n:) started (repetition 2).
 ◇ Test aNestedTest() started (repetition 20).
-◇ Test aParametrizedTest(n:) started (repetition 20).
+◇ Test case passing 1 argument n → 1 to aParametrizedTest(n:) started (repetition 20).
+◇ Test case passing 1 argument n → 2 to aParametrizedTest(n:) started (repetition 20).
 ✔ Test aNestedTest() passed after 0.010 seconds.
 ✔ Test aParametrizedTest(n:) with 2 test cases passed after 0.011 seconds.
 ✔ Test run with 2 tests in 1 suite passed after 0.012 seconds.
@@ -132,7 +134,8 @@ failing_on_seven='Running tests multiple times until a failure occurs. Running t
 ◇ Test run started.
 ◇ Test aNestedTest() started.
 ◇ Test aParametrizedTest(n:) started.
-◇ Test aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 1 to aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 2 to aParametrizedTest(n:) started (repetition 2).
 ◇ Test aNestedTest() started (repetition 7).
 ✘ Test aNestedTest() recorded an issue at NestedTests.swift:4:31: Expectation failed: elapsed < .seconds(10)
 ✘ Test aNestedTest() failed after 0.900 seconds with 1 issue.
@@ -179,5 +182,6 @@ repeating='◇ Test run started.
 ◇ Test aNestedTest() started.
 ◇ Test aParametrizedTest(n:) started.
 ◇ Test aNestedTest() started (repetition 2).
-◇ Test aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 1 to aParametrizedTest(n:) started (repetition 2).
+◇ Test case passing 1 argument n → 2 to aParametrizedTest(n:) started (repetition 2).
 ◇ Test aNestedTest() started (repetition 3).'
