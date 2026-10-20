@@ -68,5 +68,16 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
 - **Amended 2026-09-24 (#749):** a Session's Day number is now the N of its `Day N` header, and
   only `Day 1` to `Day 7`, each used once per Week, name a Session, because a Week is a 7-day
   window; any other `Day N` header is left out with a parse warning.
+- **Amended 2026-10-17 (#942):** a Prescription Line whose Notes cell holds a Coach Note keeps its
+  Set Logs on a spare row, a visible row in the Exercise's span that is not itself a Line. The
+  k-th such Line, in sheet order, takes the k-th spare row, and its Sets fill that row's list as
+  they would fill the Line's own cell. With no spare row left, the write is refused by name, as a
+  protected header with no Visible Writable Row is. This applies `CONTEXT.md`'s Coach Note rule
+  ("Set Logs move to the next Visible Writable Row in the same Session") to a Line. Refusing every
+  such write as a conflict was rejected, because it leaves the Line's Sets unloggable. A Line
+  whose Notes cell holds a Legacy Log is not redirected. Its Sets read Pending and a write to them
+  still conflicts, because a Legacy Log records the Line as done and a redirect would log it a
+  second time elsewhere. Set Logs written under this rule sit on the spare row, so a coach who
+  later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
 
 See PRD and slices: issues #297–#301.

@@ -9,9 +9,7 @@ enum BlockBuilder {
                 let session = Session(dayNumber: pd.dayNumber, date: pd.date)
                 session.exercises = pd.exercises.enumerated().map { (i, pe) in
                     let ex = Exercise(
-                        name: pe.name,
-                        baseName: pe.baseName,
-                        cadence: pe.cadence,
+                        name: pe.exerciseName,
                         coachNote: pe.coachNote,
                         legacyLog: pe.legacyLog,
                         order: i
