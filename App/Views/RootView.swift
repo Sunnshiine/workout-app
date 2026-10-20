@@ -6,6 +6,9 @@ struct RootView: View {
     let restTimer: RestTimer
     let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
+    @Environment(WorkoutStore.self) private var workout
+    @Environment(SyncCoordinator.self) private var sync
+    @Environment(LastPerformedLookupStore.self) private var lastPerformed
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
@@ -70,7 +73,22 @@ struct RootView: View {
 
     private var sessionDestination: some View {
         NavigationStack {
-            SessionView(liveActivityAdapter: liveActivityAdapter, dictation: dictation, focus: focus, restTimer: restTimer)
+            SessionView(
+                wiring: .live(
+                    workout: workout,
+                    sync: sync,
+                    settings: settings,
+                    lastPerformed: lastPerformed,
+                    entry: entry,
+                    platform: SessionPlatform(
+                        liveActivity: liveActivityAdapter,
+                        motion: SwiftUISessionMotion(),
+                        restTimer: restTimer
+                    )
+                ),
+                dictation: dictation,
+                focus: focus
+            )
         }
         .transition(handoff)
     }

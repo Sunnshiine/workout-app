@@ -2,107 +2,6 @@ import Foundation
 import Observation
 import os
 
-/// Why a transcriber returned no transcript.
-enum SetTranscriberError: String, Error, Equatable, Sendable, Codable {
-    case microphoneDenied
-    /// The device has no on-device speech model for the locale, or its assets would not install.
-    case unavailable
-    case nothingHeard
-    case failed
-}
-
-/// Speech-to-text heard while the athlete speaks: the caption, the auto-stop, and the Live
-/// Transcript, from `start` until `finish`.
-@MainActor
-protocol SetTranscriber: AnyObject {
-    /// Returns once the microphone is live. `hearing` receives the whole transcript so far each
-    /// time it changes, and `recording` the mic's audio at 16 kHz mono, until `finish` or `cancel`
-    /// returns. A start that throws leaves nothing listening.
-    func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberError)
-    /// Stops listening, even when it throws, and returns the transcripts heard, the most likely
-    /// first.
-    func finish() async throws(SetTranscriberError) -> [String]
-    func cancel() async
-}
-
-/// The time hands-free Dictation reads: how long a request to listen waits for the stage, and
-/// when the athlete has stopped talking.
-@MainActor
-protocol ListeningClock: AnyObject {
-    /// The time since a fixed origin.
-    var now: Duration { get }
-    /// The wall-clock time at `now`, which dates a press's Dictation Record.
-    var date: Date { get }
-    /// Returns at `deadline`, or at once when it has passed.
-    func sleep(until deadline: Duration) async
-}
-
-@MainActor
-final class ContinuousListeningClock: ListeningClock {
-    private let origin = ContinuousClock.now
-
-    var now: Duration { ContinuousClock.now - origin }
-    var date: Date { Date() }
-
-    func sleep(until deadline: Duration) async {
-        try? await Task.sleep(until: origin + deadline, clock: .continuous)
-    }
-}
-
-/// What the Spoken Set for one Set resolves against.
-struct SpokenSetContext: Equatable, Sendable {
-    /// Which Set this is, for the press's Dictation Record. Nil for a Set the Block no longer holds.
-    let set: DictatedSet?
-    /// What the Set's card shows, which fills what the athlete leaves unsaid.
-    let draft: SetLogDraft
-    /// The Exercise's nearest earlier structured Set Log in the Session, which "same again" logs.
-    let previous: SetLog?
-}
-
-extension SpokenSetContext {
-    /// A Set as its card first shows it.
-    @MainActor
-    init(for set: ExerciseSet, history: LastPerformedLookupSnapshot) {
-        self.init(for: set, showing: SetLogDraft(prefilling: set, suggestion: LoadSuggestionEngine.suggest(for: set, history: history)))
-    }
-
-    /// A Set whose card shows `draft`, which the athlete may have changed.
-    @MainActor
-    init(for set: ExerciseSet, showing draft: SetLogDraft) {
-        self.init(set: DictatedSet(set), draft: draft, previous: set.earlierSetLogs.first?.setLog)
-    }
-
-    /// What a Spoken Set for `set` resolves against on every path, the card's mic or a press with
-    /// the phone locked: what the card shows for `set` once it has reported it, the card's first
-    /// values otherwise.
-    @MainActor
-    init(for set: ExerciseSet, shownBy focus: ActiveSetFocusManager, history: LastPerformedLookupSnapshot) {
-        if let setID = ActiveSetFocusManager.id(for: set), let draft = focus.cardDraft(for: setID) {
-            self.init(for: set, showing: draft)
-        } else {
-            self.init(for: set, history: history)
-        }
-    }
-}
-
-/// Which Set a press was for, in the terms that find it again after a reload.
-struct DictatedSet: Equatable, Sendable {
-    let block: String
-    let address: SetAddress
-    let exercise: String
-}
-
-extension DictatedSet {
-    @MainActor
-    init?(_ set: ExerciseSet) {
-        guard let exercise = set.exercise, let session = exercise.session, let week = session.week, let block = week.block else {
-            return nil
-        }
-        let address = ExerciseAddress(session: week.address(of: session), order: exercise.order)
-        self.init(block: block.tabName, address: SetAddress(exercise: address, index: set.index), exercise: exercise.name)
-    }
-}
-
 /// One press of the Active Set Card's mic, from the first word heard to the Spoken Set's outcome.
 @MainActor
 @Observable
@@ -492,7 +391,7 @@ extension SetDictation.State {
         }
     }
 
-    fileprivate var heard: String {
+    var heard: String {
         switch self {
         case .listening(_, let heard), .deciding(_, let heard): heard
         case .idle, .preparing, .finished: ""
@@ -506,81 +405,6 @@ extension SetDictation.State {
         case .preparing(let set), .listening(let set, _): .listening(set, heard: heard)
         case .deciding(let set, _): .deciding(set, heard: heard)
         case .idle, .finished: self
-        }
-    }
-}
-
-/// What the Set card's mic and action capsule show of a press for the card's Set.
-enum SetCardDictation: Equatable {
-    case ready
-    /// The capsule shows what is heard in place of the Log button.
-    case listening(caption: String)
-    /// The capsule keeps what was heard, with the mic off, until the press's outcome is in.
-    case deciding(caption: String)
-    /// The capsule shows what was heard, or why nothing was, until the athlete taps it.
-    case rejected(caption: String)
-    /// The card's values become these, with nothing written.
-    case filled(SetLogDraft)
-
-    init(_ state: SetDictation.State, for setID: ActiveSetID) {
-        switch state {
-        case .preparing(setID), .listening(setID, _): self = .listening(caption: Self.caption(hearing: state.heard))
-        case .deciding(setID, let heard): self = .deciding(caption: Self.caption(hearing: heard))
-        case .finished(setID, .rejected(let rejection, let heard)): self = .rejected(caption: Self.caption(rejection, heard: heard))
-        case .finished(setID, .filled(let values, _)): self = .filled(values)
-        case .idle, .preparing, .listening, .deciding, .finished: self = .ready
-        }
-    }
-
-    /// What the capsule says in place of the Log button; nil leaves the Log button.
-    var caption: String? {
-        switch self {
-        case .listening(let caption), .deciding(let caption), .rejected(let caption): caption
-        case .ready, .filled: nil
-        }
-    }
-
-    var isListening: Bool {
-        guard case .listening = self else { return false }
-        return true
-    }
-
-    private static func caption(hearing heard: String) -> String {
-        heard.isEmpty ? "Listening" : heard
-    }
-
-    private static func caption(_ rejection: SetDictation.Rejection, heard: String) -> String {
-        switch rejection {
-        case .transcriber(.microphoneDenied): "Microphone is off in Settings"
-        case .transcriber(.unavailable): "Speech isn’t available"
-        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
-        case .spokenSet, .transcriber(.failed): rejection.readback(of: heard)
-        }
-    }
-}
-
-extension SetDictation.Rejection {
-    /// What the card and the Live Activity say of a rejected transcript: the words heard, and for a
-    /// Set no lifter logs, an ask to say it again.
-    func readback(of heard: String) -> String {
-        guard !heard.isEmpty else { return "Nothing heard" }
-        guard case .spokenSet(.implausible) = self else { return "“\(heard)”" }
-        return "“\(heard)”, say it again"
-    }
-}
-
-extension SetDictation {
-    /// The mic's press, as a weight step answers a tap.
-    nonisolated static let startHaptic = Haptic.input(Theme.Haptics.stepperTick)
-}
-
-extension SetDictation.Outcome {
-    /// A write feels like the tap it stands in for; anything the athlete still has to act on warns.
-    var haptic: Haptic {
-        switch self {
-        case .logged: .input(Theme.Haptics.logTap)
-        case .skipped: .input(Theme.Haptics.skipDud)
-        case .filled, .rejected: .warning
         }
     }
 }
