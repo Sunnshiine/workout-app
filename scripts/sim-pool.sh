@@ -34,7 +34,8 @@ Every boot, the template's and boot's, goes through the host admission test-sim.
 WORKOUT_MEM_FLOOR or WORKOUT_SIM_CAP other simulators are booted. A device already booted does not wait.
 At the cap it first shuts down the least recently used booted lane that no run holds, that runs no
 app but a verify app past its lease, and whose /tmp/workout-verify-<UDID>/lock was last written
-WORKOUT_IDLE_MINUTES or more ago. A claim writes that file when it starts and touches it when it
+WORKOUT_IDLE_MINUTES or more ago. Under the cap it shuts down one such lane last written
+WORKOUT_SLEEP_MINUTES or more ago, and boots. A claim writes that file when it starts and touches it when it
 ends, and boot touches it, so a raw xcodebuild or XcodeBuildMCP run after it, which takes no lock,
 still leaves the lane an idle clock.
 
@@ -47,6 +48,8 @@ Environment:
   WORKOUT_MEM_FLOOR      lowest free memory, kern.memorystatus_level in percent, a boot starts at
                          (default 25; 0 turns it off)
   WORKOUT_IDLE_MINUTES   minutes a lane's lock goes unwritten before the cap may reclaim it (default 2)
+  WORKOUT_SLEEP_MINUTES  minutes a lane's lock goes unwritten before any boot shuts it down
+                         (default 30; 0 turns it off)
   WORKOUT_ADMIT_WAIT     seconds to wait for the pool lock or the host before exit 75 (default 540)
   WORKOUT_HOST_LOCK_DIR  the host-wide lock directory (default /tmp/workout-host-locks)
 
