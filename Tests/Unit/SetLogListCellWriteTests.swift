@@ -30,6 +30,5 @@ import Testing
 
     let update = try planner.plan(request, in: grid)
 
-    #expect(update.range == "'Block 27'!J16")
-    #expect(update.value == ", 140x7@9")
+    #expect(update == SheetCellWrite(tabName: "Block 27", a1: "J16", value: ", 140x7@9"))
 }

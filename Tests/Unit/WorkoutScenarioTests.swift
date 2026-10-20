@@ -23,7 +23,7 @@ import Testing
     let open = WorkoutScenarios.openExercises()
     let openExerciseNames = open.tracker.openExercises(
         for: try #require(open.currentSession)
-    ).map(\.exercise.name)
+    ).map(\.exercise.exerciseName.entered)
     #expect(openExerciseNames == ["Back Squat", "Bench Press"])
 
     let failure = try #require(

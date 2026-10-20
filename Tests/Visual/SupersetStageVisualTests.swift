@@ -50,7 +50,7 @@ struct SupersetStageVisualTests {
                 ActiveSupersetSection(
                     stage: stage,
                     session: session,
-                    coordinator: SessionCoordinator(session: session),
+                    coordinator: SessionCoordinator(session: session, wiring: .fixture()),
                     composition: .reading,
                     onShowHistory: { _ in }
                 )
@@ -86,8 +86,6 @@ struct SupersetStageVisualTests {
         // line, as the pick shows.
         let press = Exercise(
             name: "Incline Bench Press",
-            baseName: "Incline Bench Press",
-            cadence: nil,
             coachNote: "Keep the dumbbells honest at the bottom — full stretch, no rush.",
             order: 3
         )
@@ -107,8 +105,6 @@ struct SupersetStageVisualTests {
 
         let row = Exercise(
             name: "Chest-Supported Row",
-            baseName: "Chest-Supported Row",
-            cadence: nil,
             coachNote: nil,
             order: 4
         )
@@ -131,8 +127,7 @@ struct SupersetStageVisualTests {
         block.weeks = [week]
 
         let lastPerformed = LastPerformedOccurrence(
-            fullName: "Incline Bench Press",
-            baseName: "Incline Bench Press",
+            exerciseName: "Incline Bench Press",
             resultText: "30×10 @8 · 30×10 @8 · 30×9 @9",
             performedOn: .distantPast,
             source: "W1 D2"

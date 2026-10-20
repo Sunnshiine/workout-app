@@ -148,7 +148,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # Creating the device is enough. xcodebuild boots it itself for the test step below.
+      # The step takes seconds. A hung simctl once held it for 40 minutes (#1010), so it fails fast
+      # for a rerun instead of running out the job's limit.
       - name: Ensure the pinned baseline simulator exists
+        timeout-minutes: 5
         run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig

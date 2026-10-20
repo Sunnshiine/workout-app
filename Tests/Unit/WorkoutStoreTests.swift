@@ -4,13 +4,13 @@ import Testing
 
 @testable import WorkoutTracker
 
-private struct WorkoutStoreFixture {
+struct WorkoutStoreFixture {
     let store: WorkoutStore
     let container: ModelContainer
 }
 
 @MainActor
-private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, dayCount: Int = 4) -> Block {
+func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, dayCount: Int = 4) -> Block {
     BlockBuilder.makeBlock(
         from: ParsedBlockModel(
             tabName: tabName,
@@ -24,8 +24,6 @@ private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, da
                             exercises: [
                                 ParsedExercise(
                                     name: "Squat",
-                                    baseName: "Squat",
-                                    cadence: nil,
                                     coachNote: nil,
                                     sets: [
                                         ParsedSet(
@@ -46,7 +44,7 @@ private func makeStoreBlock(tabName: String = "Block 27", weekCount: Int = 1, da
 }
 
 @MainActor
-private func makeStore(
+func makeStore(
     tabName: String = "Block 27",
     weekCount: Int = 1,
     defaults: AppDefaults = .inMemory(),
@@ -115,7 +113,7 @@ private func makeStore(
     store.reload()
 
     #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.openExercises.map(\.name) == ["Back Squat", "Bench Press"])
+    #expect(store.openExercises.map(\.exerciseName.entered) == ["Back Squat", "Bench Press"])
 }
 
 @MainActor
@@ -145,45 +143,6 @@ private func makeStore(
     #expect(store.currentSession?.dayNumber == 2)
     #expect(store.viewedSession?.dayNumber == 4)
     #expect(!store.isViewingLiveEdge)
-}
-
-@MainActor
-@Test func reloadKeepsTheBrowsedSessionWhenTheSyncReplacesTheWholeBlock() throws {
-    let fixture = try makeStore(weekCount: 2)
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let context = fixture.container.mainContext
-
-    store.show(SessionAddress(week: 2, day: 3))
-    #expect(store.viewedSession?.week?.number == 2)
-
-    // SyncCoordinator.replacePersistedBlock, inlined.
-    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
-    context.insert(makeStoreBlock(weekCount: 2))
-    try context.save()
-    store.reload()
-
-    #expect(store.viewedSession?.week?.number == 2)
-    #expect(store.viewedSession?.dayNumber == 3)
-}
-
-@MainActor
-@Test func reloadReturnsToTheCurrentSessionWhenTheBrowsedSessionLeavesTheBlock() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let context = fixture.container.mainContext
-
-    store.show(SessionAddress(week: 1, day: 4))
-    #expect(store.viewedSession?.dayNumber == 4)
-
-    for existing in try context.fetch(FetchDescriptor<Block>()) { context.delete(existing) }
-    context.insert(makeStoreBlock(dayCount: 3))
-    try context.save()
-    store.reload()
-
-    #expect(store.viewedSession?.dayNumber == 1)
-    #expect(store.isViewingLiveEdge)
 }
 
 @MainActor
@@ -251,7 +210,7 @@ private func makeStore(
 
 @MainActor
 @Test func ignoresLegacyOrderOverrideKeyFromBeforeStrideChange() throws {
-    // A pre-V2 build persisted the manual Current Session override under "advancedToOrder_<tab>"
+    // A pre-V2 build persisted the Current Session Pin under "advancedToOrder_<tab>"
     // with the old stride-4 encoding. Under the new stride-7 encoding that same integer can map
     // to a DIFFERENT Session, so the new key must ignore the legacy value and fall back to the
     // derived Current Session rather than silently resolving to the wrong one.
@@ -297,7 +256,7 @@ private func makeStore(
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoManualOverride() throws {
+@Test func currentSessionDebugInfoShowsSheetDerivedResolutionWhenNoPin() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -311,16 +270,16 @@ private func makeStore(
 
     #expect(info.currentBlockTab == "Block 27")
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
-    #expect(info.manualOverrideSession == "None")
+    #expect(info.pinnedSession == "None")
     #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 3")
-    #expect(info.reason == "No manual override is active, so Sheet-derived progress wins.")
+    #expect(info.reason == "No Current Session Pin is set, so Sheet-derived progress wins.")
     #expect(info.localOnlyNote == nil)
     #expect(info.copyText.contains("Sheet-derived Session: Week 1, Day 3"))
 }
 
 @MainActor
-@Test func currentSessionDebugInfoShowsLocalOnlyManualOverrideWhenPresent() throws {
+@Test func currentSessionDebugInfoShowsLocalOnlyPinWhenPresent() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -334,16 +293,90 @@ private func makeStore(
     let info = store.currentSessionDebugInfo
 
     #expect(info.sheetDerivedSession == "Week 1, Day 3")
-    #expect(info.manualOverrideSession == "Week 1, Day 1")
+    #expect(info.pinnedSession == "Week 1, Day 1 (Make current)")
     #expect(info.viewedSession == "Week 1, Day 1")
     #expect(info.resolvedCurrentSession == "Week 1, Day 1")
-    #expect(info.reason == "Manual override is active for this Block.")
-    #expect(info.localOnlyNote == "Manual Current Session override is local-only and is not Sheet data.")
-    #expect(info.copyText.contains("Manual Current Session override is local-only and is not Sheet data."))
+    #expect(info.reason == "The athlete made this Session current, so it wins over Sheet-derived progress.")
+    #expect(info.localOnlyNote == "The Current Session Pin is local-only and is not Sheet data.")
+    #expect(info.canClearPin)
+    #expect(info.copyText.contains("Current Session Pin: Week 1, Day 1 (Make current)"))
+    #expect(info.copyText.contains("The Current Session Pin is local-only and is not Sheet data."))
 }
 
 @MainActor
-@Test func resetCurrentSessionOverrideReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
+@Test func currentSessionDebugInfoNarratesAMoveOnAsAPinNotAnOverride() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.moveOn()
+
+    let info = store.currentSessionDebugInfo
+    #expect(info.pinnedSession == "Week 1, Day 2 (Move On)")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 2")
+    #expect(info.reason == "Move On advanced to this Session, so it wins over Sheet-derived progress.")
+    #expect(info.localOnlyNote == "The Current Session Pin is local-only and is not Sheet data.")
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesAPinOnASessionThatBecameUnavailable() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    store.show(SessionAddress(week: 1, day: 2))
+    store.makeViewedSessionCurrent()
+
+    let pinned = try #require(store.block?.session(at: SessionAddress(week: 1, day: 2)))
+    pinned.exercises = []
+    store.reload()
+
+    let info = store.currentSessionDebugInfo
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(info.pinnedSession == "Week 1, Day 2, Unavailable (Make current)")
+    #expect(info.resolvedCurrentSession == "Week 1, Day 1")
+    #expect(info.reason == "The Current Session Pin names an Unavailable Session, so Sheet-derived progress wins.")
+    #expect(info.localOnlyNote == nil)
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesAPinThatNoLongerMatchesTheBlock() throws {
+    let defaults = AppDefaults.inMemory()
+    defaults.set(99, forKey: "advancedToOrderV2_Block 27")
+    let fixture = try makeStore(defaults: defaults)
+    defer { withExtendedLifetime(fixture.container) {} }
+
+    let info = fixture.store.currentSessionDebugInfo
+
+    #expect(fixture.store.currentSession?.dayNumber == 1)
+    #expect(info.pinnedSession == "Saved pin no longer matches this Block (Move On)")
+    #expect(info.reason == "The Current Session Pin no longer matches this Block, so Sheet-derived progress wins.")
+    #expect(info.localOnlyNote == nil)
+    #expect(info.canClearPin)
+}
+
+@MainActor
+@Test func currentSessionDebugInfoNarratesABlockWithNoAvailableSession() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let block = try #require(store.block)
+    for session in block.weeks.flatMap(\.sessions) {
+        session.exercises = []
+    }
+    store.reload()
+
+    let info = store.currentSessionDebugInfo
+
+    #expect(info.sheetDerivedSession == "None")
+    #expect(info.resolvedCurrentSession == "None")
+    #expect(info.reason == "No Sheet-derived Session is available for this Block.")
+    #expect(!info.canClearPin)
+}
+
+@MainActor
+@Test func clearingThePinReturnsViewedSessionToSheetDerivedWithoutSheetWrite() throws {
     let fixture = try makeStore()
     defer { withExtendedLifetime(fixture.container) {} }
     let store = fixture.store
@@ -353,18 +386,18 @@ private func makeStore(
     store.show(SessionAddress(week: 1, day: 1))
     store.makeViewedSessionCurrent()
 
-    store.resetCurrentSessionOverride()
+    store.clearCurrentSessionPin()
 
     let info = store.currentSessionDebugInfo
     let writes = try fixture.container.mainContext.fetch(FetchDescriptor<PendingWrite>())
-    #expect(info.manualOverrideSession == "None")
+    #expect(info.pinnedSession == "None")
     #expect(store.currentSession?.dayNumber == 3)
     #expect(store.viewedSession?.dayNumber == 3)
     #expect(writes.isEmpty)
 }
 
 @MainActor
-@Test func resetCurrentSessionOverrideDoesNotClearOtherBlockOverride() throws {
+@Test func clearingThePinDoesNotClearAnotherBlocksPin() throws {
     let defaults = AppDefaults.inMemory()
     let block27 = try makeStore(tabName: "Block 27", defaults: defaults)
     let block28 = try makeStore(tabName: "Block 28", defaults: defaults)
@@ -377,288 +410,11 @@ private func makeStore(
     block28.store.show(SessionAddress(week: 1, day: 3))
     block28.store.makeViewedSessionCurrent()
 
-    block27.store.resetCurrentSessionOverride()
+    block27.store.clearCurrentSessionPin()
     block28.store.reload()
 
-    #expect(block27.store.currentSessionDebugInfo.manualOverrideSession == "None")
+    #expect(block27.store.currentSessionDebugInfo.pinnedSession == "None")
     #expect(block27.store.currentSession?.dayNumber == 1)
-    #expect(block28.store.currentSessionDebugInfo.manualOverrideSession == "Week 1, Day 3")
+    #expect(block28.store.currentSessionDebugInfo.pinnedSession == "Week 1, Day 3 (Make current)")
     #expect(block28.store.currentSession?.dayNumber == 3)
-}
-
-@MainActor
-@Test func moveOnAdvancesCurrentSessionAndViewedSession() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.moveOn()
-
-    #expect(store.currentSession?.week?.number == 1)
-    #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.viewedSession?.week?.number == 1)
-    #expect(store.viewedSession?.dayNumber == 2)
-}
-
-@MainActor
-@Test func moveOnAdvancesFromManualCurrentSessionOverride() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.show(SessionAddress(week: 1, day: 3))
-    store.makeViewedSessionCurrent()
-    store.moveOn()
-
-    #expect(store.currentSession?.week?.number == 1)
-    #expect(store.currentSession?.dayNumber == 4)
-    #expect(store.viewedSession?.week?.number == 1)
-    #expect(store.viewedSession?.dayNumber == 4)
-}
-
-@MainActor
-@Test func requestingMoveOnCelebrationCapturesCurrentSessionWithoutAdvancing() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.requestMoveOnCelebration()
-
-    #expect(store.moveOnCelebrationSession?.week?.number == 1)
-    #expect(store.moveOnCelebrationSession?.dayNumber == 1)
-    #expect(store.currentSession?.week?.number == 1)
-    #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.viewedSession?.week?.number == 1)
-    #expect(store.viewedSession?.dayNumber == 1)
-}
-
-@MainActor
-@Test func requestingMoveOnCelebrationCapturesRequestTime() throws {
-    var now = Date(timeIntervalSinceReferenceDate: 1_000)
-    let fixture = try makeStore(now: { now })
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    now = Date(timeIntervalSinceReferenceDate: 1_500)
-    store.requestMoveOnCelebration()
-
-    #expect(store.moveOnCelebrationRequestedAt == Date(timeIntervalSinceReferenceDate: 1_500))
-
-    now = Date(timeIntervalSinceReferenceDate: 2_000)
-    store.dismissMoveOnCelebration()
-
-    #expect(store.moveOnCelebrationRequestedAt == nil)
-}
-
-@MainActor
-@Test func dismissingMoveOnCelebrationAdvancesFromCapturedSession() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.requestMoveOnCelebration()
-    store.dismissMoveOnCelebration()
-
-    #expect(store.moveOnCelebrationSession == nil)
-    #expect(store.currentSession?.week?.number == 1)
-    #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.viewedSession?.week?.number == 1)
-    #expect(store.viewedSession?.dayNumber == 2)
-}
-
-@MainActor
-@Test func reachingZeroLeftDoesNotShowCelebrationOrAdvanceCurrentSession() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let currentSet = try #require(store.currentSession?.exercises[0].sets[0])
-
-    currentSet.state = .logged
-    store.reload()
-
-    let currentSession = try #require(store.currentSession)
-    let presentation = SessionProgressHeaderPresentation(session: currentSession)
-    #expect(presentation.remainingSetCount == 0)
-    #expect(store.moveOnCelebrationSession == nil)
-    #expect(store.currentSession?.week?.number == 1)
-    #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.viewedSession?.week?.number == 1)
-    #expect(store.viewedSession?.dayNumber == 1)
-}
-
-@MainActor
-@Test func moveOnAdvancePersistsAcrossReload() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.moveOn()
-    store.reload()
-
-    #expect(store.currentSession?.dayNumber == 2)
-    #expect(store.viewedSession?.dayNumber == 2)
-}
-
-@MainActor
-@Test func repeatedMoveOnsOverwriteStoredAdvance() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.moveOn()
-    store.moveOn()
-
-    #expect(store.currentSession?.dayNumber == 3)
-    #expect(store.viewedSession?.dayNumber == 3)
-}
-
-@MainActor
-@Test func moveOnCrossesWeekBoundaryAndDropsPriorWeekOpenExercises() throws {
-    let fixture = try makeStore(weekCount: 2)
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-
-    store.moveOn()
-    store.moveOn()
-    store.moveOn()
-    store.moveOn()
-
-    #expect(store.currentSession?.week?.number == 2)
-    #expect(store.currentSession?.dayNumber == 1)
-    #expect(store.openExercises.isEmpty)
-}
-
-@MainActor
-@Test func loggedProgressPastStoredOverrideDoesNotReplaceCurrentSession() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let day3Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 3 }?.exercises[0].sets[0])
-
-    store.moveOn()
-    try store.log(day3Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-
-    #expect(store.currentSession?.dayNumber == 2)
-}
-
-@MainActor
-@Test func canMoveOnIsFalseOnLastSession() throws {
-    let fixture = try makeStore(weekCount: 4)
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let finalSet = try #require(
-        store.block?.weeks.first { $0.number == 4 }?.sessions.first { $0.dayNumber == 4 }?.exercises[0].sets[0]
-    )
-
-    finalSet.state = .logged
-    store.reload()
-
-    #expect(store.currentSession?.week?.number == 4)
-    #expect(store.currentSession?.dayNumber == 4)
-    #expect(!store.canMoveOn)
-}
-
-@MainActor
-@Test func theStoredCurrentSessionMatchesAFreshResolveAfterEveryWritePoint() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let sessions = try #require(store.block?.weeks.first?.sessions)
-    func firstSet(ofDay day: Int) throws -> ExerciseSet {
-        try #require(sessions.first { $0.dayNumber == day }?.exercises.first?.sets.first)
-    }
-    var stored: [String] = []
-    func record() {
-        let label = store.currentSession?.address.map { "Week \($0.week), Day \($0.day)" } ?? "None"
-        #expect(label == store.currentSessionDebugInfo.resolvedCurrentSession)
-        stored.append(label)
-    }
-
-    record()
-    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
-    try store.log(try firstSet(ofDay: 2), as: log)
-    record()
-    try store.log(try firstSet(ofDay: 3), as: log)
-    record()
-    try store.skip(try firstSet(ofDay: 3))
-    record()
-    try store.deleteLog(for: try firstSet(ofDay: 2))
-    record()
-    store.reload()
-    record()
-    store.show(SessionAddress(week: 1, day: 2))
-    store.makeViewedSessionCurrent()
-    record()
-    store.resetCurrentSessionOverride()
-    record()
-    store.moveOn()
-    record()
-
-    #expect(
-        stored == [
-            "Week 1, Day 1", "Week 1, Day 2", "Week 1, Day 3", "Week 1, Day 2", "Week 1, Day 1",
-            "Week 1, Day 1", "Week 1, Day 2", "Week 1, Day 1", "Week 1, Day 2"
-        ]
-    )
-}
-
-@MainActor
-@Test func aWriteThatThrowsAfterMovingTheSetStillMovesTheStoredCurrentSession() throws {
-    let fixture = try makeStore(lastPerformed: RefusingIndex())
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let set = try #require(
-        store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises.first?.sets.first
-    )
-
-    #expect(throws: (any Error).self) {
-        try store.log(set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-    }
-
-    #expect(set.state == .logged)
-    #expect(store.currentSession?.dayNumber == 2)
-}
-
-@MainActor
-private final class CurrentSessionChanges {
-    private(set) var count = 0
-
-    init(watching store: WorkoutStore) {
-        observe(store)
-    }
-
-    private func observe(_ store: WorkoutStore) {
-        withObservationTracking {
-            _ = store.currentSession
-        } onChange: {
-            MainActor.assumeIsolated {
-                self.count += 1
-                self.observe(store)
-            }
-        }
-    }
-}
-
-@MainActor
-@Test func observersHearTheCurrentSessionOnlyWhenItMoves() throws {
-    let fixture = try makeStore()
-    defer { withExtendedLifetime(fixture.container) {} }
-    let store = fixture.store
-    let sessions = try #require(store.block?.weeks.first?.sessions)
-    func firstSet(ofDay day: Int) throws -> ExerciseSet {
-        try #require(sessions.first { $0.dayNumber == day }?.exercises.first?.sets.first)
-    }
-    let changes = CurrentSessionChanges(watching: store)
-    var counts: [Int] = []
-
-    store.reload()
-    counts.append(changes.count)
-    try store.log(try firstSet(ofDay: 1), as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-    counts.append(changes.count)
-    try store.log(try firstSet(ofDay: 2), as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-    counts.append(changes.count)
-    store.moveOn()
-    counts.append(changes.count)
-
-    #expect(counts == [0, 0, 1, 2])
 }

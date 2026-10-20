@@ -92,14 +92,20 @@ import Testing
 
 @Test func serializesStructuredSetLogAsFormattedToken() {
     let classification = SetLogToken.Classification(
-        state: .logged, setLog: SetLog(formatted: "185x5@8"), unstructuredSetLog: nil)
+        state: .logged,
+        setLog: SetLog(formatted: "185x5@8"),
+        unstructuredSetLog: nil
+    )
 
     #expect(SetLogToken.serialize(classification) == "185x5@8")
 }
 
 @Test func serializesUnstructuredSetLogAsFreeText() {
     let classification = SetLogToken.Classification(
-        state: .logged, setLog: nil, unstructuredSetLog: "felt heavy")
+        state: .logged,
+        setLog: nil,
+        unstructuredSetLog: "felt heavy"
+    )
 
     #expect(SetLogToken.serialize(classification) == "felt heavy")
 }
@@ -122,7 +128,10 @@ import Testing
     // yields both, so the round-trip below can't reach this case — pin it directly: the
     // structured token wins, never the free text.
     let classification = SetLogToken.Classification(
-        state: .logged, setLog: SetLog(formatted: "185x5@8"), unstructuredSetLog: "felt heavy")
+        state: .logged,
+        setLog: SetLog(formatted: "185x5@8"),
+        unstructuredSetLog: "felt heavy"
+    )
 
     #expect(SetLogToken.serialize(classification) == "185x5@8")
 }

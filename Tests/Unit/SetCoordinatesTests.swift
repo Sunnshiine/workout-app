@@ -10,7 +10,7 @@ private func makeSet() -> ExerciseSet {
 
 @MainActor
 private func makeExercise() -> Exercise {
-    Exercise(name: "Back Squat - Comp", baseName: "Back Squat", cadence: nil, coachNote: nil)
+    Exercise(name: "3:1:0 Back Squat", coachNote: nil)
 }
 
 @MainActor
@@ -31,8 +31,7 @@ private func makeExercise() -> Exercise {
         #expect(coordinates.session.blockTab == "Block 27")
         #expect(coordinates.session.address.week == 3)
         #expect(coordinates.session.address.day == 4)
-        #expect(coordinates.exerciseName == "Back Squat - Comp")
-        #expect(coordinates.exerciseBaseName == "Back Squat")
+        #expect(coordinates.exercise == .first("3:1:0 Back Squat"))
         #expect(coordinates.setIndex == 2)
         #expect(coordinates.sessionDate == Date(timeIntervalSinceReferenceDate: 100))
     }
@@ -50,24 +49,17 @@ private func makeExercise() -> Exercise {
         #expect(throws: WorkoutLoggingError.missingSession) { try SetCoordinates(of: set) }
     }
 
-    @Test func aSessionWithNoWeekIsMissingWeek() {
-        let exercise = makeExercise()
-        exercise.session = Session(dayNumber: 1, date: nil)
-        let set = makeSet()
-        set.exercise = exercise
-
-        #expect(throws: WorkoutLoggingError.missingWeek) { try SetCoordinates(of: set) }
-    }
-
-    @Test func aWeekWithNoBlockIsMissingBlock() {
+    /// The on-disk store drops a detached Session's Week, an in-memory store only its Block.
+    @Test(arguments: [false, true])
+    func aDetachedSessionHasNoCoordinates(keepsItsWeek: Bool) {
         let session = Session(dayNumber: 1, date: nil)
-        session.week = Week(number: 1)
+        if keepsItsWeek { session.week = Week(number: 1) }
         let exercise = makeExercise()
         exercise.session = session
         let set = makeSet()
         set.exercise = exercise
 
-        #expect(throws: WorkoutLoggingError.missingBlock) { try SetCoordinates(of: set) }
+        #expect(throws: WorkoutLoggingError.detachedSession) { try SetCoordinates(of: set) }
     }
 
     @Test func aSessionWithNoDateHasNoSessionDate() throws {

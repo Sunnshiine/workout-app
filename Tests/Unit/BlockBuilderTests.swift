@@ -18,8 +18,6 @@ import Testing
                         exercises: [
                             ParsedExercise(
                                 name: "0:3:0 Calf",
-                                baseName: "Calf",
-                                cadence: "0:3:0",
                                 coachNote: nil,
                                 sets: [
                                     ParsedSet(
@@ -46,7 +44,7 @@ import Testing
     )
     let block = BlockBuilder.makeBlock(from: parsed)
     #expect(block.tabName == "Block 27")
-    #expect(block.weeks.first?.sessions.first?.exercises.first?.cadence == "0:3:0")
+    #expect(block.weeks.first?.sessions.first?.exercises.first?.exerciseName.cadence == "0:3:0")
     let set = try #require(block.weeks.first?.sessions.first?.exercises.first?.sets.first)
     #expect(set.state == .logged)
     let data = try #require(set.setLogData)
