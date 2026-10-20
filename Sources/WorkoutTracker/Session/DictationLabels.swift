@@ -115,6 +115,6 @@ extension WorkoutApplication {
     /// at its address is still the one it named.
     private func heldSet(_ dictated: DictatedSet) -> ExerciseSet? {
         guard workout.block?.tabName == dictated.block, let set = try? resolveSet(dictated.address) else { return nil }
-        return set.exercise?.name == dictated.exercise ? set : nil
+        return set.exercise?.exerciseName.entered == dictated.exercise ? set : nil
     }
 }

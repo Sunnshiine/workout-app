@@ -24,7 +24,7 @@ let package = Package(
                 "WorkoutTracker",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ],
-            exclude: ["README.md"]
+            exclude: ["README.md", "SPOKEN_SETS.md"]
         ),
         .testTarget(
             name: "WorkoutTrackerTests",

@@ -5,6 +5,7 @@ struct SmartValuePillsForm {
     var weightText: String
     var repsText: String
     var rpeText: String
+    let prescribedReps: PrescribedReps
     let prescribedRPE: RPE?
     let repsPlaceholder: String?
     private var showsInvalidFields = false
@@ -84,7 +85,9 @@ struct SmartValuePillsForm {
     }
 
     init(set: ExerciseSet, suggestion: LoadSuggestion) {
-        prescribedRPE = RPE(prescribedLoad: set.prescribedLoad)
+        let prescription = set.prescription
+        prescribedReps = prescription.reps
+        prescribedRPE = prescription.load.rpeTarget
         let draft = SetLogDraft(prefilling: set, suggestion: suggestion)
         weightText = draft.weight?.label ?? ""
         repsText = draft.reps.map(String.init) ?? ""

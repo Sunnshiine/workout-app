@@ -4,13 +4,13 @@
 
     private final class BundleMarker {}
 
-    private func workoutBinary() throws -> URL {
+    func workoutBinary() throws -> URL {
         let candidates = [Bundle(for: BundleMarker.self).bundleURL, Bundle.main.bundleURL]
             .map { $0.deletingLastPathComponent().appendingPathComponent("workout") }
         return try #require(candidates.first { FileManager.default.isExecutableFile(atPath: $0.path) })
     }
 
-    private struct Run {
+    struct Run {
         let status: Int32
         let stdout: Data
         let stderr: Data
@@ -27,7 +27,7 @@
         }
     }
 
-    private struct CLI {
+    struct CLI {
         let home: URL
         let binary: URL
 
@@ -61,12 +61,12 @@
         }
     }
 
-    private func temporaryHome() throws -> URL {
+    func temporaryHome() throws -> URL {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("workout-cli-\(UUID().uuidString)")
         return url
     }
 
-    private func editBlockCells(in home: URL, _ transform: (inout [String: String]) -> Void) throws {
+    func editBlockCells(in home: URL, _ transform: (inout [String: String]) -> Void) throws {
         let workbookURL = home.appendingPathComponent("workbook.json")
         var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
         var tabs = try #require(workbook["tabs"] as? [String: Any])
@@ -294,76 +294,26 @@
         #expect(try String(contentsOf: file, encoding: .utf8) == "precious")
     }
 
-    @Test func aConflictedWriteStaysVisibleAndKeepsFlushAndSyncOnExitFour() throws {
+    @Test func aChoiceExerciseSuggestsALoadFromHistoryLoggedUnderOneOption() throws {
         let home = try temporaryHome()
         defer { try? FileManager.default.removeItem(at: home) }
         let cli = CLI(home: home, binary: try workoutBinary())
-        _ = try cli.run("init")
-        _ = try cli.run("log", "w1d1.e0.s0", "185x5@8")
-
-        let workbookURL = home.appendingPathComponent("workbook.json")
-        var workbook = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: workbookURL)) as? [String: Any])
-        var tabs = try #require(workbook["tabs"] as? [String: Any])
-        var block = try #require(tabs["Block 27"] as? [String: Any])
-        var cells = try #require(block["cells"] as? [String: String])
-        cells["K15"] = "200x5@8"
-        block["cells"] = cells
-        tabs["Block 27"] = block
-        workbook["tabs"] = tabs
-        try JSONSerialization.data(withJSONObject: workbook).write(to: workbookURL)
-
-        let first = try cli.run("flush")
-        #expect(first.status == 4)
-        #expect(try first.errorJSON["code"] as? String == "write_conflict")
-        #expect(try first.json["written"] as? Int == 0)
-        #expect(((try first.json["conflictedWrites"] as? [String]) ?? []).first?.hasPrefix("Back Squat:") == true)
-
-        let second = try cli.run("flush")
-        #expect(second.status == 4)
-        #expect(try second.json["attempted"] as? Int == 0)
-        #expect(try second.json["remainingPendingWrites"] as? Int == 1)
-        #expect(((try second.json["conflictedWrites"] as? [String]) ?? []).count == 1)
-
-        let sync = try cli.run("sync")
-        #expect(sync.status == 4)
-        #expect(try sync.errorJSON["code"] as? String == "sync_conflict")
-        #expect(try sync.json["pendingWriteCount"] as? Int == 1)
-    }
-
-    /// The reason `syncOutcome` exists. Both halves exit 4 and both leave the athlete something to
-    /// do, and the only thing telling them apart is `status`.
-    @Test func aParseWarningAndARefusedWriteReachTheWireUnderDifferentStatuses() throws {
-        let warningHome = try temporaryHome()
-        defer { try? FileManager.default.removeItem(at: warningHome) }
-        let warningCLI = CLI(home: warningHome, binary: try workoutBinary())
-        _ = try warningCLI.run("init")
-        let dayHeader = try Regex(#"^Day \d+$"#)
-        try editBlockCells(in: warningHome) { cells in
-            for key in cells.filter({ (try? dayHeader.wholeMatch(in: $0.value)) != nil }).keys {
-                cells[key] = nil
-            }
+        _ = try cli.run("init", "--scenario", "fresh-block")
+        try editBlockCells(in: home) { cells in
+            cells["C15"] = "Incline DB Bench Press"
+            cells["C40"] = "Incline Machine or DB Bench Press"
         }
+        _ = try cli.run("sync")
+        _ = try cli.run("log", "w1d1.e0.s0", "185x5@7")
 
-        let warned = try warningCLI.run("sync")
-        let warnedOutcome = try #require(try warned.json["syncOutcome"] as? [String: Any])
-        #expect(warned.status == 4)
-        #expect(warnedOutcome["status"] as? String == "parseWarnings")
-        #expect(((warnedOutcome["messages"] as? [String]) ?? []).isEmpty == false)
-
-        let refusedHome = try temporaryHome()
-        defer { try? FileManager.default.removeItem(at: refusedHome) }
-        let refusedCLI = CLI(home: refusedHome, binary: try workoutBinary())
-        _ = try refusedCLI.run("init")
-        _ = try refusedCLI.run("log", "w1d1.e0.s0", "185x5@8")
-        _ = try refusedCLI.run("flush")
-        _ = try refusedCLI.run("sync")
-        _ = try refusedCLI.run("log", "w1d1.e0.s0", "205x3@9")
-        try editBlockCells(in: refusedHome) { cells in cells["K15"] = "coach edited" }
-
-        let refused = try refusedCLI.run("sync")
-        let refusedOutcome = try #require(try refused.json["syncOutcome"] as? [String: Any])
-        #expect(refused.status == 4)
-        #expect(refusedOutcome["status"] as? String == "writesRefused")
+        let session = try cli.run("session", "w2d1")
+        let exercises = try #require(try session.json["exercises"] as? [[String: Any]])
+        let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
+        let suggestion = try #require(sets[0]["loadSuggestion"] as? [String: Any])
+        #expect(suggestion["kind"] as? String == "estimate")
+        #expect(suggestion["weight"] as? Int == 185)
+        let basis = try #require(suggestion["basis"] as? [String: Any])
+        #expect(basis["text"] as? String == "from 185x5@7 · W1 D1 as “Incline DB Bench Press”")
     }
 
     @Test func aHandEditedWorkbookWithABadCellKeyIsAnEnvironmentErrorNotACrash() throws {
@@ -396,303 +346,4 @@
         #expect(clock.status == 3)
         #expect((try clock.errorJSON["message"] as? String)?.contains("WORKOUT_NOW") == true)
     }
-    @Test func aJournalSummarizesAsTheGoldenSummaryAndAMissingOneExitsThree() throws {
-        let home = try temporaryHome()
-        let journal = home.appendingPathComponent("Dictation Records")
-        defer { try? FileManager.default.removeItem(at: home) }
-        try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
-        let cutOff = #"{"schema":1,"id":"6F1C2D0E"#
-        let lines = DictationRecordFixtures.lines + [cutOff]
-        try Data(lines.joined(separator: "\n").utf8).write(to: journal.appendingPathComponent("records-2026-10.jsonl"))
-        let cli = CLI(home: home, binary: try workoutBinary())
-
-        let summary = try cli.run("dictations", "summary", journal.path)
-
-        #expect(summary.status == 0)
-        #expect(String(bytes: summary.stdout, encoding: .utf8) == goldenDictationSummary)
-        let missing = try cli.run("dictations", "summary", home.appendingPathComponent("nowhere.jsonl").path)
-        #expect(missing.status == 3)
-    }
-
-    private let goldenDictationSummary = """
-        {
-          "agreement" : {
-            "agreed" : 1,
-            "disagreed" : 1,
-            "liveFills" : 1,
-            "liveOnly" : 1
-          },
-          "byRule" : {
-            "gate" : {
-              "filled" : 2,
-              "logged" : 2
-            },
-            "lead" : {
-              "logged" : 3,
-              "rejected" : 1
-            },
-            "liveOnly" : {
-              "logged" : 4
-            },
-            "recordingOnly" : {
-              "logged" : 2,
-              "rejected" : 2
-            }
-          },
-          "caveats" : [
-            "No press is labelled yet, so nothing here says whether a write was right.",
-            "Agreement compares the engines only where both read the press. A press with no Recording Transcript is liveOnly.",
-            "promptEcho compares the Recording Transcript with the Live Transcript, not with what the athlete said."
-          ],
-          "ends" : {
-            "cancelled" : 1,
-            "released" : 3,
-            "silence" : 1
-          },
-          "footprintMB" : {
-            "max" : 470,
-            "p50" : 420,
-            "p90" : 470,
-            "p99" : 470
-          },
-          "guardrail" : {
-            "implausible" : {
-              "live" : {
-                "reps" : 0,
-                "rpe" : 0,
-                "weight" : 0
-              },
-              "recording" : {
-                "reps" : 0,
-                "rpe" : 0,
-                "weight" : 1
-              }
-            }
-          },
-          "hazards" : {
-            "promptEcho" : 1
-          },
-          "latency" : {
-            "missedTarget" : 2,
-            "targetMs" : 500,
-            "waitCause" : {
-              "decisionDeadline" : 1,
-              "recordingTranscript" : 1
-            },
-            "waitMs" : {
-              "max" : 1500,
-              "p50" : 264,
-              "p90" : 1500,
-              "p99" : 1500
-            },
-            "withinTarget" : 2
-          },
-          "longestMainThreadStallMs" : {
-            "max" : 38,
-            "p50" : 9,
-            "p90" : 38,
-            "p99" : 38
-          },
-          "outcomes" : {
-            "logged" : 3,
-            "rejected" : 1
-          },
-          "presses" : 5,
-          "recording" : {
-            "decodeMs" : {
-              "max" : 262,
-              "p50" : 262,
-              "p90" : 262,
-              "p99" : 262
-            },
-            "missing" : {
-              "late" : 1
-            },
-            "read" : 3
-          },
-          "surfaces" : {
-            "card" : 4,
-            "headless" : 1
-          },
-          "unreadableLines" : 1
-        }
-
-        """
-
-    /// Press 1 stood, press 5's 62x11@9 was corrected to 135x5@8, press 2's Set was cleared, and
-    /// press 4 wrote nothing, so it has no label.
-    private let replayLabels = #"""
-        {"labels":[{"record":"6F1C2D0E-0000-4000-8000-000000000001","setLog":"185x5@8","state":"logged"},
-        {"record":"6F1C2D0E-0000-4000-8000-000000000005","setLog":"135x5@8","state":"logged"},
-        {"record":"6F1C2D0E-0000-4000-8000-000000000002","state":"pending"}],"schema":1}
-        """#
-
-    @Test func aJournalReplaysUnderEveryRuleAsTheGoldenReplayWithAndWithoutLabels() throws {
-        let home = try temporaryHome()
-        defer { try? FileManager.default.removeItem(at: home) }
-        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
-        let journal = home.appendingPathComponent("records-2026-10.jsonl")
-        try Data(DictationRecordFixtures.lines.joined(separator: "\n").utf8).write(to: journal)
-        let labels = home.appendingPathComponent("labels.json")
-        try Data(replayLabels.utf8).write(to: labels)
-        let cli = CLI(home: home, binary: try workoutBinary())
-
-        let unlabelled = try cli.run("dictations", "replay", journal.path)
-        let labelled = try cli.run("dictations", "replay", journal.path, "--labels", labels.path)
-
-        #expect(unlabelled.status == 0)
-        #expect(String(bytes: unlabelled.stdout, encoding: .utf8) == goldenUnlabelledReplay)
-        #expect(labelled.status == 0)
-        #expect(String(bytes: labelled.stdout, encoding: .utf8) == goldenLabelledReplay)
-        let summary = try cli.run("dictations", "summary", journal.path, "--labels", labels.path)
-        #expect(
-            try summary.json["scored"] as? [String: Int] == ["CORRECT": 1, "WRONG": 1, "NOWRITE": 0, "unscored": 2]
-        )
-        let missing = try cli.run("dictations", "replay", journal.path, "--labels", home.appendingPathComponent("none.json").path)
-        #expect(missing.status == 3)
-    }
-
-    /// Four decided presses, all read with one Speech Model version and decided by `lead`.
-    private let goldenUnlabelledReplay = """
-        {
-          "cancelled" : 1,
-          "caveats" : [
-            "No labels were given, so this counts where the rules disagree, not which rule is right.",
-            "Each rule's outcome is the one recorded at the press, not one today's parser would decide."
-          ],
-          "presses" : 5,
-          "unreadableLines" : 0,
-          "versions" : [
-            {
-              "decided" : 4,
-              "decidedBy" : {
-                "lead" : 4
-              },
-              "rules" : {
-                "gate" : {
-                  "differsFromDecided" : 2,
-                  "outcomes" : {
-                    "filled" : 2,
-                    "logged" : 2
-                  }
-                },
-                "lead" : {
-                  "differsFromDecided" : 0,
-                  "outcomes" : {
-                    "logged" : 3,
-                    "rejected" : 1
-                  }
-                },
-                "liveOnly" : {
-                  "differsFromDecided" : 2,
-                  "outcomes" : {
-                    "logged" : 4
-                  }
-                },
-                "recordingOnly" : {
-                  "differsFromDecided" : 1,
-                  "outcomes" : {
-                    "logged" : 2,
-                    "rejected" : 2
-                  }
-                }
-              },
-              "version" : {
-                "model" : "openai_whisper-small.en",
-                "modelRevision" : "0f63a7800b00dd0226abd051b906c246e1907482",
-                "options" : "t0.nots.wc0.fb5",
-                "prompt" : "p1",
-                "tokenizerRevision" : "e8727524f962ee844a7319d92be39ac1bd25655a"
-              }
-            }
-          ]
-        }
-
-        """
-
-    /// Lead writes press 5 WRONG, gate holds it back as a fill (NOWRITE), and liveOnly writes it CORRECT.
-    private let goldenLabelledReplay = """
-        {
-          "cancelled" : 1,
-          "caveats" : [
-            "Only a press whose outcome wrote a Set has a label, so the rule that decided a press never scores NOWRITE.",
-            "Another rule's write on a press nothing wrote is unscored.",
-            "A correction is a lower bound on wrong writes. An athlete who never notices a wrong write never corrects it.",
-            "A Set the athlete cleared and left Pending is unscored.",
-            "Each rule's outcome is the one recorded at the press, not one today's parser would decide."
-          ],
-          "presses" : 5,
-          "unreadableLines" : 0,
-          "versions" : [
-            {
-              "decided" : 4,
-              "decidedBy" : {
-                "lead" : 4
-              },
-              "labelled" : 3,
-              "rules" : {
-                "gate" : {
-                  "differsFromDecided" : 2,
-                  "outcomes" : {
-                    "filled" : 2,
-                    "logged" : 2
-                  },
-                  "scored" : {
-                    "CORRECT" : 1,
-                    "NOWRITE" : 1,
-                    "WRONG" : 0,
-                    "unscored" : 2
-                  }
-                },
-                "lead" : {
-                  "differsFromDecided" : 0,
-                  "outcomes" : {
-                    "logged" : 3,
-                    "rejected" : 1
-                  },
-                  "scored" : {
-                    "CORRECT" : 1,
-                    "NOWRITE" : 0,
-                    "WRONG" : 1,
-                    "unscored" : 2
-                  }
-                },
-                "liveOnly" : {
-                  "differsFromDecided" : 2,
-                  "outcomes" : {
-                    "logged" : 4
-                  },
-                  "scored" : {
-                    "CORRECT" : 2,
-                    "NOWRITE" : 0,
-                    "WRONG" : 0,
-                    "unscored" : 2
-                  }
-                },
-                "recordingOnly" : {
-                  "differsFromDecided" : 1,
-                  "outcomes" : {
-                    "logged" : 2,
-                    "rejected" : 2
-                  },
-                  "scored" : {
-                    "CORRECT" : 1,
-                    "NOWRITE" : 0,
-                    "WRONG" : 1,
-                    "unscored" : 2
-                  }
-                }
-              },
-              "version" : {
-                "model" : "openai_whisper-small.en",
-                "modelRevision" : "0f63a7800b00dd0226abd051b906c246e1907482",
-                "options" : "t0.nots.wc0.fb5",
-                "prompt" : "p1",
-                "tokenizerRevision" : "e8727524f962ee844a7319d92be39ac1bd25655a"
-              }
-            }
-          ]
-        }
-
-        """
 #endif

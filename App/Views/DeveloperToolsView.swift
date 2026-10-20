@@ -60,8 +60,8 @@ struct DeveloperToolsView: View {
                     valueIdentifier: "current-session-debug-sheet-derived-value"
                 )
                 CurrentSessionDebugRow(
-                    label: "Manual Current Session Override",
-                    value: info.manualOverrideSession,
+                    label: "Current Session Pin",
+                    value: info.pinnedSession,
                     valueIdentifier: "current-session-debug-manual-override-value"
                 )
                 CurrentSessionDebugRow(
@@ -97,13 +97,13 @@ struct DeveloperToolsView: View {
                 .accessibilityIdentifier("copy-current-session-debug-info-button")
 
                 BorderedCircleIconButton(
-                    label: "Reset Current Session Override",
+                    label: "Clear Current Session Pin",
                     systemImage: "arrow.counterclockwise",
                     role: .destructive
                 ) {
-                    workout.resetCurrentSessionOverride()
+                    workout.clearCurrentSessionPin()
                 }
-                .disabled(!workout.hasCurrentSessionOverride)
+                .disabled(!info.canClearPin)
                 .accessibilityIdentifier("reset-current-session-override-button")
             }
         }

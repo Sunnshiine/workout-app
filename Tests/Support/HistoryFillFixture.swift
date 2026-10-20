@@ -1,15 +1,29 @@
 import Foundation
+import SwiftData
 
 @testable import WorkoutTracker
 
-/// Serves one grid per tab, and can fail, stall, or throttle a named tab so a test can drive every
+/// An Exercise History fill whose tab scans run at `.userInitiated`, above the default-priority
+/// busy loops of `scripts/flake-hunt.sh` and parallel lanes. At the app's `.background`, a host at
+/// load ~970 left every fill test in `SyncCoordinatorTests` unfinished after 8 minutes while each
+/// other test in the file ran 1000 times (#899).
+@MainActor
+func makeHistoryFill(
+    client: any SheetsClient,
+    context: ModelContext,
+    index: any LastPerformedIndexing,
+    backoff: SheetsBackoff = SheetsBackoff()
+) -> ExerciseHistoryFill {
+    ExerciseHistoryFill(client: client, context: context, index: index, backoff: backoff, scanPriority: .userInitiated)
+}
+
+/// Serves one grid per tab, and can fail or throttle a named tab so a test can drive every
 /// arm of the Exercise History fill's halt rule. Records the tabs it was asked for, in order.
 final class HistoryFillStubClient: SheetsClient, @unchecked Sendable {
     let titles: [String]
     let grids: [String: SheetGrid]
     let unreadableTabs: Set<String>
     let transientFailureTabs: Set<String>
-    let suspendedTabs: Set<String>
     let recorder: TabFetchRecorder
 
     init(
@@ -17,14 +31,12 @@ final class HistoryFillStubClient: SheetsClient, @unchecked Sendable {
         grids: [String: SheetGrid],
         unreadableTabs: Set<String> = [],
         transientFailureTabs: Set<String> = [],
-        suspendedTabs: Set<String> = [],
         recorder: TabFetchRecorder = TabFetchRecorder()
     ) {
         self.titles = titles
         self.grids = grids
         self.unreadableTabs = unreadableTabs
         self.transientFailureTabs = transientFailureTabs
-        self.suspendedTabs = suspendedTabs
         self.recorder = recorder
     }
 
@@ -34,19 +46,14 @@ final class HistoryFillStubClient: SheetsClient, @unchecked Sendable {
         await recorder.record(tabName)
         if unreadableTabs.contains(tabName) { throw URLError(.userAuthenticationRequired) }
         if transientFailureTabs.contains(tabName) { throw SheetsError.http(429) }
-        if suspendedTabs.contains(tabName) {
-            await recorder.waitForRelease()
-        }
         return SheetSnapshot(values: grids[tabName] ?? [])
     }
 
-    func updateCells(spreadsheetId: String, range: String, values: [[String]]) async throws {}
+    func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {}
 }
 
 actor TabFetchRecorder {
     private var fetchedTabs: [String] = []
-    private var released = false
-    private var releaseContinuation: CheckedContinuation<Void, Never>?
 
     func record(_ tab: String) {
         fetchedTabs.append(tab)
@@ -54,19 +61,6 @@ actor TabFetchRecorder {
 
     func tabs() -> [String] {
         fetchedTabs
-    }
-
-    func waitForRelease() async {
-        if released { return }
-        await withCheckedContinuation { continuation in
-            releaseContinuation = continuation
-        }
-    }
-
-    func release() {
-        released = true
-        releaseContinuation?.resume()
-        releaseContinuation = nil
     }
 }
 

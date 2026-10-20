@@ -20,7 +20,7 @@ struct LiveActivityDictationContent: Equatable, Sendable {
         let setOrdinal: Int
         let setsTotal: Int
         /// The Set as a rest names the Set it leads to.
-        let target: LiveActivityRestTarget
+        let target: LiveActivityRestTarget?
     }
 
     /// The Set listened for, or the rest a logged Set began toward the next one.
@@ -58,10 +58,10 @@ extension LiveActivityDictationContent.WrittenSet {
     init(_ position: SessionSetPosition, in session: Session) {
         let sets = SessionSetOrder.orderedSets(in: [position.exercise])
         self.init(
-            exerciseName: position.exercise.name,
+            exerciseName: position.exercise.exerciseName.base,
             setOrdinal: (sets.firstIndex { $0.set === position.set } ?? position.set.index) + 1,
             setsTotal: sets.count,
-            target: LiveActivityRestTarget(session: session.reparseIdentity, setID: position.setID)
+            target: session.placement.coordinate.map { LiveActivityRestTarget(session: $0, setID: position.setID) }
         )
     }
 }
@@ -86,7 +86,7 @@ struct LiveActivitySetContent: Equatable, Sendable {
 
     @MainActor
     init(_ position: SessionSetPosition) {
-        exerciseName = position.exercise.name
+        exerciseName = position.exercise.exerciseName.base
         prescribedReps = position.set.prescribedReps
         prescribedLoad = position.set.prescribedLoad
         setsTotal = position.exercise.sets.count

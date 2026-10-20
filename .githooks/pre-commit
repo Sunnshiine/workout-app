@@ -1,0 +1,8 @@
+#!/bin/sh
+
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+check="$repo_root/scripts/check-token-budget.sh"
+
+if [ -x "$check" ]; then
+  exec "$check"
+fi
