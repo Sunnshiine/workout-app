@@ -227,11 +227,13 @@ import Testing
 
     @MainActor
     @Test func aSlowSyncLaunchBootsWithoutWaitingOnTheHold() async throws {
-        let clock = ContinuousClock()
-        let elapsed = try await clock.measure {
-            _ = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
-        }
-        #expect(elapsed < .seconds(10))
+        let booted = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
+        #expect(await booted.sheets.heldTabListings == 0)
+
+        let listing = Task { try await booted.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) }
+        listing.cancel()
+        await #expect(throws: CancellationError.self) { try await listing.value }
+        #expect(await booted.sheets.heldTabListings == 1)
     }
 
     @MainActor

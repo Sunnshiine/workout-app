@@ -20,6 +20,7 @@ crowd() {
     seed workout-lane-stale Booted; used "$P-6" 30
     seed workout-lane-next
 }
+slept() { printf 'shut down idle lane workout-lane-%s (%s) to save its idle CPU: it held no run or app for %s min (WORKOUT_SLEEP_MINUTES is 30)' "$1" "$2" "$3"; }
 reclaimed() { printf 'shut down idle lane workout-lane-%s (%s) to free a seat: 6 other simulators are booted, at the cap of 6 (WORKOUT_SIM_CAP), and it held no run or app for %s min (WORKOUT_IDLE_MINUTES is 2)' "$1" "$2" "$3"; }
 
 fresh
@@ -136,7 +137,7 @@ python3 -c 'import os, sys, time; t = time.time() - 61 * 60; os.utime(sys.argv[1
 STUB_APPS=$root/apps WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "a lane whose verify app outlived its lease is reclaimed, and that run is told who took it" \
     "$status $(calls | head -2 | tr '\n' ' ')| $(head -1 "$root/err") | $(sed 's/(pid [0-9]*) at .*/(pid N) at T/' "/tmp/workout-verify-$P-6/reclaimed.run-9")" \
-    "0 terminate $P-6 com.sunnypatel.WorkoutTracker shutdown $P-6 | reclaimed $P-6 from verify run run-9 (pid $fixture): its lease was last renewed 61 min ago, and the lease is 60 min | sim-pool.sh, freeing a seat (pid N) at T"
+    "0 terminate $P-6 com.sunnypatel.WorkoutTracker shutdown $P-6 | reclaimed $P-6 from verify run run-9 (pid $fixture): its lease was last renewed 61 min ago, and the lease is 60 min | sim-pool.sh, shutting down an idle lane (pid N) at T"
 kill "$fixture"; wait "$fixture" 2>/dev/null
 crowd
 printf '4242 /Users/t/Library/Developer/CoreSimulator/Devices/%s/data/Containers/Bundle/Application/A/Other.app/Other\n' "$P-6" >"$root/apps"
@@ -190,7 +191,7 @@ claim_status=$?
 wait "$booter"
 expect "a claim on the lane while its seat is reclaimed exits 75, and the boot goes on" \
     "$claim_status $claim | $?" \
-    "75 $P-6 is held by a sim-pool.sh, freeing a seat (pid $booter); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$P-6/lock lists every process holding it) | 0"
+    "75 $P-6 is held by a sim-pool.sh, shutting down an idle lane (pid $booter); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$P-6/lock lists every process holding it) | 0"
 crowd
 used "$P-7" 30
 WORKOUT_ADMIT_WAIT=0 pool boot next
@@ -200,6 +201,29 @@ used "$P-7" 30
 WORKOUT_ADMIT_WAIT=0 pool boot next
 expect "and restarts it on a lane already booted" "$status $(calls) $(minutes_old "/tmp/workout-verify-$P-7/lock")" "0 bootstatus $P-7 -b 0"
 unset WORKOUT_SIM_CAP
+
+echo "sleeping lanes"
+crowd
+used "$P-5" 45
+pool boot next
+expect "under the cap, boot shuts down the one lane unused longest past WORKOUT_SLEEP_MINUTES, then boots" \
+    "$status $(calls | tr '\n' ' ')| $(cat "$root/err")" \
+    "0 shutdown $P-5 boot $P-7 bootstatus $P-7 -b | $(slept recent "$P-5" 45)"
+pool boot next
+expect "a boot of a lane already booted shuts nothing down" "$status $(calls | tr '\n' ' ')" "0 bootstatus $P-7 -b "
+crowd
+WORKOUT_SLEEP_MINUTES=31 pool boot next
+expect "a lane unused for less than WORKOUT_SLEEP_MINUTES stays booted" "$status $(calls | tr '\n' ' ')" \
+    "0 boot $P-7 bootstatus $P-7 -b "
+crowd
+WORKOUT_SLEEP_MINUTES=0 pool boot next
+expect "WORKOUT_SLEEP_MINUTES=0 turns it off" "$status $(calls | tr '\n' ' ')" "0 boot $P-7 bootstatus $P-7 -b "
+crowd
+hold "/tmp/workout-verify-$P-6/lock" "test-sim.sh unit (pid 4242)"
+pool boot next
+release
+expect "a lane a run holds stays booted, and the boot goes on" "$status $(calls | tr '\n' ' ')" \
+    "0 boot $P-7 bootstatus $P-7 -b "
 
 fresh
 seed workout-lane-load
