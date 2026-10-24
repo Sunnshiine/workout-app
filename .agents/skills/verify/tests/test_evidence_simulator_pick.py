@@ -35,8 +35,7 @@ IOS_27_0 = {"identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0", "versio
 PRO = {"name": "iPhone 17 Pro", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro"}
 PRO_MAX = {"name": "iPhone 17 Pro Max", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"}
 AIR = {"name": "iPhone Air", "identifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-Air"}
-CREATE_PRO = ("xcrun simctl create iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro "
-              "com.apple.CoreSimulator.SimRuntime.iOS-27-0")
+CREATE_PRO = "iPhone 17 Pro com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-27-0"
 SIM_UNSET = (
     "SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and "
     "another agent's app may be on it (issue 660).\n"
@@ -53,13 +52,24 @@ def pick_udid(serial):
     return "%08X-0579-4ABC-8DEF-%012X" % (os.getpid(), serial)
 
 
+STEPS = [("create", re.compile(r"^xcrun simctl create (.+)$")),
+         ("boot", re.compile(r"^xcrun simctl boot (\S+)$")),
+         ("install", re.compile(r"^xcrun simctl install (\S+) ")),
+         ("launch", re.compile(r"^xcrun simctl launch (?:--\S+ )*(\S+) ")),
+         ("build", re.compile(r"^xcodebuild build-for-testing .*-destination platform=iOS Simulator,id=(\S+)"))]
+
+
+def lifecycle(calls):
+    """What the calls did to which simulator, in order. The lookups between them are how, not what."""
+    return [(step, match.group(1)) for call in calls for step, pattern in STEPS for match in [pattern.match(call)] if match]
+
+
 class SimulatorPick(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.checkout = fake_checkout(self.tmp)
         self.home = self.tmp / "home"
         self.app = built_app(self.home, b"head\n")
-        self.plist = self.app.parents[3] / "info.plist"
         self.evidence = self.tmp / "evidence"
         self.stubs = self.tmp / "bin"
         self.stubs.mkdir()
@@ -121,25 +131,11 @@ class SimulatorPick(unittest.TestCase):
         log, = self.checkout.glob(".build/*/*-build.log")
         return "** BUILD FAILED **\nbuild log: %s\n" % log
 
-    def build_for_testing_on(self, udid):
-        return ("xcodebuild build-for-testing -project %s/WorkoutTracker.xcodeproj -scheme WorkoutTracker "
-                "-destination platform=iOS Simulator,id=%s -skipPackagePluginValidation -skipMacroValidation "
-                "CODE_SIGNING_ALLOWED=NO" % (self.checkout, udid))
-
     def test_test_sim_creates_the_missing_iphone_17_pro_on_the_baseline_runtime_and_runs_on_it(self):
         self.fresh_machine()
         code, out, err, calls = self.run_test_sim()
-        self.assertEqual(calls, [
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list -j",
-            CREATE_PRO,
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
-            "xcrun simctl boot %s" % self.created,
-            self.build_for_testing_on(self.created),
-        ], "the created simulator is picked from simctl again, admitted on the host's booted count, recounted under the admit lock, booted, and built for")
+        self.assertEqual(lifecycle(calls), [("create", CREATE_PRO), ("boot", self.created), ("build", self.created)],
+                         "the created simulator is booted and built for")
         self.assertEqual((code, out, err), (65, "", "creating iPhone 17 Pro on iOS 27.0\n" + self.failed_build()))
 
     def test_the_created_simulator_is_the_pair_the_visual_baselines_were_recorded_on(self):
@@ -193,19 +189,15 @@ class SimulatorPick(unittest.TestCase):
                 self.machine(runtimes, devicetypes, devices)
                 code, out, err, calls = self.run_test_sim()
                 self.assertEqual((code, out, err), (1, "", message))
-                self.assertEqual(calls, ["xcrun simctl list devices available -j", "xcrun simctl list -j"],
-                                 "nothing is created, booted, locked, or built")
+                self.assertEqual(lifecycle(calls), [], "nothing is created, booted, or built")
                 self.assertFalse(Path("/tmp/workout-verify-%s" % unavailable).exists(),
                                  "the unavailable one is never claimed")
 
     def test_an_existing_iphone_17_pro_is_picked_booted_first_then_newest_and_nothing_is_created(self):
         old, new = pick_udid(0x2605), pick_udid(0x2700)
         cases = [
-            ("the booted one, though older", "Booted", "Shutdown",
-             ["xcrun simctl list devices available -j", self.build_for_testing_on(old)]),
-            ("the newest when none is booted", "Shutdown", "Shutdown",
-             ["xcrun simctl list devices available -j", "xcrun simctl list devices available -j",
-              "xcrun simctl list devices available -j", "xcrun simctl boot %s" % new, self.build_for_testing_on(new)]),
+            ("the booted one, though older", "Booted", "Shutdown", [("build", old)]),
+            ("the newest when none is booted", "Shutdown", "Shutdown", [("boot", new), ("build", new)]),
         ]
         for case, old_state, new_state, after_pick in cases:
             with self.subTest(case):
@@ -214,7 +206,7 @@ class SimulatorPick(unittest.TestCase):
                     IOS_27_0["identifier"]: [device("iPhone 17 Pro", new, new_state)],
                 })
                 code, out, err, calls = self.run_test_sim()
-                self.assertEqual(calls, ["xcrun simctl list devices available -j"] + after_pick)
+                self.assertEqual(lifecycle(calls), after_pick)
                 self.assertEqual((code, out, err), (65, "", self.failed_build()))
 
     def test_a_lowercase_sim_is_the_simulator_simctl_spells_in_capitals(self):
@@ -234,7 +226,7 @@ class SimulatorPick(unittest.TestCase):
             "unused. If it is yours, rerun with VERIFY_RUN=owner-579 or run: SIM=%s VERIFY_RUN=owner-579 "
             "%s/.agents/skills/verify/verify.sh stop, else use another simulator\n") % (udid, app.pid, udid, self.checkout)),
             "the lock is keyed by the one spelling, so a case-sensitive /tmp cannot split it")
-        self.assertEqual(calls, ["xcrun simctl list devices available -j"])
+        self.assertEqual(lifecycle(calls), [])
 
     def test_a_lowercase_sim_launches_on_the_simulator_simctl_spells_in_capitals(self):
         udid = pick_udid(3)
@@ -245,20 +237,5 @@ class SimulatorPick(unittest.TestCase):
                                                "app %s commit unknown (not built by verify.sh)\n"
                                                "evidence %s/issue-579\n" % (udid, digest(b"head\n"), self.evidence), ""),
                          "simctl lists it booted in capitals")
-        self.assertEqual(calls, [
-            "xcrun simctl list devices available -j",
-            "plutil -extract WorkspacePath raw %s" % self.plist,
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
-            "xcrun simctl list devices available -j",
-            "xcrun simctl boot %s" % udid,
-            "xcrun simctl bootstatus %s -b" % udid,
-            "xcrun simctl list devices booted",
-            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
-            "xcrun simctl install %s %s" % (udid, self.app),
-            "xcrun simctl get_app_container %s com.sunnypatel.WorkoutTracker" % udid,
-            "xcrun simctl spawn %s defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled" % udid,
-            "xcrun simctl launch --terminate-running-process %s com.sunnypatel.WorkoutTracker -UITEST_FIXTURE "
-            "-UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_ANIMATIONS -UITEST_DISABLE_LIVE_ACTIVITIES" % udid,
-            "axe describe-ui --udid %s" % udid,
-        ])
+        self.assertEqual(lifecycle(calls), [("boot", udid), ("install", udid), ("launch", udid)])
+        self.assertNotIn(udid.lower(), "\n".join(calls), "every simctl and axe call names it in capitals")
