@@ -67,8 +67,9 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   `docs/`, a skill, a README, or a script's `--help`. Grep the docs for the concept's words, not
   only its symbol, and read each hit against the new behaviour. A file split in parts leaves a
   pointer that names one part, and `scripts/doc-drift.py` lists the doc lines that name a file the
-  branch split or moved. (#909 left the load gate in `AGENTS.md`, #1019 left the avoid-lists at
-  `CONTEXT.md` alone, and #1025 left `host-admission.test.sh` named alone.)
+  branch split or moved. (#1025 shipped the verify skill naming one of four
+  `host-admission*.test.sh` files. Late review caught the same miss in #909, whose `AGENTS.md` still
+  described the load gate, and in #1019, whose avoid-list rule still named `CONTEXT.md` alone.)
 
 ## Comments
 

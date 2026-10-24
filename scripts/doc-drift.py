@@ -8,7 +8,8 @@ of the lines it lost reappear in other files the branch added to, as when a test
 parts or a doc into area files. A doc that still names it may now point at one part of what it
 describes. A shell script whose lines went into a helper it sources stays the entry point, so it
 is not listed. The docs read are the ones scripts/lint-doc-symbols.py checks, minus the lines this
-branch added.
+branch added. A doc names the file by its path, or by its bare name when no other tracked file
+shares that name or the doc sits beside it.
 
 Advisory: it cannot tell a stale pointer from a sound one, so it always exits 0 after a listing,
 and 2 on a usage error.
@@ -88,11 +89,16 @@ def moves(removed, added) -> dict[str, list[str]]:
     return found
 
 
-def names(line: str, path: str) -> bool:
-    for name in {path, os.path.basename(path)}:
-        if re.search(rf"(?<![\w./-]){re.escape(name)}(?![\w-])", line):
-            return True
-    return False
+def spellings(path: str, doc: str, tracked: list[str]) -> set[str]:
+    """The full path, plus the bare file name when it can mean only this file from that doc."""
+    name = os.path.basename(path)
+    unique = sum(1 for f in tracked if os.path.basename(f) == name) == 1
+    sibling = os.path.join(os.path.dirname(doc), name) == path
+    return {path, name} if unique or sibling else {path}
+
+
+def names(line: str, spelled: set[str]) -> bool:
+    return any(re.search(rf"(?<![\w./-]){re.escape(name)}(?![\w-])", line) for name in spelled)
 
 
 def main(argv: list[str]) -> int:
@@ -110,8 +116,9 @@ def main(argv: list[str]) -> int:
     if not moved:
         return 0
     scope, history = doc_scope()
+    tracked = git("ls-files").splitlines()
     docs = [
-        f for f in git("ls-files").splitlines()
+        f for f in tracked
         if any(fnmatch.fnmatchcase(f, pattern) for pattern in scope) and not f.startswith(history)
     ]
     for path, targets in sorted(moved.items()):
@@ -119,9 +126,10 @@ def main(argv: list[str]) -> int:
         for doc in docs:
             if doc == path or doc in targets:
                 continue
+            spelled = spellings(path, doc, tracked)
             with open(os.path.join(ROOT, doc)) as handle:
                 for number, line in enumerate(handle, 1):
-                    if number not in added_at.get(doc, ()) and names(line, path):
+                    if number not in added_at.get(doc, ()) and names(line, spelled):
                         hits.append(f"  {doc}:{number}: {line.strip()}")
         if hits:
             print(f"{path} moved lines into {', '.join(targets)}. Check that each line still points at the right part:")

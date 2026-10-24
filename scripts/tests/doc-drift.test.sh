@@ -16,7 +16,7 @@ lines() {
 }
 
 repo="$tmp/repo"
-mkdir -p "$repo/scripts/tests" "$repo/docs"
+mkdir -p "$repo/scripts/tests" "$repo/docs/guide" "$repo/tools"
 cp "$script_dir/../doc-drift.py" "$script_dir/../lint-doc-symbols.py" "$repo/scripts/"
 cd "$repo" || exit 3
 git init -q -b main
@@ -24,8 +24,11 @@ git config user.email test@example.com
 git config user.name test
 lines admission >scripts/tests/admission.test.sh
 lines lane >scripts/lane.sh
+lines guide >docs/guide/README.md
+printf '# Tools\n' >tools/README.md
 printf 'Run `scripts/tests/admission.test.sh` after an edit to the lock.\n' >AGENTS.md
-printf 'Make a lane with `scripts/lane.sh up`.\n' >docs/TESTING.md
+printf 'Make a lane with `scripts/lane.sh up`. Each folder has a `README.md`.\n' >docs/TESTING.md
+printf 'The steps are in [README.md](README.md).\n' >docs/guide/index.md
 git add -A && git commit -qm base
 git switch -q -c split
 
@@ -34,6 +37,8 @@ tail -n 10 scripts/tests/admission.test.sh >scripts/tests/admission-slots.test.s
 printf 'echo "admission entry"\n' >scripts/tests/admission.test.sh
 printf '. "$(dirname "$0")/lane-help.sh"\n' >scripts/lane.sh
 lines lane >scripts/lane-help.sh
+mv docs/guide/README.md docs/guide/steps.md
+printf '# Guide\n' >docs/guide/README.md
 printf 'The admission parts are `admission-claim.test.sh` and `scripts/tests/admission.test.sh`.\n' >docs/parts.md
 git add -A && git commit -qm split
 
@@ -44,9 +49,15 @@ printf '%s\n' "$out" | grep -Fq 'scripts/tests/admission.test.sh moved lines int
     && ok "a test split in parts names every part" || bad "a test split in parts names every part: $out"
 printf '%s\n' "$out" | grep -Fxq '  AGENTS.md:1: Run `scripts/tests/admission.test.sh` after an edit to the lock.' \
     && ok "a doc naming the split test is listed" || bad "a doc naming the split test is listed: $out"
-printf '%s\n' "$out" | grep -q 'lane' \
+printf '%s\n' "$out" | grep -q 'scripts/lane.sh moved' \
     && bad "a script whose lines went into a helper it sources is listed: $out" \
     || ok "a script whose lines went into a helper it sources is not listed"
+printf '%s\n' "$out" | grep -Fxq '  docs/guide/index.md:1: The steps are in [README.md](README.md).' \
+    && ok "a sibling doc naming the moved file by its bare name is listed" \
+    || bad "a sibling doc naming the moved file by its bare name is listed: $out"
+printf '%s\n' "$out" | grep -q 'docs/TESTING.md' \
+    && bad "a bare name that several tracked files share is listed: $out" \
+    || ok "a bare name that several tracked files share is not listed"
 printf '%s\n' "$out" | grep -q 'docs/parts.md' \
     && bad "a doc line the branch added is listed: $out" \
     || ok "a doc line the branch added is not listed"

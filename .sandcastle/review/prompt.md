@@ -25,7 +25,7 @@ Read `CONTEXT.md`, `CODING_STANDARDS.md`, and any relevant ADRs under `docs/adr/
 Doc lines that name a file this branch split or moved. Judge each one under the Docs bullet of
 `CODING_STANDARDS.md`. Empty when the branch moved no file.
 
-!`python3 scripts/doc-drift.py main`
+!`python3 scripts/doc-drift.py main 2>&1 || true`
 
 </doc-drift>
 
