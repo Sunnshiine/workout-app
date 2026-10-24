@@ -26,8 +26,9 @@ usage() {
 usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
        scripts/lint.sh --print-version | --print-path | --help
 
-  scripts/lint.sh                      lint, check doc spans, skill links, and workflow if:
-                                       guards, and swift-format the Swift changed since
+  scripts/lint.sh                      lint, check doc spans, skill links, workflow if:
+                                       guards, and that scripts/build-dirs.sh classes every
+                                       .build dir, and swift-format the Swift changed since
                                        LINT_FORMAT_BASE (default origin/main); what CI runs
   scripts/lint.sh <file.swift>...      lint those files alone
   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
@@ -269,6 +270,9 @@ echo "==> Skill links"
 
 echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"
+
+echo "==> Build dirs"
+"$ROOT/scripts/lint-build-dirs.sh"
 
 echo "==> swift-format"
 "$ROOT/scripts/swift-format-changed.sh" "${LINT_FORMAT_BASE:-origin/main}" || {
