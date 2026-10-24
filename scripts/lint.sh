@@ -26,9 +26,9 @@ usage() {
 usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
        scripts/lint.sh --print-version | --print-path | --help
 
-  scripts/lint.sh                      lint, check doc spans and workflow if: guards, and
-                                       swift-format the Swift changed since LINT_FORMAT_BASE
-                                       (default origin/main); what CI runs
+  scripts/lint.sh                      lint, check doc spans, skill links, and workflow if:
+                                       guards, and swift-format the Swift changed since
+                                       LINT_FORMAT_BASE (default origin/main); what CI runs
   scripts/lint.sh <file.swift>...      lint those files alone
   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
@@ -263,6 +263,9 @@ echo "==> Clean"
 
 echo "==> Doc symbols"
 python3 "$ROOT/scripts/lint-doc-symbols.py" "$ROOT"
+
+echo "==> Skill links"
+"$ROOT/scripts/lint-skill-links.sh" "$ROOT"
 
 echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"

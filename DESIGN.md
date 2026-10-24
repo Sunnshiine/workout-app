@@ -112,6 +112,8 @@ components:
     rounded: "{rounded.tile}"
 ---
 
+<!-- doc-symbols: not-in-tree mintGreen blueLight -->
+
 # Design System: Workout App — Greenhouse
 
 This document encodes **Greenhouse**, the design direction locked by the

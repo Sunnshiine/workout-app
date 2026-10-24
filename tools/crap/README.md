@@ -1,5 +1,7 @@
 # crap
 
+<!-- doc-symbols: not-in-tree report.json TypeChain.member(labels) unsafeAddress -->
+
 CRAP (Change Risk Anti-Patterns) scoring for this repository's Swift production code.
 
 ```

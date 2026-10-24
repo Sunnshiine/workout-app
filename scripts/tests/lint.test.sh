@@ -38,11 +38,14 @@ fresh_fixture() {
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
     cp "$repo/scripts/lint-doc-symbols.py" "$repo/scripts/lint-workflow-ifs.sh" \
-        "$repo/scripts/swift-format-changed.sh" "$fx/scripts/"
+        "$repo/scripts/swift-format-changed.sh" "$repo/scripts/lint-skill-links.sh" "$fx/scripts/"
     mkdir -p "$fx/.github/workflows"
     printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
     mkdir -p "$fx/.agents/skills/verify"
     printf '| `-UITEST_FIXTURE` | Switch | Runs on fixtures. |\n' >"$fx/.agents/skills/verify/launch-flags.md"
+    printf '# Verify\n' >"$fx/.agents/skills/verify/SKILL.md"
+    mkdir -p "$fx/.claude/skills"
+    ln -s ../../.agents/skills/verify "$fx/.claude/skills/verify"
     printf 'Lint with `scripts/lint.sh`.\n' >"$fx/AGENTS.md"
     cp "$repo/$resolved" "$fx/$resolved"
     printf 'disabled_rules:\n  - force_unwrapping\n' >"$fx/Tests/.swiftlint.yml"
@@ -84,7 +87,8 @@ baseline_config
 run_lint
 expect_exit "baseline" "$status" 0
 expect_line "baseline" "$out" "==> Clean"
-expect_line "baseline" "$out" "==> Clean: 2 docs, 1 launch flags"
+expect_line "baseline" "$out" "==> Clean: 3 docs, 1 launch flags"
+expect_line "baseline" "$out" "==> Clean: 1 skills, each linked from .claude/skills"
 
 echo "doc symbols: a whole-tree run fails on a doc span the tree lacks, and a file run skips it"
 fresh_fixture
@@ -96,6 +100,17 @@ expect_line "doc symbols" "$err" "error: AGENTS.md:1: \`scripts/lint-gone.sh\` i
 run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
 expect_exit "doc symbols, file run" "$status" 0
 expect_no_text "doc symbols, file run" "$both" "Doc symbols"
+
+echo "skill links: a whole-tree run fails on a skill with no link, and a file run skips it"
+fresh_fixture
+baseline_config
+rm "$fx/.claude/skills/verify"
+run_lint
+expect_exit "skill links" "$status" 1
+expect_line "skill links" "$err" "error: .agents/skills/verify has no link in .claude/skills, so Claude Code cannot load it."
+run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
+expect_exit "skill links, file run" "$status" 0
+expect_no_text "skill links, file run" "$both" "Skill links"
 
 echo "workflow guards: a whole-tree run fails on an if: GitHub would make false, and a file run skips it"
 fresh_fixture
