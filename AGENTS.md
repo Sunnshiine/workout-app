@@ -69,6 +69,7 @@ scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+scripts/tests-for.py App/Views/ActiveSetCard.swift  # test-sim.sh IDs of the suites covering a file, or a test function's full ID; no argument: this branch's files
 scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0   # prints a UDID for the stock simulator, creating it if missing
 scripts/build-slot.sh xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,id=<UDID>' \
