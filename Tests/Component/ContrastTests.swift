@@ -354,11 +354,11 @@ func everyBarredInkClearsItsBarOnEverySurfaceItIsDrawnOn(appearance: Theme.Appea
 
 private let historyWeakenedSecondaryCall =
     "whether the History sheet's fill progress detail and row Cadence stay weaker than textSecondary, "
-    + "or draw it at full strength; #1070 measured them"
+    + "or draw it at full strength"
 
 private let historySheetWeakenedSecondary: [(drawing: String, opacity: Double, floors: [Theme.Appearance: Double])] = [
-    ("fill progress detail", 0.7, floors: [.day: 2.80, .night: 2.76]),
-    ("row Cadence", 0.75, floors: [.day: 3.05, .night: 2.95])
+    (drawing: "ExerciseHistorySheet.fillAffordance detail", opacity: 0.7, floors: [.day: 2.80, .night: 2.76]),
+    (drawing: "ExerciseHistoryRow.gutterLabel Cadence", opacity: 0.75, floors: [.day: 3.05, .night: 2.95])
 ]
 
 @Test(arguments: Theme.Appearance.allCases)
@@ -368,7 +368,7 @@ func historySheetWeakenedSecondaryReadsAsTextOnItsPaper(appearance: Theme.Appear
         let ink = palette.textSecondary.opacity(opacity)
         let worst = worstCase(of: ink, on: .paper, palette)
         let comment: Comment = """
-            \(appearance) History \(drawing): ink \(describe(ink)) over \(describe(worst.sample)) \
+            \(appearance) \(drawing): ink \(describe(ink)) over \(describe(worst.sample)) \
             measures \(String(format: "%.2f", worst.ratio)):1, under \(Bar.text.rawValue):1
             """
         if let floor = floors[appearance] {
