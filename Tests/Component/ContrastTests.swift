@@ -153,8 +153,8 @@ private let dangerCall =
     + "lab text and 3:1 as a glyph or rim"
 private let nightActionCall = "whether the Night action green lightens where it marks the page, the rail, and the selected chip"
 private let actionAsTextCall =
-    "whether the rest countdown, the onboarding link, and Developer Tools statuses keep the action green as text "
-    + "or take actionInk; #841 tracks the Night link text"
+    "whether the onboarding link, Developer Tools statuses and notes, and the Live Activity lab status keep the "
+    + "action green as text or take actionInk; #841 tracks the Night link text"
 private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
