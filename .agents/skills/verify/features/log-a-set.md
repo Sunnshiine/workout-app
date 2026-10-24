@@ -21,7 +21,7 @@ Log a set lets the athlete record the active set's weight, reps, and RPE from th
 - Open the app with a Current Session that has pending sets. The stage shows the first pending exercise and its active set card.
 - From Block Overview, tap a session tile to open that session's stage.
 - From the queue sheet, tap an exercise row to jump to its active set.
-- With the app in front, press the Action button set to Log a Set, say "Log a Set in WorkoutTracker", or tap the mic on the rest Live Activity in the Dynamic Island. Each closes Settings, the Block grid, or the queue sheet, shows the Current Session, and listens on its active Set.
+- With the app in front, press the Action button set to Log a Set, say "Log a Set in WorkoutTracker", or tap the mic on the rest Live Activity's card in Notification Center pulled over the app. Each closes Settings, the Block grid, or the queue sheet, shows the Current Session, and listens on its active Set.
 - With the phone locked or the app behind another, press the Action button, tap the Log a Set control in Control Center, tap the mic on the rest Live Activity, say "Log a Set in WorkoutTracker", or run Log a Set from the Shortcuts app. The phone listens without opening the app, the Live Activity reads `Listening…` then `Logged 235×5 @7` over the rest countdown, and the next unlock finds the Set logged on the card, the same rest counting down in the rest pill, and the write counted as unsynced.
 
 ## Driving it with verify.sh

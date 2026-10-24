@@ -15,7 +15,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 ## How to get to it (user POV)
 
 - Log a set on the session stage, leave the app, and read the Dynamic Island. Long press it for the whole card.
-- With rest running, tap the mic on the Lock Screen card or on the expanded island. The app opens listening for the active Set.
+- With rest running and the app behind, tap the mic on the Lock Screen card or on the expanded island. The card and the island read `Listening…`, then the result, and the app stays closed.
 - With the phone locked, press the Action button set to Log a Set, tap the Log a Set control, or ask Siri. The card and the island read `Listening…`, then the result, with the app still closed.
 - Open the app into the `developer-tools` fixture, then Open Live Activity Lab and Start. The longer way in, from the stage through the gear at Block Overview's foot and then `settings-developer-tools-row`, is driven in `settings.md`.
 
