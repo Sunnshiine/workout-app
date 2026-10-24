@@ -31,8 +31,8 @@ let package = Package(
             dependencies: ["WorkoutTracker", "WorkoutCLI"],
             path: "Tests",
             exclude: [
-                "UI", "Visual", "Unit/GoogleAuthTests.swift", "Unit/LiveActivityDictateLinkTests.swift",
-                "Unit/LiveActivityDictationToneTests.swift", "Unit/LogSetByVoiceIntentTests.swift"
+                "UI", "Visual", "Unit/GoogleAuthTests.swift", "Unit/LiveActivityDictationToneTests.swift",
+                "Unit/LogSetByVoiceIntentTests.swift"
             ]
         )
     ]
