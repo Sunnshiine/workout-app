@@ -40,5 +40,5 @@ Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and
 
 ## Running via xcodebuild (no Xcode GUI)
 
-`AGENTS.md` lists the `xcodebuild build` command. Cmd+R in Xcode is the quickest way to install and
-run the build.
+`AGENTS.md` lists the `xcodebuild build-for-testing` command, which builds the app and its test
+bundles. Cmd+R in Xcode is the quickest way to install and run the build.
