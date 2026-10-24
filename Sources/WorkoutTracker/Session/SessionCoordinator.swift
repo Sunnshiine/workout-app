@@ -308,7 +308,7 @@ extension SessionCoordinator {
                 in: session,
                 wasSupersetMember: wasSupersetMember,
                 durations: wiring.restDurations
-            )
+            ) != nil
         else { return }
         startOrUpdateLiveActivity(afterLogging: set, in: session)
     }

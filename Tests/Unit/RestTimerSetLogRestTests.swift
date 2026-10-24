@@ -16,8 +16,8 @@ import Testing
         durations: restDurations(standard: 180, superset: 90)
     )
 
-    #expect(started)
-    #expect(timer.interval == RestInterval(start: Date(timeIntervalSinceReferenceDate: 1_000), duration: 90, kind: .superset))
+    #expect(started == timer.interval)
+    #expect(started == RestInterval(start: Date(timeIntervalSinceReferenceDate: 1_000), duration: 90, kind: .superset))
 
     timer.cancelRest(startedBy: bench.sets[1])
     #expect(timer.isRunning)
@@ -33,7 +33,7 @@ import Testing
 
     let started = timer.startRest(afterLogging: bench.sets[0], in: session, wasSupersetMember: false, durations: restDurations())
 
-    #expect(!started)
+    #expect(started == nil)
     #expect(timer.interval == nil)
 }
 

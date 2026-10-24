@@ -2,14 +2,13 @@ import Foundation
 
 extension RestTimer {
     /// Starts the rest the stage runs after logging this Set, keyed to the Set so
-    /// `cancelRest(startedBy:)` finds it. Returns whether a rest started.
-    @discardableResult
+    /// `cancelRest(startedBy:)` finds it. Returns the rest it started, if any.
     func startRest(
         afterLogging set: ExerciseSet,
         in session: Session,
         wasSupersetMember: Bool,
         durations: any SessionRestDurations
-    ) -> Bool {
+    ) -> RestInterval? {
         guard
             let kind = RestTriggerPolicy.restKind(
                 afterLogging: set,
@@ -17,14 +16,14 @@ extension RestTimer {
                 isSupersetMember: wasSupersetMember,
                 isRestRunning: isRunning
             )
-        else { return false }
+        else { return nil }
         start(
             duration: durations.restDuration(for: kind),
             origin: ActiveSetFocusManager.id(for: set),
             originSetObjectID: ObjectIdentifier(set),
             kind: kind
         )
-        return true
+        return interval
     }
 
     /// Cancels the rest only when this Set's log started it.

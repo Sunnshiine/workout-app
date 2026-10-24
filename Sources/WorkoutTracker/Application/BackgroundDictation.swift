@@ -262,12 +262,20 @@ final class BackgroundDictation {
         wasSupersetMember: Bool
     ) -> LiveActivityDictationContent.Subject {
         let set = position.set
-        guard restTimer.startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember, durations: app.settings)
+        guard
+            let interval = restTimer.startRest(
+                afterLogging: set,
+                in: session,
+                wasSupersetMember: wasSupersetMember,
+                durations: app.settings
+            ),
+            let content = focus.liveActivityRestContent(
+                afterLogging: set,
+                in: session,
+                restStartDate: interval.start,
+                restEndDate: interval.end
+            )
         else { return .set(LiveActivitySetContent(position)) }
-        let content = restTimer.interval.flatMap { interval in
-            focus.liveActivityRestContent(afterLogging: set, in: session, restStartDate: interval.start, restEndDate: interval.end)
-        }
-        guard let content else { return .set(LiveActivitySetContent(position)) }
         return .rest(content)
     }
 
