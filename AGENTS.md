@@ -78,6 +78,7 @@ scripts/changed-tests.sh                           # the tests this branch chang
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
 scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill one hand-written mutant; --help for the form
 scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
+uv run python3 <script.py>                          # with Pillow and numpy from pyproject.toml; in Claude Code a bare python3 is already this .venv
 ```
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
