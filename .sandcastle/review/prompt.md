@@ -20,6 +20,15 @@ Read `CONTEXT.md`, `CODING_STANDARDS.md`, and any relevant ADRs under `docs/adr/
 
 </diff-to-main>
 
+<doc-drift>
+
+Doc lines that name a file this branch split or moved. Judge each one under the Docs bullet of
+`CODING_STANDARDS.md`. Empty when the branch moved no file.
+
+!`python3 scripts/doc-drift.py main`
+
+</doc-drift>
+
 <pr-comments>
 
 The following PR comments have been fetched by the workflow. They are tagged by surface:
