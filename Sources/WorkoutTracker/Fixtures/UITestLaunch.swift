@@ -83,13 +83,17 @@
                 guard let flag = LaunchFlag.all.first(where: { $0.argument == argument }) else {
                     throw .unknownFlag(argument)
                 }
-                if flag.kind == .value, arguments.dropFirst(index + 1).first?.hasPrefix(LaunchFlag.prefix) ?? true {
-                    throw .missingValue(flag)
-                }
-                if let need = flag.needs.first(where: { !has($0) }) {
-                    throw .missingNeed(flag, need)
-                }
+                if let missing = missing(for: flag, at: index) { throw missing }
             }
+        }
+
+        /// What `flag`, passed at `index`, lacks in this launch: the value after a Value flag, or a
+        /// flag it needs.
+        private func missing(for flag: LaunchFlag, at index: Int) -> UnreadableLaunch? {
+            if flag.kind == .value, arguments.dropFirst(index + 1).first?.hasPrefix(LaunchFlag.prefix) ?? true {
+                return .missingValue(flag)
+            }
+            return flag.needs.first { !has($0) }.map { .missingNeed(flag, $0) }
         }
 
         enum UnreadableLaunch: Error, Equatable, CustomStringConvertible {
