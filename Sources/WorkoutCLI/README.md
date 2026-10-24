@@ -1,5 +1,7 @@
 # workout
 
+<!-- doc-symbols: not-in-tree manifest.json workbook.json labels.json -->
+
 A headless client for the WorkoutTracker application. It runs the same stores the iOS app
 runs, against a local workbook file instead of Google Sheets, and prints JSON. It exists so a
 coding agent can inspect and change application state on the desktop in milliseconds.

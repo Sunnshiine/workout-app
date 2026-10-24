@@ -255,6 +255,24 @@ expect_count "ignored placeholder" "$out" 2
 expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`.claude/worktree/<name>\` is not a path in this tree."
 expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`scripts/gone/<name>.pyc\` is not a path in this tree."
 
+echo "root guides, Sources, tools, and repo-authored skills are checked; vendored skills and .sandcastle are not"
+root=$(tree scope)
+mkdir -p "$root/tools/crap" "$root/.agents/skills/own" "$root/.agents/skills/triage" "$root/.sandcastle/plan"
+printf 'See `Core/Gone.swift`.\n' >"$root/CODING_STANDARDS.md"
+printf 'See `goneHelper`.\n' >"$root/Sources/Core/README.md"
+printf 'See `scripts/gone.sh`.\n' >"$root/tools/crap/README.md"
+printf 'See `staleName`.\n' >"$root/.agents/skills/own/SKILL.md"
+printf 'See `placeholderName` and `tickets.md`.\n' >"$root/.agents/skills/triage/SKILL.md"
+printf 'See `exampleName`.\n' >"$root/.sandcastle/plan/extraction.md"
+stage "$root"
+check "$root"
+expect_exit "scope" "$status" 1
+expect_count "scope" "$out" 4
+expect_line "scope" "$out" "error: CODING_STANDARDS.md:1: \`Core/Gone.swift\` is not a path in this tree."
+expect_line "scope" "$out" "error: Sources/Core/README.md:1: \`goneHelper\` is named in no Swift, project, or script file."
+expect_line "scope" "$out" "error: tools/crap/README.md:1: \`scripts/gone.sh\` is not a path in this tree."
+expect_line "scope" "$out" "error: .agents/skills/own/SKILL.md:1: \`staleName\` is named in no Swift, project, or script file."
+
 echo "a tree with no flag table is a usage error"
 root=$(tree no-table)
 rm "$root/.agents/skills/verify/launch-flags.md"

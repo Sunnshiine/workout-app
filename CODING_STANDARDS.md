@@ -20,7 +20,8 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   `canBeginDestructiveTransition`. (ADR-0001, ADR-0006, #585, fixed in #595.)
 - **Logic in a View that needs a test,** such as a computed property ORing store state, a `switch`
   on domain state in `body`, or a decision the `workout` CLI cannot see. `swift test` never reaches
-  `App/Views/` (ADR-0017), so it lives in the library. (#582, `DestructiveTransition`.)
+  `App/Views/` (ADR-0017), so it lives in the library. (#582,
+  `SheetConnection.canBeginDestructiveTransition`.)
 - **A type that only forwards,** a method added where a caller could have asked a deeper question,
   or a question already answered privately in a second place. If deleting the type loses nothing,
   the concept it fronts is what needs a module. (#514, #570, #572, `SyncOutcome`. The
@@ -31,9 +32,9 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 - **A derived fact with more than one owner.** A latch every mutating method must set, a mirror
   re-derived with drifting conditions, or a predicate spelled twice. (#586, #570 fixed in #574,
   #572 fixed in #591, `LiveEdge.isAtLiveEdge`.)
-- **A control signal that does not read what it claims to measure,** such as `state == .someCase`
-  as a guard, or a Bool true only because the last writer set it. (`isSyncing` read the banner's
-  display enum. #585, now `SyncCoordinator.isSyncing`.)
+- **A control signal that does not read what it claims to measure,** such as comparing the display
+  `state` to one case as a guard, or a Bool true only because the last writer set it. (`isSyncing`
+  read the banner's display enum. #585, now `SyncCoordinator.isSyncing`.)
 - **An outcome that is not an enum with one case per outcome,** such as a `[String]` payload with
   two producers, `messages.first ?? "…"`, English composed in a store, or a method that sets
   `state` as it exits. (#589, #514, #598, `SyncOutcome.sync(sheetRead:flush:)`.)
