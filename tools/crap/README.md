@@ -98,6 +98,10 @@ minus the spans of its nested local functions:
   **unmeasured** (typically compiled out on macOS by `#if canImport(UIKit)`, or never instrumented).
   Unmeasured rows have `coverage == nil` and `crap == nil` and are counted in `totals.unmeasured`.
 
+`scripts/crap.sh` builds the coverage run with atomic profile counters
+(`-instrprof-atomic-counter-update-all`). Tests run in parallel, and plain counters lose increments,
+so one commit's covered lines could differ between runs and flip the gate (#556).
+
 CRAP is reported to one decimal.
 
 ### Readings the rules above do not state

@@ -77,6 +77,10 @@ REPORT="$OUT/report.json"
 BASELINE="tools/crap/baseline.tsv"
 PROFDATA=".build/debug/codecov/default.profdata"
 PROFILES="$(dirname "$PROFDATA")"
+# Swift Testing runs tests in parallel, and a plain profile counter loses increments when two
+# threads bump it at once. A line whose count is derived by subtracting counters can then read 0
+# on one run and positive on the next, which flips the gate with no code change (#556).
+ATOMIC_COUNTERS="-instrprof-atomic-counter-update-all"
 if [[ -n $XCODEBUILD_DIR ]]; then
     PROFILES="$XCODEBUILD_DIR/DerivedData/Build/ProfileData"
 fi
@@ -104,7 +108,7 @@ run_tests() {
 
 test_command() {
     if [[ -z $XCODEBUILD_DIR ]]; then
-        swift test --enable-code-coverage
+        swift test --enable-code-coverage -Xswiftc -Xllvm -Xswiftc "$ATOMIC_COUNTERS"
         return
     fi
     # The sibling WorkoutTracker.xcodeproj would win over Package.swift, so name the package
@@ -118,6 +122,7 @@ test_command() {
         -skipPackagePluginValidation -skipMacroValidation \
         -derivedDataPath "$XCODEBUILD_DIR/DerivedData" \
         -clonedSourcePackagesDirPath "$XCODEBUILD_DIR/SourcePackages" \
+        OTHER_SWIFT_FLAGS="\$(inherited) -Xllvm $ATOMIC_COUNTERS" \
         COMPILATION_CACHE_ENABLE_CACHING=YES \
         COMPILATION_CACHE_CAS_PATH="$XCODEBUILD_DIR/CompilationCache"
 }
