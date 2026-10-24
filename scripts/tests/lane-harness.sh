@@ -73,9 +73,7 @@ g remote add origin "$root/origin.git"
 mkdir -p "$primary/scripts" "$primary/.githooks"
 cp "$scripts/../.gitignore" "$primary/.gitignore"
 cp "$scripts/../.githooks/post-checkout" "$primary/.githooks/"
-for s in lane.sh lane-help.sh sim-pool.sh sim-pool-disabled-jobs.txt sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh; do
-    cp "$scripts/$s" "$primary/scripts/"
-done
+find "$scripts" -maxdepth 1 -type f -exec cp {} "$primary/scripts/" \;
 printf '\000\001\002binary\n' >"$primary/app.bin"
 mkdir -p "$primary/.claude"
 echo '{}' >"$primary/.claude/settings.json"

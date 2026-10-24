@@ -37,8 +37,8 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
-    cp "$repo/scripts/lint-doc-symbols.py" "$repo/scripts/lint-workflow-ifs.sh" \
-        "$repo/scripts/swift-format-changed.sh" "$repo/scripts/lint-skill-links.sh" "$fx/scripts/"
+    cp "$repo"/scripts/lint-* "$repo/scripts/swift-format-changed.sh" "$fx/scripts/"
+    printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
     mkdir -p "$fx/.github/workflows"
     printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
     mkdir -p "$fx/.agents/skills/verify"

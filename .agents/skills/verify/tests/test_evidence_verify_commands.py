@@ -87,12 +87,7 @@ WITH_GEAR = json.dumps(WITH_GEAR)
 class VerifyTap(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
-        skill = self.root / ".agents" / "skills" / "verify"
-        skill.mkdir(parents=True)
-        for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py"]:
-            (skill / name).symlink_to(SKILL / name)
-        (self.root / "scripts").mkdir()
-        (self.root / "scripts" / "sim-lock.sh").symlink_to(REPO / "scripts" / "sim-lock.sh")
+        skill = link_checkout(self.root)
         axe = self.root / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
         axe.parent.mkdir(parents=True)
         axe.write_text(FAKE_AXE.replace("{dir}", str(self.root)))

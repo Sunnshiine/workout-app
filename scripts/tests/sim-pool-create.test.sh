@@ -66,7 +66,7 @@ expect "create after delete-template builds the template again" "$status $(calls
 
 fresh
 mkdir "$root/broken"
-cp "$scripts/sim-pool.sh" "$scripts/sim-lock.sh" "$scripts/ensure-simulator.sh" "$root/broken/"
+find "$scripts" -maxdepth 1 -type f -exec cp {} "$root/broken/" \;
 printf '#!/bin/bash\necho "keyboard: cannot read it" >&2\nexit 70\n' >"$root/broken/sim-keyboard.sh"
 chmod +x "$root/broken/sim-keyboard.sh"
 "$root/broken/sim-pool.sh" create a >"$root/out" 2>"$root/err"

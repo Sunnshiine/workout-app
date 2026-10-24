@@ -23,9 +23,8 @@ matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$. For the checkout this script belongs 
           else; then save what removal would lose to <evidence>/down-<YYYYmmdd-HHMMSS>/ (head.txt,
           uncommitted.diff against HEAD, staged.diff of the index against HEAD, untracked.tar of
           untracked and ignored files except regenerable ones, commits.bundle of commits no branch
-          or tag holds, copies of the results dirs .build/test-sim, .build/verify without its
-          node_modules, .build/crap, .build/flake-hunt, .build/mutate, .build/check-each-commit,
-          and .build/measure-host);
+          or tag holds, and a copy of each results dir under .build that scripts/build-dirs.sh
+          lists, .build/verify without its node_modules);
           then remove the worktree and its DerivedData. Each step skips what is already gone, so a
           second down exits 0. --if-idle removes only when assess says remove.
   assess  print `keep<TAB><reason>` or `remove<TAB>idle Nd`. scripts/prune-merged-worktrees.sh runs it

@@ -14,14 +14,7 @@ AFTER_LOG = MINI.replace("Weight, 237.5", "Weight, 252.5")
 class VerifyShot(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
-        skill = self.root / ".agents" / "skills" / "verify"
-        skill.mkdir(parents=True)
-        (self.root / "scripts").mkdir()
-        (skill / "verify.sh").symlink_to(SKILL / "verify.sh")
-        for name in ["verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh"]:
-            (skill / name).symlink_to(SKILL / name)
-        (skill / "tree.py").symlink_to(SKILL / "tree.py")
-        (self.root / "scripts" / "sim-lock.sh").symlink_to(REPO / "scripts" / "sim-lock.sh")
+        skill = link_checkout(self.root)
         axe = self.root / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
         axe.parent.mkdir(parents=True)
         axe.write_text(AXE_STUB)

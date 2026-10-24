@@ -6,7 +6,7 @@ root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$repo/Tests/Unit" "$repo/Tests/Component" "$repo/Tests/Support"
-cp "$script_dir/../changed-tests.sh" "$repo/scripts/"
+find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
 pass=0
 fail=0
 
