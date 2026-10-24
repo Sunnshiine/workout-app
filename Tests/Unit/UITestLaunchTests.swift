@@ -67,19 +67,49 @@ import Testing
     private let misspeltFullBlock = LaunchFlag.prefix + "FULLBLOCK"
 
     @Test func aMisspeltFlagFailsTheFlagCheckAndEveryKnownFlagPassesIt() throws {
-        #expect(throws: UITestLaunch.UnknownLaunchFlag(argument: misspeltFullBlock)) {
+        #expect(throws: UITestLaunch.UnreadableLaunch.unknownFlag(misspeltFullBlock)) {
             try UITestLaunch(arguments: ["-UITEST_FIXTURE", misspeltFullBlock]).checkFlags()
         }
-        try UITestLaunch(arguments: LaunchFlag.all.map(\.argument) + ["dark", "WorkoutTracker"]).checkFlags()
+        let everyFlag = LaunchFlag.all.flatMap { $0.kind == .value ? [$0.argument, "dark"] : [$0.argument] }
+        try UITestLaunch(arguments: everyFlag + ["WorkoutTracker"]).checkFlags()
     }
 
     @Test func aRecordingLaunchWithATranscriptPassesTheFlagCheck() throws {
         try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/p"]).checkFlags()
     }
 
+    @Test func aValueFlagWithNoValueAfterItFailsTheFlagCheck() {
+        let last = #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION"]).checkFlags()
+        }
+        #expect(
+            last?.description
+                == "-UITEST_DICTATION takes a value as the next argument. .agents/skills/verify/launch-flags.md says what it takes."
+        )
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_DICTATION", "-UITEST_FIXTURE"]).checkFlags()
+        }
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.appearance)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_APPEARANCE"]).checkFlags()
+        }
+    }
+
+    @Test func aRecordingOrSpeechModelsLaunchWithoutDictationFailsTheFlagCheck() {
+        let recording = #expect(throws: UITestLaunch.UnreadableLaunch.missingNeed(.recording, .dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_RECORDING", "/p"]).checkFlags()
+        }
+        #expect(
+            recording?.description
+                == "-UITEST_RECORDING acts only with -UITEST_DICTATION. .agents/skills/verify/launch-flags.md lists every flag."
+        )
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingNeed(.speechModels, .dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_SPEECH_MODELS", "/m"]).checkFlags()
+        }
+    }
+
     @MainActor
     @Test func aMisspeltScenarioFlagFailsTheBootInsteadOfBootingTheDefault() async {
-        await #expect(throws: UITestLaunch.UnknownLaunchFlag.self) {
+        await #expect(throws: UITestLaunch.UnreadableLaunch.unknownFlag(misspeltFullBlock)) {
             _ = try await BootedFixture.boot([misspeltFullBlock])
         }
     }
@@ -142,7 +172,7 @@ import Testing
         #expect(try plain.decisionDeadline == nil)
 
         let proof = UITestLaunch(arguments: [
-            "WorkoutTracker", "-UITEST_RECORDING", "/tmp/set.wav", "-UITEST_SPEECH_MODELS", "/tmp/models",
+            "WorkoutTracker", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/tmp/set.wav", "-UITEST_SPEECH_MODELS", "/tmp/models",
             "-UITEST_DECISION_DEADLINE", "20.5"
         ])
         #expect(proof.recordingPath == "/tmp/set.wav")
