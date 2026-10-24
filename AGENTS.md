@@ -70,9 +70,9 @@ scripts/crap.sh gate                              # the change-risk gate CI runs
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0   # prints a UDID for the stock simulator, creating it if missing
-xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+scripts/build-slot.sh xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,id=<UDID>' \
-  -skipPackagePluginValidation -skipMacroValidation
+  -skipPackagePluginValidation -skipMacroValidation   # the app and every test bundle; boots and runs nothing
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
 scripts/changed-tests.sh                           # the tests this branch changed; what CI's flake guard repeats under load
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
@@ -102,7 +102,9 @@ more) starts no run.
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
   macOS-only CLI suites (`WorkoutCLIBinaryTests`, `CLIFailureTests`). Before pushing a diff that
-  touches `App/`, run the simulator suite as well.
+  touches `App/`, run the simulator suite as well. A signature change under `Sources/` or
+  `WorkoutShared/` can break `App/`, `Tests/Visual/`, and the app-hosted unit tests, which
+  `swift test` never compiles. Before pushing one, run the `build-for-testing` line above.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Name the simulator by `id=<UDID>` in every `-destination`. A name can match several devices
