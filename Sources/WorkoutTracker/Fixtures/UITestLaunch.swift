@@ -9,20 +9,16 @@
         /// The workbook each Scenario flag boots the fixture into, in priority order: the first flag
         /// present in a launch wins. Each flag is the prefix and its workbook's name in upper snake
         /// case, so the UI launch and the CLI's `--scenario` share one vocabulary.
-        static let scenarioFlags: [(flag: LaunchFlag, scenario: WorkbookScenario)] = [
-            (.perfectMoveOnCelebration, .perfectMoveOnCelebration),
-            (.completedOpenExercises, .completedOpenExercises),
-            (.openExercises, .openExercises),
-            (.longSession, .longSession),
-            (.fullBlock, .fullBlock),
-            (.partialUpload, .partialUpload)
-        ]
+        static let scenarioFlags: [(flag: LaunchFlag, scenario: WorkbookScenario)] = LaunchFlag.all.compactMap { flag in
+            guard case .scenario(let scenario) = flag.kind else { return nil }
+            return (flag, scenario)
+        }
 
         /// The workbook a launch that names no Scenario flag boots into.
         static let defaultScenario = WorkbookScenario.partialUpload
 
         /// The flags that send the app somewhere other than the Block overview.
-        static let screenFlags: [LaunchFlag] = [.session, .developerTools, .settings, .onboarding]
+        static let screenFlags = LaunchFlag.all.filter { $0.kind == .screen }
 
         private let arguments: [String]
 
@@ -80,27 +76,42 @@
 
         /// Throws for the first argument spelled like a launch flag that `LaunchFlag.all` does not
         /// hold, so a misspelt Scenario flag stops the boot instead of quietly booting the default.
-        func checkFlags() throws(UnknownLaunchFlag) {
-            let known = Set(LaunchFlag.all.map(\.argument))
-            if let unknown = arguments.first(where: { $0.hasPrefix(LaunchFlag.prefix) && !known.contains($0) }) {
-                throw UnknownLaunchFlag(argument: unknown)
+        func checkFlags() throws(UnreadableLaunch) {
+            for (index, argument) in arguments.enumerated() where argument.hasPrefix(LaunchFlag.prefix) {
+                guard let flag = LaunchFlag.all.first(where: { $0.argument == argument }) else {
+                    throw .unknownFlag(argument)
+                }
+                if let missing = missing(for: flag, at: index) { throw missing }
             }
         }
 
-        struct UnknownLaunchFlag: Error, Equatable, CustomStringConvertible {
-            let argument: String
+        private func missing(for flag: LaunchFlag, at index: Int) -> UnreadableLaunch? {
+            if flag.kind == .value, arguments.dropFirst(index + 1).first?.hasPrefix(LaunchFlag.prefix) ?? true {
+                return .missingValue(flag)
+            }
+            return flag.needs.first { !has($0) }.map { .missingNeed(flag, $0) }
+        }
+
+        enum UnreadableLaunch: Error, Equatable, CustomStringConvertible {
+            case unknownFlag(String)
+            case missingValue(LaunchFlag)
+            case missingNeed(LaunchFlag, LaunchFlag)
 
             var description: String {
-                "\(argument) is not a launch flag. .agents/skills/verify/launch-flags.md lists every one."
+                switch self {
+                case .unknownFlag(let argument):
+                    "\(argument) is not a launch flag. .agents/skills/verify/launch-flags.md lists every one."
+                case .missingValue(let flag):
+                    "\(flag.argument) takes a value as the next argument. .agents/skills/verify/launch-flags.md says what it takes."
+                case .missingNeed(let flag, let need):
+                    "\(flag.argument) acts only with \(need.argument). .agents/skills/verify/launch-flags.md lists every flag."
+                }
             }
         }
 
         var appearance: AppearancePreference {
             get throws(UnknownAppearance) {
-                guard let flagIndex = arguments.firstIndex(of: LaunchFlag.appearance.argument) else {
-                    return .system
-                }
-                let value = arguments.dropFirst(flagIndex + 1).first ?? ""
+                guard let value = value(of: .appearance) else { return .system }
                 guard let preference = AppearancePreference(rawValue: value) else {
                     throw UnknownAppearance(value: value)
                 }
