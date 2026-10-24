@@ -20,7 +20,7 @@ exports lcov, builds this package (debug), and calls the executable.
 scripts/crap.sh measure --top 30   # score everything, print the worst rows
 scripts/crap.sh gate               # fail on new, worsened, stale, or unexplained rows
 scripts/crap.sh baseline           # rewrite tools/crap/baseline.tsv from the report, never raising a score
-scripts/crap.sh gate --no-test     # reuse the coverage profile from the previous run
+scripts/crap.sh gate --no-test     # reuse the previous crap.sh run's profile; fails if that run's tests failed
 scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild with a compilation cache
 scripts/crap.sh --help
 ```
