@@ -1,7 +1,8 @@
 import Foundation
 import Observation
 
-/// What the athlete asked for from outside the app: the Action button, Siri, or the Live Activity.
+/// What the athlete asked for from outside the app, for the card to answer: Log a Set pressed
+/// with the app in front, or the `workouttracker://dictate` URL that tests and `simctl` open.
 enum AppEntryRequest: Equatable, Sendable {
     /// Open the Current Session's active Set and listen for its Spoken Set.
     case dictateCurrentSet

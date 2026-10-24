@@ -2,7 +2,7 @@ import XCTest
 
 private let dictateLink = URL(string: "workouttracker://dictate")!
 
-/// Opens the dictate link in the app already running, as Siri and the Live Activity do.
+/// Opens the dictate link in the app already running, as Log a Set does with the app in front.
 /// `XCUIApplication.open(_:)` relaunches the app instead, which drops whatever covered the stage.
 @MainActor
 private func openDictateLinkInTheRunningApp() {

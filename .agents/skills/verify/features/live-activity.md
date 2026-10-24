@@ -1,6 +1,6 @@
 # Live Activity
 
-Logging a set starts the rest timer, and the rest timer puts the countdown, the prescription and the sets left in the Dynamic Island as a Live Activity, so the athlete reads the rest with the app closed. A mic on the Lock Screen card and the expanded island opens the app listening for the next Set, and a Set logged by voice with the phone locked reads back on the same card and island. Developer Tools carries a Live Activity Lab that raises the same activity from a sample workout state, for design review of a variant before it ships.
+Logging a set starts the rest timer, and the rest timer puts the countdown, the prescription and the sets left in the Dynamic Island as a Live Activity, so the athlete reads the rest with the app closed. A mic on the Lock Screen card and the expanded island presses Log a Set, which listens for the next Set without bringing the app forward when it is behind, and a Set logged by voice with the phone locked reads back on the same card and island. Developer Tools carries a Live Activity Lab that raises the same activity from a sample workout state, for design review of a variant before it ships.
 
 ## Sub-features
 

@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -71,14 +72,14 @@ struct WorkoutLiveActivity: Widget {
             if dictation.isListening {
                 DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 40)
             } else if dictation.isAboutASet {
-                SaySetLink(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 40)
             }
         } else {
             switch state.variant {
             case .setProgress, .nowLifting:
                 PrescribedLoadBadge(state: state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                SaySetLink(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 40)
             }
         }
     }
@@ -252,7 +253,7 @@ private struct LockScreenWorkoutView: View {
                     PrescriptionStack(state: state, style: .lockScreen)
                         .minimumScaleFactor(0.75)
 
-                    SaySetLink(state: state, diameter: 44)
+                    SaySetButton(state: state, diameter: 44)
                 } else {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(state.weightValue)
@@ -303,7 +304,7 @@ private struct DictationLockScreenView: View {
                 if dictation.isListening {
                     DictationSymbol(dictation: dictation, colors: colors, diameter: 44)
                 } else {
-                    SaySetLink(state: state, diameter: 44)
+                    SaySetButton(state: state, diameter: 44)
                 }
             }
 
@@ -387,7 +388,7 @@ private struct DictationReadback: View {
     }
 }
 
-/// The mic while listening, where the Say Set link sits otherwise.
+/// The mic while listening, where the Say Set button sits otherwise.
 private struct DictationSymbol: View {
     let dictation: LiveActivityDictation
     let colors: LiveActivityColors
@@ -448,22 +449,22 @@ private struct DictationProgress: View {
     }
 }
 
-private struct SaySetLink: View {
+/// Presses Log a Set, which listens without bringing the app forward when it is behind.
+private struct SaySetButton: View {
     let state: WorkoutActivityAttributes.ContentState
     let diameter: CGFloat
 
     var body: some View {
-        if let url = WorkoutActivityAttributes.dictateURL {
-            let colors = state.liveActivityColors
+        let colors = state.liveActivityColors
 
-            Link(destination: url) {
-                Image(systemName: "mic")
-                    .font(.system(size: diameter * 0.45, weight: .semibold))
-                    .foregroundStyle(colors.accent)
-                    .frame(width: diameter, height: diameter)
-                    .background(colors.accent.opacity(0.18), in: Circle())
-            }
-            .accessibilityLabel("Say Set")
+        Button(intent: LogSetByVoiceIntent()) {
+            Image(systemName: "mic")
+                .font(.system(size: diameter * 0.45, weight: .semibold))
+                .foregroundStyle(colors.accent)
+                .frame(width: diameter, height: diameter)
+                .background(colors.accent.opacity(0.18), in: Circle())
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Say Set")
     }
 }
