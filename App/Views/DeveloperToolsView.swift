@@ -83,7 +83,7 @@ struct DeveloperToolsView: View {
                 if let localOnlyNote = info.localOnlyNote {
                     Text(localOnlyNote)
                         .font(Theme.font(.historyChip))
-                        .foregroundStyle(palette.accent)
+                        .foregroundStyle(palette.action)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("current-session-debug-local-only-note")
                 }
@@ -320,13 +320,13 @@ private struct PendingWriteDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(palette.badgeFill, in: .rect(cornerRadius: 8))
+        .background(palette.chipCarvedFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? palette.danger : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.action
     }
 
     private var accessibilityLabel: String {
@@ -379,13 +379,13 @@ private struct WriteTargetAuditDiagnosticRow: View {
             }
         }
         .padding(12)
-        .background(palette.badgeFill, in: .rect(cornerRadius: 8))
+        .background(palette.chipCarvedFill, in: .rect(cornerRadius: 8))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
     }
 
     private var statusColor: Color {
-        diagnostic.status == "Conflict" ? palette.danger : palette.accent
+        diagnostic.status == "Conflict" ? palette.danger : palette.action
     }
 
     private var accessibilityLabel: String {

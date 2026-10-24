@@ -73,29 +73,7 @@ extension Theme {
 
         let lighting: Lighting
 
-        // MARK: Legacy role aliases
-        //
-        // The existing screens (rebuilt screen-by-screen in later Greenhouse slices) still consume
-        // the pre-Greenhouse role names. These map onto the reshaped seam so those compositions keep
-        // compiling and simply re-light; each alias retires when its last consumer migrates.
-        var accent: Color { action }
-        var accentDarkText: Color { actionText }
-        var progressTrack: Color { futureStroke }
-        var activeCardFill: Color { surface }
-        var activeCardStroke: Color { queueStroke }
-        var lastPerformedCardFill: Color { footFill }
-        var lastPerformedCardStroke: Color { queueStroke }
-        var sessionTileComplete: Color { leafFill }
-        var sessionTileIncomplete: Color { footFill }
-        var sessionTileUnavailable: Color { tileGhostStroke }
-        var valueText: Color { textPrimary }
-        var badgeFill: Color { chipCarvedFill }
-        var bannerFill: Color { surface }
-        var bannerStroke: Color { queueStroke }
-        var sessionTileCompleteText: Color { actionText }
-        var sessionTileIncompleteText: Color { textSecondary }
-        var sessionTileUnavailableText: Color { textSecondary }
-        var sessionTileRestingBorder: Color { queueStroke }
+        // MARK: Legacy page background
 
         /// The retired two-stop `gradientStops` background, re-expressed as the living-paper base
         /// pair so un-rebuilt screens keep a page background and simply re-light. The full four-wash
