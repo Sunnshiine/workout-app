@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -71,14 +72,14 @@ struct WorkoutLiveActivity: Widget {
             if dictation.isListening {
                 DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 40)
             } else if dictation.isAboutASet {
-                SaySetLink(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 40)
             }
         } else {
             switch state.variant {
             case .setProgress, .nowLifting:
                 PrescribedLoadBadge(state: state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                SaySetLink(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 40)
             }
         }
     }
@@ -252,7 +253,7 @@ private struct LockScreenWorkoutView: View {
                     PrescriptionStack(state: state, style: .lockScreen)
                         .minimumScaleFactor(0.75)
 
-                    SaySetLink(state: state, diameter: 44)
+                    SaySetButton(state: state, diameter: 44)
                 } else {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(state.weightValue)
@@ -303,7 +304,7 @@ private struct DictationLockScreenView: View {
                 if dictation.isListening {
                     DictationSymbol(dictation: dictation, colors: colors, diameter: 44)
                 } else {
-                    SaySetLink(state: state, diameter: 44)
+                    SaySetButton(state: state, diameter: 44)
                 }
             }
 
@@ -387,7 +388,7 @@ private struct DictationReadback: View {
     }
 }
 
-/// The mic while listening, where the Say Set link sits otherwise.
+/// The mic while listening, where the Say Set button sits otherwise.
 private struct DictationSymbol: View {
     let dictation: LiveActivityDictation
     let colors: LiveActivityColors
@@ -448,301 +449,22 @@ private struct DictationProgress: View {
     }
 }
 
-private struct SaySetLink: View {
+/// Presses Log a Set, which listens without bringing the app forward when it is behind.
+private struct SaySetButton: View {
     let state: WorkoutActivityAttributes.ContentState
     let diameter: CGFloat
 
     var body: some View {
-        if let url = WorkoutActivityAttributes.dictateURL {
-            let colors = state.liveActivityColors
-
-            Link(destination: url) {
-                Image(systemName: "mic")
-                    .font(.system(size: diameter * 0.45, weight: .semibold))
-                    .foregroundStyle(colors.accent)
-                    .frame(width: diameter, height: diameter)
-                    .background(colors.accent.opacity(0.18), in: Circle())
-            }
-            .accessibilityLabel("Say Set")
-        }
-    }
-}
-
-private struct ExerciseNameStack: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .leading, spacing: 3) {
-            Text(state.exerciseName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(colors.islandPrimaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-    }
-}
-
-private struct WeightForwardStack: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        HStack(alignment: .lastTextBaseline, spacing: 4) {
-            Text(state.weightValue)
-                .font(.system(.title2, design: .rounded).weight(.heavy))
+        Button(intent: LogSetByVoiceIntent()) {
+            Image(systemName: "mic")
+                .font(.system(size: diameter * 0.45, weight: .semibold))
                 .foregroundStyle(colors.accent)
-                .monospacedDigit()
-                .minimumScaleFactor(0.7)
-
-            Text(state.weightUnit)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(colors.islandSecondaryText)
+                .frame(width: diameter, height: diameter)
+                .background(colors.accent.opacity(0.18), in: Circle())
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Weight \(state.weightText)")
-    }
-}
-
-private struct RestCountdownStack: View {
-    let state: WorkoutActivityAttributes.ContentState
-    var showsLabel = true
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        VStack(alignment: .leading, spacing: 2) {
-            if showsLabel {
-                Text("Rest")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(colors.islandSecondaryText)
-            }
-
-            // A timer Text takes all the width it is offered, which starves the leading region.
-            Text("00:00")
-                .hidden()
-                .overlay(alignment: .leading) {
-                    RestCountdownText(state: state)
-                }
-                .font(.system(.title2, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-private struct RestCountdownText: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        if state.isRestReady {
-            Text("Ready")
-        } else if let restInterval = state.restInterval {
-            Text(timerInterval: restInterval, countsDown: true)
-        } else {
-            Text("--:--")
-        }
-    }
-}
-
-private struct SetProgressBadge: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        HStack(spacing: 5) {
-            Image(systemName: "dumbbell.fill")
-            Text(state.setProgressText)
-                .monospacedDigit()
-        }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(colors.accent)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(colors.panelFill, in: Capsule())
-    }
-}
-
-private struct PrescribedLoadBadge: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        Text(state.prescriptionText)
-            .font(.caption.weight(.heavy))
-            .foregroundStyle(colors.accentText)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(colors.accent, in: Capsule())
-            .minimumScaleFactor(0.72)
-    }
-}
-
-private struct SetProgressRing: View {
-    let state: WorkoutActivityAttributes.ContentState
-    let lineWidth: CGFloat
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        ZStack {
-            Circle()
-                .stroke(colors.track, lineWidth: lineWidth)
-
-            Circle()
-                .trim(from: 0, to: state.normalizedProgress)
-                .stroke(
-                    colors.accent,
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-        }
-        .accessibilityLabel("Set progress \(state.setProgressText)")
-    }
-}
-
-private struct PrescriptionStack: View {
-    enum Style {
-        case island
-        case lockScreen
-    }
-
-    let state: WorkoutActivityAttributes.ContentState
-    var style: Style = .island
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        VStack(alignment: alignment, spacing: 2) {
-            Text(state.prescribedRepsText)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(colors.accent)
-
-            Text(state.prescribedLoad)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(secondaryTextColor)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Prescription \(state.prescriptionText)")
-    }
-
-    private var alignment: HorizontalAlignment {
-        switch style {
-        case .island:
-            .leading
-        case .lockScreen:
-            .trailing
-        }
-    }
-
-    private var secondaryTextColor: Color {
-        switch style {
-        case .island:
-            state.liveActivityColors.islandSecondaryText
-        case .lockScreen:
-            state.liveActivityColors.secondaryText
-        }
-    }
-}
-
-private struct RestProgressBar: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        Group {
-            if let restInterval = state.restInterval {
-                ProgressView(timerInterval: restInterval, countsDown: true) {
-                    EmptyView()
-                } currentValueLabel: {
-                    EmptyView()
-                }
-                .progressViewStyle(.linear)
-                .labelsHidden()
-                .controlSize(.mini)
-                .tint(colors.accent)
-                .clipShape(Capsule())
-            } else {
-                Capsule()
-                    .fill(colors.track)
-            }
-        }
-        .frame(height: 5)
-        .background(colors.track, in: Capsule())
-        .accessibilityLabel("Rest progress")
-    }
-}
-
-private struct RestProgressWithContext: View {
-    enum Style {
-        case island
-        case lockScreen
-    }
-
-    let state: WorkoutActivityAttributes.ContentState
-    let style: Style
-    var showsBar = true
-    /// In place of the variant's own context.
-    var context: String?
-
-    var body: some View {
-        HStack(spacing: 8) {
-            if showsBar {
-                RestProgressBar(state: state)
-            }
-
-            if let restContextText = context ?? state.restContextText {
-                Text(restContextText)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(textColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .monospacedDigit()
-                    .layoutPriority(1)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
-    private var textColor: Color {
-        switch style {
-        case .island:
-            state.liveActivityColors.islandSecondaryText
-        case .lockScreen:
-            state.liveActivityColors.secondaryText
-        }
-    }
-}
-
-private struct SegmentedSets: View {
-    let done: Int
-    let total: Int
-    let colors: LiveActivityColors
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<clampedTotal, id: \.self) { index in
-                Capsule()
-                    .fill(index < clampedDone ? colors.accent : colors.track)
-                    .frame(height: 5)
-            }
-        }
-        .accessibilityLabel("Sets \(clampedDone) of \(clampedTotal)")
-    }
-
-    private var clampedTotal: Int {
-        max(total, 1)
-    }
-
-    private var clampedDone: Int {
-        min(max(done, 0), clampedTotal)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Say Set")
     }
 }

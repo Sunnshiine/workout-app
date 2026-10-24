@@ -1,7 +1,7 @@
 import UIKit
 
 /// Runs `LogSetByVoiceIntent` in the app. With a scene on screen the request goes to the inbox
-/// and the card listens, as it does for the dictate link, so the athlete sees the hold and can
+/// and the card listens, as it does for `workouttracker://dictate`, so the athlete sees the hold and can
 /// clear it; with the app in the background, locked or closed, the headless Dictation listens and
 /// the Live Activity reads back.
 @MainActor

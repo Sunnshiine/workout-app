@@ -139,12 +139,6 @@ struct LiveActivityWrittenSet: Codable, Hashable, Sendable {
     }
 }
 
-extension WorkoutActivityAttributes {
-    /// Opens the app listening for the Current Session's active Set. The widget cannot see the
-    /// app's `AppEntryRequest`, so the URL is spelled out here and a hosted test ties the two.
-    static let dictateURL = URL(string: "workouttracker://dictate")
-}
-
 enum DesignVariant: String, Codable, Hashable, CaseIterable, Identifiable, Sendable {
     case setProgress
     case nowLifting
