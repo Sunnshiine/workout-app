@@ -73,6 +73,10 @@ import Testing
         try UITestLaunch(arguments: LaunchFlag.all.map(\.argument) + ["dark", "WorkoutTracker"]).checkFlags()
     }
 
+    @Test func aRecordingLaunchWithATranscriptPassesTheFlagCheck() throws {
+        try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/p"]).checkFlags()
+    }
+
     @MainActor
     @Test func aMisspeltScenarioFlagFailsTheBootInsteadOfBootingTheDefault() async {
         await #expect(throws: UITestLaunch.UnknownLaunchFlag.self) {
