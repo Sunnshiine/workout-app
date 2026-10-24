@@ -76,6 +76,7 @@ import Testing
 
     @Test func aRecordingLaunchWithATranscriptPassesTheFlagCheck() throws {
         try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/p"]).checkFlags()
+        try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_RECORDING", "/p", "-UITEST_DICTATION", "x"]).checkFlags()
     }
 
     @Test func aValueFlagWithNoValueAfterItFailsTheFlagCheck() {
@@ -115,6 +116,9 @@ import Testing
     }
 
     @Test func scenarioPriorityPicksTheEarlierArgumentWhenALaunchNamesTwo() {
+        #expect(
+            UITestLaunch(arguments: ["-UITEST_PARTIAL_UPLOAD", "-UITEST_FULL_BLOCK"]).scenario == .fullBlock
+        )
         #expect(
             UITestLaunch(arguments: ["-UITEST_FULL_BLOCK", "-UITEST_LONG_SESSION"]).scenario == .longSession
         )
@@ -178,6 +182,7 @@ import Testing
         #expect(proof.recordingPath == "/tmp/set.wav")
         #expect(proof.speechModelsPath == "/tmp/models")
         #expect(try proof.decisionDeadline == .milliseconds(20_500))
+        try proof.checkFlags()
     }
 
     @Test func aDecisionDeadlineUnderASecondIsReadToTheMillisecond() throws {

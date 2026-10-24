@@ -15,7 +15,7 @@
         var kind = Kind.switch
         let meaning: String
         var actsWithoutFixture = false
-        /// The flags a launch must also pass for this one to act.
+        /// The flags a launch must also pass for this one to act. A fixture launch without them stops.
         var needs: [LaunchFlag] = []
 
         /// What every launch flag starts with, so `UITestLaunch.checkFlags` can tell a misspelt

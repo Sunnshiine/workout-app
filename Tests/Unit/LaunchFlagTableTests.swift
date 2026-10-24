@@ -27,7 +27,7 @@ import Testing
             With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the
             `partial-upload` workbook scenario, the cells `workout init --scenario partial-upload` also
             reads. When a launch passes more than one Scenario flag, the lowest Scenario number wins.
-            A Value flag takes the argument after it, and a launch that leaves the value out stops.
+            A Value flag takes the argument after it, and a fixture launch that leaves the value out stops.
             \(fixtureRule)
 
             | Flag | Kind | Meaning |
@@ -44,7 +44,7 @@ import Testing
                     case .scenario: "Scenario \((scenarios.firstIndex(of: flag) ?? 0) + 1)"
                     case .value: "Value"
                     }
-                let needs = flag.needs.map { " Acts only with `\($0.argument)`, and a launch without it stops." }.joined()
+                let needs = flag.needs.map { " Acts only with `\($0.argument)`, and a fixture launch without it stops." }.joined()
                 return "| `\(flag.argument)` | \(kind) | \(flag.meaning)\(needs) |\n"
             }.joined()
     }
@@ -76,7 +76,7 @@ import Testing
                 "| `-FIRST_SCENARIO` | Scenario 1 | Seeds the first Block. |",
                 "| `-SECOND_SCENARIO` | Scenario 2 | Seeds the second Block. |",
                 "| `-SCREEN` | Screen | Opens a screen. |",
-                "| `-VALUE` | Value | Takes a name. Acts only with `-SWITCH`, and a launch without it stops. |"
+                "| `-VALUE` | Value | Takes a name. Acts only with `-SWITCH`, and a fixture launch without it stops. |"
             ]
         )
     }

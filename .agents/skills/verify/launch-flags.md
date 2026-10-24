@@ -5,7 +5,7 @@
 With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the
 `partial-upload` workbook scenario, the cells `workout init --scenario partial-upload` also
 reads. When a launch passes more than one Scenario flag, the lowest Scenario number wins.
-A Value flag takes the argument after it, and a launch that leaves the value out stops.
+A Value flag takes the argument after it, and a fixture launch that leaves the value out stops.
 Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`, and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
 
 | Flag | Kind | Meaning |
@@ -33,6 +33,6 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`,
 | `-UITEST_APPEARANCE` | Value | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
 | `-UITEST_LONG_CELEBRATION_QUOTE` | Switch | Shows a long fixture quote in the Move On Celebration in place of a random approved one. |
 | `-UITEST_DICTATION` | Value | Takes a transcript as the next argument and gives the Active Set Card a mic that hears it, in place of SpeechAnalyzer, which does not run in the Simulator. |
-| `-UITEST_RECORDING` | Value | Takes the path of a 16 kHz mono WAV file as the next argument, which the fixture's mic records on every press for the recording engine to read. Acts only with `-UITEST_DICTATION`, and a launch without it stops. |
-| `-UITEST_SPEECH_MODELS` | Value | Takes a host folder holding Whisper small and its tokenizer in the Hugging Face download layout, and reads each press's recording with the real recording engine from it in place of the stand-in. Stops the launch if the folder lacks the model. Acts only with `-UITEST_DICTATION`, and a launch without it stops. |
+| `-UITEST_RECORDING` | Value | Takes the path of a 16 kHz mono WAV file as the next argument, which the fixture's mic records on every press for the recording engine to read. Acts only with `-UITEST_DICTATION`, and a fixture launch without it stops. |
+| `-UITEST_SPEECH_MODELS` | Value | Takes a host folder holding Whisper small and its tokenizer in the Hugging Face download layout, and reads each press's recording with the real recording engine from it in place of the stand-in. Stops the launch if the folder lacks the model. Acts only with `-UITEST_DICTATION`, and a fixture launch without it stops. |
 | `-UITEST_DECISION_DEADLINE` | Value | Takes seconds as the next argument and waits that long for the Recording Transcript in place of the shipped Decision Deadline, since a Simulator decode takes seconds. Any value but seconds above 0 stops the app. |
