@@ -34,14 +34,14 @@ import Testing
             | --- | --- | --- |
 
             """
-        let scenarios = flags.filter { if case .scenario = $0.kind { true } else { false } }
+        let isScenario = { (flag: LaunchFlag) in if case .scenario = flag.kind { true } else { false } }
         return header
-            + flags.map { flag in
+            + flags.enumerated().map { index, flag in
                 let kind =
                     switch flag.kind {
                     case .switch: "Switch"
                     case .screen: "Screen"
-                    case .scenario: "Scenario \((scenarios.firstIndex(of: flag) ?? 0) + 1)"
+                    case .scenario: "Scenario \(flags[...index].count(where: isScenario))"
                     case .value: "Value"
                     }
                 let needs = flag.needs.map { " Acts only with `\($0.argument)`, and a fixture launch without it stops." }.joined()
@@ -65,7 +65,7 @@ import Testing
         let first = LaunchFlag(argument: "-FIRST_SCENARIO", kind: .scenario(.fullBlock), meaning: "Seeds the first Block.")
         let second = LaunchFlag(argument: "-SECOND_SCENARIO", kind: .scenario(.longSession), meaning: "Seeds the second Block.")
         let screen = LaunchFlag(argument: "-SCREEN", kind: .screen, meaning: "Opens a screen.")
-        let toggle = LaunchFlag(argument: "-SWITCH", meaning: "Turns a thing off.")
+        let toggle = LaunchFlag(argument: "-SWITCH", kind: .switch, meaning: "Turns a thing off.")
         let value = LaunchFlag(argument: "-VALUE", kind: .value, meaning: "Takes a name.", needs: [toggle])
 
         let rows = launchFlagTable([toggle, first, second, screen, value]).split(separator: "\n").suffix(5)

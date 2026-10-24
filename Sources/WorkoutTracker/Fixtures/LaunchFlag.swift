@@ -8,7 +8,7 @@
         }
 
         let argument: String
-        var kind = Kind.switch
+        let kind: Kind
         let meaning: String
         var actsWithoutFixture = false
         var needs: [LaunchFlag] = []
@@ -19,6 +19,7 @@
 
         static let fixture = LaunchFlag(
             argument: "-UITEST_FIXTURE",
+            kind: .switch,
             meaning:
                 "Runs on an in-memory store, synced from the Scenario's local workbook at boot, with a faked sign-in and"
                 + " a Sheets client that never reaches Google. A log then flushes into that workbook, as it would into the"
@@ -92,23 +93,27 @@
 
         static let disableAnimations = LaunchFlag(
             argument: "-UITEST_DISABLE_ANIMATIONS",
+            kind: .switch,
             meaning: "Turns off UIKit animations and drops the animation from every SwiftUI transaction."
         )
 
         static let disableLiveActivities = LaunchFlag(
             argument: "-UITEST_DISABLE_LIVE_ACTIVITIES",
+            kind: .switch,
             meaning: "Reports Live Activities as disabled, so no Live Activity starts.",
             actsWithoutFixture: true
         )
 
         static let endLiveActivities = LaunchFlag(
             argument: "-UITEST_END_LIVE_ACTIVITIES",
+            kind: .switch,
             meaning: "Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session.",
             actsWithoutFixture: true
         )
 
         static let pendingWrite = LaunchFlag(
             argument: "-UITEST_PENDING_WRITE",
+            kind: .switch,
             meaning:
                 "Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, so a sync writes it to the Scenario's"
                 + " own workbook and reloads the Block from it."
@@ -116,17 +121,20 @@
 
         static let offline = LaunchFlag(
             argument: "-UITEST_OFFLINE",
+            kind: .switch,
             meaning: "Makes the fixture Sheet read as Offline after the boot, so a log stays queued and the header reads"
                 + " `N unsynced`."
         )
 
         static let slowSync = LaunchFlag(
             argument: "-UITEST_SLOW_SYNC",
+            kind: .switch,
             meaning: "Makes every tab list after the boot wait 20 seconds, so a sync stays in flight."
         )
 
         static let lateSignIn = LaunchFlag(
             argument: "-UITEST_LATE_SIGN_IN",
+            kind: .switch,
             meaning:
                 "Restores the sign-in for 3 seconds after launch, showing onboarding meanwhile, then signs in,"
                 + " as restoring a Google sign-in does on a device."
@@ -134,6 +142,7 @@
 
         static let currentSessionOverride = LaunchFlag(
             argument: "-UITEST_CURRENT_SESSION_OVERRIDE",
+            kind: .switch,
             meaning:
                 "Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does;"
                 + " otherwise the Current Session stays."
@@ -141,6 +150,7 @@
 
         static let moveOnCelebration = LaunchFlag(
             argument: "-UITEST_MOVE_ON_CELEBRATION",
+            kind: .switch,
             meaning: "Requests the Move On Celebration for the Current Session."
         )
 
@@ -153,6 +163,7 @@
 
         static let longCelebrationQuote = LaunchFlag(
             argument: "-UITEST_LONG_CELEBRATION_QUOTE",
+            kind: .switch,
             meaning: "Shows a long fixture quote in the Move On Celebration in place of a random approved one.",
             actsWithoutFixture: true
         )
