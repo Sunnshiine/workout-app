@@ -61,6 +61,16 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   those of the area files it links (`docs/context/logging.md`), bind too, and a synonym is a
   finding even when the code works. (#572, fixed in #591.)
 
+## Docs
+
+- **A doc that still describes what the diff removed, renamed, split, or changed,** in `AGENTS.md`,
+  `docs/`, a skill, a README, or a script's `--help`. Grep the docs for the concept's words, not
+  only its symbol, and read each hit against the new behaviour. A file split in parts leaves a
+  pointer that names one part, and `scripts/doc-drift.py` lists the doc lines that name a file the
+  branch split or moved. (#1025 shipped the verify skill naming one of four
+  `host-admission*.test.sh` files. Late review caught the same miss in #909, whose `AGENTS.md` still
+  described the load gate, and in #1019, whose avoid-list rule still named `CONTEXT.md` alone.)
+
 ## Comments
 
 - **A comment that narrates the next line,** or restates a name, a type, or a test. Delete it.
