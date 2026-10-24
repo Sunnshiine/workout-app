@@ -183,6 +183,8 @@ rest pill counts down once a second, so the changed lines always carry it.
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
 while the tree changed. It saves nothing, prints the changed lines, and exits 70.
 
+To put shots or a take into a PR body, use the `pr-evidence` skill.
+
 ## Motion
 
 Under `-UITEST_DISABLE_ANIMATIONS` a slide, a fade, or a fly-in is one cut, so `shot` and `burst`
