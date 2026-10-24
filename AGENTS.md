@@ -54,7 +54,10 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
   decides behaviour belongs in `Sources/WorkoutTracker/`, where `swift test` and the CLI reach it.
 - `WorkoutApplication` is the composition root and the public facade. The app and the CLI both
   build on it (ADR-0015).
-- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006).
+- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006). The
+  write path is flat, with no `Sync/` folder: `Stores/WorkoutStore.swift` queues a `PendingWrite`
+  (`Models/PendingWrite.swift`), `Stores/SyncCoordinator.swift` flushes the queue, and
+  `Sheets/SheetWriter.swift` plans each write to a cell. All sit under `Sources/WorkoutTracker/`.
 
 ## Commands
 
