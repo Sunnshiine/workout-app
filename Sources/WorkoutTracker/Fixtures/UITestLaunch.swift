@@ -76,8 +76,6 @@
 
         /// Throws for the first argument spelled like a launch flag that `LaunchFlag.all` does not
         /// hold, so a misspelt Scenario flag stops the boot instead of quietly booting the default.
-        /// It throws too for a Value flag with no value after it, and for a flag whose `needs` the
-        /// launch leaves out.
         func checkFlags() throws(UnreadableLaunch) {
             for (index, argument) in arguments.enumerated() where argument.hasPrefix(LaunchFlag.prefix) {
                 guard let flag = LaunchFlag.all.first(where: { $0.argument == argument }) else {
@@ -87,8 +85,6 @@
             }
         }
 
-        /// What `flag`, passed at `index`, lacks in this launch: the value after a Value flag, or a
-        /// flag it needs.
         private func missing(for flag: LaunchFlag, at index: Int) -> UnreadableLaunch? {
             if flag.kind == .value, arguments.dropFirst(index + 1).first?.hasPrefix(LaunchFlag.prefix) ?? true {
                 return .missingValue(flag)

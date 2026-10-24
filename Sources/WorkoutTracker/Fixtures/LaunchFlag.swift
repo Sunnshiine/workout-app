@@ -2,12 +2,8 @@
     struct LaunchFlag: Hashable, Sendable {
         enum Kind: Hashable, Sendable {
             case `switch`
-            /// Sends the app somewhere other than the Block overview.
             case screen
-            /// Boots the fixture into this workbook. The first Scenario flag in `all` that a launch
-            /// names wins.
             case scenario(WorkbookScenario)
-            /// Takes the argument after it as its value.
             case value
         }
 
@@ -15,7 +11,6 @@
         var kind = Kind.switch
         let meaning: String
         var actsWithoutFixture = false
-        /// The flags a launch must also pass for this one to act. A fixture launch without them stops.
         var needs: [LaunchFlag] = []
 
         /// What every launch flag starts with, so `UITestLaunch.checkFlags` can tell a misspelt
