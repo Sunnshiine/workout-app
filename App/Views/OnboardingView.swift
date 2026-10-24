@@ -235,7 +235,7 @@ struct SheetPickerView: View {
                     Text("Paste a URL instead")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(palette.accent)
+                .foregroundStyle(palette.action)
             }
         }
         .padding()

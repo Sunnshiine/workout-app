@@ -278,10 +278,7 @@ func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
     #expect(unclassified == [], "palette properties that are neither a colour role nor a known non-ink type")
     #expect(
         roles.subtracting(keyed).sorted() == [],
-        """
-        palette roles with neither a Use nor a quiet reason. The walk sees stored roles only, so a computed alias \
-        such as accent is measured through the role it returns; list the alias's grounds under that role.
-        """
+        "palette roles with neither a Use nor a quiet reason"
     )
     #expect(keyed.subtracting(roles).sorted() == [], "Use or quiet keys that name no palette role")
     #expect(Set(uses.keys).intersection(quietRoles.keys).sorted() == [], "roles both measured and quiet")
