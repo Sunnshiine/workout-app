@@ -80,6 +80,7 @@ scripts/mutate.sh --diff origin/main                # mutants on your changed li
 scripts/mutate.sh --filter RPETableTests Sources/WorkoutTracker/RPETable.swift '6s/6...10/7...10/'
                                                     # one hand-written mutant (sed on line 6); a test must fail: killed good, SURVIVED bad
 scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
+uv run python3 <script.py>                          # with Pillow and numpy from pyproject.toml; in Claude Code a bare python3 is already this .venv
 ```
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,

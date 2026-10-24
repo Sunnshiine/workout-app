@@ -1,0 +1,10 @@
+# The Python agents and the verify skill's tests use. In Claude Code, scripts/python-env.sh puts
+# its .venv first on PATH; elsewhere, `uv run python3`.
+[project]
+name = "workout-app-tools"
+version = "0"
+requires-python = ">=3.9"
+dependencies = ["numpy", "pillow"]
+
+[tool.uv]
+package = false
