@@ -21,13 +21,7 @@ def built_app(home, code):
 
 def fake_checkout(root):
     checkout = root / "checkout"
-    skill = checkout / ".agents" / "skills" / "verify"
-    skill.mkdir(parents=True)
-    (checkout / "scripts").mkdir()
-    for name in ["test-sim.sh", "test-log-summary.awk", "sim-lock.sh", "ensure-simulator.sh"]:
-        (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
-    for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py"]:
-        (skill / name).symlink_to(SKILL / name)
+    link_checkout(checkout)
     return checkout
 
 
@@ -155,14 +149,7 @@ class Lane(unittest.TestCase):
         return done.stdout.strip()
 
     def link_verify(self, checkout):
-        skill = checkout / ".agents" / "skills" / "verify"
-        skill.mkdir(parents=True)
-        for name in ["verify.sh", "verify-usage.sh", "verify-runs.sh", "verify-builds.sh", "verify-launch.sh", "tree.py", "take.py"]:
-            (skill / name).symlink_to(SKILL / name)
-        (checkout / "scripts").mkdir()
-        for name in ["sim-lock.sh", "bootstrap-xcode-worktree.sh"]:
-            (checkout / "scripts" / name).symlink_to(REPO / "scripts" / name)
-        return skill / "verify.sh"
+        return link_checkout(checkout) / "verify.sh"
 
     def edit(self, code):
         (self.checkout / "App" / "Main.swift").write_text(code)

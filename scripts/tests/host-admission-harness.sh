@@ -14,10 +14,8 @@ trap cleanup EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$repo/.agents/skills/verify" "$root/bin" "$products"
-cp "$script_dir/../test-sim.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" \
-    "$script_dir/../test-log-summary.awk" "$script_dir/../dev-usage.sh" "$script_dir/../dev-usage.py" \
-    "$script_dir/../dev_usage_probe.py" "$script_dir/../dev_usage_report.py" "$repo/scripts/"
-cp "$script_dir/../../.agents/skills/verify/"verify.sh "$script_dir/../../.agents/skills/verify/"verify-*.sh "$repo/.agents/skills/verify/"
+find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
+find "$script_dir/../../.agents/skills/verify" -maxdepth 1 -type f -exec cp {} "$repo/.agents/skills/verify/" \;
 touch "$products/../../info.plist" "$products/WorkoutTracker_iphonesimulator27.0-arm64.xctestrun"
 mkdir -p "$products/Debug-iphonesimulator/WorkoutTracker.app" "$repo/.build/verify/node_modules/xcodebuildmcp/bundled"
 printf '#!/bin/sh\n' > "$repo/.build/verify/node_modules/xcodebuildmcp/bundled/axe"

@@ -20,7 +20,7 @@ expect() {
 wait_for() { local _; for _ in $(seq 1 200); do [ -e "$1" ] && return; sleep 0.05; done; }
 
 mkdir -p "$root/bin" "$repo/scripts" "$repo/Sources/Gate" "$repo/App"
-cp "$script_dir/../mutate.sh" "$script_dir/../mutate-usage.sh" "$script_dir/../scratch-tree.sh" "$script_dir/../test-log.awk" "$repo/scripts/"
+find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
 
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/bash

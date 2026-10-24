@@ -6,8 +6,7 @@ trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 build=$root/build
 mkdir -p "$repo/scripts" "$repo/Tests/Unit" "$root/bin" "$build/DerivedData/Build/Products/Debug/WorkoutTrackerTests.xctest"
-cp "$script_dir/../flake-guard.sh" "$script_dir/../changed-tests.sh" "$script_dir/../test-log.awk" \
-    "$script_dir/../test-log-summary.awk" "$repo/scripts/"
+find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
 unset GITHUB_ACTIONS
 export STUB_ARGS=$root/args STUB_INVENTORY=$root/inventory.json
 pass=0

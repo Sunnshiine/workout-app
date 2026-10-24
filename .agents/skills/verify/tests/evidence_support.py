@@ -24,6 +24,17 @@ import take  # noqa: E402
 import tree  # noqa: E402
 
 
+def link_checkout(root):
+    """Links every file of scripts/ and of this skill into root, so a test never lists what a script sources."""
+    skill = root / ".agents" / "skills" / "verify"
+    for source, dest in [(REPO / "scripts", root / "scripts"), (SKILL, skill)]:
+        dest.mkdir(parents=True, exist_ok=True)
+        for path in source.iterdir():
+            if path.is_file():
+                (dest / path.name).symlink_to(path)
+    return skill
+
+
 MINI_TREE = [
     {
         "role": "AXApplication", "AXLabel": "WorkoutTracker", "pid": 4121,
