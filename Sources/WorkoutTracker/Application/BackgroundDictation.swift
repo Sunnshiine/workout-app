@@ -262,31 +262,13 @@ final class BackgroundDictation {
         wasSupersetMember: Bool
     ) -> LiveActivityDictationContent.Subject {
         let set = position.set
-        let kind = RestTriggerPolicy.restKind(
-            afterLogging: set,
-            in: session,
-            isSupersetMember: wasSupersetMember,
-            isRestRunning: restTimer.isRunning
-        )
-        guard let kind else { return .set(LiveActivitySetContent(position)) }
-        restTimer.start(
-            duration: restDuration(kind).timeInterval,
-            origin: position.setID,
-            originSetObjectID: ObjectIdentifier(set),
-            kind: kind
-        )
+        guard restTimer.startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember, durations: app.settings)
+        else { return .set(LiveActivitySetContent(position)) }
         let content = restTimer.interval.flatMap { interval in
             focus.liveActivityRestContent(afterLogging: set, in: session, restStartDate: interval.start, restEndDate: interval.end)
         }
         guard let content else { return .set(LiveActivitySetContent(position)) }
         return .rest(content)
-    }
-
-    private func restDuration(_ kind: RestKind) -> RestDurationSetting {
-        switch kind {
-        case .standard: app.settings.standardRestDuration
-        case .superset: app.settings.supersetRestDuration
-        }
     }
 
     /// Restores the sign-in when no scene has, then flushes for at most `flushWait`.

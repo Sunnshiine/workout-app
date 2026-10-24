@@ -189,10 +189,7 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try wiring.logging.deleteLog(for: set)
-            wiring.restTimer.cancel(
-                ifOriginMatches: Self.activeSetID(for: set),
-                originSetObjectID: ObjectIdentifier(set)
-            )
+            wiring.restTimer.cancelRest(startedBy: set)
             reconcileLiveActivity()
             perform(nil) { focusManager.focus(on: set) }
             wiring.sync.requestPendingWriteFlush()
@@ -306,19 +303,13 @@ extension SessionCoordinator {
 
     fileprivate func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
         guard
-            let restKind = RestTriggerPolicy.restKind(
+            wiring.restTimer.startRest(
                 afterLogging: set,
                 in: session,
-                isSupersetMember: wasSupersetMember,
-                isRestRunning: wiring.restTimer.isRunning
+                wasSupersetMember: wasSupersetMember,
+                durations: wiring.restDurations
             )
         else { return }
-        wiring.restTimer.start(
-            duration: wiring.restDurations.restDuration(for: restKind),
-            origin: Self.activeSetID(for: set),
-            originSetObjectID: ObjectIdentifier(set),
-            kind: restKind
-        )
         startOrUpdateLiveActivity(afterLogging: set, in: session)
     }
 
