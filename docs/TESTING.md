@@ -36,14 +36,17 @@ Two shapes caused every flake found so far, and neither survives the hunt:
 - A fixed number of `Task.yield()` calls before asserting on work another task does. The runtime does not
   promise that ordering. Have the fake resume the test after the work runs, as
   `ManualSessionTransitionClock.advance()` does.
-- A wall-clock budget, such as polling for 10 seconds. Under load the budget runs out, the test returns,
-  and a task it started keeps running against torn-down state. Await the event or the task instead.
+- A wall-clock budget, such as polling for 10 seconds or a Swift Testing time limit. Under load a polling
+  budget runs out, the test returns, and a task it started keeps running against torn-down state. Await the
+  event or the task instead. A time limit also counts the time a test waits behind every other test on the
+  main actor. One loaded full run failed all 17 tests that carried one, though each had passed every
+  expectation (#978).
 
 A wait for work the test does not control is bounded, or a regression that skips the work hangs the run
-instead of failing it. A continuation ignores the time limit's cancellation, so a fake never parks the
-test on one. It polls state on the main actor, where the work that sets it runs, and records a failure
-when the poll runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to
-copy, as `ManualSessionTransitionClock.waitForSleep()` does (#746).
+instead of failing it. A continuation ignores cancellation, so a fake never parks the test on one. It
+polls state on the main actor, where the work that sets it runs, and records a failure when the poll
+runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to copy, as
+`ManualSessionTransitionClock.waitForSleep()` does (#746).
 
 ## Parallel Agents
 

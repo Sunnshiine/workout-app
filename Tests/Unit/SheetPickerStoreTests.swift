@@ -91,7 +91,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
+@Test func sheetPickerDoesNotRunCustomSelectionAfterCancellation() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
     let settings = SettingsStore(defaults: .inMemory())
@@ -151,7 +151,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func sheetPickerKeepsLatestSelectionWhenEarlierValidationFinishesLast() async throws {
+@Test func sheetPickerKeepsLatestSelectionWhenEarlierValidationFinishesLast() async throws {
     let first = SpreadsheetFile(name: "First Sheet", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let second = SpreadsheetFile(name: "Second Sheet", spreadsheetId: "sheet-2", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
@@ -177,7 +177,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func sheetPickerDoesNotCommitSelectionCancelledForURLFallback() async throws {
+@Test func sheetPickerDoesNotCommitSelectionCancelledForURLFallback() async throws {
     let file = SpreadsheetFile(name: "Training Log", spreadsheetId: "sheet-1", modifiedDate: .distantPast)
     let client = ControlledValidationClient()
     let settings = SettingsStore(defaults: .inMemory())
