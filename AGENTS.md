@@ -76,7 +76,8 @@ xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
 scripts/changed-tests.sh                           # the tests this branch changed; what CI's flake guard repeats under load
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
-scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill one hand-written mutant; --help for the form
+scripts/mutate.sh --filter RPETableTests Sources/WorkoutTracker/RPETable.swift '6s/6...10/7...10/'
+                                                    # one hand-written mutant (sed on line 6); a test must fail: killed good, SURVIVED bad
 scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
 ```
 

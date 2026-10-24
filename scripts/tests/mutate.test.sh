@@ -236,5 +236,12 @@ removed $pool/1 (N MB)
 removed $pool/2 (N MB)
 0"
 
+head30=$("$repo/scripts/mutate.sh" --help | head -30)
+missing=""
+for token in "mutate.sh --diff" "  killed " "  SURVIVED " "  flaky " "  nocompile " "  unreachable " "  error " "Exit 0 " "Exit 75 "; do
+    grep -qF -- "$token" <<<"$head30" || missing="$missing [$token]"
+done
+expect "the first 30 lines of --help carry an example, every outcome, and the exit codes" "${missing:-none missing}" "none missing"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
