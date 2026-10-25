@@ -135,19 +135,23 @@ extension DifferentialStateTests {
             Set(script.split(separator: ";").compactMap { Operation($0.trimmingCharacters(in: .whitespaces))?.coachCell })
         }
 
+        /// A live entry the sync never retracts: the live application suggests a load from it.
+        private static let staleEntry = Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only")
+
         /// A hit is named by the first row with its symptom whose coach cells cover every cell the
-        /// hit still needs, so a divergence the search reaches through other cells has a row for each.
+        /// hit still needs, so a divergence the search reaches through other cells, or that shows
+        /// another symptom there, has a row for each.
         static let all = [
             KnownDivergence(
                 number: 964,
                 title: "an Exercise History entry outlives its renamed row",
-                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only"),
+                symptom: staleEntry,
                 script: "log w1d1.e0.s0 185x5@8; flush; coach C15=Front Squat; sync"
             ),
             KnownDivergence(
                 number: 812,
                 title: "an Exercise History entry outlives its removed Set Log",
-                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only"),
+                symptom: staleEntry,
                 script: "log w1d1.e0.s0 185x5@8; flush; coach K15=; sync"
             ),
             KnownDivergence(
@@ -172,16 +176,44 @@ extension DifferentialStateTests {
             KnownDivergence(
                 number: 964,
                 title: "an Exercise History entry from a coach's Set Log outlives its renamed row",
-                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only"),
+                symptom: staleEntry,
                 script: "coach K15=185x5@8; sync; coach C15=Front Squat; sync"
             ),
-            // The pending Set Log follows its Exercise's name onto the other row, so nothing stays
-            // pending and I2 sees the entry the rename left behind.
             KnownDivergence(
                 number: 964,
-                title: "an Exercise History entry outlives its row when the coach gives its name to another",
-                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only"),
-                script: "log w1d1.e0.s2 185x5@8; coach C15=Front Squat; coach C19=Back Squat; sync"
+                title: "an Exercise History entry outlives the Session's second Exercise, renamed",
+                symptom: staleEntry,
+                script: "log w1d1.e1.s0 185x5@8; flush; coach C19=Back Squat; sync"
+            ),
+            KnownDivergence(
+                number: 812,
+                title: "an Exercise History entry outlives the second Exercise's removed Set Log",
+                symptom: staleEntry,
+                script: "log w1d1.e1.s0 185x5@8; flush; coach K19=; sync"
+            ),
+            // The old name stays in the tab, on the other row, so this is #812's entry, not #964's.
+            // Flushed before the swap, it does not go through #1109, whose misplaced write both
+            // applications read alike.
+            KnownDivergence(
+                number: 812,
+                title: "an Exercise History entry outlives its Set Log when the coach gives its name to another row",
+                symptom: staleEntry,
+                script: "log w1d1.e0.s2 185x5@8; flush; coach C15=Front Squat; coach C19=Back Squat; sync"
+            ),
+            KnownDivergence(
+                number: 961,
+                title: "live logging and sync keep different Set Logs for two same-named Exercises",
+                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.setLog: both"),
+                script: "coach C19=Back Squat; sync; log w1d1.e0.s0 200x3@9; flush; log w1d1.e1.s0 190x5@8; "
+                    + "log w1d1.e0.s0 185x5@8; flush"
+            ),
+            // A Set Log in another Session moves which Exercises the Current Session leaves open, so
+            // the double reading shows there first.
+            KnownDivergence(
+                number: 1047,
+                title: "a coach's Legacy Log and a Set Log read twice, seen in the open Exercises",
+                symptom: Symptom(.resynced, "app.openExercises[*]: live absent"),
+                script: "coach K19=225x8; sync; log w1d2.e0.s0 185x5@8; log w1d1.e1.s0 200x3@9; flush"
             )
         ]
     }
