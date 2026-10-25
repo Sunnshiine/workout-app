@@ -37,7 +37,7 @@ extension PendingWrite {
     convenience init(
         id: UUID = UUID(),
         // The production initializer's own default: a test that passes no createdAt queues the
-        // write now, as it did before this overload existed.
+        // write now, as it did before this overload existed. #689 keeps that default (wontfix).
         // swiftlint:disable:next fixture_dates_are_literal
         createdAt: Date = Date(),
         session: SessionCoordinate,
