@@ -27,7 +27,10 @@ scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild 
 scripts/crap.sh --help
 ```
 
-Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the test log (`test.log`). The
+Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the test log (`test.log`). When a
+test fails, the script prints `scripts/test-log-summary.sh`'s reading of that log instead of scoring:
+each issue with its file, line, and expectation, the failing tests, and the open issue whose title
+names each one. Under GitHub Actions each issue also becomes an annotation on the checks page. The
 baseline lives at `tools/crap/baseline.tsv`. Its fourth column, `reason`, is written by hand: say why
 a row is held above the target (a device probe no headless test can reach, a flat switch whose every
 branch is a distinct message). `crap baseline` keeps the reason while the row survives and drops it

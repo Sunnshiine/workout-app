@@ -1,4 +1,6 @@
 # shellcheck shell=bash
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=HOST-ADMISSION-TEST-$$
@@ -109,6 +111,7 @@ fi
 echo "** BUILD FAILED **"
 exit 65
 STUB
+printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
 # shellcheck disable=SC2046

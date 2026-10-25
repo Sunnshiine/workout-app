@@ -45,6 +45,10 @@ test on one. It polls state on the main actor, where the work that sets it runs,
 when the poll runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to
 copy, as `ManualSessionTransitionClock.waitForSleep()` does (#746).
 
+Title a flaky test's issue with the test's function name, as #978 is. A failing run of
+`scripts/crap.sh`, `scripts/test-sim.sh`, or `scripts/flake-hunt.sh` searches open issue titles for
+each failing test's name and prints the issue it finds.
+
 ## Parallel Agents
 
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
