@@ -212,6 +212,32 @@ git checkout main~1 -- g1.txt
 git commit -q -m "Merge main"
 expect "the merge's silent drop of g1.txt names #7 and the file" 1 "undoes #7 30/90 lines" main drops-g1
 
+echo "a merge commit on the base"
+new_repo "$root/base-merge"
+echo "shared line one here" >a.txt
+commit "base (#1)"
+git checkout -q -b side
+echo "side version line" >a.txt
+commit "side (#2)"
+git checkout -q main
+echo "main version line" >a.txt
+commit "main (#3)"
+git merge -q side -m "Merge side" >/dev/null 2>&1
+echo "resolved version line" >a.txt
+commit "Merge side (#4)"
+git checkout -q -b on-merge
+echo "pr work" >p.txt
+commit "pr work"
+git checkout -q main
+echo "main later work" >m.txt
+commit "later (#5)"
+got=$(run main on-merge)
+if [ "$got" = 0 ] && [ ! -s "$root/err" ]; then
+    ok "a base whose window holds a merge that resolved a conflict is read, and stays quiet"
+else
+    bad "a base whose window holds a merge that resolved a conflict is read, and stays quiet: exit $got, $(tail -3 "$root/err")"
+fi
+
 echo "a commit with no PR number"
 new_repo "$root/no-number"
 echo "base" >a.txt

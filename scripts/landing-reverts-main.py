@@ -93,7 +93,7 @@ def diff(*args):
 
 
 def commit_hunks(commit):
-    return diff("show", "-U0", "--format=", "--no-renames", commit)
+    return diff("show", "-U0", "--format=", "--no-renames", "--diff-merges=first-parent", commit)
 
 
 def require_history(base, head, window, pr_commits):
