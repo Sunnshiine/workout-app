@@ -101,6 +101,21 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
+    func testSayingAnEditToAReopenedLoggedSetSavesItAndClosesTheReview() throws {
+        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        app.buttons["log-active-set-button"].tap()
+        app.buttons["Set 1, 237.5x5@6"].tap()
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        XCTAssertTrue(app.buttons["say-set-button"].exists, "a reopened logged Set takes the mic")
+
+        app.buttons["say-set-button"].press(forDuration: 1)
+
+        XCTAssertTrue(app.buttons["Set 1, 235x5@7"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3), "the edit saves and the review closes")
+    }
+
+    @MainActor
     func testATouchOnTheHeldCardMovesOnWithoutChangingTheSetItWrote() throws {
         let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
