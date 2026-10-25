@@ -348,7 +348,6 @@ private func pairBackSquatWithBBRDL(in app: XCUIApplication) {
     XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
     tapWhenHittable(app.buttons["stage-queue-superset"])
     tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
-    tapWhenHittable(app.buttons["stage-queue-row-superset-0"])
     waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
 }
 
