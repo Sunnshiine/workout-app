@@ -20,7 +20,7 @@ comment body that names one of these outcomes:
   --at SHA      the commit the comment names (default HEAD).
 
 Exits 0 even when a mutant survives, because a survivor can be an equivalent mutant that no test
-could kill. The mutate.sh output goes to stderr.
+could kill. The mutate.sh output goes to stderr, and with --comment the outcome and body follow it.
 USAGE
 }
 
@@ -49,7 +49,7 @@ rows() {
 report() {
     if git diff --quiet "$base" HEAD -- Sources; then
         outcome="no Sources"
-        echo "This diff changes no Sources/ file, so no mutant runs."
+        echo "This diff changes no Sources/ file, so it is out of reach of swift test and no mutant runs."
         return
     fi
     local status=0 summary
@@ -86,6 +86,8 @@ if [ -z "$pr" ]; then
     exit 0
 fi
 
+echo "mutate-advisory: $outcome" >&2
+cat "$tmp/report.md" >&2
 at=${at:-$(git rev-parse HEAD)}
 marker='<!-- mutate-advisory -->'
 comments="repos/$GITHUB_REPOSITORY/issues"

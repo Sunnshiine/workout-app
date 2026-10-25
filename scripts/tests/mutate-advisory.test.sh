@@ -57,7 +57,7 @@ echo 'let v = 2' >"$repo/App/V.swift"
 git -C "$repo" -c user.name=t -c user.email=t@t commit -qam app
 run "" 0
 expect "an App-only diff says it is out of reach, runs no mutant, and exits 0" "$status|$out|$([ -e "$repo/args" ] && echo ran)" \
-    "0|This diff changes no Sources/ file, so no mutant runs.|"
+    "0|This diff changes no Sources/ file, so it is out of reach of swift test and no mutant runs.|"
 
 echo 'let a = 2' >"$repo/Sources/A.swift"
 git -C "$repo" -c user.name=t -c user.email=t@t commit -qam fix
@@ -179,10 +179,13 @@ At 01234567."
 done
 comment '[]' "the untouched snapshot must pass before mutating" 2
 expect "a run with no verdict and no earlier comment posts nothing" "$status|$(cat "$GH_LOG")" "0|"
+(cd "$repo" && scripts/mutate-advisory.sh --comment 7 HEAD^1 2>"$tmp/stderr" >/dev/null)
+expect "with --comment the job log names the outcome even when nothing is posted" "$(grep '^mutate-advisory: ' "$tmp/stderr")" \
+    "mutate-advisory: no verdict"
 
 git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m empty
 updated "a diff that changes no Sources/ file updates the earlier comment to say so" "" 0 \
-    "This diff changes no Sources/ file, so no mutant runs.
+    "This diff changes no Sources/ file, so it is out of reach of swift test and no mutant runs.
 
 At 01234567."
 
