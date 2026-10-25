@@ -124,7 +124,12 @@ struct ActiveSetCard: View {
                 micControl(mic.dictation)
             }
         case .saved:
-            savedConfirmation
+            HStack(spacing: 0) {
+                savedConfirmation
+                if let mic {
+                    micControl(mic.dictation)
+                }
+            }
         case .clearMenu:
             clearMenu
         case .savedAndClearMenu:

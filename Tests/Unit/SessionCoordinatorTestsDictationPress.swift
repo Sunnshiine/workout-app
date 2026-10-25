@@ -147,7 +147,7 @@ func letGoOfTheMic(
 }
 
 @MainActor
-@Test func theMicIsOnTheCardOnlyForAPendingSetBeingLogged() async throws {
+@Test func theMicIsOnTheCardForAPendingSetOrALoggedSetUnderReviewAndNotForAHeldSet() async throws {
     let session = makeCoordinatorSession()
     let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
     let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
@@ -158,7 +158,7 @@ func letGoOfTheMic(
 
     coordinator.focus(on: squat)
     #expect(try card(coordinator, in: session).mode == .reviewingLogged(showsSavedConfirmation: false))
-    #expect(coordinator.cardDictation(for: try card(coordinator, in: session)) == nil)
+    #expect(coordinator.cardDictation(for: try card(coordinator, in: session)) == .ready)
 
     let withoutTranscriber = SessionCoordinator(session: session, wiring: .fixture())
     #expect(withoutTranscriber.cardDictation(for: try card(withoutTranscriber, in: session)) == nil)
