@@ -146,6 +146,25 @@ polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:8
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:14
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:20
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:24
+
+tests_wait_on_events_not_clocks Tests/Component/TestsWaitOnEventsNotClocks.swift:3
+tests_wait_on_events_not_clocks Tests/Support/TestsWaitOnEventsNotClocks.swift:3
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:6
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:10
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:14
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:18
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:22
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:25
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:28
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:32
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:36
+tests_wait_on_events_not_clocks Tests/Unit/TestsWaitOnEventsNotClocks.swift:40
+
+tests_never_park_on_a_bare_continuation Tests/Support/TestsNeverParkOnABareContinuation.swift:3
+tests_never_park_on_a_bare_continuation Tests/Unit/TestsNeverParkOnABareContinuation.swift:3
+tests_never_park_on_a_bare_continuation Tests/Unit/TestsNeverParkOnABareContinuation.swift:9
+tests_never_park_on_a_bare_continuation Tests/Unit/TestsNeverParkOnABareContinuation.swift:15
+tests_never_park_on_a_bare_continuation Tests/Unit/TestsNeverParkOnABareContinuation.swift:21
 EXPECTED
 }
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
