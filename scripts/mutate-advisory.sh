@@ -5,13 +5,18 @@ usage() {
     cat <<'USAGE'
 scripts/mutate-advisory.sh [--comment PR [--at SHA]] BASE
 
-Runs scripts/mutate.sh --diff BASE Sources on the full swift test suite and prints the mutants
-that survived as a Markdown comment body. It prints nothing when every mutant was killed, when no
-mutant was generated, or when the run gave no verdict (a red baseline, busy scratch trees). A diff
-that changes no Sources/ file is out of reach of swift test, and the script says so on stderr.
+Runs scripts/mutate.sh --diff BASE Sources on the full swift test suite and prints a Markdown
+comment body that names one of these outcomes:
+  survived    the mutants that every test still passes, with any --max left out
+  killed      every generated mutant ran and a test killed it
+  partial     none survived, but some did not compile, errored, were flaky, or were left out
+  none        no mutant was generated on the changed lines
+  no verdict  mutate.sh exited 2 (a red baseline) or 75 (busy scratch trees), so none ran
+  no Sources  the diff changes no Sources/ file, which is out of reach of swift test
 
-  --comment PR  posts the body as a comment on pull request PR of $GITHUB_REPOSITORY instead of
-                printing it, or updates the comment an earlier run posted.
+  --comment PR  posts the body on pull request PR of $GITHUB_REPOSITORY instead of printing it.
+                Only survivors post a new comment. Every outcome updates the comment an earlier
+                run of github-actions[bot] posted, so it never keeps a stale verdict.
   --at SHA      the commit the comment names (default HEAD).
 
 Exits 0 even when a mutant survives, because a survivor can be an equivalent mutant that no test
@@ -33,35 +38,51 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
-survivors() {
-    if git diff --quiet "$base" HEAD -- Sources; then
-        echo "mutate-advisory: this diff changes no Sources/ file, so it is out of reach of swift test" >&2
-        return
-    fi
-    local out=$tmp/mutate.out status=0
-    "$script_dir/mutate.sh" --max "${MUTATE_ADVISORY_MAX:-20}" --diff "$base" Sources >"$out" 2>&1 || status=$?
-    cat "$out" >&2
-    case $status in
-        0 | 1) ;;
-        *) echo "mutate-advisory: mutate.sh exited $status with no verdict, so nothing is posted" >&2; return ;;
-    esac
-    grep -q '^SURVIVED ' "$out" || return
-    cat <<BODY
-**Mutants that survive on the lines this fix changed** (advisory, from \`scripts/mutate.sh --diff\`)
-
-Each row is a one-line change to the code that every \`swift test\` test still passes. Pin the
-behaviour with a test, or say in the PR why the mutant is equivalent.
-
-\`\`\`text
-$(grep -E '^(SURVIVED|not run) ' "$out")
-$(tail -1 "$out")
-\`\`\`
-BODY
+rows() {
+    printf '\n```text\n'
+    grep -E "^($1) " "$tmp/mutate.out"
+    tail -1 "$tmp/mutate.out"
+    printf '```\n'
 }
 
-survivors >"$tmp/survivors.md"
+# Prints the body and sets outcome.
+report() {
+    if git diff --quiet "$base" HEAD -- Sources; then
+        outcome="no Sources"
+        echo "This diff changes no Sources/ file, so no mutant runs."
+        return
+    fi
+    local status=0 summary
+    "$script_dir/mutate.sh" --max "${MUTATE_ADVISORY_MAX:-20}" --diff "$base" Sources >"$tmp/mutate.out" 2>&1 || status=$?
+    cat "$tmp/mutate.out" >&2
+    summary=$(tail -1 "$tmp/mutate.out")
+    if [ "$status" != 0 ] && [ "$status" != 1 ]; then
+        outcome="no verdict"
+        echo "mutate.sh exited $status with no verdict, so no mutant ran. The job log names the cause, such as a red baseline (2) or busy scratch trees (75)."
+    elif grep -q '^SURVIVED ' "$tmp/mutate.out"; then
+        outcome=survived
+        echo "**Mutants that survive on the lines this fix changed** (advisory, from \`scripts/mutate.sh --diff\`)"
+        echo
+        echo "Each row is a one-line change to the code that every \`swift test\` test still passes. Pin the"
+        echo "behaviour with a test, or say in the PR why the mutant is equivalent."
+        rows 'SURVIVED|not run'
+    elif [[ $summary == "mutants: 0 "* ]]; then
+        outcome=none
+        echo "No mutant was generated on the changed Sources lines."
+    elif [ "$status" = 0 ] && [[ $summary =~ ^([0-9]+)\ mutants?:\ ([0-9]+)\ killed$ ]] &&
+        [ "${BASH_REMATCH[1]}" = "${BASH_REMATCH[2]}" ]; then
+        outcome=killed
+        echo "Every mutant of the changed Sources lines was killed ($summary)."
+    else
+        outcome=partial
+        echo "No mutant survived, but not every mutant was run and killed, so the changed lines may still be unpinned:"
+        rows 'nocompile|error|flaky|unreachable|not run'
+    fi
+}
+
+report >"$tmp/report.md"
 if [ -z "$pr" ]; then
-    cat "$tmp/survivors.md"
+    cat "$tmp/report.md"
     exit 0
 fi
 
@@ -69,16 +90,10 @@ at=${at:-$(git rev-parse HEAD)}
 marker='<!-- mutate-advisory -->'
 comments="repos/$GITHUB_REPOSITORY/issues"
 id=$(gh api "$comments/$pr/comments" --paginate \
-    --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -1)
-if [ -s "$tmp/survivors.md" ]; then
-    { echo "$marker"; cat "$tmp/survivors.md"; echo; echo "At ${at:0:8}."; } >"$tmp/body.md"
-elif [ -n "$id" ]; then
-    { echo "$marker"; echo "No mutant of the changed Sources lines survives at ${at:0:8}."; } >"$tmp/body.md"
-else
-    exit 0
-fi
+    --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id" | tail -1)
+{ echo "$marker"; cat "$tmp/report.md"; echo; echo "At ${at:0:8}."; } >"$tmp/body.md"
 if [ -n "$id" ]; then
     gh api -X PATCH "$comments/comments/$id" -F body=@"$tmp/body.md" >/dev/null
-else
+elif [ "$outcome" = survived ]; then
     gh api -X POST "$comments/$pr/comments" -F body=@"$tmp/body.md" >/dev/null
 fi

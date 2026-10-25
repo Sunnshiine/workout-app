@@ -56,8 +56,8 @@ run() {
 echo 'let v = 2' >"$repo/App/V.swift"
 git -C "$repo" -c user.name=t -c user.email=t@t commit -qam app
 run "" 0
-expect "an App-only diff prints no body, says why, runs no mutant, and exits 0" "$status|$out|$(cat "$tmp/stderr")|$([ -e "$repo/args" ] && echo ran)" \
-    "0||mutate-advisory: this diff changes no Sources/ file, so it is out of reach of swift test|"
+expect "an App-only diff says it is out of reach, runs no mutant, and exits 0" "$status|$out|$([ -e "$repo/args" ] && echo ran)" \
+    "0|This diff changes no Sources/ file, so no mutant runs.|"
 
 echo 'let a = 2' >"$repo/Sources/A.swift"
 git -C "$repo" -c user.name=t -c user.email=t@t commit -qam fix
@@ -83,12 +83,12 @@ expect "it runs the full suite on Sources only, capped at 20" "$(cat "$repo/args
 expect "the mutate.sh output goes to stderr" "$(sed -n 2p "$tmp/stderr")" "mutants: 3 on 1 changed line in 1 file since abc"
 
 run "1 mutant: 1 killed" 0
-expect "every mutant killed prints no body" "$status|$out" "0|"
+expect "every mutant killed says so" "$status|$out" "0|Every mutant of the changed Sources lines was killed (1 mutant: 1 killed)."
 
 run "the untouched snapshot must pass before mutating; swift test reports:
 SURVIVED     Sources/A.swift:1  const  1 -> 2" 2
-expect "a run with no verdict prints no body and exits 0" "$status|$out|$(tail -1 "$tmp/stderr")" \
-    "0||mutate-advisory: mutate.sh exited 2 with no verdict, so nothing is posted"
+expect "a run with no verdict lists no survivor and exits 0" "$status|$out" \
+    "0|mutate.sh exited 2 with no verdict, so no mutant ran. The job log names the cause, such as a red baseline (2) or busy scratch trees (75)."
 
 comment() {
     printf '%s\n' "$1" >"$GH_COMMENTS"
@@ -112,6 +112,79 @@ expect "a survivor with an earlier comment updates that comment" "$(head -1 "$GH
 
 comment '[]' "1 mutant: 1 killed" 0
 expect "every mutant killed and no earlier comment posts nothing" "$status|$(cat "$GH_LOG")" "0|"
+
+bot='{"id": 5, "user": {"login": "github-actions[bot]"}, "body": "<!-- mutate-advisory -->\\nold"}'
+person='{"id": 9, "user": {"login": "someone"}, "body": "<!-- mutate-advisory --> quoted"}'
+comment "[$bot, $person]" "$survivor" 1
+expect "a person's comment that starts with the marker is left alone, and the bot's is updated" "$(head -1 "$GH_LOG")" \
+    "PATCH repos/o/r/issues/comments/5"
+comment "[$person]" "$survivor" 1
+expect "with only a person's marker comment, a survivor posts a new comment" "$(head -1 "$GH_LOG")" \
+    "POST repos/o/r/issues/7/comments"
+
+updated() {
+    comment "[$bot]" "$2" "$3"
+    expect "$1" "$status|$(head -1 "$GH_LOG")|$(sed -n '3,$p' "$GH_LOG")" "0|PATCH repos/o/r/issues/comments/5|$4"
+}
+updated "every mutant killed updates the earlier comment to say so" "log: x
+mutants: 2 on 1 changed line in 1 file since abc
+killed       Sources/A.swift:1  const   1 -> 2  aTest
+killed       Sources/A.swift:1  bool    true -> false  aTest
+2 mutants: 2 killed" 0 "Every mutant of the changed Sources lines was killed (2 mutants: 2 killed).
+
+At 01234567."
+updated "no mutant generated is not reported as none surviving" "log: x
+mutants: 0 on 3 changed lines in 1 file since abc" 0 "No mutant was generated on the changed Sources lines.
+
+At 01234567."
+partial="No mutant survived, but not every mutant was run and killed, so the changed lines may still be unpinned:"
+updated "a --max cut with no survivor lists the mutants it left out" "mutants: 3 on 1 changed line in 1 file since abc
+killed       Sources/A.swift:1  const   1 -> 2  aTest
+not run      Sources/A.swift:1  bool    true -> false
+1 mutant: 1 killed; 1 not run (--max 1)" 1 "$partial
+
+\`\`\`text
+not run      Sources/A.swift:1  bool    true -> false
+1 mutant: 1 killed; 1 not run (--max 1)
+\`\`\`
+
+At 01234567."
+updated "mutants that did not compile are not reported as killed" "mutants: 1 on 1 changed line in 1 file since abc
+nocompile    Sources/A.swift:1  const   1 -> 2  Sources/A.swift:1: error: x
+1 mutant: 1 nocompile" 0 "$partial
+
+\`\`\`text
+nocompile    Sources/A.swift:1  const   1 -> 2  Sources/A.swift:1: error: x
+1 mutant: 1 nocompile
+\`\`\`
+
+At 01234567."
+updated "error and flaky rows are not reported as killed" "mutants: 2 on 1 changed line in 1 file since abc
+error        Sources/A.swift:1  const   1 -> 2  runner failed
+flaky        Sources/A.swift:1  bool    true -> false  aTest
+2 mutants: 1 flaky, 1 error" 1 "$partial
+
+\`\`\`text
+error        Sources/A.swift:1  const   1 -> 2  runner failed
+flaky        Sources/A.swift:1  bool    true -> false  aTest
+2 mutants: 1 flaky, 1 error
+\`\`\`
+
+At 01234567."
+for code in 2 75; do
+    updated "exit $code updates the earlier comment to say no mutant ran" "the untouched snapshot must pass before mutating" $code \
+        "mutate.sh exited $code with no verdict, so no mutant ran. The job log names the cause, such as a red baseline (2) or busy scratch trees (75).
+
+At 01234567."
+done
+comment '[]' "the untouched snapshot must pass before mutating" 2
+expect "a run with no verdict and no earlier comment posts nothing" "$status|$(cat "$GH_LOG")" "0|"
+
+git -C "$repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m empty
+updated "a diff that changes no Sources/ file updates the earlier comment to say so" "" 0 \
+    "This diff changes no Sources/ file, so no mutant runs.
+
+At 01234567."
 
 (cd "$repo" && scripts/mutate-advisory.sh >/dev/null 2>&1)
 expect "no BASE is a usage error" "$?" "2"
