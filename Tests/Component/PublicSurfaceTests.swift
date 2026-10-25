@@ -81,6 +81,11 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 
     let sync = try json(try await app.sync())
     #expect(sync["currentSession"] as? String == "w1d1")
+
+    _ = try app.requestMoveOnCelebration()
+    let moveOn = try json(try app.dismissMoveOnCelebration())
+    #expect(moveOn["returnedToBlockGrid"] as? Bool == false)
+    #expect((moveOn["snapshot"] as? [String: Any])?["currentSession"] as? String == "w1d2")
 }
 
 @MainActor
@@ -169,6 +174,11 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
             .sessionUnavailable("w2d3"), "session_unavailable",
             "w2d3 is an Unavailable Session: the coach has not uploaded it yet. "
                 + "`workout status` shows which are available.", nil, .domain
+        ),
+        (
+            .noMoveOnCelebration, "no_move_on_celebration",
+            "No Move On Celebration is open. Open one with `requestMoveOnCelebration()`; "
+                + "`workout move-on` makes both taps.", nil, .domain
         ),
         (
             .sheetSwitchFailed("the sheet is offline"), "sheet_switch_failed",

@@ -8,12 +8,22 @@ in the library was internal, and no Sheet existed without Google credentials.
 `WorkoutApplication` is the one composition root. It owns the schema list and builds the model
 container and the four stores from an `AppEnvironment` (in memory, on disk, or the device default;
 which `SheetsClient`; where settings live; the clock). Both app launch branches and the CLI go
-through it. Its public facade is the only surface outside the module: `selectSpreadsheet`,
-`snapshot`, `session`, `log`, `flush`, `sync`, `sheet`. Each verb calls the store method the UI
-calls and returns an `Encodable` value derived from the stores on each call. The stores, the
-models, and `SheetsClient` stay internal, so the compiler enforces that a new CLI capability is a
-facade method over an existing store method. A test compiled without `@testable` exercises exactly
-that surface.
+through it. Its public facade is the only surface outside the module, and every `public` instance
+method of `WorkoutApplication` is a verb. Each verb calls the one store method the UI calls and
+returns an `Encodable` value derived from the stores on each call. A gesture the UI makes in two
+taps is two verbs, as Move On (`requestMoveOnCelebration`, `dismissMoveOnCelebration`) and Make
+current (`view`, `makeCurrent`) are, so a caller can let the Sheet move between them, and a CLI
+command makes both taps in one process. The stores, the models, and `SheetsClient` stay internal,
+so the compiler enforces that a new CLI capability is a facade method over an existing store
+method. A test compiled without `@testable` exercises exactly that surface.
+
+A verb whose effect already holds converges: it writes nothing and returns the state, as Clear on
+a Pending Set and Make current on the Current Session do. A verb whose effect cannot be reached
+refuses with a domain error, as dismissing a Move On Celebration when none is open and making an
+Unavailable Session current do. The UI offers neither tap: no overlay is open, and an Unavailable
+tile does not open. A pin on an Unavailable Session would stand while the store fell back to
+Sheet-derived progress, and no snapshot field would say so, so the facade refuses and the caller
+learns why.
 
 Fixtures are workbooks, not model graphs. `WorkbookScenario` produces a `LocalWorkbook` in the
 coach's canonical layout, and the application reads it through the real parser and writes to it
