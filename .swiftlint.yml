@@ -214,6 +214,27 @@ custom_rules:
       - string
     severity: error
 
+  # The Sheet addresses an Exercise by its Entered Name and how many same-named Exercises sit above
+  # it (#813), so only a Sheet read can say which Exercise a write targets. PendingWrite.swift keeps
+  # ExerciseReference's init and ordinal fileprivate. This rule keeps `unchecked`, the one mint
+  # other files can call, to fixtures and tests.
+  exercise_references_are_parsed:
+    name: "Exercise References come from a Sheet read"
+    message: >
+      Take the ExerciseReference from SetCoordinates(of:), Exercise.reference(in:), or a queued
+      PendingWrite's exercise. ExerciseReference.unchecked(name:ordinal:) mints one no Sheet read
+      backs, so only fixtures and tests call it (#813).
+    regex: '\bunchecked\s*\(\s*name\s*:|\bExerciseReference\s*\.\s*unchecked\b'
+    included: '.*/(App|Sources)/.*'
+    excluded:
+      - '.*/Sources/WorkoutTracker/Fixtures/.*'
+      - '.*/Sources/WorkoutTracker/Models/PendingWrite\.swift'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1
