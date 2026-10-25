@@ -75,8 +75,9 @@ private func reviewFirstBenchLoggedByHand(
     let (coordinator, ledger, session, set, _) = try reviewFirstBenchLoggedByHand(saying: ["skip"])
     let entriesBeforeThePress = ledger.entries.count
 
-    _ = try await sayIntoTheCard(coordinator, in: session)
+    let outcome = try await sayIntoTheCard(coordinator, in: session)
 
+    #expect(outcome == nil, "the card answers no skip it did not make")
     #expect(set.state == .logged)
     #expect(set.setLog == SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     #expect(ledger.entries.count == entriesBeforeThePress)
@@ -96,4 +97,19 @@ private func reviewFirstBenchLoggedByHand(
     _ = await coordinator.finishDictation(of: set)
 
     #expect(set.setLog == byHand)
+}
+
+@MainActor
+@Test func aPressRefusedWhileAnotherIsInFlightLeavesThatPressesLogStanding() async throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["190 for 6 at 8"])
+    let pending = try card(coordinator, in: session).set
+    let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
+    coordinator.startDictation(for: pending)
+    coordinator.focus(on: squat)
+
+    coordinator.startDictation(for: squat)
+    _ = await coordinator.finishDictation(of: pending)
+
+    #expect(pending.setLog == SetLog(weight: .pounds(190), reps: 6, rpe: .eight))
 }
