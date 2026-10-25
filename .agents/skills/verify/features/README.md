@@ -37,7 +37,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 - [Log a set](./log-a-set.md) covers the active set card: weight, reps, RPE, logging, skipping, reviewing a logged set, exercise history, and the sync side effect.
 - [Say a set](./say-a-set.md) covers saying a Set with the card's mic held, saying an edit to a reopened logged set, hands-free from the dictate link and the Log a Set shortcut, and logging by voice with the phone locked or the app closed.
-- [Session queue](./session-queue.md) covers the exercise queue sheet, jumping to an exercise, Up next, and superset pairing.
+- [Session queue](./session-queue.md) covers the exercise queue sheet, jumping to an exercise, reopening a finished one, Up next, and superset pairing.
 - [Block overview](./block-overview.md) covers the Block grid, opening another session, making it current, and sessions that are not uploaded.
 - [Session completion](./session-completion.md) covers the completion stage, open exercises, Move On from the stage or the queue, and the celebration.
 - [Settings](./settings.md) covers appearance, rest timers, switching the training sheet, sync, sign out with pending writes, the build footer, and Developer Tools.
