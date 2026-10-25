@@ -13,6 +13,7 @@ struct SmartValuePillsForm {
     private var initialWeightText: String
     private let initialRepsText: String
     private let initialRPEText: String
+    private let initialSetLog: SetLog?
 
     struct LoadBasisLine: Equatable {
         let text: String
@@ -77,6 +78,13 @@ struct SmartValuePillsForm {
         return makeLog()
     }
 
+    /// The changed draft a review saves over `set`, unless another write saved `set` since the card
+    /// opened, as a Spoken Set does: the card's older draft would undo it.
+    func changedValidLog(toSaveOver set: ExerciseSet) -> SetLog? {
+        guard set.setLog == initialSetLog else { return nil }
+        return changedValidLog
+    }
+
     var logButtonTitle: String {
         guard let log = makeLog() else { return incompleteLogButtonTitle }
         // The Log capsule previews the exact Set Log with the spaced typography of
@@ -97,6 +105,7 @@ struct SmartValuePillsForm {
         initialWeightText = weightText
         initialRepsText = repsText
         initialRPEText = rpeText
+        initialSetLog = set.setLog
     }
 
     /// A suggestion can arrive after the card renders, once a sync or the Exercise History fill
