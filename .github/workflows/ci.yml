@@ -134,6 +134,46 @@ jobs:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
+  # Advisory: a fix pull request gets one comment listing the mutants of its changed Sources/
+  # lines that no test kills. It never fails, because some survivors are equivalent mutants.
+  mutants:
+    if: (github.event.action != 'edited' || github.event.changes.base) && (startsWith(github.event.pull_request.title, 'fix(') || startsWith(github.event.pull_request.title, 'fix:'))
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'mutants (edit, base unchanged)' || 'mutants' }}
+    runs-on: xcode-27
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The bound sits on the step, so continue-on-error covers a timeout and the job stays green.
+      - name: Comment the mutants that survive on the changed Sources lines
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          scripts/mutate-advisory.sh HEAD^1 >"$RUNNER_TEMP/survivors.md"
+          marker='<!-- mutate-advisory -->'
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -1)
+          if [ -s "$RUNNER_TEMP/survivors.md" ]; then
+            { echo "$marker"; cat "$RUNNER_TEMP/survivors.md"; echo; echo "At ${HEAD_SHA:0:8}."; } >"$RUNNER_TEMP/body.md"
+          elif [ -n "$id" ]; then
+            { echo "$marker"; echo "No mutant of the changed Sources lines survives at ${HEAD_SHA:0:8}."; } >"$RUNNER_TEMP/body.md"
+          else
+            exit 0
+          fi
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
+          fi
+
   visual-tests:
     if: github.event.action != 'edited' || github.event.changes.base
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
