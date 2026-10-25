@@ -48,9 +48,12 @@ private let drive = LocalDrive([workbook("one", title: "First", marker: "1"), wo
 
 @Test func aHeldDriveWaitsBeforeEveryLaterTabList() async throws {
     let drive = LocalDrive([workbook("one", title: "First", marker: "1")])
+    // The hold is a real sleep, and the test asserts only its floor, which load cannot break.
+    // swiftlint:disable:next tests_wait_on_events_not_clocks
     let clock = ContinuousClock()
 
     await drive.holdTabListings(for: .milliseconds(200))
+    // swiftlint:disable:next tests_wait_on_events_not_clocks
     let elapsed = try await clock.measure {
         _ = try await drive.listTabTitles(spreadsheetId: "one")
     }

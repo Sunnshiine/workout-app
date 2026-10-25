@@ -92,11 +92,13 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. A fake never parks the test on a bare continuation,
   because a continuation ignores cancellation and a missed release hangs the run instead of failing
-  it (#746). Every wait on work the test does not control goes through
-  `waitUntil` or `HeldCall.waitUntilHeld` in `Tests/Support/`, which record a failure when the
-  bound runs out. The poll, the state it reads, and the work that sets it share one actor, so each
-  yield gives that work a turn. A poll on another actor can exhaust its count before a loaded main
-  actor runs the work. (#548, `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
+  it (#746). `tests_wait_on_events_not_clocks` and `tests_never_park_on_a_bare_continuation` reject
+  the clock and the continuation, so judge only the shapes they miss, listed below. Every wait on
+  work the test does not control goes through `waitUntil` or `HeldCall.waitUntilHeld` in
+  `Tests/Support/`, which record a failure when the bound runs out. The poll, the state it reads,
+  and the work that sets it share one actor, so each yield gives that work a turn. A poll on
+  another actor can exhaust its count before a loaded main actor runs the work. (#548,
+  `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
   empty. It goes on the declaration. (#608. The lint catches a guard below comment lines and
   single-line `let` or `var` bindings. It misses one below a binding that holds a closure, a binding
@@ -115,7 +117,7 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   reads it. A token DESIGN.md specifies that no other gate sees, such as a motion duration, a haptic
   tuning, or a tabular-figures flag, is that spec's one pin and stays. (#807, #808, #809.)
 
-Four shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
+Six shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
 judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason:
 
 - `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
@@ -134,9 +136,24 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   assertion doing its job.
 - `fixture_dates_are_literal` catches `Date()`, `Date.now`, `Date(timeIntervalSinceNow:)`, and the
   current `TimeZone` and `Calendar`. The `.now` shorthand, a `DateFormatter` or a
-  `Calendar(identifier:)` left on the machine time zone (#597), `Locale.current`, and a
-  `ContinuousClock.now` deadline pass it. It skips `Tests/UI/`, whose polling helpers keep
-  wall-clock deadlines.
+  `Calendar(identifier:)` left on the machine time zone (#597), and `Locale.current` pass it. It
+  skips `Tests/UI/`, whose polling helpers keep wall-clock deadlines. The next rule catches a clock
+  deadline.
+- `tests_wait_on_events_not_clocks` catches `Task.sleep`, `Thread.sleep`, a bare `sleep`, `usleep`,
+  or `nanosleep` call, `asyncAfter`, a semaphore or group `wait(timeout:)`, a `.timeLimit` trait, a
+  `.measure { }` or `.measure({ })`, a constructed `ContinuousClock()` or `SuspendingClock()`,
+  arithmetic, a comparison, or `.advanced(by:)` on either clock's `.now`, `DispatchTime.now()`,
+  `CFAbsoluteTimeGetCurrent()`, `systemUptime`, and `Timer.scheduledTimer` (#543, #899, #1014).
+  `.now` read on a clock instance, a bare `ContinuousClock.now` held as a start instant, and a sleep
+  on a real clock passed in as a parameter pass it (`docs/TESTING.md`). It reads `Tests/Unit/`,
+  `Tests/Component/`, and `Tests/Support/`, and skips `Tests/UI/` and `Tests/Visual/`.
+- `tests_never_park_on_a_bare_continuation` catches `withCheckedContinuation`,
+  `withUnsafeContinuation`, and their throwing forms in the same three folders, outside
+  `Tests/Support/HeldCall.swift` (#707, #746, #936). A continuation that only a release the test
+  must remember resumes is a park. One that resumes at once, or that a cancel handler or a failed
+  wait also resumes, is exempt on its line with that reason. A park with neither is exempt only
+  when its line cites the open issue that tracks the missing release. A continuation stored and
+  resumed elsewhere, and an `AsyncStream` continuation, pass it.
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
   `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
   whose index is named (`for i in 0..<n`) passes it.

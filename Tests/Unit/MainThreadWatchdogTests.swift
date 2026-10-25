@@ -88,6 +88,9 @@ private final class HeldMainThread: Sendable {
     #expect(watchdog.stop() == .milliseconds(400))
 }
 
+// aMainThreadHeldBusyIsTheLongestStall drives the real timer and main queue on purpose, and asserts
+// only a floor. It still fails when repeated in one process (#1096).
+// swiftlint:disable tests_wait_on_events_not_clocks
 @MainActor
 private func holdTheMainThread(for seconds: TimeInterval) {
     Thread.sleep(forTimeInterval: seconds)
@@ -105,3 +108,4 @@ private func holdTheMainThread(for seconds: TimeInterval) {
 
     #expect(watchdog.stop() >= .milliseconds(200))
 }
+// swiftlint:enable tests_wait_on_events_not_clocks

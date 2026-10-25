@@ -13,6 +13,9 @@ final class ManualListeningClock: ListeningClock {
 
     func sleep(until deadline: Duration) async {
         guard deadline > now else { return }
+        // advance(by:) wakes a sleeper at its deadline. A failed waitUntilSleeping wakes only the
+        // sleepers parked when it fails, so a sleep that starts later still parks.
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { sleepers.append((deadline, $0)) }
     }
 
@@ -25,22 +28,20 @@ final class ManualListeningClock: ListeningClock {
         }
     }
 
-    /// A continuation ignores the time limit's cancellation, so a failed wait wakes every sleeper
-    /// rather than leave one parked.
+    /// A continuation ignores cancellation, so a failed wait wakes the sleepers parked at that moment
+    /// rather than leave them parked. A sleep that starts after it still parks.
     func waitUntilSleeping(
         until deadline: Duration,
         orRecord failure: Comment,
         sourceLocation: SourceLocation = #_sourceLocation
     ) async {
-        for _ in 0..<10_000 {
-            if sleepers.contains(where: { $0.deadline == deadline }) { return }
-            await Task.yield()
+        if await waitUntil({ sleepers.contains { $0.deadline == deadline } }, orRecord: failure, sourceLocation: sourceLocation) {
+            return
         }
         let parked = sleepers
         sleepers = []
         for sleeper in parked {
             sleeper.wake.resume()
         }
-        Issue.record(failure, sourceLocation: sourceLocation)
     }
 }
