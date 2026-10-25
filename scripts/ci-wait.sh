@@ -14,7 +14,11 @@ after the PR's latest base change, since retargeting a stacked PR, by hand or wh
 merges, leaves the head alone. Another PR's run on the same commit, such as a probe PR's, counts
 when that PR has the same base.
 
-Exits 0 when every workflow succeeded; 1 when one did not, a run tested another base, the head moved during the wait, the PR comes from a fork, or a gh call failed; 2 on a missing or
+Before it prints the merge command, it fetches the base and runs scripts/landing-reverts-main.py,
+which refuses a landing that undoes a recent commit on the base unless the PR body says
+`Reverts #N`, or `Reverts <sha>` for a commit with no PR number.
+
+Exits 0 when every workflow succeeded; 1 when one did not, a run tested another base, the head moved during the wait, the PR comes from a fork, a gh or git call failed, or the landing would undo a commit on the base; 2 on a missing or
 non-numeric argument; and 3 when no workflow ran.
 EOF
 }
@@ -31,6 +35,7 @@ case "${1:-}" in
 esac
 
 pr=$1
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 branch=$(gh pr view "$pr" --json headRefName,isCrossRepository --jq 'select(.isCrossRepository | not) | .headRefName')
 [[ -n "$branch" ]] || { echo "#$pr comes from a fork, and ci-wait.sh does not handle fork PRs" >&2; exit 1; }
 # headRefOid lags a push by up to two minutes (#694); the branch ref moves at push time.
@@ -113,4 +118,14 @@ while IFS=$'\t' read -r run _ conclusion created workflow; do
 done <<<"$runs"
 [[ "$stale" == 0 ]] || echo "push to $branch, an empty commit if nothing changed, so every workflow runs against $base" >&2
 [[ "$failed" == 0 && "$stale" == 0 ]] || exit 1
+
+body=$(mktemp)
+trap 'rm -f "$body"' EXIT
+gh pr view "$pr" --json body --jq .body >"$body" || exit 1
+git fetch -q --no-tags origin "+refs/heads/$base:refs/remotes/origin/$base" "$sha" \
+    || { echo "could not fetch $base and ${sha:0:7} for the landing check" >&2; exit 1; }
+if ! "$script_dir/landing-reverts-main.py" "origin/$base" "$sha" --body-file "$body"; then
+    echo "the landing of #$pr onto $base fails scripts/landing-reverts-main.py, so there is no merge command" >&2
+    exit 1
+fi
 echo "gh pr merge $pr --squash --match-head-commit $sha"

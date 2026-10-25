@@ -140,6 +140,13 @@ more) starts no run.
   branch onto `main`. `scripts/prune-merged-worktrees.sh` lists worktrees whose PR has merged or
   closed, and clean lane worktrees idle past `--lane-idle-days`, and removes them only under
   `--apply`.
+- CI's lint job and `scripts/ci-wait.sh` run `scripts/landing-reverts-main.py`, which fails a PR
+  whose landing would undo one of the last 40 commits on its base, as #1012's merge did. For a
+  deliberate revert, put `Reverts #N` on its own line in the PR body, or `Reverts <sha>` for a
+  commit with no PR number. Then push, an empty commit if nothing changed, because a body edit does
+  not rerun the lint job. ci-wait's run is the one that counts when the base moved or the body
+  changed after CI ran, and when the lint job skipped the step, as on a PR whose paths all sit in
+  `paths-ignore` or a run from before the step existed.
 
 ## Agent workflows
 
