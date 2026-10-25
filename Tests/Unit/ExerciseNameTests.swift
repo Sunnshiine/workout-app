@@ -8,7 +8,7 @@ import Testing
         let name = ExerciseName(entered: "2-3:1:0 BB RDL")
 
         #expect(name.entered == "2-3:1:0 BB RDL")
-        #expect(name.base == "BB RDL")
+        #expect(name.base == "BB RDLX")
         #expect(name.cadence == "2-3:1:0")
     }
 
