@@ -24,14 +24,34 @@ expect_text() {
     if printf '%s\n' "$2" | grep -Fq -- "$3"; then ok "$1 has $3"; else bad "$1 is missing the text: $3"; fi
 }
 
+expect_no_text() {
+    if printf '%s\n' "$2" | grep -Fq -- "$3"; then bad "$1 has the text: $3"; else ok "$1 lacks $3"; fi
+}
+
+expect_no_gh() {
+    if [ -e "$GH_CALLS" ]; then bad "$1 calls gh: $(cat "$GH_CALLS")"; else ok "$1 makes no gh call"; fi
+}
+
 mkdir -p "$root/bin" "$root/issues"
 cat >"$root/bin/gh" <<'EOF'
 #!/bin/bash
 echo "$*" >>"$GH_CALLS"
-if [ -n "${GH_STUB_UNAUTHENTICATED:-}" ]; then
+case "${GH_STUB:-}" in
+unauthenticated)
     echo "To get started with GitHub CLI, please run:  gh auth login" >&2
-    exit 4
-fi
+    exit 4 ;;
+bad-token)
+    printf 'HTTP 401: Bad credentials (https://api.github.com/graphql)\nTry authenticating with:  gh auth login -h github.com\n' >&2
+    exit 1 ;;
+actions-no-token)
+    printf 'gh: To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN environment variable. Example:\n  env:\n    GH_TOKEN: ${{ github.token }}\n' >&2
+    exit 4 ;;
+offline)
+    printf 'error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com\n' >&2
+    exit 1 ;;
+slow)
+    exec sleep 10 ;;
+esac
 if [ -f "$GH_STUB_ISSUES/$3" ]; then
     cat "$GH_STUB_ISSUES/$3"
     exit 0
@@ -72,7 +92,7 @@ func start() {
 SWIFT
 expect_exit "an uncited unstructured_task_is_held exemption" "$status" 1
 expect_line "it names the line" "$out" \
-    "App/A.swift:2: the unstructured_task_is_held exemption cites no issue. That rule stops a bug, so its exemption accepts one. Cite the open issue that tracks it, or a wontfix one."
+    "App/A.swift:2: the unstructured_task_is_held exemption cites no issue. That rule stops a bug, so its exemption accepts one. Cite the open or wontfix issue that tracks it as a bare #N, N of two to five digits with no leading zero, on the directive or the comment lines directly above it. An owner/repo#N or a URL does not count."
 check <<'SWIFT'
     // Mirrors the production default.
     // swiftlint:disable:next fixture_dates_are_literal
@@ -90,7 +110,13 @@ let now = Date()
 // swiftlint:enable force_try fixture_dates_are_literal
 SWIFT
 expect_exit "an uncited block exemption naming a bug-shaped rule second" "$status" 1
-expect_text "it names the line" "$out" "App/A.swift:1: the force_try fixture_dates_are_literal exemption cites no issue."
+expect_text "it names the bug-shaped rule alone" "$out" "App/A.swift:1: the fixture_dates_are_literal exemption cites no issue."
+expect_line "an enable line is no exemption" "$(tail -1 "$root/stdout")" "1 exemptions cite 0 issues, and 1 fail"
+check <<'SWIFT'
+// swiftlint:enable unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a lone enable line" "$status" 0
 check <<'SWIFT'
 // WCAG 1.4.3 exempts an inactive control from contrast.
 // swiftlint:disable:next system_ink_outside_the_palette
@@ -98,7 +124,7 @@ let ink = Color.secondary
 SWIFT
 expect_exit "an uncited exemption of a rule that records a design fact" "$status" 0
 expect_line "it reports the count" "$out" "1 exemptions cite 0 issues, and 0 fail"
-if [ -e "$GH_CALLS" ]; then bad "a run with nothing cited calls gh"; else ok "a run with nothing cited makes no gh call"; fi
+expect_no_gh "a run with nothing cited"
 check <<'SWIFT'
 /// Replaces #100's workaround.
 // swiftlint:disable:next unstructured_task_is_held
@@ -113,6 +139,54 @@ check <<'SWIFT'
 Task { await work() }
 SWIFT
 expect_exit "a citation above a blank line" "$status" 1
+check <<'SWIFT'
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }  // #100
+// Tracked in #100.
+SWIFT
+expect_exit "a citation below the exemption" "$status" 1
+check <<'SWIFT'
+Task { print("#100") }  // swiftlint:disable:this unstructured_task_is_held
+SWIFT
+expect_exit "a #100 in code before the directive's //" "$status" 1
+check <<'SWIFT'
+// swiftlint:disable:previous unstructured_task_is_held
+SWIFT
+expect_exit "an uncited disable:previous" "$status" 1
+
+echo "the rule list"
+check <<'SWIFT'
+// swiftlint:disable:next line_length, unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a bug-shaped rule after a comma-ended rule" "$status" 1
+expect_text "it names the bug-shaped rule alone" "$out" "App/A.swift:1: the unstructured_task_is_held exemption cites no issue."
+check <<'SWIFT'
+// swiftlint:disable:next force_try because all of it is needed
+Task { await work() }
+SWIFT
+expect_exit "prose before any ' - ', which SwiftLint reads as rules, all among them" "$status" 1
+expect_text "it names all" "$out" "App/A.swift:1: the all exemption cites no issue."
+check <<'SWIFT'
+// swiftlint:disable:next force_try - all of unstructured_task_is_held is fine here
+let value = try! load()
+SWIFT
+expect_exit "rule names after ' - ', which SwiftLint reads as the reason" "$status" 0
+
+echo "stacked directives"
+check <<'SWIFT'
+// Tracked in #100.
+// swiftlint:disable:next force_try
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited exemption under a cited directive" "$status" 1
+expect_text "it names the lower line" "$out" "App/A.swift:3: the unstructured_task_is_held exemption cites no issue."
+check <<'SWIFT'
+// Tracked in #100.
+Task { await work() }  // swiftlint:disable:this unstructured_task_is_held
+SWIFT
+expect_exit "a disable:this on a code line under a cited comment" "$status" 1
 
 echo "an open issue"
 check <<'SWIFT'
@@ -129,6 +203,43 @@ check <<'SWIFT'
     static func live(  // swiftlint:disable:this unstructured_task_is_held (#100)
 SWIFT
 expect_exit "a disable:this citing an open issue on its own line" "$status" 0
+check <<'SWIFT'
+    static func live(  // swiftlint:disable:this unstructured_task_is_held
+SWIFT
+expect_exit "an uncited disable:this" "$status" 1
+check <<'SWIFT'
+// Tracked in #100,
+// which explains why awaiting it
+// would keep flushes apart.
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a citation three contiguous comment lines up" "$status" 0
+
+echo "citations"
+for cite in '#100,' '(#100)' '#100.'; do
+    check <<<"$(printf '// Tracked in %s\n// swiftlint:disable:next unstructured_task_is_held\nTask { }' "$cite")"
+    expect_exit "a citation written $cite" "$status" 0
+done
+for cite in 'abc#100' '#100abc' 'Sunnshiine/workout-app#100' 'https://github.com/Sunnshiine/workout-app/issues/100' '#5' '#000000' '#0100'; do
+    check <<<"$(printf '// Tracked in %s\n// swiftlint:disable:next unstructured_task_is_held\nTask { }' "$cite")"
+    expect_exit "a bug-shaped exemption whose only number is $cite" "$status" 1
+    expect_no_gh "$cite"
+done
+check <<'SWIFT'
+// Step #3 of WCAG's procedure, and the ring is #000000.
+// swiftlint:disable:next system_ink_outside_the_palette
+let ink = Color.secondary
+SWIFT
+expect_exit "a design-fact exemption with a step number and a hex colour" "$status" 0
+expect_no_gh "a step number and a hex colour"
+check <<'SWIFT'
+// Tracked in #100 and #101.
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a second citation in one comment that is closed" "$status" 1
+expect_text "it names the second" "$out" "the exemption cites #101, which is closed"
 
 echo "a closed issue"
 check <<'SWIFT'
@@ -151,7 +262,8 @@ check <<'SWIFT'
 Task { await work() }
 SWIFT
 expect_exit "an exemption citing a number with no issue" "$status" 1
-expect_text "it names the number" "$out" "App/A.swift:2: the exemption cites #999, which is no issue in Sunnshiine/workout-app."
+expect_line "it names the number and the fix" "$(head -1 "$root/stdout")" \
+    "App/A.swift:2: the exemption cites #999, which is no issue or pull request in Sunnshiine/workout-app. Correct the number, or reword the text so it is no bare #N."
 
 echo "a wontfix issue"
 check <<'SWIFT'
@@ -177,15 +289,28 @@ SWIFT
 expect_exit "a design-fact exemption citing a merged pull request" "$status" 0
 
 echo "gh failing"
-check env GH_STUB_UNAUTHENTICATED=1 python3 <<'SWIFT'
-// Tracked in #100.
+cited='// Tracked in #100.
 // swiftlint:disable:next unstructured_task_is_held
-Task { await work() }
-SWIFT
+Task { await work() }'
+check env GH_STUB=unauthenticated python3 <<<"$cited"
 expect_exit "an unauthenticated gh" "$status" 2
 expect_text "it passes gh's message on" "$err" "error: gh issue view 100 exited 4: To get started with GitHub CLI"
 expect_text "it says it did not pass unchecked" "$err" "it fails rather than pass unchecked"
+expect_text "it says how to sign in" "$err" "Run \`gh auth login\`, or set GH_TOKEN."
 if [ -z "$out" ]; then ok "it prints no count"; else bad "it printed: $out"; fi
+check env GH_STUB=bad-token python3 <<<"$cited"
+expect_exit "a rejected token" "$status" 2
+expect_text "it says how to sign in" "$err" "Run \`gh auth login\`, or set GH_TOKEN."
+check env GH_STUB=actions-no-token python3 <<<"$cited"
+expect_exit "a CI job with no token" "$status" 2
+expect_text "it says how to sign in" "$err" "Run \`gh auth login\`, or set GH_TOKEN."
+check env GH_STUB=offline python3 <<<"$cited"
+expect_exit "an unreachable network" "$status" 2
+expect_text "it says the network is unreachable" "$err" "GitHub is unreachable from this machine."
+expect_no_text "it does not blame sign-in" "$err" "gh auth login\`"
+check env GH_STUB=slow LINT_EXEMPTIONS_GH_TIMEOUT=1 python3 <<<"$cited"
+expect_exit "a gh that never answers" "$status" 2
+expect_text "it says gh timed out" "$err" "error: gh issue view 100 did not answer within 1 s"
 nogh="$root/nogh"
 mkdir -p "$nogh"
 ln -s "$(command -v git)" "$nogh/git"
@@ -197,6 +322,18 @@ Task { await work() }
 SWIFT
 expect_exit "a PATH with no gh" "$status" 2
 expect_line "it says gh is missing" "$(head -1 "$root/stderr")" "error: gh is not on PATH"
+
+echo "unreadable input"
+check <<<"$(printf '// \xff\xfe\n// swiftlint:disable:next unstructured_task_is_held\nTask { }')"
+expect_exit "a Swift file that is not UTF-8" "$status" 2
+expect_line "it names the file" "$(head -1 "$root/stderr")" "error: App/A.swift is not UTF-8"
+expect_no_text "it prints no traceback" "$err" "Traceback"
+plain="$root/plain"
+mkdir -p "$plain"
+python3 "$checker" "$plain" >"$root/stdout" 2>"$root/stderr"
+expect_exit "a root outside any git checkout" "$?" 2
+expect_text "it says git failed" "$(head -1 "$root/stderr")" "error: git ls-files failed in $(cd "$plain" && pwd -P): fatal: not a git repository"
+expect_no_text "it prints no traceback" "$(cat "$root/stderr")" "Traceback"
 
 echo
 echo "$pass passed, $fail failed"

@@ -64,7 +64,7 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 ```bash
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
-scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
+scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, exemption citations (the whole-tree run needs `gh auth login`), the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all

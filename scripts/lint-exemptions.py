@@ -7,22 +7,27 @@
 
 usage: scripts/lint-exemptions.py [ROOT]
 
-Reads every `swiftlint:disable` in the Swift files git knows under ROOT. An exemption's reason is
-the comment on its line and the `//` comment lines directly above it. Each `#N` in the reason is
-looked up with `gh issue view`, and an exemption fails when it cites an issue that is closed
-without the `wontfix` label, or a number with no issue or pull request. A cited pull request is
-history, so it is never failed and never counts as the issue a bug-shaped rule needs.
+Reads every `swiftlint:disable` in the Swift files git knows under ROOT. The rules it exempts are
+the words before a ` - `, as SwiftLint reads them, so prose there names rules and `all` disables
+every rule. Its reason is the directive's own comment and, when the directive fills its line, the
+`//` comment lines directly above it up to another directive. Each bare `#N` in the reason, with
+N of two to five digits and no leading zero, is looked up with `gh issue view`. An exemption
+fails when it cites an issue that is closed without the `wontfix` label, or a number with no
+issue or pull request. A cited pull request is history, so it is never failed and never counts
+as the issue a bug-shaped rule needs.
 
 `unstructured_task_is_held` and `fixture_dates_are_literal` exist to stop bugs, so an exemption
 of either, or of `all`, accepts a known bug and must cite an issue. The other rules' exemptions
 record design facts, such as a WCAG clause or a parameter count, and may cite none.
 
-Exits 0 when clean, 1 on findings, 2 when gh cannot answer for a cited number, so the check
-never passes unchecked, and 64 on a usage error.
+Exits 0 when clean, 1 on findings, 2 when git, a file, or gh cannot answer, so the check never
+passes unchecked, and 64 on a usage error. Each gh call gets LINT_EXEMPTIONS_GH_TIMEOUT seconds
+(default 30).
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -33,9 +38,16 @@ from pathlib import Path
 REPO = "Sunnshiine/workout-app"
 BUG_SHAPED_RULES = {"unstructured_task_is_held", "fixture_dates_are_literal"}
 DISABLE = re.compile(r"//\s*swiftlint:disable(?::(?:next|this|previous))?\s+(.*)")
-RULE = re.compile(r"[a-z_]+")
-CITATION = re.compile(r"(?<![\w&])#(\d+)\b")
+DIRECTIVE = re.compile(r"//\s*swiftlint:(?:disable|enable)\b")
+CITATION = re.compile(r"(?<![\w&])#([1-9]\d{1,4})(?!\w)")
 NOT_FOUND = "Could not resolve to an issue or pull request"
+UNCHECKED = "The exemption check cannot finish, so it fails rather than pass unchecked."
+SIGN_IN = "Run `gh auth login`, or set GH_TOKEN."
+OFFLINE = "GitHub is unreachable from this machine. Check the network, then rerun."
+GH_FAILURE_HINTS = (
+    (re.compile(r"gh auth login|HTTP 401|Bad credentials|GH_TOKEN"), SIGN_IN),
+    (re.compile(r"error connecting|dial tcp|no such host|connection refused|i/o timeout"), OFFLINE),
+)
 
 
 @dataclass(frozen=True)
@@ -46,8 +58,8 @@ class Exemption:
     cited: tuple[int, ...]
 
     @property
-    def bug_shaped(self) -> bool:
-        return "all" in self.rules or bool(BUG_SHAPED_RULES.intersection(self.rules))
+    def bug_rules(self) -> tuple[str, ...]:
+        return tuple(r for r in self.rules if r == "all" or r in BUG_SHAPED_RULES)
 
 
 @dataclass(frozen=True)
@@ -57,13 +69,11 @@ class Issue:
     live: bool = False
 
 
-class GhUnavailable(Exception):
-    pass
-
-
-def comment(text: str) -> str:
-    start = text.find("//")
-    return text[start:] if start >= 0 else ""
+class Unanswered(Exception):
+    def __init__(self, problem: str, hint: str):
+        super().__init__(problem)
+        self.problem = problem
+        self.hint = hint
 
 
 def exemptions_in(path: str, text: str) -> list[Exemption]:
@@ -73,16 +83,12 @@ def exemptions_in(path: str, text: str) -> list[Exemption]:
         directive = DISABLE.search(line)
         if not directive:
             continue
-        rules = []
-        for word in directive.group(1).split():
-            if not RULE.fullmatch(word):
-                break
-            rules.append(word)
-        reason = [comment(line)]
-        above = index - 1
+        rules = directive.group(1).split(" - ", 1)[0].split()
+        reason = [line[directive.start():]]
+        above = index - 1 if line.lstrip().startswith("//") else -1
         while above >= 0:
             stripped = lines[above].strip()
-            if not stripped.startswith("//") or stripped.startswith("///"):
+            if not stripped.startswith("//") or stripped.startswith("///") or DIRECTIVE.match(stripped):
                 break
             reason.append(stripped)
             above -= 1
@@ -92,27 +98,47 @@ def exemptions_in(path: str, text: str) -> list[Exemption]:
 
 
 def swift_files(root: Path) -> list[str]:
-    listed = subprocess.run(
-        ["git", "-c", "core.quotePath=false", "ls-files", "--cached", "--others",
-         "--exclude-standard", "--", "*.swift"],
-        cwd=root, capture_output=True, text=True, check=True,
-    )
+    try:
+        listed = subprocess.run(
+            ["git", "-c", "core.quotePath=false", "ls-files", "--cached", "--others",
+             "--exclude-standard", "--", "*.swift"],
+            cwd=root, capture_output=True, text=True,
+        )
+    except OSError as error:
+        raise Unanswered(f"git ls-files failed in {root}: {error}", "Install git.") from None
+    if listed.returncode != 0:
+        first = next((line for line in listed.stderr.splitlines() if line.strip()), "no output")
+        raise Unanswered(f"git ls-files failed in {root}: {first}", "Run the check on a git checkout.")
     return [p for p in listed.stdout.splitlines() if (root / p).is_file()]
 
 
-def look_up(number: int) -> Issue:
+def read(root: Path, path: str) -> str:
     try:
-        answer = subprocess.run(
-            ["gh", "issue", "view", str(number), "--repo", REPO, "--json", "state,labels,url"],
-            capture_output=True, text=True,
-        )
+        return (root / path).read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        raise Unanswered(f"{path} is not UTF-8", "Save it as UTF-8, as SwiftLint expects.") from None
+
+
+def look_up(number: int, timeout: float) -> Issue:
+    command = ["gh", "issue", "view", str(number), "--repo", REPO, "--json", "state,labels,url"]
+    try:
+        answer = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError:
-        raise GhUnavailable("gh is not on PATH") from None
+        raise Unanswered("gh is not on PATH", "Install the GitHub CLI, then run `gh auth login`.") from None
+    except subprocess.TimeoutExpired:
+        raise Unanswered(
+            f"gh issue view {number} did not answer within {timeout:g} s",
+            "GitHub may be slow or unreachable. Check the network, then rerun.",
+        ) from None
     if answer.returncode != 0:
         if NOT_FOUND in answer.stderr:
             return Issue(exists=False)
-        first = next((l for l in answer.stderr.splitlines() if l.strip()), "no output")
-        raise GhUnavailable(f"gh issue view {number} exited {answer.returncode}: {first}")
+        first = next((line for line in answer.stderr.splitlines() if line.strip()), "no output")
+        hint = next(
+            (hint for pattern, hint in GH_FAILURE_HINTS if pattern.search(answer.stderr)),
+            f"Run `{' '.join(command)}` to see why.",
+        )
+        raise Unanswered(f"gh issue view {number} exited {answer.returncode}: {first}", hint)
     try:
         fields = json.loads(answer.stdout)
         labels = {label["name"] for label in fields["labels"]}
@@ -122,7 +148,10 @@ def look_up(number: int) -> Issue:
             live=fields["state"] == "OPEN" or "wontfix" in labels,
         )
     except (ValueError, KeyError, TypeError):
-        raise GhUnavailable(f"gh issue view {number} printed no issue: {answer.stdout[:80]!r}") from None
+        raise Unanswered(
+            f"gh issue view {number} printed no issue: {answer.stdout[:80]!r}",
+            f"Run `{' '.join(command)}` to see why.",
+        ) from None
 
 
 def findings(exemptions: list[Exemption], issues: dict[int, Issue]) -> list[str]:
@@ -132,18 +161,22 @@ def findings(exemptions: list[Exemption], issues: dict[int, Issue]) -> list[str]
         for n in e.cited:
             issue = issues[n]
             if not issue.exists:
-                out.append(f"{where}: the exemption cites #{n}, which is no issue in {REPO}.")
+                out.append(
+                    f"{where}: the exemption cites #{n}, which is no issue or pull request in "
+                    f"{REPO}. Correct the number, or reword the text so it is no bare #N."
+                )
             elif not issue.is_pull_request and not issue.live:
                 out.append(
                     f"{where}: the exemption cites #{n}, which is closed without the wontfix "
                     f"label. Remove the exemption, reopen #{n}, or label it wontfix."
                 )
         tracked = any(issues[n].exists and not issues[n].is_pull_request for n in e.cited)
-        if e.bug_shaped and not tracked:
-            rules = " ".join(e.rules)
+        if e.bug_rules and not tracked:
             out.append(
-                f"{where}: the {rules} exemption cites no issue. That rule stops a bug, so its "
-                f"exemption accepts one. Cite the open issue that tracks it, or a wontfix one."
+                f"{where}: the {' '.join(e.bug_rules)} exemption cites no issue. That rule stops a "
+                f"bug, so its exemption accepts one. Cite the open or wontfix issue that tracks it "
+                f"as a bare #N, N of two to five digits with no leading zero, on the directive "
+                f"or the comment lines directly above it. An owner/repo#N or a URL does not count."
             )
     return out
 
@@ -153,20 +186,15 @@ def main(argv: list[str]) -> int:
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 64
     root = Path(argv[1] if len(argv) == 2 else ".").resolve()
-    exemptions = []
-    for path in swift_files(root):
-        exemptions += exemptions_in(path, (root / path).read_text(encoding="utf-8"))
-    numbers = sorted({n for e in exemptions for n in e.cited})
+    timeout = float(os.environ.get("LINT_EXEMPTIONS_GH_TIMEOUT", "30"))
     try:
+        exemptions = [e for path in swift_files(root) for e in exemptions_in(path, read(root, path))]
+        numbers = sorted({n for e in exemptions for n in e.cited})
         with ThreadPoolExecutor(max_workers=8) as pool:
-            issues = dict(zip(numbers, pool.map(look_up, numbers)))
-    except GhUnavailable as error:
-        print(f"error: {error}", file=sys.stderr)
-        print(
-            "       The exemption check cannot read the cited issues, so it fails rather than "
-            "pass unchecked. Run `gh auth login`, or set GH_TOKEN.",
-            file=sys.stderr,
-        )
+            issues = dict(zip(numbers, pool.map(lambda n: look_up(n, timeout), numbers)))
+    except Unanswered as error:
+        print(f"error: {error.problem}", file=sys.stderr)
+        print(f"       {UNCHECKED} {error.hint}", file=sys.stderr)
         return 2
     failed = findings(exemptions, issues)
     for line in failed:
