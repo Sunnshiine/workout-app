@@ -38,7 +38,7 @@ import Testing
     let write = PendingWrite(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 2, day: 3)),
         dayNumbering: .headerNumber,
-        exercise: ExerciseReference(name: ExerciseName(entered: "Back Squat"), ordinal: 1),
+        exercise: .unchecked(name: ExerciseName(entered: "Back Squat"), ordinal: 1),
         setIndex: 0,
         column: .notes,
         operation: .upsert,
