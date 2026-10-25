@@ -137,8 +137,11 @@ function mask(s,    n, i, c, out, k, h, end, rest) {
     return out
 }
 
-function emit(op, before, after, mutated,    row) {
+# Swift rejects a closure whose body stops using an anonymous argument, so a mutant that removes
+# every $0 (or $1...) its line held is skipped rather than built to a nocompile.
+function emit(op, before, after, mutated,    row, k) {
     if ((NR, mutated) in emitted) return
+    for (k = 0; k <= 9; k++) if (index($0, "$" k) && !index(mutated, "$" k)) return
     emitted[NR, mutated] = 1
     row = sprintf("%s\t%d\t%s\t%s\t%s\t%s", path, NR, op, before, after, mutated)
     if (compiledOutLine) print row >> compiledOut

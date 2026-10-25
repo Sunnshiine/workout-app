@@ -376,6 +376,18 @@ Sources/F.swift | 5 | compare | == | != | case .x where y != 2:
 Sources/F.swift | 5 | always | y == 2 | true | case .x where true:
 ROWS
 
+echo "no mutant removes the last use of a closure's anonymous argument"
+cat >"$tmp/F.swift" <<'SWIFT'
+let hit = items.first { $0.id == id }
+let pair = zip(a, b).filter { $0 > 1 && $1 }
+SWIFT
+check "always on \$0 == id, operand dropping the only \$1" <<'ROWS'
+Sources/F.swift | 1 | compare | == | != | let hit = items.first { $0.id != id }
+Sources/F.swift | 2 | compare | > | >= | let pair = zip(a, b).filter { $0 >= 1 && $1 }
+Sources/F.swift | 2 | logic | && | || | let pair = zip(a, b).filter { $0 > 1 || $1 }
+Sources/F.swift | 2 | const | 1 | 2 | let pair = zip(a, b).filter { $0 > 2 && $1 }
+ROWS
+
 echo "clamp keeps the value a two-argument max or min clamps"
 cat >"$tmp/F.swift" <<'SWIFT'
 return max(value, 1)
