@@ -57,17 +57,17 @@ extension DifferentialStateTests {
         }
     }
 
+    fileprivate struct Tally {
+        var hits = 0
+        var refused = 0
+        var i1Checks = 0
+        var i2Checks = 0
+        var known: [Int: (count: Int, firstIndex: Int)] = [:]
+        var new: [String] = []
+    }
+
     enum Search {
         static var isRequested: Bool { ProcessInfo.processInfo.environment["DIFF_SEQUENCES"] != nil }
-
-        private struct Tally {
-            var hits = 0
-            var refused = 0
-            var i1Checks = 0
-            var i2Checks = 0
-            var known: [Int: (count: Int, firstIndex: Int)] = [:]
-            var new: [String] = []
-        }
 
         @MainActor
         static func run() async throws {
