@@ -173,9 +173,10 @@ jobs:
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
 
   # Advisory: a fix pull request gets one comment listing the mutants of its changed Sources/
-  # lines that no test kills. It never fails, because some survivors are equivalent mutants.
+  # lines that no test kills, and each later run updates it. It never fails, because some
+  # survivors are equivalent mutants.
   mutants:
-    if: (github.event.action != 'edited' || github.event.changes.base) && (startsWith(github.event.pull_request.title, 'fix(') || startsWith(github.event.pull_request.title, 'fix:'))
+    if: (github.event.action != 'edited' || github.event.changes.base) && (startsWith(github.event.pull_request.title, 'fix(') || startsWith(github.event.pull_request.title, 'fix:') || startsWith(github.event.pull_request.title, 'fix!:'))
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'mutants (edit, base unchanged)' || 'mutants' }}
     runs-on: xcode-27
     timeout-minutes: 20
@@ -187,6 +188,7 @@ jobs:
         with:
           fetch-depth: 2
       # The bound sits on the step, so continue-on-error covers a timeout and the job stays green.
+      # A timed-out run changes no comment, so an earlier one still names its older commit.
       - name: Comment the mutants that survive on the changed Sources lines
         continue-on-error: true
         timeout-minutes: 15
