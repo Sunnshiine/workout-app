@@ -73,11 +73,17 @@ jobs:
       - name: Build the tests
         run: swift build --build-tests
 
+      # A filter that matches no test, or a search the missing knobs skip, passes with nothing run,
+      # so a log without the line the search prints last fails the step.
       - name: Search
         run: |
           set -o pipefail
           swift test --skip-build --filter 'DifferentialStateTests/randomSequencesFindNoUnknownDivergence' 2>&1 \
             | tee "$RUNNER_TEMP/differential.log"
+          if ! grep -q '^DIFF summary ' "$RUNNER_TEMP/differential.log"; then
+            echo "::error::The search printed no DIFF summary line, so it did not run to the end."
+            exit 1
+          fi
 
       - name: Summarize
         if: ${{ !cancelled() }}
