@@ -7,7 +7,7 @@ import Foundation
 
 extension ExerciseReference {
     static func first(_ name: ExerciseName) -> ExerciseReference {
-        ExerciseReference(name: name, ordinal: 0)
+        .unchecked(name: name, ordinal: 0)
     }
 }
 
