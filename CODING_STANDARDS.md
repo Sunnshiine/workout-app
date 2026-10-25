@@ -149,8 +149,9 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   `withUnsafeContinuation`, and their throwing forms in the same three folders, outside
   `Tests/Support/HeldCall.swift` (#707, #746, #936). A continuation that only a release the test
   must remember resumes is a park. One that resumes at once, or that a cancel handler or a failed
-  wait also resumes, is exempt on its line with that reason. A continuation stored and resumed
-  elsewhere, and an `AsyncStream` continuation, pass it.
+  wait also resumes, is exempt on its line with that reason. A park with neither is exempt only
+  when its line cites the open issue that tracks the missing release. A continuation stored and
+  resumed elsewhere, and an `AsyncStream` continuation, pass it.
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
   `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
   whose index is named (`for i in 0..<n`) passes it.

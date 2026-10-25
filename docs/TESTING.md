@@ -49,8 +49,8 @@ instead of failing it. A continuation ignores cancellation, so a fake never park
 polls state on the main actor, where the work that sets it runs, and records a failure when the poll
 runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to copy, as
 `ManualSessionTransitionClock.waitForSleep()` does (#746). When the poll runs out, the wait also
-releases whatever the fake would park later, as `HeldDictationRecordStore.waitUntilAppending()`
-does. `tests_wait_on_events_not_clocks` and `tests_never_park_on_a_bare_continuation` in `.swiftlint.yml`
+releases whatever the fake would park later, as `HeldCall.waitUntilHeld` does through `abandon()`.
+`tests_wait_on_events_not_clocks` and `tests_never_park_on_a_bare_continuation` in `.swiftlint.yml`
 reject a sleep, a time limit, and a bare continuation under `Tests/Unit/`, `Tests/Component/`, and
 `Tests/Support/`.
 
