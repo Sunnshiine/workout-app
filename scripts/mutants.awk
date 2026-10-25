@@ -9,10 +9,16 @@
 # decide a branch; any other condition leaves its branches compiled in.
 #
 # LINES_FILE holds the changed line numbers, one per line. Each op
-# (bool, compare, logic, negate, return, const) yields at most one mutant per line, at its first
-# match in a masked copy of the line where string literals and comments are blanked. Binary
-# operators match with one space each side, which swift-format guarantees, so generics, `->`,
+# (bool, compare, logic, negate, return, const, result, coalesce, operand, always, clamp) yields at
+# most one mutant per line, at its first match in a masked copy of the line where string literals
+# and comments are blanked, and a mutant another op already made on that line is not repeated.
+# Binary operators match with one space each side, which swift-format guarantees, so generics, `->`,
 # `===`, `..<`, and `<<` never match.
+#
+# result empties `return x` to the [], [:], nil, or 0 the enclosing declaration's return type
+# takes, and skips any other type. coalesce changes a literal `?? x`. operand drops the right side
+# of the first && or ||. always turns the first `a == b` into true. clamp keeps the value a two-
+# argument max or min clamps.
 
 BEGIN {
     if (path == "" || changed == "") {
@@ -35,6 +41,8 @@ BEGIN {
     split(" != | == | <= | < | >= | > ", compareTo, "|")
     logicFrom[1] = " && "; logicTo[1] = " || "
     logicFrom[2] = " || "; logicTo[2] = " && "
+    braceDepth = 0
+    scopes = 0
 }
 
 function hashes(count,    s) {
@@ -85,6 +93,7 @@ function skipInterpolation(s, i,    n, c, depth, k) {
 function mask(s,    n, i, c, out, k, h, end, rest) {
     n = length(s)
     out = ""
+    commentAt = 0
     i = 1
     while (i <= n) {
         c = substr(s, i, 1)
@@ -105,7 +114,7 @@ function mask(s,    n, i, c, out, k, h, end, rest) {
             while (i < end) { out = out MASK; i++ }
             continue
         }
-        if (substr(s, i, 2) == "//") { while (i <= n) { out = out MASK; i++ }; break }
+        if (substr(s, i, 2) == "//") { commentAt = i; while (i <= n) { out = out MASK; i++ }; break }
         if (substr(s, i, 2) == "/*") { blockDepth = 1; out = out MASK MASK; i += 2; continue }
         k = i
         while (substr(s, k, 1) == "#") k++
@@ -129,6 +138,8 @@ function mask(s,    n, i, c, out, k, h, end, rest) {
 }
 
 function emit(op, before, after, mutated,    row) {
+    if ((NR, mutated) in emitted) return
+    emitted[NR, mutated] = 1
     row = sprintf("%s\t%d\t%s\t%s\t%s\t%s", path, NR, op, before, after, mutated)
     if (compiledOutLine) print row >> compiledOut
     else print row
@@ -271,8 +282,190 @@ function skipLine(line, m,    t, code) {
     return 0
 }
 
+function codeEnd(m,    e) {
+    e = commentAt ? commentAt - 1 : length(m)
+    while (e > 0 && substr(m, e, 1) == " ") e--
+    return e
+}
+
+# The first column of the operand that ends just before column p, scanning left at bracket depth 0
+# to a separator, a keyword, or the indentation.
+function leftEdge(m, p,    i, c, depth, before) {
+    depth = 0
+    for (i = p - 1; i >= 1; i--) {
+        c = substr(m, i, 1)
+        if (c == ")" || c == "]" || c == "}") { depth++; continue }
+        if (c == "(" || c == "[" || c == "{") { if (depth == 0) break; depth--; continue }
+        if (depth > 0 || c != " ") continue
+        before = substr(m, 1, i - 1)
+        if (before ~ /^ *$/ || before ~ /(&&|\|\||,|[^!<>=]=|\?|:|(^|[^A-Za-z0-9_])(if|guard|while|return|where|case|in))$/)
+            break
+    }
+    while (substr(m, i + 1, 1) == " ") i++
+    return i + 1
+}
+
+# The last column of the operand that starts at column p, scanning right at bracket depth 0 to a
+# separator, the block's opening brace, a closing bracket, or the end of the code.
+function rightEdge(m, p, stopAnd,    i, c, depth, end) {
+    end = codeEnd(m)
+    depth = 0
+    for (i = p; i <= end; i++) {
+        c = substr(m, i, 1)
+        if (c == "(" || c == "[") { depth++; continue }
+        if (c == "{" && (depth > 0 || i < end)) { depth++; continue }
+        if (c == ")" || c == "]" || c == "}") { if (depth == 0) break; depth--; continue }
+        if (depth == 0 && c == ":" && i == end) break
+        if (depth > 0 || c != " ") continue
+        if (substr(m, i, 4) == " || " || (stopAnd && substr(m, i, 4) == " && ")) break
+        if (substr(m, i, 2) == " {" && i + 1 == end) break
+        if (substr(m, i, 3) == " ? " || substr(m, i, 3) == " : " || substr(m, i, 5) == " else") break
+        if (substr(m, i - 1, 2) == ", ") { i--; break }
+    }
+    return i - 1
+}
+
+function declaresType(m) {
+    return m ~ /(^|[^A-Za-z0-9_])(func|extension|struct|class|enum|protocol|typealias) /
+}
+
+function closeOf(m, open,    i, c, depth) {
+    depth = 0
+    for (i = open; i <= length(m); i++) {
+        c = substr(m, i, 1)
+        if (c == "(" || c == "[") depth++
+        else if ((c == ")" || c == "]") && --depth == 0) return i
+    }
+    return 0
+}
+
+# Pushes the return type a line's opening brace starts, "" for a Void function, an initializer, or a
+# closure, and pops the scopes its closing braces end.
+function trackScope(m,    code, n, i, c, type, opens) {
+    code = m
+    gsub(MASK, "", code)
+    sub(/[ \t]+$/, "", code)
+    n = length(code)
+    for (i = 1; i <= n; i++) {
+        c = substr(code, i, 1)
+        if (c == "{") braceDepth++
+        else if (c == "}") braceDepth--
+    }
+    while (scopes > 0 && scopeDepth[scopes] > braceDepth) scopes--
+    opens = 1
+    if (match(code, /-> [^{]*\{$/)) {
+        type = substr(code, RSTART + 3, RLENGTH - 4)
+        sub(/ where .*/, "", type)
+        type = trim(type)
+    } else if (match(code, /(^|[ \t])var [A-Za-z_][A-Za-z0-9_]*: [^={]+ \{$/)) {
+        type = substr(code, RSTART, RLENGTH - 2)
+        sub(/^.*var [A-Za-z_][A-Za-z0-9_]*: /, "", type)
+    } else if (code ~ /\{$/ && code ~ /(^|[^A-Za-z0-9_])(func|init|deinit|subscript|get|set|didSet|willSet)([^A-Za-z0-9_]|$)/) {
+        type = ""
+    } else if (code ~ /\{[^{}]* in$/) {
+        type = ""
+    } else {
+        opens = 0
+    }
+    if (opens) { scopes++; scopeDepth[scopes] = braceDepth; scopeType[scopes] = type }
+}
+
+function emptyValue(type,    inner) {
+    if (type ~ /\?$/) return "nil"
+    if (type ~ /^\[.*\]$/) {
+        inner = substr(type, 2, length(type) - 2)
+        return topLevelIndex(inner, 1, ":") ? "[:]" : "[]"
+    }
+    if (type ~ /^(Int|Int64|Int32|UInt|Double|Float|CGFloat|TimeInterval)$/) return "0"
+    return ""
+}
+
+function emptyResult(line, m, type,    lead, end, expr, v, c) {
+    lead = match(m, /[^ ]/)
+    if (substr(m, lead, 7) != "return ") return
+    v = emptyValue(type)
+    end = codeEnd(m)
+    expr = substr(m, lead + 7, end - lead - 6)
+    if (v == "" || expr == v) return
+    c = substr(expr, length(expr), 1)
+    if (closeOf("(" expr ")", 1) != length(expr) + 2 || inSet(c, "+-*/%&|<>=!?:.,([{")) return
+    emit("result", "return " substr(line, lead + 7, end - lead - 6), "return " v, substr(line, 1, lead + 6) v)
+}
+
+function changeDefault(line, m,    p, q, n, old, new_, c) {
+    p = index(m, " ?? ")
+    if (p == 0) return
+    q = p + 4
+    c = substr(line, q, 1)
+    if (c == "\"") {
+        n = q
+        while (substr(m, n + 1, 1) == MASK) n++
+        old = substr(line, q, n - q + 1)
+        new_ = old == "\"\"" ? "\"mutant\"" : "\"\""
+    } else if (inSet(c, DIGITS)) {
+        n = q
+        while (inSet(substr(m, n + 1, 1), DIGITS "_")) n++
+        if (inSet(substr(m, n + 1, 1), IDENT ".")) return
+        old = substr(line, q, n - q + 1)
+        new_ = old
+        gsub(/_/, "", new_)
+        new_ = sprintf("%.0f", new_ + 1)
+    } else if (findWord(substr(m, q), "true") == 1 || findWord(substr(m, q), "false") == 1) {
+        old = substr(m, q, 4) == "true" ? "true" : "false"
+        new_ = old == "true" ? "false" : "true"
+        n = q + length(old) - 1
+    } else {
+        return
+    }
+    emit("coalesce", "?? " old, "?? " new_, substr(line, 1, q - 1) new_ substr(line, n + 1))
+}
+
+function dropOperand(line, m,    a, o, p, start, end) {
+    a = index(m, " && ")
+    o = index(m, " || ")
+    p = a > 0 && (o == 0 || a < o) ? a : o
+    if (p == 0) return
+    start = leftEdge(m, p)
+    end = rightEdge(m, p + 4, p == a)
+    if (start >= p || end < p + 4) return
+    emit("operand", substr(line, start, end - start + 1), substr(line, start, p - start),
+        substr(line, 1, p - 1) substr(line, end + 1))
+}
+
+function alwaysEqual(line, m,    p, start, end) {
+    p = index(m, " == ")
+    if (p == 0 || declaresType(m)) return
+    start = leftEdge(m, p)
+    end = rightEdge(m, p + 4, 1)
+    if (start >= p || end < p + 4) return
+    emit("always", substr(line, start, end - start + 1), "true", substr(line, 1, start - 1) "true" substr(line, end + 1))
+}
+
+function dropClamp(line, m,    p, q, open, shut, inner, comma, first, second, keep, at) {
+    p = findWord(m, "max")
+    q = findWord(m, "min")
+    if (p == 0 || substr(m, p + 3, 1) != "(") p = 0
+    if (q == 0 || substr(m, q + 3, 1) != "(") q = 0
+    if (p == 0 || (q > 0 && q < p)) p = q
+    if (p == 0) return
+    open = p + 3
+    shut = closeOf(m, open)
+    if (shut == 0) return
+    inner = substr(m, open + 1, shut - open - 1)
+    comma = topLevelIndex(inner, 1, ", ")
+    if (comma == 0 || topLevelIndex(inner, comma + 2, ", ") > 0) return
+    first = substr(inner, 1, comma - 1)
+    second = substr(inner, comma + 2)
+    at = first ~ /^-?[0-9][0-9_.]*$/ ? open + comma + 2 : open + 1
+    keep = substr(line, at, at == open + 1 ? length(first) : length(second))
+    if (topLevelIndex(keep, 1, " ") > 0) keep = "(" keep ")"
+    emit("clamp", substr(line, p, shut - p + 1), keep, substr(line, 1, p - 1) keep substr(line, shut + 1))
+}
+
 {
     m = mask($0)
+    type = scopes > 0 ? scopeType[scopes] : ""
+    trackScope(m)
     directive(m)
     if (!(NR in want) || skipLine($0, m)) next
     compiledOutLine = inCompiledOutBranch()
@@ -283,4 +476,9 @@ function skipLine(line, m,    t, code) {
     negate($0, m)
     forceReturn($0, m)
     bumpConstant($0, m)
+    emptyResult($0, m, type)
+    changeDefault($0, m)
+    dropOperand($0, m)
+    alwaysEqual($0, m)
+    dropClamp($0, m)
 }
