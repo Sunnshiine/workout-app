@@ -13,12 +13,17 @@ fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
+new_repo() {
+    git init -q -b main "$1"
+    cd "$1" || exit 3
+    git config user.email test@example.com
+    git config user.name test
+    git config commit.gpgsign false
+}
+
 repo="$root/repo"
-git init -q -b main "$repo"
-cd "$repo" || exit 3
-git config user.email test@example.com
-git config user.name test
-git config commit.gpgsign false
+new_repo "$repo"
+git remote add origin https://github.com/Sunnshiine/workout-app.git
 
 feature_lines() { for i in $(seq "$2"); do echo "feature $1 line $i"; done; }
 
@@ -110,6 +115,23 @@ printf 'Reverts #3\nThis is not Reverts #2 at the start of a line.\n' >"$root/bo
 expect "a body that names another PR, or names #2 mid-line, still fires" 1 "undoes #2" \
     "$main" "$revert" --body-file "$root/body"
 expect "--allow 2" 0 "" "$main" "$revert" --allow 2
+printf 'Reverts #10, #2\n' >"$root/body"
+expect "one Reverts line that lists two PRs allows both" 0 "" "$main" "$revert" --body-file "$root/body"
+printf 'reverts: #2\n' >"$root/body"
+expect "a lowercase Reverts with a colon" 0 "" "$main" "$revert" --body-file "$root/body"
+printf 'Reverts other/repo#2\n' >"$root/body"
+expect "Reverts other/repo#2 names another repository's #2, so it still fires" 1 "undoes #2" \
+    "$main" "$revert" --body-file "$root/body"
+printf 'To declare a revert, write:\n\n```text\nReverts #2\n```\n\n~~~\nReverts #2\n~~~\n\n    Reverts #2\n' >"$root/body"
+expect "Reverts #2 inside a fenced or indented code block is an example, so it still fires" 1 "undoes #2" \
+    "$main" "$revert" --body-file "$root/body"
+git remote set-url origin git@github.com:Sunnshiine/workout-app.git
+printf 'Reverts sunnshiine/Workout-App#2\n' >"$root/body"
+expect "the owner/repo form matches an ssh origin, whatever the case" 0 "" "$main" "$revert" --body-file "$root/body"
+git remote set-url origin "file://$repo"
+expect "with no GitHub origin, the owner/repo form allows nothing" 1 "undoes #2" \
+    "$main" "$revert" --body-file "$root/body"
+git remote set-url origin https://github.com/Sunnshiine/workout-app.git
 
 echo "normal landings stay quiet"
 expect "a clean merge of main says it checked the window" 0 "quiet: " "$main" "$clean_merge"
@@ -142,6 +164,103 @@ if [ "$got" = 3 ] && grep -q "too shallow" "$root/err"; then
     ok "a shallow clone that lacks a parent exits 3, not a false finding"
 else
     bad "a shallow clone that lacks a parent exits 3, not a false finding: exit $got, $(cat "$root/out" "$root/err")"
+fi
+
+mkdir -p "$root/failing-merge-tree"
+cat >"$root/failing-merge-tree/git" <<STUB
+#!/usr/bin/env bash
+for arg in "\$@"; do
+    [ "\$arg" = merge-tree ] && { echo "fatal: simulated merge-tree failure" >&2; exit 128; }
+done
+exec "$real_git" "\$@"
+STUB
+chmod +x "$root/failing-merge-tree/git"
+got=$(PATH="$root/failing-merge-tree:$PATH" run "$main" "$conflict")
+if [ "$got" = 2 ] && grep -q "git merge-tree failed: fatal: simulated merge-tree failure" "$root/err"; then
+    ok "a merge-tree that fails for another reason exits 2 and says so"
+else
+    bad "a merge-tree that fails for another reason exits 2 and says so: exit $got, $(cat "$root/out" "$root/err")"
+fi
+
+echo "a deleted line belongs to the commit that added that line, not to any commit with the same text"
+new_repo "$root/copy"
+{ feature_lines old 12; feature_lines spacer 6; } >old.txt
+commit "feat: old block (#20)"
+for i in 21 22 23; do echo "filler $i" >"filler$i.txt"; commit "chore: filler (#$i)"; done
+git checkout -q -b drop-old-block
+sed -i.bak 1,12d old.txt && rm old.txt.bak
+commit "refactor: drop the old block"
+git checkout -q main
+feature_lines old 12 >>old.txt
+commit "feat: a copy of the old block at the end (#300)"
+expect "a branch that deletes an old block is quiet after main appends a copy of it" 0 "quiet: " \
+    main drop-old-block --window 3
+
+echo "a merge that drops one file of a commit that touched three fires"
+new_repo "$root/three-files"
+for f in g1 g2 g3; do echo "$f base line" >"$f.txt"; done
+commit "base (#1)"
+git checkout -q -b drops-g1
+echo "branch work" >b.txt
+commit "branch work"
+git checkout -q main
+for f in g1 g2 g3; do feature_lines "$f" 30 >>"$f.txt"; done
+commit "feat: three files (#7)"
+git checkout -q drops-g1
+git merge -q --no-ff --no-commit main >/dev/null
+git checkout main~1 -- g1.txt
+git commit -q -m "Merge main"
+expect "the merge's silent drop of g1.txt names #7 and the file" 1 "undoes #7 30/90 lines" main drops-g1
+
+echo "a commit with no PR number"
+new_repo "$root/no-number"
+echo "base" >a.txt
+commit "base"
+feature_lines direct 12 >>a.txt
+commit "chore: pushed straight to main"
+direct=$(git rev-parse HEAD)
+git checkout -q -b revert-direct
+git revert --no-edit HEAD >/dev/null
+expect "a revert of a commit with no PR number names its short SHA" 1 "undoes ${direct:0:8} 12/12 lines" \
+    main revert-direct
+printf 'Reverts %s\n' "${direct:0:7}" >"$root/body"
+expect "Reverts <sha> allows it" 0 "" main revert-direct --body-file "$root/body"
+
+echo "content that is not UTF-8"
+new_repo "$root/latin1"
+echo "base" >a.txt
+commit "base (#1)"
+git checkout -q -b branch-work
+echo "branch work" >b.txt
+commit "branch work"
+git checkout -q main
+for i in 1 2 3 4 5 6; do printf 'caf\351 au lait line %s\n' "$i"; done >menu.txt
+commit "feat: a Latin-1 menu (#4)"
+git checkout -q branch-work
+git merge -q --no-edit main
+got=$(run main branch-work)
+if [ "$got" = 0 ] && [ ! -s "$root/err" ]; then
+    ok "a Latin-1 file on the base is read, and a clean merge stays quiet"
+else
+    bad "a Latin-1 file on the base is read, and a clean merge stays quiet: exit $got, $(tail -3 "$root/err")"
+fi
+
+echo "a shallow clone whose fetch depth stops above the merge base"
+new_repo "$root/far-behind"
+echo "base" >a.txt
+commit "base (#1)"
+git checkout -q -b old-branch
+echo "branch work" >b.txt
+commit "branch work"
+git checkout -q main
+for i in 2 3 4 5 6 7 8; do echo "main $i" >"m$i.txt"; commit "chore: main $i (#$i)"; done
+git init -q "$root/far-behind-ci"
+got=$(cd "$root/far-behind-ci" && git fetch -q --depth=3 "file://$root/far-behind" main old-branch 2>&1 \
+    && run "$(git -C "$root/far-behind" rev-parse main)" "$(git -C "$root/far-behind" rev-parse old-branch)" --window 2)
+if [ "$got" = 3 ] && grep -q "share no commit here" "$root/err"; then
+    ok "a merge base past the fetch depth exits 3, so CI fetches deeper"
+else
+    bad "a merge base past the fetch depth exits 3, so CI fetches deeper: exit $got, $(cat "$root/out" "$root/err")"
 fi
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"

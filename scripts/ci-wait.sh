@@ -16,7 +16,7 @@ when that PR has the same base.
 
 Before it prints the merge command, it fetches the base and runs scripts/landing-reverts-main.py,
 which refuses a landing that undoes a recent commit on the base unless the PR body says
-`Reverts #N` for it.
+`Reverts #N`, or `Reverts <sha>` for a commit with no PR number.
 
 Exits 0 when every workflow succeeded; 1 when one did not, a run tested another base, the head moved during the wait, the PR comes from a fork, a gh or git call failed, or the landing would undo a commit on the base; 2 on a missing or
 non-numeric argument; and 3 when no workflow ran.

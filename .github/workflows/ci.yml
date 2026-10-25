@@ -98,6 +98,7 @@ jobs:
             scripts/landing-reverts-main.py "$base" "$head" --body-file "$RUNNER_TEMP/pr-body" || status=$?
             [ "$status" -eq 3 ] || exit "$status"
           done
+          echo "::error::Depth 1000 still lacks the history the landing check reads. Merge the base into the branch and push."
           exit 3
       # The version comes from the same Package.resolved the Xcode plugin resolves against, so the
       # cache key moves when the pin moves and never serves a stale binary.

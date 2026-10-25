@@ -6,21 +6,24 @@ usage: scripts/landing-reverts-main.py BASE HEAD [--body-file FILE] [--allow N,.
 The landing is what a squash of HEAD onto BASE would leave: HEAD's tree when BASE is an ancestor of
 HEAD, otherwise `git merge-tree --write-tree BASE HEAD`. Each -U0 hunk of BASE..landing is compared
 with the last --window (40) first-parent commits on BASE. A hunk undoes commit X when 80% of its
-significant lines (3 or more letters or digits) are X inverted, lines it removes that X added and
-lines it adds that X removed. A removed line that reappears elsewhere in the landing is a move, not
-an undo. A hunk is explained when one of the pull request's own non-merge commits made that same
-edit, so a reviewer saw it; --strict drops that exemption.
+significant lines (3 or more letters or digits) are X inverted: lines it removes that `git blame
+--first-parent` on BASE says X added, and lines it adds whose text X removed. A removed line that
+reappears elsewhere in the landing is a move, not an undo. A hunk is explained when one of the pull
+request's own non-merge commits made that same edit, so a reviewer saw it; --strict drops that
+exemption.
 
 The check fires for X when the landing undoes 5 or more of X's lines that no own commit explains,
 as when a merge commit keeps the branch side of main's changes (#1012), or half of X's lines
 whoever undid them, as when a stale tree is squashed onto a newer main.
 
-A deliberate revert names its pull request on a line of the body, `Reverts #N` or GitHub's
-`Reverts owner/repo#N`. --body-file reads those lines; --allow N,... adds more.
+A deliberate revert names what it reverts on a line of the body outside a code block: `Reverts #N`,
+GitHub's `Reverts owner/repo#N` when owner/repo is the origin remote, or `Reverts <sha>` for a commit
+with no PR number. One line may list several, as `Reverts #10, #11`. --body-file reads those lines;
+--allow N,... adds more, PR numbers or SHA prefixes.
 
 Exit 0 quiet, 1 the landing undoes a commit, 2 the check cannot run (git older than 2.38, a git
 failure, or a landing that conflicts), and 3 the clone is too shallow to read every commit the
-check needs, so fetch deeper and rerun.
+check needs or the merge base, so fetch deeper and rerun.
 """
 import argparse
 import os
@@ -33,11 +36,14 @@ MIN_GIT = (2, 38)
 MATCH_SHARE = 0.8
 MIN_UNEXPLAINED_LINES = 5
 UNDONE_SHARE = 0.5
-REVERTS = re.compile(r"^\s*Reverts\s+(?:[\w.-]+/[\w.-]+)?#(\d+)\b", re.MULTILINE)
+REVERTS = re.compile(r" {0,3}reverts:?\s+(.*)", re.IGNORECASE)
+REVERTED = re.compile(r"(?:([\w.-]+/[\w.-]+)?#(\d+)|([0-9a-f]{7,40}))[.,;]?", re.IGNORECASE)
+FENCE = re.compile(r" {0,3}(```|~~~)")
+HUNK = re.compile(r"@@ -(\d+)")
 
 
 def git(*args, check=True):
-    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    r = subprocess.run(["git", *args], capture_output=True, encoding="utf-8", errors="surrogateescape")
     if check and r.returncode != 0:
         print(f"git {' '.join(args)} failed: {r.stderr.strip()}", file=sys.stderr)
         sys.exit(2)
@@ -57,12 +63,12 @@ def significant(line):
 
 
 def hunks(diff_text):
-    """(path, removed lines, added lines) per -U0 hunk."""
-    out, path, minus, plus, in_header = [], None, [], [], False
+    """(path, first removed line's number in the old file, removed lines, added lines) per -U0 hunk."""
+    out, path, start, minus, plus, in_header = [], None, 0, [], [], False
 
     def flush():
         if path and (minus or plus):
-            out.append((path, minus, plus))
+            out.append((path, start, minus, plus))
 
     for line in diff_text.splitlines():
         if line.startswith("diff --git"):
@@ -73,7 +79,7 @@ def hunks(diff_text):
                 path = line[6:]
         elif line.startswith("@@"):
             flush()
-            minus, plus, in_header = [], [], False
+            start, minus, plus, in_header = int(HUNK.match(line).group(1)), [], [], False
         elif line.startswith("-"):
             minus.append(line[1:].strip())
         elif line.startswith("+"):
@@ -82,11 +88,15 @@ def hunks(diff_text):
     return out
 
 
+def diff(*args):
+    return hunks(git("-c", "core.quotePath=false", *args).stdout)
+
+
 def commit_hunks(commit):
-    return hunks(git("show", "-U0", "--format=", "--no-renames", commit).stdout)
+    return diff("show", "-U0", "--format=", "--no-renames", commit)
 
 
-def require_history(window, pr_commits):
+def require_history(base, head, window, pr_commits):
     """A shallow-boundary commit shows its whole tree as added, so every check against it is wrong."""
     shallow_file = git("rev-parse", "--git-path", "shallow").stdout.strip()
     if not os.path.exists(shallow_file):
@@ -96,6 +106,10 @@ def require_history(window, pr_commits):
     cut = [c for c in window + pr_commits if c in boundary]
     if cut:
         print(f"the clone is too shallow: {cut[0][:8]} has no parent here; fetch deeper and rerun", file=sys.stderr)
+        sys.exit(3)
+    if git("merge-base", base, head, check=False).returncode != 0:
+        print(f"the clone is too shallow: {base[:8]} and {head[:8]} share no commit here; fetch deeper and rerun",
+              file=sys.stderr)
         sys.exit(3)
 
 
@@ -117,52 +131,118 @@ def own_edits(pr_commits):
     """path -> (lines the PR's own commits removed, lines they added)."""
     out = defaultdict(lambda: (set(), set()))
     for c in pr_commits:
-        for path, minus, plus in commit_hunks(c):
+        for path, _, minus, plus in commit_hunks(c):
             out[path][0].update(m for m in minus if significant(m))
             out[path][1].update(p for p in plus if significant(p))
     return out
 
 
-def findings(base, landing, window, allow, own):
+def line_authors(base, bound, wanted):
+    """(path, line number on base) -> the first-parent commit on base that added the line.
+
+    Text alone misattributes: when a recent commit adds a copy of an old block and the landing
+    deletes the old copy, every deleted line matches the recent commit's text.
+    """
+    out = {}
+    for path, numbers in wanted.items():
+        ranges = []
+        for n in sorted(numbers):
+            if ranges and ranges[-1][1] == n - 1:
+                ranges[-1][1] = n
+            else:
+                ranges.append([n, n])
+        spans = [arg for a, b in ranges for arg in ("-L", f"{a},{b}")]
+        revs = f"{bound}..{base}" if bound else base
+        for line in git("blame", "--first-parent", "--porcelain", *spans, revs, "--", path).stdout.splitlines():
+            found = re.match(r"([0-9a-f]{40}) \d+ (\d+)", line)
+            if found:
+                out[(path, int(found.group(2)))] = found.group(1)
+    return out
+
+
+def findings(base, landing, window, bound, own):
     by_commit = {}
     for c in window:
         files = defaultdict(lambda: (set(), set()))
-        for path, minus, plus in commit_hunks(c):
+        for path, _, minus, plus in commit_hunks(c):
             files[path][0].update(m for m in minus if significant(m))
             files[path][1].update(p for p in plus if significant(p))
         by_commit[c] = files
-    undone, unexplained = defaultdict(set), defaultdict(set)
-    landing_hunks = hunks(git("diff", "-U0", "--no-renames", base, landing).stdout)
-    all_added = Counter(p for _, _, plus in landing_hunks for p in plus)
-    for path, minus, plus in landing_hunks:
+    window_added = defaultdict(set)
+    for files in by_commit.values():
+        for path, (_, c_added) in files.items():
+            window_added[path] |= c_added
+    landing_hunks = diff("diff", "-U0", "--no-renames", base, landing)
+    all_added = Counter(p for _, _, _, plus in landing_hunks for p in plus)
+    wanted, rows = defaultdict(set), []
+    for path, start, minus, plus in landing_hunks:
         elsewhere = all_added - Counter(plus)
-        removed = {m for m in minus if significant(m) and not elsewhere[m]}
+        removed = [(start + i, m) for i, m in enumerate(minus) if significant(m) and not elsewhere[m]]
         added = {p for p in plus if significant(p)}
-        if not removed and not added:
-            continue
+        if removed or added:
+            rows.append((path, removed, added))
+            wanted[path].update(n for n, m in removed if m in window_added[path])
+    author = line_authors(base, bound, {p: ns for p, ns in wanted.items() if ns})
+    undone, unexplained = defaultdict(set), defaultdict(set)
+    for path, removed, added in rows:
+        removed_text = {m for _, m in removed}
         own_removed, own_added = own[path] if own is not None and path in own else (None, None)
-        explained = own_removed is not None and removed <= own_removed and added <= own_added
+        explained = own_removed is not None and removed_text <= own_removed and added <= own_added
         for c, files in by_commit.items():
             if path not in files:
                 continue
-            c_removed, c_added = files[path]
-            lines = {(path, "-", m) for m in removed & c_added} | {(path, "+", p) for p in added & c_removed}
-            if len(lines) >= MATCH_SHARE * (len(removed) + len(added)):
+            c_removed, _ = files[path]
+            lines = {(path, "-", m) for n, m in removed if author.get((path, n)) == c}
+            lines |= {(path, "+", p) for p in added & c_removed}
+            if lines and len(lines) >= MATCH_SHARE * (len(removed_text) + len(added)):
                 undone[c] |= lines
                 if not explained:
                     unexplained[c] |= lines
                 break
     out = []
     for c, lines in undone.items():
-        subject = git("log", "-1", "--format=%s", c).stdout.strip()
-        pr = (re.findall(r"\(#(\d+)\)", subject) or ["?"])[-1]
         size = sum(len(m) + len(a) for m, a in by_commit[c].values())
-        if pr in allow:
-            continue
-        if len(unexplained[c]) < MIN_UNEXPLAINED_LINES and len(lines) < UNDONE_SHARE * size:
-            continue
-        out.append((c, pr, subject, len(lines), size, Counter(p for p, _, _ in lines)))
+        if len(unexplained[c]) >= MIN_UNEXPLAINED_LINES or len(lines) >= UNDONE_SHARE * size:
+            out.append((c, len(lines), size, Counter(p for p, _, _ in lines)))
     return out
+
+
+def origin_repo():
+    url = git("remote", "get-url", "origin", check=False).stdout.strip()
+    found = re.search(r"github\.com[:/]([\w.-]+/[\w.-]+?)(?:\.git)?/?$", url)
+    return found.group(1).lower() if found else None
+
+
+def body_reverts(text, repo):
+    """What a body's Reverts lines name: PR numbers and SHA prefixes. Lines inside a code block are examples."""
+    out, fence = set(), None
+    for line in text.splitlines():
+        opened = FENCE.match(line)
+        if opened:
+            if fence is None:
+                fence = opened.group(1)
+            elif opened.group(1) == fence:
+                fence = None
+            continue
+        found = None if fence else REVERTS.match(line)
+        if not found:
+            continue
+        for word in re.split(r"[\s,]+", found.group(1)):
+            if word.lower() == "and" or not word:
+                continue
+            ref = REVERTED.fullmatch(word)
+            if not ref:
+                break
+            other_repo, number, sha = ref.groups()
+            if number and (other_repo is None or other_repo.lower() == repo):
+                out.add(number)
+            elif sha:
+                out.add(sha.lower())
+    return out
+
+
+def allowed(commit, pr, allow):
+    return pr in allow or any(len(a) >= 7 and commit.startswith(a) for a in allow)
 
 
 def parse_args():
@@ -174,10 +254,10 @@ def parse_args():
     p.add_argument("--window", type=int, default=40)
     p.add_argument("--strict", action="store_true")
     args = p.parse_args()
-    allow = {n for n in args.allow.split(",") if n}
+    allow = {n.strip().lower() for n in args.allow.split(",") if n.strip()}
     if args.body_file:
-        with open(args.body_file) as f:
-            allow |= set(REVERTS.findall(f.read()))
+        with open(args.body_file, encoding="utf-8", errors="replace") as f:
+            allow |= body_reverts(f.read(), origin_repo())
     return args, allow
 
 
@@ -185,21 +265,28 @@ def main():
     args, allow = parse_args()
     require_git_version()
     base, head = (git("rev-parse", "--verify", f"{a}^{{commit}}").stdout.strip() for a in (args.base, args.head))
-    window = git("rev-list", "--first-parent", f"--max-count={args.window}", base).stdout.split()
+    window = git("rev-list", "--first-parent", f"--max-count={args.window + 1}", base).stdout.split()
+    window, bound = window[: args.window], (window[args.window:] or [None])[0]
     pr_commits = git("rev-list", f"{base}..{head}").stdout.split()
-    require_history(window, pr_commits)
+    require_history(base, head, window, pr_commits)
     landing = landing_tree(base, head)
     non_merges = git("rev-list", "--no-merges", f"{base}..{head}").stdout.split()
     own = None if args.strict else own_edits(non_merges)
-    found = findings(base, landing, window, allow, own)
-    for c, pr, subject, n, size, paths in found:
-        print(f"revert: the landing undoes #{pr} {n}/{size} lines ({c[:8]} {subject})")
+    found = False
+    for c, n, size, paths in findings(base, landing, window, bound, own):
+        subject = git("log", "-1", "--format=%s", c).stdout.strip()
+        pr = (re.findall(r"\(#(\d+)\)", subject) or [None])[-1]
+        if allowed(c, pr, allow):
+            continue
+        found = True
+        print(f"revert: the landing undoes {f'#{pr}' if pr else c[:8]} {n}/{size} lines ({c[:8]} {subject})")
         for path, count in sorted(paths.items()):
             print(f"  {path} ({count} lines)")
     if found:
         print(
-            "If a revert is deliberate, add a line 'Reverts #N' to the pull request body, then push, an empty"
-            " commit if nothing changed, so the check reruns.",
+            "If a revert is deliberate, add a line 'Reverts #N' to the pull request body, or 'Reverts <sha>'"
+            " for a commit with no PR number, then push, an empty commit if nothing changed, so the check"
+            " reruns.",
             file=sys.stderr,
         )
         sys.exit(1)
