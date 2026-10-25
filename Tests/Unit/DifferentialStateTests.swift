@@ -58,12 +58,21 @@ extension DifferentialStateTests {
             return Symptom(invariant, "\(path.replacing(/^w\d+d\d+\./, with: "*.").replacing(/\[\d+\]/, with: "[*]")): \(holder)")
         }
 
-        /// I3: each new refusal's kind, a value check or else its whole message, and whether an
-        /// earlier refusal still stood. #552's next write builds its expectation from the refused
-        /// one, so its refusal comes beside a standing one, and #685's came with none.
+        /// I3: each new refusal's kind, and whether an earlier refusal still stood. #552's next write
+        /// builds its expectation from the refused one, so its refusal comes beside a standing one,
+        /// and #685's came with none.
         static func refusal(_ messages: [String], standing: Bool) -> Symptom {
-            let kinds = Set(messages.map { $0.contains(": Expected '") ? "value check" : $0 }).sorted()
+            let kinds = Set(messages.map(kind(of:))).sorted()
             return Symptom(.refusal, "\(kinds.joined(separator: " + ")), \(standing ? "beside a standing refusal" : "none standing")")
+        }
+
+        /// A value check is named by its cell, which only the values it quotes tell apart: a Last
+        /// Set RPE holds a bare number or nothing, and a Set Log never does. A refusal that is not a
+        /// value check is its whole message.
+        private static func kind(of message: String) -> String {
+            guard let check = message.firstMatch(of: /Expected '([^']*)', found '([^']*)'$/) else { return message }
+            let rpe = [check.1, check.2].allSatisfy { $0.wholeMatch(of: /(\d+(\.\d+)?)?/) != nil }
+            return rpe ? "Last Set RPE value check" : "Set Log value check"
         }
 
         static let backward = Symptom(.backward, "landed on an earlier Session")
@@ -170,7 +179,7 @@ extension DifferentialStateTests {
             KnownDivergence(
                 number: 552,
                 title: "a refused write replays onto every sync",
-                symptom: Symptom(.refusal, "value check, beside a standing refusal"),
+                symptom: Symptom(.refusal, "Set Log value check, beside a standing refusal"),
                 script: "log w1d1.e0.s0 185x5@8; coach K15=300x5@7; flush; sync; log w1d1.e0.s0 190x5@8; flush"
             ),
             KnownDivergence(
@@ -214,6 +223,20 @@ extension DifferentialStateTests {
                 title: "a coach's Legacy Log and a Set Log read twice, seen in the open Exercises",
                 symptom: Symptom(.resynced, "app.openExercises[*]: live absent"),
                 script: "coach K19=225x8; sync; log w1d2.e0.s0 185x5@8; log w1d1.e1.s0 200x3@9; flush"
+            ),
+            // The later row's Legacy Log carries no RPE, so the entry the sync keeps suggests no load,
+            // the shape a stale entry shows.
+            KnownDivergence(
+                number: 961,
+                title: "live logging keeps the athlete's Set Log where sync keeps a same-named Exercise's Legacy Log",
+                symptom: Symptom(.resynced, "*.exercises[*].sets[*].loadSuggestion.basis.origin: live only"),
+                script: "coach C19=Back Squat; coach K19=225x8; sync; log w1d1.e0.s1 190x5@8; flush"
+            ),
+            KnownDivergence(
+                number: 1113,
+                title: "a Last Set RPE the coach leaves behind refuses the athlete's next log of that final Set",
+                symptom: Symptom(.refusal, "Last Set RPE value check, none standing"),
+                script: "log w1d1.e0.s2 200x3@9; flush; coach K15=; sync; log w1d1.e0.s2 200x3@9; flush"
             )
         ]
     }
