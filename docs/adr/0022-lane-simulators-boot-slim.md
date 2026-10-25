@@ -79,3 +79,5 @@ Shutdown. The next `create` writes it again.
   lanes. ADR-0020's table was taken on stock ones.
 - A test that needs a disabled job fails only on a lane. Take the job off the list, or boot that
   lane stock as above.
+
+<!-- doc-symbols: not-in-tree disabled.plist -->

@@ -12,7 +12,8 @@ Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all op
 - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Close**: `gh issue close <number> --comment "..."`
 
-Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
+The repo is `Sunnshiine/workout-app`. Inside a clone `gh` infers it from `git remote -v`. Outside one,
+such as from `/tmp` or another project, `gh` cannot, so run `export GH_REPO=Sunnshiine/workout-app` first.
 
 ## When a skill says "publish to the issue tracker"
 
