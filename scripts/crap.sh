@@ -97,9 +97,13 @@ run_tests() {
     local log="$OUT/test.log"
     rm -rf "$PROFILES"
     if ! test_command >"$log" 2>&1; then
-        tail -40 "$log" >&2
+        scripts/test-log-summary.sh --cause "$log" >&2 || true
         echo "crap.sh: tests failed; see $log" >&2
         exit 1
+    fi
+    if ! awk -f scripts/test-log-summary.awk "$log" >/dev/null; then
+        echo "crap.sh: no test ran; see $log" >&2
+        exit 65
     fi
     grep -E '^.?.?Test run with' "$log" | tail -1 || true
 }

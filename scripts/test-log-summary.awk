@@ -19,8 +19,9 @@ mode == "issue" && /^(↳| )/ {
 mode == "block" && /^\t/ { print; next }
 { mode = "" }
 /^[^ ]+ Test run with [1-9]/ { ran = 1 }
-/Executed [1-9][0-9]* tests?, with/ { ran = 1; if (previous ~ /^Test Suite '(All|Selected) tests' /) print }
+/^\t Executed [1-9][0-9]* tests?, with / { ran = 1; if (previous ~ /^Test Suite '(All|Selected) tests' /) print }
 /^[^ ]+ Test run with/ || /^[^ ]+ Test .* failed after/ \
-  || /\.swift:[0-9]+: error: / || /unexpected signal/ || /^Restarting after unexpected exit/ || /\*\* TEST EXECUTE/
+  || /\.swift:[0-9]+: error: / || /\.swift:[0-9]+: Fatal error: / || /Program crashed: / \
+  || /unexpected signal/ || /^Restarting after unexpected exit/ || /\*\* TEST EXECUTE/
 { previous = $0 }
 END { exit !ran }
