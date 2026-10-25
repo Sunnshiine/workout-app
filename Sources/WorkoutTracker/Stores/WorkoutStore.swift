@@ -268,7 +268,6 @@ extension WorkoutStore {
         valueToWrite: String?,
         transition: () -> Void
     ) throws {
-        guard let block, block.holds(set) else { throw WorkoutLoggingError.detachedSession }
         defer { refreshCurrentSession() }
         let previousValue = notesValue(for: set)
         let previousRPE = set.setLog?.rpe
