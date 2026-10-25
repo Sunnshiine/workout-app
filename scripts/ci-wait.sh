@@ -121,8 +121,9 @@ done <<<"$runs"
 
 body=$(mktemp)
 trap 'rm -f "$body"' EXIT
-gh pr view "$pr" --json body --jq .body >"$body"
-git fetch -q --no-tags origin "+refs/heads/$base:refs/remotes/origin/$base" "$sha"
+gh pr view "$pr" --json body --jq .body >"$body" || exit 1
+git fetch -q --no-tags origin "+refs/heads/$base:refs/remotes/origin/$base" "$sha" \
+    || { echo "could not fetch $base and ${sha:0:7} for the landing check" >&2; exit 1; }
 if ! "$script_dir/landing-reverts-main.py" "origin/$base" "$sha" --body-file "$body"; then
     echo "the landing of #$pr onto $base fails scripts/landing-reverts-main.py, so there is no merge command" >&2
     exit 1
