@@ -10,11 +10,13 @@ usage: scripts/lint-doc-symbols.py [ROOT]
 Reads the inline code spans of the repo-authored Markdown (DOC_SCOPE: AGENTS.md, the root guides,
 docs/, Sources/, tools/, and the repo's own skills), and the repo paths in their fenced blocks (a
 path whose first segment, after any ./, is a top-level entry of this tree, such as
-scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). ADRs and research notes are history, vendored
-skills are upstream text, and .sandcastle/ names examples, so all three stay out. A span or fenced path that names something outside the tree on purpose is exempted in
-its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
-commands included, and in every file outside Markdown must be a row of the generated launch-flag
-table, and the app's sources may spell one only in LaunchFlag.
+scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). Research notes are history, vendored skills
+are upstream text, and .sandcastle/ names examples, so all three stay out. ADRs stay in, so a
+change that deletes a symbol an ADR cites fails until the ADR is amended. A span or fenced path
+that names something outside the tree on purpose, such as a name an ADR records as retired, is
+exempted in its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those
+docs, fenced commands included, and in every file outside Markdown must be a row of the generated
+launch-flag table, and the app's sources may spell one only in LaunchFlag.
 
 A symbol is checked only by its camelCase segments, where a lowercase letter or digit meets a
 capital (flushEverything), each as a word anywhere in a Swift, project, or script file or as any
@@ -50,7 +52,7 @@ VENDORED_SKILLS = (
     "mobile-ios-design", "research", "setup-matt-pocock-skills", "tdd", "teach", "to-spec",
     "to-tickets", "triage", "writing-great-skills",
 )
-HISTORY = ("docs/adr/", "docs/research/") + tuple(f".agents/skills/{n}/" for n in VENDORED_SKILLS)
+HISTORY = ("docs/research/",) + tuple(f".agents/skills/{n}/" for n in VENDORED_SKILLS)
 FLAG_TABLE = ".agents/skills/verify/launch-flags.md"
 FLAG_SOURCE = "Sources/WorkoutTracker/Fixtures/LaunchFlag.swift"
 APP_SOURCES = ("Sources/", "App/", "WorkoutShared/", "WorkoutWidgets/")
