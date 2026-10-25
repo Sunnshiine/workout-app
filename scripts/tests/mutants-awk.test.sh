@@ -221,6 +221,18 @@ Sources/F.swift | 18 | bool | true | false | let release = false
 Sources/F.swift | 23 | bool | true | false | let after = false
 ROWS
 
+echo "mutate.sh --help names every op this generator makes"
+help=$(bash -c '. "$1" && usage' _ "$script_dir/../mutate-usage.sh")
+missing=""
+for op in $(sed -n 's/^# (\(.*\)) yields.*/\1/p' "$generator" | tr -d ' ' | tr ',' ' '); do
+    grep -Eq "^ +$op +[^ ]" <<<"$help" || missing="$missing $op"
+done
+if [ -n "$(sed -n 's/^# (\(.*\)) yields.*/\1/p' "$generator")" ] && [ -z "$missing" ]; then
+    ok "every op in the mutants.awk header has a row in mutate.sh --help"
+else
+    bad "every op in the mutants.awk header has a row in mutate.sh --help; missing:$missing"
+fi
+
 echo "a missing changed list is a usage error"
 awk -v path=Sources/F.swift -f "$scan" -f "$generator" "$tmp/F.swift" >/dev/null 2>&1
 status=$?
