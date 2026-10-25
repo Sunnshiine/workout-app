@@ -108,6 +108,7 @@ class Film(unittest.TestCase):
         self.saved = cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS, cardstill.PAIR_WAIT_S
         cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_WAIT_S = fake, 0.0, 0.0
         cardstill.PAIR_TAPS = tuple((ident, 0) for ident, _ in cardstill.PAIR_TAPS)
+        cardstill.MERGED_ROW = (cardstill.MERGED_ROW[0], 0)
 
     def tearDown(self):
         cardstill.VERIFY, cardstill.REST_END_AFTER_S, cardstill.PAIR_TAPS, cardstill.PAIR_WAIT_S = self.saved
@@ -123,7 +124,6 @@ class Film(unittest.TestCase):
             "tap --id stage-queue-button",
             "tap --id stage-queue-superset",
             "tap --id stage-queue-row-exercise-1",
-            "tap --id stage-queue-row-superset-0",
         ])
 
     def test_an_app_before_ui_11_pairs_through_the_first_row_s_pair_button(self):
@@ -131,8 +131,15 @@ class Film(unittest.TestCase):
             "tap --id stage-queue-button",
             "tap --id stage-queue-pair-exercise-0",
             "tap --id stage-queue-row-exercise-1",
-            "tap --id stage-queue-row-superset-0",
         ])
+
+    def test_a_queue_that_stays_open_on_the_merged_row_gets_it_tapped_closed(self):
+        row = "AXButton\tstage-queue-row-superset-0\tSuperset, Back Squat + BB RDL, Now\t\t@20,300 300x60\n"
+        (self.dir / "tree").write_text((FIXTURES / "04-queue-superset.tree.txt").read_text() + row)
+        with contextlib.redirect_stderr(io.StringIO()):
+            cardstill.Side("lane-head", None).pair()
+        taps = [c.split(" ", 1)[1] for c in (self.dir / "calls").read_text().splitlines() if " tap " in c]
+        self.assertEqual(taps[-1], "tap --id stage-queue-row-superset-0")
 
     def test_pairing_opens_the_queue_then_reads_the_tree_until_the_sheet_shows_its_way_in(self):
         (self.dir / "tree.next").write_text((FIXTURES / "04-queue-superset.tree.txt").read_text())
