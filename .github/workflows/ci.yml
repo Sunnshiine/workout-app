@@ -194,23 +194,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          scripts/mutate-advisory.sh HEAD^1 >"$RUNNER_TEMP/survivors.md"
-          marker='<!-- mutate-advisory -->'
-          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
-            --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | tail -1)
-          if [ -s "$RUNNER_TEMP/survivors.md" ]; then
-            { echo "$marker"; cat "$RUNNER_TEMP/survivors.md"; echo; echo "At ${HEAD_SHA:0:8}."; } >"$RUNNER_TEMP/body.md"
-          elif [ -n "$id" ]; then
-            { echo "$marker"; echo "No mutant of the changed Sources lines survives at ${HEAD_SHA:0:8}."; } >"$RUNNER_TEMP/body.md"
-          else
-            exit 0
-          fi
-          if [ -n "$id" ]; then
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
-          else
-            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
-          fi
+        run: scripts/mutate-advisory.sh --comment "$PR" --at "$HEAD_SHA" HEAD^1
 
   visual-tests:
     if: github.event.action != 'edited' || github.event.changes.base
