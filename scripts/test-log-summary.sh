@@ -27,7 +27,7 @@ if grep -q -e ' recorded an issue ' -e ' failed after ' -e '^Failing tests:' "$w
         sleep 0.1
     done
     kill "$gh" 2>/dev/null && echo "no issue lookup: gh issue list gave no answer in $bound s"
-    wait "$gh" && issues=$work/issues
+    wait "$gh" 2>/dev/null && issues=$work/issues
 fi
 paths=
 if [ "${GITHUB_ACTIONS:-}" = true ]; then
