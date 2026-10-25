@@ -23,7 +23,9 @@ refuses with a domain error, as dismissing a Move On Celebration when none is op
 Unavailable Session current do. The UI offers neither tap: no overlay is open, and an Unavailable
 tile does not open. A pin on an Unavailable Session would stand while the store fell back to
 Sheet-derived progress, and no snapshot field would say so, so the facade refuses and the caller
-learns why.
+learns why. Every verb that takes a Set address, `log` and `skip` among them, resolves it through
+that availability check, so a Set in an Unavailable Session refuses with `session_unavailable` and
+writes nothing. `log` and `skip` refused it before the check was shared, by the same predicate.
 
 Fixtures are workbooks, not model graphs. `WorkbookScenario` produces a `LocalWorkbook` in the
 coach's canonical layout, and the application reads it through the real parser and writes to it

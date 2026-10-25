@@ -56,6 +56,19 @@ private func address(_ raw: String) throws -> SetAddress {
     #expect(throws: ApplicationError.sessionUnavailable("w2d3")) { try app.makeCurrent() }
 }
 
+/// `makeCurrent` and the Set verbs share one availability check, so a Set in an Unavailable
+/// Session refuses every verb and writes nothing.
+@MainActor
+@Test func theSetVerbsRefuseASetInAnUnavailableSession() async throws {
+    let app = try await makeSelectedApp()
+    let set = try address("w2d3.e0.s0")
+
+    #expect(throws: ApplicationError.sessionUnavailable("w2d3")) { try app.log(set, setLog: "185x5@8") }
+    #expect(throws: ApplicationError.sessionUnavailable("w2d3")) { try app.skip(set) }
+    #expect(throws: ApplicationError.sessionUnavailable("w2d3")) { try app.deleteLog(set) }
+    #expect(try app.snapshot().pendingWriteCount == 0)
+}
+
 @MainActor
 @Test func dismissingWithNoMoveOnCelebrationOpenRefuses() async throws {
     let app = try await makeSelectedApp()
