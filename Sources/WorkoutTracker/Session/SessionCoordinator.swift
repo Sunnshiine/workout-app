@@ -121,6 +121,12 @@ final class SessionCoordinator {
         }
     }
 
+    func jump(to set: ExerciseSet) {
+        perform(focusManager.motion(forFocusing: set)) {
+            focusManager.open(set)
+        }
+    }
+
     func log(_ set: ExerciseSet, as log: SetLog) {
         self.log(set, as: log, from: .card)
     }
