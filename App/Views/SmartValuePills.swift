@@ -305,7 +305,7 @@ struct SmartValuePills: View {
     /// Reviewing an already-logged Set commits silently: any changed, valid draft is written when
     /// the card leaves the screen (collapse or navigation), with the header's Saved label as feedback.
     private func commitChangedDraftIfNeeded() {
-        guard presentation.commitsChangesOnDisappear, let log = form.changedValidLog else { return }
+        guard presentation.commitsChangesOnDisappear, let log = form.changedValidLog(toSaveOver: set) else { return }
         onLog(log)
     }
 
