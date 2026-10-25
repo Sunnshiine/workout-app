@@ -167,6 +167,26 @@ Sources/F.swift | 4 | logic | && | || | let d = rows.filter { $0.ok || ready }
 Sources/F.swift | 4 | operand | $0.ok && ready | $0.ok | let d = rows.filter { $0.ok }
 ROWS
 
+echo "a \$N in a string interpolation counts as a use, and a \$N in string text does not"
+cat >"$tmp/F.swift" <<'SWIFT'
+let a = rows.filter { flag && "\($0.name)".isEmpty }
+let c = rows.filter { "\($0)" == name && ok }
+let e = rows.filter { "\(n)" == "$0" && $0.ok }
+let f = rows.filter { "\(label("$0"))" == s && $0.ok }
+SWIFT
+check "operand and always keep an interpolated \$0, and drop one whose only \$0 is string text" <<'ROWS'
+Sources/F.swift | 1 | logic | && | || | let a = rows.filter { flag || "\($0.name)".isEmpty }
+Sources/F.swift | 2 | compare | == | != | let c = rows.filter { "\($0)" != name && ok }
+Sources/F.swift | 2 | logic | && | || | let c = rows.filter { "\($0)" == name || ok }
+Sources/F.swift | 2 | operand | "\($0)" == name && ok | "\($0)" == name | let c = rows.filter { "\($0)" == name }
+Sources/F.swift | 3 | compare | == | != | let e = rows.filter { "\(n)" != "$0" && $0.ok }
+Sources/F.swift | 3 | logic | && | || | let e = rows.filter { "\(n)" == "$0" || $0.ok }
+Sources/F.swift | 3 | always | "\(n)" == "$0" | true | let e = rows.filter { true && $0.ok }
+Sources/F.swift | 4 | compare | == | != | let f = rows.filter { "\(label("$0"))" != s && $0.ok }
+Sources/F.swift | 4 | logic | && | || | let f = rows.filter { "\(label("$0"))" == s || $0.ok }
+Sources/F.swift | 4 | always | "\(label("$0"))" == s | true | let f = rows.filter { true && $0.ok }
+ROWS
+
 echo "result makes no equivalent mutant, and skips a continued return and a closure's return"
 cat >"$tmp/F.swift" <<'SWIFT'
 func a() -> Double {
@@ -212,6 +232,25 @@ Sources/F.swift | 26 | const | 1 | 2 |         return 2
 Sources/F.swift | 28 | result | return count | return 0 |     return 0
 Sources/F.swift | 32 | result | return try load() | return 0 |         return 0
 Sources/F.swift | 34 | result | return count | return 0 |         return 0
+ROWS
+
+echo "result makes no equivalent mutant from a zero-argument numeric init"
+cat >"$tmp/F.swift" <<'SWIFT'
+func a() -> Int {
+    return Int()
+}
+func b() -> Double {
+    return Double()
+}
+func c() -> CGFloat {
+    return .init()
+}
+func d() -> Int {
+    return Int(text)
+}
+SWIFT
+check "Int(), Double(), and .init() are skipped, a converting Int(x) is not" <<'ROWS'
+Sources/F.swift | 11 | result | return Int(text) | return 0 |     return 0
 ROWS
 
 echo "operand and always keep a one-line block's braces"

@@ -56,8 +56,8 @@ function dropsAnonymousArg(mutated,    n, a, pre, suf, key, k, to, count, i, arg
     a = length(mutated)
     for (pre = 0; pre < n && pre < a && substr($0, pre + 1, 1) == substr(mutated, pre + 1, 1); pre++) ;
     for (suf = 0; suf < n - pre && suf < a - pre && substr($0, n - suf, 1) == substr(mutated, a - suf, 1); suf++) ;
-    anonymousArgs(m, was)
-    anonymousArgs(maskMutant(mutated), now)
+    anonymousArgs(maskMutant($0, 1), was)
+    anonymousArgs(maskMutant(mutated, 1), now)
     for (key in was) {
         k = key + 0
         if (k == 0 || k <= pre) to = k
@@ -272,12 +272,14 @@ function emptyValue(type,    inner) {
     return ""
 }
 
-# An expression already empty, such as 0.0, Int.zero, [ ], or [T](), would make an equivalent mutant.
+# An expression already empty, such as 0.0, Int.zero, Double(), [ ], or [T](), would make an
+# equivalent mutant.
 function isEmpty(expr, v,    e) {
     e = expr
     gsub(/ /, "", e)
     if (e == v) return 1
-    if (v == "0") return e ~ /^[0_]+(\.[0_]+)?$/ || e ~ /^[A-Za-z0-9_]*\.zero$/
+    if (v == "0") return e ~ /^[0_]+(\.[0_]+)?$/ || e ~ /^[A-Za-z0-9_]*\.zero$/ ||
+        e ~ /^((U?Int(8|16|32|64)?|Double|Float|CGFloat|TimeInterval)(\.init)?|\.init)\(\)$/
     if (v == "nil") return e ~ /^(Optional(<.*>)?)?\.none$/
     return e ~ /^\[.*\]\(\)$/ || e ~ /^(Array|Dictionary)(<.*>)?\(\)$/ || e == ".init()"
 }

@@ -12,6 +12,7 @@ function hashes(count,    s) {
 # characters are tested by lookup.
 function inSet(c, set) { return c != "" && index(set, c) > 0 }
 
+# Both skip functions mark each position they pass inside an interpolation as code in interpolated.
 function skipString(s, i, closeHashes,    n, c, j) {
     n = length(s)
     while (i <= n) {
@@ -42,15 +43,18 @@ function skipInterpolation(s, i,    n, c, depth, k) {
         }
         if (c == "(") depth++
         if (c == ")" && --depth == 0) return i + 1
+        interpolated[i] = 1
         i++
     }
     return n + 1
 }
 
-function mask(s,    n, i, c, out, k, h, end, rest) {
+# With keepInterpolations set, the code inside each \(...) stays unmasked.
+function mask(s, keepInterpolations,    n, i, c, out, k, h, end, rest) {
     n = length(s)
     out = ""
     commentAt = 0
+    split("", interpolated)
     i = 1
     while (i <= n) {
         c = substr(s, i, 1)
@@ -89,12 +93,13 @@ function mask(s,    n, i, c, out, k, h, end, rest) {
         } else {
             end = skipString(s, k + 1, h)
         }
-        while (i < end) { out = out MASK; i++ }
+        while (i < end) { out = out (keepInterpolations && (i in interpolated) ? substr(s, i, 1) : MASK); i++ }
     }
     return out
 }
 
-# Fills sets with the anonymous arguments ($0, $1...) each closure on the masked line uses itself,
+# Fills sets with the anonymous arguments ($0, $1...) each closure uses itself, on a line masked
+# with its interpolations kept,
 # keyed by the column of its opening brace, and key 0 for the code outside every brace.
 function anonymousArgs(m, sets,    n, i, j, c, top, open) {
     split("", sets)
@@ -113,10 +118,10 @@ function anonymousArgs(m, sets,    n, i, j, c, top, open) {
     }
 }
 
-function maskMutant(s,    block, multiline, hashes_, comment, out) {
+function maskMutant(s, keepInterpolations,    block, multiline, hashes_, comment, out) {
     block = blockDepth; multiline = inMultiline; hashes_ = multilineHashes; comment = commentAt
     blockDepth = lineBlockDepth; inMultiline = lineInMultiline; multilineHashes = lineMultilineHashes
-    out = mask(s)
+    out = mask(s, keepInterpolations)
     blockDepth = block; inMultiline = multiline; multilineHashes = hashes_; commentAt = comment
     return out
 }
