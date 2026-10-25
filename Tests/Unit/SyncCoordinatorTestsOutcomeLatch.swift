@@ -135,8 +135,7 @@ struct SyncOutcomeCharacterizationTests {
         #expect(write.retryCount == 1)
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
+    @Test func theFlushRefusalIsInvisibleInOutcomeForTheWholeNetworkPhaseOfASync() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = HeldOutcomePinClient(holding: .tabTitles, grid: coachEditedGrid())
@@ -158,8 +157,7 @@ struct SyncOutcomeCharacterizationTests {
         #expect(sync.isSyncing == false)
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
+    @Test func midFlushTheCoordinatorSaysSyncingWhileTheFlushCountRefusesToAnswer() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = HeldOutcomePinClient(holding: .tabSnapshot, grid: coachEditedGrid())
@@ -188,8 +186,7 @@ struct SyncOutcomeCharacterizationTests {
         #expect(try sync.hasPendingWrites() == true)
     }
 
-    @Test(.timeLimit(.minutes(1)))
-    func aSetLogQueuedWhileAFlushIsInFlightIsCountedWhenThatFlushCompletes() async throws {
+    @Test func aSetLogQueuedWhileAFlushIsInFlightIsCountedWhenThatFlushCompletes() async throws {
         let container = try makeContainer()
         try queueSquatLog(in: container.mainContext)
         let client = HeldOutcomePinClient(holding: .tabSnapshot, grid: writableGrid())

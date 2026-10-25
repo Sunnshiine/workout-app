@@ -7,7 +7,7 @@ Usage: scripts/flake-hunt.sh [--repetitions N] [--load N] [FILTER]
 Repeats every `swift test` test (or those matching FILTER) until one fails, up to N repetitions
 each (default 200), while N busy-loop processes (default three per core) hold the CPU. Timing
 races that pass on a quiet machine fail here within a few hundred repetitions.
-Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed.
+Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed or no test ran.
 EOF
   exit 2
 }
@@ -39,10 +39,23 @@ for (( i = 0; i < load; i++ )); do
   hogs+=($!)
 done
 
+rm -f "${log%.log}-swift-testing.xml"
 set +e
-swift test --skip-build ${filter[@]+"${filter[@]}"} --repeat-until fail --maximum-repetitions "$repetitions" >"$log" 2>&1
+swift test --skip-build ${filter[@]+"${filter[@]}"} --repeat-until fail --maximum-repetitions "$repetitions" \
+  --xunit-output "${log%.log}.xml" >"$log" 2>&1
 rc=$?
 set -e
+# Swift Testing counts its tests in a -swift-testing sibling of the xunit path. XCTest writes that
+# path only under --parallel, so its count is the log's Executed line, which the summary awk reads.
+if [ "$rc" -eq 0 ] && ! grep -qs '<testsuite [^>]*tests="[1-9]' "${log%.log}-swift-testing.xml" &&
+  ! awk -f "$repo/scripts/test-log-summary.awk" "$log" >/dev/null; then
+  echo "flake-hunt: no test ran${filter[1]+; no test matches ${filter[1]}}; see $log" >&2
+  exit 65
+fi
 
-awk -f "$repo/scripts/test-log-summary.awk" "$log" | uniq || true
+if [ "$rc" -eq 0 ]; then
+  "$repo/scripts/test-log-summary.sh" "$log"
+else
+  "$repo/scripts/test-log-summary.sh" --cause "$log"
+fi
 exit $(( rc == 0 ? 0 : 1 ))
