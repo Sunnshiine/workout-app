@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
-# Usage: scripts/test-log-summary.sh LOG
+# Usage: scripts/test-log-summary.sh [--cause] LOG
 # Prints what test-log-summary.awk reads from a swift test or xcodebuild log, then the open GitHub
 # issue whose title names each failing test, then, under GitHub Actions, one ::error annotation per
 # issue a test recorded. Exits as the awk does: 0 when a test run finished, 1 when none did. The gh
 # lookup never changes that; it is skipped when gh fails and given up on after WORKOUT_ISSUE_WAIT
 # seconds (10).
+# --cause is for a run that failed: when the summary names no failing test, it also prints the
+# first 20 error: lines of the log that the summary lacks, or the last 40 lines when the log has none.
 set -uo pipefail
 
+cause=
+if [ "${1:-}" = --cause ]; then
+    cause=1
+    shift
+fi
 dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 work=$(mktemp -d) || exit 1
 trap 'rm -rf "$work"' EXIT
@@ -14,6 +21,14 @@ trap 'rm -rf "$work"' EXIT
 awk -f "$dir/test-log-summary.awk" "$1" | uniq >"$work/summary"
 ran=${PIPESTATUS[0]}
 cat "$work/summary"
+if [ -n "$cause" ] &&
+    ! grep -q -e ' recorded an issue ' -e '^Failing tests:' -e '\.swift:[0-9]*: error: ' "$work/summary"; then
+    if grep -q 'error:' "$1"; then
+        grep 'error:' "$1" | grep -vxF -f "$work/summary" | head -20
+    else
+        tail -40 "$1"
+    fi
+fi
 
 issues=
 bound=${WORKOUT_ISSUE_WAIT:-10}

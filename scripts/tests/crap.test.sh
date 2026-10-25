@@ -108,6 +108,28 @@ check "a gh that cannot answer leaves the summary alone" \
 "$summary
 $seelog"
 
+printf '%s\n' "✔ Test run with 74 tests in 5 suites passed after 0.051 seconds." "error: fatalError: second bundle crashed" \
+    "Program crashed: Illegal instruction" >"$root/test.log"
+check "a crash after one test run passed still names the crash" \
+"✔ Test run with 74 tests in 5 suites passed after 0.051 seconds.
+Program crashed: Illegal instruction
+error: fatalError: second bundle crashed
+$seelog"
+
+printf '%s\n' "◇ Test run started." "✔ Test canMoveOnIsFalseOnLastSession() passed after 0.010 seconds." \
+    "WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value" \
+    "error: Exited with unexpected signal code 5" >"$root/test.log"
+check "a test process that crashes prints its fatal line and its signal once each" \
+"WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value
+error: Exited with unexpected signal code 5
+$seelog"
+
+printf '%s\n' "◇ Test run started." "[sync] Executed 3 tests, with 0 failures (0 unexpected) in 0.100 (0.100) seconds" \
+    "    Executed 2 tests, with 0 failures (0 unexpected) in 0.100 (0.100) seconds" \
+    "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds." >"$root/test.log"
+STUB_RC=0 WANT_STATUS=65 check "a line that only quotes XCTest's summary does not count as a test run" \
+    "crap.sh: no test ran; see .build/crap/test.log"
+
 printf '%s\n' "warning: No matching test cases were run" "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds." >"$root/test.log"
 STUB_RC=0 WANT_STATUS=65 check "a swift test run in which no test ran says so and exits 65 before it scores coverage" \
     "crap.sh: no test ran; see .build/crap/test.log"

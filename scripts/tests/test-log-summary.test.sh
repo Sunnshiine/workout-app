@@ -100,5 +100,24 @@ Failing tests:
 
 ** TEST EXECUTE FAILED **"
 
+check "a line that only quotes XCTest's summary is not a test run" 1 \
+"✔ Test run with 0 tests in 0 suites passed after 0.001 seconds." \
+"◇ Test run started.
+[sync] Executed 3 tests, with 0 failures (0 unexpected) in 0.100 (0.100) seconds
+    Executed 2 tests, with 0 failures (0 unexpected) in 0.100 (0.100) seconds
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds."
+
+check "a crash after a failing test prints the crash too" 1 \
+"✘ Test probe() recorded an issue at ProbeTests.swift:5:5: Expectation failed: sets % 2 == 1
+Tests/Unit/ProbeTests.swift:9: Fatal error: Index out of range
+💣 Program crashed: System trap at 0x0000000100f2c1a4
+error: Exited with unexpected signal code 5
+no open issue names probe" \
+"◇ Test run started.
+✘ Test probe() recorded an issue at ProbeTests.swift:5:5: Expectation failed: sets % 2 == 1
+Tests/Unit/ProbeTests.swift:9: Fatal error: Index out of range
+💣 Program crashed: System trap at 0x0000000100f2c1a4
+error: Exited with unexpected signal code 5"
+
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

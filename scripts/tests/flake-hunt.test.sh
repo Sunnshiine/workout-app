@@ -88,12 +88,31 @@ check "a test that records many issues prints its first three" 1 \
 ✘ Test grows(n:) failed after 0.001 seconds with 5 issues.
 ✘ Test run with 1 test in 1 suite failed after 0.002 seconds with 5 issues."
 
-STUB_TESTS= check "a test process that crashes before its xunit file exits 1, not as if no test ran" 1 \
-"error: Exited with unexpected signal code 5" 1 \
+STUB_TESTS= check "a test process that crashes before its xunit file exits 1, not as if no test ran, and names the crash" 1 \
+"WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value
+error: Exited with unexpected signal code 5" 1 \
 "◇ Test run started.
 ✔ Test canMoveOnIsFalseOnLastSession() passed after 0.010 seconds.
 WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value
 error: Exited with unexpected signal code 5"
+
+STUB_TESTS= check "a swift test that fails before any test runs prints why" 1 \
+"error: no tests found; create a target in the 'Tests' directory" 1 \
+"error: no tests found; create a target in the 'Tests' directory"
+
+STUB_TESTS=0 check "an XCTest-only run, whose tests Swift Testing's xunit file does not count, passes" 0 \
+"	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.001) seconds" 0 \
+"Test Suite 'Selected tests' started at 2026-10-25 12:29:12.672.
+Test Suite 'PTests.xctest' started at 2026-10-25 12:29:12.673.
+Test Suite 'XT' started at 2026-10-25 12:29:12.673.
+Test Case '-[PTests.XT testRealX]' started.
+Test Case '-[PTests.XT testRealX]' passed (0.000 seconds).
+Test Suite 'XT' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'PTests.xctest' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.001) seconds"
 
 no_test() {
     local name=$1 want_err=$2

@@ -97,8 +97,7 @@ run_tests() {
     local log="$OUT/test.log"
     rm -rf "$PROFILES"
     if ! test_command >"$log" 2>&1; then
-        # The summary exits nonzero when no test ran, as when the build failed.
-        scripts/test-log-summary.sh "$log" >&2 || grep -m 20 'error:' "$log" >&2 || tail -40 "$log" >&2 || true
+        scripts/test-log-summary.sh --cause "$log" >&2 || true
         echo "crap.sh: tests failed; see $log" >&2
         exit 1
     fi
