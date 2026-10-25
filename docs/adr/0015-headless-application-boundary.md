@@ -17,8 +17,9 @@ that surface.
 
 Fixtures are workbooks, not model graphs. `WorkbookScenario` produces a `LocalWorkbook` in the
 coach's canonical layout, and the application reads it through the real parser and writes to it
-through the real writer via `LocalWorkbookSheetsClient`, which persists to `workbook.json`. A
-scenario must parse with no warnings.
+through the real writer via `LocalWorkbookSheetsClient`. Over a home directory the client reads
+`workbook.json` on every call and rewrites it after every write, so the file is the offline Sheet,
+and an edit to it between two calls is a coach edit. A scenario must parse with no warnings.
 
 The CLI is process-per-command over a home directory (`manifest.json`, `store.sqlite`,
 `workbook.json`, `settings.json`). Every invocation opens the application fresh, so nothing
