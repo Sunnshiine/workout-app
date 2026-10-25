@@ -27,11 +27,15 @@ scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild 
 scripts/crap.sh --help
 ```
 
-Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the test log (`test.log`). The
-baseline lives at `tools/crap/baseline.tsv`. Its fourth column, `reason`, is written by hand: say why
-a row is held above the target (a device probe no headless test can reach, a flat switch whose every
-branch is a distinct message). `crap baseline` keeps the reason while the row survives and drops it
-with the row, so the list never carries a stale excuse.
+Artifacts land in `.build/crap/`: `coverage.lcov`, `report.json`, and the test log (`test.log`).
+When a test fails, the script prints `scripts/test-log-summary.sh`'s reading of that log instead of
+scoring: each issue with its file, line, and expectation, the failing tests, any crash or fatal
+error the log holds, and the open issue whose title names each one. Under GitHub Actions each issue
+also becomes an annotation on the checks page. The baseline lives at `tools/crap/baseline.tsv`. Its
+fourth column, `reason`, is written by hand: say why a row is held above the target (a device probe
+no headless test can reach, a flat switch whose every branch is a distinct message). `crap baseline`
+keeps the reason while the row survives and drops it with the row, so the list never carries a stale
+excuse.
 
 The script and `swift test --package-path tools/crap` both build this package in debug, so they share
 one build of swift-syntax in `tools/crap/.build`. The first build takes about two minutes; later runs

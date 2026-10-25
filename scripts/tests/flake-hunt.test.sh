@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
@@ -16,15 +18,20 @@ bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 cat >"$root/bin/swift" <<'STUB'
 #!/bin/sh
 [ "$1" = test ] || { [ -z "${STUB_BUILD_LOG:-}" ] || cat "$STUB_BUILD_LOG"; exit "${STUB_BUILD_RC:-0}"; }
+while [ $# -gt 0 ]; do [ "$1" = --xunit-output ] && xunit=$2; shift; done
+[ -z "${STUB_TESTS:-}" ] ||
+    printf '<testsuites>\n  <testsuite name="TestResults" errors="0" tests="%s" failures="0">\n' "$STUB_TESTS" \
+        >"${xunit%.xml}-swift-testing.xml"
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
-chmod +x "$root/bin/swift"
+printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
+chmod +x "$root/bin/swift" "$root/bin/gh"
 
 check() {
     local name=$1 want_status=$2 want_out=$3 swift_status=$4 log=$5
     printf '%s\n' "$log" >"$root/swift.log"
-    STUB_LOG=$root/swift.log STUB_RC=$swift_status PATH="$root/bin:$PATH" \
+    STUB_LOG=$root/swift.log STUB_RC=$swift_status STUB_TESTS=${STUB_TESTS-1} PATH="$root/bin:$PATH" \
         "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 >"$root/out" 2>"$root/err"
     local status=$?
     local out
@@ -80,6 +87,53 @@ check "a test that records many issues prints its first three" 1 \
 ✘ Test grows(n:) recorded an issue with 1 argument n → 5 at GrowSuite.swift:5:9: Expectation failed: n == 0
 ✘ Test grows(n:) failed after 0.001 seconds with 5 issues.
 ✘ Test run with 1 test in 1 suite failed after 0.002 seconds with 5 issues."
+
+STUB_TESTS= check "a test process that crashes before its xunit file exits 1, not as if no test ran, and names the crash" 1 \
+"WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value
+error: Exited with unexpected signal code 5" 1 \
+"◇ Test run started.
+✔ Test canMoveOnIsFalseOnLastSession() passed after 0.010 seconds.
+WorkoutTrackerTests/ExerciseNameTests.swift:11: Fatal error: Unexpectedly found nil while unwrapping an Optional value
+error: Exited with unexpected signal code 5"
+
+STUB_TESTS= check "a swift test that fails before any test runs prints why" 1 \
+"error: no tests found; create a target in the 'Tests' directory" 1 \
+"error: no tests found; create a target in the 'Tests' directory"
+
+STUB_TESTS=0 check "an XCTest-only run, whose tests Swift Testing's xunit file does not count, passes" 0 \
+"	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.001) seconds" 0 \
+"Test Suite 'Selected tests' started at 2026-10-25 12:29:12.672.
+Test Suite 'PTests.xctest' started at 2026-10-25 12:29:12.673.
+Test Suite 'XT' started at 2026-10-25 12:29:12.673.
+Test Case '-[PTests.XT testRealX]' started.
+Test Case '-[PTests.XT testRealX]' passed (0.000 seconds).
+Test Suite 'XT' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'PTests.xctest' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.000) seconds
+Test Suite 'Selected tests' passed at 2026-10-25 12:29:12.673.
+	 Executed 1 test, with 0 failures (0 unexpected) in 0.000 (0.001) seconds"
+
+no_test() {
+    local name=$1 want_err=$2
+    shift 2
+    printf 'warning: No matching test cases were run\n' >"$root/swift.log"
+    STUB_LOG=$root/swift.log STUB_RC=0 STUB_TESTS=0 PATH="$root/bin:$PATH" \
+        "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 "$@" >"$root/out" 2>"$root/err"
+    local status=$? log
+    log=$(head -1 "$root/out")
+    want_err="$want_err; see ${log#log: }"
+    if [ "$status" = 65 ] && [ "$(wc -l <"$root/out")" -eq 1 ] && [ "$(cat "$root/err")" = "$want_err" ]; then
+        ok "$name"
+    else
+        bad "$name: exit $status (want 65)"
+        printf '    stdout:\n%s\n    stderr:\n%s\n    want stderr:\n%s\n' "$(cat "$root/out")" "$(cat "$root/err")" "$want_err"
+    fi
+}
+
+no_test "a filter that matches no test exits 65 and names the filter" \
+    "flake-hunt: no test ran; no test matches NoSuchTestMatchesThis" NoSuchTestMatchesThis
+no_test "a run with no filter and no test exits 65" "flake-hunt: no test ran"
 
 build_failure() {
     local name=$1 log=$2 want_lines=$3
