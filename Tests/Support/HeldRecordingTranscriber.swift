@@ -13,7 +13,7 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
         var ranOnMainThread: Bool?
         var wasCancelled = false
         var answering: CheckedContinuation<RecordingDecode, Never>?
-        var isAbandoned = false
+        var awaitingCall: CheckedContinuation<Void, Never>?
     }
 
     private let calls = Mutex(Calls())
@@ -34,7 +34,7 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
     @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode {
         let onMainThread = pthread_main_np() != 0
         return await withTaskCancellationHandler {
-            // answer(_:) or a cancel resumes this, and a failed waitUntilCalled() stops later parks.
+            // answer(_:) or the cancel handler resumes the read.
             // swiftlint:disable:next tests_never_park_on_a_bare_continuation
             await withCheckedContinuation { park($0, onMainThread: onMainThread) }
         } onCancel: {
@@ -43,13 +43,18 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
     }
 
     /// Returns once `transcribe` has parked, so what the test does next happens with the read in
-    /// flight. When no read comes it records a failure, and a later read returns late at once.
-    @MainActor
-    func waitUntilCalled(sourceLocation: SourceLocation = #_sourceLocation) async {
-        if await waitUntil({ transcribes > 0 }, orRecord: "the recording engine was never asked to read", sourceLocation: sourceLocation) {
-            return
+    /// flight.
+    func waitUntilCalled() async {
+        // The read runs off the main actor, so a waitUntil count does not bound it (#1105).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
+        await withCheckedContinuation { continuation in
+            let called = calls.withLock { calls -> Bool in
+                guard calls.transcribes == 0 else { return true }
+                calls.awaitingCall = continuation
+                return false
+            }
+            if called { continuation.resume() }
         }
-        calls.withLock { $0.isAbandoned = true }
     }
 
     /// Lets the parked read return `decode`.
@@ -63,14 +68,15 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
 
     /// Parks under the lock the cancel takes, so a cancel that lands first still answers the read.
     private func park(_ continuation: CheckedContinuation<RecordingDecode, Never>, onMainThread: Bool) {
-        let parks = calls.withLock { calls -> Bool in
+        let (test, cancelled) = calls.withLock { calls -> (CheckedContinuation<Void, Never>?, Bool) in
             calls.transcribes += 1
             calls.ranOnMainThread = onMainThread
-            let parks = !calls.wasCancelled && !calls.isAbandoned
-            if parks { calls.answering = continuation }
-            return parks
+            if !calls.wasCancelled { calls.answering = continuation }
+            defer { calls.awaitingCall = nil }
+            return (calls.awaitingCall, calls.wasCancelled)
         }
-        if !parks { continuation.resume(returning: RecordingDecode.missing(.late)) }
+        if cancelled { continuation.resume(returning: RecordingDecode.missing(.late)) }
+        test?.resume()
     }
 
     private func cancelRead() {

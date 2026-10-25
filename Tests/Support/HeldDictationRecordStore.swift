@@ -1,6 +1,5 @@
 import Foundation
 import Synchronization
-import Testing
 
 @testable import WorkoutTracker
 
@@ -13,6 +12,7 @@ final class HeldDictationRecordStore: DictationRecordStore {
         var appends = 0
         var ranOnMainThread: Bool?
         var parked: [CheckedContinuation<Void, Never>] = []
+        var awaitingAppend: CheckedContinuation<Void, Never>?
     }
 
     private let state = Mutex(State())
@@ -23,17 +23,19 @@ final class HeldDictationRecordStore: DictationRecordStore {
 
     func append(_ record: DictationRecord) async {
         let onMainThread = pthread_main_np() != 0
-        // release() lets every parked write through, and a failed waitUntilAppending() calls it.
+        // release() lets every parked write through.
         // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { continuation in
-            let isHeld = state.withLock { state -> Bool in
+            let (test, isHeld) = state.withLock { state -> (CheckedContinuation<Void, Never>?, Bool) in
                 state.appends += 1
                 state.ranOnMainThread = onMainThread
                 state.kept.append(record)
                 if state.isHeld { state.parked.append(continuation) }
-                return state.isHeld
+                defer { state.awaitingAppend = nil }
+                return (state.awaitingAppend, state.isHeld)
             }
             if !isHeld { continuation.resume() }
+            test?.resume()
         }
     }
 
@@ -48,13 +50,17 @@ final class HeldDictationRecordStore: DictationRecordStore {
     }
 
     /// Returns once a write has parked, so what the test does next happens with the disk stalled.
-    /// When no write comes it records a failure and releases the store, so a late write cannot park.
-    @MainActor
-    func waitUntilAppending(sourceLocation: SourceLocation = #_sourceLocation) async {
-        if await waitUntil({ appends > 0 }, orRecord: "no write reached the store", sourceLocation: sourceLocation) {
-            return
+    func waitUntilAppending() async {
+        // The write runs off the main actor, so a waitUntil count does not bound it (#1105).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
+        await withCheckedContinuation { continuation in
+            let appending = state.withLock { state -> Bool in
+                guard state.appends == 0 else { return true }
+                state.awaitingAppend = continuation
+                return false
+            }
+            if appending { continuation.resume() }
         }
-        release()
     }
 
     /// Lets every parked write, and every later one, through.
