@@ -43,3 +43,5 @@ defines for Debug builds (the hosted tests need it); release phone builds never 
 - *A `UserDefaults` suite per home, named by a hash of the home path:* the first slice shipped it.
   Every suite persists as a plist under `~/Library/Preferences` that nothing deletes, and a moved
   home lost its settings. Settings now live in `home/settings.json` (#602).
+
+<!-- doc-symbols: not-in-tree workbook.json manifest.json home/settings.json -->

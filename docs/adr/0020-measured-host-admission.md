@@ -111,3 +111,5 @@ What the numbers say:
 - Worktrees on an older commit keep enforcing the old gates through their own copy of `sim-lock.sh`.
   This lasts until they rebase.
 - This ADR does not cover telling a CoreSimulator fault from a test failure (#908).
+
+<!-- doc-symbols: not-in-tree scripts/wait-load.sh -->
