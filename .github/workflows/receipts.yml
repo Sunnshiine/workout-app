@@ -6,8 +6,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+# A title-only edit gets a group of its own, so it never cancels a run it would then skip.
 concurrency:
-  group: receipts-${{ github.event.pull_request.number }}
+  group: receipts-${{ (github.event.action == 'edited' && !github.event.changes.base && !github.event.changes.body && github.run_id) || github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -31,4 +32,5 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           printf '%s\n' "$PR_BODY" >"$RUNNER_TEMP/pr-body"
-          scripts/check-receipts.py --body-file "$RUNNER_TEMP/pr-body" --head "$HEAD_SHA" --base "origin/$BASE_REF"
+          scripts/check-receipts.py --body-file "$RUNNER_TEMP/pr-body" --head "$HEAD_SHA" --base "origin/$BASE_REF" \
+            --repo "$GITHUB_REPOSITORY"

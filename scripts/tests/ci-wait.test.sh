@@ -204,8 +204,26 @@ graphql_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a 
 echo "no run: exit 3"
 
 check "a PR that starts no run exits 3 and prints no merge command" 3 "" 668 "[]"
-check_err "a PR that starts no run names the commit and what to check before landing" "no pull_request workflow ran on 73b27aa within 5 minutes
+check_err "a PR that starts no run names the commit and what to check before landing" "no pull_request workflow but Receipts ran on 73b27aa within 5 minutes
 land #668 only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed 73b27aa (#805)"
+
+R=35742049777
+receipts_success="Receipts success on 73b27aa (run $R)
+  receipts: success"
+check "a PR whose only run is a green Receipts run exits 3 and prints no merge command" 3 "$receipts_success" 668 \
+    "[$(workflow_run Receipts $R completed success receipts)]"
+check_err "a PR whose only run is Receipts names what to check before landing" "no pull_request workflow but Receipts ran on 73b27aa within 5 minutes
+land #668 only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed 73b27aa (#805)"
+check "a PR whose only run is a red Receipts run exits 1" 1 "Receipts failure on 73b27aa (run $R)
+  receipts: failure" 668 \
+    "[$(workflow_run Receipts $R completed failure receipts)]"
+check "a Receipts run that finishes before CI starts waits for CI" 0 "$ci_a_success
+$receipts_success
+$merge" 668 \
+    "[$(workflow_run Receipts $R completed success receipts)]" \
+    "[$(workflow_run Receipts $R completed success receipts)]" \
+    "[$(workflow_run Receipts $R completed success receipts), $(ci $A in_progress "")]" \
+    "[$(workflow_run Receipts $R completed success receipts), $(ci $A completed success)]"
 
 check "a PR whose only runs were skipped exits 3" 3 "" 668 \
     "[$(workflow_run "TestFlight PR" $A completed skipped build), $(workflow_run "Verify tools" $W completed skipped sheet)]"
