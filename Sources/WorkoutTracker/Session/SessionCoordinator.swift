@@ -324,6 +324,15 @@ private enum WriteSource {
 private enum CardWrite {
     case log(SetLog)
     case skip
+
+    /// Nil for an outcome that writes nothing, as a draft filled or a transcript rejected.
+    init?(_ outcome: SetDictation.Outcome) {
+        switch outcome {
+        case .logged(let setLog, _): self = .log(setLog)
+        case .skipped: self = .skip
+        case .filled, .rejected: return nil
+        }
+    }
 }
 
 extension SessionCoordinator {
@@ -348,12 +357,17 @@ extension SessionCoordinator {
     }
 
     func startDictation(for set: ExerciseSet) {
-        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session,
-            let mode = spokenWriteMode(for: set)
+        guard let dictation, let setID = Self.activeSetID(for: set), let session = stagedSession(of: set),
+            let mode = spokenWriteMode(for: set), dictation.start(for: setID)
         else { return }
-        guard dictation.start(for: setID) else { return }
         dictatingSession = session
         dictatingMode = mode
+    }
+
+    /// The Session on stage, when `set` is in it.
+    private func stagedSession(of set: ExerciseSet) -> Session? {
+        guard let session, set.exercise?.session === session else { return nil }
+        return session
     }
 
     /// The card reports what it shows for `set` as the athlete changes it, which fills what a
@@ -399,22 +413,23 @@ extension SessionCoordinator {
     /// over a review: its outcome goes, so the card answers no write it did not make.
     func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
         guard let outcome else { return nil }
-        guard self.session === session, let set = session.set(at: setID), let mode = dictatingMode, spokenWriteMode(for: set) == mode
-        else {
+        guard let (set, mode) = spokenWriteTarget(at: setID, in: session) else {
             dictation?.dismiss()
             return nil
         }
-        let cardWrite: CardWrite
-        switch outcome {
-        case .logged(let setLog, _): cardWrite = .log(setLog)
-        case .skipped: cardWrite = .skip
-        case .filled, .rejected: return outcome
-        }
+        guard let cardWrite = CardWrite(outcome) else { return outcome }
         guard write(cardWrite, to: set, as: mode, from: .speech) else {
             dictation?.dismiss()
             return nil
         }
         return outcome
+    }
+
+    /// The Set at `setID` and the mode the press began in, while the card still writes it that way.
+    private func spokenWriteTarget(at setID: ActiveSetID, in session: Session) -> (ExerciseSet, SetCardMode)? {
+        guard self.session === session, let set = session.set(at: setID), let mode = dictatingMode, spokenWriteMode(for: set) == mode
+        else { return nil }
+        return (set, mode)
     }
 
     /// Stops the press for `set` whose control left the screen, writing nothing. A control that
