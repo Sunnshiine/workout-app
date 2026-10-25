@@ -2,7 +2,7 @@
 #   path  line  op  before  after  mutated_line
 #
 #   awk -v path=Sources/X.swift -v changed=LINES_FILE [-v platform=macOS|iOS -v compiledOut=FILE] \
-#       -f scripts/mutants.awk Sources/X.swift
+#       -f scripts/mutants-scan.awk -f scripts/mutants.awk Sources/X.swift
 #
 # With platform, a row on a line inside an #if branch that platform compiles out is appended to
 # compiledOut instead. Only os(...), canImport(UIKit), and canImport(AppKit), each alone or negated,
@@ -16,13 +16,14 @@
 # `===`, `..<`, and `<<` never match.
 #
 # result empties `return x` to the [], [:], nil, or 0 the enclosing declaration's return type
-# takes, and skips any other type. coalesce changes a literal `?? x`. operand drops the right side
-# of the first && or ||. always turns the first `a == b` into true. clamp keeps the value a two-
-# argument max or min clamps.
+# takes. It skips any other type, an x already empty, an x the next line continues, and a return in
+# a closure. coalesce changes a literal `?? x`. operand drops the right side of the first && or ||.
+# always turns the first `a == b` into true. clamp keeps the value a two-argument max or min clamps.
+# No mutant leaves a closure without an anonymous argument ($0, $1...) it used.
 
 BEGIN {
     if (path == "" || changed == "") {
-        print "usage: awk -v path=REL -v changed=LINES_FILE -f mutants.awk FILE" > "/dev/stderr"
+        print "usage: awk -v path=REL -v changed=LINES_FILE -f mutants-scan.awk -f mutants.awk FILE" > "/dev/stderr"
         exit 2
     }
     while ((getline n < changed) > 0) want[n] = 1
@@ -43,105 +44,33 @@ BEGIN {
     logicFrom[2] = " || "; logicTo[2] = " && "
     braceDepth = 0
     scopes = 0
+    while ((getline l < ARGV[1]) > 0) source[++sourceLines] = l
+    close(ARGV[1])
 }
 
-function hashes(count,    s) {
-    s = ""
-    while (count-- > 0) s = s "#"
-    return s
-}
-
-# macOS awk splits UTF-8 by byte, and a regex test on a lone lead byte aborts it, so single
-# characters are tested by lookup.
-function inSet(c, set) { return c != "" && index(set, c) > 0 }
-
-function skipString(s, i, closeHashes,    n, c, j) {
-    n = length(s)
-    while (i <= n) {
-        c = substr(s, i, 1)
-        if (c == "\\" && substr(s, i + 1, length(closeHashes)) == closeHashes) {
-            j = i + 1 + length(closeHashes)
-            if (substr(s, j, 1) == "(") { i = skipInterpolation(s, j + 1); continue }
-            i = j + 1
-            continue
-        }
-        if (c == "\"" && substr(s, i + 1, length(closeHashes)) == closeHashes)
-            return i + 1 + length(closeHashes)
-        i++
+# Swift rejects a closure whose body stops using an anonymous argument. Only a closure whose braces
+# sit outside the changed span can lose one, so each of those, matched by its brace's column, must
+# keep every $N it used.
+function dropsAnonymousArg(mutated,    n, a, pre, suf, key, k, to, count, i, args, was, now) {
+    n = length($0)
+    a = length(mutated)
+    for (pre = 0; pre < n && pre < a && substr($0, pre + 1, 1) == substr(mutated, pre + 1, 1); pre++) ;
+    for (suf = 0; suf < n - pre && suf < a - pre && substr($0, n - suf, 1) == substr(mutated, a - suf, 1); suf++) ;
+    anonymousArgs(m, was)
+    anonymousArgs(maskMutant(mutated), now)
+    for (key in was) {
+        k = key + 0
+        if (k == 0 || k <= pre) to = k
+        else if (k > n - suf) to = k + a - n
+        else continue
+        count = split(was[key], args, ",")
+        for (i = 1; i <= count; i++) if (args[i] != "" && !index(now[to], "," args[i] ",")) return 1
     }
-    return n + 1
+    return 0
 }
 
-function skipInterpolation(s, i,    n, c, depth, k) {
-    n = length(s)
-    depth = 1
-    while (i <= n) {
-        c = substr(s, i, 1)
-        if (c == "\"") { i = skipString(s, i + 1, ""); continue }
-        if (c == "#") {
-            k = i
-            while (substr(s, k, 1) == "#") k++
-            if (substr(s, k, 1) == "\"") { i = skipString(s, k + 1, hashes(k - i)); continue }
-        }
-        if (c == "(") depth++
-        if (c == ")" && --depth == 0) return i + 1
-        i++
-    }
-    return n + 1
-}
-
-function mask(s,    n, i, c, out, k, h, end, rest) {
-    n = length(s)
-    out = ""
-    commentAt = 0
-    i = 1
-    while (i <= n) {
-        c = substr(s, i, 1)
-        if (blockDepth > 0) {
-            if (substr(s, i, 2) == "/*") { blockDepth++; out = out MASK MASK; i += 2; continue }
-            if (substr(s, i, 2) == "*/") { blockDepth--; out = out MASK MASK; i += 2; continue }
-            out = out MASK
-            i++
-            continue
-        }
-        if (inMultiline) {
-            if (substr(s, i, 3 + length(multilineHashes)) == "\"\"\"" multilineHashes) {
-                inMultiline = 0
-                end = i + 3 + length(multilineHashes)
-            } else {
-                end = i + 1
-            }
-            while (i < end) { out = out MASK; i++ }
-            continue
-        }
-        if (substr(s, i, 2) == "//") { commentAt = i; while (i <= n) { out = out MASK; i++ }; break }
-        if (substr(s, i, 2) == "/*") { blockDepth = 1; out = out MASK MASK; i += 2; continue }
-        k = i
-        while (substr(s, k, 1) == "#") k++
-        if (substr(s, k, 1) != "\"") {
-            out = out c
-            i++
-            continue
-        }
-        h = hashes(k - i)
-        rest = substr(s, k + 3)
-        if (substr(s, k, 3) == "\"\"\"" && rest ~ /^[ \t]*$/) {
-            inMultiline = 1
-            multilineHashes = h
-            end = n + 1
-        } else {
-            end = skipString(s, k + 1, h)
-        }
-        while (i < end) { out = out MASK; i++ }
-    }
-    return out
-}
-
-# Swift rejects a closure whose body stops using an anonymous argument, so a mutant that removes
-# every $0 (or $1...) its line held is skipped rather than built to a nocompile.
-function emit(op, before, after, mutated,    row, k) {
-    if ((NR, mutated) in emitted) return
-    for (k = 0; k <= 9; k++) if (index($0, "$" k) && !index(mutated, "$" k)) return
+function emit(op, before, after, mutated,    row) {
+    if ((NR, mutated) in emitted || dropsAnonymousArg(mutated)) return
     emitted[NR, mutated] = 1
     row = sprintf("%s\t%d\t%s\t%s\t%s\t%s", path, NR, op, before, after, mutated)
     if (compiledOutLine) print row >> compiledOut
@@ -182,18 +111,6 @@ function inCompiledOutBranch(    d) {
     return 0
 }
 
-function findWord(m, word,    from, p, prev, next_) {
-    from = 0
-    while ((p = index(substr(m, from + 1), word)) > 0) {
-        p += from
-        prev = p > 1 ? substr(m, p - 1, 1) : ""
-        next_ = substr(m, p + length(word), 1)
-        if (!inSet(prev, NOT_BEFORE_LITERAL) && !inSet(next_, IDENT)) return p
-        from = p
-    }
-    return 0
-}
-
 function swapFirst(op, line, m, from, to, count, isOperator,    i, p, best, b, a) {
     best = 0
     for (i = 1; i <= count; i++) {
@@ -202,23 +119,6 @@ function swapFirst(op, line, m, from, to, count, isOperator,    i, p, best, b, a
     }
     if (best == 0) return
     emit(op, trim(b), trim(a), substr(line, 1, best - 1) a substr(line, best + length(b)))
-}
-
-function trim(s) {
-    gsub(/^ +| +$/, "", s)
-    return s
-}
-
-function topLevelIndex(m, start, token,    n, i, c, depth) {
-    n = length(m)
-    depth = 0
-    for (i = start; i <= n; i++) {
-        c = substr(m, i, 1)
-        if (c == "(" || c == "[") depth++
-        else if (c == ")" || c == "]") depth--
-        else if (depth == 0 && substr(m, i, length(token)) == token) return i
-    }
-    return 0
 }
 
 function bindsOrLists(maskedCondition) {
@@ -285,12 +185,6 @@ function skipLine(line, m,    t, code) {
     return 0
 }
 
-function codeEnd(m,    e) {
-    e = commentAt ? commentAt - 1 : length(m)
-    while (e > 0 && substr(m, e, 1) == " ") e--
-    return e
-}
-
 # The first column of the operand that ends just before column p, scanning left at bracket depth 0
 # to a separator, a keyword, or the indentation.
 function leftEdge(m, p,    i, c, depth, before) {
@@ -310,8 +204,9 @@ function leftEdge(m, p,    i, c, depth, before) {
 
 # The last column of the operand that starts at column p, scanning right at bracket depth 0 to a
 # separator, the block's opening brace, a closing bracket, or the end of the code.
-function rightEdge(m, p, stopAnd,    i, c, depth, end) {
+function rightEdge(m, p, stopAnd,    i, c, depth, end, block) {
     end = codeEnd(m)
+    block = m ~ /^ *(\} else )?(if|while|for|switch) /
     depth = 0
     for (i = p; i <= end; i++) {
         c = substr(m, i, 1)
@@ -321,10 +216,11 @@ function rightEdge(m, p, stopAnd,    i, c, depth, end) {
         if (depth == 0 && c == ":" && i == end) break
         if (depth > 0 || c != " ") continue
         if (substr(m, i, 4) == " || " || (stopAnd && substr(m, i, 4) == " && ")) break
-        if (substr(m, i, 2) == " {" && i + 1 == end) break
+        if (substr(m, i, 2) == " {" && (i + 1 == end || block)) break
         if (substr(m, i, 3) == " ? " || substr(m, i, 3) == " : " || substr(m, i, 5) == " else") break
         if (substr(m, i - 1, 2) == ", ") { i--; break }
     }
+    while (i - 1 > p && substr(m, i - 1, 1) == " ") i--
     return i - 1
 }
 
@@ -332,18 +228,9 @@ function declaresType(m) {
     return m ~ /(^|[^A-Za-z0-9_])(func|extension|struct|class|enum|protocol|typealias) /
 }
 
-function closeOf(m, open,    i, c, depth) {
-    depth = 0
-    for (i = open; i <= length(m); i++) {
-        c = substr(m, i, 1)
-        if (c == "(" || c == "[") depth++
-        else if ((c == ")" || c == "]") && --depth == 0) return i
-    }
-    return 0
-}
-
-# Pushes the return type a line's opening brace starts, "" for a Void function, an initializer, or a
-# closure, and pops the scopes its closing braces end.
+# Pushes the return type a line's opening brace starts: "" for a Void function, an initializer, a
+# closure, or any other brace but a control-flow block, which keeps its function's type. Pops the
+# scopes its closing braces end.
 function trackScope(m,    code, n, i, c, type, opens) {
     code = m
     gsub(MASK, "", code)
@@ -367,6 +254,8 @@ function trackScope(m,    code, n, i, c, type, opens) {
         type = ""
     } else if (code ~ /\{[^{}]* in$/) {
         type = ""
+    } else if (code ~ /\{$/ && code !~ /^[ \t}]*(if|else|guard|for|while|where|repeat|switch|do|catch|defer)([^A-Za-z0-9_]|$)/) {
+        type = ""
     } else {
         opens = 0
     }
@@ -383,15 +272,36 @@ function emptyValue(type,    inner) {
     return ""
 }
 
+# An expression already empty, such as 0.0, Int.zero, [ ], or [T](), would make an equivalent mutant.
+function isEmpty(expr, v,    e) {
+    e = expr
+    gsub(/ /, "", e)
+    if (e == v) return 1
+    if (v == "0") return e ~ /^[0_]+(\.[0_]+)?$/ || e ~ /^[A-Za-z0-9_]*\.zero$/
+    if (v == "nil") return e ~ /^(Optional(<.*>)?)?\.none$/
+    return e ~ /^\[.*\]\(\)$/ || e ~ /^(Array|Dictionary)(<.*>)?\(\)$/ || e == ".init()"
+}
+
+# Whether the next line of code continues this one's expression, as a .member or a binary operator.
+function continuesOnNextLine(    j, t) {
+    for (j = NR + 1; j <= sourceLines; j++) {
+        t = source[j]
+        sub(/^[ \t]+/, "", t)
+        if (t == "" || substr(t, 1, 2) == "//") continue
+        return t ~ /^\.[A-Za-z_]/ || t ~ /^[-+*\/%&|^<>=!?:~.]+( |$)/
+    }
+    return 0
+}
+
 function emptyResult(line, m, type,    lead, end, expr, v, c) {
     lead = match(m, /[^ ]/)
     if (substr(m, lead, 7) != "return ") return
     v = emptyValue(type)
     end = codeEnd(m)
     expr = substr(m, lead + 7, end - lead - 6)
-    if (v == "" || expr == v) return
+    if (v == "" || isEmpty(expr, v)) return
     c = substr(expr, length(expr), 1)
-    if (closeOf("(" expr ")", 1) != length(expr) + 2 || inSet(c, "+-*/%&|<>=!?:.,([{")) return
+    if (closeOf("(" expr ")", 1) != length(expr) + 2 || inSet(c, "+-*/%&|<>=!?:.,([{") || continuesOnNextLine()) return
     emit("result", "return " substr(line, lead + 7, end - lead - 6), "return " v, substr(line, 1, lead + 6) v)
 }
 
@@ -466,6 +376,7 @@ function dropClamp(line, m,    p, q, open, shut, inner, comma, first, second, ke
 }
 
 {
+    lineBlockDepth = blockDepth; lineInMultiline = inMultiline; lineMultilineHashes = multilineHashes
     m = mask($0)
     type = scopes > 0 ? scopeType[scopes] : ""
     trackScope(m)

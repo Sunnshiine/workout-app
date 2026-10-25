@@ -189,9 +189,9 @@ At 01234567."
 guard=$(awk '/^  mutants:/ { job = 1; next } job && /^    if:/ { print; exit }' "$script_dir/../../.github/workflows/ci.yml")
 titles=""
 for title in "fix(sync): a" "fix: a" "fix!: a" "fix(sync)!: a" "feat(sync): a" "ci(mutate): a" "fixup: a"; do
-    for prefix in $(grep -o "title, '[^']*'" <<<"$guard" | sed "s/title, '//; s/'$//"); do
+    while IFS= read -r prefix; do
         [[ $title == "$prefix"* ]] && { titles="$titles$title,"; break; }
-    done
+    done < <(grep -o "title, '[^']*'" <<<"$guard" | sed "s/title, '//; s/'$//")
 done
 expect "the CI job runs on fix titles, breaking ones included, and on no other type" "$titles" "fix(sync): a,fix: a,fix!: a,fix(sync)!: a,"
 
