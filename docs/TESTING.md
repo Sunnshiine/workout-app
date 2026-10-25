@@ -49,10 +49,15 @@ instead of failing it. A continuation ignores cancellation, so a fake never park
 polls state on the main actor, where the work that sets it runs, and records a failure when the poll
 runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the shapes to copy, as
 `ManualSessionTransitionClock.waitForSleep()` does (#746). When the poll runs out, the wait also
-releases whatever the fake would park later, as `HeldCall.waitUntilHeld` does through `abandon()`.
+releases what the fake holds. `HeldCall.waitUntilHeld` does this through `abandon()`, which also
+lets every later call through. `ManualListeningClock.waitUntilSleeping` wakes only the sleepers
+parked when it fails, so a sleep that starts after that still parks.
 `tests_wait_on_events_not_clocks` and `tests_never_park_on_a_bare_continuation` in `.swiftlint.yml`
-reject a sleep, a time limit, and a bare continuation under `Tests/Unit/`, `Tests/Component/`, and
-`Tests/Support/`.
+reject a sleep, a time read or limit, and a bare continuation under `Tests/Unit/`,
+`Tests/Component/`, and `Tests/Support/`. A regex cannot tell a real clock from a manual one by
+its name, so a sleep on a clock passed in as a parameter, and `.now` read on a clock instance, pass
+`tests_wait_on_events_not_clocks`. A bare `ContinuousClock.now` with no arithmetic passes it too,
+because two tests hold one as a fixed start instant. Review judges those.
 
 Title a flaky test's issue with the test's function name, as #978 is. A failing run of
 `scripts/crap.sh`, `scripts/test-sim.sh`, or `scripts/flake-hunt.sh` searches open issue titles for

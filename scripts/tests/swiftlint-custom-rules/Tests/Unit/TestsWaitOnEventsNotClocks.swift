@@ -40,8 +40,44 @@ enum TestsWaitOnEventsNotClocks {
         await clock.measure {}
     }
 
-    static func deadlineAdvancedFromNowIsMissed() -> ContinuousClock.Instant {
+    static func measureWithParenthesesIsFlagged(clock: some Clock<Duration>) async -> Duration {
+        await clock.measure({})
+    }
+
+    static func deadlineAdvancedFromNowIsFlagged() -> ContinuousClock.Instant {
         ContinuousClock.now.advanced(by: .seconds(1))
+    }
+
+    static func genericTaskSleepIsFlagged() async throws {
+        try await Task<Never, Never>.sleep(for: .seconds(1))
+    }
+
+    static func bareSleepIsFlagged() {
+        sleep(1)
+    }
+
+    static func nanosleepIsFlagged() {
+        nanosleep(nil, nil)
+    }
+
+    static func semaphoreTimeoutIsFlagged() -> DispatchTimeoutResult {
+        DispatchSemaphore(value: 0).wait(timeout: .distantFuture)
+    }
+
+    static func dispatchTimeNowIsFlagged() -> DispatchTime {
+        DispatchTime.now()
+    }
+
+    static func absoluteTimeIsFlagged() -> CFAbsoluteTime {
+        CFAbsoluteTimeGetCurrent()
+    }
+
+    static func systemUptimeIsFlagged() -> TimeInterval {
+        ProcessInfo.processInfo.systemUptime
+    }
+
+    static func scheduledTimerIsFlagged() -> Timer {
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in }
     }
 
     static func nowOnAClockInstanceIsMissed(clock: ContinuousClock) -> ContinuousClock.Instant {

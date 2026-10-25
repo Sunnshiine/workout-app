@@ -139,12 +139,14 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   `Calendar(identifier:)` left on the machine time zone (#597), and `Locale.current` pass it. It
   skips `Tests/UI/`, whose polling helpers keep wall-clock deadlines. The next rule catches a clock
   deadline.
-- `tests_wait_on_events_not_clocks` catches `Task.sleep`, `Thread.sleep`, `usleep`, `asyncAfter`, a
-  `.timeLimit` trait, a `.measure { }`, a constructed `ContinuousClock()` or `SuspendingClock()`,
-  and arithmetic or a comparison on either clock's `.now` (#543, #899, #1014). A deadline built with
-  `ContinuousClock.now.advanced(by:)`, `.now` read on a clock instance, and a sleep on a real clock
-  passed in as a parameter pass it. It reads `Tests/Unit/`, `Tests/Component/`, and
-  `Tests/Support/`, and skips `Tests/UI/` and `Tests/Visual/`.
+- `tests_wait_on_events_not_clocks` catches `Task.sleep`, `Thread.sleep`, a bare `sleep`, `usleep`,
+  or `nanosleep` call, `asyncAfter`, a semaphore or group `wait(timeout:)`, a `.timeLimit` trait, a
+  `.measure { }` or `.measure({ })`, a constructed `ContinuousClock()` or `SuspendingClock()`,
+  arithmetic, a comparison, or `.advanced(by:)` on either clock's `.now`, `DispatchTime.now()`,
+  `CFAbsoluteTimeGetCurrent()`, `systemUptime`, and `Timer.scheduledTimer` (#543, #899, #1014).
+  `.now` read on a clock instance, a bare `ContinuousClock.now` held as a start instant, and a sleep
+  on a real clock passed in as a parameter pass it (`docs/TESTING.md`). It reads `Tests/Unit/`,
+  `Tests/Component/`, and `Tests/Support/`, and skips `Tests/UI/` and `Tests/Visual/`.
 - `tests_never_park_on_a_bare_continuation` catches `withCheckedContinuation`,
   `withUnsafeContinuation`, and their throwing forms in the same three folders, outside
   `Tests/Support/HeldCall.swift` (#707, #746, #936). A continuation that only a release the test

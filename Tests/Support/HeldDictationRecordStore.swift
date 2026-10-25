@@ -23,7 +23,7 @@ final class HeldDictationRecordStore: DictationRecordStore {
 
     func append(_ record: DictationRecord) async {
         let onMainThread = pthread_main_np() != 0
-        // release() lets every parked write through.
+        // Only release() resumes a held write, so a test that never calls it parks the write (#1105).
         // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { continuation in
             let (test, isHeld) = state.withLock { state -> (CheckedContinuation<Void, Never>?, Bool) in

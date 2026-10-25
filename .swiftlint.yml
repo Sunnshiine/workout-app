@@ -189,7 +189,7 @@ custom_rules:
       A test or fake that sleeps, measures elapsed time, or carries a time limit times the host,
       not the code. Await the event, inject a manual clock, or bound the wait with `waitUntil` in
       Tests/Support (#543, #899, #1014).
-    regex: '(\bTask\.sleep\b|\b(Continuous|Suspending)Clock\(\)|\b(Continuous|Suspending)Clock\.now\s*[-+<>]|\.timeLimit\(|\bThread\.sleep\b|\busleep\(|\.asyncAfter\(|\.measure\s*\{)'
+    regex: '(\bTask(<[^>]*>)?\.sleep\b|\b(Continuous|Suspending)Clock\(\)|\b(Continuous|Suspending)Clock\.now\s*([-+<>]|\.advanced\()|\.timeLimit\(|\bThread\.sleep\b|(?<![.\w])(?<!func )(u|nano)?sleep\(|\.wait\(\s*(timeout|wallTimeout):|\.asyncAfter\(|\.measure\s*[({]|\bDispatch(Wall)?Time\.now\(|\bCFAbsoluteTimeGetCurrent\(|\.systemUptime\b|\bTimer\.scheduledTimer\b)'
     included: '.*/Tests/(Unit|Component|Support)/.*'
     excluded_match_kinds:
       - comment
