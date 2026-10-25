@@ -5,5 +5,6 @@ import WidgetKit
 struct WorkoutWidgetsBundle: WidgetBundle {
     var body: some Widget {
         WorkoutLiveActivity()
+        LogSetControl()
     }
 }

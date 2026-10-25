@@ -45,12 +45,6 @@ private func makeIntegratedCoordinatorSession() -> Session {
 }
 
 @MainActor
-private func supersetStage(_ coordinator: SessionCoordinator, in session: Session) -> SupersetStage? {
-    guard case .superset(let stage) = coordinator.stage(in: session, lookup: .empty).focus else { return nil }
-    return stage
-}
-
-@MainActor
 @Test func coordinatorBeginsPairingOnlyFromEligibleExercise() throws {
     let session = makeCoordinatorSession()
     let coordinator = SessionCoordinator(session: session, wiring: .fixture())

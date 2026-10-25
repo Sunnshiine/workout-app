@@ -67,7 +67,7 @@ struct LiveActivityLabView: View {
                 systemImage: controller.areActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
             )
             .font(Theme.font(.queuePill))
-            .foregroundStyle(controller.areActivitiesEnabled ? palette.accent : palette.danger)
+            .foregroundStyle(controller.areActivitiesEnabled ? palette.action : palette.danger)
 
             Text(controller.isActive ? "Prototype is running." : "Prototype is stopped.")
                 .font(Theme.font(.queuePill))
@@ -185,7 +185,8 @@ struct LiveActivityLabView: View {
             variant: variant,
             appearance: appearance,
             restStartDate: restStartDate,
-            restEndDate: restEndDate
+            restEndDate: restEndDate,
+            dictation: nil
         )
     }
 
@@ -255,7 +256,8 @@ struct LiveActivityLabView: View {
             variant: variant,
             appearance: appearance,
             restStartDate: restStartDate,
-            restEndDate: restEndDate
+            restEndDate: restEndDate,
+            dictation: nil
         )
     }
 }

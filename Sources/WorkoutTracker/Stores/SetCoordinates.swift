@@ -43,6 +43,14 @@ extension SetCoordinates.ID {
 }
 
 extension Block {
+    /// A Set a sync took out of this Block can still read every link up to it, by the order
+    /// SwiftData ran the cascade delete in (#1036), so this walks down from the Block instead.
+    @MainActor
+    func holds(_ set: ExerciseSet) -> Bool {
+        let id = set.persistentModelID
+        return weeks.lazy.flatMap(\.sessions).flatMap(\.exercises).flatMap(\.sets).contains { $0.persistentModelID == id }
+    }
+
     /// Every Set in this Block, keyed by the coordinates the Sheet addresses it with. Walking down
     /// from the Block supplies the attachment `SetCoordinates(of:)` has to check for, so no Set
     /// reached this way can be detached.

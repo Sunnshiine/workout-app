@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -44,25 +45,42 @@ struct WorkoutLiveActivity: Widget {
 
     @ViewBuilder
     private func expandedLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.variant {
-        case .setProgress:
-            SetProgressBadge(state: state)
-        case .nowLifting:
-            SetProgressRing(state: state, lineWidth: 4)
-                .frame(width: 42, height: 42)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            PrescriptionStack(state: state)
-                .lineLimit(1)
+        if let dictation = state.dictation {
+            // A write's content is the rest toward the next Set, whose prescription is not the
+            // written Set's.
+            if dictation.isAboutASet, dictation.writtenSet == nil {
+                PrescriptionStack(state: state)
+                    .lineLimit(1)
+            }
+        } else {
+            switch state.variant {
+            case .setProgress:
+                SetProgressBadge(state: state)
+            case .nowLifting:
+                SetProgressRing(state: state, lineWidth: 4)
+                    .frame(width: 42, height: 42)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                PrescriptionStack(state: state)
+                    .lineLimit(1)
+            }
         }
     }
 
     @ViewBuilder
     private func expandedTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.variant {
-        case .setProgress, .nowLifting:
-            PrescribedLoadBadge(state: state)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            EmptyView()
+        if let dictation = state.dictation {
+            if dictation.isListening {
+                DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 40)
+            } else if dictation.isAboutASet {
+                SaySetButton(state: state, diameter: 40)
+            }
+        } else {
+            switch state.variant {
+            case .setProgress, .nowLifting:
+                PrescribedLoadBadge(state: state)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                SaySetButton(state: state, diameter: 40)
+            }
         }
     }
 
@@ -70,15 +88,19 @@ struct WorkoutLiveActivity: Widget {
     private func expandedCenter(
         for context: ActivityViewContext<WorkoutActivityAttributes>
     ) -> some View {
-        switch context.state.variant {
-        case .setProgress:
-            ExerciseNameStack(state: context.state)
-        case .nowLifting:
-            WeightForwardStack(state: context.state)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount:
-            RestCountdownStack(state: context.state)
-        case .restTimerClean:
-            RestCountdownStack(state: context.state, showsLabel: false)
+        if let dictation = context.state.dictation {
+            DictationReadback(dictation: dictation, colors: context.state.liveActivityColors, style: .island)
+        } else {
+            switch context.state.variant {
+            case .setProgress:
+                ExerciseNameStack(state: context.state)
+            case .nowLifting:
+                WeightForwardStack(state: context.state)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount:
+                RestCountdownStack(state: context.state)
+            case .restTimerClean:
+                RestCountdownStack(state: context.state, showsLabel: false)
+            }
         }
     }
 
@@ -86,73 +108,98 @@ struct WorkoutLiveActivity: Widget {
     private func expandedBottom(
         for context: ActivityViewContext<WorkoutActivityAttributes>
     ) -> some View {
-        switch context.state.variant {
-        case .setProgress:
-            SegmentedSets(
-                done: context.state.setsDone,
-                total: context.state.setsTotal,
-                colors: context.state.liveActivityColors
-            )
-            .padding(.top, 2)
-        case .nowLifting:
-            ExerciseNameStack(state: context.state)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimer, .restTimerClean:
-            RestProgressBar(state: context.state)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        case .restTimerSetsLeft, .restTimerSetCount:
-            RestProgressWithContext(state: context.state, style: .island)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        if let dictation = context.state.dictation {
+            if dictation.isAboutASet || context.state.restEndDate != nil {
+                DictationProgress(state: context.state, dictation: dictation, style: .island)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else {
+            switch context.state.variant {
+            case .setProgress:
+                SegmentedSets(
+                    done: context.state.setsDone,
+                    total: context.state.setsTotal,
+                    colors: context.state.liveActivityColors
+                )
+                .padding(.top, 2)
+            case .nowLifting:
+                ExerciseNameStack(state: context.state)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            case .restTimer, .restTimerClean:
+                RestProgressBar(state: context.state)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            case .restTimerSetsLeft, .restTimerSetCount:
+                RestProgressWithContext(state: context.state, style: .island)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
     @ViewBuilder
     private func compactLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.variant {
-        case .setProgress:
-            Image(systemName: "figure.strengthtraining.traditional")
-                .foregroundStyle(state.liveActivityColors.accent)
-        case .nowLifting:
-            SetProgressRing(state: state, lineWidth: 3)
-                .frame(width: 22, height: 22)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            Image(systemName: "timer")
-                .foregroundStyle(state.liveActivityColors.accent)
+        if let dictation = state.dictation {
+            Image(systemName: dictation.symbolName)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
+        } else {
+            switch state.variant {
+            case .setProgress:
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .foregroundStyle(state.liveActivityColors.accent)
+            case .nowLifting:
+                SetProgressRing(state: state, lineWidth: 3)
+                    .frame(width: 22, height: 22)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                Image(systemName: "timer")
+                    .foregroundStyle(state.liveActivityColors.accent)
+            }
         }
     }
 
     @ViewBuilder
     private func compactTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.variant {
-        case .setProgress:
-            Text(state.setProgressText)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(state.liveActivityColors.islandPrimaryText)
-                .monospacedDigit()
-        case .nowLifting:
-            Text(state.weightValue)
+        if let dictation = state.dictation {
+            Text(dictation.compactText)
                 .font(.caption.weight(.heavy))
-                .foregroundStyle(state.liveActivityColors.accent)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
+                .lineLimit(1)
                 .minimumScaleFactor(0.75)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            RestCountdownText(state: state)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(state.liveActivityColors.accent)
-                .monospacedDigit()
+        } else {
+            switch state.variant {
+            case .setProgress:
+                Text(state.setProgressText)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(state.liveActivityColors.islandPrimaryText)
+                    .monospacedDigit()
+            case .nowLifting:
+                Text(state.weightValue)
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(state.liveActivityColors.accent)
+                    .minimumScaleFactor(0.75)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                RestCountdownText(state: state)
+                    .font(.caption.weight(.heavy))
+                    .foregroundStyle(state.liveActivityColors.accent)
+                    .monospacedDigit()
+            }
         }
     }
 
     @ViewBuilder
     private func minimalContent(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.variant {
-        case .setProgress:
-            Image(systemName: "dumbbell.fill")
-                .foregroundStyle(state.liveActivityColors.accent)
-        case .nowLifting:
-            SetProgressRing(state: state, lineWidth: 3)
-        case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-            Image(systemName: "timer")
-                .foregroundStyle(state.liveActivityColors.accent)
+        if let dictation = state.dictation {
+            Image(systemName: dictation.symbolName)
+                .foregroundStyle(state.liveActivityColors.readbackText(dictation.tone, onIsland: true))
+        } else {
+            switch state.variant {
+            case .setProgress:
+                Image(systemName: "dumbbell.fill")
+                    .foregroundStyle(state.liveActivityColors.accent)
+            case .nowLifting:
+                SetProgressRing(state: state, lineWidth: 3)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                Image(systemName: "timer")
+                    .foregroundStyle(state.liveActivityColors.accent)
+            }
         }
     }
 }
@@ -161,9 +208,21 @@ private struct LockScreenWorkoutView: View {
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
+        if let dictation = state.dictation {
+            if dictation.isAboutASet {
+                DictationLockScreenView(state: state, dictation: dictation)
+            } else {
+                NoSetLockScreenView(state: state, dictation: dictation)
+            }
+        } else {
+            restOrProgress
+        }
+    }
+
+    private var restOrProgress: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(state.exerciseName)
@@ -193,6 +252,8 @@ private struct LockScreenWorkoutView: View {
                 if state.variant.isRestTimer {
                     PrescriptionStack(state: state, style: .lockScreen)
                         .minimumScaleFactor(0.75)
+
+                    SaySetButton(state: state, diameter: 44)
                 } else {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(state.weightValue)
@@ -211,279 +272,199 @@ private struct LockScreenWorkoutView: View {
     }
 }
 
-private struct ExerciseNameStack: View {
+/// The Lock Screen while a Dictation the athlete ran without the app listens for the Set, and
+/// once it has an answer: the readback under the Exercise of the Set it is about, over the rest
+/// when a logged Set began one, else over the Exercise's Sets.
+private struct DictationLockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
 
     var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .leading, spacing: 3) {
-            Text(state.exerciseName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(colors.islandPrimaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-        }
-    }
-}
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(dictation.writtenSet?.exerciseName ?? state.exerciseName)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
 
-private struct WeightForwardStack: View {
-    let state: WorkoutActivityAttributes.ContentState
+                    DictationReadback(dictation: dictation, colors: colors, style: .lockScreen)
+                }
 
-    var body: some View {
-        let colors = state.liveActivityColors
+                Spacer(minLength: 10)
 
-        HStack(alignment: .lastTextBaseline, spacing: 4) {
-            Text(state.weightValue)
-                .font(.system(.title2, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
-                .monospacedDigit()
-                .minimumScaleFactor(0.7)
+                if dictation.writtenSet == nil {
+                    PrescriptionStack(state: state, style: .lockScreen)
+                        .minimumScaleFactor(0.75)
+                }
 
-            Text(state.weightUnit)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(colors.islandSecondaryText)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Weight \(state.weightText)")
-    }
-}
-
-private struct RestCountdownStack: View {
-    let state: WorkoutActivityAttributes.ContentState
-    var showsLabel = true
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        VStack(alignment: .leading, spacing: 2) {
-            if showsLabel {
-                Text("Rest")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(colors.islandSecondaryText)
+                if dictation.isListening {
+                    DictationSymbol(dictation: dictation, colors: colors, diameter: 44)
+                } else {
+                    SaySetButton(state: state, diameter: 44)
+                }
             }
 
-            // A timer Text takes all the width it is offered, which starves the leading region.
-            Text("00:00")
-                .hidden()
-                .overlay(alignment: .leading) {
-                    RestCountdownText(state: state)
+            DictationProgress(state: state, dictation: dictation, style: .lockScreen)
+        }
+        .padding(16)
+    }
+}
+
+/// The Lock Screen when a press found no Set to listen for: the Session it looked in, if any, over
+/// why, and the rest countdown when one is running.
+private struct NoSetLockScreenView: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
+
+    var body: some View {
+        let colors = state.liveActivityColors
+
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                if let session = dictation.sessionName {
+                    Text(session)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
                 }
-                .font(.system(.title2, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
+
+                DictationReadback(dictation: dictation, colors: colors, style: .lockScreen)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if state.restEndDate != nil {
+                DictationProgress(state: state, dictation: dictation, style: .lockScreen)
+            }
         }
-        .accessibilityElement(children: .combine)
+        .padding(16)
     }
 }
 
-private struct RestCountdownText: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        if state.isRestReady {
-            Text("Ready")
-        } else if let restInterval = state.restInterval {
-            Text(timerInterval: restInterval, countsDown: true)
-        } else {
-            Text("--:--")
-        }
-    }
-}
-
-private struct SetProgressBadge: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        HStack(spacing: 5) {
-            Image(systemName: "dumbbell.fill")
-            Text(state.setProgressText)
-                .monospacedDigit()
-        }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(colors.accent)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(colors.panelFill, in: Capsule())
-    }
-}
-
-private struct PrescribedLoadBadge: View {
-    let state: WorkoutActivityAttributes.ContentState
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        Text(state.prescriptionText)
-            .font(.caption.weight(.heavy))
-            .foregroundStyle(colors.accentText)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(colors.accent, in: Capsule())
-            .minimumScaleFactor(0.72)
-    }
-}
-
-private struct SetProgressRing: View {
-    let state: WorkoutActivityAttributes.ContentState
-    let lineWidth: CGFloat
-
-    var body: some View {
-        let colors = state.liveActivityColors
-
-        ZStack {
-            Circle()
-                .stroke(colors.track, lineWidth: lineWidth)
-
-            Circle()
-                .trim(from: 0, to: state.normalizedProgress)
-                .stroke(
-                    colors.accent,
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
-        }
-        .accessibilityLabel("Set progress \(state.setProgressText)")
-    }
-}
-
-private struct PrescriptionStack: View {
+private struct DictationReadback: View {
     enum Style {
         case island
         case lockScreen
     }
 
-    let state: WorkoutActivityAttributes.ContentState
-    var style: Style = .island
+    let dictation: LiveActivityDictation
+    let colors: LiveActivityColors
+    let style: Style
 
     var body: some View {
-        let colors = state.liveActivityColors
+        VStack(alignment: .leading, spacing: 1) {
+            Text(dictation.headline)
+                .font(.system(.title3, design: .rounded).weight(.heavy))
+                .foregroundStyle(colors.readbackText(dictation.tone, onIsland: style == .island))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
-        VStack(alignment: alignment, spacing: 2) {
-            Text(state.prescribedRepsText)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(colors.accent)
-
-            Text(state.prescribedLoad)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(secondaryTextColor)
+            if let detail {
+                Text(detail)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(secondaryTextColor)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Prescription \(state.prescriptionText)")
+        .accessibilityIdentifier("live-activity-dictation")
     }
 
-    private var alignment: HorizontalAlignment {
-        switch style {
-        case .island:
-            .leading
-        case .lockScreen:
-            .trailing
-        }
+    /// The island has no line naming the Exercise, so a write's detail names it.
+    private var detail: String? {
+        guard style == .island, let set = dictation.writtenSet else { return dictation.detail }
+        return set.fullText
     }
 
     private var secondaryTextColor: Color {
         switch style {
-        case .island:
-            state.liveActivityColors.islandSecondaryText
-        case .lockScreen:
-            state.liveActivityColors.secondaryText
+        case .island: colors.islandSecondaryText
+        case .lockScreen: colors.secondaryText
         }
     }
 }
 
-private struct RestProgressBar: View {
-    let state: WorkoutActivityAttributes.ContentState
+/// The mic while listening, where the Say Set button sits otherwise.
+private struct DictationSymbol: View {
+    let dictation: LiveActivityDictation
+    let colors: LiveActivityColors
+    let diameter: CGFloat
 
     var body: some View {
-        let colors = state.liveActivityColors
-
-        Group {
-            if let restInterval = state.restInterval {
-                ProgressView(timerInterval: restInterval, countsDown: true) {
-                    EmptyView()
-                } currentValueLabel: {
-                    EmptyView()
-                }
-                .progressViewStyle(.linear)
-                .labelsHidden()
-                .controlSize(.mini)
-                .tint(colors.accent)
-                .clipShape(Capsule())
-            } else {
-                Capsule()
-                    .fill(colors.track)
-            }
-        }
-        .frame(height: 5)
-        .background(colors.track, in: Capsule())
-        .accessibilityLabel("Rest progress")
+        let symbol = colors.readbackSymbol(dictation.tone)
+        Image(systemName: dictation.symbolName)
+            .font(.system(size: diameter * 0.45, weight: .semibold))
+            .foregroundStyle(symbol.glyph)
+            .frame(width: diameter, height: diameter)
+            .background(symbol.circle, in: Circle())
+            .accessibilityLabel(dictation.headline)
     }
 }
 
-private struct RestProgressWithContext: View {
+/// The rest countdown when a logged Set began one, else the Exercise's Sets.
+private struct DictationProgress: View {
     enum Style {
         case island
         case lockScreen
     }
 
     let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
     let style: Style
-    var showsBar = true
 
     var body: some View {
-        HStack(spacing: 8) {
-            if showsBar {
-                RestProgressBar(state: state)
-            }
-
-            if let restContextText = state.restContextText {
-                Text(restContextText)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(textColor)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+        if state.restEndDate != nil {
+            // A timer Text asks for every point an HStack offers, so without a fixed width the
+            // bar and the Sets left beside it drew at zero width.
+            HStack(spacing: 8) {
+                RestCountdownText(state: state)
+                    .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                    .foregroundStyle(state.liveActivityColors.accent)
                     .monospacedDigit()
-                    .layoutPriority(1)
+                    .frame(width: 52, alignment: .leading)
+
+                RestProgressWithContext(state: state, style: progressStyle, context: nextSetText)
             }
+        } else {
+            SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: state.liveActivityColors)
         }
-        .accessibilityElement(children: .combine)
     }
 
-    private var textColor: Color {
+    /// The rest after a write leads to another Set, so it names that Set's Exercise rather than
+    /// count Sets beside the written one.
+    private var nextSetText: String? {
+        guard dictation.writtenSet != nil else { return nil }
+        return "Next: \(state.exerciseName)"
+    }
+
+    private var progressStyle: RestProgressWithContext.Style {
         switch style {
-        case .island:
-            state.liveActivityColors.islandSecondaryText
-        case .lockScreen:
-            state.liveActivityColors.secondaryText
+        case .island: .island
+        case .lockScreen: .lockScreen
         }
     }
 }
 
-private struct SegmentedSets: View {
-    let done: Int
-    let total: Int
-    let colors: LiveActivityColors
+/// Presses Log a Set, which listens without bringing the app forward when it is behind.
+private struct SaySetButton: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let diameter: CGFloat
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<clampedTotal, id: \.self) { index in
-                Capsule()
-                    .fill(index < clampedDone ? colors.accent : colors.track)
-                    .frame(height: 5)
-            }
+        let colors = state.liveActivityColors
+
+        Button(intent: LogSetByVoiceIntent()) {
+            Image(systemName: "mic")
+                .font(.system(size: diameter * 0.45, weight: .semibold))
+                .foregroundStyle(colors.accent)
+                .frame(width: diameter, height: diameter)
+                .background(colors.accent.opacity(0.18), in: Circle())
         }
-        .accessibilityLabel("Sets \(clampedDone) of \(clampedTotal)")
-    }
-
-    private var clampedTotal: Int {
-        max(total, 1)
-    }
-
-    private var clampedDone: Int {
-        min(max(done, 0), clampedTotal)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Say Set")
     }
 }

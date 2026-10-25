@@ -8,10 +8,11 @@ private let frozenNow = Date(timeIntervalSince1970: 1_780_000_000)
 /// A test that syncs while the store holds the Block passes `.file`, the device's shape, with a
 /// store file from `withOnDiskStoreFile`.
 @MainActor
-private func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -> WorkoutApplication {
+func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -> WorkoutApplication {
     let app = try WorkoutApplication(
         environment: AppEnvironment(
             storage: storage,
+            dictationRecords: .inMemory,
             sheetsClient: LocalWorkbookSheetsClient(workbook: WorkbookScenario.freshBlock.workbook()),
             defaults: .inMemory(),
             now: { frozenNow }
@@ -295,7 +296,13 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
+        environment: AppEnvironment(
+            storage: .inMemory,
+            dictationRecords: .inMemory,
+            sheetsClient: client,
+            defaults: .inMemory(),
+            now: { frozenNow }
+        )
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 
@@ -312,7 +319,13 @@ private func address(_ raw: String) throws -> SetAddress {
 @Test func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
-        environment: AppEnvironment(storage: .inMemory, sheetsClient: client, defaults: .inMemory(), now: { frozenNow })
+        environment: AppEnvironment(
+            storage: .inMemory,
+            dictationRecords: .inMemory,
+            sheetsClient: client,
+            defaults: .inMemory(),
+            now: { frozenNow }
+        )
     )
     app.settings.setSpreadsheet(id: "held-sheet")
 

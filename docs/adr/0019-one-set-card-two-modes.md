@@ -36,7 +36,7 @@ one `SmartValuePillsForm`, one `WorkoutStore.log` write, one Sheet upsert.
 Mode-derived facts (header status text, reference text, whether log controls
 show, whether changes commit on disappear) live in `SetCardPresentation`
 (Progress/), the unit-testable seam. Both modes share `SmartValuePills`
-unchanged fields and the single `RPEScaleScroller` picker.
+unchanged fields and the single `ValueRail` picker.
 
 Deleted as a consequence: `LoggedSetReviewCard`, `RPEGrid` (and its
 presentation types), `LoggedSetReviewPresentation`,
@@ -56,3 +56,5 @@ editable through the shared form.
 - ADR 0011's mention of the "Logged Set Review Card" now reads historically:
   the stage still shows a review state, but it is a mode of the Active Set
   Card, not a second card.
+
+<!-- doc-symbols: not-in-tree RPEScaleScroller LoggedSetReviewCard LoggedSetReviewEditableField LoggedSetReviewPillHitRegion LoggedSetReviewPresentation -->

@@ -19,7 +19,9 @@ scripts/crap.sh [measure|gate|baseline] [options]
   gate       Fail on a new or worsened violation, a stale baseline row, or a row with no reason.
   baseline   Rewrite tools/crap/baseline.tsv from the current report, never raising a recorded score.
 
-  --no-test          Reuse the existing coverage profile instead of running swift test.
+  --no-test          Reuse the coverage profile the last crap.sh run wrote, instead of running the tests.
+                     A plain swift test writes none, and a crap.sh run whose tests failed deletes it.
+                     With no profile, run once without --no-test.
   --xcodebuild DIR   Run the tests with xcodebuild and its compilation cache instead of swift test.
                      DIR holds DerivedData, SourcePackages, and CompilationCache. Cache hits need
                      the same absolute paths for the checkout and DIR on every run (CI).
@@ -126,20 +128,30 @@ export_lcov() {
     local bin
     if [[ -n $XCODEBUILD_DIR ]]; then
         PROFDATA="$(find "$PROFILES" -name Coverage.profdata 2>/dev/null | head -1 || true)"
+    fi
+    if [[ ! -f $PROFDATA ]]; then
+        echo "crap.sh: no coverage profile in $PROFILES. --no-test reuses the profile a previous crap.sh run wrote; a plain swift test or a crap.sh run whose tests failed leaves none. Run scripts/crap.sh $SUBCOMMAND without --no-test." >&2
+        exit 1
+    fi
+    if [[ -n $XCODEBUILD_DIR ]]; then
         bin="$XCODEBUILD_DIR/DerivedData/Build/Products/Debug"
     else
         bin="$(swift build --show-bin-path)"
     fi
-    if [[ ! -f $PROFDATA ]]; then
-        echo "crap.sh: no coverage profile in $PROFILES. Run without --no-test first." >&2
-        exit 1
-    fi
     local test_binary="$bin/WorkoutTrackerTests.xctest/Contents/MacOS/WorkoutTrackerTests"
-    if [[ ! -f $test_binary ]]; then
-        echo "crap.sh: test binary not found at $test_binary. Run without --no-test first." >&2
-        exit 1
-    fi
-    xcrun llvm-cov export -format=lcov -instr-profile "$PROFDATA" "$test_binary" \
+    local cli_binary="$bin/workout"
+    local binary
+    for binary in "$test_binary" "$cli_binary"; do
+        if [[ ! -f $binary ]]; then
+            echo "crap.sh: binary not found at $binary. Run scripts/crap.sh $SUBCOMMAND without --no-test." >&2
+            exit 1
+        fi
+    done
+    # The CLI tests run workout as a child process. Xcode compiles Sources/WorkoutCLI once for it and
+    # once for the test bundle, and when the two compiles spell the checkout path differently (/tmp and
+    # /private/tmp), closures and private members get different profile names in each. Reading the
+    # child's counts through its own binary keeps them from counting as zero.
+    xcrun llvm-cov export -format=lcov -instr-profile "$PROFDATA" "$test_binary" -object "$cli_binary" \
         -ignore-filename-regex='(^|/)(Tests|\.build|SourcePackages)/' >"$LCOV"
 }
 

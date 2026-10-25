@@ -3,7 +3,7 @@ import Foundation
 /// The app's own build identity, read from the `Info.plist` keys the TestFlight
 /// workflows stamp (`GitCommit`, `PRNumber`, `Branch`, `RunNumber`) plus the
 /// version pair. Falls back gracefully in unstamped local builds.
-struct BuildIdentity {
+struct BuildIdentity: Equatable, Sendable, Codable {
     let version: String
     let build: String
     let commit: String?

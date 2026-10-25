@@ -81,3 +81,5 @@ reachable but not on screen.
   not a new domain term.
 
 See PRD and slices: issues #304–#311; prototype exploration in PR 303.
+
+<!-- doc-symbols: not-in-tree SessionStagePresentation renderItems SessionExerciseRenderConfig docs/prototypes/session-view-prototypes.md ExerciseSection ExerciseSummaryRow SetRow showsPairingGrip isCollapsed activeSetTransition retiringTransition isPairingConfirmation -->

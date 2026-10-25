@@ -1,5 +1,7 @@
 # workout
 
+<!-- doc-symbols: not-in-tree manifest.json workbook.json labels.json -->
+
 A headless client for the WorkoutTracker application. It runs the same stores the iOS app
 runs, against a local workbook file instead of Google Sheets, and prints JSON. It exists so a
 coding agent can inspect and change application state on the desktop in milliseconds.
@@ -42,9 +44,13 @@ with exit 3; run `init` again.
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
+| `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
+| `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
+| `dictations summary records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationSummary(reading:labels:)`, over a journal file or a `Dictation Records` directory copied off a phone; it opens no home | presses by surface and end, outcomes under the shipped rule and under each `MergeRule`, engine agreement, Recording Transcripts read and missed by reason, release-to-outcome wait against the 500 ms target with the cause of each miss, `implausible` rejections by engine and field, `promptEcho`, stall and footprint percentiles, unreadable lines, and the caveats. With labels, `scored` counts the outcome that decided each press as CORRECT, WRONG, or NOWRITE |
+| `dictations replay records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationReplay(reading:labels:)`, over the same files; it opens no home | per Speech Model version, the rule that decided each press, and for each `MergeRule` its outcomes and how many presses it decides differently. With labels, each rule's `scored` |
 
 `init`, `sync`, and `flush` converge: running them twice gives the same state. `log` twice
 enqueues twice, because that is what the store does; the report shows it.
@@ -70,6 +76,42 @@ $ workout log w1d1.e0.s0 315x5@7 > /dev/null
 $ workout session w2d1 | jq -c '.exercises[0].sets[0].loadSuggestion'
 {"basis":{"origin":"history","session":"Block 27 · W1 D1","setLog":"315x5@7","text":"from 315x5@7 · W1 D1"},"kind":"estimate","weight":315}
 ```
+
+## Spoken Sets and recordings
+
+`say` and `hear` read a Spoken Set from a transcript or a recording.
+[SPOKEN_SETS.md](SPOKEN_SETS.md) covers both.
+
+## Dictation Records
+
+Settings > Speech > Export shares one archive, `Dictation Records.zip`, through
+the share sheet. It holds the phone's journal as `records-YYYY-MM.jsonl` files, a `labels.json`,
+and, once iOS has delivered any, a `MetricKit` folder of its hang and memory payloads. The export labels each
+record whose outcome wrote a Set with what that Set holds now, read from the cached Block. The
+same Set Log means the write stood, another means the athlete corrected it, and Pending means they
+cleared it. A record whose Set is gone, because the Block moved on or the Exercise changed, has no
+label.
+
+`replay` scores those presses under every `MergeRule` from the outcomes each record kept in
+`byRule`, so `lead`, which ships, can be weighed against `gate` on real presses. It groups them by
+the Speech Model version that read their recordings, so a model or prompt change never blurs into
+one count. `differsFromDecided` counts the presses a rule decides differently from the rule that
+decided them, by what each does to the Set and the card. Without `--labels` it reports only that,
+and says so. With them, each rule scores the labelled presses in the classes
+`scripts/measure-dictation.sh` uses, through the one `DictationScoring.classify` that `summary`
+scores with.
+
+```console
+$ ditto -x -k ~/Downloads/"Dictation Records.zip" ~/Downloads && cd ~/Downloads/"Dictation Records"
+$ workout dictations replay . --labels labels.json \
+    | jq -c '.versions[0].rules | map_values(.scored)'
+{"gate":{"CORRECT":1,"NOWRITE":1,"WRONG":0,"unscored":2},"lead":{"CORRECT":1,"NOWRITE":0,"WRONG":1,"unscored":2},...}
+```
+
+Labels exist only where the deciding rule wrote, so that rule never scores NOWRITE, and a write
+another rule would make on a press nothing wrote goes unscored. A correction is a lower bound on
+wrong writes, since an athlete who never notices a wrong write never corrects it. Both caveats
+print with the scores.
 
 ## Sync outcome
 
@@ -101,7 +143,7 @@ Parsing is strict (`w1d1.e0.s2`, never `W1D1`). Copy ids from `session` output.
 
 Results are pretty JSON on stdout (sorted keys, ISO-8601 dates). Errors are one JSON line on
 stderr; stdout is empty unless the command produced a report before failing (a `flush` that left
-conflicts behind prints the report, then the error):
+conflicts behind, or a rejected `say`, prints the report, then the error):
 
 ```console
 $ workout log w1d1.e0.s9 185x5@8; echo $?
@@ -112,10 +154,11 @@ $ workout log w1d1.e0.s9 185x5@8; echo $?
 | Exit | Meaning |
 |---|---|
 | 0 | ok |
-| 1 | domain error (an address or state error; `code` names it) |
+| 1 | domain error (an address or state error, or a rejected Spoken Set; `code` names it) |
 | 3 | environment error (no home, unreadable workbook, sheet offline) |
 | 4 | conflict (a queued write the Sheet rejected, or `sync` ended in conflict) |
 | 64 | usage (ArgumentParser) |
+| 69 | unavailable (`hear` on a Mac with no on-device speech-to-text) |
 | 70 | internal (an error the CLI did not classify; the message is the raw description) |
 
 `WORKOUT_NOW=2026-05-28T20:26:40Z` freezes the clock for reproducible `loggedAt` values. A

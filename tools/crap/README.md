@@ -1,5 +1,7 @@
 # crap
 
+<!-- doc-symbols: not-in-tree report.json TypeChain.member(labels) unsafeAddress -->
+
 CRAP (Change Risk Anti-Patterns) scoring for this repository's Swift production code.
 
 ```
@@ -20,7 +22,7 @@ exports lcov, builds this package (debug), and calls the executable.
 scripts/crap.sh measure --top 30   # score everything, print the worst rows
 scripts/crap.sh gate               # fail on new, worsened, stale, or unexplained rows
 scripts/crap.sh baseline           # rewrite tools/crap/baseline.tsv from the report, never raising a score
-scripts/crap.sh gate --no-test     # reuse the coverage profile from the previous run
+scripts/crap.sh gate --no-test     # reuse the previous crap.sh run's profile; fails if that run's tests failed
 scripts/crap.sh gate --xcodebuild "$RUNNER_TEMP/swift-tests"   # CI: xcodebuild with a compilation cache
 scripts/crap.sh --help
 ```
@@ -124,6 +126,9 @@ where the rules are silent.
   holds for top-level code outside any declaration.
 - **Nested types inside a function.** The chain is positional, so a method of a type declared inside a
   function reads `outer(_:).Local.f()`, and its span is subtracted from `outer`.
+- **One file under two path spellings.** An lcov export can name a file twice, as `/private/tmp/x`
+  and `/tmp/x` when the test bundle and the `workout` binary were compiled from different spellings
+  of the checkout path. Both records count as one file, and a line is covered when either covers it.
 - **A baselined function that becomes unmeasured** is reported as `stale`, like one that dropped to
   the threshold. The baseline records measured violations only, so a line that no longer describes one
   must go.

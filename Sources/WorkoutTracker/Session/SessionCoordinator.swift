@@ -22,19 +22,31 @@ final class SessionCoordinator {
     private(set) var session: Session?
     private(set) var savedLoggedSetID: ActiveSetID?
 
-    @ObservationIgnored private let focusManager: ActiveSetFocusManager
+    @ObservationIgnored let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
-    @ObservationIgnored private let wiring: SessionWiring
+    @ObservationIgnored let wiring: SessionWiring
     @ObservationIgnored private var liveEdgeReconcile: Task<Void, Never>?
+    @ObservationIgnored private let transitionClock: any SessionTransitionClock
+    /// Nil leaves the mic off every card.
+    @ObservationIgnored let dictation: SetDictation?
+    @ObservationIgnored var dictatingSession: Session?
+    @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
 
     init(
         session: Session? = nil,
         wiring: SessionWiring,
-        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock()
+        transitionClock: any SessionTransitionClock = TaskSessionTransitionClock(),
+        dictation: SetDictation? = nil,
+        focus: ActiveSetFocusManager? = nil
     ) {
         self.session = session
         self.wiring = wiring
-        let focusManager = ActiveSetFocusManager(session: session)
+        self.transitionClock = transitionClock
+        self.dictation = dictation
+        // A focus handed in is the process's, which a headless Dictation reads too. It keeps the
+        // Session it is about until the stage binds, since SwiftUI builds a coordinator it then
+        // throws away on every pass over the Session screen's init.
+        let focusManager = focus ?? ActiveSetFocusManager(session: session)
         self.focusManager = focusManager
         self.pairing = SupersetPairing(focusManager: focusManager, clock: transitionClock)
         reconcileOnEachLiveEdgeChange()
@@ -42,6 +54,7 @@ final class SessionCoordinator {
 
     deinit {
         liveEdgeReconcile?.cancel()
+        spokenWriteHoldTask?.cancel()
     }
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }
@@ -86,7 +99,10 @@ final class SessionCoordinator {
         self.session = session
         savedLoggedSetID = nil
         cancelPairing()
+        cancelSpokenWriteHold()
+        dictation?.dismiss()
         focusManager.reset(to: session)
+        answerEntry()
     }
 
     func advanceAfterLog(_ set: ExerciseSet, in session: Session) {
@@ -104,6 +120,35 @@ final class SessionCoordinator {
     }
 
     func log(_ set: ExerciseSet, as log: SetLog) {
+        self.log(set, as: log, from: .card)
+    }
+
+    /// A held Set takes no write from its card: only its Clear menu changes it.
+    func log(_ setLog: SetLog, for slot: SetCardSlot) {
+        switch slot.mode.cardMode {
+        case .logging:
+            log(slot.set, as: setLog)
+        case .reviewingLogged:
+            updateLoggedSet(slot.set, as: setLog)
+        case .held:
+            break
+        }
+    }
+
+    func skip(_ set: ExerciseSet) {
+        skip(set, from: .card)
+    }
+
+    func skip(for slot: SetCardSlot) {
+        switch slot.mode.cardMode {
+        case .logging, .reviewingLogged:
+            skip(slot.set)
+        case .held:
+            break
+        }
+    }
+
+    private func log(_ set: ExerciseSet, as log: SetLog, from source: WriteSource) {
         do {
             let session = try actionSession(for: set)
             let wasSupersetMember = isSupersetMember(set)
@@ -111,7 +156,10 @@ final class SessionCoordinator {
                 try wiring.logging.log(set, as: log)
                 startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
                 reconcileLiveActivity()
-                advanceAfterLog(set, in: session)
+                switch source {
+                case .card: advanceAfterLog(set, in: session)
+                case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
+                }
             }
             wiring.sync.requestPendingWriteFlush()
         } catch {
@@ -119,22 +167,17 @@ final class SessionCoordinator {
         }
     }
 
-    func log(_ setLog: SetLog, for slot: SetCardSlot) {
-        switch slot.mode {
-        case .logging:
-            log(slot.set, as: setLog)
-        case .reviewingLogged:
-            updateLoggedSet(slot.set, as: setLog)
-        }
-    }
-
-    func skip(_ set: ExerciseSet) {
+    private func skip(_ set: ExerciseSet, from source: WriteSource) {
         do {
             let session = try actionSession(for: set)
+            let wasSupersetMember = isSupersetMember(set)
             try perform(.skipFadeUp) {
                 try wiring.logging.skip(set)
                 reconcileLiveActivity()
-                advanceAfterSkip(set, in: session)
+                switch source {
+                case .card: advanceAfterSkip(set, in: session)
+                case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
+                }
             }
             wiring.sync.requestPendingWriteFlush()
         } catch {
@@ -146,12 +189,9 @@ final class SessionCoordinator {
         do {
             let session = try actionSession(for: set)
             try wiring.logging.deleteLog(for: set)
-            wiring.restTimer.cancel(
-                ifOriginMatches: Self.activeSetID(for: set),
-                originSetObjectID: ObjectIdentifier(set)
-            )
+            wiring.restTimer.cancelRest(startedBy: set)
             reconcileLiveActivity()
-            focusManager.focus(on: set)
+            perform(nil) { focusManager.focus(on: set) }
             wiring.sync.requestPendingWriteFlush()
         } catch {
             wiring.sync.reportLocalWriteFailure(error)
@@ -197,7 +237,10 @@ final class SessionCoordinator {
         ActiveSetFocusManager.id(for: set)
     }
 
-    private func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
+    /// Every change to which Set the card shows runs through here, so a press's rejection or fill
+    /// never outlives the card it was shown on.
+    func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
+        dictation?.dismiss()
         guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
             return
@@ -260,19 +303,13 @@ extension SessionCoordinator {
 
     fileprivate func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
         guard
-            let restKind = RestTriggerPolicy.restKind(
+            wiring.restTimer.startRest(
                 afterLogging: set,
                 in: session,
-                isSupersetMember: wasSupersetMember,
-                isRestRunning: wiring.restTimer.isRunning
-            )
+                wasSupersetMember: wasSupersetMember,
+                durations: wiring.restDurations
+            ) != nil
         else { return }
-        wiring.restTimer.start(
-            duration: wiring.restDurations.restDuration(for: restKind),
-            origin: Self.activeSetID(for: set),
-            originSetObjectID: ObjectIdentifier(set),
-            kind: restKind
-        )
         startOrUpdateLiveActivity(afterLogging: set, in: session)
     }
 
@@ -296,14 +333,7 @@ extension SessionCoordinator {
             )
         else { return }
 
-        wiring.liveActivity.startOrUpdate(
-            restContent: content,
-            sessionLabel: liveActivitySessionLabel(for: session)
-        )
-    }
-
-    fileprivate func liveActivitySessionLabel(for session: Session) -> String {
-        session.placement.locationText(separator: " - ")
+        wiring.liveActivity.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
     }
 }
 
@@ -320,5 +350,137 @@ extension SessionCoordinator {
     @discardableResult
     func handlePairingTap(on exercise: Exercise, in session: Session) -> PairingTapResult {
         pairing.handleTap(on: exercise, in: session)
+    }
+}
+
+/// How a write reached the card. A tap moves the card on at once; a spoken write keeps the Set on
+/// the card first, so the athlete can glance at what was heard and undo it.
+private enum WriteSource {
+    case card
+    case speech
+}
+
+extension SessionCoordinator {
+    /// How long the card keeps a Set written by speech before it moves on.
+    static let spokenWriteHold: Duration = .seconds(4)
+
+    /// Nil keeps the mic off the card: no transcriber, or a Set that is not Pending and being logged.
+    func cardDictation(for slot: SetCardSlot) -> SetCardDictation? {
+        guard let dictation, slot.mode == .logging, slot.set.isPending, let setID = Self.activeSetID(for: slot.set) else { return nil }
+        return SetCardDictation(dictation.state, for: setID)
+    }
+
+    func startDictation(for set: ExerciseSet) {
+        guard let dictation, let setID = Self.activeSetID(for: set), let session, set.exercise?.session === session else { return }
+        dictatingSession = session
+        dictation.start(for: setID)
+    }
+
+    /// The card reports what it shows for `set` as the athlete changes it, which fills what a
+    /// Spoken Set leaves unsaid, from the card's mic or a press with the phone locked alike.
+    func cardShows(_ draft: SetLogDraft, for set: ExerciseSet) {
+        guard let setID = Self.activeSetID(for: set) else { return }
+        focusManager.cardShows(draft, for: setID)
+    }
+
+    /// Writes what the athlete said through the same paths as the card's Log and skip, with what
+    /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
+    /// another Set, or for a Set no longer Pending once the transcript is in, writes nothing.
+    func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
+        guard let dictation, let setID = dictation.state.pressSetID else { return nil }
+        guard let session = sessionOfPress(for: setID, releasedOn: set) else {
+            await dictation.cancel()
+            return nil
+        }
+        return write(await dictation.finish(for: setID, in: spokenSetContext(for: set)), heardFor: setID, in: session)
+    }
+
+    func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
+        SpokenSetContext(for: set, shownBy: focusManager, history: wiring.history())
+    }
+
+    /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
+    private func sessionOfPress(for setID: ActiveSetID, releasedOn set: ExerciseSet) -> Session? {
+        guard let session, session === dictatingSession, Self.activeSetID(for: set) == setID, set.exercise?.session === session else {
+            return nil
+        }
+        return session
+    }
+
+    func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
+        guard self.session === session, let set = session.set(at: setID), set.isPending else { return nil }
+        return set
+    }
+
+    /// A Set no longer Pending once the transcript is in takes nothing, and its outcome goes.
+    func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
+        guard let outcome else { return nil }
+        guard let set = pendingSet(at: setID, in: session) else {
+            dictation?.dismiss()
+            return nil
+        }
+        write(outcome, to: set)
+        return outcome
+    }
+
+    private func write(_ outcome: SetDictation.Outcome, to set: ExerciseSet) {
+        switch outcome {
+        case .logged(let setLog, _): log(set, as: setLog, from: .speech)
+        case .skipped: skip(set, from: .speech)
+        case .filled, .rejected: break
+        }
+    }
+
+    /// Stops the press for `set` whose control left the screen, writing nothing. A control that
+    /// leaves while another card's press runs, as an outgoing card's can after the incoming one
+    /// starts listening, stops nothing.
+    func cancelDictation(of set: ExerciseSet) async {
+        guard let dictation, let setID = dictation.state.pressSetID, Self.activeSetID(for: set) == setID,
+            set.exercise?.session === dictatingSession
+        else { return }
+        await dictation.cancel()
+    }
+
+    func dismissDictation() {
+        dictation?.dismiss()
+    }
+
+    /// The athlete opened the held Set's Clear menu: its time stops, and the card keeps the Set until
+    /// the menu closes or a Clear undoes the write.
+    func suspendSpokenWriteHold() {
+        guard focusManager.isHoldingSpokenWrite else { return }
+        cancelSpokenWriteHold()
+    }
+
+    /// The athlete touched the held card or closed its Clear menu without a Clear, or its time ran
+    /// out: it moves on now. A hold already ended by a tap or a Clear stays ended.
+    func endSpokenWriteHold() {
+        guard focusManager.isHoldingSpokenWrite else { return }
+        perform(.momentumFlow) { focusManager.endHoldAfterSpokenWrite() }
+    }
+
+    /// A Superset's stage shows no held Set, as it shows no review, so a spoken write there moves
+    /// on at once.
+    fileprivate func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
+        guard focusManager.advanceAfterSpokenWrite(set, in: session, holding: !wasSupersetMember) else { return }
+        spokenWriteHoldTask?.cancel()
+        let clock = transitionClock
+        spokenWriteHoldTask = Task { @MainActor [weak self] in
+            await clock.sleep(for: Self.spokenWriteHold)
+            guard !Task.isCancelled else { return }
+            self?.endSpokenWriteHold()
+        }
+    }
+
+    private func cancelSpokenWriteHold() {
+        spokenWriteHoldTask?.cancel()
+        spokenWriteHoldTask = nil
+    }
+}
+
+@MainActor
+extension Session {
+    fileprivate func set(at setID: ActiveSetID) -> ExerciseSet? {
+        exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex }
     }
 }

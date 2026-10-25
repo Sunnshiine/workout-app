@@ -80,6 +80,9 @@ extension Theme {
             self.isInset = isInset
         }
 
+        /// Draws nothing: the slot an elevation recipe leaves unused.
+        static let clear = BoxShadow(y: 0, blur: 0, color: .clear)
+
         /// The nearest SwiftUI `.shadow(radius:)` for this CSS blur.
         var swiftUIRadius: CGFloat { blur / 2 }
     }
@@ -192,24 +195,44 @@ extension Theme {
         let shadows: [BoxShadow]
         let shape: Bed
 
-        func body(content: Content) -> some View {
+        /// The most drop shadows a recipe holds: the day focus card's.
+        static var dropSlotCount: Int { 4 }
+
+        /// The drop shadows of `shadows` in `dropSlotCount` slots, an unused slot holding a clear one.
+        static func dropSlots(for shadows: [BoxShadow]) -> [BoxShadow] {
             let drops = shadows.filter { !$0.isInset }
-            let insets = shadows.filter(\.isInset)
-            return drops.reduce(AnyView(content)) { view, shadow in
-                AnyView(
-                    view.shadow(
-                        color: shadow.color,
-                        radius: shadow.swiftUIRadius,
-                        x: shadow.xOffset,
-                        y: shadow.yOffset
-                    )
-                )
-            }
-            .overlay {
-                ForEach(Array(insets.enumerated()), id: \.offset) { _, shadow in
-                    shape.strokeBorder(shadow.color, lineWidth: max(shadow.spread, 1))
-                }
+            assert(drops.count <= dropSlotCount, "an elevation recipe holds more drop shadows than Elevation has slots")
+            return drops + Array(repeating: .clear, count: max(dropSlotCount - drops.count, 0))
+        }
+
+        // A recipe gets the same chain of shadows in every palette. A chain as long as the recipe
+        // gave Day and Night different view types, so the system's appearance flip for the app
+        // switcher's snapshot rebuilt every elevated view and dropped its state, as a weight
+        // dialled on the Active Set Card. Only an empty recipe, empty in every palette, skips the
+        // chain, since even a clear shadow redraws the edges under it.
+        @ViewBuilder
+        func body(content: Content) -> some View {
+            if shadows.isEmpty {
+                content
+            } else {
+                let drops = Self.dropSlots(for: shadows)
+                content
+                    .drop(drops[0])
+                    .drop(drops[1])
+                    .drop(drops[2])
+                    .drop(drops[3])
+                    .overlay {
+                        ForEach(Array(shadows.filter(\.isInset).enumerated()), id: \.offset) { _, shadow in
+                            shape.strokeBorder(shadow.color, lineWidth: max(shadow.spread, 1))
+                        }
+                    }
             }
         }
+    }
+}
+
+extension View {
+    fileprivate func drop(_ shadow: Theme.BoxShadow) -> some View {
+        self.shadow(color: shadow.color, radius: shadow.swiftUIRadius, x: shadow.xOffset, y: shadow.yOffset)
     }
 }

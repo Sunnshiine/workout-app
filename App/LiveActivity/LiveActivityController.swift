@@ -17,6 +17,11 @@ final class LiveActivityController {
         isActive = currentActivity != nil
     }
 
+    /// What the live activity shows now; nil with none up.
+    var currentState: WorkoutActivityAttributes.ContentState? {
+        currentActivity?.content.state
+    }
+
     private static var activitiesEnabled: Bool {
         #if DEBUG
             if UITestFixture.launch.disablesLiveActivities {
@@ -84,12 +89,26 @@ final class LiveActivityController {
         isActive = false
     }
 
-    private var currentActivity: Activity<WorkoutActivityAttributes>? {
-        if let activityID {
-            return Activity<WorkoutActivityAttributes>.activities.first(where: { $0.id == activityID })
-                ?? Activity<WorkoutActivityAttributes>.activities.first
+    /// Ends the running activity on `state`, which stays on the Lock Screen until `date`. The
+    /// system removes it then even if this process is asleep by then.
+    func end(showing state: WorkoutActivityAttributes.ContentState, dismissingAt date: Date) async {
+        guard let activity = currentActivity else {
+            activityID = nil
+            isActive = false
+            return
         }
+        await activity.end(ActivityContent(state: state, staleDate: date), dismissalPolicy: .after(date))
+        activityID = nil
+        isActive = false
+    }
 
-        return Activity<WorkoutActivityAttributes>.activities.first
+    /// An activity that has ended but is still on the Lock Screen cannot be updated, so only a
+    /// live one counts.
+    private var currentActivity: Activity<WorkoutActivityAttributes>? {
+        let live = Activity<WorkoutActivityAttributes>.activities.filter { $0.activityState == .active }
+        if let activityID, let own = live.first(where: { $0.id == activityID }) {
+            return own
+        }
+        return live.first
     }
 }

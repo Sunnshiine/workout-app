@@ -23,7 +23,7 @@ struct SessionStageSetDots: View {
             // ring to 1.57:1.
             switch set.state {
             case .logged:
-                Circle().fill(palette.accent)
+                Circle().fill(palette.action)
             case .skipped:
                 // swiftlint:disable:next system_ink_outside_the_palette
                 Circle().fill(Color.secondary.opacity(0.45))

@@ -13,6 +13,7 @@ struct SessionStageView: View {
     @Environment(ExerciseHistoryFill.self) private var historyFill
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppEntryInbox.self) private var entry
     @State private var isQueuePresented = false
     @State private var isRestPillMounted = false
     @State private var isRestPillFaded = false
@@ -81,6 +82,10 @@ struct SessionStageView: View {
                 ),
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
+        }
+        .onChange(of: entry.coverClosings) {
+            isQueuePresented = false
+            historyExercise = nil
         }
     }
 
@@ -377,9 +382,24 @@ extension ActiveSetCard {
             setOrdinal: slot.ordinal,
             setCount: slot.count,
             mode: slot.mode,
+            mic: coordinator.cardDictation(for: slot).map { dictation in
+                SetCardMic(
+                    dictation: dictation,
+                    startsHandsFree: coordinator.startsHandsFree(slot),
+                    start: { coordinator.startDictation(for: slot.set) },
+                    shows: { coordinator.cardShows($0, for: slot.set) },
+                    finish: { await coordinator.finishDictation(of: slot.set) },
+                    listenHandsFree: { await coordinator.listenHandsFree(to: slot.set) },
+                    cancel: { await coordinator.cancelDictation(of: slot.set) },
+                    dismiss: { coordinator.dismissDictation() }
+                )
+            },
             onLog: { coordinator.log($0, for: slot) },
-            onSkip: { coordinator.skip(slot.set) },
-            onDelete: { coordinator.deleteLog(for: slot.set) }
+            onSkip: { coordinator.skip(for: slot) },
+            onDelete: { coordinator.deleteLog(for: slot.set) },
+            onTouchWhileHeld: { coordinator.endSpokenWriteHold() },
+            onClearMenuOpened: { coordinator.suspendSpokenWriteHold() },
+            onClearMenuClosed: { coordinator.endSpokenWriteHold() }
         )
     }
 }

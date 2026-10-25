@@ -64,3 +64,5 @@ A single `Theme.swift` file holds all visual constants (gradient colors, corner 
 - Glass is applied selectively (exercise cards, onboarding cards, empty state) — not to every surface. This avoids the "glass everywhere" anti-pattern.
 - Sets are styled as sub-chips anticipating the logging interaction, even though they're read-only today. This is a deliberate affordance choice, not premature implementation.
 - System chrome (nav bar, refresh) is left to the platform — less code to maintain, consistent with iOS conventions.
+
+<!-- doc-symbols: not-in-tree ContentUnavailableView glassEffectID docs/superpowers/specs/2026-05-26-active-set-visual-direction.md -->

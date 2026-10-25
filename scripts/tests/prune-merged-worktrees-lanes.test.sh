@@ -19,16 +19,14 @@ export WORKOUT_HOST_LOCK_DIR="$root/locks" HOME="$root/home"
 export WORKOUT_MEM_FLOOR=0
 unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
-trap 'rm -rf "$root" /tmp/workout-verify-"$P"-*' EXIT
+trap 'rm -rf "$root" /tmp/workout-verify-"$P"-* /private/var/tmp/com.apple.CoreSimulator.SimDevice."$P"-*' EXIT
 lane_path="$root/lanebin:$PATH"
 git -C "$root" init --bare --quiet lane-origin.git
 git -C "$lane_repo" init -q -b main
 git -C "$lane_repo" remote add origin "$root/lane-origin.git"
 cp "$script_dir/../../.gitignore" "$lane_repo/"
 cp "$script_dir/../../.githooks/post-checkout" "$lane_repo/.githooks/"
-for s in lane.sh lane-help.sh sim-pool.sh sim-lock.sh ensure-simulator.sh sim-keyboard.sh bootstrap-xcode-worktree.sh; do
-    cp "$script_dir/../$s" "$lane_repo/scripts/"
-done
+find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$lane_repo/scripts/" \;
 GIT_COMMITTER_DATE=2020-01-01T00:00:00 GIT_AUTHOR_DATE=2020-01-01T00:00:00 \
     git -C "$lane_repo" add -A
 GIT_COMMITTER_DATE=2020-01-01T00:00:00 GIT_AUTHOR_DATE=2020-01-01T00:00:00 \

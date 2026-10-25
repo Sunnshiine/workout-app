@@ -77,7 +77,7 @@ expect "a build claim waiting for the admit lock holds its build slot for no mor
     "$([ "$held" -lt 20 ] && echo "under 20 of 400 samples" || echo "$held of 400 samples")" "under 20 of 400 samples"
 
 reset
-STUB_SHUTDOWN=$sim2 STUB_SLOW_LIST_CALL=3 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 \
+STUB_SHUTDOWN=$sim2 STUB_SLOW_LIST_CALL=3 WORKOUT_SLEEP_MINUTES=0 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 \
     "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>"$root/err2" &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
@@ -112,7 +112,7 @@ done
 expect "a build on a booted simulator outlasts another claim's shared probe of its slot" "$went of 5" "5 of 5"
 
 reset
-STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
+STUB_SHUTDOWN=$sim STUB_SLOW_LIST_CALL=3 WORKOUT_SLEEP_MINUTES=0 "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1 &
 first=$!
 for _ in $(seq 1 100); do [ -f "$root/listing-slowly" ] && break; sleep 0.1; done
 kill -9 "$first"; wait "$first" 2>/dev/null

@@ -21,6 +21,16 @@ A test passes every time or it is a defect. `scripts/flake-hunt.sh [--repetition
 `swift test` until a failure while busy loops hold every core, which surfaces a timing race within a few
 hundred repetitions. Run it on any test that awaits concurrent work before you commit that test.
 
+CI runs a narrower hunt on every pull request. After the gate, `scripts/flake-guard.sh` repeats each test
+whose lines the pull request changed, up to 20 times, on the products the gate built, while three busy
+loops per core hold the CPU. It stops at the first failure or after 300 seconds. A test's lines run from
+its `@Test` to the brace that closes it, so the guard repeats only the tests the diff touched and does
+not go red on a flake the pull request did not add. Deleting a test selects nothing. A moved test counts
+as new. A failure names the test, the repetition, its declaration, its first issues, and the
+`flake-hunt.sh` line that reproduces it. A pull request that changes no test runs nothing. A change to
+`Tests/Support/`, or to a helper or attribute outside every test, selects nothing and prints a note, so
+hunt the tests that use it yourself. `scripts/changed-tests.sh` prints the selection.
+
 Two shapes caused every flake found so far, and neither survives the hunt:
 
 - A fixed number of `Task.yield()` calls before asserting on work another task does. The runtime does not
@@ -42,6 +52,9 @@ runs out: `waitUntil` and `HeldCall.waitUntilHeld` in `Tests/Support/` are the s
 
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
 both, cloning the simulator through `scripts/sim-pool.sh` (Running beside other agents, below).
+A lane's simulator boots without the launchd jobs in `scripts/sim-pool-disabled-jobs.txt`, such as
+Spotlight, iCloud, and wallpaper posters, which no test uses (ADR-0022). A test that needs one of them
+fails only on a lane.
 `scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
 while another run holds that simulator. The same script admits a run only while the host has room:
 it waits while free memory (`kern.memorystatus_level`) is under `WORKOUT_MEM_FLOOR` percent, before
@@ -59,6 +72,23 @@ motion with `verify.sh launch --animated` and `verify.sh record`. Its
 `.agents/skills/verify/motion/cardframe.py` measures a take, and `cardstill.py` beside it films and
 judges a set of takes against a control commit. A UI test that needs motion launches with
 `animated: true`.
+
+`scripts/dev-usage.sh` meters what each agent, simulator, and build costs the host. The numbers are
+exact: they come from `proc_pid_rusage`, which adds a reaped child's CPU to its parent, so a
+compiler that ran for a second between two samples still counts. Never measure CPU with `ps`,
+which misses those. `scripts/dev-usage.sh install` loads a user LaunchAgent that runs
+`scripts/dev-usage.sh sample` every 60 s, and `uninstall` removes it; no other script installs it.
+The agent runs a copy of the scripts kept in the ledger, so rerun `install` after pulling a change
+to them.
+The ledger is in `~/Library/Logs/WorkoutTracker/dev-usage/` (`WORKOUT_DEV_USAGE_DIR`). Each sample
+appends one row per agent, keyed by the worktree holding its cwd, one per booted simulator, keyed
+by device name, and one for the host. `scripts/dev-usage.sh report --since 2h` prints each one's
+CPU seconds (`cpu_s`), those seconds per second of the window (`cores`), its part of the host's
+busy CPU (`share`), and its peak memory footprint (`peak_mb`). The `rest` row is host CPU outside every
+agent and simulator. `scripts/build-slot.sh` runs its command under `scripts/dev-usage.sh record`,
+which appends one row per run, and `report --by command` gives each command's count, median and p90
+CPU seconds, and peak RSS. An in-process subagent counts toward its parent's worktree, since it
+shares the parent's process.
 
 ## AI-Generated Code Gate
 
@@ -83,9 +113,8 @@ tests to assert screenshots.
 `Tests/Component/ContrastTests.swift` classifies every palette and lighting colour role and checks
 each ink where views draw it, worst case over the page: 4.5:1 text, 3:1 rims and glyphs. It parks
 a pair failing now with a floor and lists the quiet roles it never measures. It cannot see a
-call-site opacity, or the palette's computed aliases such as `accent`: those are measured only
-through the stored role each returns. `system_ink_outside_the_palette`
-flags system .secondary to .quinary and *Label inks in `App/`; exempt a line with a reason on it.
+call-site opacity. `system_ink_outside_the_palette` flags system .secondary to .quinary and *Label
+inks in `App/`; exempt a line with a reason on it.
 
 Visual vocabulary:
 
@@ -200,13 +229,15 @@ Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh -
   while free memory is under `WORKOUT_MEM_FLOOR` or `WORKOUT_SIM_CAP` other simulators are booted.
   At the cap it first shuts down the least recently used lane simulator that no run holds, that
   runs no app, and that nobody claimed or booted through `sim-pool.sh boot` for
-  `WORKOUT_IDLE_MINUTES` (2). Its next run boots it again. Stop an app you launched through
+  `WORKOUT_IDLE_MINUTES` (2). Under the cap, every boot shuts down one such lane unused for
+  `WORKOUT_SLEEP_MINUTES` (30; 0 turns it off): an idle lane simulator uses about 0.12 core, so in
+  half an hour it burns more CPU than its next boot. Its next run boots it again. Stop an app you launched through
   XcodeBuildMCP when you are done, or its lane never counts as idle.
 - `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
   touches anything else while a run holds the simulator. It then saves any uncommitted or staged
-  diff, untracked files, commits no branch holds, and the lane's results under `.build` (`test-sim`,
-  `verify`, `crap`, `flake-hunt`, `mutate`, `check-each-commit`) into that evidence directory, and
-  removes the worktree and its DerivedData.
+  diff, untracked files, commits no branch holds, and each results dir under `.build` that
+  `scripts/build-dirs.sh` lists into that evidence directory, and removes the worktree and its
+  DerivedData.
 - `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
   as a candidate, and `--apply` removes it through `lane.sh down`.
 

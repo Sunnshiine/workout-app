@@ -213,9 +213,25 @@ expect_count "exempt" "$out" 2
 expect_line "exempt" "$out" "error: docs/TESTING.md:2: \`goneMember\` is named in no Swift, project, or script file."
 expect_line "exempt" "$out" "error: docs/TESTING.md:1: the exemption names \`blueLight\`, which nothing in this file fails on. Drop it."
 
-echo "ADRs, fenced words, ignored files, placeholders, and linked skills pass"
+echo "an ADR is checked, and passes once it lists the names it retires; research notes are not"
+root=$(tree adr)
+mkdir -p "$root/docs/research"
+printf 'Deleted `project.yml` and `OldCoordinator` for `SyncCoordinator`.\n' >"$root/docs/adr/0001-old.md"
+cat >"$root/docs/adr/0002-amended.md" <<'MD'
+Deleted `project.yml` and `OldCoordinator` for `SyncCoordinator`.
+
+<!-- doc-symbols: not-in-tree project.yml OldCoordinator -->
+MD
+printf 'Read `goneResearchName`.\n' >"$root/docs/research/2026-01-01-note.md"
+stage "$root"
+check "$root"
+expect_exit "adr" "$status" 1
+expect_count "adr" "$out" 2
+expect_line "adr" "$out" "error: docs/adr/0001-old.md:1: \`project.yml\` names no file in this tree."
+expect_line "adr" "$out" "error: docs/adr/0001-old.md:1: \`OldCoordinator\` is named in no Swift, project, or script file."
+
+echo "fenced words, ignored files, placeholders, and linked skills pass"
 root=$(tree skipped)
-printf 'Deleted `project.yml` and `OldCoordinator`.\n' >"$root/docs/adr/0001-old.md"
 cat >"$root/docs/TESTING.md" <<'MD'
 ```bash
 scripts/flake-hunt.sh --filter MissingTests
@@ -254,6 +270,26 @@ expect_exit "ignored placeholder" "$status" 1
 expect_count "ignored placeholder" "$out" 2
 expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`.claude/worktree/<name>\` is not a path in this tree."
 expect_line "ignored placeholder" "$out" "error: docs/TESTING.md:1: \`scripts/gone/<name>.pyc\` is not a path in this tree."
+
+echo "root guides, CONTEXT, Sources, tools, and repo-authored skills are checked; vendored skills and .sandcastle are not"
+root=$(tree scope)
+mkdir -p "$root/tools/crap" "$root/.agents/skills/own" "$root/.agents/skills/triage" "$root/.sandcastle/plan"
+printf 'See `Core/Gone.swift`.\n' >"$root/CODING_STANDARDS.md"
+printf '**Viewed Session**: the Session `goneTermOwner` shows.\n' >"$root/CONTEXT.md"
+printf 'See `goneHelper`.\n' >"$root/Sources/Core/README.md"
+printf 'See `scripts/gone.sh`.\n' >"$root/tools/crap/README.md"
+printf 'See `staleName`.\n' >"$root/.agents/skills/own/SKILL.md"
+printf 'See `placeholderName` and `tickets.md`.\n' >"$root/.agents/skills/triage/SKILL.md"
+printf 'See `exampleName`.\n' >"$root/.sandcastle/plan/extraction.md"
+stage "$root"
+check "$root"
+expect_exit "scope" "$status" 1
+expect_count "scope" "$out" 5
+expect_line "scope" "$out" "error: CODING_STANDARDS.md:1: \`Core/Gone.swift\` is not a path in this tree."
+expect_line "scope" "$out" "error: CONTEXT.md:1: \`goneTermOwner\` is named in no Swift, project, or script file."
+expect_line "scope" "$out" "error: Sources/Core/README.md:1: \`goneHelper\` is named in no Swift, project, or script file."
+expect_line "scope" "$out" "error: tools/crap/README.md:1: \`scripts/gone.sh\` is not a path in this tree."
+expect_line "scope" "$out" "error: .agents/skills/own/SKILL.md:1: \`staleName\` is named in no Swift, project, or script file."
 
 echo "a tree with no flag table is a usage error"
 root=$(tree no-table)

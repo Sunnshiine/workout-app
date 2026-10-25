@@ -34,16 +34,19 @@ struct SessionViewVisualTests {
             index: lastPerformedLookup
         )
 
+        let entry = AppEntryInbox()
         let view = NavigationStack {
             SessionView(
                 wiring: .live(
                     workout: scenario.store,
                     sync: sync,
                     settings: scenario.settings,
+                    lastPerformed: lastPerformedLookup,
+                    entry: entry,
                     platform: SessionPlatform(
                         liveActivity: LiveActivityProductionAdapter(),
                         motion: SwiftUISessionMotion(),
-                        restNotifications: RestNotificationCenterScheduler.shared
+                        restTimer: RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
                     )
                 )
             )
@@ -53,6 +56,7 @@ struct SessionViewVisualTests {
         .environment(scenario.settings)
         .environment(lastPerformedLookup)
         .environment(historyFill)
+        .environment(entry)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

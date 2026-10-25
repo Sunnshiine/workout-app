@@ -7,13 +7,16 @@
 
 usage: scripts/lint-doc-symbols.py [ROOT]
 
-Reads the inline code spans of AGENTS.md, docs/, and the verify skill, and the repo paths in their
-fenced blocks (a path whose first segment, after any ./, is a top-level entry of this tree, such
-as scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). ADRs and research notes are history and
-stay out. A span or fenced path that names something outside the tree on purpose is exempted in
-its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those docs, fenced
-commands included, and in every file outside Markdown must be a row of the generated launch-flag
-table, and the app's sources may spell one only in LaunchFlag.
+Reads the inline code spans of the repo-authored Markdown (DOC_SCOPE: AGENTS.md, the root guides,
+docs/, Sources/, tools/, and the repo's own skills), and the repo paths in their fenced blocks (a
+path whose first segment, after any ./, is a top-level entry of this tree, such as
+scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). Research notes are history, vendored skills
+are upstream text, and .sandcastle/ names examples, so all three stay out. ADRs stay in, so a
+change that deletes a symbol an ADR cites fails until the ADR is amended. A span or fenced path
+that names something outside the tree on purpose, such as a name an ADR records as retired, is
+exempted in its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those
+docs, fenced commands included, and in every file outside Markdown must be a row of the generated
+launch-flag table, and the app's sources may spell one only in LaunchFlag.
 
 A symbol is checked only by its camelCase segments, where a lowercase letter or digit meets a
 capital (flushEverything), each as a word anywhere in a Swift, project, or script file or as any
@@ -35,8 +38,21 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Iterator
 
-DOC_SCOPE = ("AGENTS.md", "docs/*.md", ".agents/skills/verify/*.md")
-HISTORY = ("docs/adr/", "docs/research/")
+DOC_SCOPE = (
+    "AGENTS.md", "CODING_STANDARDS.md", "CONTEXT.md", "DESIGN.md", "PRODUCT.md", "README.md",
+    "docs/*.md", "Sources/*.md", "tools/*.md", ".agents/skills/*.md",
+)
+# fnmatch's * crosses a slash, so each pattern above reaches every depth. These skills are upstream
+# bundles that no commit of this repo edits (Matt Pocock's set, or a generic Apple guide). Their
+# placeholders (tickets.md, CONTRIBUTING.md, LazyHStack) claim nothing about this tree. A skill is
+# checked unless it is listed here, so a new one starts in scope.
+VENDORED_SKILLS = (
+    "ask-matt", "code-review", "codebase-design", "diagnosing-bugs", "domain-modeling", "grill-me",
+    "grill-with-docs", "grilling", "handoff", "implement", "improve-codebase-architecture",
+    "mobile-ios-design", "research", "setup-matt-pocock-skills", "tdd", "teach", "to-spec",
+    "to-tickets", "triage", "writing-great-skills",
+)
+HISTORY = ("docs/research/",) + tuple(f".agents/skills/{n}/" for n in VENDORED_SKILLS)
 FLAG_TABLE = ".agents/skills/verify/launch-flags.md"
 FLAG_SOURCE = "Sources/WorkoutTracker/Fixtures/LaunchFlag.swift"
 APP_SOURCES = ("Sources/", "App/", "WorkoutShared/", "WorkoutWidgets/")
@@ -360,7 +376,7 @@ def main(argv: list[str]) -> int:
         if any(fnmatch.fnmatchcase(f, pattern) for pattern in DOC_SCOPE) and not f.startswith(HISTORY)
     ]
     if not docs:
-        return usage_error(f"{root} holds no AGENTS.md, docs/, or verify skill Markdown, so this run would check nothing.")
+        return usage_error(f"{root} holds no repo-authored Markdown (AGENTS.md, docs/, a skill), so this run would check nothing.")
     if FLAG_TABLE not in files:
         return usage_error(f"{FLAG_TABLE} is missing. Run: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests")
 
@@ -384,8 +400,8 @@ def main(argv: list[str]) -> int:
     links = {}
     for entry in git(root, "ls-files", "-s").splitlines():
         mode, _, rest = entry.partition(" ")
-        if mode == "120000":
-            link = rest.split("\t", 1)[1]
+        link = rest.split("\t", 1)[1]
+        if mode == "120000" and os.path.islink(os.path.join(root, link)):
             links[link] = os.path.normpath(os.path.join(os.path.dirname(link), os.readlink(os.path.join(root, link))))
 
     for link, target in links.items():

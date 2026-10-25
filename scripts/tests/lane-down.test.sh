@@ -24,10 +24,9 @@ expect "down then bundles that commit" "$status $(git -C "$primary" bundle list-
     "0 $reup_sha HEAD"
 
 lane up results "$c1"
-regenerable="debug scratch ci-visual-diffs"
-results=$(grep -rhoE --include='*.sh' --exclude-dir=tests '\.build/[A-Za-z0-9_-]+' "$scripts" "$scripts/../.agents" \
-    | sed 's|^\.build/||' | grep -vxF "$(printf '%s\n' $regenerable)" | sort -u | tr '\n' ' ')
-for d in $results $regenerable; do
+# shellcheck source=scripts/build-dirs.sh
+. "$scripts/build-dirs.sh"
+for d in "${results_dirs[@]}" "${regenerable_dirs[@]}"; do
     mkdir -p "$lanes/results/.build/$d"
     echo "$d" >"$lanes/results/.build/$d/result.txt"
 done
@@ -38,9 +37,10 @@ mkdir -p "$lanes/results/.workout-cli"
 echo logged >"$lanes/results/.workout-cli/workbook.json"
 lane down results
 saved=$(ls -d "$evidence/detached-results"/down-* 2>/dev/null | head -1)
-expect "down saves every results dir under .build the repo's scripts write, and the CLI's home, but no build products" \
-    "$status $results| $(cd "$saved" && find . -type f ! -name head.txt ! -name untracked.tar | sort | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
-    "0 check-each-commit crap flake-hunt measure-host mutate test-sim verify | ./check-each-commit/result.txt ./crap/result.txt ./flake-hunt/result.txt ./measure-host/result.txt ./mutate/result.txt ./test-sim/result.txt ./verify/.state ./verify/result.txt | .workout-cli/workbook.json"
+want=$( (printf './%s/result.txt\n' "${results_dirs[@]}"; echo ./verify/.state) | sort | tr '\n' ' ')
+expect "down saves each results dir scripts/build-dirs.sh lists, and the CLI's home, but no regenerable dir or build product" \
+    "$status | $(cd "$saved" && find . -type f ! -name head.txt ! -name untracked.tar | sort | tr '\n' ' ')| $(tar -tf "$saved/untracked.tar" | grep -v '/$')" \
+    "0 | $want| .workout-cli/workbook.json"
 
 lane up staged "$c1"
 echo staged >"$lanes/staged/staged.txt"

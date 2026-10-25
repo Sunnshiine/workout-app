@@ -5,6 +5,18 @@ import SwiftUI
 @main
 struct WorkoutTrackerApp: App {
     @State private var app: WorkoutApplication
+    /// One Dictation per process: the card and the headless intent share the mic through it.
+    @State private var dictation: SetDictation?
+    /// One active Set per process: the card and the headless intent listen on the same one.
+    @State private var focus: ActiveSetFocusManager
+    /// One rest per process: whichever write starts it, the stage's pill, the Live Activity, and
+    /// the rest-end notification read the same one.
+    @State private var restTimer: RestTimer
+    /// One owner of the Live Activity per process, whichever surface asked for it.
+    @State private var liveActivityAdapter: LiveActivityProductionAdapter
+    @State private var entry: AppEntryInbox
+    private let speechModelCaption: (@Sendable () -> String)?
+    private let metricKit: DictationMetricKit
 
     init() {
         #if canImport(UserNotifications)
@@ -13,6 +25,36 @@ struct WorkoutTrackerApp: App {
         // swiftlint:disable:next force_try
         let app = try! WorkoutApplication(environment: Self.launchEnvironment())
         _app = State(initialValue: app)
+        metricKit = DictationMetricKit(journal: app.dictationJournal)
+        let speech = Self.speech()
+        let dictation = speech.map {
+            SetDictation(
+                transcriber: $0.live,
+                reader: $0.recording,
+                journal: app.dictationJournal,
+                decisionDeadline: Self.decisionDeadline()
+            )
+        }
+        speechModelCaption = speech?.caption
+        _dictation = State(initialValue: dictation)
+        let focus = ActiveSetFocusManager(session: nil)
+        _focus = State(initialValue: focus)
+        let restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
+        _restTimer = State(initialValue: restTimer)
+        let liveActivityAdapter = LiveActivityProductionAdapter()
+        _liveActivityAdapter = State(initialValue: liveActivityAdapter)
+        let entry = AppEntryInbox()
+        _entry = State(initialValue: entry)
+        // Set before the first scene, so an intent that launches the app in the background, with
+        // no scene at all, finds it.
+        LogSetByVoiceIntent.performer = LogSetByVoicePerformer(
+            app: app,
+            dictation: dictation,
+            focus: focus,
+            restTimer: restTimer,
+            liveActivity: liveActivityAdapter,
+            entry: entry
+        )
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
         #if DEBUG
             #if canImport(UIKit)
@@ -20,16 +62,74 @@ struct WorkoutTrackerApp: App {
                     UIView.setAnimationsEnabled(false)
                 }
             #endif
+            if UITestFixture.launch.endsLiveActivities {
+                liveActivityAdapter.end()
+            }
         #endif
     }
 
     private static func launchEnvironment() -> AppEnvironment {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return .inMemory(sheets: UITestFixture.sheets)
+                return .inMemory(sheets: UITestFixture.sheets, dictationRecords: .directory(AppEnvironment.deviceDictationRecords))
             }
         #endif
         return .device()
+    }
+
+    /// The two engines a press listens with, SpeechAnalyzer for the Live Transcript and Whisper for
+    /// the Recording Transcript.
+    private struct Speech {
+        let live: any SetTranscriber
+        let recording: any RecordingTranscriber
+        /// The Settings row's words for the recording engine's model, where a real one runs.
+        var caption: (@Sendable () -> String)?
+    }
+
+    /// SpeechAnalyzer does not run in the Simulator, so a Simulator card has a mic only when a
+    /// fixture launch names what it hears. Only a phone makes the recording engine, so no Simulator
+    /// or lane ever downloads its model.
+    private static func speech() -> Speech? {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                return UITestFixture.launch.dictatedTranscript.map(fixtureSpeech)
+            }
+        #endif
+        #if targetEnvironment(simulator)
+            return nil
+        #else
+            let engine = WhisperEngine(models: .applicationSupport)
+            return Speech(live: SpeechAnalyzerSetTranscriber(), recording: engine, caption: { engine.caption })
+        #endif
+    }
+
+    #if DEBUG
+        /// A fixture's mic hears `transcript`. A Simulator proof launch also records a WAV file on
+        /// each press and reads it with the real recording engine, its model from a host folder.
+        private static func fixtureSpeech(hearing transcript: String) -> Speech {
+            let launch = UITestFixture.launch
+            let live = CannedSetTranscriber(candidates: [transcript], recording: launch.recordingPath.map(ProofLaunchFiles.recording) ?? [])
+            guard let models = launch.speechModelsPath else {
+                return Speech(live: live, recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))))
+            }
+            let engine = WhisperEngine(models: .host(ProofLaunchFiles.speechModels(at: models)))
+            return Speech(live: live, recording: engine, caption: { engine.caption })
+        }
+    #endif
+
+    /// A Simulator proof launch may wait longer for the Recording Transcript, which takes seconds
+    /// there to decode.
+    private static func decisionDeadline() -> Duration {
+        #if DEBUG
+            if UITestFixture.isEnabled {
+                do {
+                    return try UITestFixture.launch.decisionDeadline ?? SetDictation.decisionDeadline
+                } catch {
+                    fatalError("\(error)")
+                }
+            }
+        #endif
+        return SetDictation.decisionDeadline
     }
 
     /// Returns nil when there is no sign-in to write. A fixture launch already set it at init
@@ -58,6 +158,9 @@ struct WorkoutTrackerApp: App {
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
                 .environment(app.connection)
+                .environment(entry)
+                .environment(\.speechModelCaption, speechModelCaption)
+                .environment(\.exportDictationRecords, { try await app.exportDictations(into: .temporaryDirectory) })
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }
@@ -67,7 +170,10 @@ struct WorkoutTrackerApp: App {
                         transaction.disablesAnimations = true
                     }
                 #endif
-                .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
+                .onOpenURL { url in
+                    guard !entry.receive(url) else { return }
+                    GIDSignIn.sharedInstance.handle(url)
+                }
                 .task {
                     guard let isSignedIn = await Self.restoreSignIn() else { return }
                     // A restore hands back a sign-in the athlete already had, so it must not
@@ -84,12 +190,19 @@ struct WorkoutTrackerApp: App {
     @ViewBuilder private var launchedRoot: some View {
         #if DEBUG
             if UITestFixture.isEnabled {
-                UITestFixtureBootGate(app: app) { RootView() }
+                UITestFixtureBootGate(app: app) {
+                    RootView(
+                        dictation: dictation,
+                        focus: focus,
+                        restTimer: restTimer,
+                        liveActivityAdapter: liveActivityAdapter
+                    )
+                }
             } else {
-                RootView()
+                RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
             }
         #else
-            RootView()
+            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
         #endif
     }
 }

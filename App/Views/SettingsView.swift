@@ -5,6 +5,8 @@ struct SettingsView: View {
     @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.speechModelCaption) private var speechModelCaption
+    @Environment(\.exportDictationRecords) private var exportDictationRecords
     @State private var isSheetPickerPresented = false
     @State private var isSignOutConfirmationPresented = false
     @State private var pendingSwitch: SheetSelection?
@@ -84,6 +86,30 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-developer-tools-row")
                 }
                 .listRowBackground(palette.surface)
+
+                if speechModelCaption != nil || exportDictationRecords != nil {
+                    Section {
+                        if let speechModelCaption {
+                            // The model downloads, prepares, and loads on its own, so the row reads
+                            // where it stands each second while Settings is open.
+                            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                                LabeledContent {
+                                    RowValue(text: speechModelCaption())
+                                } label: {
+                                    Text("Speech model")
+                                }
+                            }
+                            .accessibilityIdentifier("settings-speech-model")
+                        }
+                        if let exportDictationRecords {
+                            DictationExportRow(export: exportDictationRecords)
+                        }
+                    } header: {
+                        Text("Speech").foregroundStyle(palette.textSecondary)
+                    }
+                    .labeledContentStyle(StackedAtAccessibilitySizes())
+                    .listRowBackground(palette.surface)
+                }
 
                 Section {
                     Button(role: .destructive) {
@@ -398,4 +424,78 @@ extension View {
             DestructiveConfirmation(title: title, isPresented: isPresented, action: action, onConfirm: onConfirm)
         )
     }
+}
+
+extension EnvironmentValues {
+    /// Where the recording engine's model stands, in the Settings row's words. Nil where no
+    /// recording engine runs, which shows no row.
+    @Entry var speechModelCaption: (@Sendable () -> String)?
+    /// Archives the Dictation Records for the share sheet. Nil where there is no journal to export,
+    /// which shows no row.
+    @Entry var exportDictationRecords: (@MainActor () async throws -> URL)?
+}
+
+/// Archives the Dictation Records and offers the archive on the share sheet, disabled while it
+/// archives.
+private struct DictationExportRow: View {
+    let export: @MainActor () async throws -> URL
+    @State private var exported: SharedFile?
+    @State private var isExporting = false
+    @State private var failure: String?
+
+    var body: some View {
+        Button {
+            Task { await archive() }
+        } label: {
+            LabeledContent {
+                RowValue(text: "Dictation Records")
+            } label: {
+                RowLabel(title: "Export", systemImage: "square.and.arrow.up")
+            }
+        }
+        .disabled(isExporting)
+        .accessibilityIdentifier("settings-export-dictations")
+        .sheet(item: $exported) { file in
+            ShareSheet(items: [file.url])
+        }
+        .alert("Export Failed", isPresented: failurePresented, presenting: failure) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { failure in
+            Text(failure)
+        }
+    }
+
+    private func archive() async {
+        isExporting = true
+        defer { isExporting = false }
+        do {
+            exported = SharedFile(url: try await export())
+        } catch {
+            failure = error.localizedDescription
+        }
+    }
+
+    private var failurePresented: Binding<Bool> {
+        Binding {
+            failure != nil
+        } set: { isPresented in
+            if !isPresented { failure = nil }
+        }
+    }
+}
+
+private struct SharedFile: Identifiable {
+    let url: URL
+    var id: URL { url }
+}
+
+/// The system share sheet over `items`.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

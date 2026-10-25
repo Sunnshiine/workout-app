@@ -84,6 +84,30 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 }
 
 @MainActor
+@Test func sayEncodesWhatItHeardAndWhatItDid() async throws {
+    let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
+    let set = try #require(SetAddress("w1d1.e0.s0"))
+
+    let missingWeight = try json(try app.say("RPE 9", at: set))
+    #expect(missingWeight["outcome"] as? String == "missingValues")
+    #expect(missingWeight["missing"] as? [String] == ["weight"])
+
+    let rejected = try json(try app.say("RPE 11", at: set))
+    #expect(rejected["outcome"] as? String == "rejected")
+    #expect((rejected["rejection"] as? [String: Any])?["reason"] as? String == "offLadderRPE")
+    #expect((rejected["rejection"] as? [String: Any])?["value"] as? Double == 11)
+
+    let implausible = try json(try app.say("135 for 101 at 8", at: set))
+    #expect(implausible["rejection"] as? [String: String] == ["reason": "implausible", "field": "reps"])
+
+    let logged = try json(try app.say("185 for 5 at 8", at: set))
+    #expect(Set(logged.keys) == ["heard", "outcome", "setLog", "set", "pendingWriteCount", "exerciseIsComplete"])
+    #expect(logged["setLog"] as? String == "185x5@8")
+    #expect(logged["pendingWriteCount"] as? Int == 1)
+}
+
+@MainActor
 @Test func errorsExposeCodeMessageAndCandidates() async throws {
     let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
     _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
@@ -121,6 +145,11 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
                 + "RPE is one of 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10.", nil, .domain
         ),
         (
+            .spokenSetRejected("185 for 5 at 4", reason: .offLadderRPE), "spoken_set_rejected",
+            "\"185 for 5 at 4\" was not logged (offLadderRPE). Say the weight, reps, and RPE, for example "
+                + "\"185 for 5 at 8\", or log a Set Log with `workout log`.", nil, .domain
+        ),
+        (
             .notFound(.session, name: "w9d1", candidates: ["w1d1"]), "unknown_session",
             "No Session w9d1. This Block has 1 Sessions; `workout status` lists them.", ["w1d1"], .domain
         ),
@@ -149,6 +178,22 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
             .sheetSwitchRequiresDiscard, "sheet_switch_requires_discard",
             "Pending writes exist for the current spreadsheet. Run `workout flush` before selecting another sheet.",
             nil, .domain
+        ),
+        (
+            .speechUnavailable, "speech_unavailable",
+            "This machine has no on-device speech-to-text for en-US: SpeechAnalyzer needs macOS 26 or iOS 26 "
+                + "on hardware that runs it, and its speech assets must install. `workout say` reads a transcript instead.",
+            nil, .unavailable
+        ),
+        (
+            .unreadableRecording("/tmp/set.txt"), "unreadable_recording",
+            "/tmp/set.txt is not an audio file this machine can read. Record one with `say -o set.aiff \"185 for 5 at 8\"`.",
+            nil, .domain
+        ),
+        (
+            .listeningFailed("/tmp/set.aiff"), "listening_failed",
+            "Speech-to-text stopped partway through /tmp/set.aiff. Run `workout hear` again, or `workout say` the transcript.",
+            nil, .environment
         ),
         (
             .syncFailed(.clear), "sync_failed",
@@ -218,4 +263,16 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
         ApplicationError.notFound(.tab, name: "Block 26", candidates: ["Block 27", "Block 28"]).message
             == "No tab named \"Block 26\". Tabs: Block 27, Block 28."
     )
+}
+
+@MainActor
+@Test func aDictationSummaryOfAnEmptyJournalEncodesToJSON() throws {
+    let journal = FileManager.default.temporaryDirectory.appendingPathComponent("dictation-records-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: journal) }
+
+    let summary = try json(try WorkoutApplication.dictationSummary(reading: journal, labels: nil))
+
+    #expect(summary["presses"] as? Int == 0)
+    #expect((summary["latency"] as? [String: Any])?["targetMs"] as? Int == 500)
 }

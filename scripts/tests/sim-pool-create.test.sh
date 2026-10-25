@@ -66,7 +66,7 @@ expect "create after delete-template builds the template again" "$status $(calls
 
 fresh
 mkdir "$root/broken"
-cp "$scripts/sim-pool.sh" "$scripts/sim-lock.sh" "$scripts/ensure-simulator.sh" "$root/broken/"
+find "$scripts" -maxdepth 1 -type f -exec cp {} "$root/broken/" \;
 printf '#!/bin/bash\necho "keyboard: cannot read it" >&2\nexit 70\n' >"$root/broken/sim-keyboard.sh"
 chmod +x "$root/broken/sim-keyboard.sh"
 "$root/broken/sim-pool.sh" create a >"$root/out" 2>"$root/err"
@@ -82,6 +82,27 @@ wait
 expect "two concurrent creates on a fresh Mac build one template" \
     "$(grep -c '^create workout-template' "$root/calls") $(listing | sed '1d;$d' | cut -f3,4 | tr '\n\t' '  ')" \
     "1 lane workout-lane-a lane workout-lane-b template workout-template-v1 "
+
+store() { printf '/private/var/tmp/com.apple.CoreSimulator.SimDevice.%s/disabled.plist' "$1"; }
+entries() { python3 -c 'import plistlib, sys
+for label, off in sorted(plistlib.load(open(sys.argv[1], "rb")).items()): print(label, off)' "$(store "$1")"; }
+jobs=$(sed 's/#.*//' "$scripts/sim-pool-disabled-jobs.txt" | awk 'NF { print $1 " True" }' | LC_ALL=C sort)
+
+fresh
+pool create a
+expect "create marks every job in sim-pool-disabled-jobs.txt disabled in the new lane's launchd disable list" \
+    "$status $(entries "$(cat "$root/out")")" "0 $jobs"
+
+seed workout-lane-b
+udid=$(listing | awk -F '\t' '$4 == "workout-lane-b" { print $1 }')
+mkdir -p "$(dirname "$(store "$udid")")"
+python3 -c 'import plistlib, sys
+plistlib.dump({"com.apple.pairedsyncd": False, "com.apple.PosterBoard": False}, open(sys.argv[1], "wb"))' "$(store "$udid")"
+pool create b
+expect "create on an existing lane disables the jobs too, and keeps the runtime's own entries for other jobs" \
+    "$status $(entries "$udid" | grep -E '^com.apple.(pairedsyncd|PosterBoard) ') $(entries "$udid" | grep -c ' True$')" \
+    "0 com.apple.PosterBoard True
+com.apple.pairedsyncd False $(printf '%s\n' "$jobs" | grep -c .)"
 
 fresh
 seed workout-lane-dup

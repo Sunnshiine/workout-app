@@ -50,6 +50,15 @@ avoid-list lives and binds as the rest of this glossary does. A new Logging term
 
 **Set Log**, **Unstructured Set Log**, **Load Suggestion**, **RPE Table**, **Estimated Single**, **Load Basis**, **Last Set RPE**, **Coach Note**, **Legacy Log**, **Header Notes Role**, **Completion Evidence**, **Set State**, **Superset**, **Open Exercise**, **Makeup Day**, **Cadence**, **Entered Name**, **Exercise Reference**, **Base Name**, **Last Performed**, **Exercise History** (and its **entry**), **Session Coordinate**, **Detached Session**, **Exercise History fill**, and **Movement**.
 
+### Dictation
+
+The terms for logging a Set by speech live in
+[docs/context/dictation.md](docs/context/dictation.md), where each one's definition and avoid-list
+binds as the rest of this glossary does. A new Dictation term goes there, with its name added
+here.
+
+**Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Speech Model**, **Decision Deadline**, **Dictation Record**
+
 ### Progress
 
 **Current Session**: The session the athlete is actively working on in the current Block: the Current Session Pin while one is in force, otherwise the most recently logged Session, derived from the sheet on each sync. Always an Available Session: when no Session has been logged yet it defaults to the first Available Session in Block order, never an Unavailable Session. Avoid: today's workout, active session.

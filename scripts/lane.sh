@@ -20,6 +20,8 @@ sim_pool() { "$here/sim-pool.sh" "$@" 5>&-; }
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 . "$here/sim-lock.sh"
+# shellcheck source=scripts/build-dirs.sh
+. "$here/build-dirs.sh"
 common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir) || die 2 "$here is not in a git checkout"
 primary=$(dirname "$common")
 case $primary in *"'"* | *$'\n'*) die 2 "the checkout path holds a quote or a newline, which the printed env cannot carry: $primary" ;; esac
@@ -285,7 +287,7 @@ save_lane() {
     save_commits "$dir/commits.bundle" || die 70 "could not save commits.bundle"
     echo commits.bundle
   fi
-  for d in test-sim verify crap flake-hunt mutate check-each-commit measure-host; do
+  for d in "${results_dirs[@]}"; do
     [ -d "$wt/.build/$d" ] || continue
     copy_results "$d" || die 70 "could not copy .build/$d"
     echo "$d"

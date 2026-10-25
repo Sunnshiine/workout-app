@@ -142,6 +142,30 @@ func storedAppearanceLoadsAsItsOwnPreference(stored: String, expected: Appearanc
 }
 
 @MainActor
+@Test(
+    "Onboarding is needed only once the launch's sign-in restore has answered",
+    arguments: [
+        (restoredSignIn: Bool?.none, hasSheet: true, needsOnboarding: false),
+        (nil, false, false),
+        (false, true, true),
+        (true, true, false),
+        (true, false, true)
+    ]
+)
+func onboardingIsNeededOnlyOnceTheSignInRestoreHasAnswered(restoredSignIn: Bool?, hasSheet: Bool, needsOnboarding: Bool) {
+    let store = SettingsStore(defaults: .inMemory())
+    if hasSheet {
+        store.setSpreadsheet(id: "SHEET123", title: "Training Log")
+    }
+
+    if let restoredSignIn {
+        store.isSignedIn = restoredSignIn
+    }
+
+    #expect(store.needsOnboarding == needsOnboarding)
+}
+
+@MainActor
 @Test func signOutClearsAuthAndSpreadsheetSelection() throws {
     let defaults = AppDefaults.inMemory()
     let store = SettingsStore(defaults: defaults)

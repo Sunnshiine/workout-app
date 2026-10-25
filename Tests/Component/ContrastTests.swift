@@ -153,8 +153,8 @@ private let dangerCall =
     + "lab text and 3:1 as a glyph or rim"
 private let nightActionCall = "whether the Night action green lightens where it marks the page, the rail, and the selected chip"
 private let actionAsTextCall =
-    "whether the rest countdown, the onboarding link, and Developer Tools statuses keep the action green as text "
-    + "or take actionInk; #841 tracks the Night link text"
+    "whether the onboarding link, Developer Tools statuses and notes, and the Live Activity lab status keep the "
+    + "action green as text or take actionInk; #841 tracks the Night link text"
 private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
 private let nightSecondaryCall =
     "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
@@ -278,10 +278,7 @@ func everyPaletteRoleHasAUse(appearance: Theme.Appearance) {
     #expect(unclassified == [], "palette properties that are neither a colour role nor a known non-ink type")
     #expect(
         roles.subtracting(keyed).sorted() == [],
-        """
-        palette roles with neither a Use nor a quiet reason. The walk sees stored roles only, so a computed alias \
-        such as accent is measured through the role it returns; list the alias's grounds under that role.
-        """
+        "palette roles with neither a Use nor a quiet reason"
     )
     #expect(keyed.subtracting(roles).sorted() == [], "Use or quiet keys that name no palette role")
     #expect(Set(uses.keys).intersection(quietRoles.keys).sorted() == [], "roles both measured and quiet")

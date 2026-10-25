@@ -32,9 +32,11 @@ protocol SessionNavigationAdapter: AnyObject, Observable {
     var liveEdge: LiveEdge { get }
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
+    var currentSession: Session? { get }
     func liveEdge(for session: Session) -> LiveEdge
     func requestMoveOnCelebration()
     func show(_ address: SessionAddress)
+    func showCurrent()
 }
 
 /// Read at each rest's start, so a rest length changed mid-Session takes effect on the next Set.
@@ -54,35 +56,45 @@ struct SessionWiring {
     let restDurations: any SessionRestDurations
     let liveActivity: any SessionLiveActivityAdapter
     let motion: any SessionMotionPerforming
+    /// Where a request to say the Current Session's active Set waits for the stage to answer it.
+    let entry: AppEntryInbox
+    /// What a card's first values suggest from, for a Spoken Set on a Set no card has reported.
+    let history: () -> LastPerformedLookupSnapshot
 }
 
 /// The Session collaborators only the app can build, because each reaches an iOS-only API: the
-/// rest Live Activity, SwiftUI's motion, and the rest notifications. The app passes them in so
-/// nothing in `Sources/` reaches the notification center, which aborts a process with no app
-/// bundle, as `swift test` is (#1006).
+/// rest Live Activity, SwiftUI's motion, and the rest timer over the rest notifications. The app
+/// passes them in so nothing in `Sources/` reaches the notification center, which aborts a process
+/// with no app bundle, as `swift test` is (#1006).
 @MainActor
 struct SessionPlatform {
     let liveActivity: any SessionLiveActivityAdapter
     let motion: any SessionMotionPerforming
-    let restNotifications: any RestNotificationScheduling
+    /// The process's one rest, which a locked log may have started before the stage showed, so
+    /// the stage's pill, the Live Activity, and the rest-end notification read the same one.
+    let restTimer: RestTimer
 }
 
 extension SessionWiring {
     /// The app's wiring. Every collaborator not on `platform` is a store the app already holds.
-    static func live(
+    static func live(  // swiftlint:disable:this function_parameter_count
         workout: WorkoutStore,
         sync: SyncCoordinator,
         settings: SettingsStore,
+        lastPerformed: LastPerformedLookupStore,
+        entry: AppEntryInbox,
         platform: SessionPlatform
     ) -> SessionWiring {
         SessionWiring(
             logging: workout,
             navigation: workout,
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
-            restTimer: RestTimer(notificationScheduler: platform.restNotifications),
+            restTimer: platform.restTimer,
             restDurations: settings,
             liveActivity: platform.liveActivity,
-            motion: platform.motion
+            motion: platform.motion,
+            entry: entry,
+            history: { lastPerformed.snapshot }
         )
     }
 }

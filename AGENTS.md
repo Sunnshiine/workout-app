@@ -54,26 +54,33 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
   decides behaviour belongs in `Sources/WorkoutTracker/`, where `swift test` and the CLI reach it.
 - `WorkoutApplication` is the composition root and the public facade. The app and the CLI both
   build on it (ADR-0015).
-- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006).
+- The Sheet is written only through `SyncCoordinator` and its pending-write queue (ADR-0006). The
+  write path is flat, with no `Sync/` folder: `Stores/WorkoutStore.swift` queues a `PendingWrite`
+  (`Models/PendingWrite.swift`), `Stores/SyncCoordinator.swift` flushes the queue, and
+  `Sheets/SheetWriter.swift` plans each write to a cell. All sit under `Sources/WorkoutTracker/`.
 
 ## Commands
 
 ```bash
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
-scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, workflow if: guards, the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
+scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+scripts/tests-for.py App/Views/ActiveSetCard.swift  # test-sim.sh IDs of the suites covering a file, or a test function's full ID; no argument: this branch's files
 scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0   # prints a UDID for the stock simulator, creating it if missing
-xcodebuild build -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+scripts/build-slot.sh xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
   -destination 'platform=iOS Simulator,id=<UDID>' \
-  -skipPackagePluginValidation -skipMacroValidation
+  -skipPackagePluginValidation -skipMacroValidation   # the app and every test bundle; boots and runs nothing
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
+scripts/changed-tests.sh                           # the tests this branch changed; what CI's flake guard repeats under load
 scripts/mutate.sh --diff origin/main                # mutants on your changed lines, run in a scratch tree; --sim <UDID> reaches App/
-scripts/mutate.sh --filter <suite> <file> '<sed>'   # which tests kill one hand-written mutant; --help for the form
+scripts/mutate.sh --filter RPETableTests Sources/WorkoutTracker/RPETable.swift '6s/6...10/7...10/'
+                                                    # one hand-written mutant (sed on line 6); a test must fail: killed good, SURVIVED bad
 scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every commit of a stack, one line each
+uv run python3 <script.py>                          # with Pillow and numpy from pyproject.toml; in Claude Code a bare python3 is already this .venv
 ```
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
@@ -88,8 +95,9 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 ## Verification
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
-gate, the simulator-hosted unit and component suite, the visual gate, and swift-format on the
-Swift files the PR changes. CI runs `WorkoutTrackerUITests` only on request, with
+gate, a flake guard that repeats the tests the PR changed under load, the simulator-hosted unit
+and component suite, the visual gate, and swift-format on the Swift files the PR changes. CI
+runs `WorkoutTrackerUITests` only on request, with
 `gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
 more) starts no run.
@@ -97,7 +105,9 @@ more) starts no run.
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
   macOS-only CLI suites (`WorkoutCLIBinaryTests`, `CLIFailureTests`). Before pushing a diff that
-  touches `App/`, run the simulator suite as well.
+  touches `App/`, run the simulator suite as well. A signature change under `Sources/` or
+  `WorkoutShared/` can break `App/`, `Tests/Visual/`, and the app-hosted unit tests, which
+  `swift test` never compiles. Before pushing one, run the `build-for-testing` line above.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
 - Name the simulator by `id=<UDID>` in every `-destination`. A name can match several devices

@@ -39,6 +39,9 @@ public struct ApplicationError: Error, Equatable, Sendable {
         case domain
         /// The Sheet moved under a pending write. Only the athlete can resolve it.
         case conflict
+        /// The machine cannot do what the verb needs, such as hear speech on-device. Retrying on it
+        /// fails again.
+        case unavailable
     }
 
     public let code: String
@@ -91,6 +94,15 @@ extension ApplicationError {
         )
     }
 
+    public static func spokenSetRejected(_ heard: String, reason: SpokenSetRejectionSnapshot.Reason) -> ApplicationError {
+        ApplicationError(
+            code: "spoken_set_rejected",
+            message: "\"\(heard)\" was not logged (\(reason.rawValue)). Say the weight, reps, and RPE, for example "
+                + "\"185 for 5 at 8\", or log a Set Log with `workout log`.",
+            kind: .domain
+        )
+    }
+
     public static func notFound(_ lookup: LookupKind, name: String, candidates: [String]) -> ApplicationError {
         ApplicationError(
             code: lookup.rawValue,
@@ -115,6 +127,36 @@ extension ApplicationError {
             message: "Couldn't select the spreadsheet: \(reason)",
             kind: .environment
         )
+    }
+
+    public static let speechUnavailable = ApplicationError(
+        code: "speech_unavailable",
+        message: "This machine has no on-device speech-to-text for en-US: SpeechAnalyzer needs macOS 26 or iOS 26 "
+            + "on hardware that runs it, and its speech assets must install. `workout say` reads a transcript instead.",
+        kind: .unavailable
+    )
+
+    public static func unreadableRecording(_ path: String) -> ApplicationError {
+        ApplicationError(
+            code: "unreadable_recording",
+            message: "\(path) is not an audio file this machine can read. Record one with "
+                + "`say -o set.aiff \"185 for 5 at 8\"`.",
+            kind: .domain
+        )
+    }
+
+    public static func listeningFailed(_ path: String) -> ApplicationError {
+        ApplicationError(
+            code: "listening_failed",
+            message: "Speech-to-text stopped partway through \(path). Run `workout hear` again, or `workout say` the transcript.",
+            kind: .environment
+        )
+    }
+
+    /// A recording is never short of a microphone, and nothing heard in one is a Spoken Set's
+    /// `nothingHeard`, so the speech model either is missing or failed.
+    static func notHeard(_ error: SetTranscriberError, in recording: String) -> ApplicationError {
+        error == .unavailable ? .speechUnavailable : .listeningFailed(recording)
     }
 
     public static func syncFailed(_ status: SyncOutcomeSnapshot.Status) -> ApplicationError {

@@ -183,6 +183,8 @@ rest pill counts down once a second, so the changed lines always carry it.
 `shot` refuses a PNG byte-identical to the run's newest shot, a retake of the same name included,
 while the tree changed. It saves nothing, prints the changed lines, and exits 70.
 
+To put shots or a take into a PR body, use the `pr-evidence` skill.
+
 ## Motion
 
 Under `-UITEST_DISABLE_ANIMATIONS` a slide, a fade, or a fly-in is one cut, so `shot` and `burst`
@@ -221,11 +223,9 @@ host.
 
 ## Changing this skill
 
-After an edit to `verify.sh` or the `verify-*.sh` helpers it sources, `tree.py`, `frames.py`,
-`scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run
-`python3 .agents/skills/verify/tests/test_evidence.py`. Also run
+After an edit to anything in this skill, `scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run
+`uv run --locked python -m unittest discover -s .agents/skills/verify/tests`, the command
+`.github/workflows/verify-tools.yml` runs. The motion tests in it need `ffmpeg` and `ffprobe` on PATH. Also run
 every `scripts/tests/host-admission*.test.sh` after an edit to `verify.sh`, a `verify-*.sh` helper,
 `scripts/sim-lock.sh`, or `scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
-`test_evidence.py` through `.github/workflows/verify-tools.yml` and every script test through
-`.github/workflows/script-tests.yml`.
-After an edit to `take.py` or `motion/`, also run `uv run .agents/skills/verify/tests/test_motion.py`.
+every script test through `.github/workflows/script-tests.yml`.

@@ -11,6 +11,7 @@ import Testing
 
         #expect(launch.disablesAnimations == false)
         #expect(launch.disablesLiveActivities == false)
+        #expect(launch.endsLiveActivities == false)
         #expect(launch.startsWithPendingWrite == false)
         #expect(launch.startsOffline == false)
         #expect(launch.slowsSync == false)
@@ -26,6 +27,7 @@ import Testing
     @Test func eachLaunchFlagParsesFromItsArgument() {
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_ANIMATIONS"]).disablesAnimations)
         #expect(UITestLaunch(arguments: ["-UITEST_DISABLE_LIVE_ACTIVITIES"]).disablesLiveActivities)
+        #expect(UITestLaunch(arguments: ["-UITEST_END_LIVE_ACTIVITIES"]).endsLiveActivities)
         #expect(UITestLaunch(arguments: ["-UITEST_PENDING_WRITE"]).startsWithPendingWrite)
         #expect(UITestLaunch(arguments: ["-UITEST_OFFLINE"]).startsOffline)
         #expect(UITestLaunch(arguments: ["-UITEST_SLOW_SYNC"]).slowsSync)
@@ -65,20 +67,58 @@ import Testing
     private let misspeltFullBlock = LaunchFlag.prefix + "FULLBLOCK"
 
     @Test func aMisspeltFlagFailsTheFlagCheckAndEveryKnownFlagPassesIt() throws {
-        #expect(throws: UITestLaunch.UnknownLaunchFlag(argument: misspeltFullBlock)) {
+        #expect(throws: UITestLaunch.UnreadableLaunch.unknownFlag(misspeltFullBlock)) {
             try UITestLaunch(arguments: ["-UITEST_FIXTURE", misspeltFullBlock]).checkFlags()
         }
-        try UITestLaunch(arguments: LaunchFlag.all.map(\.argument) + ["dark", "WorkoutTracker"]).checkFlags()
+        let everyFlag = LaunchFlag.all.flatMap { $0.kind == .value ? [$0.argument, "dark"] : [$0.argument] }
+        try UITestLaunch(arguments: everyFlag + ["WorkoutTracker"]).checkFlags()
+    }
+
+    @Test func aRecordingLaunchWithATranscriptPassesTheFlagCheck() throws {
+        try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/p"]).checkFlags()
+        try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_RECORDING", "/p", "-UITEST_DICTATION", "x"]).checkFlags()
+    }
+
+    @Test func aValueFlagWithNoValueAfterItFailsTheFlagCheck() {
+        let last = #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_DICTATION"]).checkFlags()
+        }
+        #expect(
+            last?.description
+                == "-UITEST_DICTATION takes a value as the next argument. .agents/skills/verify/launch-flags.md says what it takes."
+        )
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_DICTATION", "-UITEST_FIXTURE"]).checkFlags()
+        }
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingValue(.appearance)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_APPEARANCE"]).checkFlags()
+        }
+    }
+
+    @Test func aRecordingOrSpeechModelsLaunchWithoutDictationFailsTheFlagCheck() {
+        let recording = #expect(throws: UITestLaunch.UnreadableLaunch.missingNeed(.recording, .dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_RECORDING", "/p"]).checkFlags()
+        }
+        #expect(
+            recording?.description
+                == "-UITEST_RECORDING acts only with -UITEST_DICTATION. .agents/skills/verify/launch-flags.md lists every flag."
+        )
+        #expect(throws: UITestLaunch.UnreadableLaunch.missingNeed(.speechModels, .dictation)) {
+            try UITestLaunch(arguments: ["-UITEST_FIXTURE", "-UITEST_SPEECH_MODELS", "/m"]).checkFlags()
+        }
     }
 
     @MainActor
     @Test func aMisspeltScenarioFlagFailsTheBootInsteadOfBootingTheDefault() async {
-        await #expect(throws: UITestLaunch.UnknownLaunchFlag.self) {
+        await #expect(throws: UITestLaunch.UnreadableLaunch.unknownFlag(misspeltFullBlock)) {
             _ = try await BootedFixture.boot([misspeltFullBlock])
         }
     }
 
     @Test func scenarioPriorityPicksTheEarlierArgumentWhenALaunchNamesTwo() {
+        #expect(
+            UITestLaunch(arguments: ["-UITEST_PARTIAL_UPLOAD", "-UITEST_FULL_BLOCK"]).scenario == .fullBlock
+        )
         #expect(
             UITestLaunch(arguments: ["-UITEST_FULL_BLOCK", "-UITEST_LONG_SESSION"]).scenario == .longSession
         )
@@ -121,6 +161,39 @@ import Testing
         #expect(throws: UITestLaunch.UnknownAppearance(value: "")) {
             try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_APPEARANCE"]).appearance
         }
+    }
+
+    @Test func dictationLaunchArgumentGivesTheCardTheTranscriptAfterIt() {
+        #expect(UITestLaunch(arguments: ["WorkoutTracker"]).dictatedTranscript == nil)
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION", "185 for 5 at 8"]).dictatedTranscript == "185 for 5 at 8")
+        #expect(UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DICTATION"]).dictatedTranscript == "")
+    }
+
+    @Test func proofLaunchArgumentsNameTheRecordingTheModelsAndTheDeadline() throws {
+        let plain = UITestLaunch(arguments: ["WorkoutTracker"])
+        #expect(plain.recordingPath == nil)
+        #expect(plain.speechModelsPath == nil)
+        #expect(try plain.decisionDeadline == nil)
+
+        let proof = UITestLaunch(arguments: [
+            "WorkoutTracker", "-UITEST_DICTATION", "x", "-UITEST_RECORDING", "/tmp/set.wav", "-UITEST_SPEECH_MODELS", "/tmp/models",
+            "-UITEST_DECISION_DEADLINE", "20.5"
+        ])
+        #expect(proof.recordingPath == "/tmp/set.wav")
+        #expect(proof.speechModelsPath == "/tmp/models")
+        #expect(try proof.decisionDeadline == .milliseconds(20_500))
+        try proof.checkFlags()
+    }
+
+    @Test func aDecisionDeadlineUnderASecondIsReadToTheMillisecond() throws {
+        let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DECISION_DEADLINE", "0.25"])
+        #expect(try launch.decisionDeadline == .milliseconds(250))
+    }
+
+    @Test(arguments: ["", "soon", "0", "-1"])
+    func aDecisionDeadlineThatIsNotSecondsAboveZeroStopsTheLaunch(value: String) {
+        let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_DECISION_DEADLINE", value])
+        #expect(throws: UITestLaunch.UnreadableDecisionDeadline(value: value)) { try launch.decisionDeadline }
     }
 
     @MainActor
@@ -219,11 +292,13 @@ import Testing
 
     @MainActor
     @Test func aSlowSyncLaunchBootsWithoutWaitingOnTheHold() async throws {
-        let clock = ContinuousClock()
-        let elapsed = try await clock.measure {
-            _ = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
-        }
-        #expect(elapsed < .seconds(10))
+        let booted = try await BootedFixture.boot(["-UITEST_SLOW_SYNC"])
+        #expect(await booted.sheets.heldTabListings == 0)
+
+        let listing = Task { try await booted.sheets.listTabTitles(spreadsheetId: WorkoutFixtureScenarios.sheetId) }
+        listing.cancel()
+        await #expect(throws: CancellationError.self) { try await listing.value }
+        #expect(await booted.sheets.heldTabListings == 1)
     }
 
     @MainActor

@@ -20,7 +20,7 @@ import Testing
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
 
-        let state = WorkoutActivityAttributes.ContentState(restContent: restContent)
+        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
 
         #expect(state.restContextText == "2 sets left")
     }
@@ -64,7 +64,8 @@ import Testing
                 variant: .restTimerSetsLeft,
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
-            )
+            ),
+            dictation: nil
         )
     }
 #endif

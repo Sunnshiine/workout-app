@@ -153,7 +153,7 @@ import Testing
     @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
-        for foliageTile in [night.sessionTileComplete, night.tileCurrentFill] {
+        for foliageTile in [night.leafFill, night.tileCurrentFill] {
             expectSageLed(foliageTile)
             if let foliage = rgbaComponents(of: foliageTile) {
                 #expect(foliage.green > 0.4 && foliage.green < 0.75, "night tiles are mid foliage, not ink or cream")
@@ -193,3 +193,22 @@ import Testing
         expectSageLed(actionInk)
     }
 #endif
+
+/// Elevation draws every recipe through a fixed number of shadow slots, so Day and Night share a
+/// view type and the appearance flip keeps an elevated view's state.
+@MainActor
+@Test(arguments: Theme.Appearance.allCases)
+func everyElevationRecipeFitsElevationsShadowSlots(appearance: Theme.Appearance) {
+    let palette = Theme.palette(for: appearance)
+    let recipes = [
+        palette.surfaceShadow, palette.logShadow, palette.lighting.raisedControlShadow,
+        palette.lighting.focusCardElevation, palette.lighting.currentTileGlow, Theme.LightKit.cardLow
+    ]
+    for recipe in recipes {
+        let drops = recipe.filter { !$0.isInset }
+        let slots = Theme.Elevation<Capsule>.dropSlots(for: recipe)
+        #expect(slots.count == Theme.Elevation<Capsule>.dropSlotCount)
+        #expect(Array(slots.prefix(drops.count)) == drops)
+        #expect(slots.dropFirst(drops.count).allSatisfy { $0 == .clear })
+    }
+}

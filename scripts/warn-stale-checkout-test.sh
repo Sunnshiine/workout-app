@@ -23,8 +23,8 @@ SETTINGS="$ROOT/.claude/settings.json"
 HOOK_COMMAND=$(python3 -c '
 import json, sys
 entries = json.load(open(sys.argv[1]))["hooks"]["SessionStart"]
-commands = [h["command"] for e in entries for h in e["hooks"]]
-assert len(commands) == 1, "expected exactly one SessionStart hook, found %d" % len(commands)
+commands = [h["command"] for e in entries for h in e["hooks"] if "warn-stale-checkout.sh" in h["command"]]
+assert len(commands) == 1, "expected one SessionStart hook that runs warn-stale-checkout.sh, found %d" % len(commands)
 print(commands[0])
 ' "$SETTINGS")
 

@@ -29,6 +29,7 @@ enum WorkoutUITestFixture {
 enum WorkoutUITestFixtureOption: String {
     case openExercises = "-UITEST_OPEN_EXERCISES"
     case pendingWrite = "-UITEST_PENDING_WRITE"
+    case lateSignIn = "-UITEST_LATE_SIGN_IN"
     /// Keeps a log queued, so the `N unsynced` banner stays up instead of flashing `Syncing` and
     /// leaving, for a test that reads the banner or measures the layout under it.
     case offline = "-UITEST_OFFLINE"
@@ -36,16 +37,19 @@ enum WorkoutUITestFixtureOption: String {
 
 extension XCTestCase {
     @MainActor
+    /// `transcript` is what the Active Set Card's mic hears on every press; nil leaves the mic off.
     func launchWorkoutApp(
         fixture: WorkoutUITestFixture,
         options: [WorkoutUITestFixtureOption] = [],
-        animated: Bool = false
+        animated: Bool = false,
+        dictating transcript: String? = nil
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
         app.launchArguments =
             fixture.launchArguments + options.map(\.rawValue)
             + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
+            + (transcript.map { ["-UITEST_DICTATION", $0] } ?? [])
         app.launch()
         return app
     }

@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import SwiftData
 
@@ -13,6 +14,8 @@ public final class WorkoutApplication {
     let historyFill: ExerciseHistoryFill
     let connection: SheetConnection
     let sheetsClient: any SheetsClient
+    /// Every press's Dictation Record, whichever surface pressed.
+    let dictationJournal: DictationJournal
 
     static let schema = Schema([
         Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
@@ -22,6 +25,7 @@ public final class WorkoutApplication {
         container = try ModelContainer(for: Self.schema, configurations: Self.configuration(for: environment.storage))
         let context = container.mainContext
         sheetsClient = environment.sheetsClient
+        dictationJournal = DictationJournal(storage: environment.dictationRecords)
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,
@@ -121,22 +125,62 @@ extension WorkoutApplication {
         guard let parsed = SetLog(formatted: setLog) else { throw ApplicationError.invalidSetLog(setLog) }
         let set = try resolveSet(address)
         try workout.log(set, as: parsed)
-        return LogReport(
-            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
-            pendingWriteCount: try queuedWrites().count,
-            exerciseIsComplete: set.exercise?.isComplete ?? false
-        )
+        return try report(on: set, at: address)
     }
 
     /// `WorkoutStore.skip(_:)`: the same call the Session stage makes.
     public func skip(_ address: SetAddress) throws -> LogReport {
         let set = try resolveSet(address)
         try workout.skip(set)
-        return LogReport(
-            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
-            pendingWriteCount: try queuedWrites().count,
-            exerciseIsComplete: set.exercise?.isComplete ?? false
-        )
+        return try report(on: set, at: address)
+    }
+
+    /// A Spoken Set read over what the Set's card pre-fills, then `log` or `skip` through the same
+    /// store calls. One still missing a value, or rejected, writes nothing and reports why.
+    public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
+        try dictate([transcript], at: address)
+    }
+
+    /// `say` over a recognizer's transcripts, most likely first, under the Dictation write policy:
+    /// only the most likely transcript writes, and a Set it does not read that the others agree
+    /// on is reported `ambiguous` with nothing written. Every Dictation that writes without the
+    /// card, headless or from a recording, ends here.
+    public func dictate(_ candidates: [String], at address: SetAddress) throws -> SayReport {
+        let set = try resolveSet(address)
+        let context = SpokenSetContext(for: set, history: lastPerformed.snapshot)
+        let outcome = SetDictation.decision(of: Hearing(live: .transcripts(candidates), recording: nil), in: context).outcome
+        try write(outcome, to: set)
+        return SayReport(outcome, report: try report(on: set, at: address))
+    }
+
+    /// `dictate` over a recording, heard by the speech model the mic listens with, configured the
+    /// same way and read into transcripts the same way. `installing` receives the fraction of the
+    /// model's assets installed, when the machine has yet to download them.
+    @available(iOS 26, macOS 26, *)
+    public func hear(
+        _ recording: URL,
+        at address: SetAddress,
+        installing: @escaping @Sendable (Double) -> Void
+    ) async throws -> HearReport {
+        _ = try resolveSet(address)
+        guard let file = try? AVAudioFile(forReading: recording) else { throw ApplicationError.unreadableRecording(recording.path) }
+        let candidates: [String]
+        do {
+            candidates = try await SpeechListening.transcripts(of: file, installing: installing)
+        } catch {
+            throw ApplicationError.notHeard(error, in: recording.path)
+        }
+        return HearReport(candidates: candidates, report: try dictate(candidates, at: address))
+    }
+
+    /// The one place a Dictation's outcome reaches the store: `logged` and `skipped` write, the
+    /// rest leave the Set as it was.
+    func write(_ outcome: SetDictation.Outcome, to set: ExerciseSet) throws {
+        switch outcome {
+        case .logged(let setLog, _): try workout.log(set, as: setLog)
+        case .skipped: try workout.skip(set)
+        case .filled, .rejected: break
+        }
     }
 
     /// `SyncCoordinator.flushPending(spreadsheetId:)`: what the stage requests after every log.
@@ -191,6 +235,21 @@ extension WorkoutApplication {
         let snapshot = try await sheetsClient.fetchTabSnapshot(spreadsheetId: spreadsheetId, tabName: resolved)
         return SheetTabSnapshot(tab: resolved, snapshot: snapshot)
     }
+
+    /// What the Dictation Records in `records`, a journal file or a directory of them, add up to,
+    /// scored against the `labels` file an export wrote beside them when there is one. It reads the
+    /// files alone, so a journal copied off a phone needs no application.
+    public static func dictationSummary(reading records: URL, labels: URL?) throws -> DictationSummary {
+        let lines = try DictationRecordLines(at: records)
+        return DictationSummary(lines.records, unreadableLines: lines.unreadable, labels: try labels.map(DictationLabels.init(at:)))
+    }
+
+    /// The Dictation Records in `records` under every `MergeRule`, scored against `labels` when
+    /// there are any, as `dictationSummary(reading:labels:)` reads them.
+    public static func dictationReplay(reading records: URL, labels: URL?) throws -> DictationReplay {
+        let lines = try DictationRecordLines(at: records)
+        return DictationReplay(lines.records, unreadableLines: lines.unreadable, labels: try labels.map(DictationLabels.init(at:)))
+    }
 }
 
 extension WorkoutApplication {
@@ -202,6 +261,14 @@ extension WorkoutApplication {
     fileprivate func configuredSpreadsheetId() throws -> String {
         guard let spreadsheetId = settings.spreadsheetId else { throw ApplicationError.notConfigured }
         return spreadsheetId
+    }
+
+    fileprivate func report(on set: ExerciseSet, at address: SetAddress) throws -> LogReport {
+        LogReport(
+            set: SetSnapshot(set, id: address, history: lastPerformed.snapshot),
+            pendingWriteCount: try queuedWrites().count,
+            exerciseIsComplete: set.exercise?.isComplete ?? false
+        )
     }
 
     fileprivate func queuedWrites() throws -> [PendingWrite] {
@@ -257,7 +324,7 @@ extension WorkoutApplication {
         return exercise
     }
 
-    fileprivate func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
+    func resolveSet(_ address: SetAddress) throws -> ExerciseSet {
         let exercise = try resolveExercise(address.exercise)
         guard let set = exercise.sets.first(where: { $0.index == address.index }) else {
             throw ApplicationError.notFound(

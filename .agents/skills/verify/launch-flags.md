@@ -5,7 +5,8 @@
 With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the
 `partial-upload` workbook scenario, the cells `workout init --scenario partial-upload` also
 reads. When a launch passes more than one Scenario flag, the lowest Scenario number wins.
-Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
+A Value flag takes the argument after it, and a fixture launch that leaves the value out stops.
+Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`, and `-UITEST_LONG_CELEBRATION_QUOTE` acts only when the launch also passes `-UITEST_FIXTURE`.
 
 | Flag | Kind | Meaning |
 | --- | --- | --- |
@@ -22,11 +23,16 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES` and `-UITEST_LONG_CELEBRATION_Q
 | `-UITEST_PARTIAL_UPLOAD` | Scenario 6 | Seeds the partial-upload workbook: four Weeks of four Days, eleven of them Unavailable Sessions. A launch that names no Scenario flag gets it too. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
+| `-UITEST_END_LIVE_ACTIVITIES` | Switch | Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session. |
 | `-UITEST_PENDING_WRITE` | Switch | Logs 225x8@8 on Week 1 Day 1's BB RDL at boot without flushing it, so a sync writes it to the Scenario's own workbook and reloads the Block from it. |
 | `-UITEST_OFFLINE` | Switch | Makes the fixture Sheet read as Offline after the boot, so a log stays queued and the header reads `N unsynced`. |
 | `-UITEST_SLOW_SYNC` | Switch | Makes every tab list after the boot wait 20 seconds, so a sync stays in flight. |
-| `-UITEST_LATE_SIGN_IN` | Switch | Starts signed out and signs in 3 seconds after launch, as restoring a Google sign-in does on a device. |
+| `-UITEST_LATE_SIGN_IN` | Switch | Restores the sign-in for 3 seconds after launch, showing onboarding meanwhile, then signs in, as restoring a Google sign-in does on a device. |
 | `-UITEST_CURRENT_SESSION_OVERRIDE` | Switch | Makes Week 1 Day 3 the Current Session when the Scenario gives it Exercises, as Full Block does; otherwise the Current Session stays. |
 | `-UITEST_MOVE_ON_CELEBRATION` | Switch | Requests the Move On Celebration for the Current Session. |
-| `-UITEST_APPEARANCE` | Switch | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
+| `-UITEST_APPEARANCE` | Value | Takes one of system, light, dark as the next argument and pins the appearance to it; any other value stops the app. |
 | `-UITEST_LONG_CELEBRATION_QUOTE` | Switch | Shows a long fixture quote in the Move On Celebration in place of a random approved one. |
+| `-UITEST_DICTATION` | Value | Takes a transcript as the next argument and gives the Active Set Card a mic that hears it, in place of SpeechAnalyzer, which does not run in the Simulator. |
+| `-UITEST_RECORDING` | Value | Takes the path of a 16 kHz mono WAV file as the next argument, which the fixture's mic records on every press for the recording engine to read. Acts only with `-UITEST_DICTATION`, and a fixture launch without it stops. |
+| `-UITEST_SPEECH_MODELS` | Value | Takes a host folder holding Whisper small and its tokenizer in the Hugging Face download layout, and reads each press's recording with the real recording engine from it in place of the stand-in. Stops the launch if the folder lacks the model. Acts only with `-UITEST_DICTATION`, and a fixture launch without it stops. |
+| `-UITEST_DECISION_DEADLINE` | Value | Takes seconds as the next argument and waits that long for the Recording Transcript in place of the shipped Decision Deadline, since a Simulator decode takes seconds. Any value but seconds above 0 stops the app. |

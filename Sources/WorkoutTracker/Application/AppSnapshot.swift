@@ -262,6 +262,123 @@ public struct LogReport: Encodable, Equatable, Sendable {
     public let exerciseIsComplete: Bool
 }
 
+/// What `say` heard and what it did to the Set. `set`, `pendingWriteCount`, and
+/// `exerciseIsComplete` are the report `log` returns, read after any write.
+public struct SayReport: Encodable, Equatable, Sendable {
+    public enum Outcome: String, Encodable, Sendable {
+        case logged, skipped, missingValues, rejected
+    }
+
+    public let heard: String
+    public let outcome: Outcome
+    /// `logged` only.
+    public let setLog: String?
+    /// `missingValues` only: `weight`, `reps`, or `rpe`, in that order.
+    public let missing: [String]?
+    /// `rejected` only.
+    public let rejection: SpokenSetRejectionSnapshot?
+    public let set: SetSnapshot
+    public let pendingWriteCount: Int
+    public let exerciseIsComplete: Bool
+}
+
+/// `say`'s report for the most likely of `candidates`, with every transcript the recording was
+/// heard as beside it.
+public struct HearReport: Encodable, Equatable, Sendable {
+    /// The most likely first; empty when nothing was said.
+    public let candidates: [String]
+    public let report: SayReport
+
+    private enum CodingKeys: String, CodingKey {
+        case candidates
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        try report.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(candidates, forKey: .candidates)
+    }
+}
+
+extension SayReport {
+    init(_ outcome: SetDictation.Outcome, report: LogReport) {
+        (set, pendingWriteCount, exerciseIsComplete) = (report.set, report.pendingWriteCount, report.exerciseIsComplete)
+        switch outcome {
+        case .logged(let setLog, let heard):
+            (self.heard, self.outcome, self.setLog, missing, rejection) = (heard, .logged, setLog.formatted, nil, nil)
+        case .skipped(let heard):
+            (self.heard, self.outcome, setLog, missing, rejection) = (heard, .skipped, nil, nil, nil)
+        case .filled(let values, let heard):
+            (self.heard, setLog) = (heard, nil)
+            let unwritten = Unwritten(values)
+            (self.outcome, missing, rejection) = (unwritten.outcome, unwritten.missing, unwritten.rejection)
+        case .rejected(let reason, let heard):
+            (self.heard, self.outcome, setLog, missing) = (heard, .rejected, nil, nil)
+            rejection = SpokenSetRejectionSnapshot(dictation: reason)
+        }
+    }
+
+    /// A complete Set Log read only from a less likely transcript is a guess the card would show
+    /// for a tap; with no card to show it, it is `ambiguous`, as a skip read that way already is.
+    private struct Unwritten {
+        let outcome: Outcome
+        let missing: [String]?
+        let rejection: SpokenSetRejectionSnapshot?
+
+        init(_ values: SetLogDraft) {
+            let missing = SetLogDraft.Field.allCases.filter(values.missingFields.contains).map(\.rawValue)
+            if missing.isEmpty {
+                (outcome, self.missing, rejection) = (.rejected, nil, SpokenSetRejectionSnapshot(.ambiguous))
+            } else {
+                (outcome, self.missing, rejection) = (.missingValues, missing, nil)
+            }
+        }
+    }
+}
+
+public struct SpokenSetRejectionSnapshot: Codable, Equatable, Sendable {
+    public enum Reason: String, Codable, Sendable {
+        case nothingHeard, unrecognized, kilograms, fusedNumber, ambiguous, conflicting, outOfRange, implausible
+        case offLadderRPE, nothingToRepeat
+        /// The recognizer, not the words: the mic is off in Settings, speech is not available, or
+        /// listening failed.
+        case microphoneDenied, speechUnavailable, listeningFailed
+    }
+
+    public let reason: Reason
+    /// `conflicting`, `outOfRange`, and `implausible` only: `weight`, `reps`, or `rpe`.
+    public let field: String?
+    /// `offLadderRPE` only: the number heard.
+    public let value: Double?
+}
+
+extension SpokenSetRejectionSnapshot {
+    init(dictation rejection: SetDictation.Rejection) {
+        switch rejection {
+        case .spokenSet(let reason): self.init(reason)
+        case .transcriber(.nothingHeard): self.init(reason: .nothingHeard, field: nil, value: nil)
+        case .transcriber(.microphoneDenied): self.init(reason: .microphoneDenied, field: nil, value: nil)
+        case .transcriber(.unavailable): self.init(reason: .speechUnavailable, field: nil, value: nil)
+        case .transcriber(.failed): self.init(reason: .listeningFailed, field: nil, value: nil)
+        }
+    }
+
+    init(_ rejection: SpokenSet.Rejection) {
+        switch rejection {
+        case .nothingHeard: self.init(reason: .nothingHeard, field: nil, value: nil)
+        case .unrecognized: self.init(reason: .unrecognized, field: nil, value: nil)
+        case .kilograms: self.init(reason: .kilograms, field: nil, value: nil)
+        case .fusedNumber: self.init(reason: .fusedNumber, field: nil, value: nil)
+        case .ambiguous: self.init(reason: .ambiguous, field: nil, value: nil)
+        case .conflicting(let field): self.init(reason: .conflicting, field: field.rawValue, value: nil)
+        case .outOfRange(let field): self.init(reason: .outOfRange, field: field.rawValue, value: nil)
+        case .implausible(let field): self.init(reason: .implausible, field: field.rawValue, value: nil)
+        case .offLadderRPE(let value): self.init(reason: .offLadderRPE, field: nil, value: value)
+        case .nothingToRepeat: self.init(reason: .nothingToRepeat, field: nil, value: nil)
+        }
+    }
+}
+
 /// `conflictedWrites` lists every queued write whose status is `conflict`, from this flush or an
 /// earlier one, because the coordinator never retries those and an agent must see them until
 /// they are discarded.

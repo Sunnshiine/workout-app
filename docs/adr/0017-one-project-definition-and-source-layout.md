@@ -9,7 +9,7 @@ shipped the bundled fonts without registering them and fell back to the system f
 Nothing but the release ran the generated project, so nothing caught the drift.
 
 The committed Xcode project is the only project definition. The release workflows archive it as
-committed, and `WorkoutTracker/Info.plist` holds the marketing version. The dev-flavor hooks
+committed, and `App/Info.plist` holds the marketing version. The dev-flavor hooks
 (`BUNDLE_ID_SUFFIX`, `APP_DISPLAY_NAME`, `APPICON_NAME`) are project-level build settings that the
 PR workflow overrides on the command line. No generator produces or checks the project.
 
@@ -42,3 +42,5 @@ Reopen the one-module decision when a second iOS target, such as a watch app, ne
 - *A layered multi-module split:* a trial of only the first cut, Models plus Parsing in their own
   target, needed about 250 `package` modifiers. One dependency cycle runs through seven folders,
   and no build-time problem has been measured.
+
+<!-- doc-symbols: not-in-tree project.yml WorkoutTracker/Info.plist -->

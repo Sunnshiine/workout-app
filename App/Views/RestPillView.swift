@@ -98,7 +98,7 @@ struct RestPillView: View {
     private func ring(presentation: RestPillPresentation, cue: RestPillUrgencyCue) -> some View {
         ZStack {
             Circle()
-                .strokeBorder(palette.progressTrack.opacity(0.55), lineWidth: 3)
+                .strokeBorder(palette.futureStroke.opacity(0.55), lineWidth: 3)
             Circle()
                 .inset(by: 1.5)
                 .trim(from: 0, to: CGFloat(presentation.progressFraction))
@@ -181,11 +181,11 @@ struct RestPillView: View {
     }
 
     private func countdownColor(for cue: RestPillUrgencyCue) -> Color {
-        cue.isActive ? palette.actionInk : palette.valueText
+        cue.isActive ? palette.actionInk : palette.textPrimary
     }
 
     private func arcColor(for cue: RestPillUrgencyCue) -> Color {
-        cue.isActive ? palette.actionInk : palette.accent
+        cue.isActive ? palette.actionInk : palette.action
     }
 
     private func countdownOpacity(for cue: RestPillUrgencyCue) -> Double {

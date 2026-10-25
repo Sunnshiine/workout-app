@@ -6,7 +6,7 @@
     @testable import WorkoutCLI
 
     @Test func everyFailureKindHasAnExitCodeTheCLIContractPromises() {
-        let exitCodes: [ApplicationError.Kind: Int32] = [.domain: 1, .environment: 3, .conflict: 4]
+        let exitCodes: [ApplicationError.Kind: Int32] = [.domain: 1, .environment: 3, .conflict: 4, .unavailable: 69]
         for kind in ApplicationError.Kind.allCases {
             #expect(ExitClass(kind).rawValue == exitCodes[kind], "\(kind)")
         }

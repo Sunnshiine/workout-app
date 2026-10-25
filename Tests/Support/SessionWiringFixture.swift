@@ -19,7 +19,9 @@ extension SessionWiring {
         ),
         restDurations: any SessionRestDurations = SettingsStore(defaults: .inMemory()),
         liveActivity: any SessionLiveActivityAdapter = InertSessionLiveActivity(),
-        motion: any SessionMotionPerforming = ImmediateSessionMotion()
+        motion: any SessionMotionPerforming = ImmediateSessionMotion(),
+        entry: AppEntryInbox = AppEntryInbox(),
+        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
     ) -> SessionWiring {
         SessionWiring(
             logging: logging,
@@ -28,7 +30,9 @@ extension SessionWiring {
             restTimer: restTimer,
             restDurations: restDurations,
             liveActivity: liveActivity,
-            motion: motion
+            motion: motion,
+            entry: entry,
+            history: history
         )
     }
 }
@@ -58,9 +62,11 @@ final class BrowsedAwaySessionNavigation: SessionNavigationAdapter {
     var liveEdge: LiveEdge { .browsedAway }
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
+    var currentSession: Session? { nil }
     func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
     func requestMoveOnCelebration() {}
     func show(_ address: SessionAddress) {}
+    func showCurrent() {}
 }
 
 @MainActor

@@ -1,13 +1,18 @@
 import SwiftUI
 
 struct RootView: View {
+    let dictation: SetDictation?
+    let focus: ActiveSetFocusManager
+    let restTimer: RestTimer
+    let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
+    @Environment(LastPerformedLookupStore.self) private var lastPerformed
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(AppEntryInbox.self) private var entry
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var liveActivityAdapter = LiveActivityProductionAdapter()
 
     var body: some View {
         Group {
@@ -45,6 +50,13 @@ struct RootView: View {
             guard newPhase == .active else { return }
             liveActivityAdapter.endIfReadyCapExpired()
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .background else { return }
+            entry.discard()
+        }
+        .onChange(of: settings.needsOnboarding, initial: true) { _, needsOnboarding in
+            entry.reportOnboarding(isShown: needsOnboarding)
+        }
         .onChange(of: settings.spreadsheetId) { oldValue, newValue in
             guard oldValue != newValue else { return }
             liveActivityAdapter.end()
@@ -66,12 +78,16 @@ struct RootView: View {
                     workout: workout,
                     sync: sync,
                     settings: settings,
+                    lastPerformed: lastPerformed,
+                    entry: entry,
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,
                         motion: SwiftUISessionMotion(),
-                        restNotifications: RestNotificationCenterScheduler.shared
+                        restTimer: restTimer
                     )
-                )
+                ),
+                dictation: dictation,
+                focus: focus
             )
         }
         .transition(handoff)

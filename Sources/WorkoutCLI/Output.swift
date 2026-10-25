@@ -6,6 +6,7 @@ enum ExitClass: Int32 {
     case domain = 1
     case environment = 3
     case conflict = 4
+    case unavailable = 69
     case internalError = 70
 
     init(_ kind: ApplicationError.Kind) {
@@ -13,6 +14,7 @@ enum ExitClass: Int32 {
         case .domain: self = .domain
         case .environment: self = .environment
         case .conflict: self = .conflict
+        case .unavailable: self = .unavailable
         }
     }
 }

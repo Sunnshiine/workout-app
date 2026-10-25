@@ -1,0 +1,78 @@
+phrase	intent
+135 for 8 at 9	135|8|9
+225 for 3 at 8	225|3|8
+185 for 5 at 8	185|5|8
+315 for 2 at 9	315|2|9
+405 for 1 at 10	405|1|10
+1005 for 1 at 10	1005|1|10
+1100 for 2 at 9	1100|2|9
+1250 pounds for 3 at 9.5	1250|3|9.5
+10 for 12 at 8	10|12|8
+20 for 15 at 8	20|15|8
+45 for 10 at 6	45|10|6
+95 for 10 at 6	95|10|6
+275 for 4 at 9	275|4|9
+455 for 1 at 10	455|1|10
+500 for 1 at 9	500|1|9
+135 for 20	135|20|*
+135 for 20 at 8	135|20|8
+95 for 25 at 9	95|25|9
+185 for 6 at 8	185|6|8
+did 185 for 6 at 8	185|6|8
+185 for 6 reps at 8	185|6|8
+135 for 8 at an 8	135|8|8
+225 for 3 at a 9	225|3|9
+225 for 3 at 8 and a half	225|3|8.5
+225 for 3 at eight point five	225|3|8.5
+225 for 3 at 8.5	225|3|8.5
+225 for 3 at nine and a half	225|3|9.5
+185 for 5 at eight and a half	185|5|8.5
+185 for 5 at 8.5	185|5|8.5
+185 for 6 at RPE 8	185|6|8
+185 for 6 at RPE eight and a half	185|6|8.5
+135 for 8, RPE 9	135|8|9
+225 for 3, RPE 8	225|3|8
+315 for 1, RPE 10	315|1|10
+225 for 3 RPE 9.5	225|3|9.5
+135 for 8 at 9 RPE	135|8|9
+135 for 8 reps, 9 RPE	135|8|9
+135 for 8 reps at RPE 9	135|8|9
+185 for 5 reps at RPE 8	185|5|8
+225 for 3 reps at RPE 9 and a half	225|3|9.5
+135, 8 reps, RPE 9	135|8|9
+225, 3 reps, RPE 8	225|3|8
+185, 5 reps, RPE 9	185|5|9
+185 pounds, 6 reps, at 8	185|6|8
+135 pounds for 8	135|8|*
+225 pounds for 3 at 8	225|3|8
+95 pounds for 12	95|12|*
+8 reps at 135	135|8|*
+12 reps at 95 pounds	95|12|*
+5 reps with 185 pounds	185|5|*
+6 reps at 185 at RPE 8	185|6|8
+135 x 8 at 9	135|8|9
+225 x 3 at 8	225|3|8
+135 by 8	135|8|*
+225 by 3 at 8	225|3|8
+185 by 5 at 9	185|5|9
+135 times 8 at 9	135|8|9
+one thirty five for eight at nine	135|8|9
+two twenty five for three at eight	225|3|8
+three fifteen for two at RPE nine	315|2|9
+bodyweight for 12 at 7	BW|12|7
+bodyweight for 10 at 8	BW|10|8
+body weight for 15	BW|15|*
+BW for 12 at 9	BW|12|9
+225 for a triple at 8	225|3|8
+185 for 6, felt like an 8	185|6|8
+same again	SAME
+same as before	SAME
+skip	SKIP
+skip it	SKIP
+skip this one	SKIP
+185 or 5	REJECT
+two sets of 5	REJECT
+185 for 5, 185 for 5	REJECT
+225 for 3 for 3	REJECT
+135 for 4, 8 reps, RPE 9	REJECT
+100 kilos for 5	REJECT
