@@ -159,6 +159,41 @@ else
     echo "  skip the gawk checks: no gawk on PATH (brew install gawk)"
 fi
 
+echo "disk"
+reset
+STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "free disk under the floor refuses a build with 75, before any xcodebuild" "$status $(builds)" "75 "
+expect "the refusal names the free and needed space and the knob" "$(refusal)" \
+    "gave up after N s waiting for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+reset
+STUB_DISK_FREE_MB=4096 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "free disk exactly at the floor is admitted" "$status $(builds)" "65 build-for-testing"
+reset
+STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
+expect "a run that builds nothing does not read the disk" "$status $(builds) $(cat "$root/df-calls" 2>/dev/null)" \
+    "65 test-without-building "
+reset
+STUB_DISK_FREE_MB=1000 STUB_LOW_DISK_CALLS=1 WORKOUT_ADMIT_WAIT=30 test_sim; status=$?
+expect "a build waits for disk to free, then goes on" "$status $(builds) $(head -1 "$root/err")" \
+    "65 build-for-testing waiting up to 30 s for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+reset
+STUB_DISK_FREE_MB=1000 WORKOUT_DISK_FLOOR=500 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "WORKOUT_DISK_FLOOR lowers the floor" "$status $(builds)" "65 build-for-testing"
+reset
+STUB_DISK_FREE_MB=0 WORKOUT_DISK_FLOOR=0 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "a floor of 0 never reads the disk" "$status $(cat "$root/df-calls" 2>/dev/null)" "65 "
+reset
+(cd "$repo" && STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/build-slot.sh" sh -c 'echo ran' >"$root/out" 2>"$root/err"); status=$?
+expect "build-slot.sh refuses its command the same way" "$status $(cat "$root/out")$(refusal)" \
+    "75 gave up after N s waiting for a build slot: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+mkdir -p "$root/broken-df"
+printf '#!/bin/sh\necho "df: $2: No such file or directory" >&2\nexit 1\n' >"$root/broken-df/df"
+chmod +x "$root/broken-df/df"
+reset
+PATH="$root/broken-df:$PATH" WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "a df that fails holds the build" "$status $(refusal)" \
+    "75 gave up after N s waiting for the host before taking $sim: df -Pk $repo failed: df: $repo: No such file or directory"
+
 echo "help"
 missing=
 for knob in $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh"); do

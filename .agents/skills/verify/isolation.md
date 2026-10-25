@@ -41,6 +41,7 @@ simulators are booted (10), and boots it once admitted. At the cap it first shut
 recently used `workout-lane-*` simulator that no run holds, that runs no app but a verify app past
 its lease, and that went unclaimed for `WORKOUT_IDLE_MINUTES` (2), and names it on stderr. Each
 `build`, each build into the app cache (`install COMMIT`, `launch --at`), and each `test-sim.sh`
-build waits for the same floor and takes one of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the
-same way. `build` boots nothing. Admission never reads the load. Run anything else heavy as
-`scripts/build-slot.sh <command>` instead of a hand-written `uptime` loop.
+build waits for the same floor and for `WORKOUT_DISK_FLOOR` MB of free disk (4096), and takes one
+of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. `build` boots nothing. Admission
+never reads the load. Run anything else heavy as `scripts/build-slot.sh <command>` instead of a
+hand-written `uptime` loop.

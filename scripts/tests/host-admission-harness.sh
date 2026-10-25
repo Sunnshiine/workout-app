@@ -100,6 +100,14 @@ fi
 echo call >> "$root/sysctl-calls"
 if [ "\$(wc -l < "$root/sysctl-calls")" -gt "\${STUB_BUSY_CALLS:-1000}" ]; then echo "{ 1.00 1.00 1.00 }"; else echo "{ \${STUB_LOAD:-1.00} 1.00 1.00 }"; fi
 STUB
+cat >"$root/bin/df" <<STUB
+#!/bin/sh
+echo call >> "$root/df-calls"
+free=\${STUB_DISK_FREE_MB:-100000}
+[ "\$(wc -l < "$root/df-calls")" -le "\${STUB_LOW_DISK_CALLS:-1000}" ] || free=100000
+echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
+echo "/dev/stub 200000000 100000000 \$((free * 1024)) 50% /"
+STUB
 cat >"$root/bin/xcodebuild" <<STUB
 #!/bin/sh
 echo "\$1" >> "$root/builds"
@@ -118,7 +126,7 @@ export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
 unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
 
 reset() {
-    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/xcrun-calls" "$root/list-calls" \
+    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/df-calls" "$root/xcrun-calls" "$root/list-calls" \
         "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing" \
         "$repo/.claude/work/evidence"
 }

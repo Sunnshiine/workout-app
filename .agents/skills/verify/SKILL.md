@@ -221,6 +221,17 @@ One app instance per simulator, and one run owns it. Read [isolation.md](isolati
 exits 75, when another agent may be driving or testing on this machine, or when a claim waits for the
 host.
 
+To drive the app with the host under load, start each load process through the run's pidfile and
+end them through it, never by pid number:
+
+```bash
+for _ in $(seq 12); do scripts/reap.sh --start "$VERIFY_RUN" yes; done   # prints each pid
+scripts/reap.sh "$VERIFY_RUN"                                           # ends only those
+```
+
+`scripts/reap.sh` refuses a pid its run did not record, so a pid copied from `ps` or another run's
+output kills nothing. `scripts/flake-hunt.sh` records its busy loops the same way and prints its run.
+
 ## Changing this skill
 
 After an edit to anything in this skill, `scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run

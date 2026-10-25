@@ -7,6 +7,8 @@ Usage: scripts/flake-hunt.sh [--repetitions N] [--load N] [FILTER]
 Repeats every `swift test` test (or those matching FILTER) until one fails, up to N repetitions
 each (default 200), while N busy-loop processes (default three per core) hold the CPU. Timing
 races that pass on a quiet machine fail here within a few hundred repetitions.
+Records the busy loops and the test process as run WORKOUT_RUN (default flake-hunt-<pid>), so
+scripts/reap.sh <run> ends this hunt's processes and no other's, even after a kill -9 of this script.
 Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed or no test ran.
 EOF
   exit 2
@@ -32,17 +34,23 @@ mkdir -p "$(dirname "$log")"
 echo "log: $log"
 swift build --build-tests >"$log" 2>&1 || { grep -m 20 -E "error:" "$log" >&2 || true; echo "build log: $log" >&2; exit 65; }
 
+run=${WORKOUT_RUN:-flake-hunt-$$}
+echo "run: $run (scripts/reap.sh $run ends its processes)"
+trap '"$repo/scripts/reap.sh" "$run" >/dev/null 2>&1 || true' EXIT
 hogs=()
-trap 'kill ${hogs[@]+"${hogs[@]}"} 2>/dev/null || true' EXIT
 for (( i = 0; i < load; i++ )); do
   yes >/dev/null &
   hogs+=($!)
 done
+[ ${#hogs[@]} = 0 ] || "$repo/scripts/reap.sh" --record "$run" "${hogs[@]}"
 
 rm -f "${log%.log}-swift-testing.xml"
 set +e
 swift test --skip-build ${filter[@]+"${filter[@]}"} --repeat-until fail --maximum-repetitions "$repetitions" \
-  --xunit-output "${log%.log}.xml" >"$log" 2>&1
+  --xunit-output "${log%.log}.xml" >"$log" 2>&1 &
+tests=$!
+"$repo/scripts/reap.sh" --record "$run" "$tests" 2>/dev/null || true
+wait "$tests"
 rc=$?
 set -e
 # Swift Testing counts its tests in a -swift-testing sibling of the xunit path. XCTest writes that

@@ -96,7 +96,8 @@ Environment: SIM (the UDID of your own simulator, required by every command that
              WORKOUT_ADMIT_WAIT (540): launch and install wait while free memory
                   (kern.memorystatus_level, percent) is under the floor, and before a boot while
                   WORKOUT_SIM_CAP others are booted; build, and a build into the app cache, wait for
-                  the floor and for one of the host's build slots. A floor of 0 turns it off.
+                  the floor, for free disk of WORKOUT_DISK_FLOOR (4096 MB), and for one of the
+                  host's build slots. A floor of 0 turns it off.
                   At the cap, a boot first shuts down one idle workout-lane-* simulator, as
                   scripts/test-sim.sh --help says, unused for WORKOUT_IDLE_MINUTES (2). Under
                   the cap, a boot shuts down one lane unused for WORKOUT_SLEEP_MINUTES (30).

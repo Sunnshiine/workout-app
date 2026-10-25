@@ -79,6 +79,16 @@ What the numbers say:
   `WORKOUT_ADMIT_WAIT` budget each time a slot changes hands. Exit 75 means one holder kept a slot for
   the whole budget. A claim also waits for a free slot before it reclaims a seat, so it never shuts
   down a lane for a seat it cannot use yet.
+- **A disk floor holds every build (amended 2026-10-25).** A build waits while free disk on the
+  checkout's volume or HOME's is under `WORKOUT_DISK_FLOOR` (4096 MB), and exits 75 after
+  `WORKOUT_ADMIT_WAIT` naming the free and needed space. A run with `--no-build` and a boot do not
+  read the disk. Agents had hit ENOSPC 27 times, mid-build and mid-gate, and the operator stopped
+  four runs over disk. One `test-sim.sh unit` on a fresh lane wrote about 1.5 GB at trunk
+  5127bea9: 1144 MB of DerivedData, 262 MB in the lane's simulator, 93 MB of module cache, and
+  28 MB under `.build`. The floor admits the two runs the build slots allow at that size, with
+  1 GB left for writers that admission does not see, such as a bare `swift build`. The host's free
+  disk fell by 2.0 GB over the same run, with other agents writing, so a host whose runs grow
+  should measure again and raise the floor.
 - **`lane.sh down` ignores Xcode's orphaned helpers.** A build leaves `ibtoold`, and a booted
   simulator leaves `DTServiceHub`, working in the lane's worktree for minutes after the run. Both
   have launchd for a parent. `down` used to refuse those lanes as in use. A process with a live
