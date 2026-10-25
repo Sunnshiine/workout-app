@@ -266,9 +266,7 @@ struct SheetWritePlanner: Sendable {
             }
         guard let col else { return .columnNotFound(header: header) }
 
-        let sameNamed = day.exerciseAnchors.filter { $0.name == request.exercise.name.entered }
-        guard sameNamed.indices.contains(request.exercise.ordinal) else { return .exerciseNotFound }
-        let anchor = sameNamed[request.exercise.ordinal]
+        guard let anchor = request.exercise.anchor(in: day) else { return .exerciseNotFound }
         switch request.column {
         case .lastSetRPE:
             return .lastSetRPE(anchor: anchor, col: col)

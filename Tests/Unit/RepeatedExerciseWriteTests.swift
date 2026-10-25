@@ -132,13 +132,13 @@ private func address(_ raw: String) throws -> SetAddress {
         exercise.sets = [set]
     }
 
-    #expect(try SetCoordinates(of: topSingle.sets[0]).exercise == ExerciseReference(name: "Back Squat", ordinal: 0))
-    #expect(try SetCoordinates(of: accessory.sets[0]).exercise == ExerciseReference(name: "RDL", ordinal: 0))
-    #expect(try SetCoordinates(of: backOff.sets[0]).exercise == ExerciseReference(name: "Back Squat", ordinal: 1))
+    #expect(try SetCoordinates(of: topSingle.sets[0]).exercise == .unchecked(name: "Back Squat", ordinal: 0))
+    #expect(try SetCoordinates(of: accessory.sets[0]).exercise == .unchecked(name: "RDL", ordinal: 0))
+    #expect(try SetCoordinates(of: backOff.sets[0]).exercise == .unchecked(name: "Back Squat", ordinal: 1))
     #expect(block.setsByID.count == 3)
     let backOffID = SetCoordinates.ID(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-        exercise: ExerciseReference(name: "Back Squat", ordinal: 1),
+        exercise: .unchecked(name: "Back Squat", ordinal: 1),
         setIndex: 0
     )
     #expect(block.setsByID[backOffID] === backOff.sets[0])
@@ -147,7 +147,7 @@ private func address(_ raw: String) throws -> SetAddress {
 private func backSquatRequest(ordinal: Int) -> SheetWriteRequest {
     SheetWriteRequest(
         session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-        exercise: ExerciseReference(name: "Back Squat", ordinal: ordinal),
+        exercise: .unchecked(name: "Back Squat", ordinal: ordinal),
         setIndex: 0,
         column: .notes,
         operation: .upsert,
@@ -174,7 +174,7 @@ private func backSquatTwiceGrid(_ extra: [String: String] = [:]) -> SheetGrid {
 
     #expect(try planner.plan(backSquatRequest(ordinal: 0), in: grid).row == 14)
     #expect(try planner.plan(backSquatRequest(ordinal: 1), in: grid).row == 18)
-    #expect(throws: SheetWriterError.exerciseNotFound(ExerciseReference(name: "Back Squat", ordinal: 2))) {
+    #expect(throws: SheetWriterError.exerciseNotFound(.unchecked(name: "Back Squat", ordinal: 2))) {
         try planner.plan(backSquatRequest(ordinal: 2), in: grid)
     }
 }
@@ -186,7 +186,7 @@ private func backSquatTwiceGrid(_ extra: [String: String] = [:]) -> SheetGrid {
         try SheetWritePlanner().plan(backSquatRequest(ordinal: 1), in: grid)
     }
 
-    #expect(error == .headerNotesBlockSetRow(exercise: ExerciseReference(name: "Back Squat", ordinal: 1), setIndex: 0))
+    #expect(error == .headerNotesBlockSetRow(exercise: .unchecked(name: "Back Squat", ordinal: 1), setIndex: 0))
     #expect(error?.errorDescription?.hasPrefix("Set 1 for Back Squat number 2 cannot be written") == true)
 }
 
