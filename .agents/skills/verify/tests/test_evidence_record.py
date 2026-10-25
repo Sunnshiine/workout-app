@@ -146,6 +146,7 @@ class Record(Lane):
             r"^waiting up to 2 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
             r"\(WORKOUT_LOAD_LIMIT\)\ngave up after \d+ s waiting for the load to fall to 50 before recording: the "
             r"1-minute load is 50\.01, over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
+        self.assertGreaterEqual(int(re.search(r"gave up after (\d+) s", err).group(1)), 2)
         self.assertEqual(self.calls(), [])
 
     def test_a_run_that_takes_the_simulator_while_record_waits_for_load_is_refused_after_the_wait(self):
