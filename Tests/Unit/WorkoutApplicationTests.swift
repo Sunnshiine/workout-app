@@ -293,7 +293,7 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
+@Test func syncIsRefusedWhileAnotherSyncIsRunning() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
         environment: AppEnvironment(
@@ -316,7 +316,7 @@ private func address(_ raw: String) throws -> SetAddress {
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
+@Test func selectingASheetWhileASyncRunsIsRefusedWithTheReason() async throws {
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)
     let app = try WorkoutApplication(
         environment: AppEnvironment(

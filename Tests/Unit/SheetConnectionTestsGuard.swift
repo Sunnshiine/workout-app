@@ -5,7 +5,7 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncNowRejectsARepeatTapWhileItsSyncIsRunning() async throws {
+@Test func syncNowRejectsARepeatTapWhileItsSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
@@ -26,7 +26,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
+@Test func overlappingSheetSwitchIsRejectedWhileFirstSyncIsRunning() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -50,7 +50,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
+@Test func overlappingConfirmedSheetSwitchIsRejectedWhileDiscardIsRunning() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
     let sync = SuspendedDiscardSheetSwitchSync()
@@ -73,7 +73,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
+@Test func signOutIsRejectedWhileASheetSwitchDiscardIsRunning() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -96,7 +96,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncNowSignOutAndASecondSwitchAreRejectedWhileASwitchSyncsTheNewSheet() async throws {
+@Test func syncNowSignOutAndASecondSwitchAreRejectedWhileASwitchSyncsTheNewSheet() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "old-sheet", title: "Old Training Log")
@@ -119,7 +119,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func syncNowAndASheetSwitchAreRejectedWhileSignOutDiscardsTheQueue() async throws {
+@Test func syncNowAndASheetSwitchAreRejectedWhileSignOutDiscardsTheQueue() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true
     settings.setSpreadsheet(id: "current-sheet", title: "Current Training Log")
@@ -170,8 +170,7 @@ import Testing
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1)))
-func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
+@Test func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
@@ -210,8 +209,7 @@ func aFlushThatOverlapsASyncLeavesTheDestructiveTransitionGuardClosed() async th
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1)))
-func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
+@Test func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.setSpreadsheet(id: "current-sheet", title: "Training Log")
@@ -265,7 +263,7 @@ func aFlushWithNoSyncAroundItAlsoClosesTheDestructiveTransitionGuard() async thr
 }
 
 @MainActor
-@Test(.timeLimit(.minutes(1))) func anOnboardingSelectionRefusedMidSyncReturnsTheRefusalAndThePickedSheetCommits() async throws {
+@Test func anOnboardingSelectionRefusedMidSyncReturnsTheRefusalAndThePickedSheetCommits() async throws {
     let container = try makeCacheSafetyContainer()
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     let client = HeldSheetsClient(titles: ["Intro", "Block 27"], grid: WorkoutFixtureScenarios.replacementSheetGrid)

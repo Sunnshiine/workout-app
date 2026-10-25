@@ -1,7 +1,7 @@
 import Testing
 
-/// A continuation ignores the time limit's cancellation, so a call parked where no release reaches
-/// it would hang the run.
+/// A continuation ignores cancellation, so a call parked where no release reaches it would hang the
+/// run instead of failing it.
 @MainActor
 final class HeldCall {
     private var parked: CheckedContinuation<Void, Never>?

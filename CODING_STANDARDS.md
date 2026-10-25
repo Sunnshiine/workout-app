@@ -91,8 +91,8 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   resolves in the machine's time zone. (#597, fixed in #684.)
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. A fake never parks the test on a bare continuation,
-  because a continuation ignores the time limit's cancellation and a missed release hangs the run
-  instead of failing it (#746). Every wait on work the test does not control goes through
+  because a continuation ignores cancellation and a missed release hangs the run instead of failing
+  it (#746). Every wait on work the test does not control goes through
   `waitUntil` or `HeldCall.waitUntilHeld` in `Tests/Support/`, which record a failure when the
   bound runs out. The poll, the state it reads, and the work that sets it share one actor, so each
   yield gives that work a turn. A poll on another actor can exhaust its count before a loaded main
