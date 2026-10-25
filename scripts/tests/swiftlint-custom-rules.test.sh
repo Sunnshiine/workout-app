@@ -146,6 +146,17 @@ polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:8
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:14
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:20
 polling_loops_are_bounded Tests/PollingLoopsAreBounded.swift:24
+
+exercise_references_are_parsed App/ExerciseReferencesAreParsed.swift:3
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:3
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:7
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:11
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:18
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:23
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:28
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:32
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:68
+exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:72
 EXPECTED
 }
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
