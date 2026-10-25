@@ -92,6 +92,7 @@ jobs:
           head=$(git rev-parse HEAD^2)
           printf '%s\n' "$PR_BODY" >"$RUNNER_TEMP/pr-body"
           for depth in 50 150 400 1000; do
+            echo "fetching $base and $head at depth $depth"
             git fetch -q --no-tags --depth="$depth" origin "$base" "$head"
             status=0
             scripts/landing-reverts-main.py "$base" "$head" --body-file "$RUNNER_TEMP/pr-body" || status=$?

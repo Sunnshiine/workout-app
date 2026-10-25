@@ -202,7 +202,8 @@ def main():
             " commit if nothing changed, so the check reruns.",
             file=sys.stderr,
         )
-    sys.exit(1 if found else 0)
+        sys.exit(1)
+    print(f"quiet: {head[:8]} onto {base[:8]} undoes none of the last {len(window)} commits on the base")
 
 
 if __name__ == "__main__":

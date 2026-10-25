@@ -112,7 +112,7 @@ expect "a body that names another PR, or names #2 mid-line, still fires" 1 "undo
 expect "--allow 2" 0 "" "$main" "$revert" --allow 2
 
 echo "normal landings stay quiet"
-expect "a clean merge of main" 0 "" "$main" "$clean_merge"
+expect "a clean merge of main says it checked the window" 0 "quiet: " "$main" "$clean_merge"
 expect "the PR's own commit that drops 5 of main's 12 lines" 0 "" "$main" "$own_edit"
 expect "the same edit under --strict, which drops the own-commit exemption" 1 "undoes #2 5/12 lines" \
     "$main" "$own_edit" --strict
