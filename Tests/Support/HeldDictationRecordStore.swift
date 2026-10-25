@@ -23,6 +23,8 @@ final class HeldDictationRecordStore: DictationRecordStore {
 
     func append(_ record: DictationRecord) async {
         let onMainThread = pthread_main_np() != 0
+        // Only release() resumes a held write, so a test that never calls it parks the write (#1105).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { continuation in
             let (test, isHeld) = state.withLock { state -> (CheckedContinuation<Void, Never>?, Bool) in
                 state.appends += 1
@@ -49,6 +51,8 @@ final class HeldDictationRecordStore: DictationRecordStore {
 
     /// Returns once a write has parked, so what the test does next happens with the disk stalled.
     func waitUntilAppending() async {
+        // The write runs off the main actor, so a waitUntil count does not bound it (#1105).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { continuation in
             let appending = state.withLock { state -> Bool in
                 guard state.appends == 0 else { return true }

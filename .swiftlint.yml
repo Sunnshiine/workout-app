@@ -180,6 +180,40 @@ custom_rules:
       - string
     severity: error
 
+  # Under load a sleep, a wall-clock deadline, or a time limit measures the host, not the code.
+  # #543, #899, and #1014 each went red on a loaded runner while the code under test was correct.
+  # `Date()` deadlines are fixture_dates_are_literal's. `Tests/UI/` keeps its wall-clock polls.
+  tests_wait_on_events_not_clocks:
+    name: "Tests wait on events, not clocks"
+    message: >
+      A test or fake that sleeps, measures elapsed time, or carries a time limit times the host,
+      not the code. Await the event, inject a manual clock, or bound the wait with `waitUntil` in
+      Tests/Support (#543, #899, #1014).
+    regex: '(\bTask(<[^>]*>)?\.sleep\b|\b(Continuous|Suspending)Clock\(\)|\b(Continuous|Suspending)Clock\.now\s*([-+<>]|\.advanced\()|\.timeLimit\(|\bThread\.sleep\b|(?<![.\w])(?<!func )(u|nano)?sleep\(|\.wait\(\s*(timeout|wallTimeout):|\.asyncAfter\(|\.measure\s*[({]|\bDispatch(Wall)?Time\.now\(|\bCFAbsoluteTimeGetCurrent\(|\.systemUptime\b|\bTimer\.scheduledTimer\b)'
+    included: '.*/Tests/(Unit|Component|Support)/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
+  # #707, #746, and #936 each parked a call on a continuation nothing resumed. A fake and its
+  # test can share a file, so an exemption goes on the line, never on a file.
+  tests_never_park_on_a_bare_continuation:
+    name: "Tests never park on a bare continuation"
+    message: >
+      A continuation ignores cancellation, so a missed resume hangs the run instead of failing it.
+      Park through `HeldCall`, whose poll records a failure and abandons the hold (#707, #746, #936).
+    regex: '\bwith(Checked|Unsafe)(Throwing)?Continuation\b'
+    included: '.*/Tests/(Unit|Component|Support)/.*'
+    excluded:
+      - '.*/Tests/Support/HeldCall\.swift'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+      - string
+    severity: error
+
   # The Sheet addresses an Exercise by its Entered Name and how many same-named Exercises sit above
   # it (#813), so only a Sheet read can say which Exercise a write targets. PendingWrite.swift keeps
   # ExerciseReference's init and ordinal fileprivate. This rule keeps `unchecked`, the one mint

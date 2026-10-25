@@ -136,6 +136,8 @@ final class ManualSessionTransitionClock: SessionTransitionClock {
 
     func sleep(for duration: Duration) async {
         sleptDurations.append(duration)
+        // Only advance() resumes this, so a sleep the test never advances parks (#1099).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         let returnFromAdvanceAfterCallerRuns = await withCheckedContinuation { sleeper in
             sleepers.append(sleeper)
         }
@@ -154,6 +156,8 @@ final class ManualSessionTransitionClock: SessionTransitionClock {
         let wokenSleepers = sleepers
         sleepers = []
         for sleeper in wokenSleepers {
+            // The woken sleep resumes this as soon as its caller runs, so it never stays parked.
+            // swiftlint:disable:next tests_never_park_on_a_bare_continuation
             await withCheckedContinuation { returnFromAdvance in
                 sleeper.resume(returning: returnFromAdvance)
             }
