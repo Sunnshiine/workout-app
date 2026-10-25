@@ -252,6 +252,21 @@ expect "a revert of a commit with no PR number names its short SHA" 1 "undoes ${
 printf 'Reverts %s\n' "${direct:0:7}" >"$root/body"
 expect "Reverts <sha> allows it" 0 "" main revert-direct --body-file "$root/body"
 
+echo "paths that git writes with a trailing tab or in quotes"
+for path in "my file.txt" "my dir/f.txt" 'say "hi".txt'; do
+    new_repo "$root/path-$(echo "$path" | tr -c 'a-z' -)"
+    echo "base" >base.txt
+    commit "base (#1)"
+    mkdir -p "$(dirname "$path")"
+    feature_lines odd 12 >"$path"
+    commit "feat: odd path (#5)"
+    git checkout -q -b revert-odd
+    git revert --no-edit HEAD >/dev/null
+    expect "a revert in '$path' names #5 and the path" 1 "  $path (12 lines)" main revert-odd
+    printf 'Reverts #5\n' >"$root/body"
+    expect "Reverts #5 allows the revert in '$path'" 0 "" main revert-odd --body-file "$root/body"
+done
+
 echo "content that is not UTF-8"
 new_repo "$root/latin1"
 echo "base" >a.txt

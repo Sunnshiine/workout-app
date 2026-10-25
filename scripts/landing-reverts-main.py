@@ -62,6 +62,21 @@ def significant(line):
     return len(re.findall(r"[A-Za-z0-9]", line)) >= 3
 
 
+C_ESCAPES = {b"a": b"\a", b"b": b"\b", b"t": b"\t", b"n": b"\n", b"v": b"\v", b"f": b"\f", b"r": b"\r",
+             b'"': b'"', b"\\": b"\\"}
+
+
+def header_path(name):
+    """The path in a --- or +++ line, which git ends with a tab when it holds a space and quotes when it holds
+    a control character, quote, or backslash."""
+    name = name.removesuffix("\t")
+    if name.startswith('"'):
+        raw = re.sub(rb"\\([0-7]{3}|.)", lambda m: bytes([int(m[1], 8)]) if len(m[1]) == 3 else C_ESCAPES[m[1]],
+                     name[1:-1].encode("utf-8", "surrogateescape"))
+        name = raw.decode("utf-8", "surrogateescape")
+    return name[2:]
+
+
 def hunks(diff_text):
     """(path, first removed line's number in the old file, removed lines, added lines) per -U0 hunk."""
     out, path, start, minus, plus, in_header = [], None, 0, [], [], False
@@ -76,7 +91,7 @@ def hunks(diff_text):
             path, minus, plus, in_header = None, [], [], True
         elif in_header and (line.startswith("+++ ") or line.startswith("--- ")):
             if line[4:] != "/dev/null":
-                path = line[6:]
+                path = header_path(line[4:])
         elif line.startswith("@@"):
             flush()
             start, minus, plus, in_header = int(HUNK.match(line).group(1)), [], [], False
