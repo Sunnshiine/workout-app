@@ -54,6 +54,10 @@ releases whatever the fake would park later, as `HeldCall.waitUntilHeld` does th
 reject a sleep, a time limit, and a bare continuation under `Tests/Unit/`, `Tests/Component/`, and
 `Tests/Support/`.
 
+Title a flaky test's issue with the test's function name, as #978 is. A failing run of
+`scripts/crap.sh`, `scripts/test-sim.sh`, or `scripts/flake-hunt.sh` searches open issue titles for
+each failing test's name and prints the issue it finds.
+
 ## Parallel Agents
 
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
