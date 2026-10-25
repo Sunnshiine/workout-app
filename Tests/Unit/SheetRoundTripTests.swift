@@ -57,6 +57,11 @@ private func weekOneSets(of app: WorkoutApplication) throws -> [SetSnapshot] {
         weekOneSetCount: 9
     ),
     RoundTripSheet(
+        testDescription: "a Prescription Line of three Sets above another, each keeping its list in its own Notes cell",
+        workbook: freshBlock(["D16": "2", "F16": "3", "H16": "RPE8"]),
+        weekOneSetCount: 12
+    ),
+    RoundTripSheet(
         testDescription: "a hidden Back Squat above a visible one, and a hidden row under the visible one's Coach Note",
         workbook: freshBlock(["C19": "Back Squat"], hiding: [15, 20]),
         weekOneSetCount: 4
