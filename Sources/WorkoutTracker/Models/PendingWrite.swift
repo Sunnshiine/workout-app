@@ -6,8 +6,7 @@ import SwiftData
 /// a coach can name a top single and its back-off Sets both `Back Squat` (#813).
 ///
 /// It is declared beside `PendingWrite`, the model that persists it, so its init and `ordinal` stay
-/// fileprivate. Other code takes one from `Exercise.reference(in:)` or a queued write, and finds its
-/// row with `anchor(in:)`.
+/// fileprivate. Other code takes one from `Exercise.reference(in:)` or from a queued write.
 struct ExerciseReference: Hashable, Sendable {
     let name: ExerciseName
     fileprivate let ordinal: Int
