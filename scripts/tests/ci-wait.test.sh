@@ -49,7 +49,7 @@ done
 case "$sub" in
     "pr view")
         if [ -n "${STUB_PR_ERROR:-}" ]; then echo "$STUB_PR_ERROR" >&2; exit 1; fi
-        jq -nr --arg s "$STUB_SHA" '{headRefName: "topic", headRefOid: $s, isCrossRepository: ($ENV.STUB_FORK == "true")}' | jq -r "$jq_expr" ;;
+        jq -nr --arg s "$STUB_SHA" '{headRefName: "topic", headRefOid: $s, isCrossRepository: ($ENV.STUB_FORK == "true"), body: "Reverts #12"}' | jq -r "$jq_expr" ;;
     "api repos/{owner}/{repo}/git/ref/heads/topic")
         jq -nr --arg s "$(branch_tip)" '{object: {sha: $s}}' | jq -r "$jq_expr" ;;
     "run list")
@@ -82,7 +82,20 @@ cat >"$root/bin/sleep" <<'STUB'
 #!/usr/bin/env bash
 exec next-frame
 STUB
-chmod +x "$root/bin/next-frame" "$root/bin/gh" "$root/bin/sleep"
+cat >"$root/bin/git" <<'STUB'
+#!/usr/bin/env bash
+printf 'git %s\n' "$*" >>"$STUB_DIR/calls.log"
+[ "$1" = fetch ] || { echo "git stub: unexpected command: $*" >&2; exit 1; }
+STUB
+# The landing check's shebang resolves python3 through PATH, so this stands in for the check.
+cat >"$root/bin/python3" <<'STUB'
+#!/usr/bin/env bash
+shift
+printf 'landing-check %s body=%s\n' "$*" "$(cat "${*: -1}")" >>"$STUB_DIR/calls.log"
+[ -z "${STUB_LANDING_OUT:-}" ] || echo "$STUB_LANDING_OUT"
+exit "${STUB_LANDING_STATUS:-0}"
+STUB
+chmod +x "$root/bin/next-frame" "$root/bin/gh" "$root/bin/sleep" "$root/bin/git" "$root/bin/python3"
 
 workflow_run() {
     local workflow=$1 id=$2 status=$3 conclusion=$4
@@ -111,7 +124,7 @@ check() {
     for h in ${branch_tips:-}; do echo "$h" >"$dir/head.$i"; i=$((i + 1)); done
     echo 0 >"$dir/cursor"
     : >"$dir/calls.log"
-    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" STUB_BASE_CHANGED="${base_changed:-}" STUB_BASE="${base:-main}" STUB_PR="${arg:-0}" STUB_GRAPHQL_ERROR="${graphql_error:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
+    STUB_DIR="$dir" STUB_SHA="$sha" STUB_FORK="${fork:-}" STUB_PR_ERROR="${pr_error:-}" STUB_BASE_CHANGED="${base_changed:-}" STUB_BASE="${base:-main}" STUB_PR="${arg:-0}" STUB_GRAPHQL_ERROR="${graphql_error:-}" STUB_LANDING_STATUS="${landing_status:-0}" STUB_LANDING_OUT="${landing_out:-}" PATH="$root/bin:$PATH" "$ci_wait" ${arg:+"$arg"} >"$dir/out" 2>"$dir/err"
     local status=$?
     if [ "$status" -eq "$want_status" ] && [ "$(cat "$dir/out")" = "$want_out" ]; then
         ok "$name"
@@ -341,6 +354,32 @@ $merge" 668 \
 
 graphql_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a failed base lookup exits 1 with no merge command" 1 "" 668 \
     "[$(ci $A completed success)]"
+
+echo "the landing check: it runs against the fetched base and gates the merge command"
+
+check "a green PR runs the landing check against the fetched base, with the PR body" 0 "$ci_a_success
+$merge" 668 "[$(ci $A completed success)]"
+if grep -qx "git fetch -q --no-tags origin +refs/heads/main:refs/remotes/origin/main $sha" "$root/case/calls.log" \
+    && grep -q "^landing-check origin/main $sha --body-file .* body=Reverts #12$" "$root/case/calls.log"; then
+    ok "the landing check reads origin/main after a fetch, the head, and the PR body"
+else
+    bad "the landing check reads origin/main after a fetch, the head, and the PR body: $(grep -E '^(git|landing)' "$root/case/calls.log")"
+fi
+
+landing_status=1 landing_out="revert: the landing undoes #1066 620/627 lines (3ee0d077 feat(ci): flake guard)" \
+    check "a landing that undoes a commit on the base exits 1 with no merge command" 1 "$ci_a_success
+revert: the landing undoes #1066 620/627 lines (3ee0d077 feat(ci): flake guard)" 668 "[$(ci $A completed success)]"
+check_err "a landing that undoes a commit says why there is no merge command" \
+    "the landing of #668 onto main fails scripts/landing-reverts-main.py, so there is no merge command"
+
+landing_status=2 check "a landing the check cannot read exits 1 with no merge command" 1 "$ci_a_success" 668 \
+    "[$(ci $A completed success)]"
+
+check "a red run never reaches the landing check" 1 "CI failure on 73b27aa (run $A)
+  swift-tests: failure
+  lint: failure
+  visual-tests: failure" 668 "[$(ci $A completed failure)]"
+if grep -q '^landing-check' "$root/case/calls.log"; then bad "a red run never reaches the landing check"; else ok "a red run calls no landing check"; fi
 
 echo "no run: exit 3"
 
