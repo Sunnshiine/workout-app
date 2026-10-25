@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
+# CI sets GITHUB_ACTIONS, under which test-log-summary.sh adds ::error lines these checks do not expect.
+unset GITHUB_ACTIONS
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
@@ -19,7 +21,8 @@ cat >"$root/bin/swift" <<'STUB'
 cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
-chmod +x "$root/bin/swift"
+printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
+chmod +x "$root/bin/swift" "$root/bin/gh"
 
 check() {
     local name=$1 want_status=$2 want_out=$3 swift_status=$4 log=$5
