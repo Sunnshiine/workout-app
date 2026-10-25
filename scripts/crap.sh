@@ -102,6 +102,10 @@ run_tests() {
         echo "crap.sh: tests failed; see $log" >&2
         exit 1
     fi
+    if ! awk -f scripts/test-log-summary.awk "$log" >/dev/null; then
+        echo "crap.sh: no test ran; see $log" >&2
+        exit 65
+    fi
     grep -E '^.?.?Test run with' "$log" | tail -1 || true
 }
 

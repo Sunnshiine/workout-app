@@ -17,7 +17,7 @@ ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
 for tool in swift xcodebuild; do
-    printf '#!/bin/sh\ncat "$STUB_LOG"\nexit 1\n' >"$root/bin/$tool"
+    printf '#!/bin/sh\ncat "$STUB_LOG"\nexit "${STUB_RC:-1}"\n' >"$root/bin/$tool"
 done
 cat >"$root/bin/gh" <<'STUB'
 #!/bin/sh
@@ -54,15 +54,15 @@ open issue #978: syncLaunchesTheExerciseHistoryFillWithoutWaitingForIt exceeds i
 seelog="crap.sh: tests failed; see .build/crap/test.log"
 
 check() {
-    local name=$1 want=$2
+    local name=$1 want=$2 want_status=${WANT_STATUS:-1}
     shift 2
     STUB_LOG=$root/test.log PATH="$root/bin:$PATH" "$repo/scripts/crap.sh" gate "$@" >"$root/out" 2>"$root/err"
     local status=$? got
     got=$(cat "$root/out" "$root/err")
-    if [ "$status" = 1 ] && [ "$got" = "$want" ]; then
+    if [ "$status" = "$want_status" ] && [ "$got" = "$want" ]; then
         ok "$name"
     else
-        bad "$name: exit $status (want 1)"
+        bad "$name: exit $status (want $want_status)"
         printf '    got:\n%s\n    want:\n%s\n' "$got" "$want"
     fi
 }
@@ -107,6 +107,12 @@ printf '#!/bin/sh\necho "To get started with GitHub CLI, please run:  gh auth lo
 check "a gh that cannot answer leaves the summary alone" \
 "$summary
 $seelog"
+
+printf '%s\n' "warning: No matching test cases were run" "✔ Test run with 0 tests in 0 suites passed after 0.001 seconds." >"$root/test.log"
+STUB_RC=0 WANT_STATUS=65 check "a swift test run in which no test ran says so and exits 65 before it scores coverage" \
+    "crap.sh: no test ran; see .build/crap/test.log"
+STUB_RC=0 WANT_STATUS=65 check "an xcodebuild run in which no test ran says so and exits 65 before it scores coverage" \
+    "crap.sh: no test ran; see .build/crap/test.log" --xcodebuild "$root/xcodebuild"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
