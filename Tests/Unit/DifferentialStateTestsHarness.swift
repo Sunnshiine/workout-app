@@ -15,10 +15,9 @@ extension DifferentialStateTests {
         case sync
         case coach(cell: String, value: String)
 
-        private static let bareVerbs: [String: Operation] = [
-            "make-current": .makeCurrent, "request-move-on": .requestMoveOn, "dismiss-celebration": .dismissCelebration,
-            "flush": .flush, "sync": .sync
-        ]
+        private static let bareVerbs = Dictionary(
+            uniqueKeysWithValues: [Operation.makeCurrent, .requestMoveOn, .dismissCelebration, .flush, .sync].map { ($0.description, $0) }
+        )
 
         /// After `coach `, up to the first `=` is the cell and the rest is the value, which may be
         /// empty or hold spaces and commas.
@@ -50,8 +49,12 @@ extension DifferentialStateTests {
             case .skip(let set): "skip \(set)"
             case .deleteLog(let set): "delete-log \(set)"
             case .view(let session): "view \(session)"
+            case .makeCurrent: "make-current"
+            case .requestMoveOn: "request-move-on"
+            case .dismissCelebration: "dismiss-celebration"
+            case .flush: "flush"
+            case .sync: "sync"
             case .coach(let cell, let value): "coach \(cell)=\(value)"
-            default: Self.bareVerbs.first { $0.value == self }?.key ?? ""
             }
         }
 
@@ -119,8 +122,11 @@ extension DifferentialStateTests {
             let coachEditedBefore = coachEditedSinceSync
             let outcome = try await apply(op)
             executed.append(op)
+            let standing = outcome.conflicts.contains { conflictHighWater[$0] != nil }
             let refusals = risen(outcome.conflicts)
-            if !refusals.isEmpty, !coachEditedBefore { return violation(.refusal, refusals.joined(separator: " | ")) }
+            if !refusals.isEmpty, !coachEditedBefore {
+                return violation(.refusal(refusals, standing: standing), refusals.joined(separator: " | "))
+            }
             return outcome.backward.map { violation(.backward, $0) }
         }
 
@@ -188,8 +194,8 @@ extension DifferentialStateTests {
         func observe() async throws -> Violation? {
             i1Checks += 1
             let live = try Self.fingerprint(app, keepingLoggedAt: true)
-            if let detail = Self.difference(live, try Self.fingerprint(try Self.open(home), keepingLoggedAt: true), "reopened") {
-                return violation(.reopened, detail)
+            if let violation = difference(.reopened, live, try Self.fingerprint(try Self.open(home), keepingLoggedAt: true), "reopened") {
+                return violation
             }
             guard try app.snapshot().pendingWriteCount == 0, !coachEditedSinceSync else { return nil }
             i2Checks += 1
@@ -201,13 +207,11 @@ extension DifferentialStateTests {
             let resynced = try Self.open(other)
             _ = try await resynced.sync()
             let rederived = try Self.fingerprint(resynced, keepingLoggedAt: false)
-            return Self.difference(try Self.fingerprint(app, keepingLoggedAt: false), rederived, "resynced").map {
-                violation(.resynced, $0)
-            }
+            return difference(.resynced, try Self.fingerprint(app, keepingLoggedAt: false), rederived, "resynced")
         }
 
-        private func violation(_ invariant: Invariant, _ detail: String) -> Violation {
-            Violation(invariant: invariant, step: executed.count - 1, op: executed.last!, detail: detail, script: Operation.line(executed))
+        private func violation(_ symptom: Symptom, _ detail: String) -> Violation {
+            Violation(symptom: symptom, step: executed.count - 1, op: executed.last!, detail: detail, script: Operation.line(executed))
         }
 
         private static func makeHome() throws -> URL {
@@ -251,9 +255,12 @@ extension DifferentialStateTests {
             return leaves
         }
 
-        private static func difference(_ live: [String: String], _ other: [String: String], _ name: String) -> String? {
+        private func difference(_ invariant: Invariant, _ live: [String: String], _ other: [String: String], _ name: String) -> Violation? {
             guard let path = Set(live.keys).union(other.keys).sorted().first(where: { live[$0] != other[$0] }) else { return nil }
-            return "\(path): live \(live[path] ?? "absent"), \(name) \(other[path] ?? "absent")"
+            return violation(
+                .difference(invariant, at: path, live: live[path], other: other[path]),
+                "\(path): live \(live[path] ?? "absent"), \(name) \(other[path] ?? "absent")"
+            )
         }
     }
 }

@@ -18,6 +18,10 @@ extension DifferentialStateTests {
     }
 
     enum Alphabet {
+        /// A seed replays only on the ops and the draw it was drawn from, so a change to either bumps
+        /// this, and a seed from an older line is not a regression.
+        static let version = 1
+
         static let sets = ["w1d1.e0.s0", "w1d1.e0.s1", "w1d1.e0.s2", "w1d1.e1.s0", "w2d1.e0.s0", "w2d1.e1.s0", "w1d2.e0.s0"]
             .map { SetAddress($0)! }
         static let setLogs = ["185x5@8", "190x5@8", "200x3@9"]
@@ -78,7 +82,7 @@ extension DifferentialStateTests {
                 try environment["DIFF_SEED"].map { try #require(UInt64($0), "DIFF_SEED is a UInt64") }
                 ?? UInt64.random(in: .min ... .max)
             let indices = try environment["DIFF_INDEX"].map { [try #require(Int($0), "DIFF_INDEX is an index")] } ?? Array(0..<sequences)
-            emit("DIFF seed=\(seed) sequences=\(sequences) length=\(length) alphabet=1")
+            emit("DIFF seed=\(seed) sequences=\(sequences) length=\(length) alphabet=\(Alphabet.version)")
             var tally = Tally()
             for index in indices {
                 try await explore(index: index, seed: seed, length: length, into: &tally)
@@ -125,41 +129,44 @@ extension DifferentialStateTests {
             guard let violation else { return }
             tally.hits += 1
             let (known, minimized) = await classify(violation, harness.executed, observation)
+            let hit = "index=\(index) \(observation.rawValue) [\(violation.symptom)]"
             if let known {
                 tally.known[known.number, default: (0, index)].count += 1
-                emit("DIFF-KNOWN #\(known.number) index=\(index) \(observation.rawValue) \(Operation.line(minimized))")
+                emit("DIFF-KNOWN #\(known.number) \(hit) \(Operation.line(minimized))")
             } else {
-                let line = "DIFF-NEW index=\(index) \(observation.rawValue) \(violation) Minimized: \(Operation.line(minimized))"
+                let line = "DIFF-NEW \(hit) \(violation) Minimized: \(Operation.line(minimized))"
                 tally.new.append(line)
                 emit(line)
             }
         }
 
         /// Every known divergence needs the Sheet to change under the app, so a hit is known when its
-        /// invariant matches a row and the coach edits it still needs touch only that row's cells.
+        /// symptom matches a row's and the coach edits it still needs touch only that row's cells. A
+        /// coach edit is dropped only when the rest still shows the same symptom, so shrinking never
+        /// trades the hit for another bug's.
         @MainActor
         private static func classify(
             _ hit: Violation,
             _ script: [Operation],
             _ observation: Observation
         ) async -> (KnownDivergence?, [Operation]) {
-            guard await fires(hit.invariant, script, observation) else { return (nil, script) }
+            guard await fires(hit.symptom, script, observation) else { return (nil, script) }
             var dropped: Set<Int> = []
             for index in script.indices where script[index].coachCell != nil {
                 let without = script.indices.filter { $0 != index && !dropped.contains($0) }.map { script[$0] }
-                if await fires(hit.invariant, without, observation) { dropped.insert(index) }
+                if await fires(hit.symptom, without, observation) { dropped.insert(index) }
             }
             let minimized = script.indices.filter { !dropped.contains($0) }.map { script[$0] }
             let cells = Set(minimized.compactMap(\.coachCell))
             guard !cells.isEmpty else { return (nil, minimized) }
-            return (KnownDivergence.all.first { $0.invariant == hit.invariant && cells.isSubset(of: $0.coachCells) }, minimized)
+            return (KnownDivergence.all.first { $0.symptom == hit.symptom && cells.isSubset(of: $0.coachCells) }, minimized)
         }
 
         /// A fresh harness each time; a re-run whose op throws counts as not firing.
         @MainActor
-        private static func fires(_ invariant: Invariant, _ ops: [Operation], _ observation: Observation) async -> Bool {
+        private static func fires(_ symptom: Symptom, _ ops: [Operation], _ observation: Observation) async -> Bool {
             let violation = try? await Harness.run(ops, observing: observation)
-            return violation?.invariant == invariant
+            return violation?.symptom == symptom
         }
 
         /// Unbuffered, so a hung run still shows its seed.
