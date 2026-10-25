@@ -34,6 +34,8 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
     @concurrent func transcribe(_ recording: DictationRecording) async -> RecordingDecode {
         let onMainThread = pthread_main_np() != 0
         return await withTaskCancellationHandler {
+            // answer(_:) or the cancel handler resumes the read.
+            // swiftlint:disable:next tests_never_park_on_a_bare_continuation
             await withCheckedContinuation { park($0, onMainThread: onMainThread) }
         } onCancel: {
             cancelRead()
@@ -43,6 +45,8 @@ final class HeldRecordingTranscriber: RecordingTranscriber {
     /// Returns once `transcribe` has parked, so what the test does next happens with the read in
     /// flight.
     func waitUntilCalled() async {
+        // The read runs off the main actor, so a waitUntil count does not bound it (#1105).
+        // swiftlint:disable:next tests_never_park_on_a_bare_continuation
         await withCheckedContinuation { continuation in
             let called = calls.withLock { calls -> Bool in
                 guard calls.transcribes == 0 else { return true }

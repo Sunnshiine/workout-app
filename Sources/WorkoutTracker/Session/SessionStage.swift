@@ -436,6 +436,16 @@ private enum StageItem {
 
     var nextPendingSet: ExerciseSet? { SessionSetOrder.firstPendingSet(in: exercises)?.set }
 
+    /// Where the queue takes the athlete: the next Pending Set, or for a finished Exercise its first
+    /// logged Set to review, its first Set when every one was skipped. A finished Superset's stage
+    /// shows no review, so its row takes them nowhere.
+    var jumpTarget: ExerciseSet? {
+        if let nextPendingSet { return nextPendingSet }
+        guard case .exercise(let exercise) = self else { return nil }
+        let sets = exercise.sortedSets
+        return sets.first { $0.state == .logged } ?? sets.first
+    }
+
     func contains(_ setID: ActiveSetID?) -> Bool {
         guard let setID else { return false }
         return exercises.contains { $0.order == setID.exerciseOrder }
@@ -454,7 +464,7 @@ private enum StageItem {
             isComplete: isComplete,
             isOnStage: isOnStage,
             pairingExercise: exercise,
-            jumpTarget: nextPendingSet,
+            jumpTarget: jumpTarget,
             kind: kind,
             pairingRole: pairingRole(mode: pairingMode, pairable: pairable)
         )

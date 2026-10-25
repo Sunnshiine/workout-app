@@ -2,7 +2,8 @@ import SwiftUI
 
 /// The full Session queue in a medium sheet: every stage item in Session order
 /// with its Set dots, the one on stage marked "Now", and Move On in the footer
-/// when the Session can advance. Tapping an incomplete row brings it on stage.
+/// when the Session can advance. Tapping a row brings it on stage, a finished one with its logged
+/// Set open for review.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -141,14 +142,14 @@ struct SessionQueueSheet: View {
             }
         }
         .buttonStyle(.plain)
-        .disabled(row.isComplete)
+        .disabled(row.jumpTarget == nil)
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
     private func jump(to row: SessionQueue.Row) {
         dismiss()
         if let target = row.jumpTarget {
-            coordinator.focus(on: target)
+            coordinator.jump(to: target)
         }
     }
 
@@ -183,7 +184,7 @@ struct SessionQueueSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(row.isComplete)
+        .disabled(row.jumpTarget == nil)
         .background(Capsule().fill(palette.surface))
         .dimmedWhenUnavailable(row.pairingRole)
         .accessibilityIdentifier("stage-queue-row-\(row.id)")

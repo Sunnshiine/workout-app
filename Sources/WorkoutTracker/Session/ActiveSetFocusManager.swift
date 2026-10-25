@@ -137,6 +137,12 @@ final class ActiveSetFocusManager {
         activeSetID = setID
     }
 
+    /// A jump to `set` from the queue opens a logged Set's review, and leaves one already open.
+    func open(_ set: ExerciseSet) {
+        guard let setID = Self.id(for: set), set.state == .logged else { return focus(on: set) }
+        shownInstead = .review(setID)
+    }
+
     func motion(forFocusing set: ExerciseSet) -> SessionMotion? {
         switch set.state {
         case .pending:

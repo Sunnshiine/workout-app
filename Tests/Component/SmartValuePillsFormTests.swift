@@ -460,3 +460,17 @@ private func stepForm(weight: String) -> SmartValuePillsForm {
     form.stepWeight(.up)
     #expect(form.weightText == "1e+19")
 }
+
+@MainActor
+@Test func aReviewKeepsNoChangedDraftOnceAnotherWriteSavesItsSet() {
+    let loggedSet = ExerciseSet(index: 0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .logged)
+    loggedSet.setLog = SetLog(weight: .pounds(185), reps: 7, rpe: .eight)
+    var form = SmartValuePillsForm(set: loggedSet, suggestion: .noSuggestion)
+    form.rpeText = "9"
+
+    #expect(form.changedValidLog(toSaveOver: loggedSet) == SetLog(weight: .pounds(185), reps: 7, rpe: .nine))
+
+    loggedSet.setLog = SetLog(weight: .pounds(190), reps: 5, rpe: .nine)
+
+    #expect(form.changedValidLog(toSaveOver: loggedSet) == nil)
+}
