@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-DEFAULT_REASON = re.compile(r"//(?!/)\s*default:\s*\S")
+DEFAULT_REASON = re.compile(r"//\s*default:\s*\S")
 STRING_START = re.compile(r'(#*)("""|")')
 EXTENDED_REGEX_START = re.compile(r"(#+)/")
 WORD = re.compile(r"\w+$")

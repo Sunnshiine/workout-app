@@ -164,17 +164,21 @@ literal Operator '    static let total = items.map { [1].reduce($0, /) }.count/2
 literal SpacedOperator '    static let total = items.map { [1].reduce($0, / ) }.count/2'
 literal EscapedSlash '    static let pattern = /1\/{/'
 literal Nested '    /* outer /* inner */ func hidden(z: Int? = nil) {} */'
+literal ExtendedEscape '    static let pattern = #/a\/#{/#'
+literal Keyword '    static func quoted() -> Regex<Substring> { return /a"b/ }'
+literal Backtick "$(printf '    static var half: Int { `default`/2 }\n    static let quarter = 1/4')"
 rm "$repo/Sources/A.swift"
 run
 expect_exit "a type after each literal" "$status" 1
-for file in Regex Extended Division Operator SpacedOperator EscapedSlash Nested; do
+for file in Regex Extended Division Operator SpacedOperator EscapedSlash Nested Keyword ExtendedEscape; do
     expect_line "$file" "$out" "Sources/$file.swift:5: new bool default, After.init flag = false"
 done
+expect_line "a slash that closes no regex on its line divides" "$out" "Sources/Backtick.swift:6: new bool default, After.init flag = false"
 for file in MultiLine Raw; do
     expect_line "$file" "$out" "Sources/$file.swift:7: new bool default, After.init flag = false"
 done
 expect_no_text "a nested block comment hides its code" "$out" "hidden"
-expect_line "one each" "$(tail -1 "$root/stdout")" "9 defaults, 9 new, 0 gone from the tree"
+expect_line "one each" "$(tail -1 "$root/stdout")" "12 defaults, 12 new, 0 gone from the tree"
 
 echo "a line continued in a multi-line string"
 fresh <<'SWIFT'
