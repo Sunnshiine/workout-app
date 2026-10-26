@@ -40,11 +40,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      ui-suite:
-        description: Also run WorkoutTrackerUITests after the hosted suite
-        type: boolean
-        default: false
 
 # A title or body edit gets a group of its own, so it never cancels one. A push to main is keyed on
 # its commit, so a merge that lands mid-run never cancels the run verifying the merge before it.
@@ -220,7 +215,10 @@ jobs:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
     steps:
+      # Depth 2 keeps the pull request merge commit's first parent, the base the UI flake guard diffs.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       # xcodebuild boots the device itself for the first test step below. It boots slim (ADR-0022):
       # on this 3-core runner a stock boot's launchd storm held the load average at 70 to 330 and
       # slowed the UI suite by a fifth to a quarter (runs 40327308005 and 40327311980). The step
@@ -315,17 +313,25 @@ jobs:
             -only-testing:WorkoutTrackerTests \
             -resultBundlePath HostedTests.xcresult \
             -collect-test-diagnostics never
-      # Opt-in, not per PR: on unchanged code it goes red about half the time on
-      # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
+      # Every pull request runs the UI suite (#662). Past its SLA it still passes and asks for a
+      # hill-climb of UI test speed; at its cap it stops and fails, naming the tests still running.
+      # docs/testing/ui-suite-time.md says how both were measured.
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
-        if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
-          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
-            -destination "${{ steps.sim.outputs.destination }}" \
-            -only-testing:WorkoutTrackerUITests \
-            -resultBundlePath UITests.xcresult \
-            -collect-test-diagnostics never
+          scripts/ui-suite.sh --xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            --destination "${{ steps.sim.outputs.destination }}" --sla 600 --cap 900 --out "$RUNNER_TEMP/ui-suite"
+      # Repeats the UI tests the pull request changed, once the suite has run them once. On a push
+      # the base is HEAD, which selects nothing.
+      - name: Repeat the changed UI tests (UI flake guard)
+        id: ui-flake-guard
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        env:
+          UI_FLAKE_GUARD_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'HEAD' }}
+        run: |
+          scripts/ui-flake-guard.sh --xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            --destination "${{ steps.sim.outputs.destination }}" --base "$UI_FLAKE_GUARD_BASE" --out "$RUNNER_TEMP/ui-flake-guard"
       - name: Upload Visual Baseline diffs
         if: failure() && steps.visual.conclusion == 'failure'
         uses: actions/upload-artifact@v4
@@ -341,9 +347,11 @@ jobs:
           path: HostedTests.xcresult
           if-no-files-found: ignore
       - name: Upload UI test results
-        if: failure() && steps.ui.conclusion == 'failure'
+        if: failure() && (steps.ui.conclusion == 'failure' || steps.ui-flake-guard.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
-          path: UITests.xcresult
+          path: |
+            ${{ runner.temp }}/ui-suite
+            ${{ runner.temp }}/ui-flake-guard
           if-no-files-found: ignore
