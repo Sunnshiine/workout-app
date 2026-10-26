@@ -221,8 +221,8 @@ jobs:
     env:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
-      # Above every run of this shape so far (440 to 657 s). Lower it as the job gets faster.
-      SPEED_BUDGET_SECONDS: 720
+      # Above every run of this shape so far (290 to 510 s). Lower it as the job gets faster.
+      SPEED_BUDGET_SECONDS: 600
     steps:
       - uses: actions/checkout@v4
       # The device boots slim (ADR-0022), through simctl, after the build. On this 3-core runner a
