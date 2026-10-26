@@ -29,3 +29,7 @@ partner's bud wakes. The ceremony fades in fully grown. Haptics are unaffected.
 Reduce Motion leaves the Active Set Card unchanged (§5.2), except that the
 mic glyph cuts to its listening fill instead of running the system replace.
 Its box holds still, and what moves inside it answers the athlete's own finger.
+
+Chrome outside the card: the header's `N Sets left` rolls its numeral on a
+0.2s system snappy spring as a log or skip changes it, and crossfades under
+Reduce Motion.
