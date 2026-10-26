@@ -210,12 +210,16 @@ jobs:
 
   visual-tests:
     if: github.event.action != 'edited' || github.event.changes.base
-    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
+    name: ${{ format('{0}{1}', matrix.suite == 'ui' && 'ui-tests' || 'visual-tests', github.event.action == 'edited' && !github.event.changes.base && ' (edit, base unchanged)' || '') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [visual, ui]
     runs-on: xcode-27
     # About twice the job's median of 9 minutes (PR runs 40358470805 to 40363479483), so a change
     # that slows it back toward the old 14 fails here instead of drifting in. A dispatch with the
     # UI suite adds its 9 to 13 minutes.
-    timeout-minutes: ${{ inputs.ui-suite && 35 || 20 }}
+    timeout-minutes: 20
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
     # a change to either value as a re-record of every baseline.
@@ -290,7 +294,7 @@ jobs:
           xctestrun=$(ls "$RUNNER_TEMP"/DerivedData/Build/Products/WorkoutTracker_*.xctestrun)
           echo "xctestrun=$xctestrun" >> "$GITHUB_OUTPUT"
       - name: Save the compilation cache
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && matrix.suite == 'visual'
         uses: actions/cache/save@v4
         with:
           path: ${{ runner.temp }}/CompilationCache
@@ -302,6 +306,7 @@ jobs:
         run: xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
       - name: Run Visual Regression tests (ADR-0007 gate)
         id: visual
+        if: matrix.suite == 'visual'
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "${{ steps.sim.outputs.destination }}" \
@@ -319,7 +324,7 @@ jobs:
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
         id: hosted
-        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'visual' && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "${{ steps.sim.outputs.destination }}" \
@@ -330,7 +335,7 @@ jobs:
       # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
-        if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
+        if: ${{ !cancelled() && matrix.suite == 'ui' && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "${{ steps.sim.outputs.destination }}" \
