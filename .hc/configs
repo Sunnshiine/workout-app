@@ -1,5 +1,5 @@
 # name|reps|boot|xcodebuild args
-stockA|1|stock|-only-testing:WorkoutTrackerUITests
 slimA|1|slim|-only-testing:WorkoutTrackerUITests
-stockB|1|stock|-only-testing:WorkoutTrackerUITests
+stockA|1|stock|-only-testing:WorkoutTrackerUITests
 slimB|1|slim|-only-testing:WorkoutTrackerUITests
+stockB|1|stock|-only-testing:WorkoutTrackerUITests
