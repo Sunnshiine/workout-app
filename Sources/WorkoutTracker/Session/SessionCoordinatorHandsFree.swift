@@ -52,22 +52,28 @@ extension SessionCoordinator {
 
     /// Takes the waiting request and listens for `set` until the athlete stops talking, writing
     /// what was said as a release of the mic would, with what was left unsaid read from what the
-    /// card shows when listening ends.
+    /// card shows when listening ends. A sync that lands while it listens leaves the write to the
+    /// Session parsed again.
     func listenHandsFree(to set: ExerciseSet) async -> SetDictation.Outcome? {
-        guard let dictation, let session, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID else { return nil }
+        guard let dictation, let coordinate = sessionCoordinate, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID
+        else { return nil }
         _ = wiring.entry.take()
-        dictatingSession = session
+        dictatingSessionCoordinate = coordinate
         dictatingMode = .logging
         let outcome = await dictation.listenUntilQuiet(for: setID, on: .card) { spokenSetContext(for: set) }
+        guard let session = currentSession(at: coordinate) else {
+            dictation.dismiss()
+            return nil
+        }
         return write(outcome, heardFor: setID, in: session)
     }
 
     /// Nil while no request waits.
     private var entryRoute: SetDictationEntryRoute? {
         guard wiring.entry.pending != nil else { return nil }
-        guard let session else { return .wait }
+        guard let sessionCoordinate else { return .wait }
         guard micIsFreeForAPendingSet else { return .drop }
-        guard wiring.navigation.liveEdge(for: session).isAtLiveEdge else { return .showCurrentSession }
+        guard let session = currentSession(at: sessionCoordinate) else { return .showCurrentSession }
         return entryRoute(onLiveEdgeOf: session)
     }
 

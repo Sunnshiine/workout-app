@@ -33,7 +33,7 @@ struct SessionView: View {
 
                     productionStage(for: session)
                         .onAppear {
-                            let isFirstBind = coordinator.session == nil
+                            let isFirstBind = coordinator.sessionCoordinate == nil
                             withTransaction(\.disablesAnimations, isFirstBind) {
                                 coordinator.view(session)
                             }

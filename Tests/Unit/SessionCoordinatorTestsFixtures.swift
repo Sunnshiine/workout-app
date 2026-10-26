@@ -174,7 +174,8 @@ final class ManualCoordinatorRestClock: RestClock {
     }
 }
 
-func makeCoordinatorSession() -> Session {
+/// Week 1 Day 1 of `blockTab`. Two built on one tab are one Session parsed twice, as by a sync.
+func makeCoordinatorSession(blockTab: String = "Block 27") -> Session {
     let session = Session(dayNumber: 1, date: nil)
 
     let completedSquat = Exercise(name: "Squat", coachNote: nil, order: 0)
@@ -193,7 +194,7 @@ func makeCoordinatorSession() -> Session {
     ]
 
     session.exercises = [row, bench, completedSquat]
-    return placedInBlock(session)
+    return placedInBlock(session, blockTab: blockTab)
 }
 
 func makePlannedPairingSession() -> Session {
