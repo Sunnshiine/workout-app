@@ -53,7 +53,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 3))
         let restPill = app.descendants(matching: .any)["rest-pill"]
         XCTAssertTrue(restPill.exists)
         XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY, "rest is back in the foot below the card")
@@ -71,7 +71,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
             openWeightKeyboard(in: app)
             cardTops.append(settledFrame(of: card).minY)
             app.buttons["weight-keyboard-done"].tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 3))
         }
         XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
 
@@ -79,7 +79,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["log-active-set-button"].tap()
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 3))
         XCTAssertEqual(settledFrame(of: card).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
     }
 
@@ -135,7 +135,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
 
         app.buttons["weight-keyboard-done"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: 3))
         let restPill = app.descendants(matching: .any)["rest-pill"]
         XCTAssertTrue(restPill.exists)
         XCTAssertLessThanOrEqual(logButton.frame.maxY, restPill.frame.minY, "rest is back in the foot below the card")
@@ -229,7 +229,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
 
         app.buttons["settings-done-button"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Settings"].disappears(within: 3))
         XCTAssertTrue(app.navigationBars["Block 27"].exists)
     }
 
@@ -284,7 +284,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
             withVelocity: .fast,
             thenHoldForDuration: 0
         )
-        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(historyTitle.disappears(within: 3))
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
         XCTAssertTrue(app.otherElements["session-header-hud"].exists)
@@ -321,9 +321,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(confirmSwitch.waitForNonExistence(timeout: 2), "the swipe closed the picker under the card")
 
         app.buttons["Cancel"].tap()
-        XCTAssertTrue(confirmSwitch.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(confirmSwitch.disappears(within: 2))
         tapWhenHittable(app.buttons["sheet-picker-done-button"])
-        XCTAssertTrue(app.navigationBars["Training Sheet"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Training Sheet"].disappears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
         tapWhenHittable(trainingSheetRow)

@@ -73,6 +73,20 @@ extension XCUIElement {
         } while Date() < deadline
         return false
     }
+
+    /// `waitForNonExistence` checks once, about a second out, so it costs that second even when
+    /// the element is already gone. Polls as `appears(within:)` does.
+    @MainActor
+    func disappears(within timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if !exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        } while Date() < deadline
+        return false
+    }
 }
 
 @MainActor
