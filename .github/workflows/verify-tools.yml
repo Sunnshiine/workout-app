@@ -59,7 +59,8 @@ jobs:
       - name: Install ffmpeg
         run: |
           if [ "${{ steps.debs.outputs.cache-hit }}" = true ]; then
-            sudo apt-get install -y -q --no-install-recommends ~/apt-archives/*.deb
+            # apt-get given these files still fetched all 87 from the mirror. dpkg has no network.
+            sudo dpkg -i ~/apt-archives/*.deb
           else
             apt="-q -o Acquire::http::Timeout=30 -o Acquire::Retries=3"
             mkdir -p ~/apt-archives/partial
