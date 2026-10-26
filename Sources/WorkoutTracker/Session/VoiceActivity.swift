@@ -4,7 +4,7 @@
 /// a Pause.
 ///
 /// The constants are the ones measured on synthetic voices, clean and with pink noise at 15 dB SNR
-/// (ADR-0021). A 12 dB margin heard less of a quiet "and a half", and wrote wrong Set Logs.
+/// (ADR-0021). A 12 dB margin missed one more noisy phrase than 9 dB.
 struct VoiceActivity: Equatable, Sendable {
     /// One 4096-frame tap buffer at 48 kHz, in the recording's 16 kHz samples.
     static let frameSamples = 1365
