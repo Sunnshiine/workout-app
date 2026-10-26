@@ -14,7 +14,7 @@ struct SheetTabView: View {
     private enum Load {
         case loading
         case loaded(SheetTabGridPresentation)
-        case failed(String)
+        case failed
     }
 
     var body: some View {
@@ -48,9 +48,9 @@ struct SheetTabView: View {
             ProgressView()
         case .loaded(let presentation):
             SheetTabGrid(presentation: presentation, focusWeek: focusWeek)
-        case .failed(let message):
+        case .failed:
             VStack(spacing: Theme.cardSpacing) {
-                Text(message)
+                Text("Couldn't reach the Sheet. Check your connection and try again.")
                     .font(Theme.font(.coachNote))
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
@@ -68,7 +68,7 @@ struct SheetTabView: View {
         do {
             load = .loaded(SheetTabGridPresentation(try await read()))
         } catch {
-            load = .failed(error.localizedDescription)
+            load = .failed
         }
     }
 }
