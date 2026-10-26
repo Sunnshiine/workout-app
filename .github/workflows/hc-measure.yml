@@ -37,3 +37,4 @@ jobs:
         with:
           name: hc-out
           path: .hc-out
+          include-hidden-files: true
