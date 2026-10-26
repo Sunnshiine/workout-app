@@ -274,6 +274,7 @@ jobs:
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
       - name: Run Visual Regression tests (ADR-0007 gate)
         id: visual
+        timeout-minutes: 25
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
@@ -298,6 +299,7 @@ jobs:
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
         id: hosted
+        timeout-minutes: 12
         if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -317,9 +319,10 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
-      # Library tests miss session-view focus and layout bugs, so those PRs run this lane (#662).
-      - name: Find whether the change touches the session views
+      # Library tests miss session-view focus and layout bugs, so a PR the lane reaches runs it (#662).
+      - name: Find whether the change touches what the keyboard lane reaches
         id: keyboard-paths
+        if: ${{ !cancelled() }}
         env:
           DISPATCHED: ${{ inputs.keyboard-lane }}
         run: |
@@ -331,28 +334,14 @@ jobs:
       - name: Run the keyboard tests animated (KeyboardLaneUITests)
         id: keyboard
         if: ${{ !cancelled() && steps.keyboard-paths.outputs.run == 'true' && !inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
-        timeout-minutes: 15
+        timeout-minutes: 20
         env:
           SIM: ${{ steps.sim.outputs.udid }}
-        run: |
-          scripts/sim-keyboard.sh ensure "$SIM"
-          trap 'echo "minimized: $(xcrun simctl spawn "$SIM" defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled)"' EXIT
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,id=$SIM" \
-            -only-testing:WorkoutTrackerUITests/KeyboardLaneUITests \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -onlyUsePackageVersionsFromResolvedFile \
-            -resultBundlePath UITests.xcresult \
-            -collect-test-diagnostics never \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-          xcrun xcresulttool get test-results summary --path UITests.xcresult --compact \
-            | grep -o '"totalTestCount":[1-9][0-9]*' || { echo "::error::No keyboard lane test ran."; exit 1; }
+        run: scripts/ci-keyboard-lane.sh "$SIM"
       # The rest of the UI suite stays opt-in (#518, #662). Its keyboard tests run in the step above.
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
+        timeout-minutes: 25
         if: ${{ !cancelled() && inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         run: |
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -381,9 +370,16 @@ jobs:
           path: HostedTests.xcresult
           if-no-files-found: ignore
       - name: Upload UI test results
-        if: failure() && (steps.ui.conclusion == 'failure' || steps.keyboard.conclusion == 'failure')
+        if: failure() && steps.ui.conclusion == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
           path: UITests.xcresult
+          if-no-files-found: ignore
+      - name: Upload keyboard lane results
+        if: failure() && steps.keyboard.conclusion == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: keyboard-lane-results
+          path: KeyboardLane.xcresult
           if-no-files-found: ignore

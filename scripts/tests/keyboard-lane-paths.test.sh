@@ -40,14 +40,37 @@ expect() {
     fi
 }
 
+# A session view, and the views the audit named outside the old Session* list.
 expect App/Views/SessionStageView.swift true
-expect App/Views/SessionQueueSheet.swift true
-expect App/Views/SmartValuePills.swift true
-expect App/Views/ActiveSetCard.swift true
+expect App/Views/ActiveSupersetSection.swift true
+expect App/Views/RestPillView.swift true
+expect App/Views/ExerciseHistorySheet.swift true
+expect App/Views/SwiftUISessionMotion.swift true
+expect App/Views/RootView.swift true
+# The rest of the app target.
+expect App/WorkoutTrackerApp.swift true
+expect App/Assets.xcassets/Contents.json true
+expect Sources/WorkoutTracker/Session/WeightFieldMount.swift true
+expect Sources/WorkoutTracker/Session/ActiveSetFocusManager.swift true
+expect Sources/WorkoutTracker/Fixtures/UITestLaunch.swift true
+expect WorkoutShared/WorkoutActivityAttributes.swift true
+# The UI test target.
 expect Tests/UI/KeyboardLaneUITests.swift true
-expect Sources/WorkoutTracker/Session/SessionCoordinator.swift false
-expect App/Views/SettingsView.swift false
+expect Tests/UI/WorkoutUITestSupport.swift true
+# The lane's wiring.
+expect .github/workflows/ci.yml true
+expect scripts/ci-keyboard-lane.sh true
+expect scripts/keyboard-lane-paths.sh true
+expect scripts/sim-keyboard.sh true
+# Outside both targets: no UI test compiles Tests/Support, and the CLI and widget are other builds.
+expect Tests/Support/WaitUntil.swift false
 expect Tests/Unit/SessionStageViewTests.swift false
+expect Tests/Visual/SessionStageVisualTests.swift false
+expect Sources/WorkoutCLI/main.swift false
+expect WorkoutWidgets/WorkoutWidgets.swift false
+expect scripts/lint.sh false
+expect .github/workflows/receipts.yml false
+expect docs/testing/ui-tests.md false
 
 run_for App/Views/SessionView.swift > /dev/null
 if grep -qx '  App/Views/SessionView.swift' "$err"; then
