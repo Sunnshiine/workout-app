@@ -29,7 +29,7 @@ import Testing
     #expect(snapshot.lookup(for: "Bench Press") == nil)
 }
 
-@Test func newestWinsForTheSameFullName() {
+@Test func newestWinsForTheSameEnteredName() {
     let snapshot = LastPerformedLookupSnapshot(entries: [
         LastPerformedEntry(
             exerciseName: "Bench Press",

@@ -65,7 +65,7 @@ extension SetLogPlacementNarration {
         .row(anchor.row, selection: "compact header Notes row stores Set logs as a comma-separated list.")
     }
 
-    static func protectedHeaderVisibleWritableRow(anchor: SheetLayoutExerciseAnchor) -> Self {
+    static func occupiedHeaderVisibleWritableRow(anchor: SheetLayoutExerciseAnchor) -> Self {
         .scan(
             rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
             selection: "first visible writable row below protected header Notes before the next Exercise.",
@@ -99,8 +99,8 @@ extension SetLogPlacement {
             .protectedLineVisibleWritableRow(row: row)
         case .compactHeaderList:
             .compactHeaderList(anchor: anchor)
-        case .protectedHeaderVisibleWritableRow:
-            .protectedHeaderVisibleWritableRow(anchor: anchor)
+        case .occupiedHeaderVisibleWritableRow:
+            .occupiedHeaderVisibleWritableRow(anchor: anchor)
         case .visibleSetLogRow:
             .visibleSetLogRow(setIndex: setIndex, anchor: anchor)
         }
@@ -114,8 +114,8 @@ extension SetLogPlacementResolution {
         switch self {
         case .placed(let placement):
             placement.rowScanNarration(setIndex: setIndex, anchor: anchor)
-        case .protectedHeaderBlocksSetRow:
-            .protectedHeaderVisibleWritableRow(anchor: anchor)
+        case .occupiedHeaderBlocksSetRow:
+            .occupiedHeaderVisibleWritableRow(anchor: anchor)
         case .setRowNotFound, .notesColumnMissing:
             .visibleSetLogRow(setIndex: setIndex, anchor: anchor)
         }

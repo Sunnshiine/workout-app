@@ -224,7 +224,7 @@ final class WorkoutStore {
     private func refreshLastPerformed(for set: ExerciseSet) throws {
         let coordinates = try SetCoordinates(of: set)
         guard let resultText = set.exercise?.setLevelCompletionEvidence.resultText else {
-            try lastPerformed.retract(fullName: coordinates.exercise.name.entered, source: coordinates.session.storageValue)
+            try lastPerformed.retract(enteredName: coordinates.exercise.name.entered, source: coordinates.session.storageValue)
             return
         }
         try lastPerformed.ingest([

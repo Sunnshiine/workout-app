@@ -311,7 +311,7 @@ private func seededStore(
     let writes = try fixture.context.fetch(FetchDescriptor<PendingWrite>())
     #expect(writes.map(\.exercise) == [.first("2-3:1:0 BB RDL")])
     let entries = try fixture.context.fetch(FetchDescriptor<LastPerformedEntry>())
-    #expect(entries.map(\.fullName) == ["2-3:1:0 BB RDL"])
+    #expect(entries.map(\.enteredName) == ["2-3:1:0 BB RDL"])
     #expect(entries.map(\.baseName) == ["BB RDL"])
 }
 

@@ -3,11 +3,10 @@ import SwiftData
 
 /// One `exercise_history` entry — an Exercise as logged in a single past Session.
 ///
-/// The store is append-only (ADR-0012): dedup is app-level on (`fullName`, `source`), where
-/// `fullName` is the Entered Name and `baseName` the Base Name, the columns' names since before the
-/// glossary named them. `fullName` is intentionally **not** unique — the same Exercise keeps a distinct
-/// entry per Session it was performed in. Last Performed is the most-recent-entry query
-/// over these rows.
+/// The store is append-only (ADR-0012): dedup is app-level on (`enteredName`, `source`), where
+/// `enteredName` is the Entered Name and `baseName` the Base Name. `enteredName` is intentionally
+/// **not** unique — the same Exercise keeps a distinct entry per Session it was performed in. Last
+/// Performed is the most-recent-entry query over these rows.
 ///
 /// Completion evidence is stored as a single derived `resultText` (PRD #330): the display text is
 /// assembled once at extract time, so the row is a straight persistence of `LastPerformedOccurrence`
@@ -22,14 +21,16 @@ import SwiftData
 /// the next sync.
 @Model
 final class LastPerformedEntry {
-    var fullName: String
+    /// Stored under `fullName`, its name before the glossary named the Entered Name, so a store
+    /// an earlier build wrote opens with every row.
+    @Attribute(originalName: "fullName") var enteredName: String
     var baseName: String
     var resultText: String = ""
     var performedOn: Date
     var source: String
 
     init(exerciseName name: ExerciseName, resultText: String, performedOn: Date, source: String) {
-        self.fullName = name.entered
+        self.enteredName = name.entered
         self.baseName = name.base
         self.resultText = resultText
         self.performedOn = performedOn
@@ -47,7 +48,7 @@ final class LastPerformedEntry {
 
     var occurrence: LastPerformedOccurrence {
         LastPerformedOccurrence(
-            exerciseName: ExerciseName(entered: fullName),
+            exerciseName: ExerciseName(entered: enteredName),
             resultText: resultText,
             performedOn: performedOn,
             source: source

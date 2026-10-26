@@ -124,13 +124,13 @@ private enum PlacementTestError: Error { case notPlaced }
     let grid = coachNoteLayoutGrid()  // Chest Fly anchor row 17, protected header, 2 sets
 
     let setOne = try placed(placement(grid, exercise: "Chest Fly", setIndex: 0))
-    #expect(setOne.kind == .protectedHeaderVisibleWritableRow)
+    #expect(setOne.kind == .occupiedHeaderVisibleWritableRow)
     #expect(setOne.row == 18)  // first Visible Writable Row below the anchor
     #expect(setOne.col == 10)
     #expect(setOne.listPosition == 0)
 
     let setTwo = try placed(placement(grid, exercise: "Chest Fly", setIndex: 1))
-    #expect(setTwo.kind == .protectedHeaderVisibleWritableRow)
+    #expect(setTwo.kind == .occupiedHeaderVisibleWritableRow)
     #expect(setTwo.row == 18)  // aggregate list shares one Visible Writable Row cell
     #expect(setTwo.listPosition == 1)
 }
@@ -234,7 +234,7 @@ private func coachNoteLineGrid(line0Notes: String = "Brace hard, controlled desc
         rowVisibility: [16: SheetRowVisibility(hiddenByUser: true), 17: SheetRowVisibility(hiddenByFilter: true)]
     )
 
-    #expect(resolution == .protectedHeaderBlocksSetRow)
+    #expect(resolution == .occupiedHeaderBlocksSetRow)
 }
 
 @Test func setLogPlacementKeepsALegacyLogLineOnItsOwnNotesCell() throws {
@@ -278,7 +278,7 @@ private func coachNoteLineGrid(line0Notes: String = "Brace hard, controlled desc
         cols: 30
     )
 
-    #expect(try placement(grid, exercise: "Squat", setIndex: 0) == .protectedHeaderBlocksSetRow)
+    #expect(try placement(grid, exercise: "Squat", setIndex: 0) == .occupiedHeaderBlocksSetRow)
 }
 
 @Test func setLogPlacementReportsRowNotFoundWhenSetExceedsSpan() throws {

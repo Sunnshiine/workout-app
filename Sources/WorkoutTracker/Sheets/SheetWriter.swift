@@ -136,7 +136,7 @@ extension SetLogPlacementResolution {
         switch self {
         case .placed(let placement):
             return (placement.row, placement.col)
-        case .protectedHeaderBlocksSetRow:
+        case .occupiedHeaderBlocksSetRow:
             throw SheetWriterError.headerNotesBlockSetRow(exercise: request.exercise, setIndex: request.setIndex)
         case .setRowNotFound:
             throw SheetWriterError.setRowNotFound(exercise: request.exercise, setIndex: request.setIndex)

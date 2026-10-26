@@ -40,6 +40,7 @@ fresh_fixture() {
     cp "$repo"/scripts/lint-* "$repo/scripts/swift-format-changed.sh" \
         "$repo/scripts/doc-drift.py" "$fx/scripts/"
     printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
+    printf '[avoid]\n' >"$fx/scripts/vocabulary-avoid.txt"
     mkdir -p "$fx/.github/workflows"
     printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
     mkdir -p "$fx/.agents/skills/verify"
@@ -152,6 +153,21 @@ expect_line "LINT_FORMAT_BASE=nosuchref" "$err" "       LINT_FORMAT_BASE='nosuch
 expect_no_text "LINT_FORMAT_BASE=nosuchref" "$err" "git fetch origin main"
 run_lint env LINT_FORMAT_BASE=HEAD "$fx/scripts/lint.sh"
 expect_exit "no origin/main, LINT_FORMAT_BASE=HEAD" "$status" 0
+
+echo "vocabulary: a whole-tree run fails on a name the branch adds that the glossary avoids"
+fresh_fixture
+baseline_config
+printf '**Viewed Session**: The Session on screen. Avoid: displayed session.\n' >"$fx/CONTEXT.md"
+printf '[avoid]\ndisplayed session\n' >"$fx/scripts/vocabulary-avoid.txt"
+printf 'let displayedSession = 1\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "vocabulary" "$status" 1
+expect_line "vocabulary" "$out" "==> New identifiers use the glossary's words"
+expect_line "vocabulary" "$out" \
+    "Sources/Core/Model.swift:1: displayedSession spells \"displayed session\", which CONTEXT.md avoids for Viewed Session. Name it with the glossary's word."
+printf 'let viewedSession = 1\n' >"$fx/Sources/Core/Model.swift"
+run_lint
+expect_exit "vocabulary, renamed" "$status" 0
 
 echo "help: --help prints usage naming LINT_FORMAT_BASE, and an unknown flag is a usage error"
 fresh_fixture

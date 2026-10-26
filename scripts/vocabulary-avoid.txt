@@ -1,0 +1,109 @@
+# Read by scripts/lint-vocabulary.py, whose docstring says how each section is used.
+#
+# [avoid] holds phrases from the glossary's Avoid lists that name nothing else in this code. A
+# phrase that also names a real concept here, as "row", "source", or "max" do, stays off the list.
+[avoid]
+displayed session
+preview session
+active session
+active week
+session key
+session index
+target load
+target reps
+rep goal
+working set
+working max
+e1rm
+conflict
+sync state
+sync error
+full name
+raw name
+log entry
+actual load
+actual rpe
+recommended weight
+rpe chart
+percentage chart
+reference set
+completion source
+log precedence
+deferred exercise
+incomplete set
+bonus day
+extra session
+tempo
+exercise ordinal
+exercise index
+exercise key
+personal record
+previous result
+performance history
+source label
+session string
+weekless
+missing week
+backfill
+exercise group
+canonical exercise
+mesocycle
+microcycle
+training day
+locked session
+unlocked session
+open session
+ready session
+workout completion
+finish celebration
+finish session
+set group
+sub exercise
+spacer row
+main movement
+big three
+competition lift
+manual override
+protected header
+header type
+notes kind
+voice command
+utterance
+voice logging
+partial transcript
+streaming transcript
+whisper transcript
+final transcript
+batch transcript
+whisper model
+asr model
+whisper timeout
+decode timeout
+grace period
+dictation log
+telemetry event
+incomplete block
+draft block
+completed from sheet
+already logged
+
+# Existing names that spell "conflict", kept by the operator's choice (P8), and a persisted
+# component of a queued write. Delete a name when it is renamed.
+[kept]
+conflict
+conflictedWrites
+conflictMessages
+conflicts
+exerciseOrdinalRaw
+markConflict
+PendingWritePlanningConflict
+planningConflict
+recordConflict
+recordDependentLastSetRPEConflict
+recordDependentLastSetRPEConflicts
+recordWriteTargetAuditConflictWithoutPlanning
+setLogConflict
+
+# A Spoken Set rejection reason: a value said twice, not a refused write.
+[unrelated]
+conflicting

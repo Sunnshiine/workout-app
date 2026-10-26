@@ -73,7 +73,7 @@ private struct HistoryFillIngestFailure: Error, LocalizedError {
 final class RefusingIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws { throw HistoryFillIngestFailure() }
     func entryCount(baseName: String) -> Int { 0 }
-    func retract(fullName: String, source: String) throws { throw HistoryFillIngestFailure() }
+    func retract(enteredName: String, source: String) throws { throw HistoryFillIngestFailure() }
 }
 
 /// A current Block tab whose single Squat Set carries no log yet.

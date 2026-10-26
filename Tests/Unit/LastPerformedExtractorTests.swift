@@ -46,7 +46,7 @@ import Testing
     // Squat is logged in both weeks, so both entries survive instead of collapsing.
     #expect(entries.count == 3)
 
-    let squats = entries.filter { $0.fullName == "Squat" }
+    let squats = entries.filter { $0.enteredName == "Squat" }
     #expect(squats.count == 2)
     let olderSquat = try #require(squats.first { $0.source == "Block 27 · W1 D1" })
     #expect(olderSquat.performedOn == olderDate)
@@ -56,7 +56,7 @@ import Testing
     #expect(newerSquat.resultText == "205x4@8")
     #expect(newerSquat.performedOn == newerDate)
 
-    let bench = try #require(entries.first { $0.fullName == "Bench Press" })
+    let bench = try #require(entries.first { $0.enteredName == "Bench Press" })
     #expect(bench.resultText == "155x6@7")
     #expect(bench.source == "Block 27 · W1 D1")
 }
@@ -336,7 +336,7 @@ import Testing
 
     let entry = try #require(LastPerformedExtractor.entries(from: block).first)
 
-    #expect(entry.fullName == "Standing Calve Raises")
+    #expect(entry.enteredName == "Standing Calve Raises")
     #expect(entry.resultText == "25x12, 12")
     #expect(entry.performedOn == performedDate)
     #expect(entry.source == "Block 27 · W1 D1")

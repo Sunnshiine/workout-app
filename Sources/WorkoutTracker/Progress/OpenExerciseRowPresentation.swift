@@ -6,7 +6,7 @@ import Foundation
 struct OpenExerciseRowPresentation {
     let name: String
     let pendingSetLabel: String
-    let sourceLabel: String
+    let sessionAddressLabel: String
 
     @MainActor
     init(exercise: Exercise) {
@@ -15,6 +15,6 @@ struct OpenExerciseRowPresentation {
         let pendingSetCount = exercise.pendingSetCount
         pendingSetLabel = pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"
 
-        sourceLabel = exercise.session?.address?.sessionLabel ?? ""
+        sessionAddressLabel = exercise.session?.address?.sessionLabel ?? ""
     }
 }
