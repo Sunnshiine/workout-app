@@ -237,7 +237,7 @@ jobs:
         run: |
           echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
           udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
-          scripts/sim-slim.sh "$udid"
+          scripts/sim-slim.sh "$udid" scripts/sim-ci-disabled-jobs.txt
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           echo "destination=platform=iOS Simulator,id=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
