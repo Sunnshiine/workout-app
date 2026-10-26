@@ -320,6 +320,26 @@ func aTranscriptCutOffAfterItsRPEQueuesNoWrite(transcript: String) async throws 
     #expect(json["heard"] as? String == "135 for 5 at 8.")
     #expect(json["outcome"] as? String == "logged")
     #expect(json["setLog"] as? String == "135x5@8")
+    #expect(json["captions"] == nil)
+}
+
+@MainActor
+@Test func aPacedHearReportsEachCaptionWithWhenItArrived() async throws {
+    let app = try await makeSelectedApp()
+    let candidates = ["135 for 5 at 8."]
+    let captions = [HearReport.Caption(atMs: 900, heard: "135"), HearReport.Caption(atMs: 1200, heard: "135 for 5 at 8.")]
+    let report = HearReport(
+        candidates: candidates,
+        captions: captions,
+        report: try app.dictate(candidates, at: address("w1d1.e0.s0"))
+    )
+
+    let json = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(report)) as? [String: Any])
+
+    let encoded = try #require(json["captions"] as? [[String: Any]])
+    #expect(encoded.map { $0["atMs"] as? Int } == [900, 1200])
+    #expect(encoded.map { $0["heard"] as? String } == ["135", "135 for 5 at 8."])
+    #expect(json["setLog"] as? String == "135x5@8")
 }
 
 @MainActor
