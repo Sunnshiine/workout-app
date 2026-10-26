@@ -140,7 +140,7 @@ enum Theme {
 
     // MARK: - Sheet tab grid
     //
-    // The raw Sheet tab the Block grid opens: fixed cells so columns line up like the spreadsheet.
+    // The Day sections of the Sheet tab the Block grid opens: fixed cells so columns line up like the spreadsheet.
 
     static let sheetCellWidth: CGFloat = 96
     static let sheetCellHeight: CGFloat = 28

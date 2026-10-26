@@ -14,8 +14,9 @@ approved `#1F8552` border + sun glow), quiet available, ghost unavailable.
 Zero icons on the tiles — the lock icon is dead — and Fraunces stays off the
 page. The grid carries two control glyphs, not tile decoration: the
 `gearshape` Settings button at its foot, and the `tablecells` View Sheet
-button in the navigation bar. View Sheet opens the Block's tab as the
-spreadsheet shows it, raw cells under column letters, a debugging read-out
+button in the navigation bar. View Sheet opens the Block's tab one Week at a
+time, each Day's section as the spreadsheet shows it with its empty rows and
+columns dropped, raw cells under their column letters, a debugging read-out
 and the one place the app shows Sheet structure.
 
 - **Focus-week layout:** only the week holding the Current Session expands.

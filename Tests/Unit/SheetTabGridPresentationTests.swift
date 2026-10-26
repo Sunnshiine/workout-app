@@ -3,59 +3,65 @@ import Testing
 
 @testable import WorkoutTracker
 
-private func grid(_ values: SheetGrid, rowVisibility: [Int: SheetRowVisibility] = [:]) -> SheetTabGridPresentation {
-    SheetTabGridPresentation(
-        SheetTabSnapshot(tab: "Block 1", snapshot: SheetSnapshot(values: values, rowVisibility: rowVisibility))
+private func presentation(
+    _ cells: [String: String],
+    hiddenRows: [Int: SheetRowVisibility] = [:]
+) -> SheetTabGridPresentation {
+    let indices = cells.keys.compactMap(a1CellIndex)
+    let grid = gridFromA1(
+        cells,
+        rows: (indices.map(\.row).max() ?? -1) + 1,
+        cols: (indices.map(\.col).max() ?? -1) + 1
+    )
+    let visibility = Dictionary(uniqueKeysWithValues: hiddenRows.map { ($0.key - 1, $0.value) })
+    return SheetTabGridPresentation(
+        SheetTabSnapshot(tab: "Block 1", snapshot: SheetSnapshot(values: grid, rowVisibility: visibility))
     )
 }
 
-@Test func theGridEndsAtTheLastRowAndColumnHoldingAValue() {
-    let presentation = grid([
-        ["", "", "", ""],
-        ["Squat", ""],
-        ["", "", "365", "", ""],
-        ["", "", "", "", "", ""]
-    ])
+private let oneDay: [String: String] = [
+    "A1": "Training Max", "B2": "Squat", "C2": "365",
+    "B4": "Day 1", "B5": "5/4/2026",
+    "C6": "Sets", "E6": "Reps", "F6": "Notes",
+    "B7": "Back Squat", "C7": "3", "E7": "5",
+    "B9": "BB RDL", "C9": "2", "F9": "Start w/ 10 sec hold"
+]
 
-    #expect(presentation.columns == ["A", "B", "C"])
-    #expect(presentation.rows.map(\.number) == [1, 2, 3])
-    #expect(presentation.rows.map(\.cells) == [["", "", ""], ["Squat", "", ""], ["", "", "365"]])
-}
+@Test func aDayKeepsOnlyTheRowsAndColumnsOfItsSectionThatHoldAValue() throws {
+    let day = try #require(presentation(oneDay).weeks.first?.days.first)
 
-@Test func columnLettersRunPastZ() {
-    var row = [String](repeating: "", count: 27)
-    row[26] = "Day 3"
-    let presentation = grid([row])
-
-    #expect(presentation.columns.count == 27)
-    #expect(presentation.columns.suffix(2) == ["Z", "AA"])
-    #expect(SheetTabGridPresentation.cellReference(row: 37, column: 26) == "AA37")
-}
-
-@Test func aHiddenRowStaysInTheGridFlagged() {
-    let presentation = grid(
-        [["Day 1"], ["Back Squat"], ["Bench Press"], ["Deadlift"]],
-        rowVisibility: [
-            1: SheetRowVisibility(hiddenByUser: true),
-            2: SheetRowVisibility(),
-            3: SheetRowVisibility(hiddenByFilter: true)
+    #expect(day.columns.map(SheetTabGridPresentation.columnLetter) == ["B", "C", "E", "F"])
+    #expect(day.rows.map(\.number) == [4, 5, 6, 7, 9])
+    #expect(
+        day.rows.map(\.cells) == [
+            ["Day 1", "", "", ""],
+            ["5/4/2026", "", "", ""],
+            ["", "Sets", "Reps", "Notes"],
+            ["Back Squat", "3", "5", ""],
+            ["BB RDL", "2", "", "Start w/ 10 sec hold"]
         ]
     )
-
-    #expect(presentation.rows.map(\.cells) == [["Day 1"], ["Back Squat"], ["Bench Press"], ["Deadlift"]])
-    #expect(presentation.rows.map(\.isHidden) == [false, true, false, true])
 }
 
-@Test func anEmptyTabHasNoRowsOrColumns() {
-    let presentation = grid([["", ""], [""]])
+@Test func aHiddenRowInADayStaysFlagged() throws {
+    let day = try #require(
+        presentation(oneDay, hiddenRows: [7: SheetRowVisibility(hiddenByUser: true)]).weeks.first?.days.first
+    )
 
-    #expect(presentation.columns.isEmpty)
-    #expect(presentation.rows.isEmpty)
-    #expect(presentation.weekHeaderRows.isEmpty)
+    #expect(day.rows.filter(\.isHidden).map(\.number) == [7])
+}
+
+@Test func aCellReferenceNamesTheSheetColumnPastZ() {
+    #expect(SheetTabGridPresentation.columnLetter(26) == "AA")
+    #expect(SheetTabGridPresentation.cellReference(row: 37, column: 34) == "AI37")
+}
+
+@Test func aTabWithNoDayHeadersHasNoWeeks() {
+    #expect(presentation(["A1": "Training Max", "B2": "Squat"]).weeks.isEmpty)
 }
 
 @MainActor
-@Test func theLiveReadOfTheBlockTabMapsEachWeekToItsDayHeaderRow() async throws {
+@Test func theLiveReadOfTheBlockTabSplitsIntoEachWeeksDays() async throws {
     let app = try WorkoutApplication(
         environment: .inMemory(
             workbook: WorkbookScenario.freshBlock.workbook(),
@@ -64,10 +70,12 @@ private func grid(_ values: SheetGrid, rowVisibility: [Int: SheetRowVisibility] 
     )
     _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
 
-    let presentation = SheetTabGridPresentation(try await app.sheet(tab: nil))
+    let weeks = SheetTabGridPresentation(try await app.sheet(tab: nil)).weeks
 
-    #expect(presentation.weekHeaderRows == [1: 12, 2: 37])
-    #expect(presentation.rows[36].number == 37)
-    #expect(presentation.rows[36].cells[34] == "Day 3")
-    #expect(presentation.columns[34] == "AI")
+    #expect(weeks.map(\.number) == [1, 2])
+    #expect(weeks.map { $0.days.map(\.number) } == [[1, 2], [1, 2, 3]])
+    let weekOneDayOne = try #require(weeks.first?.days.first)
+    #expect(weekOneDayOne.columns.map(SheetTabGridPresentation.columnLetter) == ["C", "D", "F", "G", "H", "I", "K"])
+    #expect(weekOneDayOne.rows.map(\.number) == [12, 13, 14, 15, 19])
+    #expect(weekOneDayOne.rows.last?.cells == ["2-3:1:0 BB RDL", "2", "8", "", "RPE8", "", "Start w/ 10 sec hold"])
 }

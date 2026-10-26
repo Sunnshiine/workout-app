@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// The current Block's Sheet tab as the spreadsheet shows it, read live: raw values under column
-/// letters and beside row numbers, for checking what the app does not render.
+/// The current Block's Sheet tab read live, one Week at a time: each Day's section as the spreadsheet
+/// shows it, raw values under their column letters and beside their row numbers, for checking what
+/// the app does not render.
 struct SheetTabView: View {
     let read: @MainActor () async throws -> SheetTabSnapshot
-    /// The Week the grid scrolls to on load, the Block grid's focus Week.
+    /// The Week shown first, the Block grid's focus Week.
     let focusWeek: Int?
 
     @Environment(\.themePalette) private var palette
@@ -73,52 +74,85 @@ struct SheetTabView: View {
     }
 }
 
-private struct CellPosition: Equatable {
+private struct SelectedCell: Equatable {
     let row: Int
     let column: Int
+    let value: String
 }
 
 private struct SheetTabGrid: View {
     let presentation: SheetTabGridPresentation
-    let focusWeek: Int?
 
     @Environment(\.themePalette) private var palette
-    @State private var selected: CellPosition?
+    @State private var week: Int
+    @State private var selected: SelectedCell?
+
+    init(presentation: SheetTabGridPresentation, focusWeek: Int?) {
+        self.presentation = presentation
+        let weekNumbers = presentation.weeks.map(\.number)
+        _week = State(initialValue: focusWeek.flatMap { weekNumbers.contains($0) ? $0 : nil } ?? weekNumbers.first ?? 1)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView([.horizontal, .vertical]) {
-                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        Section {
-                            ForEach(presentation.rows) { row in
-                                rowView(row)
-                            }
-                        } header: {
-                            columnHeader
-                        }
+            if presentation.weeks.count > 1 {
+                Picker("Week", selection: $week) {
+                    ForEach(presentation.weeks) { week in
+                        Text("Week \(week.number)").tag(week.number)
                     }
                 }
-                .accessibilityIdentifier("sheet-tab-grid")
-                .onAppear {
-                    guard let row = focusWeek.flatMap({ presentation.weekHeaderRows[$0] }) else { return }
-                    // The pinned column letters cover the top row, so land the row above it there.
-                    proxy.scrollTo(max(row - 1, 1), anchor: .topLeading)
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .accessibilityIdentifier("sheet-tab-week-picker")
+            }
+            if let days = presentation.weeks.first(where: { $0.number == week })?.days {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: Theme.sectionSpacing) {
+                        ForEach(days) { day in
+                            dayGrid(day)
+                        }
+                    }
+                    .padding(.vertical)
                 }
+                .accessibilityIdentifier("sheet-tab-grid")
+            } else {
+                Text("This tab has no Day headers.")
+                    .font(Theme.font(.coachNote))
+                    .foregroundStyle(palette.textSecondary)
+                    .frame(maxHeight: .infinity)
             }
             if let selected {
                 cellDetail(selected)
             }
         }
+        .onChange(of: week) {
+            selected = nil
+        }
     }
 
-    private var columnHeader: some View {
-        HStack(spacing: 0) {
-            headerCell("", width: Theme.sheetRowNumberWidth)
-            ForEach(presentation.columns, id: \.self) { letter in
-                headerCell(letter, width: Theme.sheetCellWidth)
+    private func dayGrid(_ day: SheetTabGridPresentation.Day) -> some View {
+        ScrollView(.horizontal) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    headerCell("", width: Theme.sheetRowNumberWidth)
+                    ForEach(day.columns, id: \.self) { column in
+                        headerCell(SheetTabGridPresentation.columnLetter(column), width: Theme.sheetCellWidth)
+                    }
+                }
+                ForEach(day.rows) { row in
+                    HStack(spacing: 0) {
+                        headerCell(String(row.number), width: Theme.sheetRowNumberWidth)
+                        ForEach(Array(zip(day.columns, row.cells)), id: \.0) { column, value in
+                            cell(row: row.number, column: column, value: value)
+                        }
+                    }
+                    .opacity(row.isHidden ? Theme.sheetHiddenRowOpacity : 1)
+                }
             }
         }
+        .contentMargins(.horizontal, Theme.blockFocusCardPadding, for: .scrollContent)
+        .accessibilityIdentifier("sheet-tab-day-\(day.number)")
     }
 
     private func headerCell(_ text: String, width: CGFloat) -> some View {
@@ -130,33 +164,21 @@ private struct SheetTabGrid: View {
             .border(palette.queueStroke, width: Theme.sheetGridline)
     }
 
-    private func rowView(_ row: SheetTabGridPresentation.Row) -> some View {
-        HStack(spacing: 0) {
-            headerCell(String(row.number), width: Theme.sheetRowNumberWidth)
-            ForEach(row.cells.indices, id: \.self) { column in
-                cell(row: row, column: column)
-            }
-        }
-        .opacity(row.isHidden ? Theme.sheetHiddenRowOpacity : 1)
-        .id(row.number)
-    }
-
     @ViewBuilder
-    private func cell(row: SheetTabGridPresentation.Row, column: Int) -> some View {
-        let value = row.cells[column]
-        let position = CellPosition(row: row.number, column: column)
-        let isSelected = selected == position
+    private func cell(row: Int, column: Int, value: String) -> some View {
+        let cell = SelectedCell(row: row, column: column, value: value)
+        let isSelected = selected == cell
         if value.isEmpty {
-            // Thousands of blank cells would bury the filled ones for VoiceOver.
+            // Blank cells would bury the filled ones for VoiceOver.
             cellFace(value, isSelected: false).accessibilityHidden(true)
         } else {
             Button {
-                selected = isSelected ? nil : position
+                selected = isSelected ? nil : cell
             } label: {
                 cellFace(value, isSelected: isSelected)
             }
             .buttonStyle(.plain)
-            .accessibilityIdentifier("sheet-cell-\(SheetTabGridPresentation.cellReference(row: row.number, column: column))")
+            .accessibilityIdentifier("sheet-cell-\(SheetTabGridPresentation.cellReference(row: row, column: column))")
         }
     }
 
@@ -174,14 +196,13 @@ private struct SheetTabGrid: View {
             )
     }
 
-    private func cellDetail(_ position: CellPosition) -> some View {
-        let value = presentation.rows[position.row - 1].cells[position.column]
-        return VStack(alignment: .leading, spacing: 4) {
-            Text(SheetTabGridPresentation.cellReference(row: position.row, column: position.column))
+    private func cellDetail(_ cell: SelectedCell) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(SheetTabGridPresentation.cellReference(row: cell.row, column: cell.column))
                 .font(Theme.font(.fieldLabel))
                 .foregroundStyle(palette.textSecondary)
                 .accessibilityIdentifier("sheet-tab-cell-reference")
-            Text(value)
+            Text(cell.value)
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textPrimary)
                 .textSelection(.enabled)

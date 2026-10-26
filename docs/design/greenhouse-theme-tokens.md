@@ -223,7 +223,7 @@ tabular** (#411).
 | `blockTitle` | SS3 | 28pt / 700, ls −0.01em, muted |
 | `cadence` | SS3 | 11pt / 600 |
 | stats value / key (ceremony) | SS3 | 26pt / 700 · 12.5pt / 600 muted |
-| `sheetCell` | SS3 | 12pt / 500 tnum; the raw Sheet tab's cells, single line, truncating |
+| `sheetCell` | SS3 | 12pt / 500 tnum; the Sheet tab's Day sections, single line, truncating |
 
 Tabular numerals on **every** numeric element (Numbers Stay Plain
 survives). The sunlit-ledger register (opsz 72 display, uppercase
