@@ -9,7 +9,7 @@ import Testing
     let fixture = makeHandsFreeFixture(showing: session, current: session)
     let slot = try fixture.card(in: session)
     let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
-    await fixture.clock.waitUntilSleeping(until: SetDictation.silenceWindow, orRecord: "The card never listened")
+    await fixture.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "The card never listened")
     let closings = fixture.entry.coverClosings
 
     fixture.entry.deliver(.dictateCurrentSet)

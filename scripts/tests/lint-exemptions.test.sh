@@ -100,6 +100,15 @@ check <<'SWIFT'
 SWIFT
 expect_exit "an uncited fixture_dates_are_literal exemption" "$status" 1
 check <<'SWIFT'
+final class Store {
+    // The reload root.
+    // swiftlint:disable:next model_held_across_reload
+    private(set) var block: Block?
+}
+SWIFT
+expect_exit "an uncited model_held_across_reload exemption" "$status" 1
+expect_text "it names the rule" "$out" "App/A.swift:3: the model_held_across_reload exemption cites no issue."
+check <<'SWIFT'
 // swiftlint:disable:next all
 let now = Date()
 SWIFT

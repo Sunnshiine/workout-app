@@ -72,6 +72,8 @@ private func timeline(live: Int?, liveFinished: Int?, dropped: Int? = nil, decid
         lastHeard: nil,
         ended: 1000,
         liveFinished: liveFinished,
+        earlyReadAsked: nil,
+        recordingAsked: 1000,
         recordingRead: nil,
         recordingDropped: dropped,
         decided: decided
