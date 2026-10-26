@@ -19,7 +19,7 @@ private struct TaskSessionTransitionClock: SessionTransitionClock {
 @MainActor
 @Observable
 final class SessionCoordinator {
-    private(set) var session: Session?
+    private(set) var session: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
     private(set) var savedLoggedSetID: ActiveSetID?
 
     @ObservationIgnored let focusManager: ActiveSetFocusManager
@@ -29,7 +29,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     /// Nil leaves the mic off every card.
     @ObservationIgnored let dictation: SetDictation?
-    @ObservationIgnored var dictatingSession: Session?
+    @ObservationIgnored var dictatingSession: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?

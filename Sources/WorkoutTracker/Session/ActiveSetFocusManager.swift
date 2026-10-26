@@ -39,7 +39,7 @@ final class ActiveSetFocusManager {
     @ObservationIgnored private var cardDraft: (setID: ActiveSetID, draft: SetLogDraft)?
     /// The Session the focus is about: the one the stage last bound. An `ActiveSetID` names a Set
     /// only within it.
-    @ObservationIgnored private(set) var session: Session?
+    @ObservationIgnored private(set) var session: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
 
     init(session: Session?) {
         self.session = session

@@ -18,10 +18,12 @@ struct BlockOverviewNavigationRequest: Equatable, Identifiable {
 final class WorkoutStore {
     // The reload root: reload() fetches it again, and every other Session the store hands out
     // resolves through it.
+    // swiftlint:disable:next model_held_across_reload
     private(set) var block: Block?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
     // Stored rather than resolved on each read, so its observers hear it only when it moves
     // (observersHearTheCurrentSessionOnlyWhenItMoves). Every write to `block` refreshes it.
+    // swiftlint:disable:next model_held_across_reload
     private(set) var currentSession: Session?
     private var viewing = Viewing.currentSession
     private var moveOnCelebration: MoveOnCelebration?
