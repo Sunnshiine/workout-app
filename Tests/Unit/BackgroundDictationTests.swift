@@ -226,7 +226,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.liveActivity.readbacks == [.listening])
 
     transcriber.starting.release()
-    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never waited for the athlete to fall quiet")
+    await harness.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "It never waited for the athlete to fall quiet")
     harness.clock.advance(by: window)
     await transcriber.finishing.waitUntilHeld(orRecord: "The transcriber never finished")
     transcriber.finishing.release()
@@ -288,7 +288,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let harness = try await BackgroundDictationHarness(hearing: [])
 
     let run = Task { await harness.background.run() }
-    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    await harness.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "It never started listening")
     harness.clock.advance(by: cap)
 
     #expect(await run.value == .notLogged(.rejected(.transcriber(.nothingHeard), heard: ""), at: firstSet))
