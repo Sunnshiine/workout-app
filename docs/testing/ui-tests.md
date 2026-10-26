@@ -50,15 +50,22 @@ UI-test frame assertions:
 Keyboard lane:
 
 CI's `visual-tests` job runs `KeyboardLaneUITests`, the weight keyboard tests, animated on every
-pull request whose diff touches `App/Views/Session*`, `App/Views/SmartValuePills.swift`,
-`App/Views/ActiveSetCard.swift`, or `Tests/UI/`. `scripts/keyboard-lane-paths.sh` holds that
-list, and the step's log names the paths that matched or says none did.
+pull request whose diff touches a file the tests reach: what the app and UI test targets compile
+(`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `Tests/UI/`) and the lane's own wiring.
+`scripts/keyboard-lane-paths.sh` holds that list, and the step's log names the paths that matched
+or says none did. `scripts/ci-keyboard-lane.sh` is the step.
 
 - Put a new test that opens the weight keyboard in `KeyboardLaneUITests`, so the lane runs it.
 - Animated, the keyboard is still sliding out when a dismissing tap returns. Assert it is gone
-  with `waitForNonExistence`, not `exists`.
+  with `disappears(within:)`, not `exists`.
+- Each `typeText` drops the keyboard below the window for most of a second, and the card rests at
+  its idle place meanwhile. Read a frame through `restingFrame(of:keyboard:in:)`, which waits for
+  the keyboard state as well as a still frame.
+- Waits for something expected use `uiEventBudget`. A check that something does not happen keeps
+  its own short window, since that window is the claim.
 - A red `visual-tests` job is a Visual Baseline mismatch or a keyboard lane failure. Read which
-  step failed before you follow the re-record loop. A failed lane uploads `ui-test-results`.
+  step failed before you follow the re-record loop. A failed lane uploads `KeyboardLane.xcresult`
+in `ui-test-results`.
 - To measure the lane on the runner, run
   `gh workflow run ci.yml --ref <branch> -f keyboard-lane=true`.
 

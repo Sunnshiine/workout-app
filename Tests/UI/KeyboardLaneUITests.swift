@@ -101,7 +101,12 @@ final class KeyboardLaneUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: uiEventBudget))
         XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
-        XCTAssertEqual(restingFrame(of: card, keyboard: .down, in: app).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
+        XCTAssertEqual(
+            restingFrame(of: card, keyboard: .down, in: app).minY,
+            idleTop,
+            accuracy: 1,
+            "a keyboard-up log leaves no keyboard inset"
+        )
     }
 
     @MainActor
