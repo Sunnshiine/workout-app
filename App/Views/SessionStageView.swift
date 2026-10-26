@@ -3,7 +3,7 @@ import UIKit
 
 /// Stage: the Session screen is a single "now playing" surface — the Exercise
 /// name, its context, and the active Set card. Orientation is on demand: an
-/// up-next hint at the bottom and the full queue in a sheet.
+/// up-next hint at the foot and the full queue in a sheet.
 struct SessionStageView: View {
     let session: Session
     let coordinator: SessionCoordinator
