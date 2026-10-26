@@ -11,7 +11,7 @@ struct DeveloperToolsView: View {
     @State private var writeAuditDiagnostics: [WriteTargetAuditDiagnostic] = []
     @State private var diagnosticsErrorMessage: String?
     @State private var writeAuditErrorMessage: String?
-    @State private var forcedCelebrationSession: Session?
+    @State private var forcedCelebrationSession: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
 
     var body: some View {
         ZStack {
