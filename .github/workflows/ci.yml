@@ -212,9 +212,8 @@ jobs:
     if: github.event.action != 'edited' || github.event.changes.base
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
-    # About twice the job's median of 9 minutes (PR runs 40358470805 to 40363479483), so a change
-    # that slows it back toward the old 14 fails here instead of drifting in. A dispatch with the
-    # UI suite adds its 9 to 13 minutes.
+    # Catches a hang, not a slowdown: the old shape's p90 was 19 minutes. The last step warns on a
+    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes.
     timeout-minutes: ${{ inputs.ui-suite && 35 || 20 }}
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
@@ -222,6 +221,8 @@ jobs:
     env:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
+      # Above every run of this shape so far (440 to 657 s). Lower it as the job gets faster.
+      SPEED_BUDGET_SECONDS: 720
     steps:
       - uses: actions/checkout@v4
       # The device boots slim (ADR-0022), through simctl, after the build. On this 3-core runner a
@@ -234,6 +235,7 @@ jobs:
         id: sim
         timeout-minutes: 5
         run: |
+          echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
           udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
           scripts/sim-slim.sh "$udid"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
@@ -358,3 +360,12 @@ jobs:
           name: ui-test-results
           path: UITests.xcresult
           if-no-files-found: ignore
+
+      - name: Check the job against its speed budget
+        if: ${{ !cancelled() && !inputs.ui-suite }}
+        run: |
+          elapsed=$(( $(date +%s) - JOB_START ))
+          echo "visual-tests ran ${elapsed} s against a budget of ${SPEED_BUDGET_SECONDS} s"
+          if [ "$elapsed" -gt "$SPEED_BUDGET_SECONDS" ]; then
+            echo "::warning title=hill-climb visual-tests speed::visual-tests ran ${elapsed} s, over its ${SPEED_BUDGET_SECONDS} s budget. Compare this run's step times with a recent green run."
+          fi
