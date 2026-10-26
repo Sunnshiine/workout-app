@@ -118,7 +118,11 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   tuning, or a tabular-figures flag, is that spec's one pin and stays. (#807, #808, #809.)
 
 Six shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
-judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason:
+judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason.
+An exemption of `unstructured_task_is_held`, `fixture_dates_are_literal`, or `all` accepts a bug,
+so its reason cites the open or `wontfix` issue that tracks it as a bare `#N`. `scripts/lint.sh`
+fails one that cites none, and any exemption whose cited issue is closed without `wontfix`. The six
+rules:
 
 - `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
   review judges a View method that starts a Task writing a store field. The rule reads only a line
@@ -152,8 +156,8 @@ judges what each regex misses. A hit is fixed in the code, or exempted on its li
   `Tests/Support/HeldCall.swift` (#707, #746, #936). A continuation that only a release the test
   must remember resumes is a park. One that resumes at once, or that a cancel handler or a failed
   wait also resumes, is exempt on its line with that reason. A park with neither is exempt only
-  when its line cites the open issue that tracks the missing release. A continuation stored and
-  resumed elsewhere, and an `AsyncStream` continuation, pass it.
+  when its line cites the issue that tracks the missing release, open or closed as `wontfix`. A
+  continuation stored and resumed elsewhere, and an `AsyncStream` continuation, pass it.
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
   `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
   whose index is named (`for i in 0..<n`) passes it.
