@@ -44,16 +44,21 @@ with exit 3; run `init` again.
 | `session [w1d1]` | `session(_:)` | one Session; every Exercise and Set carries its address. No address means the Current Session |
 | `log w1d1.e0.s0 185x5@8` | `WorkoutStore.log(_:as:)` | the Set, the pending write count, whether the Exercise is complete. No auto-flush |
 | `skip w1d1.e0.s0` | `WorkoutStore.skip(_:)` | the same report `log` prints. No auto-flush |
+| `delete-log w1d1.e0.s0` | `WorkoutStore.deleteLog(for:)`, the card's Clear; a Pending Set writes nothing | the same report `log` prints. No auto-flush |
+| `move-on` | `requestMoveOnCelebration()`, the Move On button, then `dismissMoveOnCelebration()`, the tap that ends the celebration, in one process | `returnedToBlockGrid`, true when no Available Session remained ahead, and the snapshot `status` prints |
+| `make-current w2d1` | `view(_:)`, then `makeCurrent()`, the Make current control's `WorkoutStore.makeViewedSessionCurrent()`, in one process; an Unavailable Session is refused | the snapshot `status` prints |
 | `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
 | `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
-| `dictations summary records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationSummary(reading:labels:)`, over a journal file or a `Dictation Records` directory copied off a phone; it opens no home | presses by surface and end, outcomes under the shipped rule and under each `MergeRule`, engine agreement, Recording Transcripts read and missed by reason, release-to-outcome wait against the 500 ms target with the cause of each miss, `implausible` rejections by engine and field, `promptEcho`, stall and footprint percentiles, unreadable lines, and the caveats. With labels, `scored` counts the outcome that decided each press as CORRECT, WRONG, or NOWRITE |
+| `dictations summary records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationSummary(reading:labels:)`, over a journal file or a `Dictation Records` directory copied off a phone; it opens no home | presses by surface and end, outcomes under the shipped rule and under each `MergeRule`, engine agreement, Recording Transcripts read and missed by reason, presses whose mic never went live by the start step that refused it and the phone's error, release-to-outcome wait against the 500 ms target with the cause of each miss, `implausible` rejections by engine and field, `promptEcho`, stall and footprint percentiles, unreadable lines, and the caveats. With labels, `scored` counts the outcome that decided each press as CORRECT, WRONG, or NOWRITE |
 | `dictations replay records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationReplay(reading:labels:)`, over the same files; it opens no home | per Speech Model version, the rule that decided each press, and for each `MergeRule` its outcomes and how many presses it decides differently. With labels, each rule's `scored` |
 
 `init`, `sync`, and `flush` converge: running them twice gives the same state. `log` twice
-enqueues twice, because that is what the store does; the report shows it.
+enqueues twice, because that is what the store does; the report shows it. `delete-log` on a
+Pending Set enqueues nothing, so a stale local view cannot queue a conflicted write that no
+command can discard yet.
 
 The Viewed Session is transient view state that dies with the process, so `sync --viewing w2d3`
 is the only way to watch what a reload does to it: it opens that Session the way the Block grid
@@ -179,12 +184,13 @@ $ workout session w1d1 | jq '.exercises[0].sets[0].state'   # "logged", parsed f
 
 ## How it grows
 
-A new capability is one facade method on `WorkoutApplication` that calls the store method the
-UI calls, plus one file in `Commands/`. The CLI imports `WorkoutTracker` without `@testable`, so
-it cannot reach a store directly. `init` is the one deliberate exception: it seeds the workbook
-file and the manifest before an application exists, and it is the only command that does. Next in
-line: `delete-log` (`WorkoutStore.deleteLog(for:)`), `move-on` (`WorkoutStore.moveOn`),
-`pending-writes` (`SyncCoordinator.pendingWriteDiagnostics`), and `discard-writes`
+A new capability is a facade method on `WorkoutApplication` that calls the store method the
+UI calls, plus one file in `Commands/`. A command is one gesture, and a gesture whose state lives
+in memory makes all its facade calls in one process (`move-on`, `make-current`). The CLI imports
+`WorkoutTracker` without `@testable`, so it cannot reach a store directly. `init` is the one
+deliberate exception: it seeds the workbook file and the manifest before an application exists,
+and it is the only command that does. Next in line: `pending-writes`
+(`SyncCoordinator.pendingWriteDiagnostics`) and `discard-writes`
 (`SyncCoordinator.discardPendingWrites`). Add a scenario by adding a case to
 `WorkbookScenario`; the scenario test requires it to parse with no warnings. Every UI launch
 Scenario flag is its workbook's name in upper snake case (`-UITEST_FULL_BLOCK` boots `full-block`),

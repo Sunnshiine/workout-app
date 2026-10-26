@@ -72,6 +72,8 @@ private func timeline(live: Int?, liveFinished: Int?, dropped: Int? = nil, decid
         lastHeard: nil,
         ended: 1000,
         liveFinished: liveFinished,
+        earlyReadAsked: nil,
+        recordingAsked: 1000,
         recordingRead: nil,
         recordingDropped: dropped,
         decided: decided
@@ -102,4 +104,19 @@ func aWaitPastTheTargetNamesItsLargestShare(timeline: DictationRecord.Timeline, 
 
     #expect(waited.waitCause == cause)
     #expect(waited.isWithinTarget == (cause == nil))
+}
+
+@Test func aPressRecordedBeforeBuildsKeptStartRefusalsStillReads() throws {
+    let press = try decided(try decoded(DictationRecordFixtures.unstartedBeforeRefusals))
+
+    #expect(press.live.failure == .failed)
+    #expect(press.live.startRefusal == nil)
+}
+
+@Test func whatRefusedTheMicReadsBackAsItWasWritten() throws {
+    let line = DictationRecordFixtures.unstartedWithRefusal
+    let record = try decoded(line)
+
+    #expect(try decided(record).live.startRefusal == DictationRecordFixtures.refusal)
+    #expect(String(bytes: try DictationRecord.lineEncoder().encode(record), encoding: .utf8) == line)
 }

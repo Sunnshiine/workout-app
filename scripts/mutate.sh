@@ -134,9 +134,10 @@ else
         changed=$((changed + $(wc -l <"$run/changed$k")))
         if reachable "$f"; then
             awk -v changed="$run/changed$k" -v path="$f" -v platform=$platform -v compiledOut="$run/compiled-out.tsv" \
-                -f "$script_dir/mutants.awk" "$run/source$k.swift" | with_reason "" >>"$run/runnable.tsv"
+                -f "$script_dir/mutants-scan.awk" -f "$script_dir/mutants.awk" "$run/source$k.swift" | with_reason "" >>"$run/runnable.tsv"
         else
-            awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
+            awk -v changed="$run/changed$k" -v path="$f" \
+                -f "$script_dir/mutants-scan.awk" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
                 with_reason "swift test never compiles it; rerun with --sim UDID" >>"$run/unreachable.tsv"
         fi
     done <"$run/files"
@@ -257,6 +258,11 @@ run_check() {
         test_log=$(sed -n 's/^log: //p' "$log.stdout" | tail -1)
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
+        if ! "$script_dir/disk-floor.sh" "$scratch" 2>"$log.stderr"; then
+            result=busy
+            reason=$(cat "$log.stderr")
+            return
+        fi
         (cd "$scratch" && with_timeout "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
         if [ $rc = 0 ] && [ -n "$build_only" ]; then
             result=pass
@@ -404,7 +410,7 @@ for pair in "$killed killed" "$flaky flaky" "$survived SURVIVED" "$nocompile noc
     [ "${pair%% *}" = 0 ] || counts="$counts, $pair"
 done
 summary="$(plural $total mutant)${counts:+: ${counts#, }}"
-[ -z "$busy" ] || summary="$summary; $(($(wc -l <"$run/mutants.tsv") - total)) not run (simulator busy)"
+[ -z "$busy" ] || summary="$summary; $(($(wc -l <"$run/mutants.tsv") - total)) not run (host busy)"
 [ "$dropped" = 0 ] || summary="$summary; $dropped not run (--max $max)"
 echo "$summary"
 if [ -n "$busy" ]; then

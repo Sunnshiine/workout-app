@@ -192,6 +192,23 @@ mem_clear() {
   return 1
 }
 
+# The volumes a build writes: the checkout's .build and, under HOME, DerivedData and the simulators.
+disk_clear() {
+  local reading free path
+  [ "$WORKOUT_DISK_FLOOR" -gt 0 ] || return 0
+  for path in "$sim_lock_checkout" "$HOME"; do
+    if ! reading=$(df -Pk "$path" 2>&1); then
+      busy_reason="df -Pk $path failed: $reading"
+      return 1
+    fi
+    free=$(awk 'NR == 2 && $4 ~ /^[0-9]+$/ { print int($4 / 1024) }' <<< "$reading")
+    [ -n "$free" ] || { busy_reason="df -Pk $path printed no free space: $reading"; return 1; }
+    [ "$free" -lt "$WORKOUT_DISK_FLOOR" ] || continue
+    busy_reason="free disk is $free MB on the volume holding $path, under the floor of $WORKOUT_DISK_FLOOR MB (WORKOUT_DISK_FLOOR) a build needs"
+    return 1
+  done
+}
+
 load_clear() {
   local reading now rc=0
   if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
@@ -236,7 +253,7 @@ print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["U
 admit_claim() {
   local udid=$1 build=$2 others own rc=1
   mem_clear || return 1
-  [ "$build" = 0 ] || build_slot_free || return 1
+  [ "$build" = 0 ] || { disk_clear && build_slot_free; } || return 1
   host_room "$udid" || return 1
   if [ "$own" != Shutdown ]; then
     [ "$build" = 0 ] || take_build_slot
@@ -391,7 +408,7 @@ drop_build_slot() {
   build_slot=
 }
 
-admit_build() { mem_clear && take_build_slot; }
+admit_build() { mem_clear && disk_clear && take_build_slot; }
 
 with_build_slot() {
   local rc=0
@@ -410,10 +427,12 @@ require_sim_free() {
 
 host_knob WORKOUT_SIM_CAP 10 1
 host_knob WORKOUT_MEM_FLOOR 25 0
+host_knob WORKOUT_DISK_FLOOR 5120 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
 host_knob WORKOUT_IDLE_MINUTES 2 0
 host_knob WORKOUT_SLEEP_MINUTES 30 0
+sim_lock_checkout=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

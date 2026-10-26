@@ -60,7 +60,7 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
     let decided = try #require(record.decided)
     #expect(decided.end == .released)
     #expect(decided.set == squat)
-    #expect(decided.live == DictationRecord.Live(candidates: ["185 for 5 at 8"], failure: nil, captionChanges: 1))
+    #expect(decided.live == DictationRecord.Live(candidates: ["185 for 5 at 8"], failure: nil, captionChanges: 1, startRefusal: nil))
     #expect(
         decided.recording
             == DictationRecord.Recording(
@@ -97,6 +97,31 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
     #expect(record.timeline.ended == 300)
     #expect(record.timeline.decided == nil)
     #expect(record.waitCause == nil)
+}
+
+/// The Lock Screen's mic never goes live in a simulator, so the record must name what refused it.
+@MainActor
+@Test func aPressWhoseMicNeverWentLiveRecordsWhatRefusedIt() async throws {
+    let journal = DictationJournal(storage: .inMemory)
+    let dictation = SetDictation(transcriber: RefusingSetTranscriber(), reader: noModel, journal: journal)
+
+    dictation.start(for: firstSet)
+    #expect(await dictation.finish(for: firstSet, in: squat) == .rejected(.transcriber(.failed), heard: ""))
+
+    let live = try #require(try await journal.records().first?.decided).live
+    #expect(live.failure == .failed)
+    #expect(live.startRefusal == DictationRecordFixtures.refusal)
+}
+
+@MainActor
+private final class RefusingSetTranscriber: SetTranscriber {
+    func start(hearing _: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberStartError) {
+        throw SetTranscriberStartError(.failed, refusal: DictationRecordFixtures.refusal)
+    }
+
+    func finish() async throws(SetTranscriberError) -> [String] { [] }
+
+    func cancel() async {}
 }
 
 @MainActor

@@ -207,7 +207,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let run = Task { await harness.background.run() }
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
     transcriber.starting.release()
-    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    await harness.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "It never started listening")
     await harness.dictation.cancel()
     harness.clock.advance(by: window)
 
@@ -225,7 +225,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let onTheCard = SetLog(weight: .pounds(225), reps: 5, rpe: .six)
 
     let run = Task { await harness.background.run() }
-    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    await harness.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "It never started listening")
     try harness.app.workout.log(set, as: onTheCard)
     harness.clock.advance(by: window)
 
@@ -255,7 +255,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let harness = try await BackgroundDictationHarness(hearing: ["235 for 5 at 7"], sheet: sheet)
 
     let run = Task { await harness.background.run() }
-    await harness.clock.waitUntilSleeping(until: window, orRecord: "It never started listening")
+    await harness.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "It never started listening")
     harness.clock.advance(by: window)
     await harness.clock.waitUntilSleeping(until: window + flushWait, orRecord: "The flush was never bounded")
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")

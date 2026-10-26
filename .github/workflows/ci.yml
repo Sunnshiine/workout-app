@@ -64,6 +64,11 @@ jobs:
     # toolchain requirement.
     runs-on: xcode-27
     timeout-minutes: 10
+    # The exemption check reads each cited issue's state, and a cited number can be a pull request.
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       # Depth 2 keeps the pull request merge commit's first parent, the base the diff below needs.
       - uses: actions/checkout@v4
@@ -114,6 +119,7 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
           LINT_FORMAT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'HEAD' }}
+          GH_TOKEN: ${{ github.token }}
         run: scripts/lint.sh
 
   swift-tests:
@@ -152,6 +158,10 @@ jobs:
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
       - name: Test the CRAP scorer
         run: swift test --package-path tools/crap
+      # crap.sh waits for WORKOUT_DISK_FLOOR on these two volumes (ADR-0020), so a short runner's log
+      # shows how far under the floor it was.
+      - name: Free disk on the volumes the disk floor reads
+        run: df -Pm "$GITHUB_WORKSPACE" "$HOME"
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         id: gate
         env:
@@ -171,6 +181,32 @@ jobs:
         with:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+
+  # Advisory: a fix pull request gets one comment listing the mutants of its changed Sources/
+  # lines that no test kills, and each later run updates it. It never fails, because some
+  # survivors are equivalent mutants.
+  mutants:
+    if: (github.event.action != 'edited' || github.event.changes.base) && (startsWith(github.event.pull_request.title, 'fix(') || startsWith(github.event.pull_request.title, 'fix:') || startsWith(github.event.pull_request.title, 'fix!:'))
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'mutants (edit, base unchanged)' || 'mutants' }}
+    runs-on: xcode-27
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      # The bound sits on the step, so continue-on-error covers a timeout and the job stays green.
+      # A timed-out run changes no comment, so an earlier one still names its older commit.
+      - name: Comment the mutants that survive on the changed Sources lines
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: scripts/mutate-advisory.sh --comment "$PR" --at "$HEAD_SHA" HEAD^1
 
   visual-tests:
     if: github.event.action != 'edited' || github.event.changes.base

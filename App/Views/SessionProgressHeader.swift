@@ -6,6 +6,7 @@ struct SessionProgressHeader: View {
     let currentSession: Session?
     let onNavigate: () -> Void
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(
         session: Session,
@@ -31,6 +32,11 @@ struct SessionProgressHeader: View {
 
             Text(presentation.remainingText)
                 .font(Theme.font(.runlineSecondary))
+                .contentTransition(
+                    reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
+                )
+                // Its own spring, not the stage's momentumFlow or skipFadeUp, so a log and a skip roll alike.
+                .animation(.snappy(duration: 0.2), value: presentation.remainingSetCount)
                 .foregroundStyle(palette.textSecondary)
                 .accessibilityIdentifier("session-remaining-count")
         }

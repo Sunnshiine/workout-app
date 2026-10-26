@@ -19,7 +19,7 @@ private struct TaskSessionTransitionClock: SessionTransitionClock {
 @MainActor
 @Observable
 final class SessionCoordinator {
-    private(set) var session: Session?
+    private(set) var session: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
     private(set) var savedLoggedSetID: ActiveSetID?
 
     @ObservationIgnored let focusManager: ActiveSetFocusManager
@@ -29,7 +29,7 @@ final class SessionCoordinator {
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     /// Nil leaves the mic off every card.
     @ObservationIgnored let dictation: SetDictation?
-    @ObservationIgnored var dictatingSession: Session?
+    @ObservationIgnored var dictatingSession: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
@@ -63,6 +63,7 @@ final class SessionCoordinator {
     var restTimer: RestTimer { wiring.restTimer }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
     var pairingMode: PairingMode { pairing.mode }
+    var supersetFusions: Int { pairing.fusions }
 
     /// The athlete is now viewing `session`. Re-points the coordinator at it, with focus
     /// re-seeded from its first Pending Set, and re-checks the rest Live Activity.

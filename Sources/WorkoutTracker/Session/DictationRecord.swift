@@ -32,6 +32,8 @@ struct DictationRecord: Equatable, Sendable {
     /// How a decided press ended: the athlete let go, or listening with no hand on the mic stopped.
     enum PressEnd: String, Codable, Sendable {
         case released, silence, cap, nothingHeard
+        /// Listening with no hand on the mic stopped at a Pause after a whole Set.
+        case wholeSet
         /// Listening with no hand on the mic never began: the live engine failed to start.
         case unstarted
     }
@@ -42,6 +44,9 @@ struct DictationRecord: Equatable, Sendable {
         let failure: SetTranscriberError?
         /// How many times the card's caption changed while the athlete spoke.
         let captionChanges: Int
+        /// What refused the mic, for a press whose mic never went live. Absent from records
+        /// written before builds kept it.
+        let startRefusal: MicStartRefusal?
     }
 
     struct Recording: Equatable, Sendable {
@@ -86,6 +91,11 @@ struct DictationRecord: Equatable, Sendable {
         let lastHeard: Int?
         let ended: Int
         let liveFinished: Int?
+        /// The latest read of the recording so far, asked at a Pause while listening hands-free.
+        let earlyReadAsked: Int?
+        /// The read the press was decided with: before `ended` for an early read. Absent from
+        /// records written before builds kept it.
+        let recordingAsked: Int?
         let recordingRead: Int?
         /// The Recording Transcript was still being read at the Decision Deadline.
         let recordingDropped: Int?
@@ -131,6 +141,7 @@ extension DictationRecord {
 extension DictationRecord.PressEnd {
     init(_ reason: SetDictation.StopReason) {
         switch reason {
+        case .wholeSet: self = .wholeSet
         case .silence: self = .silence
         case .cap: self = .cap
         case .nothingHeard: self = .nothingHeard
@@ -139,10 +150,12 @@ extension DictationRecord.PressEnd {
 }
 
 extension DictationRecord.Live {
-    init(_ live: LiveHearing, captionChanges: Int) {
+    init(_ live: LiveHearing, captionChanges: Int, startRefusal: MicStartRefusal?) {
         switch live {
-        case .transcripts(let candidates): self.init(candidates: candidates, failure: nil, captionChanges: captionChanges)
-        case .failed(let failure, _): self.init(candidates: [], failure: failure, captionChanges: captionChanges)
+        case .transcripts(let candidates):
+            self.init(candidates: candidates, failure: nil, captionChanges: captionChanges, startRefusal: startRefusal)
+        case .failed(let failure, _):
+            self.init(candidates: [], failure: failure, captionChanges: captionChanges, startRefusal: startRefusal)
         }
     }
 }
@@ -186,6 +199,8 @@ extension DictationRecord.Timeline {
             lastHeard: timeline.lastHeardAt.map(since),
             ended: since(timeline.endedAt ?? timeline.pressedAt),
             liveFinished: timeline.liveFinishedAt.map(since),
+            earlyReadAsked: timeline.earlyReadAskedAt.map(since),
+            recordingAsked: timeline.recordingAskedAt.map(since),
             recordingRead: timeline.recordingReadAt.map(since),
             recordingDropped: timeline.recordingDroppedAt.map(since),
             decided: timeline.decidedAt.map(since)

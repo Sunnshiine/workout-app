@@ -9,6 +9,37 @@ enum SetTranscriberError: String, Error, Equatable, Sendable, Codable {
     case failed
 }
 
+/// Why a transcriber's mic did not go live: the reason the press's outcome reads, and what the
+/// phone reported when one of its own calls refused.
+struct SetTranscriberStartError: Error, Equatable, Sendable {
+    let reason: SetTranscriberError
+    /// Nil when nothing on the phone refused, as for a mic the athlete denied.
+    let refusal: MicStartRefusal?
+
+    init(_ reason: SetTranscriberError) {
+        self.init(reason, refusal: nil)
+    }
+
+    init(_ reason: SetTranscriberError, refusal: MicStartRefusal?) {
+        self.reason = reason
+        self.refusal = refusal
+    }
+}
+
+/// The call that refused to start the mic, the error the phone gave, and the state the press found
+/// it in, so a Dictation Record names what no simulator can reproduce.
+struct MicStartRefusal: Codable, Equatable, Sendable {
+    /// The start step that threw, such as `activateAudioSession` or `engineStart`.
+    let step: String
+    /// The error's domain and code, with an audio status code also as its four characters.
+    let error: String
+    /// `active`, `inactive`, or `background`.
+    let appState: String
+    let otherAudioPlaying: Bool
+    /// The state of each of the app's Live Activities as the start failed.
+    let liveActivities: [String]
+}
+
 /// Speech-to-text heard while the athlete speaks: the caption, the auto-stop, and the Live
 /// Transcript, from `start` until `finish`.
 @MainActor
@@ -16,7 +47,7 @@ protocol SetTranscriber: AnyObject {
     /// Returns once the microphone is live. `hearing` receives the whole transcript so far each
     /// time it changes, and `recording` the mic's audio at 16 kHz mono, until `finish` or `cancel`
     /// returns. A start that throws leaves nothing listening.
-    func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberError)
+    func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberStartError)
     /// Stops listening, even when it throws, and returns the transcripts heard, the most likely
     /// first.
     func finish() async throws(SetTranscriberError) -> [String]
