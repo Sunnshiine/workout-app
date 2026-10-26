@@ -87,6 +87,9 @@ struct SessionStageView: View {
             isQueuePresented = false
             historyExercise = nil
         }
+        .onChange(of: coordinator.supersetFusions) {
+            isQueuePresented = false
+        }
     }
 
     // MARK: - Stage

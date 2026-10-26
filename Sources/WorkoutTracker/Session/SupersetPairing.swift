@@ -27,6 +27,8 @@ enum PairingTapResult: Equatable, Sendable {
 @Observable
 final class SupersetPairing {
     private(set) var mode: PairingMode = .inactive
+    /// How many Supersets this pairing has fused.
+    private(set) var fusions = 0
 
     @ObservationIgnored private let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let clock: any SessionTransitionClock
@@ -89,18 +91,24 @@ final class SupersetPairing {
                 self.mode == expectedMode
             else { return }
 
-            guard
-                let source = session.exercises.first(where: { $0.order == sourceOrder }),
-                let target = session.exercises.first(where: { $0.order == targetOrder })
-            else {
-                self.cancel()
-                return
-            }
-
-            _ = self.focusManager.createSuperset(from: source, to: target, in: session)
-            self.mode = .inactive
-            self.confirmationTask = nil
+            self.fuse(sourceOrder: sourceOrder, targetOrder: targetOrder, in: session)
         }
+    }
+
+    private func fuse(sourceOrder: Int, targetOrder: Int, in session: Session) {
+        guard
+            let source = session.exercises.first(where: { $0.order == sourceOrder }),
+            let target = session.exercises.first(where: { $0.order == targetOrder })
+        else {
+            cancel()
+            return
+        }
+
+        if focusManager.createSuperset(from: source, to: target, in: session) {
+            fusions += 1
+        }
+        mode = .inactive
+        confirmationTask = nil
     }
 
     private static func confirmationDuration() -> Duration {

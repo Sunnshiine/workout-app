@@ -1,47 +1,8 @@
 #!/bin/bash
 set -uo pipefail
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-generator="$script_dir/../mutants.awk"
-
-tmp=$(mktemp -d) || exit 3
-trap 'rm -rf "$tmp"' EXIT
-pass=0
-fail=0
-
-ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
-bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
-
-check() {
-    local name=$1 got want n mutated
-    shift
-    if [ $# -eq 0 ]; then
-        awk '{ print NR }' "$tmp/F.swift" >"$tmp/changed"
-    else
-        printf '%s\n' "$@" >"$tmp/changed"
-    fi
-    want=$(cat)
-    : >"$tmp/compiled-out"
-    awk -v path=Sources/F.swift -v changed="$tmp/changed" -v platform="${PLATFORM:-}" -v compiledOut="$tmp/compiled-out" \
-        -f "$generator" "$tmp/F.swift" >"$tmp/rows"
-    got=$(awk 'BEGIN { FS = "\t"; OFS = " | " } { $1 = $1; print (FILENAME ~ /compiled-out$/ ? "compiled out: " : "") $0 }' \
-        "$tmp/rows" "$tmp/compiled-out")
-    if [ "$got" = "$want" ]; then
-        ok "$name"
-    else
-        bad "$name"
-        diff <(printf '%s\n' "$want") <(printf '%s\n' "$got") | sed 's/^/       /'
-    fi
-    while IFS=$'\t' read -r _ n _ _ _ mutated; do
-        MUTATED=$mutated awk -v n="$n" 'NR == n { print ENVIRON["MUTATED"]; next } { print }' \
-            "$tmp/F.swift" >"$tmp/mutant.swift"
-        if [ "$(diff "$tmp/F.swift" "$tmp/mutant.swift" | grep -v '^[<>-]')" = "${n}c${n}" ]; then
-            ok "$name: mutant on line $n changes only line $n"
-        else
-            bad "$name: mutant on line $n changes only line $n"
-        fi
-    done <"$tmp/rows"
-}
+# shellcheck source=scripts/tests/mutants-awk-harness.sh
+. "$(dirname "${BASH_SOURCE[0]}")/mutants-awk-harness.sh"
 
 echo "each op mutates its first match"
 cat >"$tmp/F.swift" <<'SWIFT'
@@ -57,6 +18,7 @@ check "every op" <<'ROWS'
 Sources/F.swift | 2 | compare | < | <= |     if a <= b && flag {
 Sources/F.swift | 2 | logic | && | || |     if a < b || flag {
 Sources/F.swift | 2 | negate | if a < b && flag { | if !(a < b && flag) { |     if !(a < b && flag) {
+Sources/F.swift | 2 | operand | a < b && flag | a < b |     if a < b {
 Sources/F.swift | 3 | bool | true | false |         return false
 Sources/F.swift | 4 | compare | >= | > |     } else if a > 17.5 {
 Sources/F.swift | 4 | negate | if a >= 17.5 { | if !(a >= 17.5) { |     } else if !(a >= 17.5) {
@@ -83,6 +45,7 @@ Sources/F.swift | 2 | compare | > | >= | guard a >= 0, b > 0 else { return false
 Sources/F.swift | 2 | const | 0 | 1 | guard a > 1, b > 0 else { return false }
 Sources/F.swift | 3 | compare | == | != | if let d = Optional(b), d != 2 {
 Sources/F.swift | 3 | const | 2 | 3 | if let d = Optional(b), d == 3 {
+Sources/F.swift | 3 | always | d == 2 | true | if let d = Optional(b), true {
 Sources/F.swift | 6 | compare | > | >= | if f(a, b) >= 1 {
 Sources/F.swift | 6 | negate | if f(a, b) > 1 { | if !(f(a, b) > 1) { | if !(f(a, b) > 1) {
 Sources/F.swift | 6 | const | 1 | 2 | if f(a, b) > 2 {
@@ -108,6 +71,7 @@ SWIFT
 check "== inside a string, a // tail, a \"\"\" block" <<'ROWS'
 Sources/F.swift | 2 | compare | == | != | let m = a != 1 // b != 2 && true
 Sources/F.swift | 2 | const | 1 | 2 | let m = a == 2 // b != 2 && true
+Sources/F.swift | 2 | always | a == 1 | true | let m = true // b != 2 && true
 Sources/F.swift | 12 | compare | > | >= |     """.count >= 1
 Sources/F.swift | 12 | const | 1 | 2 |     """.count > 2
 Sources/F.swift | 13 | compare | > | >= | let after = a >= 1
@@ -138,6 +102,7 @@ check "Array<Int>, ->, x! and !=, ===, !==, <<, ..<" <<'ROWS'
 Sources/F.swift | 2 | compare | != | == | let y = x.first! == 0
 Sources/F.swift | 2 | const | 0 | 1 | let y = x.first! != 1
 Sources/F.swift | 3 | logic | || | && | let same = obj === other && a !== b
+Sources/F.swift | 3 | operand | obj === other || a !== b | obj === other | let same = obj === other
 Sources/F.swift | 4 | const | 2 | 3 | let w = a << 3 >> 1
 Sources/F.swift | 5 | const | 0 | 1 | let r = 1..<n
 ROWS
@@ -196,6 +161,7 @@ SWIFT
 check "changed line 2, unchanged line 1" 2 <<'ROWS'
 Sources/F.swift | 2 | compare | == | != | if a != b {
 Sources/F.swift | 2 | negate | if a == b { | if !(a == b) { | if !(a == b) {
+Sources/F.swift | 2 | always | a == b | true | if true {
 ROWS
 
 echo "a platform's compiled-out #if branches go to compiledOut; other conditions stay compiled in"
@@ -255,8 +221,20 @@ Sources/F.swift | 18 | bool | true | false | let release = false
 Sources/F.swift | 23 | bool | true | false | let after = false
 ROWS
 
+echo "mutate.sh --help names every op this generator makes"
+help=$(bash -c '. "$1" && usage' _ "$script_dir/../mutate-usage.sh")
+missing=""
+for op in $(sed -n 's/^# (\(.*\)) yields.*/\1/p' "$generator" | tr -d ' ' | tr ',' ' '); do
+    grep -Eq "^ +$op +[^ ]" <<<"$help" || missing="$missing $op"
+done
+if [ -n "$(sed -n 's/^# (\(.*\)) yields.*/\1/p' "$generator")" ] && [ -z "$missing" ]; then
+    ok "every op in the mutants.awk header has a row in mutate.sh --help"
+else
+    bad "every op in the mutants.awk header has a row in mutate.sh --help; missing:$missing"
+fi
+
 echo "a missing changed list is a usage error"
-awk -v path=Sources/F.swift -f "$generator" "$tmp/F.swift" >/dev/null 2>&1
+awk -v path=Sources/F.swift -f "$scan" -f "$generator" "$tmp/F.swift" >/dev/null 2>&1
 status=$?
 if [ "$status" -eq 2 ]; then ok "no changed list exits 2"; else bad "no changed list exits 2, got $status"; fi
 
