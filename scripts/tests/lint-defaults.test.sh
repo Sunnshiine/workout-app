@@ -106,7 +106,7 @@ fresh <<'SWIFT'
 SWIFT
 cat >"$repo/Sources/A.swift" <<'SWIFT'
 final class Store {
-    func a(_ m: Dictionary<String, Int> = [:], r: Result<A, B>? = nil) {}
+    func a(_ m: Dictionary<String, Int> = [:], r: Result<A, B>? = nil, map: Box<(Int) -> Int, Int>? = nil) {}
     func b(pick: (Int) -> Bool = { _ in true }, n: Set<Int> = [], flag: Bool = false) {}
 }
 SWIFT
@@ -115,7 +115,8 @@ expect_exit "defaults after generic arguments" "$status" 1
 expect_line "a Dictionary" "$out" "Sources/A.swift:2: new empty default, Store.a _ m = [:]"
 expect_line "a Result" "$out" "Sources/A.swift:2: new nil default, Store.a r = nil"
 expect_line "a closure type's arrow closes no generic" "$out" "Sources/A.swift:3: new bool default, Store.b flag = false"
-expect_line "all five" "$(tail -1 "$root/stdout")" "5 defaults, 5 new, 0 gone from the tree"
+expect_line "an arrow inside a generic" "$out" "Sources/A.swift:2: new nil default, Store.a map = nil"
+expect_line "all six" "$(tail -1 "$root/stdout")" "6 defaults, 6 new, 0 gone from the tree"
 
 echo "empty values, an immediately invoked closure, and a lazy var"
 fresh <<'SWIFT'
@@ -158,19 +159,22 @@ literal Regex '    static let pattern = /[^\s.,!?;:"“”()\-–—…]/'
 literal Extended '    static let pattern = #/ { " /#'
 literal MultiLine "$(printf '    static let pattern = #/\n      { "\n    /#')"
 literal Raw "$(printf '    static let text = #"""\n        a """ b {\n        """#')"
-literal Division '    static let total = items.map { $0/2 }.count/3'
+literal Division '    static let total = items.map { $0/2 }.count/3 + [x].map { ($0)/2 }.count + (y)/3'
+literal Operator '    static let total = items.map { [1].reduce($0, /) }.count/2'
+literal SpacedOperator '    static let total = items.map { [1].reduce($0, / ) }.count/2'
+literal EscapedSlash '    static let pattern = /1\/{/'
 literal Nested '    /* outer /* inner */ func hidden(z: Int? = nil) {} */'
 rm "$repo/Sources/A.swift"
 run
 expect_exit "a type after each literal" "$status" 1
-for file in Regex Extended Division Nested; do
+for file in Regex Extended Division Operator SpacedOperator EscapedSlash Nested; do
     expect_line "$file" "$out" "Sources/$file.swift:5: new bool default, After.init flag = false"
 done
 for file in MultiLine Raw; do
     expect_line "$file" "$out" "Sources/$file.swift:7: new bool default, After.init flag = false"
 done
 expect_no_text "a nested block comment hides its code" "$out" "hidden"
-expect_line "one each" "$(tail -1 "$root/stdout")" "6 defaults, 6 new, 0 gone from the tree"
+expect_line "one each" "$(tail -1 "$root/stdout")" "9 defaults, 9 new, 0 gone from the tree"
 
 echo "the key's label"
 fresh <<'SWIFT'

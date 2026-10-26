@@ -15,8 +15,8 @@ REGEX_AFTER_WORDS = {"return", "try", "await", "throw", "in", "case", "where", "
 @dataclass(frozen=True)
 class Lexed:
     """`comments` maps a line index to the column and text of the `//` comment on it. `spans`
-    holds the start and end of every comment and of every literal's body, the body never
-    including an interpolation's code, with True for a comment."""
+    holds the start and end of every comment and of every literal's body, interpolations
+    included, with True for a comment."""
 
     comments: dict[int, tuple[int, str]]
     spans: list[tuple[int, int, bool]]
@@ -35,9 +35,9 @@ class Lexed:
 
 def bare_regex_end(text: str, i: int) -> int:
     """The index just past the `/` that closes a `/.../` regex literal opening at `i`, or -1 when
-    the `/` there divides. As in Swift, a regex starts where an operand can, never with a space,
-    and closes on its own line."""
-    if text[i + 1: i + 2] in ("", " ", "\t", "\n"):
+    the `/` there divides. As in Swift, a regex starts where an operand can, never with a space or
+    a `)`, so `reduce(0, /)` passes the operator, and it closes on its own line."""
+    if text[i + 1: i + 2] in ("", " ", "\t", "\n", ")"):
         return -1
     j = i - 1
     while j >= 0 and text[j] in " \t":
@@ -86,7 +86,6 @@ def lex(text: str) -> Lexed:
             close = ('"""' if value < 0 else '"') + "#" * hashes
             escape = "\\" + "#" * hashes
             if text.startswith(escape + "(", i):
-                spans.append((start, i, False))
                 frames.append(("code", 1, 0))
                 step = len(escape) + 1
             elif text.startswith(escape, i):
@@ -127,7 +126,6 @@ def lex(text: str) -> Lexed:
             frames[-1] = ("code", value + (1 if text[i] == "(" else -1), 0)
             if frames[-1][1] == 0:
                 frames.pop()
-                frames[-1] = (*frames[-1][:2], i + 1)
         column, i = column + step, i + step
     block = next((f for f in frames if f[0] == "block"), None)
     spans.extend((f[2], n, False) for f in frames if f[0] in ("string", "regex"))

@@ -37,7 +37,7 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
-    cp "$repo"/scripts/lint-* "$repo/scripts/swift-format-changed.sh" \
+    cp "$repo"/scripts/lint-* "$repo/scripts/swift_lex.py" "$repo/scripts/swift-format-changed.sh" \
         "$repo/scripts/doc-drift.py" "$fx/scripts/"
     : >"$fx/scripts/lint-defaults-baseline.txt"
     printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
