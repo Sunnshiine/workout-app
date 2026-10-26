@@ -45,7 +45,7 @@ final class KeyboardLaneUITests: XCTestCase {
 
         tapActiveSetCardHeaderBackground(in: app)
 
-        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
+        assertKeyboardFoldsAndStaysDown(in: app)
         XCTAssertTrue(app.buttons["log-active-set-button"].exists)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
     }
@@ -72,7 +72,7 @@ final class KeyboardLaneUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
 
         openWeightKeyboard(in: app)
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
@@ -143,7 +143,7 @@ final class KeyboardLaneUITests: XCTestCase {
         logButton.tap()
 
         waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
     }
 
     @MainActor
@@ -187,7 +187,7 @@ final class KeyboardLaneUITests: XCTestCase {
 
         tapEmptyStageSpaceAboveExerciseName(in: app, stageTop: stageTop)
 
-        XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1))
+        assertKeyboardFoldsAndStaysDown(in: app)
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         waitForLabel("Weight, 237.5", on: app.buttons["weight-pill"])
         XCTAssertEqual(weightControls.count, 1)
@@ -277,6 +277,15 @@ private func waitForKeyboardOnScreen(in app: XCUIApplication) {
         "the software keyboard is below the window. scripts/test-sim.sh fixes the simulator's keyboard "
             + "preference before UI runs; for another runner, run scripts/sim-keyboard.sh ensure <udid> (#700)"
     )
+}
+
+/// Animated, the keyboard is still sliding out when the dismissing tap returns, so a bare `exists`
+/// check finds it.
+@MainActor
+private func assertKeyboardFoldsAndStaysDown(in app: XCUIApplication) {
+    let keyboard = app.keyboards.firstMatch
+    XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "the keyboard is still up")
+    XCTAssertFalse(keyboard.appears(within: 1), "the keyboard came back up")
 }
 
 @MainActor
