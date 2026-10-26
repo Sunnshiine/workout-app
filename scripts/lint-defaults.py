@@ -66,6 +66,7 @@ class Default:
     type: str
     function: str
     label: str
+    name: str
     value: str
     kind: str
 
@@ -75,7 +76,7 @@ class Default:
 
     def describe(self) -> str:
         owner = f"{self.type}.{self.function}" if self.type else self.function
-        return f"{self.path}:{self.line}: new {self.kind} default, {owner} {self.label} = {self.value}"
+        return f"{self.path}:{self.line}: new {self.kind} default, {owner} {self.name} = {self.value}"
 
 
 class Unanswered(Exception):
@@ -192,9 +193,12 @@ def signature_defaults(path: str, code: str, text: str, named: list[Scope], comm
             value = " ".join(code[at + eq + 1: at + len(param)].split())
             kind = kind_of(text[at + eq + 1: at + len(param)])
             line = text.count("\n", 0, at + eq) + 1
-            words = param[:eq].split(":", 1)[0].split()
+            names = [w for w in param[:eq].split(":", 1)[0].split() if not w.startswith("@")]
+            label = "_" if function == "subscript" and len(names) < 2 else names[0] if names else ""
             if kind in KINDS and not reasoned(comments, line):
-                found.append(Default(path, line, owner.name if owner else "", function, words[-1] if words else "", value, kind))
+                found.append(
+                    Default(path, line, owner.name if owner else "", function, label, " ".join(names), value, kind)
+                )
     return found
 
 
@@ -240,7 +244,7 @@ def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], com
                 kind = kind_of(m.group(group))
             line = text.count("\n", 0, at) + 1
             if kind in KINDS and not reasoned(comments, line):
-                found.append(Default(path, line, s.name, "init", name, shown, kind))
+                found.append(Default(path, line, s.name, "init", name, name, shown, kind))
     return found
 
 
