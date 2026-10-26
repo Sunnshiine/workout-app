@@ -202,19 +202,13 @@ extension WorkoutApplication {
     ) async throws -> HearReport {
         _ = try resolveSet(address)
         guard let file = try? AVAudioFile(forReading: recording) else { throw ApplicationError.unreadableRecording(recording.path) }
-        let candidates: [String]
-        var captions: [HearReport.Caption]?
+        let heard: (candidates: [String], captions: [HearReport.Caption]?)
         do {
-            if paced {
-                let played = try await SpeechListening.transcripts(playing: file, installing: installing)
-                (candidates, captions) = (played.candidates, played.captions)
-            } else {
-                candidates = try await SpeechListening.transcripts(of: file, installing: installing)
-            }
+            heard = try await SpeechListening.heard(in: file, paced: paced, installing: installing)
         } catch {
             throw ApplicationError.notHeard(error, in: recording.path)
         }
-        return HearReport(candidates: candidates, captions: captions, report: try dictate(candidates, at: address))
+        return HearReport(candidates: heard.candidates, captions: heard.captions, report: try dictate(heard.candidates, at: address))
     }
 
     /// The one place a Dictation's outcome reaches the store: `logged` and `skipped` write, the

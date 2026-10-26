@@ -113,38 +113,28 @@ struct SpeechListening {
         try await start(hearing: { _ in }, installing: installing).transcripts(of: recording)
     }
 
+    /// The transcripts heard in a recording and, `paced`, the captions it showed as it played.
+    static func heard(
+        in recording: AVAudioFile,
+        paced: Bool,
+        installing: @escaping @Sendable (Double) -> Void
+    ) async throws(SetTranscriberError) -> (candidates: [String], captions: [HearReport.Caption]?) {
+        guard paced else { return (try await transcripts(of: recording, installing: installing), nil) }
+        let played = try await transcripts(playing: recording, installing: installing)
+        return (played.candidates, played.captions)
+    }
+
     /// `transcripts(of:installing:)` with the recording fed in the mic tap's buffers at the pace it
     /// was spoken, so each caption arrives when a press would show it.
     static func transcripts(
         playing recording: AVAudioFile,
         installing: @escaping @Sendable (Double) -> Void
     ) async throws(SetTranscriberError) -> (candidates: [String], captions: [HearReport.Caption]) {
-        let clock = ContinuousClock()
-        var playedAt: ContinuousClock.Instant?
-        var captions: [HearReport.Caption] = []
-        let listening = try await start(
-            hearing: { heard in
-                guard let playedAt, heard != captions.last?.heard else { return }
-                captions.append(HearReport.Caption(atMs: (clock.now - playedAt).wholeMilliseconds, heard: heard))
-            },
-            installing: installing
-        )
+        let timeline = CaptionTimeline()
+        let listening = try await start(hearing: { timeline.hear($0) }, installing: installing)
         do {
-            guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [listening.module]),
-                let conversion = MicConversion(from: recording.processingFormat, to: format)
-            else { throw SetTranscriberError.unavailable }
-            try await listening.analyzer.prepareToAnalyze(in: format)
-            let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
-            try await listening.analyzer.start(inputSequence: stream)
-            let started = clock.now
-            playedAt = started
-            for (index, buffer) in try tapBuffers(of: recording).enumerated() {
-                if let converted = conversion.convert(buffer) { input.yield(AnalyzerInput(buffer: converted)) }
-                try await clock.sleep(until: started + tapInterval * (index + 1))
-            }
-            input.finish()
-            try await listening.analyzer.finalizeAndFinishThroughEndOfInput()
-            return (try await listening.segments.value.candidates, captions)
+            try await listening.play(recording, timing: timeline)
+            return (try await listening.segments.value.candidates, timeline.captions)
         } catch {
             await listening.cancel()
             throw .failed
@@ -154,15 +144,47 @@ struct SpeechListening {
     /// The mic tap's 4096 frames at the phone's 48 kHz.
     private static let tapInterval = Duration.seconds(4096.0 / 48_000)
 
-    private static func tapBuffers(of recording: AVAudioFile) throws -> [AVAudioPCMBuffer] {
+    /// `recording` cut into buffers of the mic tap's length, the last one short.
+    static func tapBuffers(of recording: AVAudioFile) throws -> [AVAudioPCMBuffer] {
         let frames = AVAudioFrameCount(recording.processingFormat.sampleRate * 4096 / 48_000)
-        var buffers: [AVAudioPCMBuffer] = []
-        while recording.framePosition < recording.length {
-            guard let buffer = AVAudioPCMBuffer(pcmFormat: recording.processingFormat, frameCapacity: frames) else { break }
-            try recording.read(into: buffer, frameCount: frames)
-            buffers.append(buffer)
+        let count = (recording.length - recording.framePosition + Int64(frames) - 1) / Int64(frames)
+        return try (0..<count).compactMap { _ in try read(frames, from: recording) }
+    }
+
+    private static func read(_ frames: AVAudioFrameCount, from recording: AVAudioFile) throws -> AVAudioPCMBuffer? {
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: recording.processingFormat, frameCapacity: frames) else { return nil }
+        try recording.read(into: buffer, frameCount: frames)
+        return buffer
+    }
+
+    /// Feeds `recording` one tap buffer at a time, each when the mic would have delivered it.
+    private func play(_ recording: AVAudioFile, timing timeline: CaptionTimeline) async throws {
+        let conversion = try await conversion(from: recording.processingFormat)
+        let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        try await analyzer.start(inputSequence: stream)
+        let clock = ContinuousClock()
+        let started = clock.now
+        timeline.start()
+        for (index, buffer) in try Self.tapBuffers(of: recording).enumerated() {
+            _ = conversion.convert(buffer).map { input.yield(AnalyzerInput(buffer: $0)) }
+            try await clock.sleep(until: started + Self.tapInterval * (index + 1))
         }
-        return buffers
+        input.finish()
+        try await analyzer.finalizeAndFinishThroughEndOfInput()
+    }
+
+    private func conversion(from source: AVAudioFormat) async throws -> MicConversion {
+        let format = try await analyzerFormat()
+        guard let conversion = MicConversion(from: source, to: format) else { throw SetTranscriberError.unavailable }
+        try await analyzer.prepareToAnalyze(in: format)
+        return conversion
+    }
+
+    private func analyzerFormat() async throws -> AVAudioFormat {
+        guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [module]) else {
+            throw SetTranscriberError.unavailable
+        }
+        return format
     }
 
     func cancel() async {
