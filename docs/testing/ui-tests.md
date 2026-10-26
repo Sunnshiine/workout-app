@@ -55,8 +55,10 @@ pull request whose diff touches `App/Views/Session*`, `App/Views/SmartValuePills
 list, and the step's log names the paths that matched or says none did.
 
 - Put a new test that opens the weight keyboard in `KeyboardLaneUITests`, so the lane runs it.
+- Animated, the keyboard is still sliding out when a dismissing tap returns. Assert it is gone
+  with `waitForNonExistence`, not `exists`.
 - A red `visual-tests` job is a Visual Baseline mismatch or a keyboard lane failure. Read which
-  step failed before you follow the re-record loop. A failed lane uploads `keyboard-lane-results`.
+  step failed before you follow the re-record loop. A failed lane uploads `ui-test-results`.
 - To measure the lane on the runner, run
   `gh workflow run ci.yml --ref <branch> -f keyboard-lane=true`.
 

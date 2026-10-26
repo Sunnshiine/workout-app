@@ -339,15 +339,14 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
-            -resultBundlePath KeyboardTests.xcresult \
+            -resultBundlePath UITests.xcresult \
             -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-          xcrun xcresulttool get test-results summary --path KeyboardTests.xcresult --compact \
+          xcrun xcresulttool get test-results summary --path UITests.xcresult --compact \
             | grep -o '"totalTestCount":[1-9][0-9]*' || { echo "::error::No keyboard lane test ran."; exit 1; }
-      # Opt-in, not per PR: on unchanged code it goes red about half the time on
-      # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
+      # The rest of the UI suite stays opt-in (#518, #662). Its keyboard tests run in the step above.
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
         if: ${{ !cancelled() && inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
@@ -378,16 +377,9 @@ jobs:
           path: HostedTests.xcresult
           if-no-files-found: ignore
       - name: Upload UI test results
-        if: failure() && steps.ui.conclusion == 'failure'
+        if: failure() && (steps.ui.conclusion == 'failure' || steps.keyboard.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
           path: UITests.xcresult
-          if-no-files-found: ignore
-      - name: Upload keyboard lane results
-        if: failure() && steps.keyboard.conclusion == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: keyboard-lane-results
-          path: KeyboardTests.xcresult
           if-no-files-found: ignore
