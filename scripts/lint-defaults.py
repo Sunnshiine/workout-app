@@ -17,7 +17,9 @@ false, a closure, Date() or .now, a number, or an empty collection or string cou
 other expression is left out, since most of those inject a production service.
 
 Each default is keyed `Type|function|label|kind`, with no path or line, so moving code between
-files changes no key. A memberwise default's function is `init`. A default whose line carries a
+files changes no key. The label is the external one, or `_`, so renaming an internal name changes
+none either. A memberwise default's function is `memberwise`, so it never shares a key with a
+default of an init written out in an extension. A default whose line carries a
 `// default: <reason>` comment is accepted and never keyed. scripts/lint-exemptions.py checks any
 issue that reason cites.
 
@@ -75,7 +77,8 @@ class Default:
         return f"{self.type}|{self.function}|{self.label}|{self.kind}"
 
     def describe(self) -> str:
-        owner = f"{self.type}.{self.function}" if self.type else self.function
+        function = "init" if self.function == "memberwise" else self.function
+        owner = f"{self.type}.{function}" if self.type else function
         return f"{self.path}:{self.line}: new {self.kind} default, {owner} {self.name} = {self.value}"
 
 
@@ -244,7 +247,7 @@ def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], com
                 kind = kind_of(m.group(group))
             line = text.count("\n", 0, at) + 1
             if kind in KINDS and not reasoned(comments, line):
-                found.append(Default(path, line, s.name, "init", name, name, shown, kind))
+                found.append(Default(path, line, s.name, "memberwise", name, name, shown, kind))
     return found
 
 
