@@ -221,12 +221,18 @@ jobs:
       BASELINE_RUNTIME: "27.0"
     steps:
       - uses: actions/checkout@v4
-      # Creating the device is enough. xcodebuild boots it itself for the test step below.
-      # The step takes seconds. A hung simctl once held it for 40 minutes (#1010), so it fails fast
-      # for a rerun instead of running out the job's limit.
-      - name: Ensure the pinned baseline simulator exists
+      # xcodebuild boots the device itself for the first test step below. It boots slim (ADR-0022):
+      # on this 3-core runner a stock boot's launchd storm held the load average at 70 to 330 and
+      # slowed the UI suite by a fifth to a quarter (runs 40327308005 and 40327311980). The step
+      # takes seconds. A hung simctl once held it for 40 minutes (#1010), so it fails fast for a
+      # rerun instead of running out the job's limit.
+      - name: Ensure the pinned baseline simulator exists, set to boot slim
+        id: sim
         timeout-minutes: 5
-        run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
+        run: |
+          udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
+          scripts/sim-slim.sh "$udid"
+          echo "destination=platform=iOS Simulator,id=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
@@ -268,7 +274,7 @@ jobs:
         id: build
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
@@ -287,7 +293,7 @@ jobs:
         id: visual
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -only-testing:WorkoutTrackerSnapshotTests \
             -resultBundlePath VisualTests.xcresult \
             -collect-test-diagnostics never
@@ -305,7 +311,7 @@ jobs:
         if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -only-testing:WorkoutTrackerTests \
             -resultBundlePath HostedTests.xcresult \
             -collect-test-diagnostics never
@@ -316,7 +322,7 @@ jobs:
         if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -only-testing:WorkoutTrackerUITests \
             -resultBundlePath UITests.xcresult \
             -collect-test-diagnostics never

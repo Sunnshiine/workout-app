@@ -77,7 +77,11 @@ Shutdown. The next `create` writes it again.
 
 - `scripts/measure-host.sh` clones through `sim-pool.sh create`, so its rows now measure slim
   lanes. ADR-0020's table was taken on stock ones.
-- A test that needs a disabled job fails only on a lane. Take the job off the list, or boot that
+- CI's `visual-tests` job boots its baseline simulator slim too, through `scripts/sim-slim.sh`, which
+  `sim-pool.sh` also calls. On the 3-core runner a stock boot held the load average at 70 to 330.
+  Slim, the UI suite ran a fifth to a quarter faster and the build beside the boot about half as
+  long (runs 40327308005 and 40327311980).
+- A test that needs a disabled job fails only on a lane or in CI. Take the job off the list, or boot that
   lane stock as above.
 
 <!-- doc-symbols: not-in-tree disabled.plist -->
