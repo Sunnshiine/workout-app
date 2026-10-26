@@ -113,6 +113,58 @@ struct SpeechListening {
         try await start(hearing: { _ in }, installing: installing).transcripts(of: recording)
     }
 
+    /// `transcripts(of:installing:)` with the recording fed in the mic tap's buffers at the pace it
+    /// was spoken, so each caption arrives when a press would show it.
+    static func transcripts(
+        playing recording: AVAudioFile,
+        installing: @escaping @Sendable (Double) -> Void
+    ) async throws(SetTranscriberError) -> (candidates: [String], captions: [HearReport.Caption]) {
+        let clock = ContinuousClock()
+        var playedAt: ContinuousClock.Instant?
+        var captions: [HearReport.Caption] = []
+        let listening = try await start(
+            hearing: { heard in
+                guard let playedAt, heard != captions.last?.heard else { return }
+                captions.append(HearReport.Caption(atMs: (clock.now - playedAt).wholeMilliseconds, heard: heard))
+            },
+            installing: installing
+        )
+        do {
+            guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [listening.module]),
+                let conversion = MicConversion(from: recording.processingFormat, to: format)
+            else { throw SetTranscriberError.unavailable }
+            try await listening.analyzer.prepareToAnalyze(in: format)
+            let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
+            try await listening.analyzer.start(inputSequence: stream)
+            let started = clock.now
+            playedAt = started
+            for (index, buffer) in try tapBuffers(of: recording).enumerated() {
+                if let converted = conversion.convert(buffer) { input.yield(AnalyzerInput(buffer: converted)) }
+                try await clock.sleep(until: started + tapInterval * (index + 1))
+            }
+            input.finish()
+            try await listening.analyzer.finalizeAndFinishThroughEndOfInput()
+            return (try await listening.segments.value.candidates, captions)
+        } catch {
+            await listening.cancel()
+            throw .failed
+        }
+    }
+
+    /// The mic tap's 4096 frames at the phone's 48 kHz.
+    private static let tapInterval = Duration.seconds(4096.0 / 48_000)
+
+    private static func tapBuffers(of recording: AVAudioFile) throws -> [AVAudioPCMBuffer] {
+        let frames = AVAudioFrameCount(recording.processingFormat.sampleRate * 4096 / 48_000)
+        var buffers: [AVAudioPCMBuffer] = []
+        while recording.framePosition < recording.length {
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: recording.processingFormat, frameCapacity: frames) else { break }
+            try recording.read(into: buffer, frameCount: frames)
+            buffers.append(buffer)
+        }
+        return buffers
+    }
+
     func cancel() async {
         await analyzer.cancelAndFinishNow()
         segments.cancel()

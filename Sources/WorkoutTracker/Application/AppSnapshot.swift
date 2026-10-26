@@ -285,18 +285,33 @@ public struct SayReport: Encodable, Equatable, Sendable {
 /// `say`'s report for the most likely of `candidates`, with every transcript the recording was
 /// heard as beside it.
 public struct HearReport: Encodable, Equatable, Sendable {
+    /// What the card would caption, and how long after the recording began to play it arrived.
+    public struct Caption: Encodable, Equatable, Sendable {
+        public let atMs: Int
+        public let heard: String
+    }
+
     /// The most likely first; empty when nothing was said.
     public let candidates: [String]
+    /// Only for a recording played at the pace it was spoken.
+    public let captions: [Caption]?
     public let report: SayReport
 
+    init(candidates: [String], captions: [Caption]? = nil, report: SayReport) {
+        self.candidates = candidates
+        self.captions = captions
+        self.report = report
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case candidates
+        case candidates, captions
     }
 
     public func encode(to encoder: any Encoder) throws {
         try report.encode(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(candidates, forKey: .candidates)
+        try container.encodeIfPresent(captions, forKey: .captions)
     }
 }
 

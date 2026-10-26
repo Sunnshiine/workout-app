@@ -155,22 +155,30 @@ extension WorkoutApplication {
 
     /// `dictate` over a recording, heard by the speech model the mic listens with, configured the
     /// same way and read into transcripts the same way. `installing` receives the fraction of the
-    /// model's assets installed, when the machine has yet to download them.
+    /// model's assets installed, when the machine has yet to download them. `paced` plays the
+    /// recording at the pace it was spoken, as the mic hears a press, and reports each caption.
     @available(iOS 26, macOS 26, *)
     public func hear(
         _ recording: URL,
         at address: SetAddress,
+        paced: Bool = false,
         installing: @escaping @Sendable (Double) -> Void
     ) async throws -> HearReport {
         _ = try resolveSet(address)
         guard let file = try? AVAudioFile(forReading: recording) else { throw ApplicationError.unreadableRecording(recording.path) }
         let candidates: [String]
+        var captions: [HearReport.Caption]?
         do {
-            candidates = try await SpeechListening.transcripts(of: file, installing: installing)
+            if paced {
+                let played = try await SpeechListening.transcripts(playing: file, installing: installing)
+                (candidates, captions) = (played.candidates, played.captions)
+            } else {
+                candidates = try await SpeechListening.transcripts(of: file, installing: installing)
+            }
         } catch {
             throw ApplicationError.notHeard(error, in: recording.path)
         }
-        return HearReport(candidates: candidates, report: try dictate(candidates, at: address))
+        return HearReport(candidates: candidates, captions: captions, report: try dictate(candidates, at: address))
     }
 
     /// The one place a Dictation's outcome reaches the store: `logged` and `skipped` write, the
