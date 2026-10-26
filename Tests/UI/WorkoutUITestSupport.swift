@@ -50,6 +50,10 @@ extension XCTestCase {
             fixture.launchArguments + options.map(\.rawValue)
             + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
             + (transcript.map { ["-UITEST_DICTATION", $0] } ?? [])
+        // Xcode points these at the build products for the app it launches. The app embeds
+        // everything it links, so they find nothing, yet dyld checks them on each of about 1,500
+        // image loads, a quarter second of every launch. Empty, dyld skips them.
+        app.launchEnvironment = ["DYLD_FRAMEWORK_PATH": "", "DYLD_LIBRARY_PATH": ""]
         app.launch()
         return app
     }
