@@ -9,7 +9,9 @@ root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
-cp "$script_dir/../crap.sh" "$script_dir/../test-log-summary.sh" "$script_dir/../test-log-summary.awk" "$repo/scripts/"
+cp "$script_dir/../crap.sh" "$script_dir/../test-log-summary.sh" "$script_dir/../test-log-summary.awk" \
+    "$script_dir/../disk-floor.sh" "$script_dir/../sim-lock.sh" "$repo/scripts/"
+export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 pass=0
 fail=0
 
@@ -17,7 +19,7 @@ ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
 bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
 for tool in swift xcodebuild; do
-    printf '#!/bin/sh\ncat "$STUB_LOG"\nexit "${STUB_RC:-1}"\n' >"$root/bin/$tool"
+    printf '#!/bin/sh\necho "$0" >>"%s/tool-calls"\ncat "$STUB_LOG"\nexit "${STUB_RC:-1}"\n' "$root" >"$root/bin/$tool"
 done
 cat >"$root/bin/gh" <<'STUB'
 #!/bin/sh
@@ -135,6 +137,17 @@ STUB_RC=0 WANT_STATUS=65 check "a swift test run in which no test ran says so an
     "crap.sh: no test ran; see .build/crap/test.log"
 STUB_RC=0 WANT_STATUS=65 check "an xcodebuild run in which no test ran says so and exits 65 before it scores coverage" \
     "crap.sh: no test ran; see .build/crap/test.log" --xcodebuild "$root/xcodebuild"
+
+rm -f "$root/tool-calls"
+STUB_LOG=$root/test.log WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 PATH="$root/bin:$PATH" \
+    "$repo/scripts/crap.sh" gate >"$root/out" 2>"$root/err"
+status=$?
+case "$status $(cat "$root/err")" in
+    "75 gave up after 0 s waiting for free disk: free disk is "*" MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs")
+        if [ -e "$root/tool-calls" ]; then bad "a low disk stops crap.sh before its tests, but it ran $(cat "$root/tool-calls")"
+        else ok "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75 before it runs the tests"; fi ;;
+    *) bad "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")" ;;
+esac
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

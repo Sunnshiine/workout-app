@@ -21,7 +21,8 @@ Each mutant prints a row  OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER:
   not run      --max left it out.
 Exit 0 when every mutant was killed (a generated nocompile does not count). Exit 1 on flaky, SURVIVED,
 unreachable, error, not run, a hand-written nocompile, or none killed. Exit 2 on bad usage or a failing
-baseline. Exit 75 when every scratch tree or the simulator is busy: rerun.
+baseline. Exit 75 when every scratch tree or the simulator is busy, or free disk stays under WORKOUT_DISK_FLOOR
+(scripts/disk-floor.sh): rerun.
 
 Usage: scripts/mutate.sh [--sim UDID] [--filter SEL]... FILE SED_EXPR [SED_EXPR...]
        scripts/mutate.sh [--sim UDID] [--filter SEL]... [--max N] --diff BASE [PATH...]

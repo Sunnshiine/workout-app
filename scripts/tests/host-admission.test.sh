@@ -164,9 +164,13 @@ reset
 STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "free disk under the floor refuses a build with 75, before any xcodebuild" "$status $(builds)" "75 "
 expect "the refusal names the free and needed space and the knob" "$(refusal)" \
-    "gave up after N s waiting for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+    "gave up after N s waiting for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
 reset
-STUB_DISK_FREE_MB=4096 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+STUB_DISK_FREE_MB=1000 STUB_LOW_DISK_PATH=$HOME WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
+expect "free disk under the floor on HOME's volume alone refuses the build and names HOME" "$status $(builds) $(refusal)" \
+    "75  gave up after N s waiting for the host before taking $sim: free disk is 1000 MB on the volume holding $HOME, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
+reset
+STUB_DISK_FREE_MB=5120 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "free disk exactly at the floor is admitted" "$status $(builds)" "65 build-for-testing"
 reset
 STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
@@ -175,7 +179,7 @@ expect "a run that builds nothing does not read the disk" "$status $(builds) $(c
 reset
 STUB_DISK_FREE_MB=1000 STUB_LOW_DISK_CALLS=1 WORKOUT_ADMIT_WAIT=30 test_sim; status=$?
 expect "a build waits for disk to free, then goes on" "$status $(builds) $(head -1 "$root/err")" \
-    "65 build-for-testing waiting up to 30 s for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+    "65 build-for-testing waiting up to 30 s for the host before taking $sim: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
 reset
 STUB_DISK_FREE_MB=1000 WORKOUT_DISK_FLOOR=500 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
 expect "WORKOUT_DISK_FLOOR lowers the floor" "$status $(builds)" "65 build-for-testing"
@@ -185,7 +189,7 @@ expect "a floor of 0 never reads the disk" "$status $(cat "$root/df-calls" 2>/de
 reset
 (cd "$repo" && STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/build-slot.sh" sh -c 'echo ran' >"$root/out" 2>"$root/err"); status=$?
 expect "build-slot.sh refuses its command the same way" "$status $(cat "$root/out")$(refusal)" \
-    "75 gave up after N s waiting for a build slot: free disk is 1000 MB on the volume holding $repo, under the floor of 4096 MB (WORKOUT_DISK_FLOOR) a build needs"
+    "75 gave up after N s waiting for a build slot: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
 mkdir -p "$root/broken-df"
 printf '#!/bin/sh\necho "df: $2: No such file or directory" >&2\nexit 1\n' >"$root/broken-df/df"
 chmod +x "$root/broken-df/df"

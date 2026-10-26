@@ -225,6 +225,7 @@ To drive the app with the host under load, start each load process through the r
 end them through it, never by pid number:
 
 ```bash
+export VERIFY_RUN=issue-536                                             # the run your launch named
 for _ in $(seq 12); do scripts/reap.sh --start "$VERIFY_RUN" yes; done   # prints each pid
 scripts/reap.sh "$VERIFY_RUN"                                           # ends only those
 ```

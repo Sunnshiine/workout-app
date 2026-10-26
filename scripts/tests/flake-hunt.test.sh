@@ -9,6 +9,7 @@ trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
 find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
+export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 pass=0
 fail=0
 
@@ -163,6 +164,19 @@ many=$(for n in $(seq 20000); do echo "Sources/Foo$n.swift:1:1: error: cannot fi
 build_failure "a build with more error lines than it prints stops at 20, then prints its log path, and exits 65" \
 "$many
 " "$(printf '%s\n' "$many" | sed -n 1,20p)"
+
+mkdir -p "$root/calls-bin"
+printf '#!/bin/sh\necho "$*" >>"%s/swift-calls"\n' "$root" >"$root/calls-bin/swift"
+chmod +x "$root/calls-bin/swift"
+WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 PATH="$root/calls-bin:$PATH" \
+    "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 75 ] && [ ! -e "$root/swift-calls" ] &&
+    [ "$(sed -E 's/free disk is [0-9]+ MB/free disk is N MB/' "$root/err")" = "gave up after 0 s waiting for free disk: free disk is N MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs" ]; then
+    ok "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75 before it builds"
+else
+    bad "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75: exit $status, swift calls: $(cat "$root/swift-calls" 2>/dev/null), $(cat "$root/err")"
+fi
 
 alive() { local pid n=0; for pid in "$@"; do ! kill -0 "$pid" 2>/dev/null || n=$((n + 1)); done; echo "$n"; }
 settled() { local i=0; while [ "$(alive "$@")" != 0 ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done; alive "$@"; }

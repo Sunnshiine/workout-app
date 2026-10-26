@@ -105,6 +105,22 @@ started+=("$grandchild")
 "$reap" lane-g >/dev/null 2>&1
 expect "reaping a process --start began also ends the children it started" "$(gone "$leader") $(gone "$grandchild")" "ended ended"
 
+skill=$(dirname "$reap")/../.agents/skills/verify/SKILL.md
+recipe=$(awk '/^```bash$/ { block = ""; inside = 1; next } /^```$/ { if (inside && block ~ /reap\.sh --start/) { printf "%s", block; exit } inside = 0 } inside { block = block $0 "\n" }' "$skill")
+(
+    cd "$(dirname "$reap")/.." && unset VERIFY_RUN
+    eval "$(sed '$d' <<<"$recipe")"
+    cp "$(pids issue-536)" "$root/recorded" 2>/dev/null
+    eval "$(sed '$!d' <<<"$recipe")" >/dev/null
+) >"$root/loaded" 2>&1
+printed=$(grep -E '^[1-9][0-9]*$' "$root/loaded")
+started+=($printed)
+expect "the verify skill's load recipe, run with no VERIFY_RUN set, records every load process it prints" \
+    "$(wc -l <<<"$printed" | tr -d ' ') $(cut -f1 "$root/recorded" 2>/dev/null | tr '\n' ' ')" "12 $(tr '\n' ' ' <<<"$printed")"
+left=0
+for pid in $printed; do [ "$(gone "$pid")" = ended ] || left=$((left + 1)); done
+expect "and its reap line ends all of them" "$left" "0"
+
 "$reap" ../lane-b >"$root/out" 2>"$root/err"; status=$?
 expect "a run name that is not a plain name is a usage error" "$status $(alive "$b1")" "2 alive"
 

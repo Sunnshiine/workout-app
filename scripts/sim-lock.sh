@@ -427,7 +427,7 @@ require_sim_free() {
 
 host_knob WORKOUT_SIM_CAP 10 1
 host_knob WORKOUT_MEM_FLOOR 25 0
-host_knob WORKOUT_DISK_FLOOR 4096 0
+host_knob WORKOUT_DISK_FLOOR 5120 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1

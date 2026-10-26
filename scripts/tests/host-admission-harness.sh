@@ -104,6 +104,7 @@ cat >"$root/bin/df" <<STUB
 #!/bin/sh
 echo call >> "$root/df-calls"
 free=\${STUB_DISK_FREE_MB:-100000}
+[ -z "\${STUB_LOW_DISK_PATH:-}" ] || [ "\$2" = "\$STUB_LOW_DISK_PATH" ] || free=100000
 [ "\$(wc -l < "$root/df-calls")" -le "\${STUB_LOW_DISK_CALLS:-1000}" ] || free=100000
 echo "Filesystem 1024-blocks Used Available Capacity Mounted on"
 echo "/dev/stub 200000000 100000000 \$((free * 1024)) 50% /"

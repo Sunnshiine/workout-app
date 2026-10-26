@@ -23,7 +23,7 @@ and its app stopped. Refuses (exit 2) a --sim UDID that simctl lists no availabl
 Waits while the host is busy, saying why once a minute: while free memory (kern.memorystatus_level,
 percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), to boot while WORKOUT_SIM_CAP (10) other
 simulators are booted, and to build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are
-taken or free disk on the checkout's or HOME's volume is under WORKOUT_DISK_FLOOR (4096 MB; 0 turns
+taken or free disk on the checkout's or HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns
 it off). Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540), a budget that restarts each time
 a build slot changes hands. At the cap, a boot first shuts
 down the least recently used booted workout-lane-* simulator that no run holds, that runs no app

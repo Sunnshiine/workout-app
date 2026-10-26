@@ -10,7 +10,8 @@ races that pass on a quiet machine fail here within a few hundred repetitions.
 Starts the busy loops and the test process each in its own process group and records them as run
 WORKOUT_RUN (default flake-hunt-<pid>), so scripts/reap.sh <run> ends this hunt's processes and their
 children and no other's, even after a kill -9 of this script.
-Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed or no test ran.
+Exits 0 when every repetition passed, 1 when a test failed, 65 when the build failed or no test ran,
+75 when free disk stays under WORKOUT_DISK_FLOOR (scripts/disk-floor.sh).
 EOF
   exit 2
 }
@@ -33,6 +34,7 @@ cd "$repo"
 log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S).log
 mkdir -p "$(dirname "$log")"
 echo "log: $log"
+"$repo/scripts/disk-floor.sh"
 swift build --build-tests >"$log" 2>&1 || { grep -m 20 -E "error:" "$log" >&2 || true; echo "build log: $log" >&2; exit 65; }
 
 run=${WORKOUT_RUN:-flake-hunt-$$}

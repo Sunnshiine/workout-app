@@ -8,6 +8,7 @@ root=$(cd "$root" && pwd -P)
 trap 'rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
 export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_XCODE_SEEN=$root/xcode-seen
+export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 repo=$root/repo
 pass=0
 fail=0
@@ -115,6 +116,12 @@ A...B names both sides of a fork; check-each-commit.sh takes BASE..HEAD"
 
 (cd "$repo" && scripts/check-each-commit.sh nope..main) >"$root/out" 2>"$root/err"
 expect "a range git cannot resolve exits 2" "$? $(cat "$root/out" "$root/err")" "2 not a commit range: nope..main"
+
+rm -f "$STUB_WATCH" "$STUB_XCODE_SEEN"
+(cd "$repo" && WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 scripts/check-each-commit.sh main~1) >"$root/out" 2>"$root/err"
+expect "free disk under WORKOUT_DISK_FLOOR stops the run with 75 before any build" \
+    "$? $(cat "$STUB_WATCH" "$STUB_XCODE_SEEN" 2>/dev/null)$(sed -E 's/free disk is [0-9]+ MB/free disk is N MB/' "$root/err")" \
+    "75 gave up after 0 s waiting for free disk: free disk is N MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
