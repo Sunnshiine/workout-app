@@ -409,6 +409,37 @@ SWIFT
 expect_exit "a PATH with no gh" "$status" 2
 expect_line "it says gh is missing" "$(head -1 "$root/stderr")" "error: gh is not on PATH"
 
+echo "a default: reason"
+check <<'SWIFT'
+func load(retrying: Bool = true) {} // default: a one-shot read is the exception, #101
+SWIFT
+expect_exit "a default: reason citing a closed issue" "$status" 1
+expect_text "it names the issue" "$out" "App/A.swift:1: the exemption cites #101, which is closed without the wontfix label."
+check <<'SWIFT'
+func load(retrying: Bool = true) {} // default: accepted under #102
+SWIFT
+expect_exit "a default: reason citing a wontfix issue" "$status" 0
+check <<'SWIFT'
+func load(retrying: Bool = true) {} // default: a one-shot read is the exception
+SWIFT
+expect_exit "a default: reason citing nothing" "$status" 0
+expect_line "it counts as an exemption" "$out" "1 exemptions cite 0 issues, and 0 fail"
+check <<'SWIFT'
+let caption = """
+    a \
+    b
+    """
+func load(retrying: Bool = true) {} // default: a one-shot read is the exception, #101
+SWIFT
+expect_exit "a default: reason under a string continued across a line" "$status" 1
+expect_text "it names the reason's own line" "$out" "App/A.swift:5: the exemption cites #101, which is closed without the wontfix label."
+check <<'SWIFT'
+/// default: see #101
+func load(retrying: Bool = true) {}
+SWIFT
+expect_exit "a doc comment that starts with default:" "$status" 0
+expect_no_gh "a doc comment that starts with default:"
+
 echo "unreadable input"
 check <<<"$(printf '// \xff\xfe\n// swiftlint:disable:next unstructured_task_is_held\nTask { }')"
 expect_exit "a Swift file that is not UTF-8" "$status" 2

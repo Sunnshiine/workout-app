@@ -20,7 +20,9 @@ is history, so it is never failed and never counts as the issue a bug-shaped rul
 `unstructured_task_is_held`, `fixture_dates_are_literal`, and `model_held_across_reload` exist to
 stop bugs, so an exemption of any of them, or of `all`, accepts a known bug and must cite an issue.
 The other rules' exemptions record design facts, such as a WCAG clause or a parameter count, and
-may cite none.
+may cite none. A `// default: <reason>` comment, the reason scripts/lint-defaults.py accepts for a
+defaulted parameter, is an exemption of the same kind: it may cite no issue, and any issue it cites
+must be live.
 
 Exits 0 when clean, 1 on findings, 2 when git, a file, or gh cannot answer, so the check never
 passes unchecked, and 64 on a usage error or a LINT_EXEMPTIONS_GH_TIMEOUT that is not a finite
@@ -38,10 +40,12 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from swift_lex import DEFAULT_REASON, line_comments
+
 REPO = "Sunnshiine/workout-app"
 BUG_SHAPED_RULES = {"unstructured_task_is_held", "fixture_dates_are_literal", "model_held_across_reload"}
 COMMAND = re.compile(r"swiftlint:(disable|enable)(?::(?:next|this|previous))?(?:\s+(.*))?$")
-STRING_START = re.compile(r'(#*)("""|")')
 CITATION = re.compile(r"(?<![\w&])#([1-9]\d{1,4})(?!\w)")
 NOT_FOUND = "Could not resolve to an issue or pull request"
 UNCHECKED = "The exemption check cannot finish, so it fails rather than pass unchecked."
@@ -79,61 +83,6 @@ class Unanswered(Exception):
         self.hint = hint
 
 
-def line_comments(text: str) -> dict[int, tuple[int, str]]:
-    """Maps a line index to the column and text of the `//` comment on it. A `//` inside a string
-    or a block comment is no comment, and a `\\(` in a string reopens code up to its `)`."""
-    comments = {}
-    frames: list[tuple[str, int]] = []
-    line = column = i = 0
-    n = len(text)
-    while i < n:
-        kind, value = frames[-1] if frames else ("code", 0)
-        if text[i] == "\n":
-            line, column, i = line + 1, 0, i + 1
-            if kind == "string" and value >= 0:
-                frames.pop()
-            continue
-        step = 1
-        if kind == "block":
-            if text.startswith("/*", i):
-                frames.append(("block", 0))
-                step = 2
-            elif text.startswith("*/", i):
-                frames.pop()
-                step = 2
-        elif kind == "string":
-            hashes = abs(value) - 1
-            close = ('"""' if value < 0 else '"') + "#" * hashes
-            escape = "\\" + "#" * hashes
-            if text.startswith(escape + "(", i):
-                frames.append(("code", 1))
-                step = len(escape) + 1
-            elif text.startswith(escape, i):
-                step = len(escape) + 1
-            elif text.startswith(close, i):
-                frames.pop()
-                step = len(close)
-        elif text.startswith("//", i):
-            end = text.find("\n", i)
-            end = n if end < 0 else end
-            comments[line] = (column, text[i:end])
-            column, i = column + end - i, end
-            continue
-        elif text.startswith("/*", i):
-            frames.append(("block", 0))
-            step = 2
-        elif opened := STRING_START.match(text, i):
-            hashes = len(opened.group(1))
-            frames.append(("string", -(hashes + 1) if opened.group(2) == '"""' else hashes + 1))
-            step = opened.end() - i
-        elif value and text[i] in "()":
-            frames[-1] = ("code", value + (1 if text[i] == "(" else -1))
-            if frames[-1][1] == 0:
-                frames.pop()
-        column, i = column + step, i + step
-    return comments
-
-
 def command(comment: str) -> re.Match[str] | None:
     """SwiftLint reads the first `swiftlint:` in a `//` comment, wherever it sits, as the command,
     and ignores one in a `///` doc comment."""
@@ -148,6 +97,10 @@ def exemptions_in(path: str, text: str) -> list[Exemption]:
     lines = text.split("\n")
     found = []
     for index, (column, comment) in sorted(comments.items()):
+        if DEFAULT_REASON.match(comment):
+            cited = sorted({int(n) for n in CITATION.findall(comment)})
+            found.append(Exemption(path, index + 1, ("default",), tuple(cited)))
+            continue
         directive = command(comment)
         if not directive or directive.group(1) != "disable":
             continue

@@ -46,7 +46,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v10.3.0
-      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      # The Azure apt mirror twice ran so slowly that the ffmpeg install outlasted the job's 10
+      # minutes (runs 40406050512, 40409651039). Its .deb files are cached per runner image, so a
+      # hit installs them with no mirror at all. Only a new image downloads, once.
+      - id: image
+        run: echo "key=apt-ffmpeg-$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      - id: debs
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-archives
+          key: ${{ steps.image.outputs.key }}
+      - name: Install ffmpeg
+        run: |
+          if [ "${{ steps.debs.outputs.cache-hit }}" = true ]; then
+            # apt-get given these files still fetched all 87 from the mirror. dpkg has no network.
+            sudo dpkg -i ~/apt-archives/*.deb
+          else
+            apt="-q -o Acquire::http::Timeout=30 -o Acquire::Retries=3"
+            mkdir -p ~/apt-archives/partial
+            sudo apt-get update $apt
+            sudo apt-get install -y --no-install-recommends $apt -o Dir::Cache::Archives="$HOME/apt-archives" \
+              -o APT::Keep-Downloaded-Packages=true ffmpeg
+            sudo rm -rf ~/apt-archives/partial ~/apt-archives/lock
+            sudo chown -R "$USER" ~/apt-archives
+          fi
       # The command .agents/skills/verify/SKILL.md documents. .python-version pins 3.9, what
       # /usr/bin/python3 is on a stock Xcode machine.
       - run: uv run --locked python -m unittest discover -s .agents/skills/verify/tests

@@ -52,8 +52,13 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 - **A defaulted parameter or optional callback that lets a caller omit a decision,** such as
   `= nil`, `= false`, `= { _ in true }`, or `?? Date()` where omission changes behaviour. A right
-  default is the safe answer, not the convenient one. `optional?.flag == false` reads nil as
-  `false`, so write the nil case out. (#572, #582,
+  default is the safe answer, not the convenient one. `scripts/lint-defaults.py` fails a new nil,
+  bool, closure, now, number, or empty default of a parameter or of a memberwise `var` under
+  `Sources/` or `App/`, unless its line carries `// default: <reason>`. It accepts the defaults
+  listed in `scripts/lint-defaults-baseline.txt`, so removing or renaming one means editing that
+  file: run `scripts/lint-defaults.py --write-baseline` and commit the result. Review still judges
+  each reason, the baselined defaults, and `?? Date()`. `optional?.flag == false` reads nil as
+  `false`, so write the nil case out. (#572, #582, #813,
   `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`.)
 
 ## Vocabulary

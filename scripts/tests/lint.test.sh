@@ -37,8 +37,9 @@ fresh_fixture() {
     mkdir -p "$fx/scripts" "$fx/$(dirname "$resolved")" \
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
-    cp "$repo"/scripts/lint-* "$repo/scripts/swift-format-changed.sh" \
+    cp "$repo"/scripts/lint-* "$repo/scripts/swift_lex.py" "$repo/scripts/swift-format-changed.sh" \
         "$repo/scripts/doc-drift.py" "$fx/scripts/"
+    : >"$fx/scripts/lint-defaults-baseline.txt"
     printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
     mkdir -p "$fx/.github/workflows"
     printf 'on: push\njobs:\n  a:\n    if: success()\n    runs-on: x\n' >"$fx/.github/workflows/ci.yml"
@@ -90,6 +91,8 @@ expect_exit "baseline" "$status" 0
 expect_line "baseline" "$out" "==> Clean"
 expect_line "baseline" "$out" "==> Clean: 3 docs, 1 launch flags"
 expect_line "baseline" "$out" "==> Clean: 1 skills, each linked from .claude/skills"
+expect_line "baseline" "$out" "==> Defaulted parameters stay within the baseline"
+expect_line "baseline" "$out" "0 defaults, 0 new, 0 gone from the tree"
 
 echo "doc symbols: a whole-tree run fails on a doc span the tree lacks, and a file run skips it"
 fresh_fixture
