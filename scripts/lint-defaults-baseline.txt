@@ -32,7 +32,6 @@ LocalWorkbook.Tab|init|rows|number
 LocalWorkbookSheetsClient|init|failedUpdateRequestNumbers|empty
 LocalWorkbookSheetsClient|init|failedUpdateRequestNumbers|empty
 LocalWorkbookSheetsClient|init|failedUpdateRequestNumbers|empty
-LocalWorkbookSheetsClient|init|persistTo|nil
 MainThreadWatchdog.State|init|waitingSince|nil
 MoveOnCelebrationPresentation|init|requestedQuoteText|nil
 MoveOnCelebrationView|init|quoteText|nil
