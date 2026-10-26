@@ -186,6 +186,30 @@ exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParse
 exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:32
 exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:68
 exercise_references_are_parsed Sources/WorkoutTracker/ExerciseReferencesAreParsed.swift:72
+
+model_held_across_reload App/Views/ModelHeldAcrossReload.swift:4
+model_held_across_reload App/Views/ModelHeldAcrossReload.swift:8
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:7
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:10
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:13
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:14
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:17
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:19
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:22
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:27
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:30
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:33
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:38
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:41
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:42
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:43
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:44
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:88
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:95
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:101
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:104
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:107
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:110
 EXPECTED
 }
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)
@@ -280,6 +304,28 @@ done < <(LC_ALL=C comm -23 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual
 while IFS= read -r row; do
     [ -n "$row" ] && bad "unexpected $row $(case_at "$row")"
 done < <(LC_ALL=C comm -13 <(printf '%s\n' "$expected") <(printf '%s\n' "$actual") | by_line)
+
+echo "model_held_across_reload's type list is every @Model class the app compiles"
+listed=$(awk '/^  model_held_across_reload:/ { inside = 1; next } inside && /^  [^[:space:]]/ { exit }
+    inside && /^    regex:/ { print; exit }' "$config" |
+    grep -oE '\(\?:[A-Z][A-Za-z0-9_]*(\|[A-Z][A-Za-z0-9_]*)+\)' | tr -d '()?:' | tr '|' '\n' | LC_ALL=C sort)
+models=$(find "$repo/App" "$repo/Sources" "$repo/WorkoutShared" "$repo/WorkoutWidgets" -name '*.swift' -exec awk '
+    FNR == 1 { model = 0 }
+    /^[[:space:]]*@Model([^A-Za-z0-9_]|$)/ { model = 1 }
+    model && match($0, /class [A-Za-z_][A-Za-z0-9_]*/) { print substr($0, RSTART + 6, RLENGTH - 6); model = 0 }
+' {} + | LC_ALL=C sort -u)
+if [ -z "$models" ]; then
+    bad "found no @Model class under App/, Sources/, WorkoutShared/, or WorkoutWidgets/"
+elif [ "$listed" = "$models" ]; then
+    ok "$(printf '%s\n' "$models" | wc -l | tr -d ' ') @Model classes"
+else
+    while IFS= read -r name; do
+        [ -n "$name" ] && bad "@Model class $name is missing from the type list"
+    done < <(LC_ALL=C comm -13 <(printf '%s\n' "$listed") <(printf '%s\n' "$models"))
+    while IFS= read -r name; do
+        [ -n "$name" ] && bad "the type list names $name, which no @Model class declares"
+    done < <(LC_ALL=C comm -23 <(printf '%s\n' "$listed") <(printf '%s\n' "$models"))
+fi
 
 cases=$(cd "$fixtures" && grep -rno --include='*.swift' 'func [A-Za-z_][A-Za-z0-9_]*' . |
     sed 's|^\./\([^:]*\):[0-9]*:func |\1 |' | LC_ALL=C sort -u)

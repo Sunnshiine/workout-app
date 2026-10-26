@@ -16,25 +16,35 @@ struct BlockOverviewNavigationRequest: Equatable, Identifiable {
 @MainActor
 @Observable
 final class WorkoutStore {
+    // The reload root: reload() fetches it again, and every other Session the store hands out
+    // resolves through it (#1133).
+    // swiftlint:disable:next model_held_across_reload
     private(set) var block: Block?
-    /// Written only by `view(_:)`, which keeps `browsedTo` in step with it.
-    private(set) var viewedSession: Session?
-    private(set) var moveOnCelebrationSession: Session?
-    private(set) var moveOnCelebrationRequestedAt: Date?
     private(set) var pendingBlockOverviewRequest: BlockOverviewNavigationRequest?
+    // Stored rather than resolved on each read, so its observers hear it only when it moves
+    // (observersHearTheCurrentSessionOnlyWhenItMoves). Every write to `block` refreshes it (#1133).
+    // swiftlint:disable:next model_held_across_reload
     private(set) var currentSession: Session?
-    /// Answered in `view(_:)` rather than derived in `reload()`, because a sync can land a log
-    /// that moves the Current Session under an athlete who never navigated anywhere: they were
-    /// at the live edge when they chose, so the reload has to carry them forward with it.
-    ///
-    /// An address rather than the Session itself, captured while that Session is still live: a
-    /// sync deletes the whole Block and inserts the re-parsed one, and the deleted Session no
-    /// longer reliably knows its own Week.
-    private var browsedTo: SessionAddress?
-    /// The Session the Move On Celebration closes, by address for the same reason as `browsedTo`:
-    /// `reload()` re-resolves `moveOnCelebrationSession` from it, so a Move On from a celebration a
-    /// sync landed under advances from the re-parsed Session.
-    private var moveOnCelebrationAddress: SessionAddress?
+    private var viewing = Viewing.currentSession
+    private var moveOnCelebration: MoveOnCelebration?
+
+    /// By address, because a sync deletes the whole Block and inserts the re-parsed one. The
+    /// Current Session is followed wherever a write or a sync moves it, and a browsed Session is
+    /// found again in each Block.
+    private enum Viewing: Equatable {
+        case currentSession
+        case browsed(SessionAddress)
+        /// An address the Block did not hold: no Viewed Session until the next reload returns to
+        /// the Current Session.
+        case nothing
+    }
+
+    /// By address, so a Move On from a celebration a sync landed under advances from the
+    /// re-parsed Session.
+    private struct MoveOnCelebration: Equatable {
+        let address: SessionAddress
+        let requestedAt: Date
+    }
 
     private let context: ModelContext
     private let tracker = SessionProgressTracker()
@@ -53,6 +63,18 @@ final class WorkoutStore {
         self.lastPerformed = lastPerformed
         self.now = now
     }
+
+    var viewedSession: Session? {
+        switch viewing {
+        case .currentSession: currentSession
+        case .browsed(let address): block?.session(at: address)
+        case .nothing: nil
+        }
+    }
+
+    var moveOnCelebrationSession: Session? { moveOnCelebration.flatMap { block?.session(at: $0.address) } }
+
+    var moveOnCelebrationRequestedAt: Date? { moveOnCelebration?.requestedAt }
 
     var canMoveOn: Bool {
         guard let block, let currentSession else { return false }
@@ -81,35 +103,42 @@ final class WorkoutStore {
     func reload() {
         block = try? context.fetch(FetchDescriptor<Block>()).first
         refreshCurrentSession()
-        refreshMoveOnCelebration()
+        // A sync that took the celebrated Session out of the Block ends the celebration, since
+        // there is no longer a Session to Move On from.
+        if moveOnCelebrationSession == nil { moveOnCelebration = nil }
 
-        guard let browsed = browsedTo, let browsedSession = block?.session(at: browsed) else {
-            view(currentSession)
+        guard case .browsed(let address) = viewing, block?.session(at: address) != nil else {
+            viewing = .currentSession
             return
         }
-
-        view(browsedSession)
+        show(address)
     }
 
+    /// An address that holds the Current Session views it at the live edge, so a later write or
+    /// sync that moves the Current Session carries the view along.
     func show(_ address: SessionAddress) {
-        view(block?.session(at: address))
+        guard let session = block?.session(at: address) else {
+            viewing = .nothing
+            return
+        }
+        viewing = liveEdge(for: session).isAtLiveEdge ? .currentSession : .browsed(address)
     }
 
     func showCurrent() {
-        view(currentSession)
+        viewing = .currentSession
     }
 
     func makeViewedSessionCurrent() {
         guard let block, let viewedSession else { return }
         pinCurrentSession(viewedSession, in: block, by: .madeCurrent)
-        view(viewedSession)
+        if case .browsed(let address) = viewing { show(address) }
     }
 
     func clearCurrentSessionPin() {
         guard let block else { return }
         pin.clear(in: block)
         refreshCurrentSession()
-        view(currentSession)
+        viewing = .currentSession
     }
 
     func requestBlockOverviewPresentation() { pendingBlockOverviewRequest = BlockOverviewNavigationRequest() }
@@ -124,15 +153,13 @@ final class WorkoutStore {
             tracker.moveOnDestination(from: currentSession, in: block).isOffered
         else { return }
 
-        moveOnCelebrationAddress = address
-        moveOnCelebrationSession = currentSession
-        moveOnCelebrationRequestedAt = now()
-        view(currentSession)
+        moveOnCelebration = MoveOnCelebration(address: address, requestedAt: now())
+        viewing = .currentSession
     }
 
     func dismissMoveOnCelebration() {
         guard let session = moveOnCelebrationSession else { return }
-        endMoveOnCelebration()
+        moveOnCelebration = nil
         advance(after: session)
     }
 
@@ -151,7 +178,7 @@ final class WorkoutStore {
             requestBlockOverviewPresentation()
         case .advance(to: let nextSession):
             pinCurrentSession(nextSession, in: block, by: .moveOn)
-            view(nextSession)
+            if let address = nextSession.address { show(address) }
         }
     }
 
@@ -161,32 +188,9 @@ final class WorkoutStore {
         currentSession = currentSessionResolution?.session
     }
 
-    /// A sync that took the celebrated Session out of the Block ends the celebration, since there
-    /// is no longer a Session to Move On from.
-    private func refreshMoveOnCelebration() {
-        guard let moveOnCelebrationAddress else { return }
-        moveOnCelebrationSession = block?.session(at: moveOnCelebrationAddress)
-        if moveOnCelebrationSession == nil { endMoveOnCelebration() }
-    }
-
-    private func endMoveOnCelebration() {
-        moveOnCelebrationAddress = nil
-        moveOnCelebrationSession = nil
-        moveOnCelebrationRequestedAt = nil
-    }
-
     private func pinCurrentSession(_ session: Session, in block: Block, by author: CurrentSessionPin.Author) {
         pin.pin(session, in: block, by: author)
         refreshCurrentSession()
-    }
-
-    private func view(_ session: Session?) {
-        viewedSession = session
-        guard !isViewingLiveEdge, let address = session?.address else {
-            browsedTo = nil
-            return
-        }
-        browsedTo = address
     }
 
     private func notesValue(for set: ExerciseSet) -> String {

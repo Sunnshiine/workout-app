@@ -37,26 +37,6 @@ final class SetDictation {
         case transcriber(SetTranscriberError)
     }
 
-    /// Why listening with no hand on the mic ended on its own.
-    enum StopReason: Equatable, Sendable {
-        /// The athlete stopped talking.
-        case silence
-        /// Listening ran as long as it may.
-        case cap
-        /// Listening ran as long as it may without hearing a word.
-        case nothingHeard
-    }
-
-    /// The next step of listening with no hand on the mic.
-    enum AutoStop: Equatable, Sendable {
-        case wake(at: Duration)
-        case stop(StopReason)
-    }
-
-    /// How long after the last word heard hands-free listening ends.
-    nonisolated static let silenceWindow: Duration = .milliseconds(1200)
-    /// The longest hands-free listening runs, counted from when the mic went live.
-    nonisolated static let listeningCap: Duration = .seconds(8)
     /// How long after a press ends its outcome may wait for the Recording Transcript, the live
     /// engine's finalize included. A safety bound, not the target: a press should decide within
     /// `latencyTarget`.
@@ -74,7 +54,7 @@ final class SetDictation {
     @ObservationIgnored private var press: Press?
 
     /// Instruments shows a press's phases as intervals beside the main thread's hangs.
-    private static let signposter = OSSignposter(subsystem: "WorkoutTracker", category: "Dictation")
+    static let signposter = OSSignposter(subsystem: "WorkoutTracker", category: "Dictation")
 
     init(
         transcriber: any SetTranscriber,
@@ -103,6 +83,17 @@ final class SetDictation {
         let signpost: OSSignpostIntervalState
         var timeline: PressTimeline
         var startRefusal: MicStartRefusal?
+        var voice = VoiceActivity()
+        /// The latest read of the recording so far, asked at a Pause while listening hands-free.
+        var earlyRead: Reading?
+
+        /// The early read, when a press that stopped on its own can decide with it: it is still
+        /// reading or heard a transcript, and the athlete said nothing after the audio it read.
+        @MainActor func earlyReadOfAllTheSpeech(endedBy end: DictationRecord.PressEnd) -> Reading? {
+            guard end != .released, let earlyRead, earlyRead.isWorthKeeping, voice.isPaused(since: earlyRead.recording.samples.count)
+            else { return nil }
+            return earlyRead
+        }
     }
 
     /// A press of the card's mic. Ignored, returning false, while another press is in flight, so
@@ -155,9 +146,10 @@ final class SetDictation {
         for set: ActiveSetID,
         in context: () -> SpokenSetContext
     ) async -> Outcome? {
-        while let timeline = timeline(of: starting), let wentLiveAt = timeline.wentLiveAt {
-            switch Self.autoStop(at: clock.now, liveAt: wentLiveAt, lastHeardAt: timeline.lastHeardAt) {
-            case .wake(let deadline): await clock.sleep(until: deadline)
+        while let step = nextStep(of: starting, in: context) {
+            switch step {
+            case .wake(let deadline): await wake(at: deadline)
+            case .read: readSoFar()
             case .stop(.nothingHeard): return await giveUpHearingNothing(for: set, in: context())
             case .stop(let reason): return await finish(for: set, in: context(), ending: DictationRecord.PressEnd(reason))
             }
@@ -165,21 +157,37 @@ final class SetDictation {
         return nil
     }
 
-    /// The timeline of the press `starting` began, nil once `finish` or `cancel` took it.
-    private func timeline(of starting: Task<SetTranscriberStartError?, Never>) -> PressTimeline? {
-        guard let press, press.starting == starting else { return nil }
-        return press.timeline
+    /// The next step of the press `starting` began, with the mic levels recorded since the last;
+    /// nil once `finish` or `cancel` took it.
+    private func nextStep(of starting: Task<SetTranscriberStartError?, Never>, in context: () -> SpokenSetContext) -> AutoStop? {
+        guard var press, press.starting == starting, let wentLiveAt = press.timeline.wentLiveAt else { return nil }
+        press.voice.hear(press.recorder.levels(from: press.voice.frames))
+        self.press = press
+        let earlyRead = press.earlyRead.map { reading in
+            HandsFreeEarlyRead(samples: reading.recording.samples.count, heard: reading.arrived.map { Self.heard($0, in: context()) })
+        }
+        return Self.autoStop(
+            at: clock.now,
+            liveAt: wentLiveAt,
+            lastHeardAt: press.timeline.lastHeardAt,
+            voice: press.voice,
+            earlyRead: earlyRead
+        )
     }
 
-    /// Hands-free listening stops at the first of `silenceWindow` after the last word and
-    /// `listeningCap` after the mic went live. With nothing heard yet it looks again a silence
-    /// window on, so a first word heard in between still stops a window after it.
-    nonisolated static func autoStop(at now: Duration, liveAt: Duration, lastHeardAt: Duration?) -> AutoStop {
-        let cap = liveAt + listeningCap
-        guard let lastHeardAt else { return now >= cap ? .stop(.nothingHeard) : .wake(at: min(now + silenceWindow, cap)) }
-        let quiet = lastHeardAt + silenceWindow
-        if quiet <= cap, now >= quiet { return .stop(.silence) }
-        return now >= cap ? .stop(.cap) : .wake(at: min(quiet, cap))
+    /// Sleeps until `deadline`, or until an early read in flight comes in.
+    private func wake(at deadline: Duration) async {
+        guard let reading = press?.earlyRead, reading.isReading else { return await clock.sleep(until: deadline) }
+        await reading.arrival(until: deadline, on: clock)
+    }
+
+    /// One read in flight at a time: a newer Pause's read replaces an older one's.
+    private func readSoFar() {
+        guard var press else { return }
+        press.earlyRead?.cancel()
+        press.earlyRead = Reading(of: press.recorder.snapshot(), by: reader, on: clock)
+        press.timeline.earlyReadAskedAt = clock.now
+        self.press = press
     }
 
     /// No transcript to read, so the recording engine is not asked.
@@ -221,13 +229,22 @@ final class SetDictation {
     /// Closes the recording and has the recording engine read it the instant the press ends,
     /// alongside the live engine's finalize, then decides at the first of both answers and the
     /// Decision Deadline. A Recording Transcript still being read at the deadline is dropped.
+    /// Listening hands-free, an early read of all the athlete said stands in for that read.
     private func decide(_ press: Press, _ end: DictationRecord.PressEnd, in context: SpokenSetContext) async -> Outcome {
         var press = press
         // A release before the live engine went live took the press before `hear` could stamp it.
         press.timeline.wentLiveAt = press.timeline.wentLiveAt ?? clock.now
         let deadline = clock.now + decisionDeadline
         let recording = press.recorder.close()
-        let reading = Reading(of: recording, by: reader, on: clock)
+        press.voice.hear(press.recorder.levels(from: press.voice.frames))
+        let reading: Reading
+        if let early = press.earlyReadOfAllTheSpeech(endedBy: end) {
+            reading = early
+        } else {
+            press.earlyRead?.cancel()
+            reading = Reading(of: recording, by: reader, on: clock)
+        }
+        press.timeline.recordingAskedAt = reading.askedAt
         state = .deciding(press.set, heard: state.heard)
         let finalizing = Self.signposter.beginInterval("LiveFinalize")
         let live: LiveHearing
@@ -241,7 +258,7 @@ final class SetDictation {
         let decode = await reading.decode(by: deadline, on: clock)
         press.timeline.recordingReadAt = reading.readAt
         press.timeline.recordingDroppedAt = reading.droppedAt
-        return decided(press, end, live: live, recording: self.recording(decode, of: recording, for: press), in: context)
+        return decided(press, end, live: live, recording: self.recording(decode, of: reading.recording, for: press), in: context)
     }
 
     private func recording(_ decode: RecordingDecode, of recording: DictationRecording, for press: Press) -> DictationRecord.Recording {
@@ -294,6 +311,7 @@ final class SetDictation {
         guard var press else { return }
         self.press = nil
         press.timeline.endedAt = clock.now
+        press.earlyRead?.cancel()
         _ = await press.starting.value
         await transcriber.cancel()
         keep(press, .cancelled)
@@ -330,6 +348,10 @@ struct PressTimeline: Equatable, Sendable {
     /// Nil until the press is released, stops on its own, or is cancelled.
     var endedAt: Duration?
     var liveFinishedAt: Duration?
+    /// When the latest read of the recording so far was asked, listening hands-free.
+    var earlyReadAskedAt: Duration?
+    /// When the read the press was decided with was asked: before `endedAt` for an early read.
+    var recordingAskedAt: Duration?
     var recordingReadAt: Duration?
     var recordingDroppedAt: Duration?
     var decidedAt: Duration?
@@ -342,45 +364,6 @@ struct PressTimeline: Equatable, Sendable {
         firstHeardAt = firstHeardAt ?? now
         lastHeardAt = now
         captionChanges += 1
-    }
-}
-
-extension SetDictation {
-    /// One press's recording being read by the recording engine, off the main actor, from the
-    /// instant the press ends. Nothing recorded is never read.
-    @MainActor
-    final class Reading {
-        private var decoding: Task<RecordingDecode, Never>?
-        private var arrived: RecordingDecode?
-        /// When the decode came in, on the press's clock.
-        private(set) var readAt: Duration?
-        /// When the decode was cancelled at the deadline.
-        private(set) var droppedAt: Duration?
-
-        init(of recording: DictationRecording, by reader: any RecordingTranscriber, on clock: any ListeningClock) {
-            guard !recording.samples.isEmpty else { return }
-            decoding = Task { @MainActor [weak self] in
-                let decoding = SetDictation.signposter.beginInterval("RecordingDecode")
-                let decode = await reader.transcribe(recording)
-                SetDictation.signposter.endInterval("RecordingDecode", decoding)
-                self?.arrived = decode
-                self?.readAt = clock.now
-                return decode
-            }
-        }
-
-        /// The decode once it is in, or `late` at `deadline` on `clock`, which cancels the read. One
-        /// already in decides whatever the clock says.
-        func decode(by deadline: Duration, on clock: any ListeningClock) async -> RecordingDecode {
-            guard let decoding else { return .missing(.nothingRecorded) }
-            if let arrived { return arrived }
-            guard let decode = await BoundedWait.wait(for: decoding, until: deadline, on: clock) else {
-                decoding.cancel()
-                droppedAt = clock.now
-                return .missing(.late)
-            }
-            return decode
-        }
     }
 }
 

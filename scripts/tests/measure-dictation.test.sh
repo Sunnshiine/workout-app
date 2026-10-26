@@ -51,6 +51,11 @@ case $1 in
             "skip") echo '{"heard":"Skip.","candidates":["Skip."],"outcome":"skipped"}' ;;
             "bodyweight for 8") echo '{"heard":"Body weight for 8.","candidates":["Body weight for 8."],"outcome":"logged","setLog":"BWx8@7"}' ;;
             "hangs") sleep 30 ;;
+            "[[slnc 500]] 185 for 5 at 8 [[slnc 4000]]")
+                [ "$4" = --paced ] || exit 9
+                echo '{"heard":"185 for 5 at 8.","candidates":["185 for 5 at 8."],"outcome":"logged","setLog":"185x5@8","captions":[{"atMs":1400,"heard":""},{"atMs":1900,"heard":"185"},{"atMs":2300,"heard":"185 for 5 at 8."}]}' ;;
+            "[[slnc 500]] 135 for 20 [[slnc 4000]]")
+                echo '{"heard":"135 for 20.","candidates":["135 for 20."],"outcome":"logged","setLog":"135x20@7","captions":[{"atMs":4400,"heard":"135 for 20."}]}' ;;
         esac ;;
 esac
 STUB
@@ -86,7 +91,7 @@ expect "a REJECT row that rejects is CORRECT" "$(row '185 or 5')" $'w1d1.e0.s0\t
 expect "missing values are NOWRITE with the fields missing" "$(row '225 for 3 at 8')" $'w1d1.e0.s0\t-|5|7\t225x3@8\tmissingValues\trpe\t-\tNOWRITE'
 expect "a skip is CORRECT" "$(row 'skip')" $'w1d1.e0.s0\t-|5|7\tSKIP\tskipped\t-\tSKIP\tCORRECT'
 expect_line "the summary groups NOWRITE by cause" "$out" "     1  missingValues (rpe)"
-expect_line "the summary lists each WRONG row" "$out" "  Samantha	200	225 for 3 for 3	REJECT	w1d1.e0.s0	-|5|7	REJECT	logged	-	225x343@7	WRONG	225 for 343.	225 for 343. | 225 for 3 for 3."
+expect_line "the summary lists each WRONG row" "$out" "  Samantha	200	225 for 3 for 3	REJECT	w1d1.e0.s0	-|5|7	REJECT	logged	-	225x343@7	WRONG	225 for 343.	225 for 343. | 225 for 3 for 3.	-"
 
 echo "a rerun reads the cached audio"
 expect "the first run spoke every phrase" "$(grep -c '^say -v Samantha' "$STUB_CALLS")" 8
@@ -111,6 +116,15 @@ MEASURE_DICTATION_HEAR_SECONDS=1 "$script_dir/../measure-dictation.sh" --voices 
     --out "$root/out4" --audio-cache "$root/cache" >/dev/null 2>&1
 expect "exits 0" "$?" 0
 expect "as a NOWRITE that timed out" "$(awk -F'\t' '$3 == "hangs" { print $8 "\t" $11 }' "$root/out4/results.tsv")" $'timed out\tNOWRITE'
+
+echo "--paced plays each phrase between silences and records its caption lag"
+printf 'phrase\tintent\n%s\n' $'185 for 5 at 8\t185|5|8' $'135 for 20\t135|20|*' >"$root/paced.tsv"
+out=$("$script_dir/../measure-dictation.sh" --voices Samantha --rates 200 --corpus "$root/paced.tsv" --paced \
+    --out "$root/out5" --audio-cache "$root/cache" 2>&1)
+expect "exits 0" "$?" 0
+expect "the lag runs from the end of the leading silence to the first caption with words" \
+    "$(awk -F'\t' '$3 == "185 for 5 at 8" { print $11 "\t" $14 }' "$root/out5/results.tsv")" $'CORRECT\t1400'
+expect_line "the summary prints the lag's percentiles" "$out" "caption lag (2 samples): p50 1400 ms  p90 3900 ms  max 3900 ms"
 
 echo
 echo "$pass passed, $fail failed"
