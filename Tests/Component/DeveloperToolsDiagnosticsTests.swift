@@ -127,7 +127,7 @@ import Testing
 }
 
 @MainActor
-@Test func auditReportsPerSetValueForProtectedHeaderVisibleWritableRowPlacement() throws {
+@Test func auditReportsPerSetValueForOccupiedHeaderVisibleWritableRowPlacement() throws {
     // A protected coach-note header (K15) redirects Set logs to the first Visible Writable Row
     // below it (K16), which already holds both Sets' logs as a comma-separated list. Logging Set 2
     // expects an empty slot, but the persisted slot reads "190x5@8". The audit must read the value

@@ -120,7 +120,7 @@ private enum PlacementTestError: Error { case notPlaced }
     #expect(overflow.listPosition == nil)
 }
 
-@Test func setLogPlacementRedirectsProtectedHeaderToVisibleWritableRow() throws {
+@Test func setLogPlacementRedirectsOccupiedHeaderToVisibleWritableRow() throws {
     let grid = coachNoteLayoutGrid()  // Chest Fly anchor row 17, protected header, 2 sets
 
     let setOne = try placed(placement(grid, exercise: "Chest Fly", setIndex: 0))
@@ -265,7 +265,7 @@ private func coachNoteLineGrid(line0Notes: String = "Brace hard, controlled desc
     #expect(placement.row == 14)  // anchor row
 }
 
-@Test func setLogPlacementBlocksProtectedHeaderWithoutWritableRow() throws {
+@Test func setLogPlacementBlocksOccupiedHeaderWithoutWritableRow() throws {
     // Coach Note header with the next Exercise immediately below leaves no safe row: conflict.
     let grid = gridFromA1(
         [

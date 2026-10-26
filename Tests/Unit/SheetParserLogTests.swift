@@ -24,7 +24,7 @@ import Testing
     #expect(exercises[0].sets[1].setLog?.formatted == "195x5@9")
 }
 
-@Test func parsesProtectedHeaderSetLogsFromFirstVisibleWritableRowSkippingHiddenRows() throws {
+@Test func parsesOccupiedHeaderSetLogsFromFirstVisibleWritableRowSkippingHiddenRows() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -267,7 +267,7 @@ private func expectReaderReadsEachSetFromPlacement(_ snapshot: SheetSnapshot) th
     }
 }
 
-@Test func readsProtectedHeaderSetsFromThePlacementResolvedVisibleWritableRow() throws {
+@Test func readsOccupiedHeaderSetsFromThePlacementResolvedVisibleWritableRow() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",

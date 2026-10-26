@@ -148,7 +148,7 @@ import Testing
     }
 }
 
-@Test func layoutInterpreterDescribesProtectedHeaderAndContinuationRows() throws {
+@Test func layoutInterpreterDescribesOccupiedHeaderAndContinuationRows() throws {
     let grid = coachNoteLayoutGrid()
 
     let day = try #require(SheetLayoutInterpreter().interpret(SheetSnapshot(values: grid)).day(at: SessionAddress(week: 1, day: 1)))
