@@ -45,6 +45,7 @@ ParsedSession|memberwise|date|nil
 ParsedSet|init|setLog|nil
 ParsedSet|init|state|nil
 ParsedSet|init|unstructuredSetLog|nil
+PendingWriteBatch|memberwise|items|empty
 PendingWrite|init|createdAt|now
 RestPillView|init|visualBaselineDate|nil
 RestTimer|cancel|originSetObjectID|nil
@@ -95,6 +96,7 @@ Theme.TypeStyle|init|tracking|number
 Theme|rgb|_|number
 ValueRail|memberwise|isInvalid|bool
 VoiceActivity|init|levels|empty
+WeightFieldMount|memberwise|focusRequests|number
 WhisperEngine.Status|memberwise|downloaded|number
 WorkbookScenario.NotedExercise|memberwise|logs|nil
 WorkbookScenario.NotedExercise|memberwise|percentOneRM|nil

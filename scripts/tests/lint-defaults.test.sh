@@ -318,6 +318,8 @@ struct ActiveSetCard: View {
     var count: Int = 0 {
         didSet {}
     }
+    private(set) var page = 0
+    weak var owner: Owner?
     var body: some View {
         Text("")
     }
@@ -329,7 +331,9 @@ expect_line "a closure" "$out" "Sources/A.swift:3: new closure default, ActiveSe
 expect_line "an Optional with no value" "$out" "Sources/A.swift:4: new nil default, ActiveSetCard.init mic = nil (implicit)"
 expect_line "an inferred type" "$out" "Sources/A.swift:5: new bool default, ActiveSetCard.init dimmed = false"
 expect_line "an observed property" "$out" "Sources/A.swift:16: new number default, ActiveSetCard.init count = 0"
-expect_line "nothing else" "$(tail -1 "$root/stdout")" "4 defaults, 4 new, 0 gone from the tree"
+expect_line "a var with a private setter" "$out" "Sources/A.swift:19: new number default, ActiveSetCard.init page = 0"
+expect_line "a weak var" "$out" "Sources/A.swift:20: new nil default, ActiveSetCard.init owner = nil (implicit)"
+expect_line "nothing else" "$(tail -1 "$root/stdout")" "6 defaults, 6 new, 0 gone from the tree"
 cat >"$repo/Sources/A.swift" <<'SWIFT'
 struct ActiveSetCard: View {
     var onTouchWhileHeld: () -> Void = {}

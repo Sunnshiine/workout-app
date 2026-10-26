@@ -12,7 +12,8 @@ usage: scripts/lint-defaults.py [ROOT]
 Reads the Swift files under Sources/ and App/ and lists two kinds of default. One is a defaulted
 parameter of a func, init, or subscript. The other is a struct's stored `var` with a default, or an
 Optional `var` with none, when the struct declares no init in its body, because the synthesized
-memberwise init hands that default to every caller. A `private` or `fileprivate` var is left out,
+memberwise init hands that default to every caller. A `lazy`, `weak`, or `private(set)` var is one
+of its parameters. A `private` or `fileprivate` var is left out,
 since its default reaches no caller outside the file, and so is a `static` one, which no init takes.
 Only a default whose value is nil or .none, true or false, a closure, Date() or .now, a number, or
 an empty collection or string counts. A case or any other expression, an invoked closure among
@@ -58,7 +59,7 @@ SIGNATURE = re.compile(
 TYPE = re.compile(r"\b(struct|class|enum|actor|extension|protocol)\s+([A-Za-z_][\w.]*)")
 NOT_A_TYPE = {"func", "var", "let", "subscript", "init", "override", "final"}
 STORED_VAR = re.compile(
-    r"[ \t]*(?:(?:public|internal|package)\s+)?(?:lazy\s+)?var\s+(\w+)\s*(?::\s*([^={]+?))?\s*(?:=\s*(.*?))?\s*(\{.*)?$"
+    r"[ \t]*(?:(?:public|internal|package)\s+)?(?:(?:private|fileprivate)\(set\)\s+)?(?:(?:lazy|weak)\s+)?var\s+(\w+)\s*(?::\s*([^={]+?))?\s*(?:=\s*(.*?))?\s*(\{.*)?$"
 )
 EMPTY = r"\.?(empty|init\(\))|\[[^=]*\]\(\)|(Array|Set|Dictionary|String)(<.*>)?\(\)"
 OPEN, CLOSE = "([{", ")]}"
