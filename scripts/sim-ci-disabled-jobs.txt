@@ -1,0 +1,8 @@
+# Jobs CI's simulator also boots without, on top of scripts/sim-pool-disabled-jobs.txt. Lanes keep
+# them because the verify skill drives the Live Activity (features/live-activity.md), which chronod
+# renders. No CI suite looks at a rendered widget or Live Activity.
+
+# Widgets and the Live Activity's rendering: chronod launches about 30 stock widget extensions at
+# every boot. navd only serves chronod's Maps widget.
+com.apple.chronod
+com.apple.navd
