@@ -145,11 +145,11 @@ card on. While the mic listens, and after a press that wrote nothing, the
 action capsule says what it heard in the Log button's frame, never aloud. A
 review has no collapse control: tapping its leaf again ends it. Inside the
 card, only what answers the athlete's own finger moves: the press (the Log
-capsule's and the weight steppers', both §5.3's 0.97 snappy scale), the rail
-recentring, and the hold-to-skip fill. A Superset switch is told above the
-card, by the Exercise name line and the active leaf. While the weight is
-edited, the card rides above the keyboard in one piece at the same size
-(§5.1).
+capsule's and the weight steppers', both §5.3's 0.97 snappy scale), the mic
+glyph's system replace into its listening fill and back, the rail recentring,
+and the hold-to-skip fill. A Superset switch is told above the card, by the
+Exercise name line and the active leaf. While the weight is edited, the card
+rides above the keyboard in one piece at the same size (§5.1).
 
 **Inert-Space All-Clear Rule** (carried forward). Tapping inert stage
 background clears transient UI — dismisses keyboard editing and transient
