@@ -1,8 +1,15 @@
 import Foundation
 
+/// What a Day's column holds, which sets how wide it reads.
+enum SheetTabColumnRole: Sendable {
+    case name, notes, value
+}
+
 /// A Sheet tab cut into the sections the app reads: each Week's Days, each Day the rows and columns
-/// of its own section that hold a value. Cells keep their Sheet letters and 1-based row numbers so
-/// the athlete can find them in the spreadsheet, and hidden rows stay in, flagged.
+/// of its own section that hold a value. A Day's `Day N` header, its date, and its role headers
+/// ("Sets", "Reps") lift out of the rows into the Day's title and column labels. Cells keep their
+/// Sheet letters and 1-based row numbers so the athlete can find them in the spreadsheet, and
+/// hidden rows stay in, flagged.
 struct SheetTabGridPresentation: Equatable, Sendable {
     struct Week: Equatable, Sendable, Identifiable {
         let number: Int
@@ -13,11 +20,25 @@ struct SheetTabGridPresentation: Equatable, Sendable {
 
     struct Day: Equatable, Sendable, Identifiable {
         let number: Int
-        /// The 0-based Sheet columns kept, in Sheet order.
-        let columns: [Int]
+        /// The `Day N` header cell as the coach typed it.
+        let title: String
+        /// The cell under the header, as the coach typed it.
+        let date: String
+        let columns: [Column]
         let rows: [Row]
 
         var id: Int { number }
+    }
+
+    struct Column: Equatable, Sendable, Identifiable {
+        /// The 0-based Sheet column.
+        let index: Int
+        /// The Day's role header in this column, `""` when it has none.
+        let label: String
+        let role: SheetTabColumnRole
+
+        var id: Int { index }
+        var letter: String { columnName(index) }
     }
 
     struct Row: Equatable, Sendable, Identifiable {
@@ -26,6 +47,8 @@ struct SheetTabGridPresentation: Equatable, Sendable {
         /// One value per kept column, `""` for an empty cell.
         let cells: [String]
         let isHidden: Bool
+        /// The row names an Exercise rather than continuing the one above.
+        let startsExercise: Bool
 
         var id: Int { number }
     }
@@ -45,35 +68,43 @@ struct SheetTabGridPresentation: Equatable, Sendable {
 
         tab = snapshot.tab
         weeks = SheetLayoutInterpreter().interpret(sheet).weeks.map { week in
-            Week(
-                number: week.number,
-                days: week.days.map { day in
-                    Self.day(day, rows: week.headerRow..<week.endRow, in: sheet)
-                }
-            )
+            Week(number: week.number, days: week.days.map { Self.day($0, of: week, in: sheet) })
         }
     }
 
-    private static func day(_ day: SheetLayoutDay, rows: Range<Int>, in sheet: SheetSnapshot) -> Day {
+    private static func day(_ day: SheetLayoutDay, of week: SheetLayoutWeek, in sheet: SheetSnapshot) -> Day {
         let grid = sheet.values
+        let rows = week.headerRow..<week.endRow
+        let nameColumn = day.columns.name
         func holdsValue(_ row: Int, _ col: Int) -> Bool { !grid.cell(row: row, col: col).trimmed.isEmpty }
+        func isLifted(_ row: Int, _ col: Int) -> Bool {
+            row == week.roleHeaderRow || (col == nameColumn && (row == week.headerRow || row == week.dateRow))
+        }
 
         let columns = day.columns.span.filter { col in rows.contains { holdsValue($0, col) } }
+        let exerciseRows = Set(
+            anchorRows(in: grid, cols: day.columns, firstRow: week.roleHeaderRow + 1, upper: min(week.endRow, grid.count))
+        )
         return Day(
             number: day.number,
-            columns: columns,
-            rows: rows.filter { row in columns.contains { holdsValue(row, $0) } }.map { row in
+            title: grid.cell(row: week.headerRow, col: nameColumn).trimmed,
+            date: grid.cell(row: week.dateRow, col: nameColumn).trimmed,
+            columns: columns.map { col in
+                Column(
+                    index: col,
+                    label: grid.cell(row: week.roleHeaderRow, col: col).trimmed,
+                    role: col == nameColumn ? .name : col == day.columns.notes ? .notes : .value
+                )
+            },
+            rows: rows.filter { row in columns.contains { holdsValue(row, $0) && !isLifted(row, $0) } }.map { row in
                 Row(
                     number: row + 1,
                     cells: columns.map { grid.cell(row: row, col: $0) },
-                    isHidden: !sheet.isRowVisible(row)
+                    isHidden: !sheet.isRowVisible(row),
+                    startsExercise: exerciseRows.contains(row)
                 )
             }
         )
-    }
-
-    static func columnLetter(_ column: Int) -> String {
-        columnName(column)
     }
 
     /// The A1 reference of the cell in 0-based Sheet `column` of the row numbered `row`, as "AI37".

@@ -138,15 +138,18 @@ enum Theme {
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
 
-    // MARK: - Sheet tab grid
+    // MARK: - Sheet tab Day cards
     //
-    // The Day sections of the Sheet tab the Block grid opens: fixed cells so columns line up like the spreadsheet.
+    // The Day sections of the Sheet tab the Block grid opens. Columns size by role so a name or a
+    // note reads whole more often and a number column stays narrow.
 
-    static let sheetCellWidth: CGFloat = 96
-    static let sheetCellHeight: CGFloat = 28
-    static let sheetRowNumberWidth: CGFloat = 40
-    static let sheetGridline: CGFloat = 0.5
-    static let sheetSelectedCellStroke: CGFloat = 2
+    static let sheetNameColumnWidth: CGFloat = 148
+    static let sheetNotesColumnWidth: CGFloat = 180
+    static let sheetValueColumnWidth: CGFloat = 64
+    static let sheetRowHeight: CGFloat = 36
+    static let sheetRowNumberWidth: CGFloat = 30
+    static let sheetHairline: CGFloat = 0.5
+    static let sheetSelectedCellStroke: CGFloat = 1.5
     static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
 
     static let cardSpacing: CGFloat = 16

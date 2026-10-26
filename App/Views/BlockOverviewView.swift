@@ -47,7 +47,7 @@ struct BlockOverviewView: View {
                 SettingsView()
             case .sheetTab:
                 if let readBlockSheet {
-                    SheetTabView(read: readBlockSheet, focusWeek: presentation.weeks.first(where: \.isFocus)?.weekNumber)
+                    SheetTabView(read: readBlockSheet, currentSession: currentSession?.address)
                         .presentationDetents([.large])
                 }
             }

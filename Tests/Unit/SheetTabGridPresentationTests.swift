@@ -30,17 +30,41 @@ private let oneDay: [String: String] = [
 @Test func aDayKeepsOnlyTheRowsAndColumnsOfItsSectionThatHoldAValue() throws {
     let day = try #require(presentation(oneDay).weeks.first?.days.first)
 
-    #expect(day.columns.map(SheetTabGridPresentation.columnLetter) == ["B", "C", "E", "F"])
-    #expect(day.rows.map(\.number) == [4, 5, 6, 7, 9])
+    #expect(day.columns.map(\.letter) == ["B", "C", "E", "F"])
+    #expect(day.rows.map(\.number) == [7, 9])
     #expect(
         day.rows.map(\.cells) == [
-            ["Day 1", "", "", ""],
-            ["5/4/2026", "", "", ""],
-            ["", "Sets", "Reps", "Notes"],
             ["Back Squat", "3", "5", ""],
             ["BB RDL", "2", "", "Start w/ 10 sec hold"]
         ]
     )
+}
+
+@Test func aDaysHeaderDateAndRoleHeadersBecomeItsTitleAndColumnLabels() throws {
+    let day = try #require(presentation(oneDay).weeks.first?.days.first)
+
+    #expect(day.title == "Day 1")
+    #expect(day.date == "5/4/2026")
+    #expect(day.columns.map(\.label) == ["", "Sets", "Reps", "Notes"])
+    #expect(day.columns.map(\.role) == [.name, .value, .value, .notes])
+}
+
+@Test func aRowStartsAnExerciseOnlyWhereItNamesOne() throws {
+    var cells = oneDay
+    cells["C8"] = "1"
+    let day = try #require(presentation(cells).weeks.first?.days.first)
+
+    #expect(day.rows.map(\.number) == [7, 8, 9])
+    #expect(day.rows.map(\.startsExercise) == [true, false, true])
+}
+
+@Test func aHeaderRowKeepsAValueTheDayDoesNotLift() throws {
+    var cells = oneDay
+    cells["C4"] = "Deload"
+    let day = try #require(presentation(cells).weeks.first?.days.first)
+
+    #expect(day.rows.first?.number == 4)
+    #expect(day.rows.first?.cells == ["Day 1", "Deload", "", ""])
 }
 
 @Test func aHiddenRowInADayStaysFlagged() throws {
@@ -52,7 +76,6 @@ private let oneDay: [String: String] = [
 }
 
 @Test func aCellReferenceNamesTheSheetColumnPastZ() {
-    #expect(SheetTabGridPresentation.columnLetter(26) == "AA")
     #expect(SheetTabGridPresentation.cellReference(row: 37, column: 34) == "AI37")
 }
 
@@ -75,7 +98,8 @@ private let oneDay: [String: String] = [
     #expect(weeks.map(\.number) == [1, 2])
     #expect(weeks.map { $0.days.map(\.number) } == [[1, 2], [1, 2, 3]])
     let weekOneDayOne = try #require(weeks.first?.days.first)
-    #expect(weekOneDayOne.columns.map(SheetTabGridPresentation.columnLetter) == ["C", "D", "F", "G", "H", "I", "K"])
-    #expect(weekOneDayOne.rows.map(\.number) == [12, 13, 14, 15, 19])
+    #expect(weekOneDayOne.columns.map(\.letter) == ["C", "D", "F", "G", "H", "I", "K"])
+    #expect(weekOneDayOne.title == "Day 1")
+    #expect(weekOneDayOne.rows.map(\.number) == [15, 19])
     #expect(weekOneDayOne.rows.last?.cells == ["2-3:1:0 BB RDL", "2", "8", "", "RPE8", "", "Start w/ 10 sec hold"])
 }
