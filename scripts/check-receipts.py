@@ -3,15 +3,16 @@
 
 usage: scripts/check-receipts.py --body-file FILE --head SHA [--base REF] [--repo OWNER/NAME] [-C DIR]
 
-A receipt is a fenced block, ``` or ~~~, whose info string is `receipt` in any case, as
-scripts/receipt.sh writes it. A receipt quoted inside another fence is not one. Each receipt fails
-when it does not parse (no closing fence, a line that is not a field, an unknown or repeated
-field), when a field is missing, when it says dirty: yes, when its exit is not 0, when its sha is
-not a commit in this repository (in CI, one never pushed to GitHub), or when its tree differs from
-HEAD's in a path outside docs/. A receipt named lint is stale on any change, docs/ included,
-because the lint reads the docs. The trees are compared, not the history, so a receipt survives a
-docs/-only commit, merge, or rebase. A merge of the base that brings code in makes every earlier
-receipt stale. The summary field is not checked.
+A receipt is a top-level fenced block, ``` or ~~~, whose info string starts with `receipt` in any
+case, as scripts/receipt.sh writes it. A receipt quoted inside another fence is not one. A receipt
+fence indented four or more columns, or inside a quote or list item, fails, since the check reads
+only the top level. Each receipt fails when it does not parse (no closing fence, a line that is not
+a field, an unknown or repeated field), when a field is missing, when it says anything but
+dirty: no, when its exit is not 0, when its sha is not a commit in this repository (in CI, one
+never pushed to GitHub), or when its tree differs from HEAD's in a path outside docs/. A receipt
+named lint is stale on any change, docs/ included, because the lint reads the docs. The trees are
+compared, not the history, so a receipt survives a docs/-only commit, merge, or rebase. A merge of
+the base that brings code in makes every earlier receipt stale. The summary field is not checked.
 
 With --base, every commit on HEAD and not on REF that carries a closing keyword (`Fixes #N`,
 `closes owner/repo#N`, `resolved: https://github.com/owner/repo/issues/N`) fails unless the body
@@ -33,7 +34,7 @@ FIELDS = ("name", "command", "sha", "dirty", "exit", "summary")
 REQUIRED = FIELDS[:-1]
 FENCE_OPEN = re.compile(r" {0,3}(`{3,}|~{3,})(.*)")
 FIELD = re.compile(r"([a-z]+):[ \t]?(.*)")
-NESTED_RECEIPT = re.compile(r"[ \t]*(?:>[ \t]*|[-*+][ \t]+|\d+[.)][ \t]+)+(?:`{3,}|~{3,})[ \t]*receipt\b", re.IGNORECASE)
+NESTED_RECEIPT = re.compile(r"[ \t]*(?:>[ \t]*|[-*+][ \t]+|\d+[.)][ \t]+)*(?:`{3,}|~{3,})[ \t]*receipt", re.IGNORECASE)
 INLINE_CODE = re.compile(r"(`+)(?!`).*?(?<!`)\1(?!`)", re.DOTALL)
 CLOSING = re.compile(
     r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?[ \t]+"
@@ -114,8 +115,7 @@ def parse_receipt(fence):
 
 
 def is_receipt(fence):
-    words = fence.info.split()
-    return bool(words) and words[0].lower() == "receipt"
+    return fence.info.lower().startswith("receipt")
 
 
 def stale_paths(receipt, changed):
@@ -202,7 +202,7 @@ def main():
     fences, prose = split_body(body)
     found = [parse_receipt(f) for f in fences if is_receipt(f)]
     problems = [p for p in (check_receipt(args.repo_dir, r, head) for r in found) if p]
-    problems += [f"a receipt fence inside a quote or list item is not checked, so move it to the top level: {line.strip()}"
+    problems += [f"a receipt fence indented or inside a quote or list item is not checked, so move it to the top level: {line.strip()}"
                  for line in prose if NESTED_RECEIPT.match(line)]
     if args.base:
         must_git(args.repo_dir, "rev-parse", "--verify", f"{args.base}^{{commit}}")

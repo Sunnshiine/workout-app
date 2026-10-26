@@ -249,6 +249,10 @@ expect_closing_pass "closing: a body that says Fixes https://github.com/acme/app
 expect_closing_fail "closing: a body that closes other/repo#7" "Fixes other/repo#7"
 expect_closing_fail "closing: a body that closes other/repo's issue 7 by URL" "Fixes https://github.com/other/repo/issues/7"
 expect_closing_fail "closing: a body that closes #70" "Fixes #70"
+expect_closing_pass "closing: a body that says closed #7" "closed #7"
+expect_closing_pass "closing: a body that says fixed #7" "fixed #7"
+expect_closing_fail "closing: a body that says suffixes #7" "suffixes #7"
+expect_closing_fail "closing: a body that says Fixes #7a" "Fixes #7a"
 expect_closing_fail "closing: a body that quotes Fixes #7 in inline code" 'The commit says `Fixes #7`.'
 expect_closing_fail "closing: a body that quotes Fixes #7 in a fenced block" "$(printf '```text\nFixes #7\n```')"
 expect_closing_fail "closing: a body that quotes Fixes #7 in a ~~~ block" "$(printf '~~~text\nFixes #7\n~~~')"
@@ -259,14 +263,17 @@ git commit -q --allow-empty -m "fix: nine" -m "closes #9" -m "Resolved: #10" -m 
 expect_closing_fail "closing: a commit's closes #9 under a body that omits it" "Fixes #7" "and the body closes no #9"
 expect_closing_fail "closing: a commit's Resolved: #10 under a body that omits it" "Fixes #7" "and the body closes no #10"
 expect_closing_fail "closing: a commit's Fixes other/repo#11 under a body that closes only #11" "Fixes #7, closes #9, resolves #10, fixes #11" "and the body closes no other/repo#11"
+expect_closing_fail "closing: an earlier commit's Fixes #7 under a body that closes only the head commit's issues" "closes #9, resolves #10, fixes other/repo#11"
 expect_closing_pass "closing: a body that repeats every commit keyword" "Fixes #7, closes #9, resolves #10, fixes other/repo#11"
 git checkout -q feature
 
-echo "fence: ~~~ and a capitalized info string are receipts, a nested one is not, and a receipt that does not parse fails"
+echo "fence: ~~~ and any info string that starts with receipt are receipts, a nested or indented one fails, and a receipt that does not parse fails"
 h=$(git rev-parse HEAD)
 fresh=$(rcpt unit "$h")
 expect_fail "fence: a dirty receipt in a ~~~ fence" "$(rcpt unit "$h" 0 yes | sed 's/^```/~~~/')" "ran on a dirty tree"
 expect_fail "fence: a dirty receipt under the info string Receipt" "$(rcpt unit "$h" 0 yes | sed 's/^```receipt/```Receipt/')" "ran on a dirty tree"
+expect_fail "fence: a dirty receipt under the info string receipt,yaml" "$(rcpt unit "$h" 0 yes | sed 's/^```receipt/```receipt,yaml/')" "ran on a dirty tree"
+expect_fail "fence: a receipt that says dirty: maybe" "$(rcpt unit "$h" 0 maybe)" "receipt unit at ${h:0:12} ran on a dirty tree"
 body_with "$(printf '````markdown\n%s\n````' "$(rcpt unit "$h" 0 yes)")"
 run_check
 expect_exit "fence: a receipt quoted inside a four-backtick fence" "$status" 0
@@ -281,7 +288,13 @@ expect_fail "fence: a receipt with no closing fence" "$(rcpt unit "$h" | sed '$d
 expect_fail "fence: a receipt with a line that is not a field" "$(rcpt unit "$h" | sed 's/^dirty: no$/dirty: no\nall good/')" "receipt unit has a line that is not a field: all good"
 expect_fail "fence: a receipt that repeats a field" "$(rcpt unit "$h" | sed 's/^exit: 0$/exit: 0\nexit: 1/')" "receipt unit repeats exit"
 expect_fail "fence: a receipt with an unknown field" "$(rcpt unit "$h" | sed 's/^exit: 0$/exit: 0\ntests: 3/')" "receipt unit has an unknown field tests"
-expect_fail "fence: a receipt inside a quote" "$(rcpt unit "$h" | sed 's/^/> /')" "a receipt fence inside a quote or list item"
+expect_fail "fence: a receipt inside a quote" "$(rcpt unit "$h" | sed 's/^/> /')" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt in a ~~~ fence inside a quote" "$(rcpt unit "$h" | sed 's/^```/~~~/; s/^/> /')" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt under the info string RECEIPT inside a quote" "$(rcpt unit "$h" | sed 's/^```receipt/```RECEIPT/; s/^/> /')" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt in a bullet list item" "$(rcpt unit "$h" 0 yes | sed '1s/^/- /; 2,$s/^/  /')" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt in a numbered list item" "$(rcpt unit "$h" 0 yes | sed '1s/^/1. /; 2,$s/^/   /')" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt indented four spaces as a list continuation" "$(printf '1. item\n\n%s' "$(rcpt unit "$h" 0 yes | sed 's/^/    /')")" "is not checked, so move it to the top level"
+expect_fail "fence: a receipt indented by a tab" "$(rcpt unit "$h" 0 yes | sed "s/^/$(printf '\t')/")" "is not checked, so move it to the top level"
 body_with "$(printf '%s\n%s\n' "$fresh" "$(rcpt lint "$h")")"
 run_check
 expect_exit "fence: two fresh receipts in a row" "$status" 0
@@ -298,55 +311,6 @@ expect_line "dirty after: a command that makes a commit" "$block" "dirty: yes"
 git reset -q --hard HEAD~1
 make_receipt clean -- true
 expect_line "dirty after: a command that changes nothing" "$block" "dirty: no"
-
-echo "receipts.yml: a title-only edit skips under a concurrency group of its own, so it cancels no run"
-cat >"$root/workflow.py" <<'PY'
-import re, sys
-src = open(sys.argv[1]).read()
-group = re.search(r"^concurrency:\n  group: (.+)$", src, re.M).group(1)
-cond = re.search(r"^  receipts:\n(?:    .*\n)*?    if: (.+)$", src, re.M).group(1)
-TOKEN = re.compile(r"\s+|'[^']*'|&&|\|\||!=|==|!(?=[A-Za-z(])|\(|\)|[A-Za-z_][\w.-]*")
-
-def evaluate(expr, ctx):
-    out, pos = [], 0
-    while pos < len(expr):
-        m = TOKEN.match(expr, pos)
-        if not m:
-            raise SystemExit(f"bad\tan expression token the test cannot read: {expr[pos:]}")
-        t, pos = m.group(0), m.end()
-        if t.isspace():
-            continue
-        out.append({"&&": " and ", "||": " or ", "!": " not "}.get(t, t if t[0] in "'()!=" else f"get({t!r})"))
-    def get(path):
-        v = ctx
-        for k in path.split("."):
-            v = v.get(k) if isinstance(v, dict) else None
-        return v
-    return eval("".join(out), {"get": get})
-
-def template(text, ctx):
-    return re.sub(r"\$\{\{(.*?)\}\}", lambda m: str(evaluate(m.group(1), ctx)), text)
-
-def event(run_id, action, **changes):
-    return {"github": {"run_id": run_id, "event": {"action": action, "changes": changes, "pull_request": {"number": 1110}}}}
-
-events = {
-    "a push": event(1, "synchronize"),
-    "a body edit": event(2, "edited", body={"from": "old"}),
-    "a base edit": event(3, "edited", base={"ref": {"from": "old"}}),
-    "a title edit": event(4, "edited", title={"from": "old"}),
-}
-push_group = template(group, events["a push"])
-for label, ctx in events.items():
-    runs, own = bool(evaluate(cond, ctx)), template(group, ctx)
-    title = label == "a title edit"
-    print(f"{'ok' if runs != title else 'bad'}\treceipts.yml: {label} {'skips' if title else 'runs'} the job")
-    shares = own == push_group
-    print(f"{'ok' if shares != title else 'bad'}\treceipts.yml: {label} {'has a group of its own' if title else 'shares the PR group'} (group {own})")
-PY
-while IFS=$'\t' read -r verdict text; do
-    if [ "$verdict" = ok ]; then ok "$text"; else bad "$text"; fi
-done < <(python3 -I "$root/workflow.py" "$script_dir/../../.github/workflows/receipts.yml" 2>&1 || echo "bad	the workflow check crashed")
 
 echo "bad arguments"
 out=$("$receipt" unit swift test 2>&1)

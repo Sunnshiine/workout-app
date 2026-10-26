@@ -204,7 +204,7 @@ graphql_error="HTTP 502: Bad Gateway (https://api.github.com/graphql)" check "a 
 echo "no run: exit 3"
 
 check "a PR that starts no run exits 3 and prints no merge command" 3 "" 668 "[]"
-check_err "a PR that starts no run names the commit and what to check before landing" "no pull_request workflow but Receipts ran on 73b27aa within 5 minutes
+check_err "a PR that starts no run names the commit and what to check before landing" "no pull_request workflow ran on 73b27aa within 5 minutes
 land #668 only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed 73b27aa (#805)"
 
 R=35742049777

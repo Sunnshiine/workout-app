@@ -21,7 +21,7 @@ which refuses a landing that undoes a recent commit on the base unless the PR bo
 `Reverts #N`, or `Reverts <sha>` for a commit with no PR number.
 
 Exits 0 when every workflow succeeded; 1 when one did not, a run tested another base, the head moved during the wait, the PR comes from a fork, a gh or git call failed, or the landing would undo a commit on the base; 2 on a missing or
-non-numeric argument; and 3 when no workflow but Receipts ran.
+non-numeric argument; and 3 when no pull_request workflow ran, or only Receipts did.
 EOF
 }
 
@@ -75,7 +75,7 @@ prs_and_bases_of_run() {
 not_receipts() { awk -F'\t' '$5 != "Receipts"' <<<"$1"; }
 
 no_run() {
-    echo "no pull_request workflow but Receipts ran on ${sha:0:7} within 5 minutes" >&2
+    echo "no pull_request workflow $1 on ${sha:0:7} within 5 minutes" >&2
     echo "land #$pr only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed ${sha:0:7} (#805)" >&2
     exit 3
 }
@@ -99,7 +99,7 @@ if [[ "$now" != "$sha" ]]; then
     exit 1
 fi
 
-[[ -n "$runs" ]] || no_run
+[[ -n "$runs" ]] || no_run ran
 
 base_info=$(base_and_last_change)
 IFS=$'\t' read -r base base_changed <<<"$base_info"
@@ -124,7 +124,7 @@ while IFS=$'\t' read -r run _ conclusion created workflow; do
 done <<<"$runs"
 [[ "$stale" == 0 ]] || echo "push to $branch, an empty commit if nothing changed, so every workflow runs against $base" >&2
 [[ "$failed" == 0 && "$stale" == 0 ]] || exit 1
-[[ -n "$(not_receipts "$runs")" ]] || no_run
+[[ -n "$(not_receipts "$runs")" ]] || no_run "but Receipts ran"
 
 body=$(mktemp)
 trap 'rm -f "$body"' EXIT
