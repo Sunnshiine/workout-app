@@ -19,7 +19,9 @@ is history, so it is never failed and never counts as the issue a bug-shaped rul
 
 `unstructured_task_is_held` and `fixture_dates_are_literal` exist to stop bugs, so an exemption of
 either, or of `all`, accepts a known bug and must cite an issue. The other rules' exemptions record
-design facts, such as a WCAG clause or a parameter count, and may cite none.
+design facts, such as a WCAG clause or a parameter count, and may cite none. A `// default:
+<reason>` comment, the reason scripts/lint-defaults.py accepts for a defaulted parameter, is an
+exemption of the same kind: it may cite no issue, and any issue it cites must be live.
 
 Exits 0 when clean, 1 on findings, 2 when git, a file, or gh cannot answer, so the check never
 passes unchecked, and 64 on a usage error or a LINT_EXEMPTIONS_GH_TIMEOUT that is not a finite
@@ -39,6 +41,7 @@ from pathlib import Path
 
 REPO = "Sunnshiine/workout-app"
 BUG_SHAPED_RULES = {"unstructured_task_is_held", "fixture_dates_are_literal"}
+DEFAULT_REASON = re.compile(r"//(?!/)\s*default:\s*\S")
 COMMAND = re.compile(r"swiftlint:(disable|enable)(?::(?:next|this|previous))?(?:\s+(.*))?$")
 STRING_START = re.compile(r'(#*)("""|")')
 CITATION = re.compile(r"(?<![\w&])#([1-9]\d{1,4})(?!\w)")
@@ -147,6 +150,10 @@ def exemptions_in(path: str, text: str) -> list[Exemption]:
     lines = text.split("\n")
     found = []
     for index, (column, comment) in sorted(comments.items()):
+        if DEFAULT_REASON.match(comment):
+            cited = sorted({int(n) for n in CITATION.findall(comment)})
+            found.append(Exemption(path, index + 1, ("default",), tuple(cited)))
+            continue
         directive = command(comment)
         if not directive or directive.group(1) != "disable":
             continue
