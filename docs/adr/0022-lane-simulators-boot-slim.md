@@ -78,9 +78,9 @@ Shutdown. The next `create` writes it again.
 - `scripts/measure-host.sh` clones through `sim-pool.sh create`, so its rows now measure slim
   lanes. ADR-0020's table was taken on stock ones.
 - CI's `visual-tests` job boots its baseline simulator slim too, through `scripts/sim-slim.sh`, which
-  `sim-pool.sh` also calls. On the 3-core runner a stock boot held the load average at 70 to 330.
-  Slim, the UI suite ran a fifth to a quarter faster and the build beside the boot about half as
-  long (runs 40327308005 and 40327311980).
+  `sim-pool.sh` also calls. It boots with `simctl boot` while the app builds. On the 3-core runner the
+  load average held at 170 to 410 for a stock boot, at 120 to 200 for a slim one that xcodebuild booted
+  itself, and under 25 for a slim one booted through simctl (hc runs 40330329397 and 40338719303).
 - A test that needs a disabled job fails only on a lane or in CI. Take the job off the list, or boot that
   lane stock as above.
 
