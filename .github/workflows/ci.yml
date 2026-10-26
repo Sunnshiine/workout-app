@@ -212,7 +212,10 @@ jobs:
     if: github.event.action != 'edited' || github.event.changes.base
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
-    timeout-minutes: 45
+    # About twice the job's median of 9 minutes (PR runs 40358470805 to 40363479483), so a change
+    # that slows it back toward the old 14 fails here instead of drifting in. A dispatch with the
+    # UI suite adds its 9 to 13 minutes.
+    timeout-minutes: ${{ inputs.ui-suite && 35 || 20 }}
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
     # a change to either value as a re-record of every baseline.
