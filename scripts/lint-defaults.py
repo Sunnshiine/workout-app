@@ -12,9 +12,11 @@ usage: scripts/lint-defaults.py [ROOT]
 Reads the Swift files under Sources/ and App/ and lists two kinds of default. One is a defaulted
 parameter of a func, init, or subscript. The other is a struct's stored `var` with a default, or an
 Optional `var` with none, when the struct declares no init in its body, because the synthesized
-memberwise init hands that default to every caller. Only a default whose value is nil, true or
-false, a closure, Date() or .now, a number, or an empty collection or string counts. A case or any
-other expression is left out, since most of those inject a production service.
+memberwise init hands that default to every caller. A `private` or `fileprivate` var is left out,
+since its default reaches no caller outside the file, and so is a `static` one, which no init takes.
+Only a default whose value is nil or .none, true or false, a closure, Date() or .now, a number, or
+an empty collection or string counts. A case or any other expression, an invoked closure among
+them, is left out, since most of those inject a production service.
 
 Each default is keyed `Type|function|label|kind`, with no path or line, so moving code between
 files changes no key. The label is the external one, or `_`, so renaming an internal name changes
@@ -56,8 +58,9 @@ SIGNATURE = re.compile(
 TYPE = re.compile(r"\b(struct|class|enum|actor|extension|protocol)\s+([A-Za-z_][\w.]*)")
 NOT_A_TYPE = {"func", "var", "let", "subscript", "init", "override", "final"}
 STORED_VAR = re.compile(
-    r"[ \t]*(?:(?:public|internal|package)\s+)?var\s+(\w+)\s*(?::\s*([^={]+?))?\s*(?:=\s*(.*?))?\s*(\{.*)?$"
+    r"[ \t]*(?:(?:public|internal|package)\s+)?(?:lazy\s+)?var\s+(\w+)\s*(?::\s*([^={]+?))?\s*(?:=\s*(.*?))?\s*(\{.*)?$"
 )
+EMPTY = r"\.?(empty|init\(\))|\[[^=]*\]\(\)|(Array|Set|Dictionary|String)(<.*>)?\(\)"
 OPEN, CLOSE = "([{", ")]}"
 
 
@@ -88,15 +91,15 @@ class Unanswered(Exception):
 
 def kind_of(value: str) -> str:
     v = value.strip()
-    if v == "nil":
+    if v in ("nil", ".none"):
         return "nil"
     if v in ("true", "false"):
         return "bool"
     if v.startswith("{"):
-        return "closure"
+        return "expr" if v[closing(v, 1):].strip() else "closure"
     if re.fullmatch(r"Date\(\)|Date\.now|\.now", v):
         return "now"
-    if v in ("[]", "[:]", '""') or re.fullmatch(r"\.?(empty|init\(\))", v):
+    if v in ("[]", "[:]", '""') or re.fullmatch(EMPTY, v):
         return "empty"
     if re.fullmatch(r"-?[\d_.]+", v):
         return "number"
@@ -244,7 +247,12 @@ def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], com
             else:
                 group = 3 if value else 4
                 shown = " ".join(code[m.start(group): m.end(group)].split())
-                kind = kind_of(m.group(group))
+                start = m.start(group)
+                if text[start] == "{":
+                    end = text.find("\n", closing(text, start + 1))
+                    kind = kind_of(text[start: end if end >= 0 else len(text)])
+                else:
+                    kind = kind_of(m.group(group))
             line = text.count("\n", 0, at) + 1
             if kind in KINDS and not reasoned(comments, line):
                 found.append(Default(path, line, s.name, "memberwise", name, name, shown, kind))
