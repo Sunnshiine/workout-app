@@ -63,6 +63,7 @@ final class SessionCoordinator {
     var restTimer: RestTimer { wiring.restTimer }
     var expandedLoggedSetID: ActiveSetID? { focusManager.expandedLoggedSetID }
     var pairingMode: PairingMode { pairing.mode }
+    var supersetFusions: Int { pairing.fusions }
 
     /// The athlete is now viewing `session`. Re-points the coordinator at it, with focus
     /// re-seeded from its first Pending Set, and re-checks the rest Live Activity.

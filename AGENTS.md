@@ -96,7 +96,9 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
 gate, a flake guard that repeats the tests the PR changed under load, the simulator-hosted unit
-and component suite, the visual gate, and swift-format on the Swift files the PR changes. CI
+and component suite, the visual gate, and swift-format on the Swift files the PR changes. A PR
+titled `fix(`, `fix:`, or `fix!:` also gets the advisory `mutants` job, which comments the mutants
+of its changed `Sources/` lines that no test kills and never fails. CI
 runs `WorkoutTrackerUITests` only on request, with
 `gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and

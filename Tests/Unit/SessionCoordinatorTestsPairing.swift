@@ -110,14 +110,58 @@ private func makeIntegratedCoordinatorSession() -> Session {
 
     #expect(clock.sleptDurations == [.milliseconds(220)])
     #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
+    #expect(coordinator.supersetFusions == 0)
 
     await clock.advance()
 
+    #expect(coordinator.supersetFusions == 1)
     #expect(coordinator.pairingMode == .inactive)
     #expect(coordinator.activeSetID == initialActiveSetID)
     let rows = coordinator.stage(in: session, lookup: .empty).queue.rows
     #expect(rows.map(\.id) == ["exercise-0", "superset-1"])
     #expect(rows.map(\.title) == ["Press", "Squat + Bench Press"])
+}
+
+@MainActor
+@Test func cancellingDuringPairingConfirmationFusesNothing() async throws {
+    let session = makePlannedPairingSession()
+    let clock = ManualSessionTransitionClock()
+    let coordinator = SessionCoordinator(session: session, wiring: .fixture(), transitionClock: clock)
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    #expect(coordinator.beginPairing(from: squat, in: session))
+    #expect(coordinator.handlePairingTap(on: bench, in: session) == .confirming)
+    await clock.waitForSleep()
+
+    coordinator.cancelPairing()
+    await clock.advance()
+
+    #expect(coordinator.supersetFusions == 0)
+    #expect(stageRowIDs(coordinator, in: session) == ["exercise-0", "exercise-1", "exercise-2"])
+}
+
+@MainActor
+@Test func aPairingWhosePartnerFinishesBeforeTheConfirmationFusesNothing() async throws {
+    let session = makePlannedPairingSession()
+    let clock = ManualSessionTransitionClock()
+    let coordinator = SessionCoordinator(
+        session: session,
+        wiring: .fixture(logging: SpySessionLoggingAdapter(), sync: SpySessionSyncAdapter()),
+        transitionClock: clock
+    )
+    let squat = try #require(session.exercises.first { $0.order == 1 })
+    let bench = try #require(session.exercises.first { $0.order == 2 })
+    let benchSet = try #require(bench.sets.first)
+    #expect(coordinator.beginPairing(from: squat, in: session))
+    #expect(coordinator.handlePairingTap(on: bench, in: session) == .confirming)
+    await clock.waitForSleep()
+    coordinator.log(benchSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+
+    await clock.advance()
+
+    #expect(coordinator.supersetFusions == 0)
+    #expect(coordinator.pairingMode == .inactive)
+    #expect(!stageRowIDs(coordinator, in: session).contains("superset-1"))
 }
 
 @MainActor
