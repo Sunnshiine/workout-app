@@ -15,7 +15,7 @@ final class KeyboardLaneUITests: XCTestCase {
             waitForKeyboardOnScreen(in: app)
             XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app), "edit \(edit)")
             centreTap(app.buttons["weight-keyboard-done"])
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+            XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
         }
 
         openWeightKeyboard(in: app)
@@ -64,7 +64,7 @@ final class KeyboardLaneUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
 
         openWeightKeyboard(in: app)
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
@@ -76,7 +76,7 @@ final class KeyboardLaneUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
         assertLogSitsAboveTheRestPill(in: app)
     }
 
@@ -92,7 +92,7 @@ final class KeyboardLaneUITests: XCTestCase {
             openWeightKeyboard(in: app)
             cardTops.append(restingFrame(of: card, keyboard: .up, in: app).minY)
             app.buttons["weight-keyboard-done"].tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+            XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
         }
         XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
 
@@ -100,7 +100,7 @@ final class KeyboardLaneUITests: XCTestCase {
         app.buttons["log-active-set-button"].tap()
 
         XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: uiEventBudget))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
         XCTAssertEqual(restingFrame(of: card, keyboard: .down, in: app).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
     }
 
@@ -135,7 +135,7 @@ final class KeyboardLaneUITests: XCTestCase {
         logButton.tap()
 
         waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
     }
 
     @MainActor
@@ -156,7 +156,7 @@ final class KeyboardLaneUITests: XCTestCase {
         XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
 
         app.buttons["weight-keyboard-done"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.disappears(within: uiEventBudget))
         assertLogSitsAboveTheRestPill(in: app)
     }
 
@@ -204,7 +204,7 @@ final class KeyboardLaneUITests: XCTestCase {
             withVelocity: .fast,
             thenHoldForDuration: 0
         )
-        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertTrue(historyTitle.disappears(within: uiEventBudget))
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
         XCTAssertTrue(app.otherElements["session-header-hud"].exists)
@@ -276,7 +276,7 @@ private func waitForKeyboardOnScreen(in app: XCUIApplication) {
 @MainActor
 private func assertKeyboardFoldsAndStaysDown(in app: XCUIApplication) {
     let keyboard = app.keyboards.firstMatch
-    XCTAssertTrue(keyboard.waitForNonExistence(timeout: uiEventBudget), "the keyboard is still up")
+    XCTAssertTrue(keyboard.disappears(within: uiEventBudget), "the keyboard is still up")
     XCTAssertFalse(keyboard.appears(within: 1), "the keyboard came back up")
 }
 

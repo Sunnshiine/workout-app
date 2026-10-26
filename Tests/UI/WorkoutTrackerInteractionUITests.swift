@@ -62,7 +62,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].appears(within: 3))
 
         app.buttons["settings-done-button"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Settings"].disappears(within: 3))
         XCTAssertTrue(app.navigationBars["Block 27"].exists)
     }
 
@@ -125,9 +125,9 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertFalse(confirmSwitch.waitForNonExistence(timeout: 2), "the swipe closed the picker under the card")
 
         app.buttons["Cancel"].tap()
-        XCTAssertTrue(confirmSwitch.waitForNonExistence(timeout: 2))
+        XCTAssertTrue(confirmSwitch.disappears(within: 2))
         tapWhenHittable(app.buttons["sheet-picker-done-button"])
-        XCTAssertTrue(app.navigationBars["Training Sheet"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Training Sheet"].disappears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
         tapWhenHittable(trainingSheetRow)

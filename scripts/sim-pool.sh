@@ -179,24 +179,8 @@ ensure_template() {
   printf '%s\n' "$udid"
 }
 
-# launchd_sim reads a device's disable list from this host file each time it boots. simctl clone
-# does not copy it, so every lane gets its own. Entries already there, such as the runtime's own
-# explicit enables, stay.
 disable_jobs() {
-  local store=/private/var/tmp/com.apple.CoreSimulator.SimDevice.$1
-  [ -d "$store" ] || mkdir -m 700 "$store" || die 70 "could not create $store"
-  python3 - "$store/disabled.plist" "$here/sim-pool-disabled-jobs.txt" <<'EOF' >&2 || die 70 "could not write the launchd disable list of $1 to $store/disabled.plist"
-import os, plistlib, sys, tempfile
-store, jobs = sys.argv[1:]
-labels = [line.split("#")[0].strip() for line in open(jobs)]
-entries = plistlib.load(open(store, "rb")) if os.path.exists(store) else {}
-entries.update((label, True) for label in labels if label)
-fd, temp = tempfile.mkstemp(dir=os.path.dirname(store))
-with os.fdopen(fd, "wb") as f:
-    plistlib.dump(entries, f)
-os.chmod(temp, 0o644)
-os.replace(temp, store)
-EOF
+  "$here/sim-slim.sh" "$1" >&2 || die 70 "could not write the launchd disable list of $1"
 }
 
 clone_lane() {

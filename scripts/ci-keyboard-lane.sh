@@ -1,49 +1,59 @@
 #!/bin/bash
 set -uo pipefail
 
-if [ $# != 1 ] || [ -z "${RUNNER_TEMP:-}" ]; then
+if [ $# != 2 ]; then
     cat >&2 <<'USAGE'
-Usage: RUNNER_TEMP=<dir> scripts/ci-keyboard-lane.sh <udid>
-CI's keyboard lane: runs KeyboardLaneUITests animated on <udid>, reusing the DerivedData, package
-checkouts, and compilation cache the visual-tests job keeps under RUNNER_TEMP, and writes
-KeyboardLane.xcresult. Resets the simulator's keyboard preference first (scripts/sim-keyboard.sh,
-#700) and prints it before and after the run. Stops any one test after 3 minutes, so a hung test
-fails and the run goes on. Exits with xcodebuild's status, or 1 when xcodebuild passes but the
-bundle shows a different number of tests ran, skipped ones excluded, than
-KeyboardLaneUITests.swift declares.
+Usage: scripts/ci-keyboard-lane.sh <udid> <xctestrun>
+CI's keyboard lane. On a pull_request event it asks scripts/keyboard-lane-paths.sh whether the
+change since HEAD^1 reaches the lane and exits 0 when it does not. On any other event it runs only
+when DISPATCHED is true (`gh workflow run ci.yml -f keyboard-lane=true`). Then it resets the
+simulator's keyboard preference (scripts/sim-keyboard.sh, #700), prints it before and after, and
+runs KeyboardLaneUITests animated from the visual-tests build into KeyboardLane.xcresult. A test
+still running after 3 minutes fails and the run goes on. Appends KEYBOARD_LANE_SECONDS to
+GITHUB_ENV when that is set, so the job's speed budget can leave the lane out.
+Exits with xcodebuild's status, or 1 when xcodebuild passes but the bundle shows a different
+number of tests ran, skipped ones excluded, than KeyboardLaneUITests.swift declares.
 Locally, run scripts/test-sim.sh WorkoutTrackerUITests/KeyboardLaneUITests instead.
 USAGE
     exit 2
 fi
 
 sim=$1
+xctestrun=$2
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
 bundle=KeyboardLane.xcresult
 
+if [ "${GITHUB_EVENT_NAME:-}" = pull_request ]; then
+    decision=$(scripts/keyboard-lane-paths.sh HEAD^1) || exit
+    [ "$decision" = run=true ] || exit 0
+elif [ "${DISPATCHED:-}" != true ]; then
+    echo "keyboard lane: not a pull request, and not dispatched with keyboard-lane=true"
+    exit 0
+fi
+
+start=$SECONDS
 preference() {
     echo "keyboard preference $1 the lane: $(xcrun simctl spawn "$sim" defaults read \
         com.apple.keyboard.preferences AutomaticMinimizationEnabled 2>&1)"
 }
+finish() {
+    preference after
+    [ -z "${GITHUB_ENV:-}" ] || echo "KEYBOARD_LANE_SECONDS=$((SECONDS - start))" >>"$GITHUB_ENV"
+}
 
 scripts/sim-keyboard.sh ensure "$sim" || exit
 preference before
-trap 'preference after' EXIT
+trap finish EXIT
 
 status=0
-xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+xcodebuild test-without-building -xctestrun "$xctestrun" \
     -destination "platform=iOS Simulator,id=$sim" \
     -only-testing:WorkoutTrackerUITests/KeyboardLaneUITests \
-    -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-    -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-    -onlyUsePackageVersionsFromResolvedFile \
     -resultBundlePath "$bundle" \
     -collect-test-diagnostics never \
     -test-timeouts-enabled YES \
     -default-test-execution-time-allowance 180 \
-    -maximum-test-execution-time-allowance 180 \
-    -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-    COMPILATION_CACHE_ENABLE_CACHING=YES \
-    COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" || status=$?
+    -maximum-test-execution-time-allowance 180 || status=$?
 [ "$status" = 0 ] || exit "$status"
 
 declared=$(grep -cE '^    func test' Tests/UI/KeyboardLaneUITests.swift)
