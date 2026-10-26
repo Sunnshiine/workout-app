@@ -173,6 +173,74 @@ let value = try! load()
 SWIFT
 expect_exit "rule names after ' - ', which SwiftLint reads as the reason" "$status" 0
 
+echo "where SwiftLint finds a directive"
+check <<'SWIFT'
+// Held. swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited directive after prose in its comment" "$status" 1
+expect_text "it names the line" "$out" "App/A.swift:1: the unstructured_task_is_held exemption cites no issue."
+check <<'SWIFT'
+Task { await work() }  // note swiftlint:disable:this unstructured_task_is_held
+SWIFT
+expect_exit "an uncited disable:this after prose in a trailing comment" "$status" 1
+check <<'SWIFT'
+// noswiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited directive glued to a word" "$status" 1
+check <<'SWIFT'
+let s = "a // b"; Task { await work() }  // x swiftlint:disable:this unstructured_task_is_held
+SWIFT
+expect_exit "an uncited directive after a string holding //" "$status" 1
+check <<'SWIFT'
+/* a */ // x swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited directive after a block comment" "$status" 1
+check <<'SWIFT'
+// Tracked in #100.
+// Held. swiftlint:disable:next force_try
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited exemption under a cited mid-comment directive" "$status" 1
+check <<'SWIFT'
+// Held (#100). swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a citation before the directive in its own comment" "$status" 0
+check <<'SWIFT'
+let a = "// swiftlint:disable:next unstructured_task_is_held"
+let b = "x \("y") // swiftlint:disable:this unstructured_task_is_held"
+let c = #"raw " // swiftlint:disable:this unstructured_task_is_held"#
+let e = "a \" // swiftlint:disable:this unstructured_task_is_held"
+let f = "\(g("//")) // swiftlint:disable:this unstructured_task_is_held"
+/* a /* b */ // swiftlint:disable:next unstructured_task_is_held */
+let d = """
+    "quoted" // swiftlint:disable:next unstructured_task_is_held
+    """
+/* // swiftlint:disable:next unstructured_task_is_held */
+/// swiftlint:disable:next unstructured_task_is_held
+//// swiftlint:disable:next unstructured_task_is_held
+// swiftlint: then swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "directive text SwiftLint does not honour" "$status" 0
+expect_line "it counts none of it" "$out" "0 exemptions cite 0 issues, and 0 fail"
+check <<'SWIFT'
+let s = "left open
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "an uncited directive after a string left open at its line's end" "$status" 1
+check <<'SWIFT'
+work()  // Tracked in #100.
+// swiftlint:disable:next unstructured_task_is_held
+Task { await work() }
+SWIFT
+expect_exit "a citation in a trailing comment above the exemption" "$status" 1
+
 echo "stacked directives"
 check <<'SWIFT'
 // Tracked in #100.
@@ -311,6 +379,15 @@ expect_no_text "it does not blame sign-in" "$err" "gh auth login\`"
 check env GH_STUB=slow LINT_EXEMPTIONS_GH_TIMEOUT=1 python3 <<<"$cited"
 expect_exit "a gh that never answers" "$status" 2
 expect_text "it says gh timed out" "$err" "error: gh issue view 100 did not answer within 1 s"
+check env LINT_EXEMPTIONS_GH_TIMEOUT=soon python3 <<<"$cited"
+expect_exit "a timeout that is no number" "$status" 64
+expect_line "it names the variable" "$err" "error: LINT_EXEMPTIONS_GH_TIMEOUT is 'soon', not a positive number of seconds."
+expect_no_text "it prints no traceback" "$err" "Traceback"
+expect_no_gh "a timeout that is no number"
+for seconds in 0 -1 inf; do
+    check env LINT_EXEMPTIONS_GH_TIMEOUT=$seconds python3 <<<"$cited"
+    expect_exit "a timeout of $seconds" "$status" 64
+done
 nogh="$root/nogh"
 mkdir -p "$nogh"
 ln -s "$(command -v git)" "$nogh/git"
