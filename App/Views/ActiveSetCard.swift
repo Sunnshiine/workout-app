@@ -34,6 +34,7 @@ struct ActiveSetCard: View {
     let onClearMenuClosed: () -> Void
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var inputDismissalRequestID = 0
     @GestureState private var isPressingMic = false
 
@@ -172,6 +173,7 @@ struct ActiveSetCard: View {
     private func micControl(_ dictation: SetCardDictation) -> some View {
         Image(systemName: dictation.isListening ? "mic.fill" : "mic")
             .imageScale(.large)
+            .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
             .foregroundStyle(dictation.isListening ? palette.action : palette.textSecondary)
             .frame(width: Self.headTargetSize, height: Self.headTargetSize)
             .contentShape(.rect)
