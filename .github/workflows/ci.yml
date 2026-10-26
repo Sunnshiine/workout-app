@@ -221,19 +221,18 @@ jobs:
       BASELINE_RUNTIME: "27.0"
     steps:
       - uses: actions/checkout@v4
-      # The device boots slim (ADR-0022), through simctl, while the app builds. On this 3-core runner
-      # a stock boot held the load average at 170 to 410, and a slim one that xcodebuild booted
-      # itself at 120 to 200. Slim through simctl it stayed under 25, and the build and the visual
-      # and hosted suites together took 267 to 315 s against 686 to 831 s (hc runs 40330329397 and
-      # 40338719303). A hung simctl once held this step for 40 minutes (#1010), so it fails fast for
-      # a rerun instead of running out the job's limit.
-      - name: Ensure the pinned baseline simulator exists, and start its slim boot
+      # The device boots slim (ADR-0022), through simctl, after the build. On this 3-core runner a
+      # stock boot held the load average at 170 to 410, and a slim one that xcodebuild booted itself
+      # at 120 to 200; slim through simctl it stayed under 25 (hc runs 40330329397, 40338719303).
+      # Booted beside the cache restores and the build, it stretched them by 170 to 320 s (PR runs
+      # 40356621811, 40358470805, 40359850013). A hung simctl once held this step for 40 minutes
+      # (#1010), so it fails fast for a rerun instead of running out the job's limit.
+      - name: Ensure the pinned baseline simulator exists, set to boot slim
         id: sim
         timeout-minutes: 5
         run: |
           udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
           scripts/sim-slim.sh "$udid"
-          xcrun simctl boot "$udid"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
           echo "destination=platform=iOS Simulator,id=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
@@ -293,9 +292,9 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
-      # A test session opened before the boot settles waits on the simulator's service hub, which
-      # timed out after 120 s on some runs.
-      - name: Wait for the simulator to finish booting
+      # `bootstatus -b` boots the device and waits for it. A test session opened before the boot
+      # settles waits on the simulator's service hub, which timed out after 120 s on some runs.
+      - name: Boot the simulator
         timeout-minutes: 5
         run: xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
       - name: Run Visual Regression tests (ADR-0007 gate)
