@@ -73,7 +73,7 @@ SmartValuePills|init|inputDismissalRequestID|number
 SmartValuePills|init|onDismissDictation|closure
 SmartValuePills|init|onShow|closure
 SongbirdGlyph|init|width|number
-SpokenTranscript.SpokenNumber|init|isCutOff|bool
+SpokenNumber|init|isCutOff|bool
 SunbirdColophon|init|diameter|number
 SupersetState|createSuperset|currentActiveSetID|nil
 SyncCommand|init|viewing|nil

@@ -7,6 +7,9 @@ from dataclasses import dataclass
 
 DEFAULT_REASON = re.compile(r"//(?!/)\s*default:\s*\S")
 STRING_START = re.compile(r'(#*)("""|")')
+EXTENDED_REGEX_START = re.compile(r"(#+)/")
+WORD = re.compile(r"\w+$")
+REGEX_AFTER_WORDS = {"return", "try", "await", "throw", "in", "case", "where", "if", "guard", "while", "else", "switch"}
 
 
 @dataclass(frozen=True)
@@ -30,9 +33,31 @@ class Lexed:
         return "".join(out)
 
 
+def bare_regex_end(text: str, i: int) -> int:
+    """The index just past the `/` that closes a `/.../` regex literal opening at `i`, or -1 when
+    the `/` there divides. As in Swift, a regex starts where an operand can, never with a space,
+    and closes on its own line."""
+    if text[i + 1: i + 2] in ("", " ", "\t", "\n"):
+        return -1
+    j = i - 1
+    while j >= 0 and text[j] in " \t":
+        j -= 1
+    if j >= 0 and text[j] in ")]}\"#!":
+        return -1
+    word = WORD.search(text, max(0, j - 16), j + 1) if j >= 0 else None
+    if word and word.end() == j + 1 and word.group() not in REGEX_AFTER_WORDS:
+        return -1
+    j = i + 1
+    while j < len(text) and text[j] != "\n":
+        if text[j] == "/":
+            return j + 1
+        j += 2 if text[j] == "\\" and text[j + 1: j + 2] not in ("", "\n") else 1
+    return -1
+
+
 def lex(text: str) -> Lexed:
-    """A `//` inside a string or a block comment is no comment, a block comment nests, and a `\\(`
-    in a string reopens code up to its `)`."""
+    """A `//` inside a string, a regex, or a block comment is no comment, a block comment nests,
+    and a `\\(` in a string reopens code up to its `)`."""
     comments = {}
     spans: list[tuple[int, int, bool]] = []
     frames: list[tuple[str, int, int]] = []
@@ -70,6 +95,14 @@ def lex(text: str) -> Lexed:
                 frames.pop()
                 spans.append((start, i, False))
                 step = len(close)
+        elif kind == "regex":
+            close = "/" + "#" * value
+            if text.startswith(close, i):
+                frames.pop()
+                spans.append((start, i, False))
+                step = len(close)
+            elif text[i] == "\\" and text[i + 1: i + 2] not in ("", "\n"):
+                step = 2
         elif text.startswith("//", i):
             end = text.find("\n", i)
             end = n if end < 0 else end
@@ -80,6 +113,12 @@ def lex(text: str) -> Lexed:
         elif text.startswith("/*", i):
             frames.append(("block", 0, i))
             step = 2
+        elif opened := EXTENDED_REGEX_START.match(text, i):
+            frames.append(("regex", len(opened.group(1)), opened.end()))
+            step = opened.end() - i
+        elif text[i] == "/" and (end := bare_regex_end(text, i)) > 0:
+            spans.append((i + 1, end - 1, False))
+            step = end - i
         elif opened := STRING_START.match(text, i):
             hashes = len(opened.group(1))
             frames.append(("string", -(hashes + 1) if opened.group(2) == '"""' else hashes + 1, opened.end()))
@@ -91,7 +130,7 @@ def lex(text: str) -> Lexed:
                 frames[-1] = (*frames[-1][:2], i + 1)
         column, i = column + step, i + step
     block = next((f for f in frames if f[0] == "block"), None)
-    spans.extend((f[2], n, False) for f in frames if f[0] == "string")
+    spans.extend((f[2], n, False) for f in frames if f[0] in ("string", "regex"))
     if block:
         spans.append((block[2], n, True))
     return Lexed(comments, spans)
