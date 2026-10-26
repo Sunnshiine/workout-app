@@ -156,8 +156,17 @@ jobs:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
+      # The scorer's tests run in a second but build for a minute, and a pull request that leaves
+      # tools/crap/ alone cannot change their verdict. The gate below still builds the scorer.
       - name: Test the CRAP scorer
-        run: swift test --package-path tools/crap
+        env:
+          SCORER_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: |
+          if [ -n "$SCORER_BASE" ] && git diff --quiet "$SCORER_BASE" HEAD -- tools/crap; then
+            echo "tools/crap/ is unchanged since $SCORER_BASE, so its tests are skipped."
+            exit 0
+          fi
+          swift test --package-path tools/crap
       # crap.sh waits for WORKOUT_DISK_FLOOR on these two volumes (ADR-0020), so a short runner's log
       # shows how far under the floor it was.
       - name: Free disk on the volumes the disk floor reads
@@ -225,12 +234,9 @@ jobs:
       SPEED_BUDGET_SECONDS: 600
     steps:
       - uses: actions/checkout@v4
-      # The device boots slim (ADR-0022), through simctl, after the build. On this 3-core runner a
-      # stock boot held the load average at 170 to 410, and a slim one that xcodebuild booted itself
-      # at 120 to 200; slim through simctl it stayed under 25 (hc runs 40330329397, 40338719303).
-      # Booted beside the cache restores and the build, it stretched them by 170 to 320 s (PR runs
-      # 40356621811, 40358470805, 40359850013). A hung simctl once held this step for 40 minutes
-      # (#1010), so it fails fast for a rerun instead of running out the job's limit.
+      # The device boots slim through simctl, after the build. ADR-0022's Consequences give the
+      # load averages behind that order. A hung simctl once held this step for 40 minutes (#1010),
+      # so it fails fast for a rerun instead of running out the job's limit.
       - name: Ensure the pinned baseline simulator exists, set to boot slim
         id: sim
         timeout-minutes: 5

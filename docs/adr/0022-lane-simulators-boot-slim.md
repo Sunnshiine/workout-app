@@ -82,6 +82,8 @@ Shutdown. The next `create` writes it again.
   average held at 170 to 410 for a stock boot, at 120 to 200 for a slim one that xcodebuild booted
   itself, and under 25 for a slim one booted through simctl (hc runs 40330329397 and 40338719303).
   The slim boot still costs about 4 to 5 minutes of contention there, wherever in the job it runs.
+  Booted beside the cache restores and the build, it stretched them by 170 to 320 s (PR runs
+  40356621811, 40358470805, 40359850013), so it boots after the build.
 - CI also disables chronod and navd, from `scripts/sim-ci-disabled-jobs.txt`. Lanes keep them
   because verify drives the Live Activity, as *Disable chronod too* records, but no CI suite renders
   a widget or a Live Activity. Against main dispatched in the same window, the job ran 290 s
