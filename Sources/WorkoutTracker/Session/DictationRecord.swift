@@ -42,6 +42,9 @@ struct DictationRecord: Equatable, Sendable {
         let failure: SetTranscriberError?
         /// How many times the card's caption changed while the athlete spoke.
         let captionChanges: Int
+        /// What refused the mic, for a press whose mic never went live. Absent from records
+        /// written before builds kept it.
+        let startRefusal: MicStartRefusal?
     }
 
     struct Recording: Equatable, Sendable {
@@ -139,10 +142,12 @@ extension DictationRecord.PressEnd {
 }
 
 extension DictationRecord.Live {
-    init(_ live: LiveHearing, captionChanges: Int) {
+    init(_ live: LiveHearing, captionChanges: Int, startRefusal: MicStartRefusal?) {
         switch live {
-        case .transcripts(let candidates): self.init(candidates: candidates, failure: nil, captionChanges: captionChanges)
-        case .failed(let failure, _): self.init(candidates: [], failure: failure, captionChanges: captionChanges)
+        case .transcripts(let candidates):
+            self.init(candidates: candidates, failure: nil, captionChanges: captionChanges, startRefusal: startRefusal)
+        case .failed(let failure, _):
+            self.init(candidates: [], failure: failure, captionChanges: captionChanges, startRefusal: startRefusal)
         }
     }
 }

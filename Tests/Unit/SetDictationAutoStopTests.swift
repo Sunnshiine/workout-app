@@ -229,9 +229,9 @@ private final class OpenMicTranscriber: SetTranscriber {
         startFailure = failure
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberStartError) {
         await starting.hold()
-        if let startFailure { throw startFailure }
+        if let startFailure { throw SetTranscriberStartError(startFailure) }
         self.hearing = hearing
     }
 

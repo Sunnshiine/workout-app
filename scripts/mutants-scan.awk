@@ -1,0 +1,172 @@
+# The functions mutants.awk reads a line of Swift with: masking string literals and comments, and
+# scanning brackets and words in the masked copy. Load it first:
+#   awk -f scripts/mutants-scan.awk -f scripts/mutants.awk ...
+
+function hashes(count,    s) {
+    s = ""
+    while (count-- > 0) s = s "#"
+    return s
+}
+
+# macOS awk splits UTF-8 by byte, and a regex test on a lone lead byte aborts it, so single
+# characters are tested by lookup.
+function inSet(c, set) { return c != "" && index(set, c) > 0 }
+
+# Both skip functions mark each position they pass inside an interpolation as code in interpolated.
+function skipString(s, i, closeHashes,    n, c, j) {
+    n = length(s)
+    while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "\\" && substr(s, i + 1, length(closeHashes)) == closeHashes) {
+            j = i + 1 + length(closeHashes)
+            if (substr(s, j, 1) == "(") { i = skipInterpolation(s, j + 1); continue }
+            i = j + 1
+            continue
+        }
+        if (c == "\"" && substr(s, i + 1, length(closeHashes)) == closeHashes)
+            return i + 1 + length(closeHashes)
+        i++
+    }
+    return n + 1
+}
+
+function skipInterpolation(s, i,    n, c, depth, k) {
+    n = length(s)
+    depth = 1
+    while (i <= n) {
+        c = substr(s, i, 1)
+        if (c == "\"") { i = skipString(s, i + 1, ""); continue }
+        if (c == "#") {
+            k = i
+            while (substr(s, k, 1) == "#") k++
+            if (substr(s, k, 1) == "\"") { i = skipString(s, k + 1, hashes(k - i)); continue }
+        }
+        if (c == "(") depth++
+        if (c == ")" && --depth == 0) return i + 1
+        interpolated[i] = 1
+        i++
+    }
+    return n + 1
+}
+
+# With keepInterpolations set, the code inside each \(...) stays unmasked.
+function mask(s, keepInterpolations,    n, i, c, out, k, h, end, rest) {
+    n = length(s)
+    out = ""
+    commentAt = 0
+    split("", interpolated)
+    i = 1
+    while (i <= n) {
+        c = substr(s, i, 1)
+        if (blockDepth > 0) {
+            if (substr(s, i, 2) == "/*") { blockDepth++; out = out MASK MASK; i += 2; continue }
+            if (substr(s, i, 2) == "*/") { blockDepth--; out = out MASK MASK; i += 2; continue }
+            out = out MASK
+            i++
+            continue
+        }
+        if (inMultiline) {
+            if (substr(s, i, 3 + length(multilineHashes)) == "\"\"\"" multilineHashes) {
+                inMultiline = 0
+                end = i + 3 + length(multilineHashes)
+            } else {
+                end = i + 1
+            }
+            while (i < end) { out = out MASK; i++ }
+            continue
+        }
+        if (substr(s, i, 2) == "//") { commentAt = i; while (i <= n) { out = out MASK; i++ }; break }
+        if (substr(s, i, 2) == "/*") { blockDepth = 1; out = out MASK MASK; i += 2; continue }
+        k = i
+        while (substr(s, k, 1) == "#") k++
+        if (substr(s, k, 1) != "\"") {
+            out = out c
+            i++
+            continue
+        }
+        h = hashes(k - i)
+        rest = substr(s, k + 3)
+        if (substr(s, k, 3) == "\"\"\"" && rest ~ /^[ \t]*$/) {
+            inMultiline = 1
+            multilineHashes = h
+            end = n + 1
+        } else {
+            end = skipString(s, k + 1, h)
+        }
+        while (i < end) { out = out (keepInterpolations && (i in interpolated) ? substr(s, i, 1) : MASK); i++ }
+    }
+    return out
+}
+
+# Fills sets with the anonymous arguments ($0, $1...) each closure uses itself, on a line masked
+# with its interpolations kept,
+# keyed by the column of its opening brace, and key 0 for the code outside every brace.
+function anonymousArgs(m, sets,    n, i, j, c, top, open) {
+    split("", sets)
+    n = length(m)
+    top = 0
+    open[0] = 0
+    for (i = 1; i <= n; i++) {
+        c = substr(m, i, 1)
+        if (c == "{") open[++top] = i
+        else if (c == "}") { if (top > 0) top-- }
+        else if (c == "$" && inSet(substr(m, i + 1, 1), DIGITS)) {
+            for (j = i + 1; inSet(substr(m, j, 1), DIGITS); j++) ;
+            sets[open[top]] = sets[open[top]] "," substr(m, i + 1, j - i - 1) ","
+            i = j - 1
+        }
+    }
+}
+
+function maskMutant(s, keepInterpolations,    block, multiline, hashes_, comment, out) {
+    block = blockDepth; multiline = inMultiline; hashes_ = multilineHashes; comment = commentAt
+    blockDepth = lineBlockDepth; inMultiline = lineInMultiline; multilineHashes = lineMultilineHashes
+    out = mask(s, keepInterpolations)
+    blockDepth = block; inMultiline = multiline; multilineHashes = hashes_; commentAt = comment
+    return out
+}
+
+function findWord(m, word,    from, p, prev, next_) {
+    from = 0
+    while ((p = index(substr(m, from + 1), word)) > 0) {
+        p += from
+        prev = p > 1 ? substr(m, p - 1, 1) : ""
+        next_ = substr(m, p + length(word), 1)
+        if (!inSet(prev, NOT_BEFORE_LITERAL) && !inSet(next_, IDENT)) return p
+        from = p
+    }
+    return 0
+}
+
+function trim(s) {
+    gsub(/^ +| +$/, "", s)
+    return s
+}
+
+function topLevelIndex(m, start, token,    n, i, c, depth) {
+    n = length(m)
+    depth = 0
+    for (i = start; i <= n; i++) {
+        c = substr(m, i, 1)
+        if (c == "(" || c == "[") depth++
+        else if (c == ")" || c == "]") depth--
+        else if (depth == 0 && substr(m, i, length(token)) == token) return i
+    }
+    return 0
+}
+
+function codeEnd(m,    e) {
+    e = commentAt ? commentAt - 1 : length(m)
+    while (e > 0 && substr(m, e, 1) == " ") e--
+    return e
+}
+
+function closeOf(m, open,    i, c, depth) {
+    depth = 0
+    for (i = open; i <= length(m); i++) {
+        c = substr(m, i, 1)
+        if (c == "(" || c == "[") depth++
+        else if ((c == ")" || c == "]") && --depth == 0) return i
+    }
+    return 0
+}

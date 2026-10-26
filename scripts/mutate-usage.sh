@@ -34,9 +34,20 @@ primary checkout's .build/scratch/.
   FILE SED_EXPR  hand-written mutants, one sed command each with its own address, such as
                  '67s/failed: /exploded: /'. An expression that changes nothing is an error.
   --diff BASE    generates mutants on the lines changed since merge-base(BASE, HEAD), uncommitted
-                 edits included: true/false flips, comparison and &&/|| swaps, if-negation, guard
-                 forced to its early return, a number + 1, in the .swift files under each PATH
-                 (from the current directory; default Sources App WorkoutShared WorkoutWidgets).
+                 edits included, in the .swift files under each PATH (from the current
+                 directory; default Sources App WorkoutShared WorkoutWidgets). Each op, the OP
+                 column, makes at most one mutant per line:
+                   bool      true and false swapped
+                   compare   ==, !=, <, <=, >, >= swapped
+                   logic     && and || swapped
+                   negate    an if condition negated
+                   return    a guard forced to its early return
+                   const     a number + 1
+                   result    return x emptied to the [], [:], nil, or 0 its type takes
+                   coalesce  a literal ?? default changed
+                   operand   the right side of the first && or || dropped
+                   always    the first a == b made true
+                   clamp     a two-argument max or min dropped for the value it clamps
                  A line inside an #if os(iOS), os(macOS), canImport(UIKit), or canImport(AppKit)
                  branch the build compiles out is unreachable without a build, so a diff that
                  touches both arms of such an #if needs a run with --sim and one without, and

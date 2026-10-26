@@ -126,10 +126,8 @@ PAIR_ENTRY_BY_APP: Dict[str, str] = {
     "before UI-11, as every control whose card moves": "stage-queue-pair-exercise-0",
 }
 PAIR_WAIT_S = 3.0
-PAIR_TAPS: Tuple[Tuple[str, float], ...] = (
-    ("stage-queue-row-exercise-1", 1),
-    ("stage-queue-row-superset-0", 2),
-)
+PAIR_TAPS: Tuple[Tuple[str, float], ...] = (("stage-queue-row-exercise-1", 1),)
+MERGED_ROW = ("stage-queue-row-superset-0", 2)
 
 
 class Verdict(Enum):
@@ -344,6 +342,10 @@ class Side:
             raise SetupFailed("the queue showed neither " + " nor ".join(
                 f"{ident} ({app})" for app, ident in PAIR_ENTRY_BY_APP.items()))
         for ident, settle in ((entry, 0), *PAIR_TAPS):
+            self.must("tap", "--id", ident)
+            time.sleep(settle)
+        ident, settle = MERGED_ROW
+        if f"\t{ident}\t" in self.verify("tree")[1]:
             self.must("tap", "--id", ident)
             time.sleep(settle)
 

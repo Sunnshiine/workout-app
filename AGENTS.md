@@ -64,7 +64,7 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 ```bash
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
-scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
+scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, exemption citations (the whole-tree run needs `gh auth login`), the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
@@ -96,11 +96,21 @@ workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # 
 
 Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
 gate, a flake guard that repeats the tests the PR changed under load, the simulator-hosted unit
-and component suite, the visual gate, and swift-format on the Swift files the PR changes. CI
+and component suite, the visual gate, and swift-format on the Swift files the PR changes. A PR
+titled `fix(`, `fix:`, or `fix!:` also gets the advisory `mutants` job, which comments the mutants
+of its changed `Sources/` lines that no test kills and never fails. CI
 runs `WorkoutTrackerUITests` only on request, with
 `gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
-more) starts no run.
+more) starts no CI run. Every PR starts a Receipts run, and when no other workflow runs,
+`scripts/ci-wait.sh` exits 3.
+
+- Write each verification result the PR body cites with `scripts/receipt.sh <name> -- <command>`
+  and paste the block as printed. The Receipts workflow fails a receipt from a dirty tree, from a
+  commit CI does not have, with a nonzero exit, or from code that differs from the head outside
+  `docs/`, and a receipt named `lint` on any change. It also fails a commit message's `Fixes #N`
+  that the body does not repeat. Rerun the receipts after you merge trunk code. Put a red run
+  from before a fix in prose.
 
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
