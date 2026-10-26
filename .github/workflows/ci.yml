@@ -241,11 +241,12 @@ jobs:
       # A committed `record: .all` (suite- or test-level) makes every snapshot
       # test write its baseline instead of comparing — the gate below would go
       # green while checking nothing. Recording flips are working state only
-      # (VISUAL_LOOP.md); they must never land.
+      # (VISUAL_LOOP.md); they must never land. Only Swift can carry the flag, and reading the
+      # 105 MB of baseline PNGs beside the simulator's boot took this step 42 to 54 s.
       - name: Refuse committed record mode (gate must stay armed)
         run: |
           status=0
-          grep -rnF "record: .all" Tests/Visual/ || status=$?
+          grep -rnF --include="*.swift" "record: .all" Tests/Visual/ || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
