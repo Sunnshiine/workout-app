@@ -121,6 +121,13 @@ extension ApplicationError {
         )
     }
 
+    public static let noMoveOnCelebration = ApplicationError(
+        code: "no_move_on_celebration",
+        message: "No Move On Celebration is open. Open one with `requestMoveOnCelebration()`; "
+            + "`workout move-on` makes both taps.",
+        kind: .domain
+    )
+
     public static func sheetSwitchFailed(_ reason: String) -> ApplicationError {
         ApplicationError(
             code: "sheet_switch_failed",

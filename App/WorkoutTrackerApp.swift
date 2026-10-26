@@ -161,6 +161,7 @@ struct WorkoutTrackerApp: App {
                 .environment(entry)
                 .environment(\.speechModelCaption, speechModelCaption)
                 .environment(\.exportDictationRecords, { try await app.exportDictations(into: .temporaryDirectory) })
+                .environment(\.readBlockSheet, { try await app.sheet(tab: nil) })
                 #if DEBUG
                     .transaction { transaction in
                         guard UITestFixture.disablesAnimations else { return }
