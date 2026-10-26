@@ -262,25 +262,39 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
-      - name: Run Visual Regression tests (ADR-0007 gate)
-        id: visual
+      # One build serves every suite below. Each `xcodebuild test` re-resolved packages, re-planned
+      # the build, and reinstalled the app, about three minutes a suite before its first test.
+      - name: Build the app and every test bundle
+        id: build
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
-            -only-testing:WorkoutTrackerSnapshotTests \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
-            -resultBundlePath VisualTests.xcresult \
-            -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
+          xctestrun=$(ls "$RUNNER_TEMP"/DerivedData/Build/Products/WorkoutTracker_*.xctestrun)
+          echo "xctestrun=$xctestrun" >> "$GITHUB_OUTPUT"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+      - name: Run Visual Regression tests (ADR-0007 gate)
+        id: visual
+        run: |
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -resultBundlePath VisualTests.xcresult \
+            -collect-test-diagnostics never
       # WorkoutTrackerTests hosted in the app reaches what `swift test` on macOS cannot: UIKit
       # font registration, Live Activity content state, and the Google auth scopes (#606). The
-      # two runs cover deliberately different sets (#592); do not reconcile them. Every flag
-      # matches the gate above so xcodebuild reuses that DerivedData instead of rebuilding, and
-      # the step runs whenever that gate ran so one CI run reports both.
+      # two runs cover deliberately different sets (#592); do not reconcile them. The step runs
+      # whenever the build succeeded, so a baseline mismatch above never hides its verdict.
       #
       # `!cancelled()` is load-bearing. GitHub prepends an implicit `success() &&` to any `if:`
       # holding no status check function, so without it this condition reads as always-true on a
@@ -288,42 +302,24 @@ jobs:
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
         id: hosted
-        if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
             -only-testing:WorkoutTrackerTests \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath HostedTests.xcresult \
-            -collect-test-diagnostics never \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-      - name: Save the compilation cache
-        if: github.event_name == 'push'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/CompilationCache
-          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+            -collect-test-diagnostics never
       # Opt-in, not per PR: on unchanged code it goes red about half the time on
       # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
-        if: ${{ !cancelled() && inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
             -only-testing:WorkoutTrackerUITests \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath UITests.xcresult \
-            -collect-test-diagnostics never \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
+            -collect-test-diagnostics never
       - name: Upload Visual Baseline diffs
         if: failure() && steps.visual.conclusion == 'failure'
         uses: actions/upload-artifact@v4
