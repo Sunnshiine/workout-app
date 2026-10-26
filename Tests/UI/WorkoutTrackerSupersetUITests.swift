@@ -32,7 +32,7 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         tapWhenHittable(app.buttons["stage-queue-superset"])
         tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
-        XCTAssertTrue(app.staticTexts["This Session"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["This Session"].disappears(within: 3))
         app.buttons["stage-queue-button"].tap()
         XCTAssertTrue(app.buttons["stage-queue-row-superset-0"].appears(within: 3))
 
@@ -40,7 +40,7 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
 
         XCTAssertTrue(app.buttons["stage-queue-row-exercise-0"].appears(within: 3))
         XCTAssertTrue(app.buttons["stage-queue-row-exercise-1"].exists)
-        XCTAssertTrue(app.buttons["stage-queue-row-superset-0"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["stage-queue-row-superset-0"].disappears(within: 3))
     }
 
     @MainActor
@@ -54,7 +54,7 @@ final class WorkoutTrackerSupersetUITests: XCTestCase {
         tapWhenHittable(app.buttons["stage-queue-superset"])
         tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
 
-        XCTAssertTrue(app.staticTexts["This Session"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["This Session"].disappears(within: 3))
         waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
         XCTAssertFalse(app.buttons["queue-move-on-button"].exists)
     }
