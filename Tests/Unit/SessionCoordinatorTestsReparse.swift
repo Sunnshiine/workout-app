@@ -108,6 +108,38 @@ private func makeStoreStage() async throws -> (app: WorkoutApplication, coordina
 }
 
 @MainActor
+@Test func aSetHeldAfterASpokenWriteStaysHeldInTheSessionParsedAgainWhileItIsLogged() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    let parsedSet = try #require(parsed.exercises.first { $0.order == 1 }?.sets.first)
+    parsedSet.setLog = try card(coordinator, in: session).set.setLog
+    parsedSet.state = .logged
+
+    coordinator.view(parsed)
+
+    let held = try card(coordinator, in: parsed)
+    #expect(held.mode == .heldAfterSpokenWrite)
+    #expect(held.set === parsedSet)
+}
+
+@MainActor
+@Test func aSetHeldAfterASpokenWriteThatTheSessionParsedAgainHasPendingIsNoLongerHeld() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
+
+    coordinator.view(parsed)
+
+    let shown = try card(coordinator, in: parsed)
+    #expect(shown.mode == .logging)
+    #expect(shown.set === parsed.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 })
+}
+
+@MainActor
 @Test func aPressASyncLandsUnderLogsTheDictatedSetOfTheSessionParsedAgain() async throws {
     let session = makeCoordinatorSession()
     let parsed = makeCoordinatorSession()
@@ -147,6 +179,27 @@ private func makeStoreStage() async throws -> (app: WorkoutApplication, coordina
     let parsedSet = try #require(parsed.exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex })
     #expect(parsedSet.setLog == logged)
     #expect(slot.set.isPending)
+}
+
+/// The Session screen follows the Current Session, so a sync that moves it moves the stage too,
+/// and the listen it began on writes nothing.
+@MainActor
+@Test func aListenWhoseSessionASyncMakesNoLongerCurrentWritesNothing() async throws {
+    let (current, _) = makeSingleSetSession(dayNumber: 1)
+    let (next, _) = makeSingleSetSession(dayNumber: 2)
+    let fixture = makeHandsFreeFixture(showing: current, current: current)
+    let slot = try fixture.card(in: current)
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
+    await fixture.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "The card never listened")
+
+    fixture.navigation.currentSession = next
+    fixture.show(next)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+
+    #expect(await listening.value == nil)
+    #expect(slot.set.isPending)
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.isEmpty)
+    #expect(fixture.dictation?.state == .idle)
 }
 
 /// A Set whose Session no Block holds names no stage, so it neither writes nor moves the stage
