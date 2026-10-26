@@ -190,6 +190,98 @@ func makeStore(
     #expect(!store.isViewingLiveEdge)
 }
 
+private enum CurrentSessionMovingWrite: String, CaseIterable, CustomTestStringConvertible {
+    /// The facade and the CLI log any Set, so a log in a later Session moves the Current Session on.
+    case logInALaterSession
+    /// With no Pin in force, the Current Session falls back to the last logged Session.
+    case clearTheOnlyLoggedSetOfTheCurrentSession
+
+    var testDescription: String { rawValue }
+
+    var landsOnDay: Int {
+        switch self {
+        case .logInALaterSession: 2
+        case .clearTheOnlyLoggedSetOfTheCurrentSession: 1
+        }
+    }
+}
+
+@MainActor
+@Test(arguments: CurrentSessionMovingWrite.allCases)
+private func aWriteThatMovesTheCurrentSessionCarriesTheLiveEdgeAlong(_ write: CurrentSessionMovingWrite) throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let sessions = try #require(store.block?.weeks.first?.sessions)
+    func firstSet(ofDay day: Int) throws -> ExerciseSet {
+        try #require(sessions.first { $0.dayNumber == day }?.exercises.first?.sets.first)
+    }
+    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
+
+    switch write {
+    case .logInALaterSession:
+        try store.log(try firstSet(ofDay: 2), as: log)
+    case .clearTheOnlyLoggedSetOfTheCurrentSession:
+        try store.log(try firstSet(ofDay: 1), as: log)
+        try store.log(try firstSet(ofDay: 3), as: log)
+        store.reload()
+        try #require(store.viewedSession?.dayNumber == 3)
+        try store.deleteLog(for: try firstSet(ofDay: 3))
+    }
+
+    let current = try #require(store.currentSession)
+    #expect(current.dayNumber == write.landsOnDay)
+    #expect(store.viewedSession === current)
+    #expect(store.liveEdge == .atLiveEdge(currentSession: current))
+}
+
+@MainActor
+@Test func aWriteThatMovesTheCurrentSessionLeavesABrowsedSessionInView() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day2Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises.first?.sets.first)
+
+    store.show(SessionAddress(week: 1, day: 4))
+    try store.log(day2Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+
+    #expect(store.currentSession?.dayNumber == 2)
+    #expect(store.viewedSession?.dayNumber == 4)
+    #expect(!store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func aBrowsedSessionAWriteMadeCurrentStaysInViewWhenAClearMovesTheCurrentSessionBack() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+    let day2Set = try #require(store.block?.weeks.first?.sessions.first { $0.dayNumber == 2 }?.exercises.first?.sets.first)
+
+    store.show(SessionAddress(week: 1, day: 2))
+    try store.log(day2Set, as: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    try #require(store.isViewingLiveEdge)
+    try store.deleteLog(for: day2Set)
+
+    #expect(store.currentSession?.dayNumber == 1)
+    #expect(store.viewedSession?.dayNumber == 2)
+    #expect(!store.isViewingLiveEdge)
+}
+
+@MainActor
+@Test func showingAnAddressTheBlockDoesNotHoldShowsNoSessionUntilTheNextReload() throws {
+    let fixture = try makeStore()
+    defer { withExtendedLifetime(fixture.container) {} }
+    let store = fixture.store
+
+    store.show(SessionAddress(week: 2, day: 1))
+    #expect(store.viewedSession == nil)
+    #expect(!store.isViewingLiveEdge)
+
+    store.reload()
+    #expect(store.viewedSession?.dayNumber == 1)
+    #expect(store.isViewingLiveEdge)
+}
+
 @MainActor
 @Test func makeViewedSessionCurrentCanTargetSessionBehindLoggedProgress() throws {
     let fixture = try makeStore()
