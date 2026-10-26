@@ -11,7 +11,7 @@ UI XCUITest boundary:
   surface.
 - The UI Interaction Suite covers higher-flake interaction mechanics such as keyboard focus,
   overscroll, long scrolling, hold gestures, and frame/visibility behavior. CI runs only its
-  keyboard tests, `KeyboardLaneUITests`, and only on a pull request that touches the session views
+  keyboard tests, `KeyboardLaneUITests`, and only on a pull request that touches what they reach
   (Keyboard lane, below). The rest stays opt-in (#662), so it runs locally before a change that
   needs it is ready.
 - UI XCUITests may assert that a real user action reaches a visible result. Unit and component tests own
@@ -50,11 +50,11 @@ UI-test frame assertions:
 Keyboard lane:
 
 CI's `visual-tests` job runs `KeyboardLaneUITests`, the weight keyboard tests, animated on every
-pull request whose diff touches a file the tests reach: what the app and UI test targets compile
-(`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `Tests/UI/`), the project that defines
-those targets, and the lane's own wiring.
-`scripts/keyboard-lane-paths.sh` holds that list, and the step's log names the paths that matched
-or says none did. `scripts/ci-keyboard-lane.sh` is the step.
+pull request whose diff touches a file the tests reach. Those are the files the app and UI test
+targets compile (`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `Tests/UI/`), the project
+that defines those targets, and the lane's own wiring. `scripts/keyboard-lane-paths.sh` holds that
+list, and the step's log names the paths that matched or says none did.
+`scripts/ci-keyboard-lane.sh` is the step.
 
 - Put a new test that opens the weight keyboard in `KeyboardLaneUITests`, so the lane runs it.
 - Animated, the keyboard is still sliding out when a dismissing tap returns. Assert it is gone
@@ -66,7 +66,7 @@ or says none did. `scripts/ci-keyboard-lane.sh` is the step.
   its own short window, since that window is the claim.
 - A red `visual-tests` job is a Visual Baseline mismatch or a keyboard lane failure. Read which
   step failed before you follow the re-record loop. A failed lane uploads `KeyboardLane.xcresult`
-in `ui-test-results`.
+  in `ui-test-results`.
 - To measure the lane on the runner, run
   `gh workflow run ci.yml --ref <branch> -f keyboard-lane=true`.
 

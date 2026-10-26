@@ -1,6 +1,6 @@
 import XCTest
 
-/// The weight keyboard tests, which CI runs on every pull request that touches the session views.
+/// The weight keyboard tests, which CI runs on every pull request that touches what they reach.
 /// Each one launches animated, because with animations off the active-set card rests 34 pt higher
 /// than an athlete sees it and a closing sheet never hands its first responder back (#697).
 final class KeyboardLaneUITests: XCTestCase {
@@ -290,20 +290,15 @@ private enum KeyboardState {
 }
 
 /// Reads `element` once the keyboard is `keyboard` and two reads 0.3 s apart agree. A still frame
-/// alone is not enough: each `typeText` drops the keyboard below the window for most of a second,
+/// alone is not enough. Each `typeText` drops the keyboard below the window for most of a second,
 /// and the active-set card rests at its idle place that whole time.
 @MainActor
 private func restingFrame(of element: XCUIElement, keyboard: KeyboardState, in app: XCUIApplication) -> CGRect {
     var last: CGRect?
     let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
-        let frame = element.frame
-        guard keyboardIs(keyboard, in: app) else {
-            last = nil
-            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            continue
-        }
-        if frame == last { return frame }
+        let frame = keyboardIs(keyboard, in: app) ? element.frame : nil
+        if let frame, frame == last { return frame }
         last = frame
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
     }

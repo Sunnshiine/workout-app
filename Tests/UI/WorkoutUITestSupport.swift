@@ -60,7 +60,10 @@ extension XCTestCase {
 }
 
 /// How long a UI test waits for something it expects to happen. A wait that succeeds returns as
-/// soon as its condition holds, so the budget costs time only on a failure. MEASUREMENT PENDING.
+/// soon as its condition holds, so the budget costs time only on a failure. On the CI runner the
+/// slowest of 447 keyboard lane waits took 1.07 s (runs 40411547617, 40411554126, 40411560839),
+/// and the same tests have run 3.3 times slower there (568 s against 174 s), so 3 s could trip on
+/// a correct app.
 let uiEventBudget: TimeInterval = 10
 
 extension XCUIElement {

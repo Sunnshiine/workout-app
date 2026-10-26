@@ -226,8 +226,8 @@ jobs:
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
     # Catches a hang, not a slowdown: the old shape's p90 was 19 minutes. The last step warns on a
-    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes, the keyboard lane up to 10.
-    timeout-minutes: ${{ inputs.ui-suite && 35 || 30 }}
+    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes, the keyboard lane 3 or 4.
+    timeout-minutes: ${{ inputs.ui-suite && 35 || 25 }}
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
     # a change to either value as a re-record of every baseline.

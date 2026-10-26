@@ -8,9 +8,9 @@ Prints run=true on stdout when the diff from <base> to HEAD touches a file Keybo
 reaches, and run=false otherwise, and names the paths that matched on stderr. The tests reach what
 the WorkoutTracker app and WorkoutTrackerUITests targets compile (App/, Sources/WorkoutTracker/,
 WorkoutShared/, Tests/UI/), the project that defines those targets (WorkoutTracker.xcodeproj/), and
-the lane's wiring (.github/workflows/ci.yml,
-scripts/ci-keyboard-lane.sh, scripts/keyboard-lane-paths.sh, scripts/sim-keyboard.sh). CI's
-visual-tests job appends stdout to GITHUB_OUTPUT and runs KeyboardLaneUITests on run=true.
+the lane's wiring (.github/workflows/ci.yml, scripts/ci-keyboard-lane.sh,
+scripts/keyboard-lane-paths.sh, scripts/sim-keyboard.sh). scripts/ci-keyboard-lane.sh runs the lane
+on run=true.
 Exits 2 on bad arguments and with git's status when the diff fails.
 USAGE
     exit 2
