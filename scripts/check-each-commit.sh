@@ -63,7 +63,7 @@ read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" 
 
 failures=0
 for commit in $commits; do
-    "$script_dir/disk-floor.sh"
+    "$script_dir/disk-floor.sh" "$scratch"
     scratch_sync "$commit"
     line="" failed_log=""
     for step in spm-build spm-test xcode-bft; do

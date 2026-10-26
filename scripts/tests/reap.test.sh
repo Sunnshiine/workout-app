@@ -121,6 +121,30 @@ left=0
 for pid in $printed; do [ "$(gone "$pid")" = ended ] || left=$((left + 1)); done
 expect "and its reap line ends all of them" "$left" "0"
 
+mkdir -p "$root/wt-c/scripts"
+cp "$reap" "$root/wt-c/scripts/reap.sh"
+ln -s wt-c "$root/wt-link"
+linked=$("$root/wt-link/scripts/reap.sh" --start linked sleep 300)
+started+=("$linked")
+"$root/wt-c/scripts/reap.sh" linked >"$root/out" 2>&1; status=$?
+expect "a run started through a symlink to the checkout is the same run as through its real path" \
+    "$status $(gone "$linked")" "0 ended"
+
+: >"$root/not-a-dir"
+WORKOUT_RUN_DIR=$root/not-a-dir "$reap" --start lane-h sh -c "echo \$\$ >'$root/unrecorded'; exec sleep 300" \
+    >"$root/out" 2>/dev/null; status=$?
+for _ in $(seq 1 50); do [ -s "$root/unrecorded" ] && break; sleep 0.1; done
+unrecorded=$(cat "$root/unrecorded")
+started+=("$unrecorded")
+expect "--start that cannot record its command ends it, prints no pid, and exits 1" \
+    "$status $(gone "$unrecorded") $(wc -c <"$root/out" | tr -d ' ')" "1 ended 0"
+
+"$reap" --check lane-b >"$root/out" 2>&1; status=$?
+expect "--check accepts a run name and prints nothing" "$status $(cat "$root/out")" "0 "
+"$reap" --check 'bad name' >"$root/out" 2>"$root/err"; status=$?
+expect "--check refuses a name that is not a run name" "$status $(cat "$root/err")" \
+    "2 reap.sh: run name must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$: bad name"
+
 "$reap" ../lane-b >"$root/out" 2>"$root/err"; status=$?
 expect "a run name that is not a plain name is a usage error" "$status $(alive "$b1")" "2 alive"
 

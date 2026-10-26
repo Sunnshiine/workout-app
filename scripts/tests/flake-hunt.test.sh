@@ -5,7 +5,8 @@ unset GITHUB_ACTIONS
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
-trap 'rm -rf "$root"' EXIT
+# Every process a hunt here starts runs a stub under $root/bin, so this ends exactly the harness's own.
+trap 'pkill -f "$root/" 2>/dev/null; rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
 find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
@@ -20,7 +21,7 @@ cat >"$root/bin/swift" <<'STUB'
 #!/bin/sh
 [ "$1" = test ] || { [ -z "${STUB_BUILD_LOG:-}" ] || cat "$STUB_BUILD_LOG"; exit "${STUB_BUILD_RC:-0}"; }
 while [ $# -gt 0 ]; do [ "$1" = --xunit-output ] && xunit=$2; shift; done
-[ -z "${STUB_HOLD:-}" ] || { sleep 300 </dev/null >/dev/null 2>&1 & echo $! >"$STUB_HOLD"; while :; do sleep 0.1; done; }
+[ -z "${STUB_HOLD:-}" ] || { "${0%/*}/spin" </dev/null >/dev/null 2>&1 & echo $! >"$STUB_HOLD"; while :; do sleep 0.1; done; }
 [ -z "${STUB_TESTS:-}" ] ||
     printf '<testsuites>\n  <testsuite name="TestResults" errors="0" tests="%s" failures="0">\n' "$STUB_TESTS" \
         >"${xunit%.xml}-swift-testing.xml"
@@ -28,7 +29,9 @@ cat "$STUB_LOG"
 exit "$STUB_RC"
 STUB
 printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
-chmod +x "$root/bin/swift" "$root/bin/gh"
+printf '#!/bin/sh\nwhile :; do sleep 0.2; done\n' >"$root/bin/spin"
+ln -s spin "$root/bin/yes"
+chmod +x "$root/bin/swift" "$root/bin/gh" "$root/bin/spin"
 
 check() {
     local name=$1 want_status=$2 want_out=$3 swift_status=$4 log=$5
@@ -176,6 +179,29 @@ if [ "$status" = 75 ] && [ ! -e "$root/swift-calls" ] &&
     ok "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75 before it builds"
 else
     bad "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75: exit $status, swift calls: $(cat "$root/swift-calls" 2>/dev/null), $(cat "$root/err")"
+fi
+
+loops() { pgrep -f "$root/bin/yes" | wc -l | tr -d ' '; }
+loops_settled() { local i=0; while [ "$(loops)" != 0 ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done; loops; }
+
+STUB_LOG=$root/swift.log STUB_RC=0 WORKOUT_RUN='bad name' PATH="$root/bin:$PATH" \
+    "$repo/scripts/flake-hunt.sh" --load 3 --repetitions 1 >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 2 ] && [ "$(loops_settled)" = 0 ] && [ ! -s "$root/out" ] &&
+    [ "$(cat "$root/err")" = 'reap.sh: run name must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$: bad name' ]; then
+    ok "a WORKOUT_RUN that is not a run name exits 2 before it builds or starts a busy loop"
+else
+    bad "a WORKOUT_RUN that is not a run name: exit $status, $(loops) busy loops left, stdout: $(cat "$root/out"), stderr: $(cat "$root/err")"
+fi
+
+: >"$root/not-a-dir"
+STUB_LOG=$root/swift.log STUB_RC=0 WORKOUT_RUN_DIR=$root/not-a-dir PATH="$root/bin:$PATH" \
+    "$repo/scripts/flake-hunt.sh" --load 3 --repetitions 1 >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 1 ] && [ "$(loops_settled)" = 0 ]; then
+    ok "a hunt that cannot record its busy loops ends them and exits 1"
+else
+    bad "a hunt that cannot record its busy loops: exit $status, $(loops) busy loops left, stderr: $(cat "$root/err")"
 fi
 
 alive() { local pid n=0; for pid in "$@"; do ! kill -0 "$pid" 2>/dev/null || n=$((n + 1)); done; echo "$n"; }

@@ -6,6 +6,7 @@ help() {
 Usage: scripts/reap.sh <run> [pid...]
        scripts/reap.sh --start <run> <command> [arg...]
        scripts/reap.sh --record <run> <pid>...
+       scripts/reap.sh --check <run>
 Ends only processes a run started, so one agent never kills another agent's process by pid number.
 A run is a name that matches ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$, scoped to the checkout this script
 belongs to, so a run of the same name in another worktree is another run. Its pidfile is
@@ -13,9 +14,12 @@ $WORKOUT_RUN_DIR/<checkout>-<checksum>/<run>.pids (/tmp/workout-runs), one row p
 and its start time in UTC.
   --start   starts the command in its own process group, in the background with its output sent to
             /dev/null, records it, and prints its pid. Start each load process this way, as in
-            scripts/reap.sh --start my-run yes.
+            scripts/reap.sh --start my-run yes. If it cannot record the command, it ends it and
+            exits 1.
   --record  records processes the caller started. Exits 1, recording nothing, if a pid is not running
             or is not the caller's child.
+  --check   exits 0 if <run> is a valid run name and 2 if not, so a caller can refuse a bad name
+            before it starts anything.
   <run>     sends SIGTERM to each recorded process, or only to the named pids, then drops their rows
             and deletes the pidfile once it is empty. A process that leads its own process group, as
             --start makes it, gets the signal with its whole group. A row whose pid now belongs to a
@@ -28,7 +32,7 @@ die() { echo "reap.sh: $2" >&2; exit "$1"; }
 
 case ${1:-} in
   -h | --help) help; exit 0 ;;
-  --start | --record) mode=${1#--}; shift ;;
+  --start | --record | --check) mode=${1#--}; shift ;;
   '') help >&2; exit 2 ;;
   *) mode=reap ;;
 esac
@@ -36,7 +40,8 @@ esac
 run=$1
 shift
 [[ $run =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]] || die 2 "run name must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$: $run"
-checkout=$(cd "$(dirname "$0")/.." && pwd)
+[ "$mode" != check ] || exit 0
+checkout=$(cd "$(dirname "$0")/.." && pwd -P)
 dir=${WORKOUT_RUN_DIR:-/tmp/workout-runs}/${checkout##*/}-$(printf %s "$checkout" | cksum | cut -d ' ' -f 1)
 pidfile=$dir/$run.pids
 
@@ -69,7 +74,7 @@ case $mode in
     set -m
     "$@" </dev/null >/dev/null 2>&1 &
     set +m
-    record $$ $!
+    (record $$ $!) || { kill -- "-$!" 2>/dev/null; exit 1; }
     echo $!
     exit 0 ;;
   record)

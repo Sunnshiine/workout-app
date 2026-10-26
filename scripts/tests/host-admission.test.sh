@@ -190,6 +190,14 @@ reset
 (cd "$repo" && STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/build-slot.sh" sh -c 'echo ran' >"$root/out" 2>"$root/err"); status=$?
 expect "build-slot.sh refuses its command the same way" "$status $(cat "$root/out")$(refusal)" \
     "75 gave up after N s waiting for a build slot: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
+reset
+mkdir -p "$root/elsewhere"
+STUB_DISK_FREE_MB=1000 STUB_LOW_DISK_PATH=$root/elsewhere WORKOUT_ADMIT_WAIT=0 "$repo/scripts/disk-floor.sh" "$root/elsewhere" 2>"$root/err"; status=$?
+expect "disk-floor.sh DIR reads DIR's volume in place of the checkout's" "$status $(refusal)" \
+    "75 gave up after N s waiting for free disk: free disk is 1000 MB on the volume holding $root/elsewhere, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
+"$repo/scripts/disk-floor.sh" a b 2>/dev/null; status=$?
+"$repo/scripts/disk-floor.sh" --dir 2>/dev/null
+expect "disk-floor.sh refuses two dirs or an option with 2" "$status $?" "2 2"
 mkdir -p "$root/broken-df"
 printf '#!/bin/sh\necho "df: $2: No such file or directory" >&2\nexit 1\n' >"$root/broken-df/df"
 chmod +x "$root/broken-df/df"

@@ -230,11 +230,11 @@ $udid is held by a test-sim.sh run (pid 1); wait for it to finish, or use anothe
 
 rm -f "$STUB_CALLS"
 WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 mutate --filter GateTests Sources/Gate/Gate.swift '2s/>= 3/> 3/'
-expect "free disk under WORKOUT_DISK_FLOOR stops the baseline with 75 before any build" "$status $(cat "$STUB_CALLS" 2>/dev/null)
+expect "free disk under WORKOUT_DISK_FLOOR on the scratch tree's volume stops the baseline with 75 before any build" "$status $(cat "$STUB_CALLS" 2>/dev/null)
 $out
 $(sed -E 's/free disk is [0-9]+ MB/free disk is N MB/' <<<"$err")" "75 
 scratch: $pool/1 at $head8
-gave up after 0 s waiting for free disk: free disk is N MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs"
+gave up after 0 s waiting for free disk: free disk is N MB on the volume holding $pool/1, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs"
 
 HOME=$root/home mutate --clean-scratch
 expect "--clean-scratch removes every scratch tree no run holds" "$status

@@ -258,7 +258,7 @@ run_check() {
         test_log=$(sed -n 's/^log: //p' "$log.stdout" | tail -1)
         [ -z "$test_log" ] || [ ! -f "$test_log" ] || cp "$test_log" "$log"
     else
-        if ! "$script_dir/disk-floor.sh" 2>"$log.stderr"; then
+        if ! "$script_dir/disk-floor.sh" "$scratch" 2>"$log.stderr"; then
             result=busy
             reason=$(cat "$log.stderr")
             return
