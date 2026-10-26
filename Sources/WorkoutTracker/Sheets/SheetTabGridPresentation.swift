@@ -3,6 +3,14 @@ import Foundation
 /// What a Day's column holds, which sets how wide it reads.
 enum SheetTabColumnRole: Sendable {
     case name, notes, value
+
+    var minimumWidth: Double {
+        switch self {
+        case .name: Theme.sheetNameColumnMinWidth
+        case .notes: Theme.sheetNotesColumnMinWidth
+        case .value: Theme.sheetValueColumnMinWidth
+        }
+    }
 }
 
 /// A Sheet tab cut into the sections the app reads: each Week's Days, each Day the rows and columns
@@ -111,20 +119,13 @@ struct SheetTabGridPresentation: Equatable, Sendable {
     /// room left over shared by the name and notes columns, the ones whose text runs long. When the
     /// minimums alone overflow, every column stays at its minimum and the Day scrolls sideways.
     static func columnWidths(_ roles: [SheetTabColumnRole], fitting width: Double) -> [Double] {
-        let minimums = roles.map { role in
-            switch role {
-            case .name: Theme.sheetNameColumnMinWidth
-            case .notes: Theme.sheetNotesColumnMinWidth
-            case .value: Theme.sheetValueColumnMinWidth
-            }
-        }
+        let minimums = roles.map(\.minimumWidth)
         let spare = width - minimums.reduce(0, +)
-        guard spare > 0, !roles.isEmpty else { return minimums }
-        let growing = roles.filter { $0 != .value }.count
-        return zip(roles, minimums).map { role, minimum in
-            if growing == 0 { return minimum + spare / Double(roles.count) }
-            return role == .value ? minimum : minimum + spare / Double(growing)
-        }
+        guard spare > 0 else { return minimums }
+        // A Day of numbers alone has no long text, so every column shares the room.
+        let grows = roles.contains { $0 != .value } ? roles.map { $0 != .value } : roles.map { _ in true }
+        let share = spare / Double(grows.filter { $0 }.count)
+        return zip(minimums, grows).map { minimum, grows in grows ? minimum + share : minimum }
     }
 
     /// The A1 reference of the cell in 0-based Sheet `column` of the row numbered `row`, as "AI37".
