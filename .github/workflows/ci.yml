@@ -156,8 +156,17 @@ jobs:
           path: ${{ runner.temp }}/swift-tests/CompilationCache
           key: swift-tests-cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
+      # The scorer's tests run in a second but build for a minute, and a pull request that leaves
+      # tools/crap/ alone cannot change their verdict. The gate below still builds the scorer.
       - name: Test the CRAP scorer
-        run: swift test --package-path tools/crap
+        env:
+          SCORER_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || '' }}
+        run: |
+          if [ -n "$SCORER_BASE" ] && git diff --quiet "$SCORER_BASE" HEAD -- tools/crap; then
+            echo "tools/crap/ is unchanged since $SCORER_BASE, so its tests are skipped."
+            exit 0
+          fi
+          swift test --package-path tools/crap
       # crap.sh waits for WORKOUT_DISK_FLOOR on these two volumes (ADR-0020), so a short runner's log
       # shows how far under the floor it was.
       - name: Free disk on the volumes the disk floor reads
