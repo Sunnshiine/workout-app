@@ -118,9 +118,10 @@ extension DifferentialStateTests {
                 observations: Observation.allCases,
                 script: "coach K15=185.0x5@8; sync; log w1d1.e0.s0 190x5@8; flush; sync"
             ),
-            // With the fix reverted, 89 of 100 end-only attempts caught #972, so five miss together
-            // about once in 60,000 runs. The request's returned AppSnapshot is part of what that
-            // measured. I4 is checked on every step in both modes, so the cheaper one is enough.
+            // With the fix reverted, two batches of 100 end-only attempts caught #972 89 and 80
+            // times, so at the lower rate five miss together about once in 3,000 runs. The request's
+            // returned AppSnapshot is part of what that measured. I4 is checked on every step in both
+            // modes, so the cheaper one is enough.
             Replay(
                 issue: 972,
                 attempts: 5,
