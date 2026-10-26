@@ -134,9 +134,10 @@ else
         changed=$((changed + $(wc -l <"$run/changed$k")))
         if reachable "$f"; then
             awk -v changed="$run/changed$k" -v path="$f" -v platform=$platform -v compiledOut="$run/compiled-out.tsv" \
-                -f "$script_dir/mutants.awk" "$run/source$k.swift" | with_reason "" >>"$run/runnable.tsv"
+                -f "$script_dir/mutants-scan.awk" -f "$script_dir/mutants.awk" "$run/source$k.swift" | with_reason "" >>"$run/runnable.tsv"
         else
-            awk -v changed="$run/changed$k" -v path="$f" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
+            awk -v changed="$run/changed$k" -v path="$f" \
+                -f "$script_dir/mutants-scan.awk" -f "$script_dir/mutants.awk" "$run/source$k.swift" |
                 with_reason "swift test never compiles it; rerun with --sim UDID" >>"$run/unreachable.tsv"
         fi
     done <"$run/files"
