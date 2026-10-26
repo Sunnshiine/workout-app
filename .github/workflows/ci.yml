@@ -210,11 +210,25 @@ jobs:
 
   visual-tests:
     if: github.event.action != 'edited' || github.event.changes.base
-    name: ${{ format('{0}{1}', matrix.suite == 'ui' && 'ui-tests' || 'visual-tests', github.event.action == 'edited' && !github.event.changes.base && ' (edit, base unchanged)' || '') }}
+    name: ${{ format('{0}{1}', matrix.suite == 'ui' && format('ui-tests-{0}', matrix.shard) || 'visual-tests', github.event.action == 'edited' && !github.event.changes.base && ' (edit, base unchanged)' || '') }}
     strategy:
       fail-fast: false
       matrix:
-        suite: [visual, ui]
+        include:
+          - suite: visual
+          - suite: ui
+            shard: a
+            tests: >-
+              -only-testing:WorkoutTrackerUITests/WorkoutTrackerInteractionUITests
+              -only-testing:WorkoutTrackerUITests/WorkoutTrackerSupersetUITests
+              -only-testing:WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests
+          - suite: ui
+            shard: b
+            tests: >-
+              -only-testing:WorkoutTrackerUITests
+              -skip-testing:WorkoutTrackerUITests/WorkoutTrackerInteractionUITests
+              -skip-testing:WorkoutTrackerUITests/WorkoutTrackerSupersetUITests
+              -skip-testing:WorkoutTrackerUITests/WorkoutTrackerLongSessionUITests
     runs-on: xcode-27
     # About twice the job's median of 9 minutes (PR runs 40358470805 to 40363479483), so a change
     # that slows it back toward the old 14 fails here instead of drifting in. A dispatch with the
@@ -339,7 +353,7 @@ jobs:
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "${{ steps.sim.outputs.destination }}" \
-            -only-testing:WorkoutTrackerUITests \
+            ${{ matrix.tests }} \
             -resultBundlePath UITests.xcresult \
             -collect-test-diagnostics never
       - name: Upload Visual Baseline diffs
