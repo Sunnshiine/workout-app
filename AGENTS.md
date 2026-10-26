@@ -99,8 +99,9 @@ gate, a flake guard that repeats the tests the PR changed under load, the simula
 and component suite, the visual gate, and swift-format on the Swift files the PR changes. A PR
 titled `fix(`, `fix:`, or `fix!:` also gets the advisory `mutants` job, which comments the mutants
 of its changed `Sources/` lines that no test kills and never fails. CI
-runs `WorkoutTrackerUITests` only on request, with
-`gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
+also runs `WorkoutTrackerUITests` and repeats the UI tests the PR changed. A suite slower than its
+600 s SLA asks for a hill-climb of UI test speed, and one at its 900 s cap fails
+(`docs/testing/ui-suite-time.md`). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
 more) starts no CI run. Every PR starts a Receipts run, and when no other workflow runs,
 `scripts/ci-wait.sh` exits 3.

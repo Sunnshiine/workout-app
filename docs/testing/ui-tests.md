@@ -4,6 +4,10 @@ Part of the AI-Generated Code Gate in [docs/TESTING.md](../TESTING.md), which de
 layers, names the UI target's two purposes, and holds the smoke selector commands. This file
 defines UI Integration Smoke and the UI Interaction Suite.
 
+CI runs the whole UI target on every pull request, under a 600-second SLA and a 900-second cap, then
+repeats the UI tests the pull request changed. [ui-suite-time.md](ui-suite-time.md) says how both
+numbers were measured and how to make the suite faster.
+
 UI XCUITest boundary:
 
 - UI Integration Smoke is the real-control wiring layer. It proves launch state, navigation, accessibility

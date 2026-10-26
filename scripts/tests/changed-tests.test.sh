@@ -5,7 +5,7 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 trap 'rm -rf "$root"' EXIT
 repo=$root/repo
-mkdir -p "$repo/scripts" "$repo/Tests/Unit" "$repo/Tests/Component" "$repo/Tests/Support"
+mkdir -p "$repo/scripts" "$repo/Tests/Unit" "$repo/Tests/Component" "$repo/Tests/Support" "$repo/Tests/UI"
 find "$script_dir/.." -maxdepth 1 -type f -exec cp {} "$repo/scripts/" \;
 pass=0
 fail=0
@@ -51,6 +51,30 @@ cat >"$repo/Tests/Component/UntouchedTests.swift" <<'SWIFT'
 import Testing
 @Test func anUntouchedTest() { #expect(true) }
 SWIFT
+cat >"$repo/Tests/UI/SmokeUITests.swift" <<'SWIFT'
+import XCTest
+
+final class SmokeUITests: XCTestCase {
+    override class func setUp() {}
+
+    @MainActor
+    func testOne() throws {
+        let app = XCUIApplication()
+        XCTAssertTrue(app.exists)
+    }
+
+    /// The class's second test.
+    @MainActor
+    func testTwo() throws { XCTAssertTrue(true) }
+}
+SWIFT
+cat >"$repo/Tests/UI/UITestSupport.swift" <<'SWIFT'
+import XCTest
+
+extension XCUIElement {
+    func appears(within seconds: TimeInterval) -> Bool { waitForExistence(timeout: seconds) }
+}
+SWIFT
 git -C "$repo" init -q -b main
 git -C "$repo" config user.email test@example.com
 git -C "$repo" config user.name test
@@ -60,7 +84,7 @@ base=$(git -C "$repo" rev-parse HEAD)
 
 check() {
     local name=$1 want=$2 want_err=$3 out err
-    out=$(cd "$repo" && scripts/changed-tests.sh --base "$base" 2>"$root/err")
+    out=$(cd "$repo" && scripts/changed-tests.sh --base "$base" "${@:4}" 2>"$root/err")
     local status=$?
     err=$(cat "$root/err")
     if [ "$status" -eq 0 ] && [ "$out" = "$want" ] && [ "$err" = "$want_err" ]; then
@@ -127,6 +151,28 @@ rm -rf "$repo/Tests/Unit/BrandNewTests.swift" "$repo/Tests/UI"
 echo 'extension HeldThing { func release() {} }' >>"$repo/Tests/Support/HeldThing.swift"
 check "a changed Tests/Support file selects nothing and says so on stderr" "" \
 "note: Tests/Support/HeldThing.swift changed and declares no test; the tests that use it are not repeated. Hunt them with scripts/flake-hunt.sh before you commit."
+
+git -C "$repo" reset -q --hard "$base" && git -C "$repo" clean -qfd
+sed -i '' 's/XCTAssertTrue(app.exists)/XCTAssertFalse(!app.exists)/' "$repo/Tests/UI/SmokeUITests.swift"
+check "--ui selects a changed XCTest method as Class/name" "Tests/UI/SmokeUITests.swift:7	SmokeUITests/testOne" "" --ui
+
+git -C "$repo" checkout -q -- Tests/UI
+sed -i '' 's/timeout: seconds/timeout: seconds * 2/' "$repo/Tests/UI/UITestSupport.swift"
+check "--ui selects nothing for a changed support file and says so on stderr" "" \
+"note: Tests/UI/UITestSupport.swift changed and declares no test; the tests that use it are not repeated. Repeat them with scripts/test-sim.sh before you commit." --ui
+
+git -C "$repo" checkout -q -- Tests/UI
+printf 'import XCTest\n\nfinal class NewUITests: XCTestCase {\n    func testA() {}\n    func testB() {\n    }\n}\n' \
+    >"$repo/Tests/UI/NewUITests.swift"
+check "--ui selects every test of an untracked UI file" \
+"Tests/UI/NewUITests.swift:4	NewUITests/testA
+Tests/UI/NewUITests.swift:5	NewUITests/testB" "" --ui
+
+rm "$repo/Tests/UI/NewUITests.swift"
+sed -i '' 's/XCTAssertTrue(true)/XCTAssert(true)/' "$repo/Tests/UI/SmokeUITests.swift"
+sed -i '' 's/let one = 1/let one = 2 - 1/' "$repo/Tests/Unit/TopLevelTests.swift"
+check "--ui ignores a Tests/Unit change" "Tests/UI/SmokeUITests.swift:14	SmokeUITests/testTwo" "" --ui
+check "the default mode ignores a Tests/UI change" "Tests/Unit/TopLevelTests.swift:7	aMultiLineTest" ""
 
 out=$(cd "$repo" && scripts/changed-tests.sh --base no-such-rev 2>&1)
 status=$?
