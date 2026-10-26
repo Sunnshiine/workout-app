@@ -17,9 +17,10 @@ leading zero, is looked up with `gh issue view`. An exemption fails when it cite
 closed without the `wontfix` label, or a number with no issue or pull request. A cited pull request
 is history, so it is never failed and never counts as the issue a bug-shaped rule needs.
 
-`unstructured_task_is_held` and `fixture_dates_are_literal` exist to stop bugs, so an exemption of
-either, or of `all`, accepts a known bug and must cite an issue. The other rules' exemptions record
-design facts, such as a WCAG clause or a parameter count, and may cite none.
+`unstructured_task_is_held`, `fixture_dates_are_literal`, and `model_held_across_reload` exist to
+stop bugs, so an exemption of any of them, or of `all`, accepts a known bug and must cite an issue.
+The other rules' exemptions record design facts, such as a WCAG clause or a parameter count, and
+may cite none.
 
 Exits 0 when clean, 1 on findings, 2 when git, a file, or gh cannot answer, so the check never
 passes unchecked, and 64 on a usage error or a LINT_EXEMPTIONS_GH_TIMEOUT that is not a finite
@@ -38,7 +39,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 REPO = "Sunnshiine/workout-app"
-BUG_SHAPED_RULES = {"unstructured_task_is_held", "fixture_dates_are_literal"}
+BUG_SHAPED_RULES = {"unstructured_task_is_held", "fixture_dates_are_literal", "model_held_across_reload"}
 COMMAND = re.compile(r"swiftlint:(disable|enable)(?::(?:next|this|previous))?(?:\s+(.*))?$")
 STRING_START = re.compile(r'(#*)("""|")')
 CITATION = re.compile(r"(?<![\w&])#([1-9]\d{1,4})(?!\w)")

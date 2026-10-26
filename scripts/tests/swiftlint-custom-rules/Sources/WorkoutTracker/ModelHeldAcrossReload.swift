@@ -95,3 +95,37 @@ func localVariableOfAFreeFunctionIsFalselyFlagged() {
     var session: Session? = nil
     session = nil
 }
+
+final class ModelHeldAcrossReloadSpelledOtherwise {
+    func optionalSpelledOutIsFlagged() {}
+    private var wrapped: Optional<Session>
+
+    func moduleQualifiedHoldIsFlagged() {}
+    private var qualified: WorkoutTracker.Session?
+
+    func moduleQualifiedArrayIsFlagged() {}
+    private var qualifiedSets: [WorkoutTracker.ExerciseSet] = []
+
+    func holdBeforeABlockCommentIsFlagged() {}
+    private var blockCommented: Session? /* set by bind(to:) */
+
+    func optionalSpelledOutAddressPasses() {}
+    private var address: Optional<SessionAddress>
+
+    func resultHoldIsMissed() {}
+    private var outcome: Result<Session, Error>?
+
+    func taskHoldIsMissed() {}
+    private var loading: Task<Session?, Never>?
+
+    func closureHoldIsMissed() {}
+    private var resolve: (() -> Session?)?
+
+    func collectionInsideACollectionIsMissed() {}
+    private var sessionsByTab: [String: [Session]] = [:]
+
+    func memberOfATypeNestedInATypeIsMissed() {}
+    struct Snapshot {
+        var session: Session?
+    }
+}

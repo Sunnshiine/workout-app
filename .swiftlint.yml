@@ -248,7 +248,7 @@ custom_rules:
       A stored var of a @Model type outlives one read pass, and a sync that replaces the Block
       deletes the object under it. Hold a SessionAddress, SetCoordinates.ID, or persistentModelID
       and re-resolve it from the store's Block (CODING_STANDARDS.md Concurrency).
-    regex: '(?m)^    (?:@\w+(?:\([^)\n]*\))?\s+)*(?:(?:private|fileprivate|internal|package|public|open|static|final|override|lazy|weak|unowned|nonisolated)(?:\(\w+\))?\s+)*var\s+\w+\s*:\s*(?:\[(?:[\w.]+\s*:\s*)?)?(?:Block|Week|Session|Exercise|ExerciseSet|HistoryFillCursor|LastPerformedEntry|PendingWrite|WriteTargetAuditEntry)\]?[?!]?(?=[ \t]*(?:=|//|$))'
+    regex: '(?m)^    (?:@\w+(?:\([^)\n]*\))?\s+)*(?:(?:private|fileprivate|internal|package|public|open|static|final|override|lazy|weak|unowned|nonisolated)(?:\(\w+\))?\s+)*var\s+\w+\s*:\s*(?:Optional<)?(?:\[(?:[\w.]+\s*:\s*)?)?(?:WorkoutTracker\.)?(?:Block|Week|Session|Exercise|ExerciseSet|HistoryFillCursor|LastPerformedEntry|PendingWrite|WriteTargetAuditEntry)\]?>?[?!]?(?=[ \t]*(?:=|//|/\*|$))'
     included: '.*/(App|Sources/WorkoutTracker)/.*'
     excluded:
       - '.*/Sources/WorkoutTracker/Models/.*'

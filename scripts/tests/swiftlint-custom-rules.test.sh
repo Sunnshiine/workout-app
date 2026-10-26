@@ -206,6 +206,10 @@ model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:43
 model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:44
 model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:88
 model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:95
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:101
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:104
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:107
+model_held_across_reload Sources/WorkoutTracker/ModelHeldAcrossReload.swift:110
 EXPECTED
 }
 expected=$(expected_rows | grep -v '^$' | LC_ALL=C sort)

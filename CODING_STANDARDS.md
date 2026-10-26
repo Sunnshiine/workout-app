@@ -120,10 +120,10 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 Seven shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
 judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason.
-An exemption of `unstructured_task_is_held`, `fixture_dates_are_literal`, or `all` accepts a bug,
-so its reason cites the open or `wontfix` issue that tracks it as a bare `#N`. `scripts/lint.sh`
-fails one that cites none, and any exemption whose cited issue is closed without `wontfix`. The
-seven rules:
+An exemption of `unstructured_task_is_held`, `fixture_dates_are_literal`,
+`model_held_across_reload`, or `all` accepts a bug, so its reason cites the open or `wontfix`
+issue that tracks it as a bare `#N`. `scripts/lint.sh` fails one that cites none, and any
+exemption whose cited issue is closed without `wontfix`. The seven rules:
 
 - `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
   review judges a View method that starts a Task writing a store field. The rule reads only a line
@@ -162,13 +162,19 @@ seven rules:
 - `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
   `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
   whose index is named (`for i in 0..<n`) passes it.
-- `model_held_across_reload` catches a stored `var` of a `@Model` type, bare, Optional, implicitly
-  unwrapped, or in an Array or a Dictionary, in `App/` and in `Sources/WorkoutTracker/` outside
-  `Models/` (#972, #1036, #1053). A `let`, a `var` whose type is inferred, a tuple, a generic
-  container such as `Set<Session>`, a stored `var` with an observer, and a property of a type
-  nested in a function pass it. It flags a computed property whose brace opens on the next line, a
-  View's input declared with `var` rather than `let`, and a local `var` in a free function. Its
-  type list names every `@Model` class, and the rule's test fails when a new one is missing from it.
+- `model_held_across_reload` catches a stored `var` of a `@Model` type in `App/` and in
+  `Sources/WorkoutTracker/` outside `Models/` (#972, #1036, #1053). It reads the type bare,
+  Optional as `Session?` or `Optional<Session>`, implicitly unwrapped, or in an Array or a
+  Dictionary, with or without the `WorkoutTracker.` prefix. A `let`, a `var` whose type is
+  inferred, a tuple, a closure, a struct that wraps a model, and a stored `var` with an observer
+  pass it. So do a generic type other than `Optional`, such as `Set<Session>`,
+  `Result<Session, Error>`, or `Task<Session, Never>`, and a collection inside a collection, such
+  as `[String: [Session]]`. A property of a type nested in another type or in a function passes it
+  too. The rule reads only the four-space indent of a type's own members, because deeper in, a
+  nested type's property and a method's local `var` look alike. It flags a computed property whose
+  brace opens on the next line, a View's input declared with `var` rather than `let`, and a local
+  `var` in a free function. Its type list names every `@Model` class, and the rule's test fails
+  when a new one is missing from it.
 
 `unstructured_task_is_held` and `optional_bool_needs_a_nil_answer` also reach `WorkoutShared/` and
 `WorkoutWidgets/`. The font and microlabel rules stop at the app, and no bullet here judges type
