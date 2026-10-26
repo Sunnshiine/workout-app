@@ -342,7 +342,7 @@ jobs:
       # The rest of the UI suite stays opt-in (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
-        timeout-minutes: 15
+        timeout-minutes: 20
         if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \

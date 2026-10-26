@@ -54,6 +54,8 @@ expect Sources/WorkoutTracker/Session/WeightFieldMount.swift true
 expect Sources/WorkoutTracker/Session/ActiveSetFocusManager.swift true
 expect Sources/WorkoutTracker/Fixtures/UITestLaunch.swift true
 expect WorkoutShared/WorkoutActivityAttributes.swift true
+# The project that says what each target compiles.
+expect WorkoutTracker.xcodeproj/project.pbxproj true
 # The UI test target.
 expect Tests/UI/KeyboardLaneUITests.swift true
 expect Tests/UI/WorkoutUITestSupport.swift true

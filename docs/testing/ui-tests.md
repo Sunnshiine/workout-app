@@ -51,7 +51,8 @@ Keyboard lane:
 
 CI's `visual-tests` job runs `KeyboardLaneUITests`, the weight keyboard tests, animated on every
 pull request whose diff touches a file the tests reach: what the app and UI test targets compile
-(`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `Tests/UI/`) and the lane's own wiring.
+(`App/`, `Sources/WorkoutTracker/`, `WorkoutShared/`, `Tests/UI/`), the project that defines
+those targets, and the lane's own wiring.
 `scripts/keyboard-lane-paths.sh` holds that list, and the step's log names the paths that matched
 or says none did. `scripts/ci-keyboard-lane.sh` is the step.
 
