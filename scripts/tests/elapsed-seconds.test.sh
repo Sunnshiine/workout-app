@@ -14,10 +14,17 @@ if ! printf 'gave up after %s s waiting for free disk\n' 0 | grep -Eq "$pinned";
 fi
 
 hits=$(git -C "$tests" grep --untracked -nE "$pinned" -- . ":!$self")
-if [ -z "$hits" ]; then
-    echo "  ok   no script test pins how many seconds wait_until_clear waited"
-    exit 0
-fi
+case $? in
+    0) ;;
+    1)
+        echo "  ok   no script test pins how many seconds wait_until_clear waited"
+        exit 0
+        ;;
+    *)
+        echo "  FAIL git grep could not search $tests, so nothing was checked"
+        exit 1
+        ;;
+esac
 echo "  FAIL these lines expect an exact count of seconds that wait_until_clear waited, which the clock decides:"
 printf '%s\n' "$hits" | sed 's/^/    /'
 echo "  fix: normalize the count, as in sed -E 's/after [0-9]+ s/after N s/', and expect 'after N s'"
