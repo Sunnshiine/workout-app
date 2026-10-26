@@ -176,6 +176,24 @@ done
 expect_no_text "a nested block comment hides its code" "$out" "hidden"
 expect_line "one each" "$(tail -1 "$root/stdout")" "9 defaults, 9 new, 0 gone from the tree"
 
+echo "a line continued in a multi-line string"
+fresh <<'SWIFT'
+SWIFT
+cat >"$repo/Sources/A.swift" <<'SWIFT'
+struct Caption {
+    static let text = """
+        a \
+        b
+        """
+    func show(prefix: String? = nil) {}
+    func hide(after: Int? = nil) {} // default: hiding at once is the common case
+}
+SWIFT
+run
+expect_exit "a default under the continued string" "$status" 1
+expect_line "the unreasoned default is new" "$out" "Sources/A.swift:6: new nil default, Caption.show prefix = nil"
+expect_no_text "the reason accepts its own line" "$out" "Caption.hide"
+
 echo "the key's label"
 fresh <<'SWIFT'
 struct Log {

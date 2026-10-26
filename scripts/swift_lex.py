@@ -89,7 +89,10 @@ def lex(text: str) -> Lexed:
                 frames.append(("code", 1, 0))
                 step = len(escape) + 1
             elif text.startswith(escape, i):
-                step = len(escape) + 1
+                step = len(escape)
+                # A `\` that ends a line continues the string, and the newline still ends the line.
+                if text[i + step: i + step + 1] != "\n":
+                    step += 1
             elif text.startswith(close, i):
                 frames.pop()
                 spans.append((start, i, False))
