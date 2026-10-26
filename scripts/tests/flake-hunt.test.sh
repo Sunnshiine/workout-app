@@ -19,7 +19,7 @@ cat >"$root/bin/swift" <<'STUB'
 #!/bin/sh
 [ "$1" = test ] || { [ -z "${STUB_BUILD_LOG:-}" ] || cat "$STUB_BUILD_LOG"; exit "${STUB_BUILD_RC:-0}"; }
 while [ $# -gt 0 ]; do [ "$1" = --xunit-output ] && xunit=$2; shift; done
-[ -z "${STUB_HOLD:-}" ] || { touch "$STUB_HOLD"; while :; do sleep 0.1; done; }
+[ -z "${STUB_HOLD:-}" ] || { sleep 300 </dev/null >/dev/null 2>&1 & echo $! >"$STUB_HOLD"; while :; do sleep 0.1; done; }
 [ -z "${STUB_TESTS:-}" ] ||
     printf '<testsuites>\n  <testsuite name="TestResults" errors="0" tests="%s" failures="0">\n' "$STUB_TESTS" \
         >"${xunit%.xml}-swift-testing.xml"
@@ -168,21 +168,41 @@ alive() { local pid n=0; for pid in "$@"; do ! kill -0 "$pid" 2>/dev/null || n=$
 settled() { local i=0; while [ "$(alive "$@")" != 0 ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done; alive "$@"; }
 export WORKOUT_RUN_DIR=$root/runs
 printf 'x\n' >"$root/swift.log"
-STUB_LOG=$root/swift.log STUB_RC=0 STUB_HOLD=$root/holding WORKOUT_RUN=hunt-a PATH="$root/bin:$PATH" \
-    "$repo/scripts/flake-hunt.sh" --load 2 --repetitions 1 >"$root/out" 2>"$root/err" &
-hunt=$!
-for _ in $(seq 1 100); do [ -f "$root/holding" ] && [ "$(wc -l <"$WORKOUT_RUN_DIR/hunt-a.pids" 2>/dev/null)" -eq 3 ] && break; sleep 0.1; done
-recorded=$(cut -f1 "$WORKOUT_RUN_DIR/hunt-a.pids" 2>/dev/null | tr '\n' ' ')
+# Starts a hunt whose test process holds, with a child of its own, and sets hunt, recorded, and child.
+hold() {
+    rm -f "$root/holding"
+    STUB_LOG=$root/swift.log STUB_RC=0 STUB_HOLD=$root/holding WORKOUT_RUN=$1 PATH="$root/bin:$PATH" \
+        "$repo/scripts/flake-hunt.sh" --load 2 --repetitions 1 >"$root/out" 2>"$root/err" &
+    hunt=$!
+    local pidfile
+    for _ in $(seq 1 100); do
+        pidfile=$(echo "$WORKOUT_RUN_DIR"/*/"$1.pids")
+        [ -s "$root/holding" ] && [ "$(wc -l <"$pidfile" 2>/dev/null)" -eq 3 ] && break
+        sleep 0.1
+    done
+    recorded=$(cut -f1 "$pidfile" 2>/dev/null | tr '\n' ' ')
+    child=$(cat "$root/holding" 2>/dev/null)
+}
+hold hunt-a
 kill -9 "$hunt"; wait "$hunt" 2>/dev/null
 # shellcheck disable=SC2086
-if [ "$(sed -n 2p "$root/out")" = "run: hunt-a (scripts/reap.sh hunt-a ends its processes)" ] && [ "$(alive $recorded)" = 3 ]; then
+if [ "$(sed -n 2p "$root/out")" = "run: hunt-a ($repo/scripts/reap.sh hunt-a ends its processes)" ] && [ "$(alive $recorded $child)" = 4 ]; then
     ok "a hunt names its run and records its two busy loops and its test process, which outlive a kill -9 of the hunt"
 else
-    bad "a hunt names its run and records its processes: $(cat "$root/out") recorded=$recorded alive=$(alive $recorded)"
+    bad "a hunt names its run and records its processes: $(cat "$root/out") recorded=$recorded child=$child alive=$(alive $recorded $child)"
 fi
 "$repo/scripts/reap.sh" hunt-a >/dev/null
 # shellcheck disable=SC2086
-if [ "$(settled $recorded)" = 0 ]; then ok "scripts/reap.sh <run> then ends all three"; else bad "reap left $(alive $recorded) of: $recorded"; fi
+if [ "$(settled $recorded $child)" = 0 ]; then ok "scripts/reap.sh <run> then ends all three and the test process's child"; else bad "reap left $(alive $recorded $child) of: $recorded $child"; fi
+
+hold hunt-b
+kill -TERM "$hunt"; wait "$hunt" 2>/dev/null
+# shellcheck disable=SC2086
+if [ -n "$child" ] && [ "$(settled $recorded $child)" = 0 ]; then
+    ok "a SIGTERM to the hunt ends its busy loops, its test process, and that process's child"
+else
+    bad "a SIGTERM to the hunt left $(alive $recorded $child) of: $recorded $child"
+fi
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
