@@ -101,6 +101,118 @@ expect_no_text "a case is left out" "$out" "order"
 expect_no_text "any other expression is left out" "$out" "Date.init"
 expect_line "only the counted kinds count" "$(tail -1 "$root/stdout")" "7 defaults, 7 new, 0 gone from the tree"
 
+echo "a comma inside a generic"
+fresh <<'SWIFT'
+SWIFT
+cat >"$repo/Sources/A.swift" <<'SWIFT'
+final class Store {
+    func a(_ m: Dictionary<String, Int> = [:], r: Result<A, B>? = nil) {}
+    func b(pick: (Int) -> Bool = { _ in true }, n: Set<Int> = [], flag: Bool = false) {}
+}
+SWIFT
+run
+expect_exit "defaults after generic arguments" "$status" 1
+expect_line "a Dictionary" "$out" "Sources/A.swift:2: new empty default, Store.a _ m = [:]"
+expect_line "a Result" "$out" "Sources/A.swift:2: new nil default, Store.a r = nil"
+expect_line "a closure type's arrow closes no generic" "$out" "Sources/A.swift:3: new bool default, Store.b flag = false"
+expect_line "all five" "$(tail -1 "$root/stdout")" "5 defaults, 5 new, 0 gone from the tree"
+
+echo "empty values, an immediately invoked closure, and a lazy var"
+fresh <<'SWIFT'
+SWIFT
+cat >"$repo/Sources/A.swift" <<'SWIFT'
+final class Store {
+    func a(x: Int? = .none, names: [String] = [String](), byID: [Int: String] = [Int: String](), ids: Set<Int> = Set(), more: Set<Int> = Set<Int>()) {}
+    func b(made: Int = { 1 }()) {}
+}
+struct Card {
+    var tint: Color? = .none
+    var shared = {
+        Formatter()
+    }()
+    var label = { 2 }()
+    lazy var warm = false
+}
+SWIFT
+run
+expect_exit "nil and empty initializers" "$status" 1
+expect_line ".none is nil" "$out" "Sources/A.swift:2: new nil default, Store.a x = .none"
+expect_line "an empty array initializer" "$out" "Sources/A.swift:2: new empty default, Store.a names = [String]()"
+expect_line "an empty dictionary initializer" "$out" "Sources/A.swift:2: new empty default, Store.a byID = [Int: String]()"
+expect_line "Set()" "$out" "Sources/A.swift:2: new empty default, Store.a ids = Set()"
+expect_line "Set<Int>()" "$out" "Sources/A.swift:2: new empty default, Store.a more = Set<Int>()"
+expect_line "a memberwise .none" "$out" "Sources/A.swift:6: new nil default, Card.init tint = .none"
+expect_no_text "an invoked closure is an expression" "$out" "made"
+expect_no_text "an invoked multi-line closure is an expression" "$out" "shared"
+expect_no_text "an invoked one-line closure is an expression" "$out" "label"
+expect_line "a lazy var is a memberwise parameter" "$out" "Sources/A.swift:11: new bool default, Card.init warm = false"
+expect_line "seven" "$(tail -1 "$root/stdout")" "7 defaults, 7 new, 0 gone from the tree"
+
+echo "literals the lexer skips"
+fresh <<'SWIFT'
+SWIFT
+literal() {
+    printf 'enum Holder {\n%s\n}\nstruct After {\n    init(flag: Bool = false) {}\n}\n' "$2" >"$repo/Sources/$1.swift"
+}
+literal Regex '    static let pattern = /[^\s.,!?;:"“”()\-–—…]/'
+literal Extended '    static let pattern = #/ { " /#'
+literal MultiLine "$(printf '    static let pattern = #/\n      { "\n    /#')"
+literal Raw "$(printf '    static let text = #"""\n        a """ b {\n        """#')"
+literal Division '    static let total = items.map { $0/2 }.count/3'
+literal Nested '    /* outer /* inner */ func hidden(z: Int? = nil) {} */'
+rm "$repo/Sources/A.swift"
+run
+expect_exit "a type after each literal" "$status" 1
+for file in Regex Extended Division Nested; do
+    expect_line "$file" "$out" "Sources/$file.swift:5: new bool default, After.init flag = false"
+done
+for file in MultiLine Raw; do
+    expect_line "$file" "$out" "Sources/$file.swift:7: new bool default, After.init flag = false"
+done
+expect_no_text "a nested block comment hides its code" "$out" "hidden"
+expect_line "one each" "$(tail -1 "$root/stdout")" "6 defaults, 6 new, 0 gone from the tree"
+
+echo "the key's label"
+fresh <<'SWIFT'
+struct Log {
+    func entries(for date: Date = .now, _ limit: Int = 0, subscript: Int = 1) {}
+    subscript(index: Int = 0) -> Int { index }
+    func card(@ViewBuilder content: () -> Text = { Text("") }) {}
+}
+SWIFT
+expect_line "an external label" "$(cat "$repo/scripts/lint-defaults-baseline.txt")" "Log|entries|for|now"
+expect_line "no external label" "$(cat "$repo/scripts/lint-defaults-baseline.txt")" "Log|entries|_|number"
+expect_line "a subscript's parameter has no label" "$(cat "$repo/scripts/lint-defaults-baseline.txt")" "Log|subscript|_|number"
+expect_line "an attribute is no label" "$(cat "$repo/scripts/lint-defaults-baseline.txt")" "Log|card|content|closure"
+cat >"$repo/Sources/A.swift" <<'SWIFT'
+struct Log {
+    func entries(for day: Date = .now, _ count: Int = 0, subscript: Int = 1) {}
+    subscript(position: Int = 0) -> Int { position }
+    func card(@ViewBuilder content: () -> Text = { Text("") }) {}
+}
+SWIFT
+run
+expect_exit "renamed internal names" "$status" 0
+
+echo "a memberwise default and an init default of one name"
+fresh <<'SWIFT'
+struct Draft {
+    var note: String?
+}
+SWIFT
+expect_line "a memberwise key says so" "$(cat "$repo/scripts/lint-defaults-baseline.txt")" "Draft|memberwise|note|nil"
+cat >"$repo/Sources/A.swift" <<'SWIFT'
+struct Draft {
+    let note: String?
+}
+extension Draft {
+    init(id: Int, note: String? = nil) { self.init(note: note) }
+}
+SWIFT
+run
+expect_exit "a memberwise default swapped for an init default" "$status" 1
+expect_line "the init default is new" "$out" "Sources/A.swift:5: new nil default, Draft.init note = nil"
+
 echo "a moved file"
 fresh <<'SWIFT'
 extension Theme {
@@ -131,9 +243,9 @@ enum Theme {
 SWIFT
 run
 expect_exit "a default moved into another type" "$status" 1
-expect_line "it is new under the new type" "$out" "Sources/Paint.swift:3: new number default, Theme.Shadow.init xOffset = 0"
+expect_line "it is new under the new type" "$out" "Sources/Paint.swift:3: new number default, Theme.Shadow.init x xOffset = 0"
 expect_line "its old key is gone" "$out" \
-    "scripts/lint-defaults-baseline.txt: delete one \`Theme.BoxShadow|init|xOffset|number\` line, since the tree no longer has that default."
+    "scripts/lint-defaults-baseline.txt: delete one \`Theme.BoxShadow|init|x|number\` line, since the tree no longer has that default."
 expect_text "it names the rewrite for a rename" "$out" "run \`scripts/lint-defaults.py --write-baseline\` and commit the swap."
 run --write-baseline
 run
