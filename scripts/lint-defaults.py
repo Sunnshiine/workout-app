@@ -34,6 +34,7 @@ error.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -41,10 +42,12 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from swift_lex import DEFAULT_REASON, lex
+
 TREES = ("Sources", "App")
 BASELINE = "scripts/lint-defaults-baseline.txt"
 KINDS = {"nil", "bool", "closure", "now", "number", "empty"}
-DEFAULT_REASON = re.compile(r"//(?!/)\s*default:\s*\S")
 SIGNATURE = re.compile(
     r"(?<![.\w])(?:func\s+([A-Za-z_]\w*|[^\s(<]+)|(init)[?!]?|(subscript))\s*(?:<[^(){}]*>)?\s*\("
 )
@@ -77,47 +80,6 @@ class Default:
 
 class Unanswered(Exception):
     pass
-
-
-def strip(text: str) -> tuple[str, str, dict[int, str]]:
-    """Returns the text with comments and string literals blanked, the text with only comments
-    blanked, both keeping offsets and newlines, and the `//` comment on each line by line index."""
-    out = list(text)
-    code = list(text)
-    comments: dict[int, str] = {}
-    i, n = 0, len(text)
-    while i < n:
-        if text.startswith("//", i):
-            j = text.find("\n", i)
-            j = n if j < 0 else j
-            comments[text.count("\n", 0, i)] = text[i:j]
-            for k in range(i, j):
-                out[k] = code[k] = " "
-            i = j
-        elif text.startswith("/*", i):
-            j = text.find("*/", i + 2)
-            j = n if j < 0 else j + 2
-            for k in range(i, j):
-                if out[k] != "\n":
-                    out[k] = code[k] = " "
-            i = j
-        elif text.startswith('"""', i):
-            j = text.find('"""', i + 3)
-            j = n if j < 0 else j + 3
-            for k in range(i + 1, j - 1):
-                if out[k] != "\n":
-                    out[k] = " "
-            i = j
-        elif text[i] == '"':
-            j = i + 1
-            while j < n and text[j] != '"' and text[j] != "\n":
-                j += 2 if text[j] == "\\" else 1
-            for k in range(i + 1, min(j, n)):
-                out[k] = " "
-            i = j + 1
-        else:
-            i += 1
-    return "".join(out), "".join(code), comments
 
 
 def kind_of(value: str) -> str:
@@ -197,11 +159,11 @@ def split_top(s: str) -> list[tuple[int, str]]:
     return parts
 
 
-def reasoned(comments: dict[int, str], line: int) -> bool:
-    return bool(DEFAULT_REASON.match(comments.get(line - 1, "")))
+def reasoned(comments: dict[int, tuple[int, str]], line: int) -> bool:
+    return bool(DEFAULT_REASON.match(comments.get(line - 1, (0, ""))[1]))
 
 
-def signature_defaults(path: str, code: str, text: str, named: list[Scope], comments: dict[int, str]) -> list[Default]:
+def signature_defaults(path: str, code: str, text: str, named: list[Scope], comments: dict[int, tuple[int, str]]) -> list[Default]:
     found = []
     for m in SIGNATURE.finditer(text):
         function = m.group(1) or m.group(2) or m.group(3)
@@ -230,7 +192,7 @@ def signature_defaults(path: str, code: str, text: str, named: list[Scope], comm
     return found
 
 
-def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], comments: dict[int, str]) -> list[Default]:
+def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], comments: dict[int, tuple[int, str]]) -> list[Default]:
     found = []
     for s in named:
         if s.kind != "struct":
@@ -277,9 +239,13 @@ def memberwise_defaults(path: str, code: str, text: str, named: list[Scope], com
 
 
 def defaults_in(path: str, raw: str) -> list[Default]:
-    text, code, comments = strip(raw)
+    lexed = lex(raw)
+    text, code = lexed.blanked(raw, literals=True), lexed.blanked(raw, literals=False)
     named = scopes(text)
-    return signature_defaults(path, code, text, named, comments) + memberwise_defaults(path, code, text, named, comments)
+    return (
+        signature_defaults(path, code, text, named, lexed.comments)
+        + memberwise_defaults(path, code, text, named, lexed.comments)
+    )
 
 
 def git(root: Path, *args: str) -> str:
