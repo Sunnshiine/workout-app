@@ -121,7 +121,7 @@ private enum PlacementTestError: Error { case notPlaced }
 }
 
 @Test func setLogPlacementRedirectsOccupiedHeaderToVisibleWritableRow() throws {
-    let grid = coachNoteLayoutGrid()  // Chest Fly anchor row 17, protected header, 2 sets
+    let grid = coachNoteLayoutGrid()  // Chest Fly anchor row 17, occupied header, 2 sets
 
     let setOne = try placed(placement(grid, exercise: "Chest Fly", setIndex: 0))
     #expect(setOne.kind == .occupiedHeaderVisibleWritableRow)

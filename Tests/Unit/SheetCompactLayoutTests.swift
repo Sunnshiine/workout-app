@@ -170,7 +170,7 @@ private let loggedThenSkippedHeader = "BWx12@7, skip"
 @Test func writerProtectsHeaderWhenAnAggregateEntryIsFreeText() throws {
     // The header's second entry is free text (a Coach Note / Legacy Log), so the shared
     // predicate rejects the cell as a Set-Log-list aggregate and the writer routes the
-    // Set Log to the continuation row instead of overwriting the protected header.
+    // Set Log to the continuation row instead of overwriting the occupied header.
     let grid = compactLayoutGrid(
         headerNotes: "BWx12@7, felt heavy",
         continuationNotes: ""

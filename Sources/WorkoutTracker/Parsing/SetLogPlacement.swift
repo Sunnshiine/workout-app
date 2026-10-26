@@ -138,7 +138,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// The rows inside this Exercise's span that can carry a Set Log, in sheet order, with hidden
     /// rows dropped. A compact header keeps Set Logs on the anchor row itself; every other rule
     /// starts on the row below it. Set N takes the Nth of these, so "which row is Set N on" and
-    /// "which row does a protected header redirect to" read the same list.
+    /// "which row does an occupied header redirect to" read the same list.
     func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
         let firstRow = row + (headerHoldsSetLogs ? 0 : 1)
         guard firstRow < nextAnchorRow else { return [] }
@@ -156,7 +156,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
 
     /// Resolves where Set `setIndex`'s Set Log lives for this Exercise: the whole Visible Writable
     /// Row addressing tree in one place — multi-line Prescription Line (or the spare row its Coach
-    /// Note sends it to) → compact-header list → protected-header Visible Writable Row → visible
+    /// Note sends it to) → compact-header list → occupied-header Visible Writable Row → visible
     /// Set-log row — honouring Coach Note / Legacy
     /// Log protection and never crossing the Session boundary (ADR-0003, ADR-0010). Set-Log placement
     /// is a Notes-column concern; Last Set RPE targeting stays on the Exercise anchor row and is not
