@@ -152,7 +152,7 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
         tabs: ["Block 27": LocalWorkbook.Tab(rows: 20, cols: 12, cells: ["C15": "Back Squat"])]
     )
     try seed.write(to: url)
-    let client = LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: url), persistTo: url)
+    let client = try LocalWorkbookSheetsClient(file: url)
 
     try await client.write([SheetCellWrite(tabName: "Block 27", row: 14, col: 10, value: "185x5@8")], spreadsheetId: "FIXTURE")
 
@@ -166,12 +166,17 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
     #expect(fetched.cell(row: 14, col: 10) == "185x5@8")
 }
 
-@Test func persistingClientKeepsMemoryAndDiskInStepWhenTheWriteFails() async throws {
-    let url = URL(fileURLWithPath: "/nonexistent-dir-\(UUID().uuidString)/workbook.json")
-    let client = LocalWorkbookSheetsClient(
-        workbook: LocalWorkbook(spreadsheetId: "s", title: "t", tabs: ["B": LocalWorkbook.Tab(cells: ["A1": "seed"])]),
-        persistTo: url
-    )
+@Test func aFailedWriteLeavesTheFileAndTheRecordedBatchesAsTheyWere() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("local-workbook-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let url = directory.appendingPathComponent("workbook.json")
+    try LocalWorkbook(spreadsheetId: "s", title: "t", tabs: ["B": LocalWorkbook.Tab(cells: ["A1": "seed"])]).write(to: url)
+    let client = try LocalWorkbookSheetsClient(file: url)
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: directory.path)
+    defer {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+        try? FileManager.default.removeItem(at: directory)
+    }
 
     await #expect(throws: (any Error).self) {
         try await client.write([SheetCellWrite(tabName: "B", row: 0, col: 0, value: "changed")], spreadsheetId: "s")
@@ -179,5 +184,22 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
 
     let fetched = try await client.fetchTab(spreadsheetId: "s", tabName: "B")
     #expect(fetched.cell(row: 0, col: 0) == "seed")
+    #expect(try LocalWorkbook.load(from: url).tabs["B"]?.cells == ["A1": "seed"])
     #expect(await client.recordedBatches.isEmpty)
+}
+
+@Test func anEditToTheFileBetweenTwoCallsIsWhatTheNextCallReads() async throws {
+    let url = temporaryWorkbookURL()
+    defer { try? FileManager.default.removeItem(at: url) }
+    try LocalWorkbook(spreadsheetId: "s", title: "t", tabs: ["B": LocalWorkbook.Tab(cells: ["A1": "seed"])]).write(to: url)
+    let client = try LocalWorkbookSheetsClient(file: url)
+    #expect(try await client.fetchTab(spreadsheetId: "s", tabName: "B").cell(row: 0, col: 0) == "seed")
+
+    var edited = try LocalWorkbook.load(from: url)
+    edited.tabs["B"]?.cells["A1"] = "coach"
+    try edited.write(to: url)
+
+    #expect(try await client.fetchTab(spreadsheetId: "s", tabName: "B").cell(row: 0, col: 0) == "coach")
+    try await client.write([SheetCellWrite(tabName: "B", row: 1, col: 0, value: "athlete")], spreadsheetId: "s")
+    #expect(try LocalWorkbook.load(from: url).tabs["B"]?.cells == ["A1": "coach", "A2": "athlete"])
 }
