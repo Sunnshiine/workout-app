@@ -10,8 +10,10 @@ UI XCUITest boundary:
   lookup, hittability, route completion, and one representative end-to-end flow per critical app
   surface.
 - The UI Interaction Suite covers higher-flake interaction mechanics such as keyboard focus,
-  overscroll, long scrolling, hold gestures, and frame/visibility behavior. CI never runs it
-  (#662), so it runs locally before a change that needs it is ready.
+  overscroll, long scrolling, hold gestures, and frame/visibility behavior. CI runs only its
+  keyboard tests, `KeyboardLaneUITests`, and only on a pull request that touches the session views
+  (Keyboard lane, below). The rest stays opt-in (#662), so it runs locally before a change that
+  needs it is ready.
 - UI XCUITests may assert that a real user action reaches a visible result. Unit and component tests own
   the detailed state rules, permutations, string construction, persistence semantics, and business
   logic behind that result.
@@ -39,6 +41,24 @@ UI-test frame assertions:
   assertions that prove the control exists, is hittable, remains separated from real neighboring
   controls/cards, and opens the intended surface. Use Visual Regression tests or human review for
   actual visual-overlap questions.
+- A frame assertion on the session stage launches animated and reads frames once they stop
+  moving. With animations off, the active-set card rests 34 pt higher than an athlete sees it, so
+  an assertion tuned there passes on a layout nobody sees. Keys and the Done button cover the
+  screen from `min(keyboard top, Done midY)` down. The keyboard's `Toolbar` row above them draws
+  nothing.
+
+Keyboard lane:
+
+CI's `visual-tests` job runs `KeyboardLaneUITests`, the weight keyboard tests, animated on every
+pull request whose diff touches `App/Views/Session*`, `App/Views/SmartValuePills.swift`,
+`App/Views/ActiveSetCard.swift`, or `Tests/UI/`. `scripts/keyboard-lane-paths.sh` holds that
+list, and the step's log names the paths that matched or says none did.
+
+- Put a new test that opens the weight keyboard in `KeyboardLaneUITests`, so the lane runs it.
+- A red `visual-tests` job is a Visual Baseline mismatch or a keyboard lane failure. Read which
+  step failed before you follow the re-record loop. A failed lane uploads `keyboard-lane-results`.
+- To measure the lane on the runner, run
+  `gh workflow run ci.yml --ref <branch> -f keyboard-lane=true`.
 
 Representative UI Integration Smoke scope:
 
