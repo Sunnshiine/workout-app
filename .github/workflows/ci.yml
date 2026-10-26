@@ -68,6 +68,11 @@ jobs:
     # toolchain requirement.
     runs-on: xcode-27
     timeout-minutes: 10
+    # The exemption check reads each cited issue's state, and a cited number can be a pull request.
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
     steps:
       # Depth 2 keeps the pull request merge commit's first parent, the base the diff below needs.
       - uses: actions/checkout@v4
@@ -118,6 +123,7 @@ jobs:
         env:
           SWIFTLINT_CACHE_DIR: ${{ runner.temp }}/swiftlint
           LINT_FORMAT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'HEAD' }}
+          GH_TOKEN: ${{ github.token }}
         run: scripts/lint.sh
 
   swift-tests:
