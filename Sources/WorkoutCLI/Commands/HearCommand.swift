@@ -18,13 +18,16 @@ struct HearCommand: AsyncParsableCommand {
     @Argument(help: "An audio file, such as one `say -o set.aiff \"185 for 5 at 8\"` writes.")
     var recording: String
 
+    @Flag(help: "Play the recording at the pace it was spoken, as the mic hears a press, and report when each caption arrived.")
+    var paced = false
+
     @MainActor
     func run() async throws {
         let home = homeOptions.resolved
         try await Output.run {
             guard let parsed = SetAddress(address) else { throw ApplicationError.invalidAddress(address) }
             guard #available(macOS 26, *) else { throw ApplicationError.speechUnavailable }
-            return try await home.open().hear(URL(fileURLWithPath: recording), at: parsed, installing: AssetProgress().report)
+            return try await home.open().hear(URL(fileURLWithPath: recording), at: parsed, paced: paced, installing: AssetProgress().report)
         } verdict: { heard in
             guard let rejection = heard.report.rejection else { return }
             throw ApplicationError.spokenSetRejected(heard.report.heard, reason: rejection.reason)

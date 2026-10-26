@@ -7,6 +7,7 @@ root=$(cd "$root" && pwd -P)
 trap 'rm -f "$root"/gate*; sleep 0.3; rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
 export PATH="$root/bin:$PATH" STUB_CALLS=$root/calls STUB_HANG_PID=$root/hang.pid STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_SIM_SEEN=$root/sim-seen
+export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 repo=$root/repo
 pool=$repo/.build/scratch locks=$repo/.git/scratch-locks
 pass=0

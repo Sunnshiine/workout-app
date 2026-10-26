@@ -235,6 +235,28 @@ custom_rules:
       - string
     severity: error
 
+  # A sync deletes the cached Block and inserts the re-parsed one, so a @Model object a store or a
+  # View keeps outlives the read that fetched it and goes Detached under its holder (#972, #1036,
+  # #1053). The rule bans the stored var itself, because e264e046 kept one and re-resolved it, and
+  # a regex cannot tell that fix from the bug. An exemption says why its hold is safe, or cites the
+  # open issue that will convert it. The match ends at the type and only looks ahead for a default
+  # value, a comment, or the line's end, because excluded_match_kinds drops a match that holds a
+  # comment. The type list is every @Model class, which swiftlint-custom-rules.test.sh checks.
+  model_held_across_reload:
+    name: "SwiftData model held across a reload"
+    message: >
+      A stored var of a @Model type outlives one read pass, and a sync that replaces the Block
+      deletes the object under it. Hold a SessionAddress, SetCoordinates.ID, or persistentModelID
+      and re-resolve it from the store's Block (CODING_STANDARDS.md Concurrency).
+    regex: '(?m)^    (?:@\w+(?:\([^)\n]*\))?\s+)*(?:(?:private|fileprivate|internal|package|public|open|static|final|override|lazy|weak|unowned|nonisolated)(?:\(\w+\))?\s+)*var\s+\w+\s*:\s*(?:Optional<)?(?:\[(?:[\w.]+\s*:\s*)?)?(?:WorkoutTracker\.)?(?:Block|Week|Session|Exercise|ExerciseSet|HistoryFillCursor|LastPerformedEntry|PendingWrite|WriteTargetAuditEntry)\]?>?[?!]?(?=[ \t]*(?:=|//|/\*|$))'
+    included: '.*/(App|Sources/WorkoutTracker)/.*'
+    excluded:
+      - '.*/Sources/WorkoutTracker/Models/.*'
+    excluded_match_kinds:
+      - comment
+      - doccomment
+    severity: error
+
 identifier_name:
   min_length:
     warning: 1

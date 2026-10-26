@@ -112,8 +112,8 @@ EVIDENCE_BEFORE = []
 def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_SIM_CAP="1000", WORKOUT_BUILD_SLOTS="100",
-                      WORKOUT_HOST_LOCK_DIR=locks)
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0", WORKOUT_SIM_CAP="1000",
+                      WORKOUT_BUILD_SLOTS="100", WORKOUT_HOST_LOCK_DIR=locks)
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
 

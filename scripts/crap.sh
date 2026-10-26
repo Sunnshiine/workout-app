@@ -30,6 +30,8 @@ scripts/crap.sh [measure|gate|baseline] [options]
   --tolerance N      Slack before a baselined function counts as worsened (default 0.5).
   -h, --help         Show this message.
 
+Before the tests it waits for free disk, as scripts/disk-floor.sh does, and exits 75 if it stays low.
+
 Artifacts: .build/crap/coverage.lcov, .build/crap/report.json, tools/crap/baseline.tsv
 EOF
 }
@@ -179,6 +181,7 @@ measure() {
 }
 
 if [[ $RUN_TESTS -eq 1 ]]; then
+    scripts/disk-floor.sh
     step "tests with coverage" run_tests
 fi
 step "llvm-cov export" export_lcov

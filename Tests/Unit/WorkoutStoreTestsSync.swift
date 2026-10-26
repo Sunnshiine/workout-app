@@ -5,7 +5,7 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-private func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) async throws {
+func withOnDiskStore(weekCount: Int, _ body: (WorkoutStore, ModelContext) throws -> Void) async throws {
     try await withOnDiskStoreFile { url in
         let container = try ModelContainer(
             for: Block.self,
@@ -60,6 +60,19 @@ private func sync(
         try sync(store, replacingBlockWith: makeStoreBlock(dayCount: 3), in: context)
 
         #expect(store.viewedSession?.dayNumber == 1)
+        #expect(store.isViewingLiveEdge)
+    }
+}
+
+@MainActor
+@Test func aSyncThatAddsAnAddressTheBlockDidNotHoldReturnsToTheCurrentSession() async throws {
+    try await withOnDiskStore(weekCount: 1) { store, context in
+        store.show(SessionAddress(week: 2, day: 1))
+        #expect(store.viewedSession == nil)
+
+        try sync(store, replacingBlockWith: makeStoreBlock(weekCount: 2), in: context)
+
+        #expect(store.viewedSession?.address == SessionAddress(week: 1, day: 1))
         #expect(store.isViewingLiveEdge)
     }
 }
