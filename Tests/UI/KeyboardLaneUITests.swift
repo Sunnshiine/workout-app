@@ -262,7 +262,11 @@ private func openWeightKeyboard(in app: XCUIApplication) {
 @MainActor
 private func waitForKeyboardOnScreen(in app: XCUIApplication) {
     let keyboard = app.keyboards.firstMatch
-    XCTAssertTrue(keyboard.appears(within: 3))
+    XCTAssertTrue(
+        keyboard.appears(within: 3),
+        "no software keyboard: keyboards \(app.keyboards.count), Done at \(app.buttons["weight-keyboard-done"].frame), "
+            + "window \(app.frame)"
+    )
     let deadline = Date().addingTimeInterval(3)
     while keyboard.frame.minY >= app.frame.maxY, Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))

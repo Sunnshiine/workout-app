@@ -46,7 +46,7 @@ on:
         type: boolean
         default: false
       keyboard-lane:
-        description: Also run KeyboardLaneUITests after the hosted suite
+        description: Also run KeyboardLaneUITests
         type: boolean
         default: false
 
@@ -214,7 +214,7 @@ jobs:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
     steps:
-      # Depth 2 keeps the merge commit's base, which the keyboard lane diffs.
+      # The keyboard lane diffs the merge commit against its base.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
@@ -222,8 +222,11 @@ jobs:
       # The step takes seconds. A hung simctl once held it for 40 minutes (#1010), so it fails fast
       # for a rerun instead of running out the job's limit.
       - name: Ensure the pinned baseline simulator exists
+        id: sim
         timeout-minutes: 5
-        run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
+        run: |
+          udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
@@ -304,8 +307,7 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
-      # Focus, keyboard, and layout bugs in the session views pass every library test, so a pull
-      # request that touches them runs the keyboard tests animated. The rest stays opt-in (#662).
+      # Library tests miss session-view focus and layout bugs, so those PRs run this lane (#662).
       - name: Find whether the change touches the session views
         id: keyboard-paths
         env:
@@ -320,9 +322,13 @@ jobs:
         id: keyboard
         if: ${{ !cancelled() && steps.keyboard-paths.outputs.run == 'true' && !inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
         timeout-minutes: 15
+        env:
+          SIM: ${{ steps.sim.outputs.udid }}
         run: |
+          scripts/sim-keyboard.sh ensure "$SIM"
+          trap 'echo "minimized: $(xcrun simctl spawn "$SIM" defaults read com.apple.keyboard.preferences AutomaticMinimizationEnabled)"' EXIT
           xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+            -destination "platform=iOS Simulator,id=$SIM" \
             -only-testing:WorkoutTrackerUITests/KeyboardLaneUITests \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
@@ -332,10 +338,8 @@ jobs:
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-          ran=$(xcrun xcresulttool get test-results summary --path KeyboardTests.xcresult --compact \
-            | python3 -c 'import json, sys; s = json.load(sys.stdin); print(s["passedTests"] + s["failedTests"])')
-          echo "keyboard lane: $ran tests ran"
-          [ "$ran" -gt 0 ] || { echo "::error::The keyboard lane selected no test."; exit 1; }
+          xcrun xcresulttool get test-results summary --path KeyboardTests.xcresult --compact \
+            | grep -o '"totalTestCount":[1-9][0-9]*' || { echo "::error::No keyboard lane test ran."; exit 1; }
       # Opt-in, not per PR: on unchanged code it goes red about half the time on
       # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
