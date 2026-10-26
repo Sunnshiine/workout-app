@@ -125,6 +125,7 @@ cat >"$repo/Sources/A.swift" <<'SWIFT'
 final class Store {
     func a(x: Int? = .none, names: [String] = [String](), byID: [Int: String] = [Int: String](), ids: Set<Int> = Set(), more: Set<Int> = Set<Int>()) {}
     func b(made: Int = { 1 }()) {}
+    func c(y: Int? = Optional.none, z: Int? = Optional<Int>.none) {}
 }
 struct Card {
     var tint: Color? = .none
@@ -142,12 +143,14 @@ expect_line "an empty array initializer" "$out" "Sources/A.swift:2: new empty de
 expect_line "an empty dictionary initializer" "$out" "Sources/A.swift:2: new empty default, Store.a byID = [Int: String]()"
 expect_line "Set()" "$out" "Sources/A.swift:2: new empty default, Store.a ids = Set()"
 expect_line "Set<Int>()" "$out" "Sources/A.swift:2: new empty default, Store.a more = Set<Int>()"
-expect_line "a memberwise .none" "$out" "Sources/A.swift:6: new nil default, Card.init tint = .none"
+expect_line "Optional.none" "$out" "Sources/A.swift:4: new nil default, Store.c y = Optional.none"
+expect_line "Optional<Int>.none" "$out" "Sources/A.swift:4: new nil default, Store.c z = Optional<Int>.none"
+expect_line "a memberwise .none" "$out" "Sources/A.swift:7: new nil default, Card.init tint = .none"
 expect_no_text "an invoked closure is an expression" "$out" "made"
 expect_no_text "an invoked multi-line closure is an expression" "$out" "shared"
 expect_no_text "an invoked one-line closure is an expression" "$out" "label"
-expect_line "a lazy var is a memberwise parameter" "$out" "Sources/A.swift:11: new bool default, Card.init warm = false"
-expect_line "seven" "$(tail -1 "$root/stdout")" "7 defaults, 7 new, 0 gone from the tree"
+expect_line "a lazy var is a memberwise parameter" "$out" "Sources/A.swift:12: new bool default, Card.init warm = false"
+expect_line "nine" "$(tail -1 "$root/stdout")" "9 defaults, 9 new, 0 gone from the tree"
 
 echo "literals the lexer skips"
 fresh <<'SWIFT'

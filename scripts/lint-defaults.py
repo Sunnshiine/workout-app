@@ -13,11 +13,20 @@ Reads the Swift files under Sources/ and App/ and lists two kinds of default. On
 parameter of a func, init, or subscript. The other is a struct's stored `var` with a default, or an
 Optional `var` with none, when the struct declares no init in its body, because the synthesized
 memberwise init hands that default to every caller. A `lazy`, `weak`, or `private(set)` var is one
-of its parameters. A `private` or `fileprivate` var is left out,
-since its default reaches no caller outside the file, and so is a `static` one, which no init takes.
-Only a default whose value is nil or .none, true or false, a closure, Date() or .now, a number, or
-an empty collection or string counts. A case or any other expression, an invoked closure among
-them, is left out, since most of those inject a production service.
+of its parameters. A `private` or `fileprivate` var is left out, since its default reaches no
+caller outside the file, and so is a `static` one, which no init takes. Only a default whose value
+is nil, .none, or Optional.none, true or false, a closure, Date() or .now, a number, or an empty
+collection or string counts. A case or any other expression, an invoked closure among them, is left
+out, since most of those inject a production service.
+
+The scan reads lines and brackets, not a Swift parse, so it misses these:
+- a `<` with no space after a name, as in `= 1<2`, reads as generic arguments, so the parameter
+  after that default goes unseen;
+- a memberwise var on a line that declares two, as in `var a = 1, b = 2`, and any var of a struct
+  whose body sits on one line;
+- the default of an enum case's associated value;
+- `.init()` counts as empty whatever the type, while `Foo()` is an expression.
+One `// default:` reason accepts every default on its line.
 
 Each default is keyed `Type|function|label|kind`, with no path or line, so moving code between
 files changes no key. The label is the external one, or `_`, so renaming an internal name changes
@@ -92,7 +101,7 @@ class Unanswered(Exception):
 
 def kind_of(value: str) -> str:
     v = value.strip()
-    if v in ("nil", ".none"):
+    if v in ("nil", ".none") or re.fullmatch(r"Optional(<.*>)?\.none", v):
         return "nil"
     if v in ("true", "false"):
         return "bool"
