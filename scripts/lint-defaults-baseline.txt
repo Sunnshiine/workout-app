@@ -6,6 +6,8 @@ Block|init|trainingMaxes|empty
 BorderedCircleIconButton|memberwise|role|nil
 CannedSetTranscriber|init|recording|empty
 ChipFlowLayout|memberwise|spacing|number
+DictationRecorder.Buffer|memberwise|frameFill|number
+DictationRecorder.Buffer|memberwise|frameSumOfSquares|number
 DictationRecorder.Buffer|memberwise|isClosed|bool
 DictationRecorder.Buffer|memberwise|isTruncated|bool
 DictationSummary|counts|of|empty
@@ -16,6 +18,7 @@ ExerciseSet|init|unstructuredSetLog|nil
 Exercise|init|legacyLog|nil
 Exercise|init|order|number
 Haptic|transient|at|number
+HearReport|init|captions|nil
 HistoryFillCursor|init|updatedAt|now
 HoldToSkipButtonPresentation|init|canLog|bool
 LastPerformedLookupEntry|init|matchedName|nil
@@ -56,6 +59,7 @@ SessionProgressHeader|init|currentSession|nil
 SessionProgressHeader|init|onNavigate|closure
 SessionView|init|dictation|nil
 SessionView|init|focus|nil
+SetDictation.Press|memberwise|earlyRead|nil
 SetDictation.Press|memberwise|startRefusal|nil
 SettingsStore|init|hasPriorAppState|bool
 SheetPickerStore|init|onValidatedSelection|nil
@@ -90,6 +94,7 @@ Theme.TypeStyle|init|tabular|bool
 Theme.TypeStyle|init|tracking|number
 Theme|rgb|_|number
 ValueRail|memberwise|isInvalid|bool
+VoiceActivity|init|levels|empty
 WhisperEngine.Status|memberwise|downloaded|number
 WorkbookScenario.NotedExercise|memberwise|logs|nil
 WorkbookScenario.NotedExercise|memberwise|percentOneRM|nil
@@ -97,6 +102,7 @@ WorkbookScenario.NotedExercise|memberwise|sets|number
 WorkbookScenario|prescription|notes|nil
 WorkbookScenario|prescription|percentOneRM|nil
 WorkbookScenario|twoLineLift|firstLineLogs|nil
+WorkoutApplication|hear|paced|bool
 WorkoutTrackerApp.Speech|memberwise|caption|nil
 WriteTargetAuditEntry|init|createdAt|now
 |sortedHistoricalTabs|deeperThan|nil
