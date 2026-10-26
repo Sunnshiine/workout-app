@@ -1,8 +1,7 @@
 import SwiftUI
 
 /// The current Block's Sheet tab read live, one Week at a time: each Day's section as the spreadsheet
-/// shows it, raw values under their column letters and beside their row numbers, for checking what
-/// the app does not render.
+/// shows it, raw values under their column letters, for checking what the app does not render.
 struct SheetTabView: View {
     let read: @MainActor () async throws -> SheetTabSnapshot
     /// Its Week opens first and its Day stands in morning light, as on the Block grid.
@@ -216,12 +215,13 @@ private struct SheetTabGrid: View {
         in day: SheetTabGridPresentation.Day,
         widths: [Double]
     ) -> some View {
-        HStack(spacing: 0) {
+        // Cells sit on their first line, so a wrapped value hangs down like a wrapped Sheet cell.
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
             ForEach(Array(zip(zip(day.columns, row.cells), widths)), id: \.0.0.index) { cell, width in
                 self.cell(SelectedCell(row: row, column: cell.0, value: cell.1), width: width)
             }
         }
-        .frame(height: Theme.sheetRowHeight)
+        .frame(minHeight: Theme.sheetRowHeight)
         .overlay(alignment: .top) {
             if row.startsExercise {
                 Rectangle().fill(palette.queueStroke).frame(height: Theme.sheetHairline)
@@ -254,9 +254,12 @@ private struct SheetTabGrid: View {
         return Text(cell.value)
             .font(Theme.font(leadsExercise ? .runline : .sheetCell))
             .foregroundStyle(palette.textPrimary)
-            .lineLimit(1)
+            .lineLimit(Theme.sheetCellLineLimit)
+            .allowsTightening(true)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, Theme.sheetCellInset)
-            .frame(width: width, height: Theme.sheetRowHeight - 6, alignment: .leading)
+            .padding(.vertical, Theme.sheetCellVerticalInset)
+            .frame(width: width, alignment: .leading)
             .background {
                 if isSelected {
                     RoundedRectangle(cornerRadius: Theme.Radius.mini)

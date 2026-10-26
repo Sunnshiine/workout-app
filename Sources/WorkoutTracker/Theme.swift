@@ -146,7 +146,11 @@ enum Theme {
     static let sheetNameColumnMinWidth: Double = 80
     static let sheetNotesColumnMinWidth: Double = 56
     static let sheetValueColumnMinWidth: Double = 40
+    /// A row's floor; a value that wraps grows it.
     static let sheetRowHeight: CGFloat = 36
+    /// Lines a cell wraps to before it truncates; tapping shows the rest.
+    static let sheetCellLineLimit = 3
+    static let sheetCellVerticalInset: CGFloat = 6
     static let sheetCellInset: CGFloat = 4
     static let sheetHairline: CGFloat = 0.5
     static let sheetSelectedCellStroke: CGFloat = 1.5
