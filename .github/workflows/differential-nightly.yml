@@ -1,0 +1,105 @@
+name: Differential nightly
+
+# Searches random facade operation sequences for a state one long-lived application derives step by
+# step and a fresh one would not (Tests/Unit/DifferentialStateTests.swift owns the search and every
+# verdict). A hit that the test classifies as one of its known divergences is reported as a known issue,
+# so only a new divergence turns the run red.
+#
+# A schedule or a dispatch runs only from the default branch, so the pull_request trigger, limited to this
+# file, lets the PR that adds or edits it run the search once. A PR that edits the test file, as every fix
+# to a known divergence does, does not run a random search on an unrelated change.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: Seed to replay. Empty draws one from the run id.
+        type: string
+        default: ""
+      sequences:
+        description: Sequences to search
+        type: string
+        default: "300"
+      length:
+        description: Operations per sequence
+        type: string
+        default: "10"
+  pull_request:
+    paths:
+      - ".github/workflows/differential-nightly.yml"
+
+concurrency:
+  group: differential-nightly-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  search:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # The seed is written to the job summary before anything builds, so a run the timeout kills still
+      # names it. A re-run keeps the run id, so it keeps the seed.
+      - name: Fix the knobs
+        env:
+          INPUT_SEED: ${{ inputs.seed }}
+          INPUT_SEQUENCES: ${{ inputs.sequences }}
+          INPUT_LENGTH: ${{ inputs.length }}
+        run: |
+          set -euo pipefail
+          seed=${INPUT_SEED:-$GITHUB_RUN_ID}
+          sequences=${INPUT_SEQUENCES:-300}
+          length=${INPUT_LENGTH:-10}
+          for value in "$seed" "$sequences" "$length"; do
+            case $value in '' | *[!0-9]*) echo "::error::not a number: '$value'"; exit 2 ;; esac
+          done
+          {
+            echo "DIFF_SEED=$seed"
+            echo "DIFF_SEQUENCES=$sequences"
+            echo "DIFF_LENGTH=$length"
+          } >> "$GITHUB_ENV"
+          {
+            echo "### Differential search"
+            echo "Seed \`$seed\`, $sequences sequences of $length operations."
+            echo "Replay: \`DIFF_SEED=$seed DIFF_SEQUENCES=$sequences DIFF_LENGTH=$length swift test --filter DifferentialStateTests/randomSequencesFindNoUnknownDivergence\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the tests
+        run: swift build --build-tests
+
+      # A filter that matches no test, or a search the missing knobs skip, passes with nothing run,
+      # so a log without the line the search prints last fails the step.
+      - name: Search
+        run: |
+          set -o pipefail
+          swift test --skip-build --filter 'DifferentialStateTests/randomSequencesFindNoUnknownDivergence' 2>&1 \
+            | tee "$RUNNER_TEMP/differential.log"
+          if ! grep -q '^DIFF summary ' "$RUNNER_TEMP/differential.log"; then
+            echo "::error::The search printed no DIFF summary line, so it did not run to the end."
+            exit 1
+          fi
+
+      - name: Summarize
+        if: ${{ !cancelled() }}
+        run: |
+          log="$RUNNER_TEMP/differential.log"
+          {
+            echo '```'
+            if [ -f "$log" ]; then grep '^DIFF' "$log" || true; fi
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: differential-log
+          path: ${{ runner.temp }}/differential.log
+          if-no-files-found: ignore
+          retention-days: 14

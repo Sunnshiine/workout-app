@@ -262,6 +262,13 @@ public struct LogReport: Encodable, Equatable, Sendable {
     public let exerciseIsComplete: Bool
 }
 
+/// What the tap that ends a Move On Celebration did. `returnedToBlockGrid` is true when no
+/// Available Session remained ahead, so the Current Session stayed and the athlete saw the Block grid.
+public struct MoveOnReport: Encodable, Equatable, Sendable {
+    public let returnedToBlockGrid: Bool
+    public let snapshot: AppSnapshot
+}
+
 /// What `say` heard and what it did to the Set. `set`, `pendingWriteCount`, and
 /// `exerciseIsComplete` are the report `log` returns, read after any write.
 public struct SayReport: Encodable, Equatable, Sendable {
