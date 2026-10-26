@@ -31,11 +31,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         let farmerCarryRow = app.buttons["stage-queue-row-exercise-7"]
         XCTAssertTrue(farmerCarryRow.exists)
         if !farmerCarryRow.isHittable {
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85))
-                .press(
-                    forDuration: 0.1,
-                    thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
-                )
+            app.buttons["stage-queue-row-exercise-0"].swipeUp()
         }
         tapWhenHittable(farmerCarryRow)
 
