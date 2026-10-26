@@ -146,13 +146,19 @@ def enclosing(named: list[Scope], at: int) -> Scope | None:
 
 
 def split_top(s: str) -> list[tuple[int, str]]:
-    parts, depth, start = [], 0, 0
+    """Splits at each comma outside brackets and generic arguments. A `<` opens generic arguments
+    only right after a name, so a spaced `a < b` compares, and the `>` of `->` closes none."""
+    parts, depth, angles, start = [], 0, 0, 0
     for i, c in enumerate(s):
         if c in OPEN:
             depth += 1
         elif c in CLOSE:
             depth -= 1
-        elif c == "," and depth == 0:
+        elif c == "<" and i and (s[i - 1].isalnum() or s[i - 1] == "_"):
+            angles += 1
+        elif c == ">" and angles and s[i - 1] != "-":
+            angles -= 1
+        elif c == "," and depth == 0 and angles == 0:
             parts.append((start, s[start:i]))
             start = i + 1
     parts.append((start, s[start:]))
