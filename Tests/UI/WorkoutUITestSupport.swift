@@ -50,6 +50,10 @@ extension XCTestCase {
             fixture.launchArguments + options.map(\.rawValue)
             + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
             + (transcript.map { ["-UITEST_DICTATION", $0] } ?? [])
+        // Xcode points these at the build products for the app it launches. The app embeds
+        // everything it links, so they find nothing, yet dyld checks them on each of about 1,500
+        // image loads, a quarter second of every launch. Empty, dyld skips them.
+        app.launchEnvironment = ["DYLD_FRAMEWORK_PATH": "", "DYLD_LIBRARY_PATH": ""]
         app.launch()
         return app
     }
@@ -63,6 +67,20 @@ extension XCUIElement {
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
             if exists {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        } while Date() < deadline
+        return false
+    }
+
+    /// `waitForNonExistence` checks once, about a second out, so it costs that second even when
+    /// the element is already gone. Polls as `appears(within:)` does.
+    @MainActor
+    func disappears(within timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if !exists {
                 return true
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
