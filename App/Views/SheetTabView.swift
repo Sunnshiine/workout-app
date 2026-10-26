@@ -90,6 +90,7 @@ private struct SheetTabGrid: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var week: Int
     @State private var selected: SelectedCell?
+    @State private var cardWidth: CGFloat = 0
 
     init(presentation: SheetTabGridPresentation, currentSession: SessionAddress?) {
         self.presentation = presentation
@@ -119,6 +120,7 @@ private struct SheetTabGrid: View {
                             dayCard(day, isCurrent: currentSession == SessionAddress(week: week, day: day.number))
                         }
                     }
+                    .onGeometryChange(for: CGFloat.self, of: \.size.width) { cardWidth = $0 }
                     .padding()
                     .id(week)
                     .transition(.opacity)
@@ -165,15 +167,20 @@ private struct SheetTabGrid: View {
                     .foregroundStyle(palette.textSecondary)
                     .padding(.horizontal, Theme.blockFocusCardPadding)
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
+                let widths = SheetTabGridPresentation.columnWidths(
+                    day.columns.map(\.role),
+                    fitting: cardWidth - 2 * Theme.blockFocusCardPadding
+                )
+                ScrollView(.horizontal) {
                     VStack(alignment: .leading, spacing: 0) {
-                        columnHeader(day)
+                        columnHeader(day, widths: widths)
                         ForEach(day.rows) { row in
-                            rowView(row, in: day)
+                            rowView(row, in: day, widths: widths)
                         }
                     }
                     .padding(.horizontal, Theme.blockFocusCardPadding)
                 }
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             }
         }
         .padding(.vertical, Theme.blockFocusCardPadding)
@@ -184,34 +191,34 @@ private struct SheetTabGrid: View {
         .accessibilityIdentifier("sheet-tab-day-\(day.number)")
     }
 
-    private func columnHeader(_ day: SheetTabGridPresentation.Day) -> some View {
-        HStack(spacing: 0) {
-            Color.clear.frame(width: Theme.sheetRowNumberWidth)
-            ForEach(day.columns) { column in
+    private func columnHeader(_ day: SheetTabGridPresentation.Day, widths: [Double]) -> some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            ForEach(Array(zip(day.columns, widths)), id: \.0.index) { column, width in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(column.label)
-                        .font(Theme.font(.fieldLabel))
+                        .font(Theme.font(.cadence))
                         .foregroundStyle(palette.textSecondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
                     Text(column.letter)
                         .font(Theme.font(.cadence))
                         .foregroundStyle(palette.textSecondary.opacity(0.6))
                 }
-                .padding(.horizontal, 6)
-                .frame(width: width(of: column), alignment: .leading)
+                .padding(.horizontal, Theme.sheetCellInset)
+                .frame(width: width, alignment: .leading)
             }
         }
         .padding(.bottom, 4)
     }
 
-    private func rowView(_ row: SheetTabGridPresentation.Row, in day: SheetTabGridPresentation.Day) -> some View {
+    private func rowView(
+        _ row: SheetTabGridPresentation.Row,
+        in day: SheetTabGridPresentation.Day,
+        widths: [Double]
+    ) -> some View {
         HStack(spacing: 0) {
-            Text(String(row.number))
-                .font(Theme.font(.cadence))
-                .foregroundStyle(palette.textSecondary.opacity(0.6))
-                .frame(width: Theme.sheetRowNumberWidth, alignment: .leading)
-            ForEach(Array(zip(day.columns, row.cells)), id: \.0.index) { column, value in
-                cell(SelectedCell(row: row, column: column, value: value))
+            ForEach(Array(zip(zip(day.columns, row.cells), widths)), id: \.0.0.index) { cell, width in
+                self.cell(SelectedCell(row: row, column: cell.0, value: cell.1), width: width)
             }
         }
         .frame(height: Theme.sheetRowHeight)
@@ -223,41 +230,33 @@ private struct SheetTabGrid: View {
         .opacity(row.isHidden ? Theme.sheetHiddenRowOpacity : 1)
     }
 
-    private func width(of column: SheetTabGridPresentation.Column) -> CGFloat {
-        switch column.role {
-        case .name: Theme.sheetNameColumnWidth
-        case .notes: Theme.sheetNotesColumnWidth
-        case .value: Theme.sheetValueColumnWidth
-        }
-    }
-
     @ViewBuilder
-    private func cell(_ cell: SelectedCell) -> some View {
+    private func cell(_ cell: SelectedCell, width: Double) -> some View {
         let isSelected = selected == cell
         if cell.value.isEmpty {
             // Blank cells would bury the filled ones for VoiceOver.
-            cellFace(cell, isSelected: false).accessibilityHidden(true)
+            cellFace(cell, width: width, isSelected: false).accessibilityHidden(true)
         } else {
             Button {
                 withAnimation(.snappy(duration: 0.25)) {
                     selected = isSelected ? nil : cell
                 }
             } label: {
-                cellFace(cell, isSelected: isSelected)
+                cellFace(cell, width: width, isSelected: isSelected)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("sheet-cell-\(cell.reference)")
         }
     }
 
-    private func cellFace(_ cell: SelectedCell, isSelected: Bool) -> some View {
+    private func cellFace(_ cell: SelectedCell, width: Double, isSelected: Bool) -> some View {
         let leadsExercise = cell.column.role == .name && cell.row.startsExercise
         return Text(cell.value)
             .font(Theme.font(leadsExercise ? .runline : .sheetCell))
             .foregroundStyle(palette.textPrimary)
             .lineLimit(1)
-            .padding(.horizontal, 6)
-            .frame(width: width(of: cell.column), height: Theme.sheetRowHeight - 6, alignment: .leading)
+            .padding(.horizontal, Theme.sheetCellInset)
+            .frame(width: width, height: Theme.sheetRowHeight - 6, alignment: .leading)
             .background {
                 if isSelected {
                     RoundedRectangle(cornerRadius: Theme.Radius.mini)

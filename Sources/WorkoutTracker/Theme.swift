@@ -140,14 +140,14 @@ enum Theme {
 
     // MARK: - Sheet tab Day cards
     //
-    // The Day sections of the Sheet tab the Block grid opens. Columns size by role so a name or a
-    // note reads whole more often and a number column stays narrow.
+    // The Day sections of the Sheet tab the Block grid opens. Every column of a Day fits its card:
+    // number columns hold their minimum and the name and notes columns take what is left.
 
-    static let sheetNameColumnWidth: CGFloat = 148
-    static let sheetNotesColumnWidth: CGFloat = 180
-    static let sheetValueColumnWidth: CGFloat = 64
+    static let sheetNameColumnMinWidth: Double = 80
+    static let sheetNotesColumnMinWidth: Double = 56
+    static let sheetValueColumnMinWidth: Double = 40
     static let sheetRowHeight: CGFloat = 36
-    static let sheetRowNumberWidth: CGFloat = 30
+    static let sheetCellInset: CGFloat = 4
     static let sheetHairline: CGFloat = 0.5
     static let sheetSelectedCellStroke: CGFloat = 1.5
     static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped

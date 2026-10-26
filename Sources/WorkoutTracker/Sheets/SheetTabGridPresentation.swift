@@ -107,6 +107,26 @@ struct SheetTabGridPresentation: Equatable, Sendable {
         )
     }
 
+    /// Widths that fit a Day's columns across `width`: each column at its role's minimum, and the
+    /// room left over shared by the name and notes columns, the ones whose text runs long. When the
+    /// minimums alone overflow, every column stays at its minimum and the Day scrolls sideways.
+    static func columnWidths(_ roles: [SheetTabColumnRole], fitting width: Double) -> [Double] {
+        let minimums = roles.map { role in
+            switch role {
+            case .name: Theme.sheetNameColumnMinWidth
+            case .notes: Theme.sheetNotesColumnMinWidth
+            case .value: Theme.sheetValueColumnMinWidth
+            }
+        }
+        let spare = width - minimums.reduce(0, +)
+        guard spare > 0, !roles.isEmpty else { return minimums }
+        let growing = roles.filter { $0 != .value }.count
+        return zip(roles, minimums).map { role, minimum in
+            if growing == 0 { return minimum + spare / Double(roles.count) }
+            return role == .value ? minimum : minimum + spare / Double(growing)
+        }
+    }
+
     /// The A1 reference of the cell in 0-based Sheet `column` of the row numbered `row`, as "AI37".
     static func cellReference(row: Int, column: Int) -> String {
         indexToA1(row: row - 1, col: column)

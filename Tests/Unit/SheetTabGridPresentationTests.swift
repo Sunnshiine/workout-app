@@ -103,3 +103,20 @@ private let oneDay: [String: String] = [
     #expect(weekOneDayOne.rows.map(\.number) == [15, 19])
     #expect(weekOneDayOne.rows.last?.cells == ["2-3:1:0 BB RDL", "2", "8", "", "RPE8", "", "Start w/ 10 sec hold"])
 }
+
+@Test func everyColumnFitsAndTheNameAndNotesShareWhatTheNumbersLeave() {
+    let widths = SheetTabGridPresentation.columnWidths([.name, .value, .value, .notes], fitting: 300)
+
+    #expect(widths.reduce(0, +) == 300)
+    #expect(widths == [122, 40, 40, 98])
+}
+
+@Test func columnsThatOverflowStayAtTheirMinimums() {
+    let roles = [SheetTabColumnRole.name] + Array(repeating: .value, count: 8)
+
+    #expect(SheetTabGridPresentation.columnWidths(roles, fitting: 300) == [80] + Array(repeating: 40, count: 8))
+}
+
+@Test func aDayOfNumbersSpreadsTheRoomAcrossThem() {
+    #expect(SheetTabGridPresentation.columnWidths([.value, .value], fitting: 100) == [50, 50])
+}
