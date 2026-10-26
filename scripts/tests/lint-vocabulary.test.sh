@@ -274,6 +274,17 @@ expect_exit "new unrelated case" "$status" 1
 expect_line "new unrelated case" "$out" \
     "Sources/Core/New.swift:1: conflicting declares the unrelated name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
 
+echo "a name the branch adds to [unrelated] with its declaration passes"
+fresh_repo
+printf 'let conflictingField = 1\n' >"$repo/Sources/Core/New.swift"
+printf 'conflictingField\n' >>"$repo/scripts/vocabulary-avoid.txt"
+check
+expect_exit "new unrelated entry" "$status" 0
+expect_no_text "new unrelated entry" "$out" "conflictingField"
+printf 'let conflicting = 2\n' >>"$repo/Sources/Core/New.swift"
+check
+expect_exit "new unrelated entry, old name redeclared" "$status" 1
+
 echo "a kept name the tree no longer holds fails, so the list only shrinks"
 fresh_repo
 printf 'let displayedSessionCount = 1\nfunc refuse(conflict: Int) -> Int { conflict }\n// conflicts\nenum Reason { case heard, conflicting }\n' \

@@ -26,9 +26,11 @@ contradicts itself.
 A name in [kept] spells a phrase but stays, by the operator's choice (P8). A line that uses it gets
 a note and passes. A name in [unrelated] spells a phrase but means something else, and a line that
 uses it passes silently. Either way the exemption covers only the declarations the tree already
-holds: when the branch raises the count of let, var, func, type, enum case, parameter (a wrapped
+holds. When the branch raises the count of let, var, func, type, enum case, parameter (a wrapped
 signature's too), or closure declarations of the name, the added declaration is a new name and
-fails. A listed name the tree no longer holds fails too, so the list only shrinks.
+fails. The one exception is an [unrelated] name the branch itself adds to the list, so review sees
+the entry beside the declaration. A listed name the tree no longer holds fails too, so the list
+only shrinks.
 
 Exits 0 when clean, 1 on findings or a list the glossary does not back, 2 when git cannot answer
 or BASE is no commit this branch grew from, and 64 on a usage error.
@@ -168,10 +170,10 @@ def git(root: Path, *args: str, no_match: int | None = None, stdin: bytes | None
     return done.stdout
 
 
-def read_list(root: Path) -> dict[str, list[tuple[int, str]]]:
+def read_list(text: str) -> dict[str, list[tuple[int, str]]]:
     sections: dict[str, list[tuple[int, str]]] = {name: [] for name in SECTIONS}
     current = None
-    for number, raw in enumerate((root / LIST).read_text(encoding="utf-8").splitlines(), 1):
+    for number, raw in enumerate(text.splitlines(), 1):
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
@@ -306,11 +308,14 @@ def main(argv: list[str]) -> int:
         changed = added_lines(root, fork)
         problems: list[str] = []
         try:
-            sections = read_list(root)
+            sections = read_list((root / LIST).read_text(encoding="utf-8"))
+            listed_at_fork = read_list(git(root, "show", f"{fork}:{LIST}", no_match=128)) if fork else sections
         except (OSError, ValueError) as error:
             print(f"error: {error}", file=sys.stderr)
             return 1
         listed = {name: section for section in ("kept", "unrelated") for _, name in sections[section]}
+        newly_unrelated = ({name for _, name in sections["unrelated"]}
+                           - {name for _, name in listed_at_fork["unrelated"]})
         now, used = declarations(listed_names_in(root, set(listed), None), set(listed))
         before = declarations(listed_names_in(root, set(listed), fork), set(listed))[0] if fork else now
     except Unanswered as error:
@@ -335,7 +340,7 @@ def main(argv: list[str]) -> int:
             if wanted is not None and number not in wanted:
                 continue
             checked += 1
-            new = {name for name in declares if now[name] > before[name]}
+            new = {name for name in declares if now[name] > before[name] and name not in newly_unrelated}
             for name in dict.fromkeys(IDENTIFIER.findall(line)):
                 phrase = spelled(name)
                 if phrase is None:
