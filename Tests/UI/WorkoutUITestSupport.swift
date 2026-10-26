@@ -69,8 +69,10 @@ extension XCUIElement {
     @MainActor
     func appears(within timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        let kbtStart = Date()
         repeat {
             if exists {
+                print("KBT wait=appears budget=\(timeout) t=\(Date().timeIntervalSince(kbtStart))")
                 return true
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
@@ -97,8 +99,10 @@ extension XCUIElement {
 func waitForLabel(_ label: String, on element: XCUIElement) {
     XCTAssertTrue(element.appears(within: uiEventBudget), "Expected element for label '\(label)' to exist")
     let deadline = Date().addingTimeInterval(uiEventBudget)
+    let kbtStart = Date()
     while Date() < deadline {
         if element.label == label {
+            print("KBT wait=label t=\(Date().timeIntervalSince(kbtStart))")
             return
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -110,8 +114,10 @@ func waitForLabel(_ label: String, on element: XCUIElement) {
 func waitUntilEnabled(_ element: XCUIElement) {
     XCTAssertTrue(element.appears(within: uiEventBudget))
     let deadline = Date().addingTimeInterval(uiEventBudget)
+    let kbtStart = Date()
     while Date() < deadline {
         if element.isEnabled {
+            print("KBT wait=enabled t=\(Date().timeIntervalSince(kbtStart))")
             return
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -123,8 +129,10 @@ func waitUntilEnabled(_ element: XCUIElement) {
 func tapWhenHittable(_ element: XCUIElement) {
     XCTAssertTrue(element.appears(within: uiEventBudget))
     let deadline = Date().addingTimeInterval(uiEventBudget)
+    let kbtStart = Date()
     while Date() < deadline {
         if element.isHittable {
+            print("KBT wait=hittable t=\(Date().timeIntervalSince(kbtStart))")
             element.tap()
             return
         }
@@ -137,8 +145,10 @@ func tapWhenHittable(_ element: XCUIElement) {
 func waitForValue(_ value: String, on element: XCUIElement) {
     XCTAssertTrue(element.appears(within: uiEventBudget))
     let deadline = Date().addingTimeInterval(uiEventBudget)
+    let kbtStart = Date()
     while Date() < deadline {
         if element.value as? String == value {
+            print("KBT wait=value t=\(Date().timeIntervalSince(kbtStart))")
             return
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -150,8 +160,10 @@ func waitForValue(_ value: String, on element: XCUIElement) {
 func waitForValueContaining(_ value: String, on element: XCUIElement) {
     XCTAssertTrue(element.appears(within: uiEventBudget))
     let deadline = Date().addingTimeInterval(uiEventBudget)
+    let kbtStart = Date()
     while Date() < deadline {
         if let elementValue = element.value as? String, elementValue.contains(value) {
+            print("KBT wait=valuecontaining t=\(Date().timeIntervalSince(kbtStart))")
             return
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
