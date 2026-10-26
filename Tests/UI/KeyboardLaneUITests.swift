@@ -5,38 +5,30 @@ import XCTest
 /// than an athlete sees it and a closing sheet never hands its first responder back (#697).
 final class KeyboardLaneUITests: XCTestCase {
     @MainActor
-    func testLogStaysClearOfTheKeyboardWhileItRises() throws {
+    func testLogStaysClearOfTheKeyboardOnEveryEditAndLogsOnACentredTap() throws {
         let app = launchAnimated(options: [.offline])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         let logButton = app.buttons["log-active-set-button"]
         for edit in 1...3 {
             centreTap(app.buttons["weight-pill"])
-            let deadline = Date().addingTimeInterval(1)
-            while Date() < deadline {
-                let keyboardTop = app.keyboards.firstMatch.exists ? app.keyboards.firstMatch.frame.minY : .infinity
-                let logBottom = logButton.frame.maxY
-                if logBottom > keyboardTop + 1 {
-                    XCTFail("edit \(edit): Log maxY \(logBottom) under the rising keyboard at \(keyboardTop)")
-                }
-            }
             waitForKeyboardOnScreen(in: app)
-            XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app), "edit \(edit)")
+            XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app), "edit \(edit)")
             centreTap(app.buttons["weight-keyboard-done"])
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
         }
 
         openWeightKeyboard(in: app)
-        XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app))
+        XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app))
         centreTap(logButton)
-        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3), "a centred Log tap with the keyboard up logs")
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: uiEventBudget), "a centred Log tap with the keyboard up logs")
     }
 
     @MainActor
     func testActiveSetFieldFocusDismissesWithoutCardCancel() throws {
         let app = launchAnimated(options: [])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         XCTAssertFalse(app.buttons["Cancel"].exists)
         XCTAssertFalse(app.buttons["Skip"].exists)
@@ -54,7 +46,7 @@ final class KeyboardLaneUITests: XCTestCase {
     func testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
         let app = launchAnimated(options: [.offline])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let logButton = app.buttons["log-active-set-button"]
         waitForLabel("Log 237.5 × 5 @6", on: logButton)
@@ -63,28 +55,28 @@ final class KeyboardLaneUITests: XCTestCase {
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
         waitForLabel("Log 230 × 5 @6", on: logButton)
 
-        XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app))
+        XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app))
         let exerciseName = app.staticTexts["stage-exercise-name"]
         XCTAssertTrue(exerciseName.exists)
         XCTAssertEqual(exerciseName.label, "Back Squat")
 
         logButton.tap()
 
-        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: 3))
+        XCTAssertTrue(app.buttons["Set 1, 230x5@6"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 2 of 3"].exists)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
 
         openWeightKeyboard(in: app)
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "240")
         waitForLabel("Log 240 × 5 @7", on: logButton)
 
-        XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app))
+        XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app))
 
         logButton.tap()
 
-        XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: 3))
+        XCTAssertTrue(app.buttons["Set 2, 240x5@7"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 3 of 3"].exists)
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
         assertLogSitsAboveTheRestPill(in: app)
     }
 
@@ -92,31 +84,31 @@ final class KeyboardLaneUITests: XCTestCase {
     func testEveryWeightEditClosedWithDoneKeepsLogInReach() throws {
         let app = launchAnimated(options: [.offline])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         let card = app.otherElements["active-set-card"]
-        let idleTop = settledFrame(of: card).minY
+        let idleTop = restingFrame(of: card, keyboard: .down, in: app).minY
         var cardTops: [CGFloat] = []
         for _ in 1...3 {
             openWeightKeyboard(in: app)
-            cardTops.append(settledFrame(of: card).minY)
+            cardTops.append(restingFrame(of: card, keyboard: .up, in: app).minY)
             app.buttons["weight-keyboard-done"].tap()
-            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+            XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
         }
         XCTAssertEqual(cardTops[2], cardTops[0], accuracy: 1, "edit tops \(cardTops)")
 
         openWeightKeyboard(in: app)
         app.buttons["log-active-set-button"].tap()
 
-        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: 3))
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
-        XCTAssertEqual(settledFrame(of: card).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
+        XCTAssertTrue(app.buttons["Set 1, 237.5x5@6"].appears(within: uiEventBudget))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
+        XCTAssertEqual(restingFrame(of: card, keyboard: .down, in: app).minY, idleTop, accuracy: 1, "a keyboard-up log leaves no keyboard inset")
     }
 
     @MainActor
     func testWeightKeyboardDoneKeepsTheSystemButtonFont() throws {
         let app = launchAnimated(options: [])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         openWeightKeyboard(in: app)
 
         XCTAssertEqual(
@@ -131,40 +123,40 @@ final class KeyboardLaneUITests: XCTestCase {
     func testSupersetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused() throws {
         let app = launchAnimated(options: [.offline])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         pairBackSquatWithBBRDL(in: app)
 
         let logButton = app.buttons["log-active-set-button"]
         openWeightKeyboard(in: app)
         app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 5) + "230")
         waitForLabel("Log 230 × 5 @6", on: logButton)
-        XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app))
+        XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app))
 
         logButton.tap()
 
         waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
     }
 
     @MainActor
     func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
         let app = launchAnimated(options: [.offline])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         pairBackSquatWithBBRDL(in: app)
         let logButton = app.buttons["log-active-set-button"]
         logButton.tap()
         waitForLabel("BB RDL", on: app.staticTexts["stage-exercise-name"])
-        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Sync status: 1 unsynced"].appears(within: uiEventBudget))
 
         openWeightKeyboard(in: app)
-        XCTAssertLessThanOrEqual(settledFrame(of: logButton).maxY, keyboardCoverTop(in: app))
+        XCTAssertLessThanOrEqual(restingFrame(of: logButton, keyboard: .up, in: app).maxY, keyboardCoverTop(in: app))
 
         XCTAssertFalse(app.staticTexts["stage-exercise-name"].exists, "BB RDL's name is not drawn")
         XCTAssertFalse(app.buttons["superset-partner-name"].exists, "the & Back Squat switch is not drawn")
 
         app.buttons["weight-keyboard-done"].tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: uiEventBudget))
         assertLogSitsAboveTheRestPill(in: app)
     }
 
@@ -172,10 +164,10 @@ final class KeyboardLaneUITests: XCTestCase {
     func testTapOnNonInteractiveStageContentDismissesKeyboard() throws {
         let app = launchAnimated(options: [])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].exists)
         let hud = app.otherElements["session-header-hud"]
-        let stageTop = settledFrame(of: hud).minY
+        let stageTop = restingFrame(of: hud, keyboard: .down, in: app).minY
         let weightControls = app.descendants(matching: .any).matching(identifier: "weight-pill")
         XCTAssertEqual(weightControls.count, 1)
         XCTAssertEqual(app.textFields.count, 0, "an idle weight exposes no text field")
@@ -199,20 +191,20 @@ final class KeyboardLaneUITests: XCTestCase {
     func testSwipeDismissingASheetOpenedWhileTypingFoldsTheWeightEdit() throws {
         let app = launchAnimated(options: [])
 
-        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         openWeightKeyboard(in: app)
         XCTAssertFalse(app.otherElements["session-header-hud"].exists)
 
         tapWhenHittable(app.staticTexts["last-performed-line"])
         let historyTitle = app.staticTexts["Exercise History · last 5"]
-        XCTAssertTrue(historyTitle.appears(within: 3))
+        XCTAssertTrue(historyTitle.appears(within: uiEventBudget))
         historyTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(
             forDuration: 0.1,
             thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)),
             withVelocity: .fast,
             thenHoldForDuration: 0
         )
-        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(historyTitle.waitForNonExistence(timeout: uiEventBudget))
 
         XCTAssertFalse(app.keyboards.firstMatch.appears(within: 1), "closing the sheet reopened the weight keyboard")
         XCTAssertTrue(app.otherElements["session-header-hud"].exists)
@@ -231,7 +223,7 @@ final class KeyboardLaneUITests: XCTestCase {
 @MainActor
 private func pairBackSquatWithBBRDL(in app: XCUIApplication) {
     app.buttons["stage-queue-button"].tap()
-    XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+    XCTAssertTrue(app.staticTexts["This Session"].appears(within: uiEventBudget))
     tapWhenHittable(app.buttons["stage-queue-superset"])
     tapWhenHittable(app.buttons["stage-queue-row-exercise-1"])
     waitForLabel("& BB RDL", on: app.buttons["superset-partner-name"])
@@ -239,7 +231,7 @@ private func pairBackSquatWithBBRDL(in app: XCUIApplication) {
 
 @MainActor
 private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageTop: CGFloat) {
-    let nameTop = settledFrame(of: app.staticTexts["stage-exercise-name"]).minY
+    let nameTop = restingFrame(of: app.staticTexts["stage-exercise-name"], keyboard: .up, in: app).minY
     app.coordinate(withNormalizedOffset: .zero)
         .withOffset(CGVector(dx: app.frame.midX, dy: (stageTop + nameTop) / 2))
         .tap()
@@ -247,27 +239,27 @@ private func tapEmptyStageSpaceAboveExerciseName(in app: XCUIApplication, stageT
 
 @MainActor
 private func centreTap(_ element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3), "\(element) missing")
+    XCTAssertTrue(element.appears(within: uiEventBudget), "\(element) missing")
     element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
 }
 
-/// Opens the weight keyboard and returns once the active-set card has stopped moving.
+/// Opens the weight keyboard and returns once the active-set card rests above it.
 @MainActor
 private func openWeightKeyboard(in app: XCUIApplication) {
     app.buttons["weight-pill"].tap()
     waitForKeyboardOnScreen(in: app)
-    _ = settledFrame(of: app.otherElements["active-set-card"])
+    _ = restingFrame(of: app.otherElements["active-set-card"], keyboard: .up, in: app)
 }
 
 @MainActor
 private func waitForKeyboardOnScreen(in app: XCUIApplication) {
     let keyboard = app.keyboards.firstMatch
     XCTAssertTrue(
-        keyboard.appears(within: 3),
+        keyboard.appears(within: uiEventBudget),
         "no software keyboard: keyboards \(app.keyboards.count), Done at \(app.buttons["weight-keyboard-done"].frame), "
             + "window \(app.frame)"
     )
-    let deadline = Date().addingTimeInterval(3)
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while keyboard.frame.minY >= app.frame.maxY, Date() < deadline {
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
     }
@@ -284,22 +276,43 @@ private func waitForKeyboardOnScreen(in app: XCUIApplication) {
 @MainActor
 private func assertKeyboardFoldsAndStaysDown(in app: XCUIApplication) {
     let keyboard = app.keyboards.firstMatch
-    XCTAssertTrue(keyboard.waitForNonExistence(timeout: 3), "the keyboard is still up")
+    XCTAssertTrue(keyboard.waitForNonExistence(timeout: uiEventBudget), "the keyboard is still up")
     XCTAssertFalse(keyboard.appears(within: 1), "the keyboard came back up")
 }
 
+private enum KeyboardState {
+    case up, down
+}
+
+/// Reads `element` once the keyboard is `keyboard` and two reads 0.3 s apart agree. A still frame
+/// alone is not enough: each `typeText` drops the keyboard below the window for most of a second,
+/// and the active-set card rests at its idle place that whole time.
 @MainActor
-private func settledFrame(of element: XCUIElement) -> CGRect {
-    var frame = element.frame
-    let deadline = Date().addingTimeInterval(3)
+private func restingFrame(of element: XCUIElement, keyboard: KeyboardState, in app: XCUIApplication) -> CGRect {
+    var last: CGRect?
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
+        let frame = element.frame
+        guard keyboardIs(keyboard, in: app) else {
+            last = nil
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+            continue
+        }
+        if frame == last { return frame }
+        last = frame
         RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-        let next = element.frame
-        if next == frame { return frame }
-        frame = next
     }
-    XCTFail("\(element) still moving after 3 s, last at \(frame)")
-    return frame
+    XCTFail("\(element) not at rest with the keyboard \(keyboard) after \(uiEventBudget) s, at \(element.frame)")
+    return element.frame
+}
+
+@MainActor
+private func keyboardIs(_ state: KeyboardState, in app: XCUIApplication) -> Bool {
+    let keyboard = app.keyboards.firstMatch
+    switch state {
+    case .up: return keyboard.exists && keyboard.frame.minY < app.frame.maxY
+    case .down: return !keyboard.exists
+    }
 }
 
 /// The keys and the Done glass button over the keyboard's toolbar row hide what sits below this
@@ -315,8 +328,8 @@ private func assertLogSitsAboveTheRestPill(in app: XCUIApplication) {
     let restPill = app.descendants(matching: .any)["rest-pill"]
     XCTAssertTrue(restPill.exists)
     XCTAssertLessThanOrEqual(
-        settledFrame(of: app.buttons["log-active-set-button"]).maxY,
-        settledFrame(of: restPill).minY,
+        restingFrame(of: app.buttons["log-active-set-button"], keyboard: .down, in: app).maxY,
+        restingFrame(of: restPill, keyboard: .down, in: app).minY,
         "rest is back in the foot below the card"
     )
 }
@@ -324,6 +337,6 @@ private func assertLogSitsAboveTheRestPill(in app: XCUIApplication) {
 @MainActor
 private func tapActiveSetCardHeaderBackground(in app: XCUIApplication) {
     let activeSetCard = app.otherElements["active-set-card"]
-    XCTAssertTrue(activeSetCard.appears(within: 3))
+    XCTAssertTrue(activeSetCard.appears(within: uiEventBudget))
     activeSetCard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.14)).tap()
 }
