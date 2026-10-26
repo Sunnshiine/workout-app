@@ -1,6 +1,6 @@
 import Foundation
 
-/// What the coach asked of one Set, read once from its Reps, Load and %1RM cells. It is derived
+/// What the coach asked of one Set, read once from the Reps, Load and %1RM cells. It is derived
 /// each time and never stored: `ExerciseSet` keeps the cells as the Sheet holds them (ADR-0001),
 /// and anything that displays them reads those raw cells, not this reading.
 struct Prescription: Equatable, Sendable {
