@@ -113,3 +113,39 @@ enum DictationRecordFixtures {
         )
     }
 }
+
+extension DictationRecordFixtures {
+    /// A Lock Screen press from build 253 whose mic never went live, from before builds kept what
+    /// refused it.
+    static let unstartedBeforeRefusals = """
+        {"app":{"branch":"main","build":"253","commit":"26305fe","runNumber":"253","version":"1.0"},"decision":{"agreement":\
+        "liveOnly","byRule":{"gate":{"heard":"","kind":"rejected","rejection":{"reason":"listeningFailed"}},"lead":{"heard":"",\
+        "kind":"rejected","rejection":{"reason":"listeningFailed"}},"liveOnly":{"heard":"","kind":"rejected","rejection":{\
+        "reason":"listeningFailed"}},"recordingOnly":{"heard":"","kind":"rejected","rejection":{"reason":"nothingHeard"}}},\
+        "live":{"heard":"","kind":"rejected","rejection":{"reason":"listeningFailed"}},"outcome":{"heard":"","kind":"rejected",\
+        "rejection":{"reason":"listeningFailed"}},"rule":"lead"},"device":{"footprintMB":382,"lowPower":false,"model":\
+        "iPhone16,2","os":"27.0.0","thermal":"nominal"},"end":"unstarted","id":"C0CA2A28-3A02-49CE-99D5-8524B72DF261","live":{\
+        "candidates":[],"captionChanges":0,"failure":"failed"},"longestMainThreadStallMs":7,"pressedAt":"2026-10-25T19:31:07Z",\
+        "recording":{"audioSeconds":0,"miss":"notAsked","modelAtEnd":"loading","modelAtPress":"downloaded","truncated":false,\
+        "version":{"model":"openai_whisper-small.en","modelRevision":"0f63a7800b00dd0226abd051b906c246e1907482","options":\
+        "t0.nots.wc0.fb5","prompt":"p1","tokenizerRevision":"e8727524f962ee844a7319d92be39ac1bd25655a"}},"schema":1,"set":{\
+        "address":"w1d1.e0.s0","block":"Block - 31","draft":{"reps":12,"rpe":9,"weight":"35"},"exercise":"0:3:0 Calve Raise"},\
+        "surface":"headless","timelineMs":{"decided":672,"ended":672}}
+        """
+
+    /// The audio session refusing to activate in the background, as the forums report it.
+    static let refusal = MicStartRefusal(
+        step: "activateAudioSession",
+        error: "NSOSStatusErrorDomain 561145187 '!rec', mic 48000 Hz 1 ch",
+        appState: "background",
+        otherAudioPlaying: false,
+        liveActivities: ["active"]
+    )
+
+    /// The same press, written by a build that kept `refusal`.
+    static let unstartedWithRefusal = unstartedBeforeRefusals.replacingOccurrences(
+        of: #""failure":"failed"}"#,
+        with: #""failure":"failed","startRefusal":{"appState":"background","error":"NSOSStatusErrorDomain 561145187 '!rec', "#
+            + #"mic 48000 Hz 1 ch","liveActivities":["active"],"otherAudioPlaying":false,"step":"activateAudioSession"}}"#
+    )
+}

@@ -11,7 +11,7 @@
             self.samples = samples
         }
 
-        func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberError) {
+        func start(hearing: @escaping @MainActor (String) -> Void, recording: DictationRecorder) async throws(SetTranscriberStartError) {
             samples.withUnsafeBufferPointer(recording.append)
             hearing(candidates.first ?? "")
         }

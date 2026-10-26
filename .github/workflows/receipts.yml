@@ -1,0 +1,36 @@
+name: Receipts
+
+# Its own workflow, not a ci.yml job, because a body edit is what it checks. ci-wait.sh reads the
+# newest run of each workflow, so a ci.yml run fired by a body edit would stand in for the test run.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+# A title-only edit gets a group of its own, so it never cancels a run it would then skip.
+concurrency:
+  group: receipts-${{ (github.event.action == 'edited' && !github.event.changes.base && !github.event.changes.body && github.run_id) || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  receipts:
+    # A title-only edit leaves the body and the head alone, so it skips under a name of its own.
+    if: github.event.action != 'edited' || github.event.changes.base || github.event.changes.body
+    name: ${{ github.event.action == 'edited' && !github.event.changes.base && !github.event.changes.body && 'receipts (title edit)' || 'receipts' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Full history without blobs: the check reads ancestry, commit messages, and changed paths.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          filter: blob:none
+      - name: Check the body's receipts against the head and the commits' closing keywords
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          printf '%s\n' "$PR_BODY" >"$RUNNER_TEMP/pr-body"
+          scripts/check-receipts.py --body-file "$RUNNER_TEMP/pr-body" --head "$HEAD_SHA" --base "origin/$BASE_REF" \
+            --repo "$GITHUB_REPOSITORY"

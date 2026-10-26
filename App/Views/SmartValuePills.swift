@@ -410,7 +410,7 @@ private struct HoldToSkipLogButton: View {
                 }
             }
             .themeElevation(logShadow, in: Capsule())
-            .animation(.snappy(duration: 0.16)) { $0.scaleEffect(gesture.isPressing ? 0.97 : 1) }
+            .animation(Theme.pressAnimation) { $0.scaleEffect(gesture.isPressing ? Theme.pressScale : 1) }
     }
 
     /// The dashed "empty bed" the skipped state settles into (§5.3): transparent, muted text.

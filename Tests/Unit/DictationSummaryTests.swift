@@ -57,7 +57,7 @@ private func press(live: [String], recording: String) throws -> DictationRecord.
     return DictationRecord.Decided(
         end: echoed.end,
         set: echoed.set,
-        live: DictationRecord.Live(candidates: live, failure: nil, captionChanges: 1),
+        live: DictationRecord.Live(candidates: live, failure: nil, captionChanges: 1, startRefusal: nil),
         recording: DictationRecord.Recording(
             version: .shipped,
             modelAtPress: .ready,
@@ -100,4 +100,14 @@ func aRecordingTranscriptEchoesThePromptWithANumeralTheLiveTranscriptLacks(live:
     #expect(summary.presses == 0)
     #expect(summary.latency.waitMs == nil)
     #expect(summary.caveats == [DictationSummary.unlabelled] + DictationSummary.caveats)
+}
+
+@Test func pressesWhoseMicNeverWentLiveAreCountedByWhatRefusedIt() throws {
+    let refused = try DictationRecordFixtures.record(DictationRecordFixtures.unstartedWithRefusal)
+    let unexplained = try DictationRecordFixtures.record(DictationRecordFixtures.unstartedBeforeRefusals)
+    let heard = try DictationRecordFixtures.record(DictationRecordFixtures.lines[0])
+
+    let summary = DictationSummary([refused, refused, unexplained, heard], unreadableLines: 0, labels: nil)
+
+    #expect(summary.micStartRefusals == ["activateAudioSession NSOSStatusErrorDomain 561145187 '!rec', mic 48000 Hz 1 ch": 2])
 }

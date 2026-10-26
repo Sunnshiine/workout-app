@@ -8,6 +8,8 @@ scripts/ci-wait.sh PR_NUMBER
 Waits for every pull_request workflow run on the tip of the pull request's branch, then prints
 each workflow's conclusion and its jobs. Each workflow answers with its newest run that was not
 skipped. When every workflow succeeded, prints the gh pr merge command pinned to that commit.
+Every PR event starts a Receipts run (receipts.yml), so the wait lasts until a run of another
+workflow appears.
 
 A run counts only when it tested the PR's current base. The PR's own run counts when it was created
 after the PR's latest base change, since retargeting a stacked PR, by hand or when its parent
@@ -19,7 +21,7 @@ which refuses a landing that undoes a recent commit on the base unless the PR bo
 `Reverts #N`, or `Reverts <sha>` for a commit with no PR number.
 
 Exits 0 when every workflow succeeded; 1 when one did not, a run tested another base, the head moved during the wait, the PR comes from a fork, a gh or git call failed, or the landing would undo a commit on the base; 2 on a missing or
-non-numeric argument; and 3 when no workflow ran.
+non-numeric argument; and 3 when no pull_request workflow ran, or only Receipts did.
 EOF
 }
 
@@ -70,9 +72,17 @@ prs_and_bases_of_run() {
     gh api "repos/{owner}/{repo}/actions/runs/$1" --jq '.pull_requests[] | [.number, .base.ref] | @tsv'
 }
 
+not_receipts() { awk -F'\t' '$5 != "Receipts"' <<<"$1"; }
+
+no_run() {
+    echo "no pull_request workflow $1 on ${sha:0:7} within 5 minutes" >&2
+    echo "land #$pr only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed ${sha:0:7} (#805)" >&2
+    exit 3
+}
+
 for _ in $(seq 60); do
     runs=$(newest_runs)
-    [[ -n "$runs" ]] && break
+    [[ -n "$(not_receipts "$runs")" ]] && break
     sleep 5
 done
 # An earlier event's runs on this commit can all be finished before GitHub creates the new event's runs.
@@ -89,11 +99,7 @@ if [[ "$now" != "$sha" ]]; then
     exit 1
 fi
 
-if [[ -z "$runs" ]]; then
-    echo "no pull_request workflow ran on ${sha:0:7} within 5 minutes" >&2
-    echo "land #$pr only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed ${sha:0:7} (#805)" >&2
-    exit 3
-fi
+[[ -n "$runs" ]] || no_run ran
 
 base_info=$(base_and_last_change)
 IFS=$'\t' read -r base base_changed <<<"$base_info"
@@ -118,6 +124,7 @@ while IFS=$'\t' read -r run _ conclusion created workflow; do
 done <<<"$runs"
 [[ "$stale" == 0 ]] || echo "push to $branch, an empty commit if nothing changed, so every workflow runs against $base" >&2
 [[ "$failed" == 0 && "$stale" == 0 ]] || exit 1
+[[ -n "$(not_receipts "$runs")" ]] || no_run "but Receipts ran"
 
 body=$(mktemp)
 trap 'rm -f "$body"' EXIT
