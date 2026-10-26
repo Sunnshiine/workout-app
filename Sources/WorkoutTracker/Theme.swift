@@ -138,6 +138,24 @@ enum Theme {
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
 
+    // MARK: - Sheet tab Day cards
+    //
+    // The Day sections of the Sheet tab the Block grid opens. Every column of a Day fits its card:
+    // number columns hold their minimum and the name and notes columns take what is left.
+
+    static let sheetNameColumnMinWidth: Double = 80
+    static let sheetNotesColumnMinWidth: Double = 56
+    static let sheetValueColumnMinWidth: Double = 40
+    /// A row's floor; a value that wraps grows it.
+    static let sheetRowHeight: CGFloat = 36
+    /// Lines a cell wraps to before it truncates; tapping shows the rest.
+    static let sheetCellLineLimit = 3
+    static let sheetCellVerticalInset: CGFloat = 6
+    static let sheetCellInset: CGFloat = 4
+    static let sheetHairline: CGFloat = 0.5
+    static let sheetSelectedCellStroke: CGFloat = 1.5
+    static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
+
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10
@@ -283,6 +301,7 @@ extension Theme {
         case cadence
         case statsValue
         case statsKey
+        case sheetCell
 
         /// One row per role, in declaration order. A table has no compiler exhaustiveness check,
         /// so `everyTypeRoleHasAStyle` in `Tests/Component/ThemeTypeRoleTests.swift` is what keeps
@@ -312,7 +331,8 @@ extension Theme {
             .blockTitle: TypeStyle(face: .sourceSans3, size: 28, weight: 700, tracking: -0.28),
             .cadence: TypeStyle(face: .sourceSans3, size: 11, weight: 600),
             .statsValue: TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true),
-            .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600)
+            .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600),
+            .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 500, tabular: true)
         ]
 
         var style: TypeStyle {
