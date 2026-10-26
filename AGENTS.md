@@ -102,7 +102,15 @@ of its changed `Sources/` lines that no test kills and never fails. CI
 runs `WorkoutTrackerUITests` only on request, with
 `gh workflow run ci.yml --ref <branch> -f ui-suite=true` (#662). A PR
 whose changed paths all sit in `ci.yml`'s `paths-ignore` (Markdown, `docs/`, agent files, and
-more) starts no run.
+more) starts no CI run. Every PR starts a Receipts run, and when no other workflow runs,
+`scripts/ci-wait.sh` exits 3.
+
+- Write each verification result the PR body cites with `scripts/receipt.sh <name> -- <command>`
+  and paste the block as printed. The Receipts workflow fails a receipt from a dirty tree, from a
+  commit CI does not have, with a nonzero exit, or from code that differs from the head outside
+  `docs/`, and a receipt named `lint` on any change. It also fails a commit message's `Fixes #N`
+  that the body does not repeat. Rerun the receipts after you merge trunk code. Put a red run
+  from before a fix in prose.
 
 - Neither test run is a superset of the other. `swift test` compiles `Sources/` alone, so a green
   run does not prove the app compiles. `scripts/test-sim.sh unit` compiles the app and skips the
