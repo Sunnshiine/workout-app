@@ -175,7 +175,7 @@ WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 PATH="$root/calls-bin:$PATH" \
     "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 >"$root/out" 2>"$root/err"
 status=$?
 if [ "$status" = 75 ] && [ ! -e "$root/swift-calls" ] &&
-    [ "$(sed -E -e 's/free disk is [0-9]+ MB/free disk is N MB/' -e 's/after [0-9]+ s/after N s/' "$root/err")" = "gave up after N s waiting for free disk: free disk is N MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs" ]; then
+    [ "$(sed -E -e 's/free disk is [0-9]+ MB/free disk is N MB/' -e 's/after [0-2] s/after N s/' "$root/err")" = "gave up after N s waiting for free disk: free disk is N MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs" ]; then
     ok "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75 before it builds"
 else
     bad "free disk under WORKOUT_DISK_FLOOR stops a hunt with 75: exit $status, swift calls: $(cat "$root/swift-calls" 2>/dev/null), $(cat "$root/err")"

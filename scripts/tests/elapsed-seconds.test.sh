@@ -4,28 +4,58 @@
 # test that expects `gave up after 0 s` fails at random (#1032, #1134).
 set -uo pipefail
 
-tests=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-self=$(basename "${BASH_SOURCE[0]}")
-pinned='(gave up|went ahead) after [0-9]+ s'
+scripts=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+self=tests/$(basename "${BASH_SOURCE[0]}")
+pinned='(gave up|went ahead) after [0-9]+ ?s'
 
-if ! printf 'gave up after %s s waiting for free disk\n' 0 | grep -Eq "$pinned"; then
-    echo "  FAIL the pattern misses a pinned count, so this test proves nothing: $pinned"
-    exit 1
-fi
+# Searches the files script-tests.yml runs. Returns 0 when none pins a count, 1 after printing the
+# pinned lines, and 2 when git grep cannot search.
+scan() {
+    local hits
+    hits=$(git -C "$1" grep --untracked -nE "$pinned" -- '*.test.sh' '*-test.sh' ":!$self" 2>&1)
+    case $? in
+        0)
+            printf '%s\n' "$hits"
+            return 1
+            ;;
+        1) return 0 ;;
+        *)
+            echo "git grep could not search $1: $hits"
+            return 2
+            ;;
+    esac
+}
 
-hits=$(git -C "$tests" grep --untracked -nE "$pinned" -- . ":!$self")
+for sample in 'gave up after 0 s' 'gave up after 0s' 'went ahead after 12 s'; do
+    if ! printf '%s waiting for free disk\n' "$sample" | grep -Eq "$pinned"; then
+        echo "  FAIL the pattern misses the pinned count in '$sample', so this test proves nothing: $pinned"
+        exit 1
+    fi
+done
+
+unsearchable=$(scan /nonexistent)
+status=$?
+case "$status $unsearchable" in
+    "2 git grep could not search /nonexistent"*) ;;
+    *)
+        echo "  FAIL a directory git grep cannot search returns $status, not 2, so a broken search would pass: $unsearchable"
+        exit 1
+        ;;
+esac
+
+hits=$(scan "$scripts")
 case $? in
-    0) ;;
-    1)
+    0)
         echo "  ok   no script test pins how many seconds wait_until_clear waited"
         exit 0
         ;;
+    1) ;;
     *)
-        echo "  FAIL git grep could not search $tests, so nothing was checked"
+        echo "  FAIL $hits"
         exit 1
         ;;
 esac
 echo "  FAIL these lines expect an exact count of seconds that wait_until_clear waited, which the clock decides:"
 printf '%s\n' "$hits" | sed 's/^/    /'
-echo "  fix: normalize the count, as in sed -E 's/after [0-9]+ s/after N s/', and expect 'after N s'"
+echo "  fix: bound the count, as in sed -E 's/after [0-2] s/after N s/', and expect 'after N s'"
 exit 1

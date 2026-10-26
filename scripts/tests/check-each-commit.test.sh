@@ -120,7 +120,7 @@ expect "a range git cannot resolve exits 2" "$? $(cat "$root/out" "$root/err")" 
 rm -f "$STUB_WATCH" "$STUB_XCODE_SEEN"
 (cd "$repo" && WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 scripts/check-each-commit.sh main~1) >"$root/out" 2>"$root/err"
 expect "free disk under WORKOUT_DISK_FLOOR on the scratch tree's volume stops the run with 75 before any build" \
-    "$? $(cat "$STUB_WATCH" "$STUB_XCODE_SEEN" 2>/dev/null)$(sed -E -e 's/free disk is [0-9]+ MB/free disk is N MB/' -e 's/after [0-9]+ s/after N s/' "$root/err")" \
+    "$? $(cat "$STUB_WATCH" "$STUB_XCODE_SEEN" 2>/dev/null)$(sed -E -e 's/free disk is [0-9]+ MB/free disk is N MB/' -e 's/after [0-2] s/after N s/' "$root/err")" \
     "75 gave up after N s waiting for free disk: free disk is N MB on the volume holding $repo/.build/scratch/1, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs"
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
