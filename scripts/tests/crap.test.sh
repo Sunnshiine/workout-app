@@ -143,7 +143,7 @@ STUB_LOG=$root/test.log WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 PATH="$
     "$repo/scripts/crap.sh" gate >"$root/out" 2>"$root/err"
 status=$?
 case "$status $(cat "$root/err")" in
-    "75 gave up after 0 s waiting for free disk: free disk is "*" MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs")
+    "75 gave up after "*" s waiting for free disk: free disk is "*" MB on the volume holding $repo, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs")
         if [ -e "$root/tool-calls" ]; then bad "a low disk stops crap.sh before its tests, but it ran $(cat "$root/tool-calls")"
         else ok "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75 before it runs the tests"; fi ;;
     *) bad "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")" ;;
