@@ -68,8 +68,8 @@ each failing test's name and prints the issue it finds.
 Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
 both, cloning the simulator through `scripts/sim-pool.sh` (Running beside other agents, below).
 A lane's simulator boots without the launchd jobs in `scripts/sim-pool-disabled-jobs.txt`, such as
-Spotlight, iCloud, and wallpaper posters, which no test uses (ADR-0022). A test that needs one of them
-fails only on a lane.
+Spotlight, iCloud, and wallpaper posters, which no test uses (ADR-0022). CI's simulator boots the
+same way, through `scripts/sim-slim.sh`. A test that needs one of them fails only on a lane or in CI.
 `scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
 while another run holds that simulator. The same script admits a run only while the host has room:
 it waits while free memory (`kern.memorystatus_level`) is under `WORKOUT_MEM_FLOOR` percent, before

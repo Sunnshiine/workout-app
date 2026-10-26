@@ -221,31 +221,45 @@ jobs:
     if: github.event.action != 'edited' || github.event.changes.base
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
-    timeout-minutes: 45
+    # Catches a hang, not a slowdown: the old shape's p90 was 19 minutes. The last step warns on a
+    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes.
+    timeout-minutes: ${{ inputs.ui-suite && 35 || 20 }}
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
     # a change to either value as a re-record of every baseline.
     env:
       BASELINE_DEVICE: iPhone 17 Pro
       BASELINE_RUNTIME: "27.0"
+      # Above every run of this shape so far (440 to 657 s). Lower it as the job gets faster.
+      SPEED_BUDGET_SECONDS: 720
     steps:
       - uses: actions/checkout@v4
-      # Creating the device is enough. xcodebuild boots it itself for the test step below.
-      # The step takes seconds. A hung simctl once held it for 40 minutes (#1010), so it fails fast
-      # for a rerun instead of running out the job's limit.
-      - name: Ensure the pinned baseline simulator exists
+      # The device boots slim (ADR-0022), through simctl, after the build. On this 3-core runner a
+      # stock boot held the load average at 170 to 410, and a slim one that xcodebuild booted itself
+      # at 120 to 200; slim through simctl it stayed under 25 (hc runs 40330329397, 40338719303).
+      # Booted beside the cache restores and the build, it stretched them by 170 to 320 s (PR runs
+      # 40356621811, 40358470805, 40359850013). A hung simctl once held this step for 40 minutes
+      # (#1010), so it fails fast for a rerun instead of running out the job's limit.
+      - name: Ensure the pinned baseline simulator exists, set to boot slim
+        id: sim
         timeout-minutes: 5
-        run: scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME"
+        run: |
+          echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
+          udid=$(scripts/ensure-simulator.sh "$BASELINE_DEVICE" "$BASELINE_RUNTIME")
+          scripts/sim-slim.sh "$udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          echo "destination=platform=iOS Simulator,id=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
       # A committed `record: .all` (suite- or test-level) makes every snapshot
       # test write its baseline instead of comparing — the gate below would go
       # green while checking nothing. Recording flips are working state only
-      # (VISUAL_LOOP.md); they must never land.
+      # (VISUAL_LOOP.md); they must never land. Only Swift can carry the flag, and reading the
+      # 105 MB of baseline PNGs beside the simulator's boot took this step 42 to 54 s.
       - name: Refuse committed record mode (gate must stay armed)
         run: |
           status=0
-          grep -rnF "record: .all" Tests/Visual/ || status=$?
+          grep -rnF --include="*.swift" "record: .all" Tests/Visual/ || status=$?
           if [ "$status" -eq 0 ]; then
             echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
             exit 1
@@ -271,25 +285,44 @@ jobs:
           path: ${{ runner.temp }}/CompilationCache
           key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
           restore-keys: cas-${{ steps.xcode.outputs.build }}-
-      - name: Run Visual Regression tests (ADR-0007 gate)
-        id: visual
+      # One build serves every suite below. Each `xcodebuild test` re-resolved packages, re-planned
+      # the build, and reinstalled the app, about three minutes a suite before its first test.
+      - name: Build the app and every test bundle
+        id: build
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
-            -only-testing:WorkoutTrackerSnapshotTests \
+          xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
             -onlyUsePackageVersionsFromResolvedFile \
-            -resultBundlePath VisualTests.xcresult \
-            -collect-test-diagnostics never \
             -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
             COMPILATION_CACHE_ENABLE_CACHING=YES \
             COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
+          xctestrun=$(ls "$RUNNER_TEMP"/DerivedData/Build/Products/WorkoutTracker_*.xctestrun)
+          echo "xctestrun=$xctestrun" >> "$GITHUB_OUTPUT"
+      - name: Save the compilation cache
+        if: github.event_name == 'push'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+      # `bootstatus -b` boots the device and waits for it. A test session opened before the boot
+      # settles waits on the simulator's service hub, which timed out after 120 s on some runs.
+      - name: Boot the simulator
+        timeout-minutes: 5
+        run: xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
+      - name: Run Visual Regression tests (ADR-0007 gate)
+        id: visual
+        run: |
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            -destination "${{ steps.sim.outputs.destination }}" \
+            -only-testing:WorkoutTrackerSnapshotTests \
+            -resultBundlePath VisualTests.xcresult \
+            -collect-test-diagnostics never
       # WorkoutTrackerTests hosted in the app reaches what `swift test` on macOS cannot: UIKit
       # font registration, Live Activity content state, and the Google auth scopes (#606). The
-      # two runs cover deliberately different sets (#592); do not reconcile them. Every flag
-      # matches the gate above so xcodebuild reuses that DerivedData instead of rebuilding, and
-      # the step runs whenever that gate ran so one CI run reports both.
+      # two runs cover deliberately different sets (#592); do not reconcile them. The step runs
+      # whenever the build succeeded, so a baseline mismatch above never hides its verdict.
       #
       # `!cancelled()` is load-bearing. GitHub prepends an implicit `success() &&` to any `if:`
       # holding no status check function, so without it this condition reads as always-true on a
@@ -297,42 +330,24 @@ jobs:
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
         id: hosted
-        if: ${{ !cancelled() && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -only-testing:WorkoutTrackerTests \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath HostedTests.xcresult \
-            -collect-test-diagnostics never \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
-      - name: Save the compilation cache
-        if: github.event_name == 'push'
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ runner.temp }}/CompilationCache
-          key: cas-${{ steps.xcode.outputs.build }}-${{ github.sha }}
+            -collect-test-diagnostics never
       # Opt-in, not per PR: on unchanged code it goes red about half the time on
       # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
-        if: ${{ !cancelled() && inputs.ui-suite && (steps.visual.conclusion == 'success' || steps.visual.conclusion == 'failure') }}
+        if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
         run: |
-          xcodebuild test -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-            -destination "platform=iOS Simulator,name=$BASELINE_DEVICE,OS=$BASELINE_RUNTIME" \
+          xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
+            -destination "${{ steps.sim.outputs.destination }}" \
             -only-testing:WorkoutTrackerUITests \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
-            -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" \
-            -onlyUsePackageVersionsFromResolvedFile \
             -resultBundlePath UITests.xcresult \
-            -collect-test-diagnostics never \
-            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO \
-            COMPILATION_CACHE_ENABLE_CACHING=YES \
-            COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache"
+            -collect-test-diagnostics never
       - name: Upload Visual Baseline diffs
         if: failure() && steps.visual.conclusion == 'failure'
         uses: actions/upload-artifact@v4
@@ -354,3 +369,12 @@ jobs:
           name: ui-test-results
           path: UITests.xcresult
           if-no-files-found: ignore
+
+      - name: Check the job against its speed budget
+        if: ${{ !cancelled() && !inputs.ui-suite }}
+        run: |
+          elapsed=$(( $(date +%s) - JOB_START ))
+          echo "visual-tests ran ${elapsed} s against a budget of ${SPEED_BUDGET_SECONDS} s"
+          if [ "$elapsed" -gt "$SPEED_BUDGET_SECONDS" ]; then
+            echo "::warning title=hill-climb visual-tests speed::visual-tests ran ${elapsed} s, over its ${SPEED_BUDGET_SECONDS} s budget. Compare this run's step times with a recent green run."
+          fi
