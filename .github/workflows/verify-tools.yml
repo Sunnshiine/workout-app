@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v10.3.0
-      # A stalled mirror once held apt for the job's whole 10 minutes (runs 40406050512, 40409651039).
+      # A stalled mirror twice held apt for the job's whole 10 minutes (runs 40406050512, 40409651039).
       # Its own timeouts and retries move past a stalled download, and the step limit fails it fast.
       - timeout-minutes: 4
         run: |
