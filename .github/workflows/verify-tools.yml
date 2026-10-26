@@ -46,7 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v10.3.0
-      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+      # A stalled mirror once held apt for the job's whole 10 minutes (runs 40406050512, 40409651039).
+      # Its own timeouts and retries move past a stalled download, and the step limit fails it fast.
+      - timeout-minutes: 4
+        run: |
+          apt="-q -o Acquire::http::Timeout=30 -o Acquire::Retries=3"
+          sudo apt-get update $apt
+          sudo apt-get install -y --no-install-recommends $apt ffmpeg
       # The command .agents/skills/verify/SKILL.md documents. .python-version pins 3.9, what
       # /usr/bin/python3 is on a stock Xcode machine.
       - run: uv run --locked python -m unittest discover -s .agents/skills/verify/tests
