@@ -168,20 +168,47 @@
     }
 
     actor LocalWorkbookSheetsClient: SheetsClient {
+        private enum Storage {
+            case memory([String: SheetSnapshot])
+            /// The file is the only copy, read on every call, so an edit to it between two calls is
+            /// a coach edit the next call reads, and a write lands on top of it.
+            case file(URL)
+
+            func tabs() throws -> [String: SheetSnapshot] {
+                switch self {
+                case .memory(let tabs): tabs
+                case .file(let url): try LocalWorkbook.load(from: url).snapshots
+                }
+            }
+
+            mutating func store(_ tabs: [String: SheetSnapshot], spreadsheetId: String, title: String) throws {
+                switch self {
+                case .memory: self = .memory(tabs)
+                case .file(let url): try LocalWorkbook(spreadsheetId: spreadsheetId, title: title, snapshots: tabs).write(to: url)
+                }
+            }
+        }
+
         private let spreadsheetId: String
         private let title: String
-        private var tabs: [String: SheetSnapshot]
-        private let persistTo: URL?
+        private var storage: Storage
         private let failedUpdateRequestNumbers: Set<Int>
         private var updateRequestCount = 0
         private(set) var recordedBatches: [[SheetCellWrite]] = []
 
-        init(workbook: LocalWorkbook, persistTo: URL? = nil, failedUpdateRequestNumbers: Set<Int> = []) {
+        init(workbook: LocalWorkbook, failedUpdateRequestNumbers: Set<Int> = []) {
             self.spreadsheetId = workbook.spreadsheetId
             self.title = workbook.title
-            self.tabs = workbook.snapshots
-            self.persistTo = persistTo
+            self.storage = .memory(workbook.snapshots)
             self.failedUpdateRequestNumbers = failedUpdateRequestNumbers
+        }
+
+        init(file: URL) throws {
+            let workbook = try LocalWorkbook.load(from: file)
+            self.spreadsheetId = workbook.spreadsheetId
+            self.title = workbook.title
+            self.storage = .file(file)
+            self.failedUpdateRequestNumbers = []
         }
 
         init(
@@ -203,17 +230,12 @@
         ) {
             self.spreadsheetId = spreadsheetId
             self.title = "Local Workbook"
-            self.tabs = tabs
-            self.persistTo = nil
+            self.storage = .memory(tabs)
             self.failedUpdateRequestNumbers = failedUpdateRequestNumbers
         }
 
-        var workbook: LocalWorkbook {
-            LocalWorkbook(spreadsheetId: spreadsheetId, title: title, snapshots: tabs)
-        }
-
         func listTabTitles(spreadsheetId: String) async throws -> [String] {
-            tabs.keys.sorted()
+            try storage.tabs().keys.sorted()
         }
 
         func listSpreadsheets(pageToken: String?) async throws -> SpreadsheetListPage {
@@ -224,7 +246,7 @@
         }
 
         func fetchTabSnapshot(spreadsheetId: String, tabName: String) async throws -> SheetSnapshot {
-            guard let snapshot = tabs[tabName] else {
+            guard let snapshot = try storage.tabs()[tabName] else {
                 throw LocalWorkbookSheetsClientError.unknownTab(tabName)
             }
             return snapshot
@@ -236,12 +258,9 @@
             if failedUpdateRequestNumbers.contains(updateRequestCount) {
                 throw LocalWorkbookSheetsClientError.writeFailed(updateRequestCount)
             }
-            let staged = try Self.applying(cells, to: tabs)
-            if let persistTo {
-                try LocalWorkbook(spreadsheetId: self.spreadsheetId, title: title, snapshots: staged).write(to: persistTo)
-            }
+            let staged = try Self.applying(cells, to: storage.tabs())
+            try storage.store(staged, spreadsheetId: self.spreadsheetId, title: title)
             recordedBatches.append(cells)
-            tabs = staged
         }
     }
 
