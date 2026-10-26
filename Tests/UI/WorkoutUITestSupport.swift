@@ -61,8 +61,10 @@ extension XCUIElement {
     @MainActor
     func appears(within timeout: TimeInterval) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
+        let kbtStart = Date()
         repeat {
             if exists {
+                print("KBT appears budget=\(timeout) t=\(Date().timeIntervalSince(kbtStart))")
                 return true
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
@@ -75,8 +77,10 @@ extension XCUIElement {
 func waitForLabel(_ label: String, on element: XCUIElement) {
     XCTAssertTrue(element.appears(within: 3), "Expected element for label '\(label)' to exist")
     let deadline = Date().addingTimeInterval(3)
+    let kbtStart = Date()
     while Date() < deadline {
         if element.label == label {
+            print("KBT label t=\(Date().timeIntervalSince(kbtStart))")
             return
         }
         RunLoop.current.run(until: Date().addingTimeInterval(0.1))
@@ -103,6 +107,7 @@ func tapWhenHittable(_ element: XCUIElement) {
     let deadline = Date().addingTimeInterval(3)
     while Date() < deadline {
         if element.isHittable {
+            print("KBT hittable")
             element.tap()
             return
         }
