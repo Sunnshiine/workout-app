@@ -1,5 +1,7 @@
+import ActivityKit
 import AVFoundation
 import Speech
+import UIKit
 
 /// The mic every Dictation listens with, heard by the model `OnDeviceSpeech` chooses and configures.
 @MainActor
@@ -13,27 +15,41 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
     private var listening: Listening?
 
     /// Asks for the microphone on the first press, and installs the speech model on first use.
-    func start(hearing: @escaping @MainActor (String) -> Void, recording recorder: DictationRecorder) async throws(SetTranscriberError) {
-        guard await AVAudioApplication.requestRecordPermission() else { throw .microphoneDenied }
-        let speech = try await SpeechListening.start(hearing: hearing, installing: { _ in })
+    func start(
+        hearing: @escaping @MainActor (String) -> Void,
+        recording recorder: DictationRecorder
+    ) async throws(SetTranscriberStartError) {
+        guard await AVAudioApplication.requestRecordPermission() else { throw SetTranscriberStartError(.microphoneDenied) }
+        let speech: SpeechListening
+        do throws(SetTranscriberError) {
+            speech = try await SpeechListening.start(hearing: hearing, installing: { _ in })
+        } catch {
+            throw SetTranscriberStartError(error)
+        }
         guard let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [speech.module]) else {
             await speech.cancel()
-            throw .unavailable
+            throw SetTranscriberStartError(.unavailable)
         }
         let analyzer = speech.analyzer
         let (stream, input) = AsyncStream.makeStream(of: AnalyzerInput.self)
         let engine = AVAudioEngine()
         let started = Listening(engine: engine, input: input, speech: speech)
+        var step = "prepareToAnalyze"
         do {
             try await analyzer.prepareToAnalyze(in: format)
+            step = "activateAudioSession"
             try Self.activateAudioSession()
+            step = "installTap"
             try Self.installTap(on: engine, converting: format, into: input, recording: recorder)
+            step = "engineStart"
             engine.prepare()
             try engine.start()
+            step = "analyzerStart"
             try await analyzer.start(inputSequence: stream)
         } catch {
+            let refusal = Self.refusal(at: step, error, hearing: engine.inputNode.outputFormat(forBus: 0))
             await stop(started)
-            throw .failed
+            throw SetTranscriberStartError(.failed, refusal: refusal)
         }
         listening = started
     }
@@ -71,6 +87,38 @@ final class SpeechAnalyzerSetTranscriber: SetTranscriber {
         listening.engine.inputNode.removeTap(onBus: 0)
         listening.engine.stop()
         listening.input.finish()
+    }
+
+    /// Read before the session is deactivated, so it shows what the start found.
+    private static func refusal(at step: String, _ error: any Error, hearing mic: AVAudioFormat) -> MicStartRefusal {
+        let session = AVAudioSession.sharedInstance()
+        return MicStartRefusal(
+            step: step,
+            error: "\(describing(error)), mic \(Int(mic.sampleRate)) Hz \(mic.channelCount) ch",
+            appState: appState(UIApplication.shared.applicationState),
+            otherAudioPlaying: session.isOtherAudioPlaying,
+            liveActivities: Activity<WorkoutActivityAttributes>.activities.map { String(describing: $0.activityState) }
+        )
+    }
+
+    private static func appState(_ state: UIApplication.State) -> String {
+        switch state {
+        case .active: "active"
+        case .inactive: "inactive"
+        case .background: "background"
+        @unknown default: "unknown"
+        }
+    }
+
+    /// An audio session status code is four characters packed in an Int32, such as `!rec`.
+    private static func describing(_ error: any Error) -> String {
+        if let error = error as? SetTranscriberError { return "SetTranscriberError.\(error.rawValue)" }
+        let error = error as NSError
+        let code = UInt32(bitPattern: Int32(truncatingIfNeeded: error.code))
+        let bytes = [24, 16, 8, 0].map { UInt8((code >> $0) & 0xFF) }
+        let printable = bytes.allSatisfy { (0x20...0x7E).contains($0) }
+        let fourCharacters = printable ? String(bytes: bytes, encoding: .ascii).map { " '\($0)'" } : nil
+        return "\(error.domain) \(error.code)\(fourCharacters ?? "")"
     }
 
     private static func activateAudioSession() throws {

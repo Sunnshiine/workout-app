@@ -312,13 +312,20 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
 }
 
 @MainActor
-@Test func listeningThatFailsAsksForAnUnlock() async throws {
-    let harness = try await BackgroundDictationHarness(transcriber: FailingSetTranscriber(.failed))
+@Test func listeningThatFailsAsksForAnUnlockAndRecordsWhatRefusedTheMic() async throws {
+    let harness = try await BackgroundDictationHarness(
+        transcriber: FailingSetTranscriber(.failed, refusal: DictationRecordFixtures.refusal)
+    )
 
     _ = await harness.background.run()
 
     #expect(harness.liveActivity.readbacks == [.listening, .notLogged("Couldn’t listen. Unlock to log")])
     try harness.expectNothingWritten()
+    let record = try #require(try await harness.app.dictationJournal.records().first)
+    #expect(record.surface == .headless)
+    let press = try #require(record.decided)
+    #expect(press.end == .unstarted)
+    #expect(press.live.startRefusal == DictationRecordFixtures.refusal)
 }
 
 @MainActor
@@ -375,13 +382,14 @@ private func restContent(toward target: LiveActivityRestTarget) -> LiveActivityR
 @MainActor
 private final class FailingSetTranscriber: SetTranscriber {
     private let error: SetTranscriberError
+    private let refusal: MicStartRefusal?
 
-    init(_ error: SetTranscriberError) {
-        self.error = error
+    init(_ error: SetTranscriberError, refusal: MicStartRefusal? = nil) {
+        (self.error, self.refusal) = (error, refusal)
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberError) {
-        throw error
+    func start(hearing: @escaping @MainActor (String) -> Void, recording _: DictationRecorder) async throws(SetTranscriberStartError) {
+        throw SetTranscriberStartError(error, refusal: refusal)
     }
 
     func finish() async throws(SetTranscriberError) -> [String] {

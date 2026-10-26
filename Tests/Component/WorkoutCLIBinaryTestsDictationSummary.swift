@@ -99,6 +99,9 @@
             "p90" : 38,
             "p99" : 38
           },
+          "micStartRefusals" : {
+
+          },
           "outcomes" : {
             "logged" : 3,
             "rejected" : 1
