@@ -138,6 +138,17 @@ enum Theme {
     static let blockWeekCardPadding: CGFloat = 14
     static let blockFocusCardPadding: CGFloat = 16
 
+    // MARK: - Sheet tab grid
+    //
+    // The raw Sheet tab the Block grid opens: fixed cells so columns line up like the spreadsheet.
+
+    static let sheetCellWidth: CGFloat = 96
+    static let sheetCellHeight: CGFloat = 28
+    static let sheetRowNumberWidth: CGFloat = 40
+    static let sheetGridline: CGFloat = 0.5
+    static let sheetSelectedCellStroke: CGFloat = 2
+    static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
+
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10
@@ -283,6 +294,7 @@ extension Theme {
         case cadence
         case statsValue
         case statsKey
+        case sheetCell
 
         /// One row per role, in declaration order. A table has no compiler exhaustiveness check,
         /// so `everyTypeRoleHasAStyle` in `Tests/Component/ThemeTypeRoleTests.swift` is what keeps
@@ -312,7 +324,8 @@ extension Theme {
             .blockTitle: TypeStyle(face: .sourceSans3, size: 28, weight: 700, tracking: -0.28),
             .cadence: TypeStyle(face: .sourceSans3, size: 11, weight: 600),
             .statsValue: TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true),
-            .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600)
+            .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600),
+            .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 500, tabular: true)
         ]
 
         var style: TypeStyle {

@@ -11,6 +11,7 @@ Block Overview shows the whole training Block as a grid of weeks and sessions wi
 - `block-inert` leaves a `Not uploaded` tile inert.
 - `block-make-current` makes the opened session the Current Session.
 - `block-return` returns from a non-current session to the Current Session.
+- `block-view-sheet` opens the Block's Sheet tab, read live, from the `tablecells` button labeled `View Sheet` in the navigation bar (`block-overview-view-sheet`). The grid is `sheet-tab-grid`, each filled cell `sheet-cell-<A1>` such as `sheet-cell-C12` (blank cells are inert and hidden from accessibility); tapping a filled cell shows its reference in `sheet-tab-cell-reference` and its full value in `sheet-tab-cell-detail`, and `sheet-tab-done` closes it.
 - `block-settings` opens Settings from the gear button, labeled `Settings`, at the grid's foot (`block-overview-settings-row`), driven in `settings.md` **From the stage**.
 
 ## How to get to it (user POV)

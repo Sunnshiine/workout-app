@@ -12,8 +12,11 @@ plain, wordless, wider-than-tall; state is fill + stroke alone: inked
 complete (green fill, cream text), cream-bud current (cream @ 95% with the
 approved `#1F8552` border + sun glow), quiet available, ghost unavailable.
 Zero icons on the tiles — the lock icon is dead — and Fraunces stays off the
-page. The grid's one glyph is the `gearshape` Settings button at its foot, a
-control glyph, not tile decoration.
+page. The grid carries two control glyphs, not tile decoration: the
+`gearshape` Settings button at its foot, and the `tablecells` View Sheet
+button in the navigation bar. View Sheet opens the Block's tab as the
+spreadsheet shows it, raw cells under column letters, a debugging read-out
+and the one place the app shows Sheet structure.
 
 - **Focus-week layout:** only the week holding the Current Session expands.
   Every collapsed week is an elevated tappable card in shade, carrying a

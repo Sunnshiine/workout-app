@@ -5,7 +5,15 @@ struct BlockOverviewView: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
     @Environment(AppEntryInbox.self) private var entry
-    @State private var isSettingsPresented = false
+    @Environment(\.readBlockSheet) private var readBlockSheet
+    @State private var presented: PresentedSurface?
+
+    private enum PresentedSurface: Identifiable {
+        case settings
+        case sheetTab
+
+        var id: Self { self }
+    }
 
     let block: Block
     let currentSession: Session?
@@ -33,11 +41,19 @@ struct BlockOverviewView: View {
             }
             .padding()
         }
-        .sheet(isPresented: $isSettingsPresented) {
-            SettingsView()
+        .sheet(item: $presented) { surface in
+            switch surface {
+            case .settings:
+                SettingsView()
+            case .sheetTab:
+                if let readBlockSheet {
+                    SheetTabView(read: readBlockSheet, focusWeek: presentation.weeks.first(where: \.isFocus)?.weekNumber)
+                        .presentationDetents([.large])
+                }
+            }
         }
         .onChange(of: entry.coverClosings) {
-            isSettingsPresented = false
+            presented = nil
             dismiss()
         }
         .background {
@@ -47,11 +63,21 @@ struct BlockOverviewView: View {
         }
         .navigationTitle(presentation.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if readBlockSheet != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("View Sheet", systemImage: "tablecells") {
+                        presented = .sheetTab
+                    }
+                    .accessibilityIdentifier("block-overview-view-sheet")
+                }
+            }
+        }
     }
 
     private var settingsRow: some View {
         Button {
-            isSettingsPresented = true
+            presented = .settings
         } label: {
             Image(systemName: "gearshape")
                 .font(Theme.font(.queuePill))
