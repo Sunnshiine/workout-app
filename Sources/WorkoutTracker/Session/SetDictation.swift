@@ -98,10 +98,11 @@ final class SetDictation {
         let pressedAt: Date
         let modelAtPress: SpeechModelState
         let recorder: DictationRecorder
-        let starting: Task<SetTranscriberError?, Never>
+        let starting: Task<SetTranscriberStartError?, Never>
         let watchdog = MainThreadWatchdog()
         let signpost: OSSignpostIntervalState
         var timeline: PressTimeline
+        var startRefusal: MicStartRefusal?
     }
 
     /// A press of the card's mic. Ignored, returning false, while another press is in flight, so
@@ -118,8 +119,8 @@ final class SetDictation {
         reader.expectRecording()
         let transcriber = transcriber
         let recorder = DictationRecorder()
-        let starting = Task<SetTranscriberError?, Never> { [weak self] in
-            do throws(SetTranscriberError) {
+        let starting = Task<SetTranscriberStartError?, Never> { [weak self] in
+            do throws(SetTranscriberStartError) {
                 try await transcriber.start(hearing: { [weak self] heard in self?.hear(heard, for: set) }, recording: recorder)
                 self?.hear(nil, for: set)
                 return nil
@@ -150,7 +151,7 @@ final class SetDictation {
     }
 
     private func listen(
-        through starting: Task<SetTranscriberError?, Never>,
+        through starting: Task<SetTranscriberStartError?, Never>,
         for set: ActiveSetID,
         in context: () -> SpokenSetContext
     ) async -> Outcome? {
@@ -165,7 +166,7 @@ final class SetDictation {
     }
 
     /// The timeline of the press `starting` began, nil once `finish` or `cancel` took it.
-    private func timeline(of starting: Task<SetTranscriberError?, Never>) -> PressTimeline? {
+    private func timeline(of starting: Task<SetTranscriberStartError?, Never>) -> PressTimeline? {
         guard let press, press.starting == starting else { return nil }
         return press.timeline
     }
@@ -206,8 +207,9 @@ final class SetDictation {
         let deciding = Self.signposter.beginInterval("Deciding")
         let outcome: Outcome
         if let error = await press.starting.value {
+            press.startRefusal = error.refusal
             let unasked = recording(.missing(.notAsked), of: press.recorder.close(), for: press)
-            outcome = decided(press, end, live: .failed(error, caption: ""), recording: unasked, in: context)
+            outcome = decided(press, end, live: .failed(error.reason, caption: ""), recording: unasked, in: context)
         } else {
             outcome = await decide(press, end, in: context)
         }
@@ -261,7 +263,7 @@ final class SetDictation {
         let decided = DictationRecord.Decided(
             end: end,
             set: context,
-            live: DictationRecord.Live(live, captionChanges: press.timeline.captionChanges),
+            live: DictationRecord.Live(live, captionChanges: press.timeline.captionChanges, startRefusal: press.startRefusal),
             recording: recording,
             decision: DictationRecord.Decision(decision, of: hearing, in: context)
         )

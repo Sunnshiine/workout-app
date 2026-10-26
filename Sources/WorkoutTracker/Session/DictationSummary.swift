@@ -46,6 +46,8 @@ public struct DictationSummary: Encodable, Equatable, Sendable {
     let unreadableLines: Int
     let surfaces: [String: Int]
     let ends: [String: Int]
+    /// Presses whose mic never went live, by the step that refused it and the phone's error.
+    let micStartRefusals: [String: Int]
     /// What each decided press did under the rule that shipped.
     let outcomes: [String: Int]
     /// What each decided press would have done under each rule.
@@ -78,6 +80,7 @@ extension DictationSummary {
         self.unreadableLines = unreadableLines
         surfaces = Self.counts(records.map(\.surface.rawValue))
         ends = Self.counts(records.map { $0.decided?.end.rawValue ?? "cancelled" })
+        micStartRefusals = Self.counts(decided.compactMap { $0.live.startRefusal.map { "\($0.step) \($0.error)" } })
         outcomes = Self.counts(decided.map(\.decision.outcome.kind.rawValue))
         byRule = Dictionary(
             uniqueKeysWithValues: MergeRule.allCases.map { rule in

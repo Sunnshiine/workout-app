@@ -20,7 +20,10 @@ final class HeldSetTranscriber: SetTranscriber {
         self.recording = recording
     }
 
-    func start(hearing: @escaping @MainActor (String) -> Void, recording recorder: DictationRecorder) async throws(SetTranscriberError) {
+    func start(
+        hearing: @escaping @MainActor (String) -> Void,
+        recording recorder: DictationRecorder
+    ) async throws(SetTranscriberStartError) {
         await starting.hold()
         recording.withUnsafeBufferPointer(recorder.append)
         self.hearing = hearing
