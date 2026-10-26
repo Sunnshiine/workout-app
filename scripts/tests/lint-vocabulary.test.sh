@@ -115,6 +115,18 @@ expect_exit "committed" "$status" 1
 expect_line "committed" "$out" \
     "Sources/Core/New.swift:1: displayedSessions spells \"displayed session\", which CONTEXT.md avoids for Viewed Session. Name it with the glossary's word."
 
+echo "the widget and shared targets are read too"
+fresh_repo
+mkdir -p "$repo/WorkoutShared" "$repo/WorkoutWidgets"
+printf 'let displayedSession = 1\n' >"$repo/WorkoutShared/Shared.swift"
+printf 'let displayedSession = 1\n' >"$repo/WorkoutWidgets/Widget.swift"
+check
+expect_exit "every target" "$status" 1
+for path in WorkoutShared/Shared.swift WorkoutWidgets/Widget.swift; do
+    expect_line "every target" "$out" \
+        "$path:1: displayedSession spells \"displayed session\", which CONTEXT.md avoids for Viewed Session. Name it with the glossary's word."
+done
+
 echo "a phrase inside a longer real word passes"
 fresh_repo
 printf 'let temporaryRow = 1\nlet contempt = 2\nlet temporal = 3\n' >"$repo/Sources/Core/New.swift"
@@ -224,7 +236,7 @@ expect_line "new parameters" "$out" \
 
 echo "a wrapped signature's parameters are declarations too"
 fresh_repo
-printf 'func retry(\n    _ conflict: Int,\n    conflicts: [Int] = [max(1, 2)]\n) {}\nenum Refusal {\n    case stale(\n        conflicting: Int)\n}\nlet n = refuse(\n    conflict: 1)\n' \
+printf 'func retry(\n    _ conflict: Int,\n    conflicts: [Int] = [max(1, 2)]\n) { _ = refuse(conflict: 1) }\nenum Refusal {\n    case stale(\n        conflicting: Int)\n}\nlet n = refuse(\n    conflict: 1)\n' \
     >"$repo/Sources/Core/New.swift"
 check
 expect_exit "wrapped signature" "$status" 1
@@ -234,6 +246,9 @@ expect_line "wrapped signature" "$out" \
     "Sources/Core/New.swift:3: conflicts declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
 expect_line "wrapped signature" "$out" \
     "Sources/Core/New.swift:7: conflicting declares the unrelated name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
+expect_no_text "wrapped signature" "$out" "New.swift:4: conflict declares"
+expect_line "wrapped signature" "$out" \
+    "note: Sources/Core/New.swift:4: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
 expect_line "wrapped signature" "$out" \
     "note: Sources/Core/New.swift:10: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
 

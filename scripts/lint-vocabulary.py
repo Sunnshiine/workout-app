@@ -143,13 +143,11 @@ def declared_lines(lines: list[str]) -> list[list[str]]:
     declares the parameters it holds before the list closes."""
     found, open_depth = [], 0
     for line in lines:
-        names: list[str] = []
+        names, still_open = declared(line)
         if open_depth:
             open_depth, close = depth_after(line, open_depth)
             names += PARAMETER.findall("," + line[:close])
-            line = line[close:]
-        more, still_open = declared(line)
-        found.append(names + more)
+        found.append(names)
         open_depth = open_depth or still_open
     return found
 
