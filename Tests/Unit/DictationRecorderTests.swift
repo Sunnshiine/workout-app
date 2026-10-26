@@ -50,3 +50,26 @@ private func append(_ samples: [Float], to recorder: DictationRecorder) {
 
     #expect(!recorder.close().isTruncated)
 }
+
+@Test func eachWholeFrameHasItsLevelThoughAnAppendSplitsIt() throws {
+    let recorder = DictationRecorder()
+    let frame = VoiceActivity.frameSamples
+
+    append([Float](repeating: 0.5, count: 1000), to: recorder)
+    append([Float](repeating: 0.5, count: frame - 1000) + [Float](repeating: 0.05, count: frame + 10), to: recorder)
+
+    let levels = recorder.levels(from: 0)
+    try #require(levels.count == 2, "the 10 samples of a third frame have no level yet")
+    #expect(abs(levels[0] - -6.02) < 0.01, "half of full scale is 6 dB down")
+    #expect(abs(levels[1] - -26.02) < 0.01)
+    #expect(recorder.levels(from: 1) == [levels[1]])
+    #expect(recorder.levels(from: 5) == [])
+}
+
+@Test func aSilentFrameIsFarBelowAnyRoom() throws {
+    let recorder = DictationRecorder()
+
+    append([Float](repeating: 0, count: VoiceActivity.frameSamples), to: recorder)
+
+    #expect(try #require(recorder.levels(from: 0).first) < -150)
+}

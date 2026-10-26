@@ -79,6 +79,31 @@ What the numbers say:
   `WORKOUT_ADMIT_WAIT` budget each time a slot changes hands. Exit 75 means one holder kept a slot for
   the whole budget. A claim also waits for a free slot before it reclaims a seat, so it never shuts
   down a lane for a seat it cannot use yet.
+- **A disk floor holds every build (amended 2026-10-25).** A build waits while free disk on the
+  checkout's volume or HOME's is under `WORKOUT_DISK_FLOOR` (5120 MB), and exits 75 after
+  `WORKOUT_ADMIT_WAIT` naming the free and needed space. A run with `--no-build` and a boot do not
+  read the disk. The builds that take no slot, `flake-hunt.sh`, `check-each-commit.sh`, `mutate.sh`,
+  and `crap.sh`, wait for the same floor through `scripts/disk-floor.sh`. `check-each-commit.sh` and
+  `mutate.sh` build in a scratch tree under the primary checkout's `.build`, which can sit on another
+  volume than the worktree (on one host the primary checkout was on an external disk and the
+  worktrees were not), so they read the scratch tree's volume. `flake-guard.sh` builds nothing, so it
+  does not wait. Three builds stay ungated. `measure-dictation.sh` and `prove-dictation.sh` run
+  `swift build --product workout`, whose cold build left 234 MB, before speech runs that are asked
+  for by name and run in no test loop or gate.
+  `crap.sh` builds its own tool after it reads the floor for the tests, and with `--no-test` it reads
+  no floor. Agents had hit ENOSPC 27 times, mid-build and mid-gate, and the
+  operator stopped four runs over disk. The floor is read when a build is admitted. It reserves
+  nothing, so builds admitted together can still use more than it.
+  The peak is measured by sampling `du` once every two to three seconds for the whole run, over
+  every path the run writes: the lane's DerivedData, the shared module cache, the lane's `.build`,
+  the lane's simulator, `$TMPDIR`, and `~/Library/Caches`. At 86b0d87a, whose app is trunk
+  5127bea9's, one `test-sim.sh unit` on a fresh lane peaked at about 1.4 GB written: 1145 MB of
+  DerivedData, which only grew, 96 MB of module cache, 141 MB in the simulator after its boot shrank
+  it, and 29 MB under `.build`. Free disk fell 1417 MB over that run. A cold `swift build
+  --build-tests`, as a mutate scratch tree runs, peaked at 416 MB. The floor covers the two slot
+  builds (2.8 GB) and two unslotted `swift` builds (0.8 GB), with 1.5 GB left over for writers that
+  admission does not see. A host whose builds grow should measure again with the same sampling and
+  raise the floor.
 - **`lane.sh down` ignores Xcode's orphaned helpers.** A build leaves `ibtoold`, and a booted
   simulator leaves `DTServiceHub`, working in the lane's worktree for minutes after the run. Both
   have launchd for a parent. `down` used to refuse those lanes as in use. A process with a live

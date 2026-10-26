@@ -17,7 +17,7 @@ Prints one line per commit, verdict first, with each step's time and spm-test's 
 failing step shows ✘ and the steps after it -, then its first error line and its log. Every commit
 runs. Logs go under .build/check-each-commit/ in your worktree.
 Exits 0 when every commit passed, 1 when any failed, 2 on usage or an empty range, 75 when every
-scratch tree is busy.
+scratch tree is busy or free disk stays under WORKOUT_DISK_FLOOR (scripts/disk-floor.sh).
 EOF
 }
 
@@ -63,6 +63,7 @@ read_log() { awk -v mode="$1" -v root="$scratch/" -f "$script_dir/test-log.awk" 
 
 failures=0
 for commit in $commits; do
+    "$script_dir/disk-floor.sh" "$scratch"
     scratch_sync "$commit"
     line="" failed_log=""
     for step in spm-build spm-test xcode-bft; do

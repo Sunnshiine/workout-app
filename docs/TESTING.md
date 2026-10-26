@@ -74,7 +74,8 @@ fails only on a lane.
 while another run holds that simulator. The same script admits a run only while the host has room:
 it waits while free memory (`kern.memorystatus_level`) is under `WORKOUT_MEM_FLOOR` percent, before
 a boot while `WORKOUT_SIM_CAP` other simulators are booted and no lane simulator is idle, and
-before a build while every `WORKOUT_BUILD_SLOTS` slot is taken, then exits 75 after
+before a build while every `WORKOUT_BUILD_SLOTS` slot is taken or free disk is under
+`WORKOUT_DISK_FLOOR` MB, then exits 75 after
 `WORKOUT_ADMIT_WAIT` seconds, restarted each time a build slot changes hands. It does not read the
 load, which one build drives past 250 (ADR-0020). `scripts/build-slot.sh` runs anything else heavy
 under a build slot, as in `scripts/build-slot.sh swift test`. Before trusting `WORKOUT_SIM_CAP` on

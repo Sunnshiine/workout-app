@@ -117,7 +117,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
     @MainActor
     func testATouchOnTheHeldCardMovesOnWithoutChangingTheSetItWrote() throws {
-        let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
+        let app = launchWorkoutApp(fixture: .currentSession, options: [.offline], dictating: "235 for 5 at 7")
         XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
         app.buttons["say-set-button"].press(forDuration: 1)
         XCTAssertTrue(app.buttons["clear-logged-set-menu"].appears(within: 3))

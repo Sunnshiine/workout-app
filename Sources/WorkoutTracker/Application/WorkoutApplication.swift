@@ -109,6 +109,34 @@ extension WorkoutApplication {
         return try snapshot()
     }
 
+    /// `WorkoutStore.makeViewedSessionCurrent()`: the off-live-edge Make current control. On the
+    /// Current Session it converges; an Unavailable Viewed Session refuses, because the UI's pin
+    /// would fall back to Sheet-derived progress without saying so.
+    public func makeCurrent() throws -> AppSnapshot {
+        let viewed = try resolveViewedSession()
+        try requireAvailable(viewed)
+        if !workout.isViewingLiveEdge { workout.makeViewedSessionCurrent() }
+        return try snapshot()
+    }
+
+    /// `WorkoutStore.requestMoveOnCelebration()`: the Move On button. It opens the Move On
+    /// Celebration on the Current Session, and the advance lands at `dismissMoveOnCelebration()`.
+    public func requestMoveOnCelebration() throws -> AppSnapshot {
+        _ = try resolveCurrentSession()
+        workout.requestMoveOnCelebration()
+        return try snapshot()
+    }
+
+    /// `WorkoutStore.dismissMoveOnCelebration()`: the tap that ends the celebration. Move On
+    /// advances to the next Available Session, or returns to the Block grid when none remains ahead.
+    public func dismissMoveOnCelebration() throws -> MoveOnReport {
+        guard workout.moveOnCelebrationSession != nil else { throw ApplicationError.noMoveOnCelebration }
+        workout.dismissMoveOnCelebration()
+        let returnedToBlockGrid = workout.pendingBlockOverviewRequest != nil
+        workout.clearBlockOverviewRequest()
+        return MoveOnReport(returnedToBlockGrid: returnedToBlockGrid, snapshot: try snapshot())
+    }
+
     /// `nil` is the Current Session.
     public func session(_ address: SessionAddress?) throws -> SessionSnapshot {
         let session = try address.map(resolveSession) ?? resolveCurrentSession()
@@ -135,6 +163,14 @@ extension WorkoutApplication {
         return try report(on: set, at: address)
     }
 
+    /// `WorkoutStore.deleteLog(for:)`: the card's Clear. The card offers Clear only on a Logged or
+    /// Skipped Set, so a Pending Set converges, writing nothing.
+    public func deleteLog(_ address: SetAddress) throws -> LogReport {
+        let set = try resolveSet(address)
+        if set.isSettled { try workout.deleteLog(for: set) }
+        return try report(on: set, at: address)
+    }
+
     /// A Spoken Set read over what the Set's card pre-fills, then `log` or `skip` through the same
     /// store calls. One still missing a value, or rejected, writes nothing and reports why.
     public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
@@ -155,22 +191,24 @@ extension WorkoutApplication {
 
     /// `dictate` over a recording, heard by the speech model the mic listens with, configured the
     /// same way and read into transcripts the same way. `installing` receives the fraction of the
-    /// model's assets installed, when the machine has yet to download them.
+    /// model's assets installed, when the machine has yet to download them. `paced` plays the
+    /// recording at the pace it was spoken, as the mic hears a press, and reports each caption.
     @available(iOS 26, macOS 26, *)
     public func hear(
         _ recording: URL,
         at address: SetAddress,
+        paced: Bool = false,
         installing: @escaping @Sendable (Double) -> Void
     ) async throws -> HearReport {
         _ = try resolveSet(address)
         guard let file = try? AVAudioFile(forReading: recording) else { throw ApplicationError.unreadableRecording(recording.path) }
-        let candidates: [String]
+        let heard: (candidates: [String], captions: [HearReport.Caption]?)
         do {
-            candidates = try await SpeechListening.transcripts(of: file, installing: installing)
+            heard = try await SpeechListening.heard(in: file, paced: paced, installing: installing)
         } catch {
             throw ApplicationError.notHeard(error, in: recording.path)
         }
-        return HearReport(candidates: candidates, report: try dictate(candidates, at: address))
+        return HearReport(candidates: heard.candidates, captions: heard.captions, report: try dictate(heard.candidates, at: address))
     }
 
     /// The one place a Dictation's outcome reaches the store: `logged` and `skipped` write, the
@@ -302,6 +340,20 @@ extension WorkoutApplication {
         return AddressedSession(id: id, model: current)
     }
 
+    fileprivate func resolveViewedSession() throws -> AddressedSession {
+        guard workout.block != nil else { throw ApplicationError.noBlock }
+        guard let viewed = workout.viewedSession, let id = viewed.address else {
+            throw ApplicationError.notFound(.session, name: "viewed", candidates: orderedSessions().map(\.id.description))
+        }
+        return AddressedSession(id: id, model: viewed)
+    }
+
+    fileprivate func requireAvailable(_ session: AddressedSession) throws {
+        guard SessionProgressTracker().isAvailable(session.model) else {
+            throw ApplicationError.sessionUnavailable(session.id.description)
+        }
+    }
+
     fileprivate func resolveSession(_ address: SessionAddress) throws -> AddressedSession {
         guard workout.block != nil else { throw ApplicationError.noBlock }
         let sessions = orderedSessions()
@@ -312,8 +364,9 @@ extension WorkoutApplication {
     }
 
     fileprivate func resolveExercise(_ address: ExerciseAddress) throws -> Exercise {
-        let session = try resolveSession(address.session).model
-        guard !session.exercises.isEmpty else { throw ApplicationError.sessionUnavailable(address.session.description) }
+        let addressed = try resolveSession(address.session)
+        try requireAvailable(addressed)
+        let session = addressed.model
         guard let exercise = session.exercises.first(where: { $0.order == address.order }) else {
             throw ApplicationError.notFound(
                 .exercise,

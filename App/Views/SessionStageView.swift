@@ -19,7 +19,7 @@ struct SessionStageView: View {
     @State private var isRestPillFaded = false
     /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
     /// Exercise's Last Performed line.
-    @State private var historyExercise: Exercise?
+    @State private var historyExercise: Exercise?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
 
     var body: some View {
         let stage = coordinator.stage(in: session, lookup: lastPerformedLookup.snapshot)

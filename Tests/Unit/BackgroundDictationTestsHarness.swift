@@ -64,7 +64,7 @@ struct BackgroundDictationHarness {
     /// Runs with a transcriber that hears everything at once, so listening ends a silence window on.
     func runUntilQuiet() async -> BackgroundDictation.Outcome {
         let run = Task { await background.run() }
-        await clock.waitUntilSleeping(until: clock.now + window, orRecord: "It never started listening")
+        await clock.waitUntilSleeping(until: clock.now + VoiceActivity.frameDuration, orRecord: "It never started listening")
         clock.advance(by: window)
         return await run.value
     }

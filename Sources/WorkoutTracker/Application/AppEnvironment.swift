@@ -42,8 +42,8 @@ public struct AppEnvironment {
         }
 
         /// An application that keeps its store in `home/store.sqlite`, its settings in
-        /// `home/settings.json`, its Dictation Records in `home/dictation-records`, and its Sheet in
-        /// `workbookFile`, writing the workbook back after every successful Sheet update.
+        /// `home/settings.json`, and its Dictation Records in `home/dictation-records`. Its Sheet is
+        /// `workbookFile`, read on every call and rewritten after every successful update.
         public static func directory(
             _ home: URL,
             workbookFile: URL,
@@ -52,7 +52,7 @@ public struct AppEnvironment {
             AppEnvironment(
                 storage: .file(home.appendingPathComponent("store.sqlite")),
                 dictationRecords: .directory(home.appending(path: "dictation-records")),
-                sheetsClient: LocalWorkbookSheetsClient(workbook: try LocalWorkbook.load(from: workbookFile), persistTo: workbookFile),
+                sheetsClient: try LocalWorkbookSheetsClient(file: workbookFile),
                 defaults: try .file(home.appendingPathComponent("settings.json")),
                 now: now
             )

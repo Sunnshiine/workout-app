@@ -162,6 +162,10 @@ jobs:
           restore-keys: swift-tests-cas-${{ steps.xcode.outputs.build }}-
       - name: Test the CRAP scorer
         run: swift test --package-path tools/crap
+      # crap.sh waits for WORKOUT_DISK_FLOOR on these two volumes (ADR-0020), so a short runner's log
+      # shows how far under the floor it was.
+      - name: Free disk on the volumes the disk floor reads
+        run: df -Pm "$GITHUB_WORKSPACE" "$HOME"
       - name: Run unit + component tests and the CRAP gate (ADR-0016)
         id: gate
         env:
