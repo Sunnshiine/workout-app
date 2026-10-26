@@ -132,6 +132,15 @@
             meaning: "Makes every tab list after the boot wait 20 seconds, so a sync stays in flight."
         )
 
+        static let coachEdit = LaunchFlag(
+            argument: "-UITEST_COACH_EDIT",
+            kind: .value,
+            meaning: "Takes a cell and its new value as the next argument, as `K18=245x5@8`, and writes it to the Scenario's"
+                + " Block tab after the boot sync, as a coach editing the Sheet does. The next sync reads it, and a flush"
+                + " that finds it refuses the log it expected that cell to hold. A value with no A1 cell before an `=`"
+                + " stops the app."
+        )
+
         static let lateSignIn = LaunchFlag(
             argument: "-UITEST_LATE_SIGN_IN",
             kind: .switch,
@@ -218,6 +227,7 @@
             .pendingWrite,
             .offline,
             .slowSync,
+            .coachEdit,
             .lateSignIn,
             .currentSessionOverride,
             .moveOnCelebration,

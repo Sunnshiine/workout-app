@@ -38,10 +38,11 @@
 
         /// Brings a fresh fixture application to the state `launch` names, through the calls a
         /// phone makes: a sync of the fixture Sheet, the Exercise History its earlier fills left, and
-        /// for a pending-write launch a log that was never flushed. Then the faults the launch asks
-        /// for are armed: an offline launch disconnects FIXTURE, so a log stays queued, and a
-        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
-        /// stalls on them.
+        /// for a pending-write launch a log that was never flushed. A coach-edit launch then changes
+        /// the Sheet behind the synced Block, so only the next sync or flush meets the change. Then
+        /// the faults the launch asks for are armed: an offline launch disconnects FIXTURE, so a log
+        /// stays queued, and a slow-sync launch holds every later tab list. The faults wait for the
+        /// boot, so it never stalls on them.
         @MainActor
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             try launch.checkFlags()
@@ -55,6 +56,9 @@
             app.workout.reload()
             if launch.startsWithPendingWrite {
                 _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
+            }
+            if let coachEdit = try launch.coachEdit {
+                try await sheets.write([coachEdit], spreadsheetId: WorkoutFixtureScenarios.sheetId)
             }
             if launch.startsOffline {
                 await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
