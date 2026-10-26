@@ -8,6 +8,38 @@ one batch after the athlete stops, and it emits nothing while they speak. Two th
 they arrive. Hands-free listening stops 1.2 s after the caption last changed, and the card captions
 the press as the athlete speaks. Whisper alone would break both.
 
+**Amended 2026-10-26:** hands-free listening now stops at a Pause the mic level hears and
+Whisper confirms. SpeechTranscriber releases captions in blocks of about 3.9 s of audio, so a stop
+1.2 s after the caption last changed landed about 3.6 s after the athlete stopped talking. The
+recorder now keeps a level for each 85 ms frame of the press's recording, one 4096-frame tap buffer
+at 48 kHz. The noise floor is the 15th percentile of the levels so far. A frame 9 dB over it is
+loud, and two loud frames in a row are speech. The quiet frames since the last loud one are the
+Pause (CONTEXT.md). At a 341 ms Pause, Whisper reads the recording so far. When that transcript
+names the whole Set by itself and writes under the single-engine policy, listening stops. A whole
+RPE under 10 waits for a 1024 ms Pause instead, because "and a half" may follow. Otherwise a 1.2 s
+Pause stops listening, beside the caption's 1.2 s silence window and the 8 s cap. A stop decides
+with that early read when the athlete said nothing after it, so Whisper reads the press once. A
+held press the athlete releases is unchanged. Each Dictation Record names when its early read was
+asked and when the read it was decided with was asked.
+
+This contradicts the first considered alternative below, which set an energy threshold aside as
+something plates and gym music may defeat, unmeasured. A throwaway prototype measured the rule on 77
+corpus phrases and 10 phrases with a 600 to 700 ms gap inside them. One synthetic `say` voice spoke
+each phrase, Samantha at 200 words a minute. Each clip ran clean and with stationary pink noise at
+15 dB SNR, and Whisper read it on an M-series Mac's Neural Engine. On the clean corpus, speech end
+to logged fell from 3071 ms to 1272 ms at p50 and from 3810 ms to 1638 ms at p90, with every outcome
+the same as before. A 683 ms wait for a half wrote two wrong Set Logs on the noisy gap phrases,
+225x3@8 for "at 8 … and a half" and 225x3@9 for "at 9 … point 5", and a 512 ms wait wrote those two
+clean as well. The margin was swept only at the 683 ms and 512 ms waits. Against 9 dB there, a 12 dB
+margin heard nothing in one more noisy corpus phrase and, at 512 ms, wrote three wrong Set Logs on
+the corpus, one clean and two noisy. A 6 dB margin changed no outcome. 9 dB was kept because a lower
+margin hears more noise as speech, which stationary noise did not test. The rule ships the 9 dB
+margin and the 1024 ms wait for a half, and neither 6 nor 12 dB was run at 1024 ms. Nobody has
+measured plate clanks, gym music, a real athlete's voice, the phone's own mic, or how fast an iPhone
+decodes. Noise the level hears as speech delays the stop, or sends the next Pause to a new read.
+Speech the level hears as quiet, as a half said under music, could stop listening on the read before
+it, and how often that happens is unknown. Recorded presses can now measure it.
+
 We run both engines. SpeechAnalyzer keeps listening live for the caption and the auto-stop, and the
 transcripts it hands over when the press ends are the Live Transcript. The same microphone tap
 records the press at 16 kHz, and Whisper small reads that recording once the press ends. Its
@@ -62,7 +94,8 @@ never compile it, and a lint rule keeps its import to `WhisperEngine`.
 - *Whisper alone, with its own voice-activity detection for the auto-stop:* the card loses its live
   caption, and the auto-stop moves to an energy threshold that plates and gym music may defeat,
   which nobody has measured. A phone without the model, or an App Intent's cold launch, would have
-  no speech at all, where the two engines fall back to SpeechAnalyzer.
+  no speech at all, where the two engines fall back to SpeechAnalyzer. The 2026-10-26 amendment
+  above measured that threshold, on synthetic voices only, and keeps the caption beside it.
 - *A journal of press events reduced into an outcome:* it rewrites `SetDictation` and its test fakes
   further than anything else considered, before any accuracy ships. Its metrics, a per-press check
   against the latency target and the cause of each wait, carry over to the dictation records.
