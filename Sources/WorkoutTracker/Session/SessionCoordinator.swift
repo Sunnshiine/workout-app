@@ -70,7 +70,8 @@ final class SessionCoordinator {
 
     /// The athlete is now viewing `session`, and the rest Live Activity is re-checked. A Session
     /// the stage is not on re-points the coordinator at it, with focus re-seeded from its first
-    /// Pending Set. The Session on stage, parsed again by a sync, keeps what the athlete was doing.
+    /// Pending Set. The Session on stage keeps what the athlete was doing, whether the Session
+    /// screen shows it again as itself or a sync parsed it again.
     func view(_ session: Session) {
         if isOnStage(session) {
             follow(session)
@@ -130,9 +131,9 @@ final class SessionCoordinator {
         answerEntry()
     }
 
-    /// The focus, a review, a held Set, and a press under way carry over to the Session parsed
-    /// again. A pairing under way ends, as on a bind, since its confirmation fuses the Exercises it
-    /// began with.
+    /// The focus, a review, a held Set, and a press under way carry over to the Session on stage,
+    /// shown again as itself or parsed again by a sync. A pairing under way ends, as on a bind,
+    /// since its confirmation fuses the Exercises it began with.
     private func follow(_ session: Session) {
         cancelPairing()
         perform(nil) { focusManager.follow(session) }
