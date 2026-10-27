@@ -45,7 +45,7 @@ private struct OpenExerciseRow: View {
             Spacer(minLength: 12)
 
             HStack(spacing: 6) {
-                Text(row.sourceLabel)
+                Text(row.sessionAddressLabel)
                     .font(Theme.font(.historyChip))
                 Image(systemName: "chevron.right")
                     .font(Theme.font(.historyChip))

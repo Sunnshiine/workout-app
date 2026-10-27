@@ -24,7 +24,7 @@ import Testing
     #expect(exercises[0].sets[1].setLog?.formatted == "195x5@9")
 }
 
-@Test func parsesProtectedHeaderSetLogsFromFirstVisibleWritableRowSkippingHiddenRows() throws {
+@Test func parsesOccupiedHeaderSetLogsFromFirstVisibleWritableRowSkippingHiddenRows() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -233,7 +233,7 @@ import Testing
 /// Asserts every parsed Set's classification is exactly `SetLogToken.classify` of the token the
 /// placement query resolves for that Set — i.e. the reader reads each Set from the one placement
 /// decision the writer also consumes (ADR-0010), not a separately re-branched address. Used on
-/// grids whose read cells are writable (not a protected header at the read cell), where reader and
+/// grids whose read cells are writable (not an occupied header at the read cell), where reader and
 /// placement-read must coincide token-for-token.
 private func expectReaderReadsEachSetFromPlacement(_ snapshot: SheetSnapshot) throws {
     let layout = SheetLayoutInterpreter().interpret(snapshot)
@@ -267,7 +267,7 @@ private func expectReaderReadsEachSetFromPlacement(_ snapshot: SheetSnapshot) th
     }
 }
 
-@Test func readsProtectedHeaderSetsFromThePlacementResolvedVisibleWritableRow() throws {
+@Test func readsOccupiedHeaderSetsFromThePlacementResolvedVisibleWritableRow() throws {
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",

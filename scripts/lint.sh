@@ -31,8 +31,9 @@ usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
                                        .build dir, and that each exemption's cited issue is
                                        live (needs gh), that no defaulted parameter outgrows
                                        scripts/lint-defaults-baseline.txt, list the doc lines naming
-                                       a file the branch split, and swift-format the Swift changed since
-                                       LINT_FORMAT_BASE (default origin/main); what CI runs
+                                       a file the branch split, swift-format the Swift changed since
+                                       LINT_FORMAT_BASE (default origin/main), and check the
+                                       identifiers it adds against the glossary; what CI runs
   scripts/lint.sh <file.swift>...      lint those files alone
   scripts/lint.sh --fix [<file>...]    autocorrect what SwiftLint can, then lint
   scripts/lint.sh --print-version      print the pinned SwiftLint version and exit
@@ -297,3 +298,6 @@ echo "==> swift-format"
     fi
     exit "$status"
 }
+
+echo "==> New identifiers use the glossary's words"
+python3 "$ROOT/scripts/lint-vocabulary.py" "${LINT_FORMAT_BASE:-origin/main}"

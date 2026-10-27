@@ -127,12 +127,12 @@ import Testing
 }
 
 @MainActor
-@Test func auditReportsPerSetValueForProtectedHeaderVisibleWritableRowPlacement() throws {
-    // A protected coach-note header (K15) redirects Set logs to the first Visible Writable Row
-    // below it (K16), which already holds both Sets' logs as a comma-separated list. Logging Set 2
-    // expects an empty slot, but the persisted slot reads "190x5@8". The audit must read the value
-    // at the placement's list position — not the whole writable-row cell — so protected-header
-    // drift is caught, and the scan must keep its "protected header" wording.
+@Test func auditReportsPerSetValueForOccupiedHeaderVisibleWritableRowPlacement() throws {
+    // A header Notes cell that holds a Coach Note (K15) redirects Set logs to the first Visible
+    // Writable Row below it (K16), which already holds both Sets' logs as a comma-separated list.
+    // Logging Set 2 expects an empty slot, but the persisted slot reads "190x5@8". The audit must
+    // read the value at the placement's list position — not the whole writable-row cell — so drift
+    // below an occupied header is caught, and the scan must say what the header Notes hold.
     let grid = gridFromA1(
         [
             "C12": "Day 1", "S12": "Day 2",
@@ -162,7 +162,9 @@ import Testing
     #expect(audit.selectedA1Target == "'Block 27'!K16")
     #expect(audit.currentValue == "190x5@8")
     #expect(audit.valueCheckOutcome == "Expected '', found '190x5@8'.")
-    #expect(audit.rowScanDetails.contains("first visible writable row below protected header Notes"))
+    #expect(
+        audit.rowScanDetails.contains("first visible writable row below header Notes that hold a Coach Note")
+    )
 }
 
 @MainActor

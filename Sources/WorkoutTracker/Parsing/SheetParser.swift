@@ -121,10 +121,10 @@ private func parsedSets(_ context: ParsedSetContext) -> [ParsedSet] {
 
 /// Reads Set `setIndex`'s raw Notes token from wherever the placement query resolves it — the one
 /// addressing decision the write path also consumes (ADR-0010), so display and write targeting
-/// cannot diverge. A list placement (compact header list, protected-header Visible Writable Row, a
+/// cannot diverge. A list placement (compact header list, occupied-header Visible Writable Row, a
 /// multi-line Prescription Line, or its Coach Note's spare row) reads the token at the Set's list
 /// position via the shared `SetLogList` codec; a whole-cell placement reads the cell. An
-/// unresolved placement — a protected header with no safe writable row, a Set row out of the
+/// unresolved placement — an occupied header with no safe writable row, a Set row out of the
 /// Exercise's span, or a missing Notes column — reads empty, leaving the Set Pending unless a
 /// Legacy Log later marks it complete.
 private func rawSetLog(

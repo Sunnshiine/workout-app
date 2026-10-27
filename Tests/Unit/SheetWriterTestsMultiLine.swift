@@ -110,7 +110,8 @@ private func multiLineNotesRequest(
 
 @Test func aCoachNoteLineWithoutASpareRowNamesTheProtectedNotes() throws {
     // Comp BP's Lines fill its span, so the Coach Note leaves its first Set nowhere to go. The
-    // refusal names the Exercise and the protected Notes, not the Coach Note's first comma fragment.
+    // refusal names the Exercise and the header Notes holding the Coach Note, not the Coach Note's
+    // first comma fragment.
     let planner = SheetWritePlanner()
     let grid = multiLinePrescriptionGrid(["J17": "Brace hard, controlled descent"])
 

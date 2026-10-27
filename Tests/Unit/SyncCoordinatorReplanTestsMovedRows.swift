@@ -38,7 +38,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(
         entries.last?.rowScanDetails
             == "Skipped hidden rows: row 16 hidden by user. Selected row 17: first visible writable row below "
-            + "protected header Notes before the next Exercise."
+            + "header Notes that hold a Coach Note or Legacy Log, before the next Exercise."
     )
     #expect(entries.last?.valueCheckOutcome == "Expected '205x3@9', found ''.")
 }
@@ -108,7 +108,7 @@ private func squatCoachNoteGrid() -> SheetGrid {
     #expect(
         entries.last?.rowScanDetails
             == "Skipped hidden rows: row 16 hidden by user, row 17 hidden by user. No row selected: no visible writable "
-            + "row below protected header Notes before the next Exercise."
+            + "row below header Notes that hold a Coach Note or Legacy Log, before the next Exercise."
     )
 }
 
@@ -161,7 +161,8 @@ func replanningAfterTheCoachHidesEveryRowBelowACoachNoteAlsoRefusesThePairedLast
     #expect(
         entries.dropFirst().map(\.rowScanDetails) == [
             "Skipped hidden rows: row 16 hidden by user, row 17 hidden by user, row 18 hidden by user. No row "
-                + "selected: no visible writable row below protected header Notes before the next Exercise.",
+                + "selected: no visible writable row below header Notes that hold a Coach Note or Legacy Log, "
+                + "before the next Exercise.",
             "Not evaluated: paired Set Log failed before this write was planned."
         ]
     )

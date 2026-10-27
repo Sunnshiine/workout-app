@@ -15,14 +15,14 @@ protocol LastPerformedIndexing {
     func entryCount(baseName: String) -> Int
     /// Deletes the entry a live edit wrote once its Session holds no Logged Set of that Exercise,
     /// the one exception to append-only (ADR-0018).
-    func retract(fullName: String, source: String) throws
+    func retract(enteredName: String, source: String) throws
 }
 
 @MainActor
 struct NoopLastPerformedIndex: LastPerformedIndexing {
     func ingest(_ entries: [LastPerformedEntry]) throws {}
     func entryCount(baseName: String) -> Int { 0 }
-    func retract(fullName: String, source: String) throws {}
+    func retract(enteredName: String, source: String) throws {}
 }
 
 /// The single Last Performed owner: it owns the persisted index and the published display snapshot,
@@ -40,7 +40,7 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
         refresh()
     }
 
-    /// Append-only ingest (ADR-0012), deduped on (`fullName`, `source`), then refresh the snapshot.
+    /// Append-only ingest (ADR-0012), deduped on (`enteredName`, `source`), then refresh the snapshot.
     ///
     /// A Session that already has an entry is refreshed in place — this keeps re-ingesting
     /// the same tab idempotent and lets the in-progress current Session's entry track live
@@ -49,7 +49,7 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
     /// display snapshot is part of the same operation so the write→refresh pairing cannot drift.
     func ingest(_ entries: [LastPerformedEntry]) throws {
         for entry in entries {
-            if let existing = existingEntry(fullName: entry.fullName, source: entry.source) {
+            if let existing = existingEntry(enteredName: entry.enteredName, source: entry.source) {
                 existing.baseName = entry.baseName
                 existing.resultText = entry.resultText
                 existing.performedOn = entry.performedOn
@@ -73,8 +73,8 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
         return (try? context.fetchCount(descriptor)) ?? 0
     }
 
-    func retract(fullName: String, source: String) throws {
-        guard let existing = existingEntry(fullName: fullName, source: source) else { return }
+    func retract(enteredName: String, source: String) throws {
+        guard let existing = existingEntry(enteredName: enteredName, source: source) else { return }
         context.delete(existing)
         try context.save()
         refresh()
@@ -85,9 +85,9 @@ final class LastPerformedLookupStore: LastPerformedIndexing {
         snapshot = LastPerformedLookupSnapshot(entries: entries)
     }
 
-    private func existingEntry(fullName: String, source: String) -> LastPerformedEntry? {
+    private func existingEntry(enteredName: String, source: String) -> LastPerformedEntry? {
         let descriptor = FetchDescriptor<LastPerformedEntry>(
-            predicate: #Predicate { $0.fullName == fullName && $0.source == source }
+            predicate: #Predicate { $0.enteredName == enteredName && $0.source == source }
         )
         return try? context.fetch(descriptor).first
     }
