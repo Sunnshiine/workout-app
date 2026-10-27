@@ -8,6 +8,10 @@ already judge, and never a preference. A force unwrap, force try, force cast, or
 outside the Theme seam in the app is a lint error, not a finding; `Tests/.swiftlint.yml` lists
 what a test body may do. Read a trailing issue or symbol when a bullet does not settle a hunk.
 
+Each bullet ends with what enforces it: a SwiftLint rule, a script, a test, or judgment, which is
+the review's. `scripts/rule-table.sh` fails a bullet that names none, and writes the table in
+`AGENTS.md` from these lines.
+
 A claim about runtime behaviour, such as SwiftUI layering or transaction order, gesture or focus
 callback order, or timing, is a hypothesis. The finding names the measurement that would settle
 it, and the owner runs that measurement before changing code. (#860: a `.zIndex` two reviewers
@@ -17,55 +21,63 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 - **A write that reaches the Sheet or the cache outside `SyncCoordinator` and its pending-write
   queue,** or a transition that could abandon queued Set Logs without asking
-  `canBeginDestructiveTransition`. (ADR-0001, ADR-0006, #585, fixed in #595.)
+  `canBeginDestructiveTransition`. (ADR-0001, ADR-0006, #585, fixed in #595.) Enforced by:
+  judgment.
 - **Logic in a View that needs a test,** such as a computed property ORing store state, a `switch`
   on domain state in `body`, or a decision the `workout` CLI cannot see. `swift test` never reaches
   `App/Views/` (ADR-0017), so it lives in the library. (#582,
-  `SheetConnection.canBeginDestructiveTransition`.)
+  `SheetConnection.canBeginDestructiveTransition`.) Enforced by: judgment.
 - **A type that only forwards,** a method added where a caller could have asked a deeper question,
   or a question already answered privately in a second place. If deleting the type loses nothing,
   the concept it fronts is what needs a module. (#514, #570, #572, `SyncOutcome`. The
-  `codebase-design` skill carries the long form.)
+  `codebase-design` skill carries the long form.) Enforced by: judgment.
 
 ## State
 
 - **A derived fact with more than one owner.** A latch every mutating method must set, a mirror
   re-derived with drifting conditions, or a predicate spelled twice. (#586, #570 fixed in #574,
-  #572 fixed in #591, `LiveEdge.isAtLiveEdge`.)
+  #572 fixed in #591, `LiveEdge.isAtLiveEdge`.) Enforced by: `DifferentialStateTests`, judgment.
 - **A control signal that does not read what it claims to measure,** such as comparing the display
   `state` to one case as a guard, or a Bool true only because the last writer set it. (`isSyncing`
-  read the banner's display enum. #585, now `SyncCoordinator.isSyncing`.)
+  read the banner's display enum. #585, now `SyncCoordinator.isSyncing`.) Enforced by: judgment.
 - **An outcome that is not an enum with one case per outcome,** such as a `[String]` payload with
   two producers, `messages.first ?? "…"`, English composed in a store, or a method that sets
-  `state` as it exits. (#589, #514, #598, `SyncOutcome.sync(sheetRead:flush:)`.)
+  `state` as it exits. (#589, #514, #598, `SyncOutcome.sync(sheetRead:flush:)`.) Enforced by:
+  judgment.
 
 ## Concurrency
 
 - **A dropped or detached `Task` that assigns a store field after its owning method returned.**
-  Hold and await work the sequence needs. (#514, #585, fixed in #595.)
+  Hold and await work the sequence needs. The rule skips `App/Views/`, where
+  `Button { Task { … } }` is the idiom, so the review judges a View method that starts a Task
+  writing a store field. (#514, #585, fixed in #595.) Enforced by: `unstructured_task_is_held`,
+  judgment.
 - **A `@Model` object held across a reload.** Hold a `SessionAddress`, a `SessionCoordinate`, a
   `SetCoordinates.ID`, or a `persistentModelID`, and re-resolve it from the store's Block. `===` is
-  sound only within one read pass. `model_held_across_reload` below catches the stored `var`.
-  (#586, #976, #1052, `WorkoutStore.viewing`, `SessionCoordinator.sessionCoordinate`.)
+  sound only within one read pass. The rule reads only the four-space indent of a type's own
+  members, because deeper in, a nested type's property and a method's local `var` look alike, so a
+  struct that wraps a model and a property of a type nested in a function pass it. (#586, #976,
+  #1052, #972, #1036, #1053, `WorkoutStore.viewing`, `SessionCoordinator.sessionCoordinate`.)
+  Enforced by: `model_held_across_reload`, judgment.
 
 ## Optionals
 
 - **A defaulted parameter or optional callback that lets a caller omit a decision,** such as
   `= nil`, `= false`, `= { _ in true }`, or `?? Date()` where omission changes behaviour. A right
-  default is the safe answer, not the convenient one. `scripts/lint-defaults.py` fails a new nil,
-  bool, closure, now, number, or empty default of a parameter or of a memberwise `var` under
-  `Sources/` or `App/`, unless its line carries `// default: <reason>`. It accepts the defaults
-  listed in `scripts/lint-defaults-baseline.txt`, so removing or renaming one means editing that
-  file: run `scripts/lint-defaults.py --write-baseline` and commit the result. Review still judges
-  each reason, the baselined defaults, and `?? Date()`. `optional?.flag == false` reads nil as
-  `false`, so write the nil case out. (#572, #582, #813,
-  `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`.)
+  default is the safe answer, not the convenient one. A new default under `Sources/` or `App/`
+  carries `// default: <reason>` on its line, and the lint's failure names the baseline rewrite for
+  a rename. Review still judges each reason, the baselined defaults, and `?? Date()`.
+  `optional?.flag == false` reads nil as `false`, so write the nil case out. The Optional Bool rule
+  skips `Tests/`, where `#expect(x?.flag == true)` failing on nil is the assertion doing its job. (#572,
+  #582, #813, `SheetsClient.fetchTabSnapshot(spreadsheetId:tabName:retrying:)`.) Enforced by:
+  `scripts/lint-defaults.py`, `optional_bool_needs_a_nil_answer`, judgment.
 
 ## Vocabulary
 
 - **A name `CONTEXT.md` does not use,** or one concept under several names. Its avoid-lists, and
   those of the area files it links (`docs/context/logging.md`), bind too, and a synonym is a
-  finding even when the code works. (#572, fixed in #591.)
+  finding even when the code works. (#572, fixed in #591.) Enforced by:
+  `scripts/lint-vocabulary.py`, judgment.
 
 ## Docs
 
@@ -76,41 +88,49 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   branch split or moved. (#1025 shipped the verify skill naming one of four
   `host-admission*.test.sh` files. Late review caught the same miss in #909, whose `AGENTS.md` still
   described the load gate, and in #1019, whose avoid-list rule still named `CONTEXT.md` alone.)
+  Enforced by: `scripts/lint-doc-symbols.py`, `scripts/doc-drift.py`, judgment.
 
 ## Comments
 
 - **A comment that narrates the next line,** or restates a name, a type, or a test. Delete it.
+  Enforced by: judgment.
 - **A deleted comment that carried what the code cannot show:** a platform fact no test pins, a
   measured number with its evidence, or a contract every conformer honours. It stays. A reviewer
   who wants one gone names the test that would pin it instead. (#860 lost the bud wake's timing
   reason twice, and #861 lost the `SheetSwitchSyncing` contract a reviewer had asked for.)
+  Enforced by: judgment.
 
 ## Tests
 
 - **A CRAP score lowered by weakening a pin, calling internals, or splitting a function into pieces
-  no reader would look for.** Lower it by design or a stronger test (`scripts/crap.sh gate`,
-  ADR-0016). A pin that has to move is a behaviour change, argued in the PR. (#598.)
+  no reader would look for.** Lower it by design or a stronger test (ADR-0016). A pin that has to
+  move is a behaviour change, argued in the PR. (#598.) Enforced by: `scripts/crap.sh`, judgment.
 - **A fake of anything but the boundary,** which is the Sheets client, auth, and time. Fixtures
-  under `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data.
+  under `Sources/WorkoutTracker/Fixtures/` stand in for Sheet data. Enforced by: judgment.
 - **A fixture value that is not a literal or an offset from the fixture's reference date,** or a
   parsed date pinned to an instant rather than the coach's cell text. `SheetParser.parseDate`
-  resolves in the machine's time zone. (#597, fixed in #684.)
+  resolves in the machine's time zone. (#597, fixed in #684.) Enforced by:
+  `fixture_dates_are_literal`, judgment.
 - **A wait that ends on a count or a clock.** Counted `Task.yield()`, a wall-clock budget, and an
   unbounded poll are the three flake shapes. A fake never parks the test on a bare continuation,
   because a continuation ignores cancellation and a missed release hangs the run instead of failing
-  it (#746). `tests_wait_on_events_not_clocks` and `tests_never_park_on_a_bare_continuation` reject
-  the clock and the continuation, so judge only the shapes they miss, listed below. Every wait on
-  work the test does not control goes through `waitUntil` or `HeldCall.waitUntilHeld` in
-  `Tests/Support/`, which record a failure when the bound runs out. The poll, the state it reads,
-  and the work that sets it share one actor, so each yield gives that work a turn. A poll on
-  another actor can exhaust its count before a loaded main actor runs the work. (#548,
-  `docs/TESTING.md`, `ControlledValidationClient` in #637, #707.)
+  it (#746). Every wait on work the test does not control goes through `waitUntil` or
+  `HeldCall.waitUntilHeld` in `Tests/Support/`, which record a failure when the bound runs out. The
+  poll, the state it reads, and the work that sets it share one actor, so each yield gives that
+  work a turn. A poll on another actor can exhaust its count before a loaded main actor runs the
+  work. A bare `ContinuousClock.now` held as a start instant passes the clock rule. A continuation
+  that only a release the test must remember resumes is a park. One that resumes at once, or that
+  a cancel handler or a failed wait also resumes, is exempt on its line with that reason. A park
+  with neither is exempt only when its line cites the issue that tracks the missing release, open
+  or closed as `wontfix`. (#548, #543, #899, #1014, #936, `docs/TESTING.md`,
+  `ControlledValidationClient` in #637, #707.) Enforced by: `tests_wait_on_events_not_clocks`,
+  `tests_never_park_on_a_bare_continuation`, `polling_loops_are_bounded`,
+  `scripts/flake-guard.sh`, judgment.
 - **A platform `#if` inside a `@Test` body,** where the assertions compile away and the test passes
-  empty. It goes on the declaration. (#608. The lint catches a guard below comment lines and
-  single-line `let` or `var` bindings. It misses one below a binding that holds a closure, a binding
-  that spans lines, or any other statement, so judge those.)
+  empty. It goes on the declaration. (#608.) Enforced by: `platform_guard_on_test_declaration`,
+  judgment.
 - **A test that mirrors a one-line mapping.** It breaks on any refactor and the gate does not need
-  it. A complexity-1 function scores 2 uncovered, under the target.
+  it. A complexity-1 function scores 2 uncovered, under the target. Enforced by: judgment.
 - **A test that passes whatever the code under test does.** It compares a value with itself or
   with the same call made twice, takes its expected value from the code under test, asserts a
   stub's own state, fetches what it inserted from the same SwiftData context, writes only the
@@ -121,68 +141,17 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   restates a constant or a copy string another way. It is tautological when another gate already
   pins the value, as the Visual baselines pin the palette, surfaces, and radii, or when nothing
   reads it. A token DESIGN.md specifies that no other gate sees, such as a motion duration, a haptic
-  tuning, or a tabular-figures flag, is that spec's one pin and stays. (#807, #808, #809.)
+  tuning, or a tabular-figures flag, is that spec's one pin and stays. (#807, #808, #809.) Enforced
+  by: `scripts/mutate.sh`, `scripts/mutate-advisory.sh`, judgment.
 
-Seven shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). The review still
-judges what each regex misses. A hit is fixed in the code, or exempted on its line with a reason.
-An exemption of `unstructured_task_is_held`, `fixture_dates_are_literal`,
-`model_held_across_reload`, or `all` accepts a bug, so its reason cites the open or `wontfix`
-issue that tracks it as a bare `#N`. `scripts/lint.sh` fails one that cites none, and any
-exemption whose cited issue is closed without `wontfix`. The seven rules:
+## What each SwiftLint rule misses
 
-- `unstructured_task_is_held` skips `App/Views/`, where `Button { Task { … } }` is the idiom, so the
-  review judges a View method that starts a Task writing a store field. The rule reads only a line
-  that starts with `Task`, so `_ = Task { }`, `let _ = Task { }`, `Task<Void, Never> { }`,
-  `Task(operation: { })`, a `Task {` in the middle of a line, and `Task(priority: f()) {` pass it.
-  It flags a Task held on the line after `x =` and a Task a function returns implicitly, though
-  both are held.
-- `optional_bool_needs_a_nil_answer` catches `x?.flag`, `(try? …)`, `x.map(…)`, and `x.map { … }`
-  compared to a Bool literal. A reversed comparison (`true == x?.flag`), a chain past a call
-  (`x?.f().flag`), a nested call inside the chain (`x?.f(g(a))`), a subscript (`x?[i].flag`), a
-  `(try? …)` or a map whose parentheses or closure span lines, and a plain `Bool?` value compared
-  to a literal pass it. It flags a non-optional call chained after the map
-  (`.map(abs).contains(1) == true`, `.map { … }.allSatisfy { … } == true`) and a comparison inside
-  a string literal. It skips `Tests/`, where `#expect(x?.flag == true)` failing on nil is the
-  assertion doing its job.
-- `fixture_dates_are_literal` catches `Date()`, `Date.now`, `Date(timeIntervalSinceNow:)`, and the
-  current `TimeZone` and `Calendar`. The `.now` shorthand, a `DateFormatter` or a
-  `Calendar(identifier:)` left on the machine time zone (#597), and `Locale.current` pass it. It
-  skips `Tests/UI/`, whose polling helpers keep wall-clock deadlines. The next rule catches a clock
-  deadline.
-- `tests_wait_on_events_not_clocks` catches `Task.sleep`, `Thread.sleep`, a bare `sleep`, `usleep`,
-  or `nanosleep` call, `asyncAfter`, a semaphore or group `wait(timeout:)`, a `.timeLimit` trait, a
-  `.measure { }` or `.measure({ })`, a constructed `ContinuousClock()` or `SuspendingClock()`,
-  arithmetic, a comparison, or `.advanced(by:)` on either clock's `.now`, `DispatchTime.now()`,
-  `CFAbsoluteTimeGetCurrent()`, `systemUptime`, and `Timer.scheduledTimer` (#543, #899, #1014).
-  `.now` read on a clock instance, a bare `ContinuousClock.now` held as a start instant, and a sleep
-  on a real clock passed in as a parameter pass it (`docs/TESTING.md`). It reads `Tests/Unit/`,
-  `Tests/Component/`, and `Tests/Support/`, and skips `Tests/UI/` and `Tests/Visual/`.
-- `tests_never_park_on_a_bare_continuation` catches `withCheckedContinuation`,
-  `withUnsafeContinuation`, and their throwing forms in the same three folders, outside
-  `Tests/Support/HeldCall.swift` (#707, #746, #936). A continuation that only a release the test
-  must remember resumes is a park. One that resumes at once, or that a cancel handler or a failed
-  wait also resumes, is exempt on its line with that reason. A park with neither is exempt only
-  when its line cites the issue that tracks the missing release, open or closed as `wontfix`. A
-  continuation stored and resumed elsewhere, and an `AsyncStream` continuation, pass it.
-- `polling_loops_are_bounded` catches a `while`, `repeat`, or `for _ in` loop whose whole body is
-  `await Task.yield()`. A loop whose condition holds a closure, whose body does anything else, or
-  whose index is named (`for i in 0..<n`) passes it.
-- `model_held_across_reload` catches a stored `var` of a `@Model` type in `App/` and in
-  `Sources/WorkoutTracker/` outside `Models/` (#972, #1036, #1053). It reads the type bare,
-  Optional as `Session?` or `Optional<Session>`, implicitly unwrapped, or in an Array or a
-  Dictionary, with or without the `WorkoutTracker.` prefix. A `let`, a `var` whose type is
-  inferred, a tuple, a closure, a struct that wraps a model, and a stored `var` with an observer
-  pass it. So do a generic type other than `Optional`, such as `Set<Session>`,
-  `Result<Session, Error>`, or `Task<Session, Never>`, and a collection inside a collection, such
-  as `[String: [Session]]`. A property of a type nested in another type or in a function passes it
-  too. The rule reads only the four-space indent of a type's own members, because deeper in, a
-  nested type's property and a method's local `var` look alike. It flags a computed property whose
-  brace opens on the next line, a View's input declared with `var` rather than `let`, and a local
-  `var` in a free function. Its type list names every `@Model` class, and the rule's test fails
-  when a new one is missing from it.
-
-`unstructured_task_is_held` and `optional_bool_needs_a_nil_answer` also reach `WorkoutShared/` and
-`WorkoutWidgets/`. The font and microlabel rules stop at the app, and no bullet here judges type
-or case in the widget. The widget target does not compile `Sources/WorkoutTracker/`, so the Theme
-seam the font rule points to is not there. `scripts/tests/swiftlint-custom-rules.test.sh` pins
-every shape named here.
+Shapes a regex can catch are SwiftLint errors in `.swiftlint.yml` (#637). Each rule's cases are the
+functions of its fixture under `scripts/tests/swiftlint-custom-rules/`, and
+`scripts/tests/swiftlint-custom-rules.test.sh` pins every one. A name ending `IsFlagged` is a hit,
+and one ending `Passes` is clean. One ending `IsMissed` is a shape the rule cannot see, so the
+review judges it. One ending `IsFalselyFlagged` is a false hit. A hit is fixed in the code, or
+exempted on its line with a reason, and `scripts/lint-exemptions.py` fails the exemption of a rule
+that stops a bug when it cites no open or `wontfix` issue. The font and microlabel rules stop at
+the app, because the widget target does not compile the Theme seam, and no bullet here judges type
+or case in the widget.
