@@ -203,6 +203,7 @@ import Testing
                 == SheetCellWrite(tabName: "Block 27", a1: "K18", value: "245x5@8")
         )
         #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", "K18="]).coachEdit?.value == "")
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", "K18==K17"]).coachEdit?.value == "=K17")
     }
 
     @Test(arguments: ["", "K18", "=245x5@8", "k18=245x5@8", "Block 27!K18=245x5@8"])

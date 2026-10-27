@@ -25,6 +25,18 @@ private func makeStoreStage() async throws -> (app: WorkoutApplication, coordina
     return (app, coordinator, sync)
 }
 
+/// A Session no Block holds, as a sync leaves the one the stage read: Bench Press at order 1, where
+/// `makeCoordinatorSession` puts it, with `setCount` Pending Sets.
+private func makeDetachedBench(setCount: Int) -> (session: Session, bench: Exercise) {
+    let session = Session(dayNumber: 1, date: nil)
+    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
+    bench.sets = (0..<setCount).map {
+        ExerciseSet(index: $0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
+    }
+    session.exercises = [bench]
+    return (session, bench)
+}
+
 /// The store refuses a write for a Set no Block holds (#1052), and the stage finds the Session
 /// again by its coordinate, so the card it builds next writes the parsed Set.
 @MainActor
@@ -140,6 +152,22 @@ private func makeStoreStage() async throws -> (app: WorkoutApplication, coordina
 }
 
 @MainActor
+@Test func aSetHeldAfterASpokenWriteThatTheSessionParsedAgainNoLongerHasIsNoLongerHeld() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = makeCoordinatorSession()
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    coordinator.focus(on: try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 }))
+    _ = try await sayIntoTheCard(coordinator, in: session)
+    #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
+    let parsedBench = try #require(parsed.exercises.first { $0.order == 1 })
+    parsedBench.sets = parsedBench.sets.filter { $0.index == 0 }
+
+    coordinator.view(parsed)
+
+    #expect(coordinator.focusManager.visualFocusOwner == .activeSet(try #require(coordinator.activeSetID)))
+}
+
+@MainActor
 @Test func aPressASyncLandsUnderLogsTheDictatedSetOfTheSessionParsedAgain() async throws {
     let session = makeCoordinatorSession()
     let parsed = makeCoordinatorSession()
@@ -207,20 +235,37 @@ private func makeStoreStage() async throws -> (app: WorkoutApplication, coordina
 @MainActor
 @Test func aTapOnASetOfADetachedSessionIsRefusedAndLeavesTheStageOnItsSession() throws {
     let session = makeCoordinatorSession()
-    let detached = Session(dayNumber: 1, date: nil)
-    let bench = Exercise(name: "Bench Press", coachNote: nil, order: 1)
-    let detachedSet = ExerciseSet(index: 0, prescribedReps: "6", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
-    bench.sets = [detachedSet]
-    detached.exercises = [bench]
+    let detached = makeDetachedBench(setCount: 1)
     let logging = SpySessionLoggingAdapter()
     let sync = SpySessionSyncAdapter()
     let coordinator = SessionCoordinator(session: session, wiring: .fixture(logging: logging, sync: sync))
     coordinator.focus(on: try #require(session.exercises.first { $0.order == 2 }?.sets.first))
 
-    coordinator.log(detachedSet, as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
+    coordinator.log(try #require(detached.bench.sets.first), as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
 
     #expect(logging.loggedSets.isEmpty)
     #expect(sync.reportedErrors == [String(describing: WorkoutLoggingError.detachedSession)])
     #expect(coordinator.sessionCoordinate == session.placement.coordinate)
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 2, setIndex: 0))
+}
+
+@MainActor
+@Test func aPressOnASetOfADetachedSessionStartsNothing() throws {
+    let session = makeCoordinatorSession()
+    let detached = makeDetachedBench(setCount: 1)
+    let (coordinator, _, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+
+    coordinator.startDictation(for: try #require(detached.bench.sets.first))
+
+    #expect(coordinator.dictation?.state == .idle)
+}
+
+@MainActor
+@Test func theActiveSetOfADetachedSessionIsItsFirstPendingSetWhereverTheFocusIs() throws {
+    let session = makeCoordinatorSession()
+    let detached = makeDetachedBench(setCount: 2)
+    let focus = ActiveSetFocusManager(session: session)
+    focus.focus(on: try #require(session.exercises.first { $0.order == 1 }?.sets.first { $0.index == 1 }))
+
+    #expect(focus.activeSet(in: detached.session)?.set === detached.bench.sets.first { $0.index == 0 })
 }
