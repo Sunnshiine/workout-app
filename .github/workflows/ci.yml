@@ -45,6 +45,10 @@ on:
         description: Also run WorkoutTrackerUITests after the hosted suite
         type: boolean
         default: false
+      keyboard-lane:
+        description: Also run KeyboardLaneUITests
+        type: boolean
+        default: false
 
 # A title or body edit gets a group of its own, so it never cancels one. A push to main is keyed on
 # its commit, so a merge that lands mid-run never cancels the run verifying the merge before it.
@@ -222,8 +226,8 @@ jobs:
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'visual-tests (edit, base unchanged)' || 'visual-tests' }}
     runs-on: xcode-27
     # Catches a hang, not a slowdown: the old shape's p90 was 19 minutes. The last step warns on a
-    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes.
-    timeout-minutes: ${{ inputs.ui-suite && 35 || 20 }}
+    # slowdown. A dispatch with the UI suite adds its 9 to 13 minutes, the keyboard lane 3 or 4.
+    timeout-minutes: ${{ inputs.ui-suite && 35 || 25 }}
     # Every committed baseline was recorded on this exact pair (ADR-0007, issue #479).
     # Renders differ across machines and runtimes at the suite's exact precision, so treat
     # a change to either value as a re-record of every baseline.
@@ -234,6 +238,8 @@ jobs:
       SPEED_BUDGET_SECONDS: 600
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       # The device boots slim through simctl, after the build. ADR-0022's Consequences give the
       # load averages behind that order. A hung simctl once held this step for 40 minutes (#1010),
       # so it fails fast for a rerun instead of running out the job's limit.
@@ -248,23 +254,8 @@ jobs:
           echo "destination=platform=iOS Simulator,id=$udid" >> "$GITHUB_OUTPUT"
       - name: Create Secrets.xcconfig from template (build-only)
         run: cp Secrets.xcconfig.template Secrets.xcconfig
-      # A committed `record: .all` (suite- or test-level) makes every snapshot
-      # test write its baseline instead of comparing — the gate below would go
-      # green while checking nothing. Recording flips are working state only
-      # (VISUAL_LOOP.md); they must never land. Only Swift can carry the flag, and reading the
-      # 105 MB of baseline PNGs beside the simulator's boot took this step 42 to 54 s.
       - name: Refuse committed record mode (gate must stay armed)
-        run: |
-          status=0
-          grep -rnF --include="*.swift" "record: .all" Tests/Visual/ || status=$?
-          if [ "$status" -eq 0 ]; then
-            echo "::error::Committed .snapshots(record: .all) found — this disarms the Visual Regression gate. Revert to record: .never."
-            exit 1
-          fi
-          if [ "$status" -ne 1 ]; then
-            echo "::error::grep could not search Tests/Visual/ (exit $status), so this guard checked nothing."
-            exit 1
-          fi
+        run: scripts/refuse-record-mode.sh
       - name: Read the Xcode build number
         id: xcode
         run: echo "build=$(xcodebuild -version | awk '/Build version/ {print $3}')" >> "$GITHUB_OUTPUT"
@@ -286,6 +277,7 @@ jobs:
       # the build, and reinstalled the app, about three minutes a suite before its first test.
       - name: Build the app and every test bundle
         id: build
+        timeout-minutes: 15
         run: |
           xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
             -destination "${{ steps.sim.outputs.destination }}" \
@@ -310,6 +302,7 @@ jobs:
         run: xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
       - name: Run Visual Regression tests (ADR-0007 gate)
         id: visual
+        timeout-minutes: 10
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
             -destination "${{ steps.sim.outputs.destination }}" \
@@ -327,6 +320,7 @@ jobs:
       # hosted suite. Run 35515594647 recorded that skip before this line was fixed.
       - name: Run the hosted unit and component suite (WorkoutTrackerTests)
         id: hosted
+        timeout-minutes: 8
         if: ${{ !cancelled() && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
@@ -334,10 +328,18 @@ jobs:
             -only-testing:WorkoutTrackerTests \
             -resultBundlePath HostedTests.xcresult \
             -collect-test-diagnostics never
-      # Opt-in, not per PR: on unchanged code it goes red about half the time on
-      # testActiveSetLogButtonSubmitsOnFirstCenterTapWhileWeightFieldIsFocused (#518, #662).
+      # Skips itself unless the change reaches what it tests.
+      - name: Run the keyboard tests animated (KeyboardLaneUITests)
+        id: keyboard
+        timeout-minutes: 15
+        if: ${{ !cancelled() && !inputs.ui-suite && steps.build.conclusion == 'success' }}
+        env:
+          DISPATCHED: ${{ inputs.keyboard-lane }}
+        run: scripts/ci-keyboard-lane.sh "${{ steps.sim.outputs.udid }}" "${{ steps.build.outputs.xctestrun }}"
+      # The rest of the UI suite stays opt-in (#518, #662).
       - name: Run the UI suite (WorkoutTrackerUITests)
         id: ui
+        timeout-minutes: 20
         if: ${{ !cancelled() && inputs.ui-suite && steps.build.conclusion == 'success' }}
         run: |
           xcodebuild test-without-building -xctestrun "${{ steps.build.outputs.xctestrun }}" \
@@ -360,17 +362,19 @@ jobs:
           path: HostedTests.xcresult
           if-no-files-found: ignore
       - name: Upload UI test results
-        if: failure() && steps.ui.conclusion == 'failure'
+        if: failure() && (steps.ui.conclusion == 'failure' || steps.keyboard.conclusion == 'failure')
         uses: actions/upload-artifact@v4
         with:
           name: ui-test-results
-          path: UITests.xcresult
+          path: |
+            UITests.xcresult
+            KeyboardLane.xcresult
           if-no-files-found: ignore
 
       - name: Check the job against its speed budget
         if: ${{ !cancelled() && !inputs.ui-suite }}
         run: |
-          elapsed=$(( $(date +%s) - JOB_START ))
+          elapsed=$(( $(date +%s) - JOB_START - ${KEYBOARD_LANE_SECONDS:-0} ))
           echo "visual-tests ran ${elapsed} s against a budget of ${SPEED_BUDGET_SECONDS} s"
           if [ "$elapsed" -gt "$SPEED_BUDGET_SECONDS" ]; then
             echo "::warning title=hill-climb visual-tests speed::visual-tests ran ${elapsed} s, over its ${SPEED_BUDGET_SECONDS} s budget. Compare this run's step times with a recent green run."
