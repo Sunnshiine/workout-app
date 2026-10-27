@@ -21,6 +21,10 @@ expect_line() {
     if printf '%s\n' "$2" | grep -Fxq -- "$3"; then ok "$1: $3"; else bad "$1 is missing the line: $3"; fi
 }
 
+expect_text() {
+    if printf '%s\n' "$2" | grep -Fq -- "$3"; then ok "$1 has $3"; else bad "$1 is missing the text: $3"; fi
+}
+
 expect_no_text() {
     if printf '%s\n' "$2" | grep -Fq -- "$3"; then bad "$1 has the text: $3"; else ok "$1 lacks $3"; fi
 }
@@ -252,6 +256,39 @@ expect_line "wrapped signature" "$out" \
 expect_line "wrapped signature" "$out" \
     "note: Sources/Core/New.swift:10: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
 
+echo "a parameter after a closure-typed one is a declaration"
+fresh_repo
+printf 'func retry(handler: (Int) -> Void, conflict: Int) {}\n' >"$repo/Sources/Core/New.swift"
+check
+expect_exit "after a closure type" "$status" 1
+expect_line "after a closure type" "$out" \
+    "Sources/Core/New.swift:1: conflict declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
+
+echo "tuples, comma chains, case patterns, labels, and capture lists declare names too"
+fresh_repo
+cat >"$repo/Sources/Core/New.swift" <<'EOF2'
+let (a, conflict) = (1, 2)
+for (offset: i, element: conflict) in [9].enumerated() {}
+var b = 1, conflict = 2
+if case let .stale(at: conflict) = reason {}
+func f(_ x: Int, conflicts c: Int) {}
+func totals() -> (conflict: Int, total: Int) { (1, 2) }
+let pair: (conflict: Int, Int) = (1, 2)
+let drop = { [weak self] conflict in conflict }
+let list = [1, 2], k = retry(1, conflict: 1)
+typealias Pair = (conflict: Int, Int)
+let keep = { [conflict = 1] in conflict }
+func g(@Wrapped conflict: Int) {}
+EOF2
+check
+expect_exit "declaration forms" "$status" 1
+for line in 1 2 3 4 6 7 8 10 11 12; do
+    expect_text "declaration forms" "$out" "Sources/Core/New.swift:$line: conflict declares the kept name anew"
+done
+expect_text "declaration forms" "$out" "Sources/Core/New.swift:5: conflicts declares the kept name anew"
+expect_no_text "declaration forms" "$out" "New.swift:9: conflict declares"
+expect_text "declaration forms" "$out" "note: Sources/Core/New.swift:9: conflict spells"
+
 echo "moving a kept declaration to another file is not a new one"
 fresh_repo
 printf 'let displayedSessionCount = 1\nfunc refuse(conflict: Int) -> Int { conflict }\nenum Reason { case heard, conflicting }\n' \
@@ -280,10 +317,43 @@ printf 'let conflictingField = 1\n' >"$repo/Sources/Core/New.swift"
 printf 'conflictingField\n' >>"$repo/scripts/vocabulary-avoid.txt"
 check
 expect_exit "new unrelated entry" "$status" 0
-expect_no_text "new unrelated entry" "$out" "conflictingField"
+expect_line "new unrelated entry" "$out" \
+    "note: Sources/Core/New.swift:1: conflictingField declares a name this branch adds to [unrelated] (scripts/vocabulary-avoid.txt:18), so it passes. Review the entry with it."
 printf 'let conflicting = 2\n' >>"$repo/Sources/Core/New.swift"
 check
 expect_exit "new unrelated entry, old name redeclared" "$status" 1
+
+echo "a name the branch adds to [kept] is no hatch for its declaration"
+fresh_repo
+printf '[avoid]\nconflict\n\n[kept]\nconflict\nconflicts\nconflictCount\n\n[unrelated]\nconflicting\n' \
+    >"$repo/scripts/vocabulary-avoid.txt"
+printf 'let conflictCount = 1\n' >"$repo/Sources/Core/New.swift"
+check
+expect_exit "new kept entry" "$status" 1
+expect_line "new kept entry" "$out" \
+    "Sources/Core/New.swift:1: conflictCount declares the kept name anew (the tree declared it 0 times, now 1), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
+
+echo "a name in two sections is a list problem, and listing it again exempts nothing"
+fresh_repo
+printf 'conflicts\n' >>"$repo/scripts/vocabulary-avoid.txt"
+printf 'let conflicts = 2\n' >"$repo/Sources/Core/New.swift"
+check
+expect_exit "listed twice" "$status" 1
+expect_line "listed twice" "$out" \
+    "scripts/vocabulary-avoid.txt:18: conflicts is listed in [kept] at line 14 and again in [unrelated]. List it once."
+expect_line "listed twice" "$out" \
+    "Sources/Core/New.swift:1: conflicts declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
+
+echo "a kept name the branch moves to [unrelated] is not new to the list"
+fresh_repo
+grep -vx conflicts "$repo/scripts/vocabulary-avoid.txt" >"$root/list"
+printf 'conflicts\n' >>"$root/list"
+mv "$root/list" "$repo/scripts/vocabulary-avoid.txt"
+printf 'let conflicts = 2\n' >"$repo/Sources/Core/New.swift"
+check
+expect_exit "moved to unrelated" "$status" 1
+expect_line "moved to unrelated" "$out" \
+    "Sources/Core/New.swift:1: conflicts declares the unrelated name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
 
 echo "a kept name the tree no longer holds fails, so the list only shrinks"
 fresh_repo

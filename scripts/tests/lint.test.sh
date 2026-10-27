@@ -38,7 +38,7 @@ fresh_fixture() {
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
     cp "$repo"/scripts/lint-* "$repo/scripts/swift-format-changed.sh" \
-        "$repo/scripts/doc-drift.py" "$fx/scripts/"
+        "$repo/scripts/doc-drift.py" "$repo/scripts/vocabulary_declarations.py" "$fx/scripts/"
     printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
     printf '[avoid]\n' >"$fx/scripts/vocabulary-avoid.txt"
     mkdir -p "$fx/.github/workflows"

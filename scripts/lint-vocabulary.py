@@ -26,11 +26,20 @@ contradicts itself.
 A name in [kept] spells a phrase but stays, by the operator's choice (P8). A line that uses it gets
 a note and passes. A name in [unrelated] spells a phrase but means something else, and a line that
 uses it passes silently. Either way the exemption covers only the declarations the tree already
-holds. When the branch raises the count of let, var, func, type, enum case, parameter (a wrapped
-signature's too), or closure declarations of the name, the added declaration is a new name and
-fails. The one exception is an [unrelated] name the branch itself adds to the list, so review sees
-the entry beside the declaration. A listed name the tree no longer holds fails too, so the list
-only shrinks.
+holds, counted per spelling across the files at the fork and in the working tree. When the branch
+raises a name's count, the added declaration is a new name and fails. The count reads let and var
+bindings (tuple patterns, comma chains, and `case let` patterns included), for-loop variables, func,
+type, and enum case names, argument labels and parameter names (a wrapped signature's too),
+tuple-type labels after `->`, a binding's annotation, or a typealias, and closure parameters and
+capture-list bindings. The exception is a name the branch adds to [unrelated] that no section held
+at the fork: its declarations pass with a note, so review sees the entry beside them. A name listed
+twice, or a listed name the tree no longer holds, fails, so the list only shrinks.
+
+Known limits. The count is per spelling, not per file, so a branch that removes a declaration in
+one file and adds the same spelling in another passes. Labels in a tuple expression, as in
+`(conflict: 1, total: 2)`, are not counted, because the line reads the same as a call. The ending
+slack accepts non-words, such as a doubled last letter with no ending (`tempoo`); that only fails
+more names, and never lets a word through.
 
 Exits 0 when clean, 1 on findings or a list the glossary does not back, 2 when git cannot answer
 or BASE is no commit this branch grew from, and 64 on a usage error.
@@ -45,6 +54,9 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from vocabulary_declarations import IDENTIFIER, declared_lines
+
 LIST = "scripts/vocabulary-avoid.txt"
 GLOSSARY = ("CONTEXT.md", "docs/context")
 TREES = ("Sources", "App", "WorkoutShared", "WorkoutWidgets")
@@ -56,21 +68,11 @@ NOISE = re.compile(
     r'//[^\n]*|/\*.*?\*/|(#*)"""(?:.|\n)*?"""\1|(#+)"[^\n]*?"\2|"(?:\\.|[^"\\\n])*"',
     re.DOTALL,
 )
-IDENTIFIER = re.compile(r"\b[A-Za-z_][A-Za-z0-9_]*\b")
 WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z]|\d|\b)|[A-Z]?[a-z]+|[A-Z]+|\d+")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 ENTRY = re.compile(r"^\*\*([^*]+)\*\*")
 BOLD = re.compile(r"\*\*([^*]+)\*\*")
 AVOID = re.compile(r"\bAvoid:\s*(.*)$")
-
-NAMED = re.compile(
-    r"\b(?:let|var|func|class|struct|enum|protocol|actor|typealias|associatedtype|for)\s+\(?\s*([A-Za-z_]\w*)")
-ENUM_CASE = re.compile(r"(?:^|[{;])\s*(?:indirect\s+)?case\s+(?!let\b|var\b)(?=[A-Za-z_])")
-SIGNATURE = re.compile(r"(?<![.\w])(?:func\b|init[?!]?\s*[(<]|subscript\s*[(<])")
-SIGNATURE_END = re.compile(r"->|\{")
-PARAMETER = re.compile(r"[(,]\s*(?:[A-Za-z_]\w*\s+)?([A-Za-z_]\w*)\s*:(?!:)")
-PARENS = re.compile(r"\([^()]*\)")
-CLOSURE = re.compile(r"\{\s*\(?\s*([A-Za-z_][\w\s,:.?\[\]<>]*?)\)?\s+in\b")
 
 
 class Unanswered(Exception):
@@ -104,54 +106,6 @@ def spells(identifier_words: tuple[str, ...], phrase: tuple[str, ...]) -> bool:
 def contains(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
     k = len(needle)
     return any(haystack[i:i + k] == needle for i in range(len(haystack) - k + 1))
-
-
-def depth_after(text: str, depth: int = 0) -> tuple[int, int]:
-    """The paren depth at the end of text, starting from depth, and where it first returns to 0."""
-    for at, char in enumerate(text):
-        depth += (char == "(") - (char == ")")
-        if depth == 0 and char == ")":
-            return 0, at
-    return depth, len(text)
-
-
-def declared(line: str) -> tuple[list[str], int]:
-    """The names a line of code declares (bindings, functions, types, enum cases, parameters, and
-    closure parameters), and the paren depth of a signature or enum case it leaves open."""
-    names = NAMED.findall(line)
-    still_open = 0
-    case = ENUM_CASE.search(line)
-    if case:
-        rest = line[case.end():]
-        names += PARAMETER.findall(rest)
-        still_open = depth_after(rest)[0]
-        while PARENS.search(rest):
-            rest = PARENS.sub("", rest)
-        names += [m.group() for piece in rest.split(",") if (m := IDENTIFIER.search(piece))]
-    signature = SIGNATURE.search(line)
-    if signature:
-        rest = line[signature.end() - 1:]
-        end = SIGNATURE_END.search(rest)
-        head = rest[:end.start()] if end else rest
-        names += PARAMETER.findall(head)
-        still_open = depth_after(head)[0]
-    for closure in CLOSURE.finditer(line):
-        names += [m.group() for piece in closure.group(1).split(",") if (m := IDENTIFIER.search(piece))]
-    return names, still_open
-
-
-def declared_lines(lines: list[str]) -> list[list[str]]:
-    """What each line declares. A line inside a signature or enum case that an earlier line opened
-    declares the parameters it holds before the list closes."""
-    found, open_depth = [], 0
-    for line in lines:
-        names, still_open = declared(line)
-        if open_depth:
-            open_depth, close = depth_after(line, open_depth)
-            names += PARAMETER.findall("," + line[:close])
-        found.append(names)
-        open_depth = open_depth or still_open
-    return found
 
 
 def git(root: Path, *args: str, no_match: int | None = None, stdin: bytes | None = None):
@@ -313,9 +267,17 @@ def main(argv: list[str]) -> int:
         except (OSError, ValueError) as error:
             print(f"error: {error}", file=sys.stderr)
             return 1
-        listed = {name: section for section in ("kept", "unrelated") for _, name in sections[section]}
-        newly_unrelated = ({name for _, name in sections["unrelated"]}
-                           - {name for _, name in listed_at_fork["unrelated"]})
+        listed: dict[str, tuple[str, int]] = {}
+        for section in ("kept", "unrelated"):
+            for number, name in sections[section]:
+                if name in listed:
+                    problems.append(f"{LIST}:{number}: {name} is listed in [{listed[name][0]}] at line "
+                                    f"{listed[name][1]} and again in [{section}]. List it once.")
+                else:
+                    listed[name] = (section, number)
+        listed_before = {name for entries in listed_at_fork.values() for _, name in entries}
+        newly_unrelated = {name for name, (section, _) in listed.items()
+                           if section == "unrelated" and name not in listed_before}
         now, used = declarations(listed_names_in(root, set(listed), None), set(listed))
         before = declarations(listed_names_in(root, set(listed), fork), set(listed))[0] if fork else now
     except Unanswered as error:
@@ -340,16 +302,20 @@ def main(argv: list[str]) -> int:
             if wanted is not None and number not in wanted:
                 continue
             checked += 1
-            new = {name for name in declares if now[name] > before[name] and name not in newly_unrelated}
+            grew = {name for name in declares if now[name] > before[name]}
             for name in dict.fromkeys(IDENTIFIER.findall(line)):
                 phrase = spelled(name)
                 if phrase is None:
                     continue
                 said = (f"spells \"{phrase.text}\", which {phrase.entry_file} avoids for {phrase.term}.")
-                section = listed.get(name)
-                if section is None:
+                if name not in listed:
                     failures.append(f"{path}:{number}: {name} {said} Name it with the glossary's word.")
-                elif name in new:
+                    continue
+                section, entry = listed[name]
+                if name in grew and name in newly_unrelated:
+                    notes.append(f"note: {path}:{number}: {name} declares a name this branch adds to "
+                                 f"[unrelated] ({LIST}:{entry}), so it passes. Review the entry with it.")
+                elif name in grew:
                     failures.append(
                         f"{path}:{number}: {name} declares the {section} name anew (the tree declared it "
                         f"{times(before[name])}, now {now[name]}), and it {said} Name it with the "
@@ -360,7 +326,7 @@ def main(argv: list[str]) -> int:
     for line in notes + failures + problems:
         print(line)
     scope = "every line" if whole_tree else f"the lines added since {base}"
-    print(f"{checked} lines read ({scope}), {len(failures)} names fail, {len(notes)} kept names noted, "
+    print(f"{checked} lines read ({scope}), {len(failures)} names fail, {len(notes)} names noted, "
           f"{len(problems)} list problems")
     return 1 if failures or problems else 0
 
