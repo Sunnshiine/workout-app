@@ -11,7 +11,8 @@ struct DeveloperToolsView: View {
     @State private var writeAuditDiagnostics: [WriteTargetAuditDiagnostic] = []
     @State private var diagnosticsErrorMessage: String?
     @State private var writeAuditErrorMessage: String?
-    @State private var forcedCelebrationSession: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
+    /// By address, so a sync that lands under the celebration shows the Session it parsed.
+    @State private var forcedCelebrationAddress: SessionAddress?
 
     var body: some View {
         ZStack {
@@ -36,12 +37,16 @@ struct DeveloperToolsView: View {
         .overlay {
             if let forcedCelebrationSession {
                 MoveOnCelebrationView(session: forcedCelebrationSession) {
-                    self.forcedCelebrationSession = nil
+                    forcedCelebrationAddress = nil
                 }
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: forcedCelebrationSession?.persistentModelID)
+        .animation(.easeInOut(duration: 0.18), value: forcedCelebrationAddress)
+    }
+
+    private var forcedCelebrationSession: Session? {
+        forcedCelebrationAddress.flatMap { workout.block?.session(at: $0) }
     }
 
     private var currentSessionSection: some View {
@@ -123,7 +128,7 @@ struct DeveloperToolsView: View {
         DeveloperToolsSection(title: "Actions") {
             HStack(spacing: 10) {
                 BorderedCircleIconButton(label: "Force Move On Celebration", systemImage: "sparkles") {
-                    forcedCelebrationSession = workout.viewedSession
+                    forcedCelebrationAddress = workout.viewedSession?.address
                 }
                 .disabled(workout.viewedSession == nil)
                 .accessibilityIdentifier("developer-tools-force-celebration-button")

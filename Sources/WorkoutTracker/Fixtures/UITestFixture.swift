@@ -38,10 +38,8 @@
 
         /// Brings a fresh fixture application to the state `launch` names, through the calls a
         /// phone makes: a sync of the fixture Sheet, the Exercise History its earlier fills left, and
-        /// for a pending-write launch a log that was never flushed. Then the faults the launch asks
-        /// for are armed: an offline launch disconnects FIXTURE, so a log stays queued, and a
-        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
-        /// stalls on them.
+        /// for a pending-write launch a log that was never flushed. Then the drive changes as the
+        /// launch asks, after the boot sync has read it.
         @MainActor
         static func boot(_ app: WorkoutApplication, launch: UITestLaunch, sheets: LocalDrive) async throws {
             try launch.checkFlags()
@@ -56,12 +54,7 @@
             if launch.startsWithPendingWrite {
                 _ = try app.log(pendingWriteSet, setLog: pendingWriteLog)
             }
-            if launch.startsOffline {
-                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
-            }
-            if launch.slowsSync {
-                await sheets.holdTabListings(for: .seconds(20))
-            }
+            try await change(sheets, as: launch)
             // Onboarding leaves the spreadsheet unset so the app lands on the sheet picker, while
             // the synced (stale) Block stays in the store to prove it is never shown for the newly
             // selected sheet.
@@ -69,6 +62,23 @@
                 app.settings.setSpreadsheet(id: WorkoutFixtureScenarios.sheetId, title: WorkbookScenario.title)
             }
             present(launch, on: app.workout)
+        }
+
+        /// A coach-edit launch changes the Sheet behind the synced Block, so only the next sync or
+        /// flush meets the change. An offline launch disconnects FIXTURE, so a log stays queued, and a
+        /// slow-sync launch holds every later tab list. The faults wait for the boot, so it never
+        /// stalls on them.
+        @MainActor
+        private static func change(_ sheets: LocalDrive, as launch: UITestLaunch) async throws {
+            if let coachEdit = try launch.coachEdit {
+                try await sheets.write([coachEdit], spreadsheetId: WorkoutFixtureScenarios.sheetId)
+            }
+            if launch.startsOffline {
+                await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
+            }
+            if launch.slowsSync {
+                await sheets.holdTabListings(for: .seconds(20))
+            }
         }
 
         /// Syncs the scenario's workbook, which the drive already holds as FIXTURE.

@@ -250,7 +250,7 @@ private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, S
 @MainActor
 @Test func aSyncThatReplacesTheBlockReconcilesTheRestLiveActivityAtTheReplacementsLiveEdge() async throws {
     let (app, coordinator, liveActivity) = try await makeStoreDrivenCoordinator()
-    let stale = try #require(coordinator.session)
+    let stale = try #require(app.workout.viewedSession)
 
     _ = try await app.sync()
     await waitUntil(
@@ -299,7 +299,7 @@ private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, S
 @MainActor
 @Test func viewingASessionReseedsFocusAndReconcilesTheRestLiveActivity() throws {
     let first = makeCoordinatorSession()
-    let second = makeCoordinatorSession()
+    let second = makeCoordinatorSession(blockTab: "Block 28")
     let firstBench = try #require(first.exercises.first { $0.order == 1 })
     let liveActivity = SpySessionLiveActivityAdapter()
     let navigation = SpySessionNavigationAdapter()
@@ -312,7 +312,7 @@ private func makeStoreDrivenCoordinator() async throws -> (WorkoutApplication, S
 
     coordinator.view(second)
 
-    #expect(coordinator.session === second)
+    #expect(coordinator.sessionCoordinate == second.placement.coordinate)
     #expect(coordinator.activeSetID == ActiveSetID(exerciseOrder: 1, setIndex: 0))
     #expect(liveActivity.invalidationCalls == [.atLiveEdge(currentSession: second)])
 }

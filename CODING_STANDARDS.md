@@ -43,10 +43,10 @@ called redundant was the lift, and deleting it cut the Superset bud.)
 
 - **A dropped or detached `Task` that assigns a store field after its owning method returned.**
   Hold and await work the sequence needs. (#514, #585, fixed in #595.)
-- **A `@Model` object held across a reload.** Hold a `SessionAddress`, a `SetCoordinates.ID`, or
-  a `persistentModelID`, and re-resolve it from the store's Block. `===` is sound only within one
-  read pass. `model_held_across_reload` below catches the stored `var`. (#586, #976, #1052,
-  `WorkoutStore.viewing`.)
+- **A `@Model` object held across a reload.** Hold a `SessionAddress`, a `SessionCoordinate`, a
+  `SetCoordinates.ID`, or a `persistentModelID`, and re-resolve it from the store's Block. `===` is
+  sound only within one read pass. `model_held_across_reload` below catches the stored `var`.
+  (#586, #976, #1052, `WorkoutStore.viewing`, `SessionCoordinator.sessionCoordinate`.)
 
 ## Optionals
 

@@ -37,13 +37,19 @@ final class ActiveSetFocusManager {
     /// The values the card shows for one Set, as the card last reported them, which fill what a
     /// Spoken Set leaves unsaid whether the card's mic or a locked press heard it.
     @ObservationIgnored private var cardDraft: (setID: ActiveSetID, draft: SetLogDraft)?
-    /// The Session the focus is about: the one the stage last bound. An `ActiveSetID` names a Set
-    /// only within it.
-    @ObservationIgnored private(set) var session: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
+    /// The Session the focus is about, the one the stage last bound, by the coordinate a sync's
+    /// re-parse keeps. An `ActiveSetID` names a Set only within it.
+    @ObservationIgnored private var sessionCoordinate: SessionCoordinate?
 
     init(session: Session?) {
-        self.session = session
+        sessionCoordinate = session?.placement.coordinate
         activeSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
+    }
+
+    /// A Detached Session is one no focus is about.
+    private func isAbout(_ session: Session) -> Bool {
+        guard let coordinate = session.placement.coordinate else { return false }
+        return coordinate == sessionCoordinate
     }
 
     /// The Set the card for `session` listens on: the stage's own focus while it is about
@@ -52,7 +58,7 @@ final class ActiveSetFocusManager {
     /// first Pending Set. A focus left on a Set no longer Pending, as by a write that bypassed the
     /// stage, falls back to the first Pending Set, as the card's own stage does.
     func activeSet(in session: Session) -> SessionSetPosition? {
-        guard self.session === session else { return SessionSetOrder.firstPendingSet(in: session) }
+        guard isAbout(session) else { return SessionSetOrder.firstPendingSet(in: session) }
         let ordered = SessionSetOrder.orderedSets(in: session)
         return ordered.first { $0.setID == activeSetID && $0.set.isPending } ?? ordered.first { $0.set.isPending }
     }
@@ -71,7 +77,7 @@ final class ActiveSetFocusManager {
     }
 
     func reset(to session: Session?) {
-        self.session = session
+        sessionCoordinate = session?.placement.coordinate
         let nextSetID = session.flatMap { SessionSetOrder.firstPendingSet(in: $0)?.setID }
         if let session {
             supersetState.refresh(in: session)
@@ -81,6 +87,24 @@ final class ActiveSetFocusManager {
         }
         shownInstead = nil
         cardDraft = nil
+    }
+
+    /// The Session the focus is about, parsed again by a sync. The focus stays on its Set while that
+    /// Set is still Pending, and otherwise moves as `activeSet(in:)` does. What the card shows
+    /// instead stays while its Set reads as it did: a review's Set still logged, a held Set still
+    /// written.
+    func follow(_ session: Session) {
+        activeSetID = supersetState.focusedSetID(whenNormalFocusIs: activeSet(in: session)?.setID, in: session)
+        guard let shownInstead else { return }
+        let set = SessionSetOrder.orderedSets(in: session).first { $0.setID == shownInstead.setID }?.set
+        let stillShown =
+            switch shownInstead {
+            case .review: set?.state == .logged
+            case .heldAfterSpokenWrite: set.map { !$0.isPending } ?? false
+            }
+        if !stillShown {
+            self.shownInstead = nil
+        }
     }
 
     func cardShows(_ draft: SetLogDraft, for setID: ActiveSetID) {
@@ -108,7 +132,7 @@ final class ActiveSetFocusManager {
     /// still showed it. Whatever else the card shows stays. True when the card keeps `set`.
     @discardableResult
     func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, holding: Bool) -> Bool {
-        guard self.session === session, let setID = Self.id(for: set), activeSetID == setID else { return false }
+        guard isAbout(session), let setID = Self.id(for: set), activeSetID == setID else { return false }
         activeSetID = nextActiveSetID(after: set, in: session)
         guard holding, shownInstead == nil else { return false }
         shownInstead = .heldAfterSpokenWrite(setID)

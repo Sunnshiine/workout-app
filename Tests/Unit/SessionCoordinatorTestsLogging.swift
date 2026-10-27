@@ -173,7 +173,7 @@ import Testing
 
     coordinator.log(new.set, as: log)
 
-    #expect(coordinator.session === new.session)
+    #expect(coordinator.sessionCoordinate == new.session.placement.coordinate)
     #expect(logging.loggedSets.first?.set === new.set)
     #expect(new.set.state == .logged)
     #expect(old.set.state == .pending)
@@ -193,7 +193,7 @@ import Testing
 
     coordinator.deleteLog(for: new.set)
 
-    #expect(coordinator.session === new.session)
+    #expect(coordinator.sessionCoordinate == new.session.placement.coordinate)
     #expect(logging.deletedSets.first === new.set)
     #expect(new.set.state == .pending)
     #expect(old.set.state == .pending)

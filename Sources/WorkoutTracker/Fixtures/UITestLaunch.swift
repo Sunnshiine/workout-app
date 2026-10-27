@@ -144,6 +144,16 @@
             }
         }
 
+        /// The cell a coach changes on the Scenario's Block tab after the boot sync; nil changes none.
+        var coachEdit: SheetCellWrite? {
+            get throws(UnreadableCoachEdit) {
+                guard let value = value(of: .coachEdit) else { return nil }
+                let parts = value.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+                guard parts.count == 2, let cell = a1CellIndex(String(parts[0])) else { throw UnreadableCoachEdit(value: value) }
+                return SheetCellWrite(tabName: WorkbookScenario.blockTab, row: cell.row, col: cell.col, value: String(parts[1]))
+            }
+        }
+
         /// The argument after `flag`, empty when it comes last; nil when the launch lacks `flag`.
         private func value(of flag: LaunchFlag) -> String? {
             guard let flagIndex = arguments.firstIndex(of: flag.argument) else { return nil }
@@ -155,6 +165,14 @@
 
             var description: String {
                 "\(LaunchFlag.decisionDeadline.argument) takes a number of seconds above 0, not \"\(value)\""
+            }
+        }
+
+        struct UnreadableCoachEdit: Error, Equatable, CustomStringConvertible {
+            let value: String
+
+            var description: String {
+                "\(LaunchFlag.coachEdit.argument) takes an A1 cell, `=`, and the cell's new value, as K18=245x5@8, not \"\(value)\""
             }
         }
 

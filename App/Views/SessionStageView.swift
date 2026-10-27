@@ -17,9 +17,9 @@ struct SessionStageView: View {
     @State private var isQueuePresented = false
     @State private var isRestPillMounted = false
     @State private var isRestPillFaded = false
-    /// The Exercise whose history the sheet is showing — its only entry point is a tap on that
-    /// Exercise's Last Performed line.
-    @State private var historyExercise: Exercise?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
+    /// The Exercise whose history the sheet is showing, by the name a sync's re-parse keeps. Its
+    /// only entry point is a tap on that Exercise's Last Performed line.
+    @State private var history: ExerciseHistoryAnchor?
 
     var body: some View {
         let stage = coordinator.stage(in: session, lookup: lastPerformedLookup.snapshot)
@@ -74,18 +74,18 @@ struct SessionStageView: View {
         .sheet(isPresented: $isQueuePresented) {
             SessionQueueSheet(queue: stage.queue, session: session, coordinator: coordinator)
         }
-        .sheet(item: $historyExercise) { exercise in
+        .sheet(item: $history) { history in
             ExerciseHistorySheet(
                 presentation: ExerciseHistorySheetPresentation(
-                    anchor: exercise.exerciseName,
-                    entries: lastPerformedLookup.snapshot.history(for: exercise.exerciseName)
+                    anchor: history.name,
+                    entries: lastPerformedLookup.snapshot.history(for: history.name)
                 ),
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
         .onChange(of: entry.coverClosings) {
             isQueuePresented = false
-            historyExercise = nil
+            history = nil
         }
         .onChange(of: coordinator.supersetFusions) {
             isQueuePresented = false
@@ -279,7 +279,7 @@ struct SessionStageView: View {
     // over the stage unless the field resigns before the sheet presents (#697).
     private func showHistory(of exercise: Exercise) {
         dismissKeyboard()
-        historyExercise = exercise
+        history = ExerciseHistoryAnchor(name: exercise.exerciseName)
     }
 
     private func dismissKeyboard() {
@@ -290,6 +290,11 @@ struct SessionStageView: View {
             for: nil
         )
     }
+}
+
+private struct ExerciseHistoryAnchor: Identifiable {
+    let name: ExerciseName
+    var id: ExerciseName { name }
 }
 
 /// The card sits after the switch, at one position in both compositions, so its identity and the

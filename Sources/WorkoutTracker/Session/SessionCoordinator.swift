@@ -19,7 +19,8 @@ private struct TaskSessionTransitionClock: SessionTransitionClock {
 @MainActor
 @Observable
 final class SessionCoordinator {
-    private(set) var session: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
+    /// The Session on stage, by the coordinate a sync's re-parse keeps. Nil until the stage binds.
+    private(set) var sessionCoordinate: SessionCoordinate?
     private(set) var savedLoggedSetID: ActiveSetID?
 
     @ObservationIgnored let focusManager: ActiveSetFocusManager
@@ -29,7 +30,9 @@ final class SessionCoordinator {
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     /// Nil leaves the mic off every card.
     @ObservationIgnored let dictation: SetDictation?
-    @ObservationIgnored var dictatingSession: Session?  // swiftlint:disable:this model_held_across_reload - #1127 converts it
+    /// The Set the running press or hands-free listen began on, by the coordinates a sync's
+    /// re-parse keeps. Its Session is the one the press began on.
+    @ObservationIgnored var dictatingSet: SetCoordinates.ID?
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
@@ -41,7 +44,7 @@ final class SessionCoordinator {
         dictation: SetDictation? = nil,
         focus: ActiveSetFocusManager? = nil
     ) {
-        self.session = session
+        sessionCoordinate = session?.placement.coordinate
         self.wiring = wiring
         self.transitionClock = transitionClock
         self.dictation = dictation
@@ -65,11 +68,38 @@ final class SessionCoordinator {
     var pairingMode: PairingMode { pairing.mode }
     var supersetFusions: Int { pairing.fusions }
 
-    /// The athlete is now viewing `session`. Re-points the coordinator at it, with focus
-    /// re-seeded from its first Pending Set, and re-checks the rest Live Activity.
+    /// The athlete is now viewing `session`, and the rest Live Activity is re-checked. A Session
+    /// the stage is not on re-points the coordinator at it, with focus re-seeded from its first
+    /// Pending Set. The Session on stage, shown again as itself or parsed again by a sync, keeps
+    /// the athlete's focus, review, held Set, and press, and ends a pairing under way.
     func view(_ session: Session) {
-        bind(to: session)
+        if isOnStage(session) {
+            follow(session)
+        } else {
+            bind(to: session)
+        }
         reconcileLiveActivity()
+    }
+
+    /// True for the Session on stage, as itself or parsed again by a sync. A Detached Session is
+    /// on no stage.
+    func isOnStage(_ session: Session?) -> Bool {
+        guard let coordinate = session?.placement.coordinate else { return false }
+        return coordinate == sessionCoordinate
+    }
+
+    /// The coordinates `set` keeps through a sync's re-parse, while its Session is on stage. Nil for
+    /// a Set of a Detached Session or of another Session.
+    func onStageID(of set: ExerciseSet) -> SetCoordinates.ID? {
+        guard let id = try? SetCoordinates(of: set).id, id.session == sessionCoordinate else { return nil }
+        return id
+    }
+
+    /// The Current Session, while it is the one at `coordinate`: the Session a press or a listen
+    /// began on, parsed again by any sync that landed while it ran.
+    func currentSession(at coordinate: SessionCoordinate) -> Session? {
+        guard let current = wiring.navigation.currentSession, current.placement.coordinate == coordinate else { return nil }
+        return current
     }
 
     /// Re-checks the rest Live Activity at the Viewed Session's live edge. The one reconciler, run
@@ -99,12 +129,21 @@ final class SessionCoordinator {
     }
 
     private func bind(to session: Session) {
-        self.session = session
+        sessionCoordinate = session.placement.coordinate
         savedLoggedSetID = nil
         cancelPairing()
         cancelSpokenWriteHold()
         dictation?.dismiss()
         focusManager.reset(to: session)
+        answerEntry()
+    }
+
+    /// The focus, a review, a held Set, and a press under way carry over to the Session on stage,
+    /// shown again as itself or parsed again by a sync. A pairing under way ends either way, as on
+    /// a bind: after a re-parse its confirmation would fuse the Exercises it began with.
+    private func follow(_ session: Session) {
+        cancelPairing()
+        perform(nil) { focusManager.follow(session) }
         answerEntry()
     }
 
@@ -148,7 +187,7 @@ final class SessionCoordinator {
     /// the Set and moves on; reviewing saves over a logged Set and moves nothing, so a review takes
     /// no skip. A held Set takes no write from its card: only its Clear menu changes it.
     @discardableResult
-    private func write(_ write: CardWrite, to set: ExerciseSet, as mode: SetCardMode, from source: WriteSource) -> Bool {
+    func write(_ write: CardWrite, to set: ExerciseSet, as mode: SetCardMode, from source: WriteSource) -> Bool {
         switch (mode, write) {
         case (.logging, .log(let setLog)): log(set, as: setLog, from: source)
         case (.logging, .skip): skip(set, from: source)
@@ -258,12 +297,14 @@ final class SessionCoordinator {
         try wiring.motion.animate(requested, change)
     }
 
+    /// A Set of a Detached Session names no stage, so it neither moves the stage nor writes.
     private func actionSession(for set: ExerciseSet) throws -> Session {
         guard let session = set.exercise?.session else {
             throw SessionCoordinatorError.missingSession
         }
+        guard session.placement.coordinate != nil else { throw WorkoutLoggingError.detachedSession }
 
-        if self.session !== session {
+        if !isOnStage(session) {
             bind(to: session)
         }
 
@@ -321,23 +362,25 @@ extension SessionCoordinator {
     }
 }
 
-/// How a write reached the card. A tap moves the card on at once; a spoken write keeps the Set on
-/// the card first, so the athlete can glance at what was heard and undo it.
-private enum WriteSource {
-    case card
-    case speech
-}
+extension SessionCoordinator {
+    /// How a write reached the card. A tap moves the card on at once; a spoken write keeps the Set
+    /// on the card first, so the athlete can glance at what was heard and undo it.
+    enum WriteSource {
+        case card
+        case speech
+    }
 
-private enum CardWrite {
-    case log(SetLog)
-    case skip
+    enum CardWrite {
+        case log(SetLog)
+        case skip
 
-    /// Nil for an outcome that writes nothing, as a draft filled or a transcript rejected.
-    init?(_ outcome: SetDictation.Outcome) {
-        switch outcome {
-        case .logged(let setLog, _): self = .log(setLog)
-        case .skipped: self = .skip
-        case .filled, .rejected: return nil
+        /// Nil for an outcome that writes nothing, as a draft filled or a transcript rejected.
+        init?(_ outcome: SetDictation.Outcome) {
+            switch outcome {
+            case .logged(let setLog, _): self = .log(setLog)
+            case .skipped: self = .skip
+            case .filled, .rejected: return nil
+            }
         }
     }
 }
@@ -345,113 +388,6 @@ private enum CardWrite {
 extension SessionCoordinator {
     /// How long the card keeps a Set written by speech before it moves on.
     static let spokenWriteHold: Duration = .seconds(4)
-
-    /// Nil keeps the mic off the card: no transcriber, or a Set the card neither logs nor reviews.
-    func cardDictation(for slot: SetCardSlot) -> SetCardDictation? {
-        guard let dictation, spokenWriteMode(for: slot.set) == slot.mode.cardMode, let setID = Self.activeSetID(for: slot.set) else {
-            return nil
-        }
-        return SetCardDictation(dictation.state, for: setID)
-    }
-
-    /// How the card writes a Spoken Set for `set`: as a log of a Pending Set, or as a save over the
-    /// logged Set under review. Nil for any other Set, which takes nothing said.
-    private func spokenWriteMode(for set: ExerciseSet) -> SetCardMode? {
-        guard let setID = Self.activeSetID(for: set) else { return nil }
-        if set.isPending { return .logging }
-        if set.state == .logged, focusManager.expandedLoggedSetID == setID { return .reviewingLogged }
-        return nil
-    }
-
-    func startDictation(for set: ExerciseSet) {
-        guard let dictation, let setID = Self.activeSetID(for: set), let session = stagedSession(of: set),
-            let mode = spokenWriteMode(for: set), dictation.start(for: setID)
-        else { return }
-        dictatingSession = session
-        dictatingMode = mode
-    }
-
-    /// The Session on stage, when `set` is in it.
-    private func stagedSession(of set: ExerciseSet) -> Session? {
-        guard let session, set.exercise?.session === session else { return nil }
-        return session
-    }
-
-    /// The card reports what it shows for `set` as the athlete changes it, which fills what a
-    /// Spoken Set leaves unsaid, from the card's mic or a press with the phone locked alike.
-    func cardShows(_ draft: SetLogDraft, for set: ExerciseSet) {
-        guard let setID = Self.activeSetID(for: set) else { return }
-        focusManager.cardShows(draft, for: setID)
-    }
-
-    /// Writes what the athlete said through the same paths as the card's Log and skip, with what
-    /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
-    /// another Set writes nothing, as `write(_:heardFor:in:)` says of a Set the card no longer
-    /// writes as the press began.
-    func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
-        guard let dictation, let setID = dictation.state.pressSetID else { return nil }
-        guard let session = sessionOfPress(for: setID, releasedOn: set) else {
-            await dictation.cancel()
-            return nil
-        }
-        return write(await dictation.finish(for: setID, in: spokenSetContext(for: set)), heardFor: setID, in: session)
-    }
-
-    func spokenSetContext(for set: ExerciseSet) -> SpokenSetContext {
-        SpokenSetContext(for: set, shownBy: focusManager, history: wiring.history())
-    }
-
-    /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
-    private func sessionOfPress(for setID: ActiveSetID, releasedOn set: ExerciseSet) -> Session? {
-        guard let session, session === dictatingSession, Self.activeSetID(for: set) == setID, set.exercise?.session === session else {
-            return nil
-        }
-        return session
-    }
-
-    func pendingSet(at setID: ActiveSetID, in session: Session) -> ExerciseSet? {
-        guard self.session === session, let set = session.set(at: setID), set.isPending else { return nil }
-        return set
-    }
-
-    /// The card writes what was said as it would a tap, in the mode the press began in. A Set the
-    /// card no longer writes that way once the transcript is in, as one logged by hand during a
-    /// press for its log, takes nothing, and neither does a write the mode refuses, as a skip said
-    /// over a review: its outcome goes, so the card answers no write it did not make.
-    func write(_ outcome: SetDictation.Outcome?, heardFor setID: ActiveSetID, in session: Session) -> SetDictation.Outcome? {
-        guard let outcome else { return nil }
-        guard let (set, mode) = spokenWriteTarget(at: setID, in: session) else {
-            dictation?.dismiss()
-            return nil
-        }
-        guard let cardWrite = CardWrite(outcome) else { return outcome }
-        guard write(cardWrite, to: set, as: mode, from: .speech) else {
-            dictation?.dismiss()
-            return nil
-        }
-        return outcome
-    }
-
-    /// The Set at `setID` and the mode the press began in, while the card still writes it that way.
-    private func spokenWriteTarget(at setID: ActiveSetID, in session: Session) -> (ExerciseSet, SetCardMode)? {
-        guard self.session === session, let set = session.set(at: setID), let mode = dictatingMode, spokenWriteMode(for: set) == mode
-        else { return nil }
-        return (set, mode)
-    }
-
-    /// Stops the press for `set` whose control left the screen, writing nothing. A control that
-    /// leaves while another card's press runs, as an outgoing card's can after the incoming one
-    /// starts listening, stops nothing.
-    func cancelDictation(of set: ExerciseSet) async {
-        guard let dictation, let setID = dictation.state.pressSetID, Self.activeSetID(for: set) == setID,
-            set.exercise?.session === dictatingSession
-        else { return }
-        await dictation.cancel()
-    }
-
-    func dismissDictation() {
-        dictation?.dismiss()
-    }
 
     /// The athlete opened the held Set's Clear menu: its time stops, and the card keeps the Set until
     /// the menu closes or a Clear undoes the write.
@@ -483,12 +419,5 @@ extension SessionCoordinator {
     private func cancelSpokenWriteHold() {
         spokenWriteHoldTask?.cancel()
         spokenWriteHoldTask = nil
-    }
-}
-
-@MainActor
-extension Session {
-    fileprivate func set(at setID: ActiveSetID) -> ExerciseSet? {
-        exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex }
     }
 }

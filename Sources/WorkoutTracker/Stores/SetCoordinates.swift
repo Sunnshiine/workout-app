@@ -33,6 +33,9 @@ struct SetCoordinates: Equatable {
         let exercise: ExerciseReference
         let setIndex: Int
     }
+
+    /// The part of these coordinates a sync's re-parse keeps.
+    var id: ID { ID(session: session, exercise: exercise, setIndex: setIndex) }
 }
 
 extension SetCoordinates.ID {

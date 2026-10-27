@@ -196,6 +196,52 @@ import Testing
         #expect(throws: UITestLaunch.UnreadableDecisionDeadline(value: value)) { try launch.decisionDeadline }
     }
 
+    @Test func aCoachEditLaunchArgumentNamesACellOnTheBlockTabAndItsNewValue() throws {
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker"]).coachEdit == nil)
+        #expect(
+            try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", "K18=245x5@8"]).coachEdit
+                == SheetCellWrite(tabName: "Block 27", a1: "K18", value: "245x5@8")
+        )
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", "K18="]).coachEdit?.value == "")
+        #expect(try UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", "K18==K17"]).coachEdit?.value == "=K17")
+    }
+
+    @Test(arguments: ["", "K18", "=245x5@8", "k18=245x5@8", "Block 27!K18=245x5@8"])
+    func aCoachEditThatNamesNoA1CellStopsTheLaunch(value: String) {
+        let launch = UITestLaunch(arguments: ["WorkoutTracker", "-UITEST_COACH_EDIT", value])
+        #expect(throws: UITestLaunch.UnreadableCoachEdit(value: value)) { try launch.coachEdit }
+    }
+
+    /// Week 1 Day 1's first Back Squat Set, whose log the full-block workbook keeps in K18.
+    private let firstBackSquatSet = SetAddress(exercise: ExerciseAddress(session: SessionAddress(week: 1, day: 1), order: 0), index: 0)
+
+    @MainActor
+    @Test func aCoachEditLaunchChangesTheSheetBehindTheSyncedBlockUntilTheNextSync() async throws {
+        let booted = try await BootedFixture.boot(.fullBlock, plus: ["-UITEST_COACH_EDIT", "K18=245x5@8"])
+        let tab = try await booted.sheets.fetchTabSnapshot(
+            spreadsheetId: WorkoutFixtureScenarios.sheetId,
+            tabName: WorkbookScenario.blockTab
+        )
+        let k18 = try #require(a1CellIndex("K18"))
+        #expect(tab.values.cell(row: k18.row, col: k18.col) == "245x5@8")
+        #expect(try booted.app.resolveSet(firstBackSquatSet).state == .pending)
+
+        _ = try await booted.app.sync()
+
+        #expect(try booted.app.resolveSet(firstBackSquatSet).setLog?.formatted == "245x5@8")
+    }
+
+    @MainActor
+    @Test func aLogOverACoachEditIsRefusedAtTheFlush() async throws {
+        let booted = try await BootedFixture.boot(.fullBlock, plus: ["-UITEST_COACH_EDIT", "K18=245x5@8"])
+
+        _ = try booted.app.log(firstBackSquatSet, setLog: "237.5x5@6")
+        let flush = try await booted.app.flush()
+
+        #expect(flush.written == 0)
+        #expect(flush.conflictedWrites.count == 1)
+    }
+
     @MainActor
     @Test func fullBlockLaunchSeedsFourWeeksOfTheUILaunchSessions() async throws {
         let booted = try await BootedFixture.boot(["-UITEST_FULL_BLOCK"])
