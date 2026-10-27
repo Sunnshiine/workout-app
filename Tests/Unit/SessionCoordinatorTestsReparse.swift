@@ -225,6 +225,32 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     #expect(endings == [.cancelled])
 }
 
+/// A press names the place its Set was in, so a release on its own Set after a sync moved that
+/// Set to another place is cancelled, as a release on any other Set is.
+@MainActor
+@Test func aPressReleasedOnItsSetAfterASyncMovedItIsCancelled() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = try makeCoordinatorSessionWithRowAboveBench()
+    let journal = DictationJournal(storage: .inMemory)
+    let dictation = SetDictation(
+        transcriber: CannedSetTranscriber(candidates: ["185 for 6 at 7"]),
+        reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+        journal: journal
+    )
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)
+    coordinator.startDictation(for: try card(coordinator, in: session).set)
+
+    coordinator.view(parsed)
+    let movedBench = try #require(parsed.exercises.first { $0.order == 2 }?.sets.first { $0.index == 0 })
+    let outcome = await coordinator.finishDictation(of: movedBench)
+
+    #expect(outcome == nil)
+    #expect(movedBench.isPending)
+    #expect(ledger.entries.filter { $0 == .logged }.isEmpty)
+    let endings = try await journal.records().map(\.ending)
+    #expect(endings == [.cancelled])
+}
+
 @MainActor
 @Test func aSyncThatLandsWhileTheCardListensHandsFreeLogsTheSetOfTheSessionParsedAgain() async throws {
     let session = makeCoordinatorSession()
@@ -319,6 +345,25 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
 
     coordinator.startDictation(for: try #require(detached.bench.sets.first))
 
+    #expect(coordinator.dictation?.state == .idle)
+}
+
+/// A Detached Session is on no stage, so showing one moves the stage off the Session it was on,
+/// as showing another Session does, and a press begun there writes nothing.
+@MainActor
+@Test func aPressBegunBeforeADetachedSessionIsShownWritesNothing() async throws {
+    let session = makeCoordinatorSession()
+    let detached = makeDetachedBench(setCount: 1)
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let pressed = try card(coordinator, in: session).set
+    coordinator.startDictation(for: pressed)
+
+    coordinator.view(detached.session)
+    let outcome = await coordinator.finishDictation(of: pressed)
+
+    #expect(outcome == nil)
+    #expect(pressed.isPending)
+    #expect(ledger.entries.filter { $0 == .logged }.isEmpty)
     #expect(coordinator.dictation?.state == .idle)
 }
 
