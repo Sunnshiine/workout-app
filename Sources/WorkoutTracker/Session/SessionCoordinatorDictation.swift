@@ -34,10 +34,11 @@ extension SessionCoordinator {
     }
 
     /// Writes what the athlete said through the same paths as the card's Log and skip, with what
-    /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
-    /// another Set writes nothing, as `write(_:heardFor:in:)` says of a Set the card no longer
-    /// writes as the press began. A sync that lands while the transcript is read leaves the write
-    /// to the Session parsed again, and to nothing when it put another Set in the pressed Set's place.
+    /// they left unsaid read from what `set`'s card shows. A release on any Set but the one the
+    /// press began on, as one a sync put in its place, cancels the press, so its Dictation Record
+    /// names no Set the press did not write. A sync that lands while the transcript is read leaves
+    /// the write to the Session parsed again, and to nothing when it put another Set in the pressed
+    /// Set's place.
     func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
         guard let dictation, let setID = dictation.state.pressSetID else { return nil }
         guard let session = sessionOfPress(for: setID, releasedOn: set), let coordinate = session.placement.coordinate else {
@@ -52,9 +53,10 @@ extension SessionCoordinator {
         SpokenSetContext(for: set, shownBy: focusManager, history: wiring.history())
     }
 
-    /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
+    /// The Session `setID`'s press began in, while it is on stage and `set` is the Set the press
+    /// began on, as itself or parsed again by a sync, still at `setID`.
     private func sessionOfPress(for setID: ActiveSetID, releasedOn set: ExerciseSet) -> Session? {
-        guard let session = set.exercise?.session, isOnStage(session), sessionCoordinate == dictatingSet?.session,
+        guard let session = set.exercise?.session, let pressed = dictatingSet, onStageID(of: set) == pressed,
             Self.activeSetID(for: set) == setID
         else { return nil }
         return session

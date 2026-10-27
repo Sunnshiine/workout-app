@@ -198,12 +198,19 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
 }
 
 /// The Set in the pressed Set's place after the sync is another Exercise's, so what was said for
-/// Bench Press lands on neither.
+/// Bench Press lands on neither, and the press is cancelled: a record decided for DB Row would
+/// label it in an export as if the press had written it.
 @MainActor
 @Test func aPressWhoseSetASyncMovesWritesNothingToTheSetNowInItsPlace() async throws {
     let session = makeCoordinatorSession()
     let parsed = try makeCoordinatorSessionWithRowAboveBench()
-    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    let journal = DictationJournal(storage: .inMemory)
+    let dictation = SetDictation(
+        transcriber: CannedSetTranscriber(candidates: ["185 for 6 at 7"]),
+        reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+        journal: journal
+    )
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)
     coordinator.startDictation(for: try card(coordinator, in: session).set)
 
     coordinator.view(parsed)
@@ -214,6 +221,8 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     #expect(released.isPending)
     #expect(ledger.entries.filter { $0 == .logged }.isEmpty)
     #expect(coordinator.dictation?.state == .idle)
+    let endings = try await journal.records().map(\.ending)
+    #expect(endings == [.cancelled])
 }
 
 @MainActor
@@ -239,6 +248,8 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     #expect(slot.set.isPending)
 }
 
+/// The Set in the listened Set's place after the sync is another Exercise's, so what was heard for
+/// Bench Press lands on neither.
 @MainActor
 @Test func aListenWhoseSetASyncMovesWritesNothingToTheSetNowInItsPlace() async throws {
     let session = makeCoordinatorSession()
