@@ -123,6 +123,25 @@ for line in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 18 20 21 22 23; do
     expect_text "round 4 forms" "$out" "Sources/Core/New.swift:$line: conflict declares the kept name anew"
 done
 
+echo "func, type, and for-loop names and a type's generic parameters declare names too"
+fresh_repo
+cat >"$repo/Sources/Core/New.swift" <<'EOF2'
+func conflict() {}
+struct conflict {}
+class conflict {}
+enum conflict {}
+protocol conflict {}
+actor conflict {}
+typealias conflict = Int
+for conflict in items {}
+struct S<A, conflict> {}
+EOF2
+check
+expect_exit "named forms" "$status" 1
+for line in 1 2 3 4 5 6 7 8 9; do
+    expect_text "named forms" "$out" "Sources/Core/New.swift:$line: conflict declares the kept name anew"
+done
+
 echo "a reference after a case pattern's closing paren, or in a switch case, is no declaration"
 fresh_repo
 cat >"$repo/Sources/Core/New.swift" <<'EOF2'

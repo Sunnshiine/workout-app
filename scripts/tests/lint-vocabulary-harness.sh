@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Sourced by the lint-vocabulary*.test.sh files: a scratch repo with a glossary, a list, and
 # existing names at origin/main, the checker, and the expect helpers.
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
