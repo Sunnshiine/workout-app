@@ -59,6 +59,13 @@ extension XCTestCase {
     }
 }
 
+/// How long a UI test waits for something it expects to happen. A wait that succeeds returns as
+/// soon as its condition holds, so the budget costs time only on a failure. On the CI runner the
+/// slowest of 447 keyboard lane waits took 1.07 s (runs 40411547617, 40411554126, 40411560839),
+/// and the same tests have run 3.3 times slower there (568 s against 174 s), so 3 s could trip on
+/// a correct app.
+let uiEventBudget: TimeInterval = 10
+
 extension XCUIElement {
     /// `waitForExistence` schedules its first check about a second out, while a bare `exists`
     /// query answers in 20 ms on this app's tree, so poll it instead.
@@ -91,8 +98,8 @@ extension XCUIElement {
 
 @MainActor
 func waitForLabel(_ label: String, on element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3), "Expected element for label '\(label)' to exist")
-    let deadline = Date().addingTimeInterval(3)
+    XCTAssertTrue(element.appears(within: uiEventBudget), "Expected element for label '\(label)' to exist")
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
         if element.label == label {
             return
@@ -104,8 +111,8 @@ func waitForLabel(_ label: String, on element: XCUIElement) {
 
 @MainActor
 func waitUntilEnabled(_ element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3))
-    let deadline = Date().addingTimeInterval(3)
+    XCTAssertTrue(element.appears(within: uiEventBudget))
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
         if element.isEnabled {
             return
@@ -117,8 +124,8 @@ func waitUntilEnabled(_ element: XCUIElement) {
 
 @MainActor
 func tapWhenHittable(_ element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3))
-    let deadline = Date().addingTimeInterval(3)
+    XCTAssertTrue(element.appears(within: uiEventBudget))
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
         if element.isHittable {
             element.tap()
@@ -131,8 +138,8 @@ func tapWhenHittable(_ element: XCUIElement) {
 
 @MainActor
 func waitForValue(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3))
-    let deadline = Date().addingTimeInterval(3)
+    XCTAssertTrue(element.appears(within: uiEventBudget))
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
         if element.value as? String == value {
             return
@@ -144,8 +151,8 @@ func waitForValue(_ value: String, on element: XCUIElement) {
 
 @MainActor
 func waitForValueContaining(_ value: String, on element: XCUIElement) {
-    XCTAssertTrue(element.appears(within: 3))
-    let deadline = Date().addingTimeInterval(3)
+    XCTAssertTrue(element.appears(within: uiEventBudget))
+    let deadline = Date().addingTimeInterval(uiEventBudget)
     while Date() < deadline {
         if let elementValue = element.value as? String, elementValue.contains(value) {
             return
