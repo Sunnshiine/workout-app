@@ -29,8 +29,9 @@ usage: [LINT_FORMAT_BASE=<base>] scripts/lint.sh [--fix] [<file.swift>...]
   scripts/lint.sh                      lint, check doc spans, skill links, workflow if:
                                        guards, that scripts/build-dirs.sh classes every
                                        .build dir, and that each exemption's cited issue is
-                                       live (needs gh), list the doc lines naming a file the branch
-                                       split, swift-format the Swift changed since
+                                       live (needs gh), that no defaulted parameter outgrows
+                                       scripts/lint-defaults-baseline.txt, list the doc lines naming
+                                       a file the branch split, swift-format the Swift changed since
                                        LINT_FORMAT_BASE (default origin/main), and check the
                                        identifiers it adds against the glossary; what CI runs
   scripts/lint.sh <file.swift>...      lint those files alone
@@ -279,6 +280,9 @@ echo "==> Build dirs"
 
 echo "==> Lint exemptions cite a live issue"
 python3 "$ROOT/scripts/lint-exemptions.py" "$ROOT"
+
+echo "==> Defaulted parameters stay within the baseline"
+python3 "$ROOT/scripts/lint-defaults.py" "$ROOT"
 
 echo "==> Doc lines naming a file this branch split (advisory)"
 python3 "$ROOT/scripts/doc-drift.py" "${LINT_FORMAT_BASE:-origin/main}" || true
