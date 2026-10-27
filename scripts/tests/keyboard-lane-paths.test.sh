@@ -74,6 +74,41 @@ expect scripts/lint.sh false
 expect .github/workflows/receipts.yml false
 expect docs/testing/ui-tests.md false
 
+# Every folder the two targets compile, read from the project, so a target that gains a
+# synchronized group fails here until the rule covers it.
+project=$(dirname "$script")/..
+groups=$(plutil -convert json -o - "$project/WorkoutTracker.xcodeproj/project.pbxproj" | python3 -I -c '
+import json, sys
+objects = json.load(sys.stdin)["objects"]
+parent = {child: key for key, o in objects.items() for child in o.get("children", [])}
+for name in ("WorkoutTracker", "WorkoutTrackerUITests"):
+    targets = [o for o in objects.values() if o["isa"] == "PBXNativeTarget" and o["name"] == name]
+    if len(targets) != 1 or not targets[0].get("fileSystemSynchronizedGroups"):
+        sys.exit(f"no synchronized groups for target {name}")
+    for key in targets[0]["fileSystemSynchronizedGroups"]:
+        parts = []
+        while key:
+            group = objects[key]
+            if group.get("sourceTree", "<group>") != "<group>":
+                sys.exit(group.get("path", key) + " is not relative to its group")
+            if group.get("path", ".") != ".":
+                parts.insert(0, group["path"])
+            key = parent.get(key)
+        print(name, "/".join(parts))
+')
+if grep -q '^WorkoutTracker ' <<<"$groups" && grep -q '^WorkoutTrackerUITests ' <<<"$groups"; then
+    ok "the project names the synchronized groups of both targets"
+else
+    bad "the project names the synchronized groups of both targets, got: $groups"
+fi
+while read -r target dir; do
+    if [ -d "$project/$dir" ]; then
+        expect "$dir/KeyboardLaneProbe.swift" true
+    else
+        bad "$target's group $dir is a folder in the repo"
+    fi
+done < <([ -z "$groups" ] || printf '%s\n' "$groups")
+
 run_for App/Views/SessionView.swift > /dev/null
 if grep -qx '  App/Views/SessionView.swift' "$err"; then
     ok "stderr names the matched path"

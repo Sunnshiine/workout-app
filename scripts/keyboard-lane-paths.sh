@@ -9,8 +9,10 @@ reaches, and run=false otherwise, and names the paths that matched on stderr. Th
 the WorkoutTracker app and WorkoutTrackerUITests targets compile (App/, Sources/WorkoutTracker/,
 WorkoutShared/, Tests/UI/), the project that defines those targets (WorkoutTracker.xcodeproj/), and
 the lane's wiring (.github/workflows/ci.yml, scripts/ci-keyboard-lane.sh,
-scripts/keyboard-lane-paths.sh, scripts/sim-keyboard.sh). scripts/ci-keyboard-lane.sh runs the lane
-on run=true.
+scripts/keyboard-lane-paths.sh, scripts/sim-keyboard.sh). The rule below lists those folders by
+hand. scripts/tests/keyboard-lane-paths.test.sh reads the two targets' synchronized groups from
+project.pbxproj and fails when the rule misses one. scripts/ci-keyboard-lane.sh runs the lane on
+run=true.
 Exits 2 on bad arguments and with git's status when the diff fails.
 USAGE
     exit 2
