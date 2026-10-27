@@ -88,6 +88,13 @@ final class SessionCoordinator {
         return coordinate == sessionCoordinate
     }
 
+    /// The coordinates `set` keeps through a sync's re-parse, while its Session is on stage. Nil for
+    /// a Set of a Detached Session or of another Session.
+    func onStageID(of set: ExerciseSet) -> SetCoordinates.ID? {
+        guard let id = try? SetCoordinates(of: set).id, id.session == sessionCoordinate else { return nil }
+        return id
+    }
+
     /// The Current Session, while it is the one at `coordinate`: the Session a press or a listen
     /// began on, parsed again by any sync that landed while it ran.
     func currentSession(at coordinate: SessionCoordinate) -> Session? {

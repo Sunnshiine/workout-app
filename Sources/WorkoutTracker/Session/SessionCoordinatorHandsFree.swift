@@ -55,14 +55,13 @@ extension SessionCoordinator {
     /// card shows when listening ends. A sync that lands while it listens leaves the write to the
     /// Session parsed again, and to nothing when it put another Set in the listened Set's place.
     func listenHandsFree(to set: ExerciseSet) async -> SetDictation.Outcome? {
-        guard let dictation, let coordinate = sessionCoordinate, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID,
-            let listened = try? SetCoordinates(of: set).id
+        guard let dictation, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID, let listened = onStageID(of: set)
         else { return nil }
         _ = wiring.entry.take()
         dictatingSet = listened
         dictatingMode = .logging
         let outcome = await dictation.listenUntilQuiet(for: setID, on: .card) { spokenSetContext(for: set) }
-        guard let session = currentSession(at: coordinate) else {
+        guard let session = currentSession(at: listened.session) else {
             dictation.dismiss()
             return nil
         }

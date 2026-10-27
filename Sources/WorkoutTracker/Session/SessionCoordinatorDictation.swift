@@ -19,8 +19,8 @@ extension SessionCoordinator {
     }
 
     func startDictation(for set: ExerciseSet) {
-        guard let dictation, let setID = Self.activeSetID(for: set), isOnStage(set.exercise?.session),
-            let mode = spokenWriteMode(for: set), let pressed = try? SetCoordinates(of: set).id, dictation.start(for: setID)
+        guard let dictation, let setID = Self.activeSetID(for: set), let pressed = onStageID(of: set),
+            let mode = spokenWriteMode(for: set), dictation.start(for: setID)
         else { return }
         dictatingSet = pressed
         dictatingMode = mode
@@ -83,12 +83,13 @@ extension SessionCoordinator {
         return outcome
     }
 
-    /// The Set at `setID` and the mode the press began in, while it is still the Set the press began
-    /// on and the card still writes it that way. A sync that put another Exercise's Set in its
-    /// place leaves the press nothing to write, since `setID` names a place, not a Set.
+    /// The Set at `setID` in `session` and the mode the press began in, while it is still the Set the
+    /// press began on, on stage, and the card still writes it that way. A sync that put another
+    /// Exercise's Set in its place leaves the press nothing to write, since `setID` names a place,
+    /// not a Set.
     private func spokenWriteTarget(at setID: ActiveSetID, in session: Session) -> (ExerciseSet, SetCardMode)? {
-        guard isOnStage(session), let set = session.set(at: setID), let pressed = dictatingSet,
-            (try? SetCoordinates(of: set).id) == pressed, let mode = dictatingMode, spokenWriteMode(for: set) == mode
+        guard let set = session.set(at: setID), let pressed = dictatingSet, onStageID(of: set) == pressed,
+            let mode = dictatingMode, spokenWriteMode(for: set) == mode
         else { return nil }
         return (set, mode)
     }
