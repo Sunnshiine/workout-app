@@ -33,6 +33,8 @@ struct SetCoordinates: Equatable {
         let exercise: ExerciseReference
         let setIndex: Int
     }
+
+    var id: ID { ID(session: session, exercise: exercise, setIndex: setIndex) }
 }
 
 extension SetCoordinates.ID {

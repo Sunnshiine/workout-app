@@ -37,6 +37,17 @@ private func makeDetachedBench(setCount: Int) -> (session: Session, bench: Exerc
     return (session, bench)
 }
 
+/// `makeCoordinatorSession` as a sync parses it after the coach moved DB Row above Bench Press:
+/// the same Session, with DB Row's Set 1 where Bench Press's Set 1 was.
+@MainActor
+private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
+    let parsed = makeCoordinatorSession()
+    let bench = try #require(parsed.exercises.first { $0.order == 1 })
+    let row = try #require(parsed.exercises.first { $0.order == 2 })
+    (bench.order, row.order) = (2, 1)
+    return parsed
+}
+
 /// The store refuses a write for a Set no Block holds (#1052), and the stage finds the Session
 /// again by its coordinate, so the card it builds next writes the parsed Set.
 @MainActor
@@ -186,6 +197,25 @@ private func makeDetachedBench(setCount: Int) -> (session: Session, bench: Exerc
     #expect(ledger.entries.filter { $0 == .logged }.count == 1)
 }
 
+/// The Set in the pressed Set's place after the sync is another Exercise's, so what was said for
+/// Bench Press lands on neither.
+@MainActor
+@Test func aPressWhoseSetASyncMovesWritesNothingToTheSetNowInItsPlace() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = try makeCoordinatorSessionWithRowAboveBench()
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["185 for 6 at 7"])
+    coordinator.startDictation(for: try card(coordinator, in: session).set)
+
+    coordinator.view(parsed)
+    let released = try card(coordinator, in: parsed).set
+    let outcome = await coordinator.finishDictation(of: released)
+
+    #expect(outcome == nil)
+    #expect(released.isPending)
+    #expect(ledger.entries.filter { $0 == .logged }.isEmpty)
+    #expect(coordinator.dictation?.state == .idle)
+}
+
 @MainActor
 @Test func aSyncThatLandsWhileTheCardListensHandsFreeLogsTheSetOfTheSessionParsedAgain() async throws {
     let session = makeCoordinatorSession()
@@ -207,6 +237,27 @@ private func makeDetachedBench(setCount: Int) -> (session: Session, bench: Exerc
     let parsedSet = try #require(parsed.exercises.first { $0.order == setID.exerciseOrder }?.sets.first { $0.index == setID.setIndex })
     #expect(parsedSet.setLog == logged)
     #expect(slot.set.isPending)
+}
+
+@MainActor
+@Test func aListenWhoseSetASyncMovesWritesNothingToTheSetNowInItsPlace() async throws {
+    let session = makeCoordinatorSession()
+    let parsed = try makeCoordinatorSessionWithRowAboveBench()
+    let fixture = makeHandsFreeFixture(showing: session, current: session)
+    let slot = try fixture.card(in: session)
+    let listening = Task { await fixture.coordinator.listenHandsFree(to: slot.set) }
+    await fixture.clock.waitUntilSleeping(until: VoiceActivity.frameDuration, orRecord: "The card never listened")
+
+    fixture.navigation.currentSession = parsed
+    fixture.navigation.liveEdgeOfSession = { $0 === parsed ? .atLiveEdge(currentSession: parsed) : .browsedAway }
+    fixture.show(parsed)
+    fixture.clock.advance(by: SetDictation.silenceWindow)
+
+    #expect(await listening.value == nil)
+    let row = try #require(parsed.exercises.first { $0.order == 1 })
+    #expect(row.sets.allSatisfy { $0.isPending })
+    #expect(fixture.ledger.entries.filter { $0 == .logged }.isEmpty)
+    #expect(fixture.dictation?.state == .idle)
 }
 
 /// The Session screen follows the Current Session, so a sync that moves it moves the stage too,

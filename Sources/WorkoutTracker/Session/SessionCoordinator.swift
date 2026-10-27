@@ -30,8 +30,9 @@ final class SessionCoordinator {
     @ObservationIgnored private let transitionClock: any SessionTransitionClock
     /// Nil leaves the mic off every card.
     @ObservationIgnored let dictation: SetDictation?
-    /// The Session the running press or hands-free listen began on.
-    @ObservationIgnored var dictatingSessionCoordinate: SessionCoordinate?
+    /// The Set the running press or hands-free listen began on, by the coordinates a sync's
+    /// re-parse keeps. Its Session is the one the press began on.
+    @ObservationIgnored var dictatingSet: SetCoordinates.ID?
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?

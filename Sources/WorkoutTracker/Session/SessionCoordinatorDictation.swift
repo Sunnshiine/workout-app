@@ -20,9 +20,9 @@ extension SessionCoordinator {
 
     func startDictation(for set: ExerciseSet) {
         guard let dictation, let setID = Self.activeSetID(for: set), isOnStage(set.exercise?.session),
-            let mode = spokenWriteMode(for: set), dictation.start(for: setID)
+            let mode = spokenWriteMode(for: set), let pressed = try? SetCoordinates(of: set).id, dictation.start(for: setID)
         else { return }
-        dictatingSessionCoordinate = sessionCoordinate
+        dictatingSet = pressed
         dictatingMode = mode
     }
 
@@ -37,7 +37,7 @@ extension SessionCoordinator {
     /// they left unsaid read from what `set`'s card shows. A press begun on another Session or for
     /// another Set writes nothing, as `write(_:heardFor:in:)` says of a Set the card no longer
     /// writes as the press began. A sync that lands while the transcript is read leaves the write
-    /// to the Session parsed again.
+    /// to the Session parsed again, and to nothing when it put another Set in the pressed Set's place.
     func finishDictation(of set: ExerciseSet) async -> SetDictation.Outcome? {
         guard let dictation, let setID = dictation.state.pressSetID else { return nil }
         guard let session = sessionOfPress(for: setID, releasedOn: set), let coordinate = session.placement.coordinate else {
@@ -54,7 +54,7 @@ extension SessionCoordinator {
 
     /// The Session `setID`'s press began in, while it is on stage and `set` is that Set in it.
     private func sessionOfPress(for setID: ActiveSetID, releasedOn set: ExerciseSet) -> Session? {
-        guard let session = set.exercise?.session, isOnStage(session), sessionCoordinate == dictatingSessionCoordinate,
+        guard let session = set.exercise?.session, isOnStage(session), sessionCoordinate == dictatingSet?.session,
             Self.activeSetID(for: set) == setID
         else { return nil }
         return session
@@ -83,9 +83,12 @@ extension SessionCoordinator {
         return outcome
     }
 
-    /// The Set at `setID` and the mode the press began in, while the card still writes it that way.
+    /// The Set at `setID` and the mode the press began in, while it is still the Set the press began
+    /// on and the card still writes it that way. A sync that put another Exercise's Set in its
+    /// place leaves the press nothing to write, since `setID` names a place, not a Set.
     private func spokenWriteTarget(at setID: ActiveSetID, in session: Session) -> (ExerciseSet, SetCardMode)? {
-        guard isOnStage(session), let set = session.set(at: setID), let mode = dictatingMode, spokenWriteMode(for: set) == mode
+        guard isOnStage(session), let set = session.set(at: setID), let pressed = dictatingSet,
+            (try? SetCoordinates(of: set).id) == pressed, let mode = dictatingMode, spokenWriteMode(for: set) == mode
         else { return nil }
         return (set, mode)
     }
@@ -95,7 +98,7 @@ extension SessionCoordinator {
     /// starts listening, stops nothing.
     func cancelDictation(of set: ExerciseSet) async {
         guard let dictation, let setID = dictation.state.pressSetID, Self.activeSetID(for: set) == setID,
-            let coordinate = set.exercise?.session?.placement.coordinate, coordinate == dictatingSessionCoordinate
+            let coordinate = set.exercise?.session?.placement.coordinate, coordinate == dictatingSet?.session
         else { return }
         await dictation.cancel()
     }
