@@ -14,7 +14,7 @@ import Testing
 
     #expect(row.name == "Back Squat")
     #expect(row.pendingSetLabel == "1 pending set")
-    #expect(row.sourceLabel == "W1 D1")
+    #expect(row.sessionAddressLabel == "W1 D1")
 }
 
 @MainActor
@@ -38,5 +38,5 @@ import Testing
 
     let row = OpenExerciseRowPresentation(exercise: exercise)
 
-    #expect(row.sourceLabel.isEmpty)
+    #expect(row.sessionAddressLabel.isEmpty)
 }

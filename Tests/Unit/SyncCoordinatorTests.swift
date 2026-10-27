@@ -78,7 +78,7 @@ private struct StubClient: SheetsClient {
     let entries = try container.mainContext.fetch(FetchDescriptor<LastPerformedEntry>())
     let entry = try #require(entries.first)
     #expect(entries.count == 1)
-    #expect(entry.fullName == "Squat")
+    #expect(entry.enteredName == "Squat")
     #expect(entry.resultText == "185x5@8, 195x5@9")
     #expect(entry.performedOn == expectedDate)
     #expect(entry.source == "Block 27 · W1 D1")

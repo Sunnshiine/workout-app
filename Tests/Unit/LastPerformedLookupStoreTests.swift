@@ -80,10 +80,10 @@ private func lastPerformedContainer() throws -> ModelContainer {
     withExtendedLifetime(container) {}
 }
 
-// MARK: - Ingest: append-only upsert on (fullName, source), newest-wins
+// MARK: - Ingest: append-only upsert on (enteredName, source), newest-wins
 
 @MainActor
-@Test func lastPerformedIngestIsIdempotentByFullName() throws {
+@Test func lastPerformedIngestIsIdempotentByEnteredName() throws {
     let container = try lastPerformedContainer()
     let context = container.mainContext
     let store = LastPerformedLookupStore(context: context)
@@ -224,7 +224,7 @@ private func lastPerformedContainer() throws -> ModelContainer {
 }
 
 @MainActor
-@Test func lastPerformedIngestKeepsNewestEntryForFullName() throws {
+@Test func lastPerformedIngestKeepsNewestEntryForEnteredName() throws {
     let container = try lastPerformedContainer()
     let context = container.mainContext
     let store = LastPerformedLookupStore(context: context)

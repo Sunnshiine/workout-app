@@ -168,7 +168,7 @@ private final class ProgressTicks {
     let first = await fill.run(squatRequest(titles: client.titles))
     let second = await fill.run(squatRequest(titles: client.titles))
 
-    // Coverage is never reached, so both runs read the same tabs; (fullName, source) dedup keeps
+    // Coverage is never reached, so both runs read the same tabs; (enteredName, source) dedup keeps
     // the entry count at exactly the two distinct Sessions.
     #expect(first == .tabsExhausted(tabsIngested: 2))
     #expect(second == .tabsExhausted(tabsIngested: 2))

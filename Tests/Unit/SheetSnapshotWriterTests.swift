@@ -37,7 +37,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     #expect(update.target == SheetWriteTarget(tabName: "Block 27", a1: "K17"))
 }
 
-@Test func aggregatesProtectedHeaderSetLogsInFirstVisibleWritableRow() throws {
+@Test func aggregatesOccupiedHeaderSetLogsInFirstVisibleWritableRow() throws {
     let grid = snapshotWriterGrid(["C15": "Squat", "D15": "2", "K15": "Coach note", "C19": "Bench"])
     let snapshot = SheetSnapshot(
         values: grid,
@@ -76,7 +76,7 @@ private func snapshotWriterGrid(_ cells: [String: String]) -> SheetGrid {
     #expect(setTwoUpdate == SheetCellWrite(tabName: "Block 27", a1: "K17", value: "185x5@8, 195x5@9"))
 }
 
-@Test func protectedHeaderAggregateConflictsOnUnexpectedSelectedTargetContent() throws {
+@Test func occupiedHeaderAggregateConflictsOnUnexpectedSelectedTargetContent() throws {
     let grid = snapshotWriterGrid(["C15": "Squat", "D15": "2", "K15": "Coach note", "K16": "coach edited"])
     let planner = SheetWritePlanner()
 
