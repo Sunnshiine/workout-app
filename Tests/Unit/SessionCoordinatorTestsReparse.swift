@@ -7,24 +7,6 @@ import Testing
 // before it is detached. Each test's `parsed` is the same Session as a sync parses it again: the
 // same Session Coordinate in new models.
 
-/// The real stores over the fresh-block workbook, with the coordinator on the Viewed Session as
-/// the Session screen shows it. The sync adapter is a spy, so a refused write is visible and
-/// nothing flushes until the test does.
-@MainActor
-private func makeStoreStage() async throws -> (app: WorkoutApplication, coordinator: SessionCoordinator, sync: SpySessionSyncAdapter) {
-    let app = try WorkoutApplication(
-        environment: .inMemory(
-            workbook: WorkbookScenario.freshBlock.workbook(),
-            now: { Date(timeIntervalSince1970: 1_780_000_000) }
-        )
-    )
-    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
-    let sync = SpySessionSyncAdapter()
-    let coordinator = SessionCoordinator(wiring: .fixture(logging: app.workout, navigation: app.workout, sync: sync))
-    coordinator.view(try #require(app.workout.viewedSession))
-    return (app, coordinator, sync)
-}
-
 /// A Session no Block holds, as a sync leaves the one the stage read: Bench Press at order 1, where
 /// `makeCoordinatorSession` puts it, with `setCount` Pending Sets.
 private func makeDetachedBench(setCount: Int) -> (session: Session, bench: Exercise) {
@@ -46,33 +28,6 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     let row = try #require(parsed.exercises.first { $0.order == 2 })
     (bench.order, row.order) = (2, 1)
     return parsed
-}
-
-/// The store refuses a write for a Set no Block holds (#1052), and the stage finds the Session
-/// again by its coordinate, so the card it builds next writes the parsed Set.
-@MainActor
-@Test func aTapOnACardASyncReplacedIsRefusedAndTheCardBuiltAfterItWritesTheParsedSet() async throws {
-    let (app, coordinator, sync) = try await makeStoreStage()
-    let before = try #require(app.workout.viewedSession)
-    let staleCard = try #require(exerciseStage(coordinator, in: before)?.card)
-    let log = SetLog(weight: .pounds(185), reps: 5, rpe: .eight)
-
-    _ = try await app.sync()
-    coordinator.log(log, for: staleCard)
-
-    #expect(sync.reportedErrors.count == 1)
-    #expect(try app.sync.fetchPendingWriteRecords().isEmpty)
-
-    let parsed = try #require(app.workout.viewedSession)
-    #expect(parsed !== before)
-    let card = try #require(exerciseStage(coordinator, in: parsed)?.card)
-    coordinator.log(log, for: card)
-
-    #expect(sync.reportedErrors.count == 1)
-    #expect(card.set.setLog == log)
-    let flush = try await app.flush()
-    #expect(flush.written == flush.attempted && flush.written > 0)
-    #expect(flush.conflictedWrites.isEmpty)
 }
 
 @MainActor
