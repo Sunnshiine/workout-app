@@ -83,6 +83,14 @@ jobs:
         run: scripts/sim-slim.sh "$udid" scripts/sim-ci-disabled-jobs.txt
       - name: Checker tests
         run: scripts/tests/lint.test.sh
+      - name: Comment the mutants that survive
+        continue-on-error: true
+        run: scripts/mutate-advisory.sh --comment "$PR"
+      - name: Refuse committed record mode
+        with:
+          paths:
+            - App
+        run: scripts/refuse-record-mode.sh
 YAML
     printf '@Suite(.serialized) struct DifferentialStateTests {}\n' >"$fx/Tests/Unit/DifferentialStateTests.swift"
     printf '# Agents\n\n<!-- rule-table:start -->\n<!-- rule-table:end -->\n\nAfter.\n' >"$fx/AGENTS.md"
@@ -95,7 +103,9 @@ expected='| Rule | Enforced by |
 | A type that only forwards | judgment |
 | No uppercase microlabels | `no_uppercase_microlabels` (lint.sh) |
 | Doc lines naming a file this branch split | `scripts/doc-drift.py` (lint.sh, advisory) |
-| Refuse a landing that undoes a commit on the base | `scripts/landing-reverts-main.py` (ci.yml) |'
+| Refuse a landing that undoes a commit on the base | `scripts/landing-reverts-main.py` (ci.yml) |
+| Comment the mutants that survive | `scripts/mutate-advisory.sh` (ci.yml, advisory) |
+| Refuse committed record mode | `scripts/refuse-record-mode.sh` (ci.yml) |'
 
 echo "a tree whose every bullet names an enforcer"
 fresh_fixture
@@ -149,7 +159,7 @@ run --write "$fx"
 expect_exit "the write" "$status" 0
 run --check "$fx"
 expect_exit "the written block" "$status" 0
-expect_text "the written block" "$out" "==> Clean: 6 rules, 5 with a check, 1 by judgment alone"
+expect_text "the written block" "$out" "==> Clean: 8 rules, 7 with a check, 1 by judgment alone"
 expect_text "the written block keeps the text around it" "$(cat "$fx/AGENTS.md")" "After."
 printf -- '- **A later rule.** Enforced by: judgment.\n' >>"$fx/CODING_STANDARDS.md"
 run --check "$fx"

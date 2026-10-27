@@ -125,23 +125,38 @@ def workflow_steps() -> Dict[str, Enforcer]:
     found: Dict[str, Enforcer] = {}
     for path in sorted(glob.glob(os.path.join(root, ".github/workflows/*.yml"))):
         workflow = os.path.basename(path)
-        step = None
+        steps: List[List[str]] = []
+        item = None
         with open(path, encoding="utf-8") as f:
             for line in f:
-                named = re.match(r"\s*- name:\s*(.*?)\s*$", line)
-                if named:
-                    step = named.group(1).strip("\"'")
+                if re.match(r"\s*steps:\s*$", line):
+                    item = None
                     continue
-                if re.match(r"\s*- ", line):
-                    step = None
-                if step is None or line.lstrip().startswith("#") or "--print-version" in line:
+                dash = re.match(r"(\s*)- ", line)
+                if dash and item is None:
+                    item = dash.group(1)
+                if dash and dash.group(1) == item:
+                    steps.append([])
+                elif item is not None and line.strip() and len(line) - len(line.lstrip()) < len(item):
+                    item = None
+                    continue
+                if steps and item is not None:
+                    steps[-1].append(line)
+        for step in steps:
+            named = re.match(r"\s*- name:\s*(.*?)\s*$", step[0])
+            if named is None:
+                continue
+            advisory = any(re.match(r"\s*continue-on-error:\s*true\b", line) for line in step)
+            for line in step[1:]:
+                if line.lstrip().startswith("#") or "--print-version" in line:
                     continue
                 call = re.search(r"scripts/[\w./-]+", line)
                 if call is None or call.group(0) in NOT_CHECKS or call.group(0).startswith(NOT_CHECK_DIRS):
                     continue
-                enforcer = found.setdefault(call.group(0), Enforcer(call.group(0), step))
-                if workflow not in enforcer.runs_in:
-                    enforcer.runs_in.append(workflow)
+                enforcer = found.setdefault(call.group(0), Enforcer(call.group(0), named.group(1).strip("\"'")))
+                where = f"{workflow}, advisory" if advisory else workflow
+                if where not in enforcer.runs_in:
+                    enforcer.runs_in.append(where)
     return found
 
 

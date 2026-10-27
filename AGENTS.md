@@ -70,6 +70,7 @@ catches.
 | Rule | Enforced by |
 |---|---|
 | A write that reaches the Sheet or the cache outside `SyncCoordinator` and its pending-write queue | judgment |
+| A Sheet write addressed by a weaker identity than the parser read | `exercise_references_are_parsed` (lint.sh), `Tests/Unit/SheetRoundTripTests.swift` (swift test), judgment |
 | Logic in a View that needs a test | judgment |
 | A type that only forwards | judgment |
 | A derived fact with more than one owner | `DifferentialStateTests` (swift test), judgment |
@@ -88,12 +89,11 @@ catches.
 | A wait that ends on a count or a clock | `tests_wait_on_events_not_clocks` (lint.sh), `tests_never_park_on_a_bare_continuation` (lint.sh), `polling_loops_are_bounded` (lint.sh), `scripts/flake-guard.sh` (ci.yml), judgment |
 | A platform `#if` inside a `@Test` body | `platform_guard_on_test_declaration` (lint.sh), judgment |
 | A test that mirrors a one-line mapping | judgment |
-| A test that passes whatever the code under test does | `scripts/mutate.sh` (by hand), `scripts/mutate-advisory.sh` (ci.yml), judgment |
+| A test that passes whatever the code under test does | `scripts/mutate.sh` (by hand), `scripts/mutate-advisory.sh` (ci.yml, advisory), judgment |
 | Font construction via the Theme seam | `font_construction_via_theme` (lint.sh) |
 | No uppercase microlabels | `no_uppercase_microlabels` (lint.sh) |
 | System ink outside the palette | `system_ink_outside_the_palette` (lint.sh) |
 | WhisperKit is imported only by the recording engine | `whisperkit_import_is_confined` (lint.sh) |
-| Exercise References come from a Sheet read | `exercise_references_are_parsed` (lint.sh) |
 | Each CODING_STANDARDS.md bullet names its enforcer, and AGENTS.md holds the rule table | `scripts/rule-table.sh` (lint.sh, doc-symbols.yml) |
 | Every skill linked from .claude/skills | `scripts/lint-skill-links.sh` (lint.sh, skill-links.yml) |
 | Every workflow's if guards | `scripts/lint-workflow-ifs.sh` (lint.sh, workflow-lint.yml) |

@@ -23,6 +23,10 @@ called redundant was the lift, and deleting it cut the Superset bud.)
   queue,** or a transition that could abandon queued Set Logs without asking
   `canBeginDestructiveTransition`. (ADR-0001, ADR-0006, #585, fixed in #595.) Enforced by:
   judgment.
+- **A Sheet write addressed by a weaker identity than the parser read,** such as an Exercise's
+  name where the Session holds two of that name. Only the parser mints an `ExerciseReference`, and
+  every write target comes from `SetCoordinates(of:)`. (#102, #813, #962, #963, #1049.) Enforced
+  by: `exercise_references_are_parsed`, `Tests/Unit/SheetRoundTripTests.swift`, judgment.
 - **Logic in a View that needs a test,** such as a computed property ORing store state, a `switch`
   on domain state in `body`, or a decision the `workout` CLI cannot see. `swift test` never reaches
   `App/Views/` (ADR-0017), so it lives in the library. (#582,
