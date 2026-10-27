@@ -194,9 +194,9 @@ Test doubles policy:
   launch boundaries, and drives real controls through accessibility.
 - Automated tests must not hit live Google auth, live Google Sheets, or real network connectivity.
 
-The UI XCUITest boundary, UI-test frame assertions, and the representative UI Integration Smoke
-scope live in [docs/testing/ui-tests.md](testing/ui-tests.md). Read it before you add, delete, or
-narrow a UI test, or change a frame or layout assertion in one.
+The UI XCUITest boundary, UI-test frame assertions, the keyboard lane CI runs, and the
+representative UI Integration Smoke scope live in [docs/testing/ui-tests.md](testing/ui-tests.md).
+Read it before you add, delete, or narrow a UI test, or change a frame or layout assertion in one.
 
 Smoke selector command:
 
