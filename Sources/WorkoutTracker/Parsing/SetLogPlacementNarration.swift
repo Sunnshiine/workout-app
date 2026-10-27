@@ -68,8 +68,14 @@ extension SetLogPlacementNarration {
     static func occupiedHeaderVisibleWritableRow(anchor: SheetLayoutExerciseAnchor) -> Self {
         .scan(
             rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
-            selection: "first visible writable row below protected header Notes before the next Exercise.",
-            absence: "no visible writable row below protected header Notes before the next Exercise."
+            selection: """
+                first visible writable row below header Notes that hold a Coach Note or Legacy Log, \
+                before the next Exercise.
+                """,
+            absence: """
+                no visible writable row below header Notes that hold a Coach Note or Legacy Log, before \
+                the next Exercise.
+                """
         )
     }
 

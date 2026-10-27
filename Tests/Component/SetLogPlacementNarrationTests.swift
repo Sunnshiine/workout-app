@@ -44,8 +44,8 @@ import Testing
             setIndex: 1
         )
             == """
-            Selected row 16: first visible writable row below protected header Notes before the next \
-            Exercise.
+            Selected row 16: first visible writable row below header Notes that hold a Coach Note or \
+            Legacy Log, before the next Exercise.
             """
     )
 
@@ -103,7 +103,10 @@ import Testing
             exercise: "Squat",
             setIndex: 0
         )
-            == "No row selected: no visible writable row below protected header Notes before the next Exercise."
+            == """
+            No row selected: no visible writable row below header Notes that hold a Coach Note or Legacy \
+            Log, before the next Exercise.
+            """
     )
 }
 
