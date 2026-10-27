@@ -28,18 +28,29 @@ a note and passes. A name in [unrelated] spells a phrase but means something els
 uses it passes silently. Either way the exemption covers only the declarations the tree already
 holds, counted per spelling across the files at the fork and in the working tree. When the branch
 raises a name's count, the added declaration is a new name and fails. The count reads let and var
-bindings (tuple patterns, comma chains, and `case let` patterns included), for-loop variables, func,
-type, and enum case names, argument labels and parameter names (a wrapped signature's too),
-tuple-type labels after `->`, a binding's annotation, or a typealias, and closure parameters and
-capture-list bindings. The exception is a name the branch adds to [unrelated] that no section held
-at the fork: its declarations pass with a note, so review sees the entry beside them. A name listed
-twice, or a listed name the tree no longer holds, fails, so the list only shrinks.
+bindings (nested tuple patterns, comma chains, `case let` and `catch let` patterns, and backticked
+names included), for-loop variables (`for try await` too), func, type, and enum case names (after
+`;` or an attribute too), generic parameter names, argument labels and parameter names (a wrapped
+signature's too), tuple-type labels after `->`, a binding's annotation, a typealias, or a cast,
+inside an array, dictionary, or generic type too, and closure parameters (with a return type,
+effects, or attributes, or on the line after the `{`) and capture-list bindings. The exception is a
+name the branch adds to [unrelated] that no section held at the fork: its declarations pass with a
+note, so review sees the entry beside them. A name listed twice, or a listed name the tree no
+longer holds, fails, so the list only shrinks.
 
-Known limits. The count is per spelling, not per file, so a branch that removes a declaration in
-one file and adds the same spelling in another passes. Labels in a tuple expression, as in
-`(conflict: 1, total: 2)`, are not counted, because the line reads the same as a call. The ending
-slack accepts non-words, such as a doubled last letter with no ending (`tempoo`); that only fails
-more names, and never lets a word through.
+Known limits. The reader reads one line at a time with a regex, not a Swift parser, and counts only
+the forms named above. A declaration in any other form passes with a note. These are the ones known:
+- a comma chain, tuple pattern, or enum case list that wraps onto a later line, and closure
+  parameters that wrap, as in `{ a,` then `conflict in`, or `{ (conflict: Int)` then `in`; only a
+  signature or an enum case's parentheses are followed across lines;
+- a nested case pattern, as in `case let .a(.b(conflict))`;
+- a tuple destructured in a closure parameter, as in `{ ((a, conflict): (Int, Int)) in }`;
+- code inside a string interpolation, which is blanked with the string;
+- labels in a tuple expression, as in `(conflict: 1, total: 2)`, because the line reads the same as
+  a call.
+The count is per spelling, not per file, so a branch that removes a declaration in one file and
+adds the same spelling in another passes. The ending slack accepts non-words, such as a doubled
+last letter with no ending (`tempoo`); that only fails more names, and never lets a word through.
 
 Exits 0 when clean, 1 on findings or a list the glossary does not back, 2 when git cannot answer
 or BASE is no commit this branch grew from, and 64 on a usage error.

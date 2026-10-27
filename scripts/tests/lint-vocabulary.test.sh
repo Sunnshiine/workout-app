@@ -1,88 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-checker="$script_dir/../lint-vocabulary.py"
-
-root=$(mktemp -d) || exit 3
-trap 'rm -rf "$root"' EXIT
-repo="$root/repo"
-pass=0
-fail=0
-
-ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
-bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
-
-expect_exit() {
-    if [ "$2" -eq "$3" ]; then ok "$1 exits $3"; else bad "$1 exits $3, got $2"; fi
-}
-
-expect_line() {
-    if printf '%s\n' "$2" | grep -Fxq -- "$3"; then ok "$1: $3"; else bad "$1 is missing the line: $3"; fi
-}
-
-expect_text() {
-    if printf '%s\n' "$2" | grep -Fq -- "$3"; then ok "$1 has $3"; else bad "$1 is missing the text: $3"; fi
-}
-
-expect_no_text() {
-    if printf '%s\n' "$2" | grep -Fq -- "$3"; then bad "$1 has the text: $3"; else ok "$1 lacks $3"; fi
-}
-
-# A repo whose glossary avoids "displayed session", "tempo", "conflict", "e1rm", "actual rpe", and
-# four phrases whose last words inflect differently,
-# committed as origin/main with existing names the branch did not add: displayedSessionCount, the
-# kept names conflict and conflicts, and the unrelated name conflicting.
-fresh_repo() {
-    rm -rf "$repo"
-    mkdir -p "$repo/Sources/Core" "$repo/App" "$repo/Tests" "$repo/scripts" "$repo/docs/context"
-    cat >"$repo/CONTEXT.md" <<'EOF'
-**Viewed Session**: The Session on screen. Avoid: displayed session.
-**Sync Outcome**: What a flush did. Avoid: conflict.
-**Estimated Single**: A one-rep estimate. Avoid: e1rm, actual rpe.
-**Ledger**: Past Set Logs. Avoid: history, index, rate, dictation log.
-EOF
-    cat >"$repo/docs/context/logging.md" <<'EOF'
-**Cadence**: The coach's tempo prefix. Avoid: tempo.
-**Coach Note**: Coach prose in a Notes cell.
-EOF
-    cat >"$repo/scripts/vocabulary-avoid.txt" <<'EOF'
-[avoid]
-displayed session
-tempo
-conflict
-e1rm
-actual rpe
-history
-index
-rate
-dictation log
-
-[kept]
-conflict
-conflicts
-
-[unrelated]
-conflicting
-EOF
-    cat >"$repo/Sources/Core/Old.swift" <<'EOF'
-let displayedSessionCount = 1
-let conflicts = 0
-func refuse(conflict: Int) -> Int { conflict }
-enum Reason { case heard, conflicting }
-EOF
-    git -C "$repo" init -q
-    git -C "$repo" add -A
-    git -C "$repo" -c user.name=t -c user.email=t@example.com commit -qm base
-    git -C "$repo" update-ref refs/remotes/origin/main HEAD
-}
-
-check() {
-    (cd "$repo" && python3 "$checker" "$@") >"$root/stdout" 2>"$root/stderr"
-    status=$?
-    out=$(cat "$root/stdout")
-    err=$(cat "$root/stderr")
-}
+# shellcheck source=scripts/tests/lint-vocabulary-harness.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lint-vocabulary-harness.sh"
 
 echo "an added avoided name fails with the term and the glossary entry"
 fresh_repo
@@ -203,92 +123,6 @@ printf '// displayedSession was renamed\nlet label = "tempoLabel"\n' >"$repo/Sou
 check
 expect_exit "comment and string" "$status" 0
 
-echo "a kept name gets a note and passes, and a new name that spells its phrase fails"
-fresh_repo
-printf 'let total = conflicts + 1\nlet n = refuse(conflict: total)\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "kept name" "$status" 0
-expect_line "kept name" "$out" \
-    "note: Sources/Core/New.swift:2: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
-expect_line "kept name" "$out" \
-    "note: Sources/Core/New.swift:1: conflicts spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
-printf 'let conflictedWrites = conflicts\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "new conflict name" "$status" 1
-expect_line "new conflict name" "$out" \
-    "Sources/Core/New.swift:1: conflictedWrites spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-
-echo "a new declaration of a kept spelling is a new name and fails"
-fresh_repo
-printf 'let conflict = 1\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "new let conflict" "$status" 1
-expect_line "new let conflict" "$out" \
-    "Sources/Core/New.swift:1: conflict declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-printf 'struct Flush {\n    var conflicts: [Int] = []\n}\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "new var conflicts" "$status" 1
-expect_line "new var conflicts" "$out" \
-    "Sources/Core/New.swift:2: conflicts declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-printf 'func retry(conflicts: [Int]) {}\nlet drop = { (conflict: Int) in conflict }\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "new parameters" "$status" 1
-expect_line "new parameters" "$out" \
-    "Sources/Core/New.swift:1: conflicts declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-expect_line "new parameters" "$out" \
-    "Sources/Core/New.swift:2: conflict declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-
-echo "a wrapped signature's parameters are declarations too"
-fresh_repo
-printf 'func retry(\n    _ conflict: Int,\n    conflicts: [Int] = [max(1, 2)]\n) { _ = refuse(conflict: 1) }\nenum Refusal {\n    case stale(\n        conflicting: Int)\n}\nlet n = refuse(\n    conflict: 1)\n' \
-    >"$repo/Sources/Core/New.swift"
-check
-expect_exit "wrapped signature" "$status" 1
-expect_line "wrapped signature" "$out" \
-    "Sources/Core/New.swift:2: conflict declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-expect_line "wrapped signature" "$out" \
-    "Sources/Core/New.swift:3: conflicts declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-expect_line "wrapped signature" "$out" \
-    "Sources/Core/New.swift:7: conflicting declares the unrelated name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-expect_no_text "wrapped signature" "$out" "New.swift:4: conflict declares"
-expect_line "wrapped signature" "$out" \
-    "note: Sources/Core/New.swift:4: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
-expect_line "wrapped signature" "$out" \
-    "note: Sources/Core/New.swift:10: conflict spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. It is a kept name, so this line passes. A new name must use the glossary's word."
-
-echo "a parameter after a closure-typed one is a declaration"
-fresh_repo
-printf 'func retry(handler: (Int) -> Void, conflict: Int) {}\n' >"$repo/Sources/Core/New.swift"
-check
-expect_exit "after a closure type" "$status" 1
-expect_line "after a closure type" "$out" \
-    "Sources/Core/New.swift:1: conflict declares the kept name anew (the tree declared it 1 time, now 2), and it spells \"conflict\", which CONTEXT.md avoids for Sync Outcome. Name it with the glossary's word."
-
-echo "tuples, comma chains, case patterns, labels, and capture lists declare names too"
-fresh_repo
-cat >"$repo/Sources/Core/New.swift" <<'EOF2'
-let (a, conflict) = (1, 2)
-for (offset: i, element: conflict) in [9].enumerated() {}
-var b = 1, conflict = 2
-if case let .stale(at: conflict) = reason {}
-func f(_ x: Int, conflicts c: Int) {}
-func totals() -> (conflict: Int, total: Int) { (1, 2) }
-let pair: (conflict: Int, Int) = (1, 2)
-let drop = { [weak self] conflict in conflict }
-let list = [1, 2], k = retry(1, conflict: 1)
-typealias Pair = (conflict: Int, Int)
-let keep = { [conflict = 1] in conflict }
-func g(@Wrapped conflict: Int) {}
-EOF2
-check
-expect_exit "declaration forms" "$status" 1
-for line in 1 2 3 4 6 7 8 10 11 12; do
-    expect_text "declaration forms" "$out" "Sources/Core/New.swift:$line: conflict declares the kept name anew"
-done
-expect_text "declaration forms" "$out" "Sources/Core/New.swift:5: conflicts declares the kept name anew"
-expect_no_text "declaration forms" "$out" "New.swift:9: conflict declares"
-expect_text "declaration forms" "$out" "note: Sources/Core/New.swift:9: conflict spells"
-
 echo "moving a kept declaration to another file is not a new one"
 fresh_repo
 printf 'let displayedSessionCount = 1\nfunc refuse(conflict: Int) -> Int { conflict }\nenum Reason { case heard, conflicting }\n' \
@@ -390,6 +224,7 @@ expect_line "bad base" "$err" "       The vocabulary check cannot finish, so it 
 check --nope
 expect_exit "bad flag" "$status" 64
 
+echo
 echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]
