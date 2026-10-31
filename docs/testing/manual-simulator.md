@@ -23,15 +23,14 @@ A change to anything that moves needs that skill's Motion section: `verify.sh la
 
 ## First-Run Onboarding
 
-The app opens to **OnboardingView** on a fresh install (no sign-in, no sheet configured):
+The **WorkoutTracker** scheme opens a seeded Session fixture and never reaches onboarding. To see it, run the **Copy of WorkoutTracker** scheme, which runs live, on a fresh install:
 
-1. **Sign in with Google** — tap the button; a Safari sheet opens for OAuth. Use your Google account that has read access to the training sheet.
-2. Once signed in, a text field appears — **paste the full Google Sheet URL** (e.g. `https://docs.google.com/spreadsheets/d/<ID>/edit`).
-3. Tap **Save**. The app validates the URL and extracts the sheet ID. A bad URL shows an inline error.
-4. On success the app navigates to **SessionView**.
+1. **Sign in with Google.** A Safari sheet opens for OAuth. Use an account with access to the training Sheet.
+2. **Pick the spreadsheet** from the list, or tap **Paste a URL instead** and paste the full Sheet URL. A bad URL shows an inline error.
+3. On success the app opens the Session.
 
 ## Resetting State
 
-To start fresh (re-trigger onboarding):
+To start fresh under **Copy of WorkoutTracker** (re-trigger onboarding):
 
 - **Delete the app** from the simulator home screen → reinstall via Cmd+R

@@ -9,8 +9,8 @@ End your response with a single `<output>` block. It has one of two shapes.
 <output>
 {
   "status": "proposed",
-  "title": "PRD title (matches the issue you created)",
-  "body": "The PRD body you published.",
+  "title": "Proposed PRD title",
+  "body": "Full proposed PRD body",
   "oneLineSummary": "One-line description of the deepening opportunity.",
   "candidatesConsidered": ["candidate 1", "candidate 2"]
 }
