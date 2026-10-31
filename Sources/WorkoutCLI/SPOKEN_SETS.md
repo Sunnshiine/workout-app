@@ -75,7 +75,9 @@ where a word next to it, or the phrase around it, says which, never by its place
   "for 5, 8", and "eight" alone. The one exception is a number that leads the transcript when words
   label both the reps and the RPE after it: "135, 8 reps, RPE 9" logs 135x8@9, because the recognizer
   writes that "for" as a comma, and the weight is the only value left. "8 reps, RPE 9, 135" stays
-  `ambiguous`.
+  `ambiguous`. A leading number that ends in 4 is `fusedNumber` instead, because "eighty for"
+  sounds as "eighty-four": the recognizer writes "80 for 5 reps at 8" as "84 5 reps at 8" and "180
+  for 5 reps at 8" as "184 5 reps at eight". "84 for 5" logs as said.
 - Number words read as athletes say them: "one thirty five", "four oh five", "hundred eighty five",
   "one thousand", "a thousand and five", "one thousand five hundred", "eleven hundred", "ten fifty",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", a clock-style "1:35" for 135,

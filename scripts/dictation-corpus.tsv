@@ -9,6 +9,10 @@ phrase	intent
 1250 pounds for 3 at 9.5	1250|3|9.5
 10 for 12 at 8	10|12|8
 20 for 15 at 8	20|15|8
+20 for 12 at 8	20|12|8
+40 for 8 at 9	40|8|9
+80 for 5 at 8	80|5|8
+90 for 3 at 9	90|3|9
 45 for 10 at 6	45|10|6
 95 for 10 at 6	95|10|6
 275 for 4 at 9	275|4|9
@@ -38,6 +42,8 @@ did 185 for 6 at 8	185|6|8
 135 for 8 reps, 9 RPE	135|8|9
 135 for 8 reps at RPE 9	135|8|9
 185 for 5 reps at RPE 8	185|5|8
+180 for 5 reps at 8	180|5|8
+220 for 3 reps at 9	220|3|9
 225 for 3 reps at RPE 9 and a half	225|3|9.5
 135, 8 reps, RPE 9	135|8|9
 225, 3 reps, RPE 8	225|3|8

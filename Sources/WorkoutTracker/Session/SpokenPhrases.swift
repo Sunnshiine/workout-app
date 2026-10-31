@@ -319,15 +319,18 @@ struct SpokenPhrase: Sendable {
 
     /// A number no phrase takes is one no word places, and ambiguous, unless it leads the transcript
     /// and words label both the reps and the RPE after it, as the 135 of "135, 8 reps, RPE 9": then
-    /// the weight is the only value left for it.
+    /// the weight is the only value left for it. One that ends in 4 is numbers run together, because
+    /// "eighty for" sounds as "eighty-four": the recognizer writes "80 for 5 reps at 8" as "84 5 reps at
+    /// 8" and "180 for 5 reps at 8" as "184 5 reps at eight".
     private static func placing(
         _ unplaced: [Int],
         in tokens: [SpokenToken],
         beside claims: [SpokenClaim]
     ) throws(SpokenSet.Rejection) -> [SpokenClaim] {
         guard !unplaced.isEmpty else { return [] }
-        guard unplaced == [0], let amount = tokens[0].amount, Set(claims.map(\.field)) == [.reps, .rpe] else { throw .ambiguous }
-        return [.value(.weight, amount)]
+        guard unplaced == [0], case .number(let number) = tokens[0], Set(claims.map(\.field)) == [.reps, .rpe] else { throw .ambiguous }
+        guard number.value.truncatingRemainder(dividingBy: 10) != 4 else { throw .fusedNumber }
+        return [.value(.weight, .number(number.value))]
     }
 
     private static func readsTwoWays(_ tokens: [SpokenToken], at index: Int) -> Bool {
