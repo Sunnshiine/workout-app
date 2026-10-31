@@ -134,6 +134,9 @@ func textThatIsNotOneDurationReadsAsNothing(text: String) {
         ("3–4–5 min", []),
         ("3 - 4 - 5 min", []),
         ("3—4—5 min", []),
+        ("3\u{2011}4\u{2011}5 min", []),
+        ("3\u{2012}4\u{2012}5 min", []),
+        ("3\u{2212}4\u{2212}5 min", []),
         ("Hold 1 min 30 sec", [90]),
         ("1m30s hold", [90]),
         ("Hold 1 min, 30 sec rest", [60, 30]),
@@ -141,6 +144,7 @@ func textThatIsNotOneDurationReadsAsNothing(text: String) {
         ("Sled 20m, 10 sec hold", [10]),
         ("20\" hold", [20]),
         ("\"Drive\" 20\" hold", [20]),
+        ("\"Go\" 20\" hold", [20]),
         ("Say \"hold 20\" twice", [])
     ]
 )
@@ -319,6 +323,7 @@ func aCoachNoteThatHoldsADurationAtTheStartPrescribesAnOpeningHold(coachNote: St
         "Between sets, hold 20 sec",
         "During the last rep, hold 10 sec",
         "Hold 2\" off the floor",
+        "Hold 10\" off the floor",
         "Pause 1\" off chest",
         "2\" deficit pulls",
         "Say \"hold 20\" twice",
