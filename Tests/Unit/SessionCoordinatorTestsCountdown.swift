@@ -190,6 +190,19 @@ func leavingTheSetEndsTheCountdown(action: String) throws {
 }
 
 @MainActor
+@Test func viewingAnotherSessionBeforeTheStageFollowsEndsTheCountdownAtItsNextCue() throws {
+    let harness = CountdownCoordinatorHarness()
+    _ = try harness.startTheRDLsHold()
+    harness.time.advance(by: 7)
+
+    harness.navigation.viewedSession = makeOpeningHoldSession(day: 2)
+    harness.time.advance(by: 30)
+
+    #expect(harness.coordinator.countdown.run == nil)
+    #expect(harness.cues.spoken.last == "Hold")
+}
+
+@MainActor
 @Test func movingOnEndsTheCountdown() throws {
     let harness = CountdownCoordinatorHarness()
     _ = try harness.startTheRDLsHold()
