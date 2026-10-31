@@ -45,6 +45,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+          token: ${{ secrets.AGENT_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Ensure branch is checked out by name
         run: git checkout "$BRANCH" 2>/dev/null || git checkout -B "$BRANCH"
