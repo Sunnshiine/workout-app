@@ -38,7 +38,8 @@ fresh_fixture() {
         "$fx/App/Views" "$fx/Sources/Core" "$fx/Sources/Tool" "$fx/Tests/Unit" "$fx/Tests/Support"
     cp "$lint" "$fx/scripts/lint.sh"
     cp "$repo"/scripts/lint-* "$repo/scripts/swift_lex.py" "$repo/scripts/swift-format-changed.sh" \
-        "$repo/scripts/doc-drift.py" "$repo/scripts/vocabulary_declarations.py" "$fx/scripts/"
+        "$repo/scripts/doc-drift.py" "$repo/scripts/vocabulary_declarations.py" "$repo/scripts/rule-table.sh" \
+        "$fx/scripts/"
     : >"$fx/scripts/lint-defaults-baseline.txt"
     printf 'results_dirs=()\nregenerable_dirs=()\n' >"$fx/scripts/build-dirs.sh"
     printf '[avoid]\n' >"$fx/scripts/vocabulary-avoid.txt"
@@ -49,7 +50,8 @@ fresh_fixture() {
     printf '# Verify\n' >"$fx/.agents/skills/verify/SKILL.md"
     mkdir -p "$fx/.claude/skills"
     ln -s ../../.agents/skills/verify "$fx/.claude/skills/verify"
-    printf 'Lint with `scripts/lint.sh`.\n' >"$fx/AGENTS.md"
+    printf 'Lint with `scripts/lint.sh`.\n<!-- rule-table:start -->\n<!-- rule-table:end -->\n' >"$fx/AGENTS.md"
+    printf -- '- **A rule.** Enforced by: judgment.\n' >"$fx/CODING_STANDARDS.md"
     cp "$repo/$resolved" "$fx/$resolved"
     printf 'disabled_rules:\n  - force_unwrapping\n' >"$fx/Tests/.swiftlint.yml"
     printf 'let appRoot = 1\n' >"$fx/App/Root.swift"
@@ -58,6 +60,7 @@ fresh_fixture() {
     printf 'print(model)\n' >"$fx/Sources/Tool/main.swift"
     printf 'let modelTest = model\n' >"$fx/Tests/Unit/ModelTests.swift"
     printf 'let helper = 1\n' >"$fx/Tests/Support/Helper.swift"
+    "$fx/scripts/rule-table.sh" --write "$fx"
     git -C "$fx" init -q
     git -C "$fx" add -A
     git -C "$fx" -c user.name=lint-test -c user.email=lint-test@example.com commit -qm fixture
@@ -90,7 +93,7 @@ baseline_config
 run_lint
 expect_exit "baseline" "$status" 0
 expect_line "baseline" "$out" "==> Clean"
-expect_line "baseline" "$out" "==> Clean: 3 docs, 1 launch flags"
+expect_line "baseline" "$out" "==> Clean: 4 docs, 1 launch flags"
 expect_line "baseline" "$out" "==> Clean: 1 skills, each linked from .claude/skills"
 expect_line "baseline" "$out" "==> Defaulted parameters stay within the baseline"
 expect_line "baseline" "$out" "0 defaults, 0 new, 0 gone from the tree"
