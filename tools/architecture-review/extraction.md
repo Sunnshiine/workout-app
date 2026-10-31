@@ -2,15 +2,15 @@
 
 You have finished the architecture-review pass. **Do not explore further or make any changes** — only report the outcome.
 
-End your response with a single `<output>` block, exactly as specified in the project skill `improve-codebase-architecture-project`. It has one of two shapes.
+End your response with a single `<output>` block. It has one of two shapes.
 
 ## Proposed a PRD this run
 
 <output>
 {
   "status": "proposed",
-  "title": "PRD title (matches the issue you created)",
-  "body": "The PRD body you published.",
+  "title": "Proposed PRD title",
+  "body": "Full proposed PRD body",
   "oneLineSummary": "One-line description of the deepening opportunity.",
   "candidatesConsidered": ["candidate 1", "candidate 2"]
 }

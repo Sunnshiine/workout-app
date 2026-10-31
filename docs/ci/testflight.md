@@ -49,19 +49,6 @@ the new head. Pushes never upload. When processing finishes, the workflow
 posts a receipt comment with the build number; a failed run posts a failure
 comment with the run link instead.
 
-`agent-review.yml` applies the label automatically (via `AGENT_PAT`) after a
-successful review pass, right after marking the PR ready for review — so a PR
-going ready comes with a device build. The hand-off is skipped when the diff
-vs `main` cannot affect the binary (docs, markdown, `.github/`, `.claude/`,
-`.sandcastle/` only — the same excludes `testflight-stable.yml` uses). The
-feedback-fix flow (`agent-implement-pr.yml`) does **not** re-apply the label;
-during review back-and-forth, apply it manually when you want a build.
-
-**AGENT_PAT quirk**: a label applied by a workflow authenticated with the
-plain `GITHUB_TOKEN` does **not** fire the workflow — GitHub suppresses
-token-driven events. An agent that wants to ship a build must apply the label
-using `AGENT_PAT`. (Same suppression the CI workflow documents for pushes.)
-
 Fork PRs are skipped explicitly: they have no secrets, so they can never
 upload.
 
@@ -91,11 +78,6 @@ out explicitly (PR #505 build 49 is the case study).
 Concurrency groups `testflight-stable` / `testflight-pr-<number>` cancel
 in-progress runs — newest wins, stale archives stop.
 
-**Fallback** (documented, not built): if cloud signing proves flaky on hosted
-runners, fastlane `match` with a private cert-store repo is the researched
-alternative — see the
-[pipelines research](../research/2026-07-11-testflight-upload-pipelines.md).
-
 ## Secrets
 
 All live in GitHub → repo **Settings → Secrets and variables → Actions**.
@@ -110,7 +92,6 @@ Names and locations only — never record values (public repo).
 | `GID_REVERSED_CLIENT_ID` | its reversed form | same | derived from `GID_CLIENT_ID` | with `GID_CLIENT_ID` |
 | `DEV_GID_CLIENT_ID` | "WorkoutTracker Dev iOS" client ID | PR archive job (written into `Secrets.xcconfig`) | same console, client for `com.sunnypatel.WorkoutTracker.dev` | as above, for the dev client |
 | `DEV_GID_REVERSED_CLIENT_ID` | its reversed form | same | derived | with `DEV_GID_CLIENT_ID` |
-| `AGENT_PAT` | pre-existing agent PAT (Sandcastle pipeline) | applying the `testflight` label from automation | pre-existing | unchanged by this pipeline |
 | `DIST_CERT_P12_BASE64` | the Apple Distribution certificate + private key (`.p12`), base64-encoded | archive jobs, both workflows | exported from the Mac that generated the cert — see [Signing certificates](#signing-certificates) | Re-export and update when the cert is renewed/replaced (certs last ~1 year) |
 | `DIST_CERT_PASSWORD` | the password chosen when exporting that `.p12` | same | chosen at export time | rotates with `DIST_CERT_P12_BASE64` |
 | `DEV_CERT_P12_BASE64` | an Apple Development certificate + private key (`.p12`), base64-encoded — archives are dev-signed before export re-signs them | same | exported from a Mac whose keychain holds a dev cert's key | as above |

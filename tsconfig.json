@@ -8,5 +8,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": [".sandcastle/**/*.ts", "scripts/**/*.ts"]
+  "include": ["tools/architecture-review/**/*.ts", "scripts/**/*.ts"]
 }

@@ -39,8 +39,8 @@ Skip stale candidates.
 
 # PRD SHAPE
 
-The `body` you emit must read like a PRD the `agent:to-issues` workflow can
-slice later:
+The `body` you emit must read like a PRD that can be sliced into issues
+later:
 
 - **Problem** — what is shallow/drifted/duplicated today, with file paths.
 - **Proposal** — the target end state, in domain vocabulary.

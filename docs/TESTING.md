@@ -71,14 +71,9 @@ A lane's simulator boots without the launchd jobs in `scripts/sim-pool-disabled-
 Spotlight, iCloud, and wallpaper posters, which no test uses (ADR-0022). CI's simulator boots the
 same way, through `scripts/sim-slim.sh`, and also without chronod and navd
 (`scripts/sim-ci-disabled-jobs.txt`). A test that needs one of them fails only on a lane or in CI.
-`scripts/test-sim.sh` and `verify.sh launch` share the lock in `scripts/sim-lock.sh`, which exits 75
-while another run holds that simulator. The same script admits a run only while the host has room:
-it waits while free memory (`kern.memorystatus_level`) is under `WORKOUT_MEM_FLOOR` percent, before
-a boot while `WORKOUT_SIM_CAP` other simulators are booted and no lane simulator is idle, and
-before a build while every `WORKOUT_BUILD_SLOTS` slot is taken or free disk is under
-`WORKOUT_DISK_FLOOR` MB, then exits 75 after
-`WORKOUT_ADMIT_WAIT` seconds, restarted each time a build slot changes hands. It does not read the
-load, which one build drives past 250 (ADR-0020). `scripts/build-slot.sh` runs anything else heavy
+`scripts/test-sim.sh --help` names the simulator lock it shares with `verify.sh launch` and the
+host admission both wait on. Admission does not read the load, which one build drives past 250
+(ADR-0020). `scripts/build-slot.sh` runs anything else heavy
 under a build slot, as in `scripts/build-slot.sh swift test`. Before trusting `WORKOUT_SIM_CAP` on
 a new Mac or Xcode, run `scripts/measure-host.sh 10 unit` and compare its line with ADR-0020. A
 timing or motion measurement taken under load still describes the host, not the app, so record the
@@ -212,51 +207,18 @@ The whole UI target, smoke included:
 scripts/test-sim.sh ui
 ```
 
-Reading a `scripts/test-sim.sh` run:
-
-- A selection that includes `WorkoutTrackerUITests` first runs `scripts/sim-keyboard.sh ensure`.
-  It sets `AutomaticMinimizationEnabled` in the simulator's `com.apple.keyboard.preferences` to 0
-  when it reads 1, the state that hides the software keyboard below the window (#700). An AXe key
-  or type event into a focused field sets it back to 1, so a verify session can leave it wrong.
-- The last line is `test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e>
-  load1=<start>/<end> bundle=<path>`. `expected=` counts tests whose only issues were known
-  issues, which `passed=` leaves out. `exit=` is the script's status, which a pipe such as `| tee`
-  hides.
-- A run's files in `.build/test-sim` are `<stamp>-build.log`, `<stamp>-test.log`,
-  `<stamp>.xcresult`, and `<stamp>-diffs`, and its test log ends with its result line. Each run
-  keeps the five runs written last. It deletes an older run's files when that run's test log ends
-  with a result line and none of its files changed in the last 30 minutes, so a run still in
-  progress in the same checkout keeps its log and bundle. A run with no result line whose files
-  have not changed for 24 hours was killed (SIGKILL, power loss) and is deleted too. Copy a bundle
-  or diff you cite into your proof directory, because only five runs are kept.
-- After a failed visual run, `scripts/snapshot-diffs.sh <bundle>` exports the reference, failure,
-  and difference images and prints their paths.
+`scripts/test-sim.sh --help` explains how to read a run: its result line, the files it keeps, and
+the snapshot diffs.
 
 Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh --help` hold the details):
 
-- `scripts/lane.sh up <name> <commit>` makes a lane: a detached worktree at that commit under
-  `.claude/worktrees/<name>` with `Secrets.xcconfig` in place, and its own simulator, cloned from a
-  template `scripts/sim-pool.sh` builds on first use. It prints three `export` lines: `SIM`,
-  `LANE_WORKTREE`, and `VERIFY_EVIDENCE`, an evidence directory in the main checkout that outlives
-  the worktree. The shell forgets them between calls, so start each call with
+- `scripts/lane.sh up <name> <commit>` makes a lane and prints its `export` lines. The shell
+  forgets them between calls, so start each call with
   `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
 - The lane's simulator stays Shutdown until something boots it. `scripts/test-sim.sh` and
   `verify.sh` boot it themselves. Before a raw `xcodebuild` or XcodeBuildMCP call on a lane, run
-  `scripts/sim-pool.sh boot <name>`. All three boot through the same host admission, which waits
-  while free memory is under `WORKOUT_MEM_FLOOR` or `WORKOUT_SIM_CAP` other simulators are booted.
-  At the cap it first shuts down the least recently used lane simulator that no run holds, that
-  runs no app, and that nobody claimed or booted through `sim-pool.sh boot` for
-  `WORKOUT_IDLE_MINUTES` (2). Under the cap, every boot shuts down one such lane unused for
-  `WORKOUT_SLEEP_MINUTES` (30; 0 turns it off): an idle lane simulator uses about 0.12 core, so in
-  half an hour it burns more CPU than its next boot. Its next run boots it again. Stop an app you launched through
-  XcodeBuildMCP when you are done, or its lane never counts as idle.
-- `scripts/lane.sh down <name>` deletes the lane's simulator first, refusing with exit 75 before it
-  touches anything else while a run holds the simulator. It then saves any uncommitted or staged
-  diff, untracked files, commits no branch holds, and each results dir under `.build` that
-  `scripts/build-dirs.sh` lists into that evidence directory, and removes the worktree and its
-  DerivedData.
-- `scripts/prune-merged-worktrees.sh` lists a clean lane idle for `--lane-idle-days` (default 3)
-  as a candidate, and `--apply` removes it through `lane.sh down`.
+  `scripts/sim-pool.sh boot <name>`. Stop an app you launched through XcodeBuildMCP when you are
+  done, or its lane never counts as idle.
 
 Shared fixture policy:
 

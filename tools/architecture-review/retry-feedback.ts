@@ -6,7 +6,7 @@ import { StructuredOutputError } from "@ai-hero/sandcastle";
  * validation — the highest-leverage signal for getting valid output next time.
  *
  * The returned text always contains the literal opening tag (`<tag>`), which
- * satisfies Sandcastle's "resolved prompt must contain the opening tag literal"
+ * satisfies `run()`'s "resolved prompt must contain the opening tag literal"
  * constraint when this block is used as a standalone retry prompt.
  *
  * Shared by both two-phase wrappers: `runWithExtraction` (resumes the produce

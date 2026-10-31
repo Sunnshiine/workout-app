@@ -13,8 +13,7 @@ Requirements:
 - Swift Package Manager dependencies resolved by Xcode or `swift test`
 
 Open `WorkoutTracker.xcodeproj` in Xcode and run the `WorkoutTracker` scheme on
-the iPhone 17 Pro simulator. That scheme launches against deterministic local
-fixtures, not live Google Sheets data.
+the iPhone 17 Pro simulator.
 
 ```bash
 swift test   # fast unit + component tests, no Secrets.xcconfig needed

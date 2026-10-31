@@ -64,7 +64,7 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 ```bash
 swift test                                        # unit + component; no Secrets.xcconfig needed
 swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
-scripts/lint.sh [file.swift ...]                  # what CI runs: SwiftLint --strict, doc spans, skill links, workflow if: guards, build dirs, exemption citations (the whole-tree run needs `gh auth login`), the line below; or SwiftLint on just those files; --fix autocorrects SwiftLint first
+scripts/lint.sh [file.swift ...]                  # what CI runs, the line below included (the whole-tree run needs `gh auth login`); or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
@@ -126,11 +126,7 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
   across runtimes and clones, and xcodebuild picks one of them, not necessarily the one you meant.
 - Concurrent simulator runs each need their own worktree and their own simulator.
   `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
-  as `scripts/test-sim.sh --sim <UDID> ...`. The script locks that simulator and exits 75 while
-  another `test-sim.sh` run or a verify run holds it, or after waiting up to 540 s
-  (`WORKOUT_ADMIT_WAIT`) for free memory, free disk over `WORKOUT_DISK_FLOOR`, a simulator seat (an
-  idle lane's is reclaimed), or a build slot, a budget that restarts each time a build slot changes
-  hands; `--help` names each.
+  as `scripts/test-sim.sh --sim <UDID> ...`.
   It exits 69 when the simulator broke rather than a test, as when a launch returns no process
   handle (#537). It shuts that simulator down first, so rerun the same command; do not debug the app.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
@@ -159,14 +155,11 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
   commit with no PR number. Then push, an empty commit if nothing changed, because a body edit does
   not rerun the lint job. ci-wait's run is the one that counts when the base moved or the body
   changed after CI ran, and when the lint job skipped the step, as on a PR whose paths all sit in
-  `paths-ignore` or a run from before the step existed.
+  `paths-ignore`.
 
 ## Agent workflows
 
 - Issues and PRDs live in GitHub Issues for `Sunnshiine/workout-app`. The workflow is
   `docs/agents/issue-tracker.md`, and the five triage labels are `docs/agents/triage-labels.md`.
-- Sandcastle runs label-driven implementation and review in GitHub Actions. Prompts are in
-  `.sandcastle/`, workflows in `.github/workflows/agent-*.yml`, and the map is
-  `docs/agents/sandcastle.md`.
 - A UI prototype renders as HTML for a layout question, or ships to the phone through the
   `testflight` label for a question of feel. `docs/agents/prototyping.md` owns the decision.

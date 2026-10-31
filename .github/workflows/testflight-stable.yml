@@ -4,8 +4,8 @@ name: TestFlight Stable
 # Store Connect) to TestFlight on every binary-affecting push to main, plus
 # workflow_dispatch as an escape hatch.
 #
-# Secrets inventory, rotation paths, version conventions, and the AGENT_PAT
-# label quirk are documented in docs/ci/testflight.md.
+# Secrets inventory, rotation paths, and version conventions are documented in
+# docs/ci/testflight.md.
 #
 # Job split (concurrency slots, not cost): the macOS job archives and exports,
 # then a Linux job uploads and waits for Apple's processing — the wait is
@@ -20,7 +20,7 @@ on:
       - "**"
       - "!docs/**"
       - "!**/*.md"
-      - "!.sandcastle/**"
+      - "!tools/architecture-review/**"
       - "!.claude/**"
       - "!.github/**"
       - ".github/workflows/testflight-stable.yml"
