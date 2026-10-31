@@ -36,7 +36,8 @@ private struct OfflineSheetsClient: SheetsClient {
         platform: SessionPlatform(
             liveActivity: InertSessionLiveActivity(),
             motion: ImmediateSessionMotion(),
-            restTimer: RestTimer(notificationScheduler: notifications)
+            restTimer: RestTimer(notificationScheduler: notifications),
+            countdown: EffortCountdown(clock: SystemRestClock(), scheduler: HeldRestExpiry(), cues: SilentCountdownCues())
         )
     )
     let coordinator = SessionCoordinator(wiring: wiring)

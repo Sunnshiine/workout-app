@@ -4,6 +4,7 @@ struct RootView: View {
     let dictation: SetDictation?
     let focus: ActiveSetFocusManager
     let restTimer: RestTimer
+    let countdown: EffortCountdown
     let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(WorkoutStore.self) private var workout
@@ -65,6 +66,12 @@ struct RootView: View {
             guard !isSignedIn else { return }
             liveActivityAdapter.end()
         }
+        // The athlete's hands are on the machine, so the screen stays lit while an Effort
+        // Countdown runs. The root watches it, because a Session screen that goes away mid-count
+        // ends the countdown as it leaves and would miss the end.
+        .onChange(of: countdown.run != nil) { _, isCounting in
+            UIApplication.shared.isIdleTimerDisabled = isCounting
+        }
     }
 
     private var palette: Theme.Palette {
@@ -83,7 +90,8 @@ struct RootView: View {
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,
                         motion: SwiftUISessionMotion(),
-                        restTimer: restTimer
+                        restTimer: restTimer,
+                        countdown: countdown
                     )
                 ),
                 dictation: dictation,

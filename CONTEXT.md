@@ -36,7 +36,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Prescription**: What the coach asked of one Set: its Prescribed Reps, its Prescribed Load, and its %1RM, read once from those three cells of its Prescription Line. It is derived from the cells each time and never stored, so the Sheet stays the source of truth, and the card's prescription text still shows the cells as the coach typed them. Distinct from Prescription Line, the Sheet row that carries the cells. Avoid: plan, programming.
 
-**Prescribed Reps**: The coach's Reps cell for a Set. It is exactly one of two things: a rep target, either one whole number ("5") or a range whose ends both resolve, low end first ("8-10", "7 – 8"), or text the app does not interpret ("AMRAP", "5+", "40 sec"). Avoid: target reps, rep goal.
+**Prescribed Reps**: The coach's Reps cell for a Set. It is exactly one of three things: a rep target, either one whole number ("5") or a range whose ends both resolve, low end first ("8-10", "7 – 8"); a duration, which makes the Set a Timed Set ("40 sec", "0:45"); or text the app does not interpret ("AMRAP", "5+", "1-2-3-3-2-1"). Avoid: target reps, rep goal.
 
 **Prescribed Load**: The coach's intensity instruction for a given Set. It is exactly one of four things: bodyweight ("BW"), a Drop of a share off the previous Set's weight ("Drop 17.5%"), an RPE target on one of the ten RPE points ("RPE6"), or text the app does not interpret ("Start conservative", "RPE 5.5"). The %1RM is its own column, not a Prescribed Load. Read-only from the athlete's perspective. Avoid: target load.
 
@@ -48,7 +48,7 @@ Checking a name against the avoid-lists, or using a Logging term: read
 [docs/context/logging.md](docs/context/logging.md), where each Logging term's definition and
 avoid-list lives and binds as the rest of this glossary does. A new Logging term goes there, with its name added here.
 
-**Set Log**, **Unstructured Set Log**, **Load Suggestion**, **RPE Table**, **Estimated Single**, **Load Basis**, **Last Set RPE**, **Coach Note**, **Legacy Log**, **Header Notes Role**, **Completion Evidence**, **Set State**, **Superset**, **Open Exercise**, **Makeup Day**, **Cadence**, **Entered Name**, **Exercise Reference**, **Base Name**, **Last Performed**, **Exercise History** (and its **entry**), **Session Coordinate**, **Detached Session**, **Exercise History fill**, and **Movement**.
+**Set Log**, **Unstructured Set Log**, **Load Suggestion**, **RPE Table**, **Estimated Single**, **Load Basis**, **Last Set RPE**, **Coach Note**, **Legacy Log**, **Header Notes Role**, **Completion Evidence**, **Set State**, **Superset**, **Open Exercise**, **Makeup Day**, **Cadence**, **Entered Name**, **Exercise Reference**, **Base Name**, **Last Performed**, **Exercise History** (and its **entry**), **Session Coordinate**, **Detached Session**, **Exercise History fill**, **Movement**, **Opening Hold**, **Timed Set**, **Timed Effort**, **Lead-in**, and **Effort Countdown**.
 
 ### Dictation
 

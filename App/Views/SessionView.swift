@@ -83,11 +83,14 @@ struct SessionView: View {
             coordinator.answerEntry()
         }
         // The hold is for the athlete to glance at the written Set and undo it. Off screen there
-        // is no glance, and a hold its Clear menu suspended would otherwise outlast the lock.
+        // is no glance, and a hold its Clear menu suspended would otherwise outlast the lock. An
+        // Effort Countdown ends too, since its voice and timer cannot be trusted in the background.
         .onChange(of: scenePhase) { _, phase in
             guard phase == .background else { return }
             coordinator.endSpokenWriteHold()
+            coordinator.cancelCountdown()
         }
+        .onDisappear(perform: coordinator.cancelCountdown)
     }
 }
 

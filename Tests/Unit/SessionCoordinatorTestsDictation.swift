@@ -30,11 +30,13 @@ func makeDictationCoordinator(
 ) -> (coordinator: SessionCoordinator, ledger: SessionVerbLedger, clock: ManualSessionTransitionClock) {
     let ledger = SessionVerbLedger()
     let clock = ManualSessionTransitionClock()
+    let navigation = SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) })
+    navigation.viewedSession = session
     let coordinator = SessionCoordinator(
         session: session,
         wiring: .fixture(
             logging: ledger,
-            navigation: SpySessionNavigationAdapter(liveEdge: { .atLiveEdge(currentSession: $0) }),
+            navigation: navigation,
             sync: ledger,
             restTimer: restTimer,
             restDurations: restDurations(standard: 210),

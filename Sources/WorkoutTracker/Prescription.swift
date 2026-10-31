@@ -29,13 +29,15 @@ enum PrescribedReps: Equatable, Sendable {
     /// One whole number, as `5...5`, or a range whose ends both resolve, low end first:
     /// `8-10`, `7 - 8`, `7 – 8`.
     case target(ClosedRange<Int>)
-    /// `AMRAP`, `5+`, a timed Set, and any other text.
+    /// A Timed Set's duration, written as `EffortDuration` reads one: `40 sec`, `25 min`, `0:45`.
+    case timed(EffortDuration)
+    /// `AMRAP`, `5+`, a pyramid such as `1-2-3-3-2-1`, and any other text.
     case uninterpreted
 
     init(_ cell: String) {
         let trimmed = cell.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let match = trimmed.wholeMatch(of: /(\d+)(?:\s*[-–]\s*(\d+))?/), let low = Int(match.1) else {
-            self = .uninterpreted
+            self = EffortDuration(trimmed).map(Self.timed) ?? .uninterpreted
             return
         }
         let high = match.2.flatMap { Int($0) } ?? low

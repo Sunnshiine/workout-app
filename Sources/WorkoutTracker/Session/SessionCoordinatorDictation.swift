@@ -20,8 +20,11 @@ extension SessionCoordinator {
 
     func startDictation(for set: ExerciseSet) {
         guard let dictation, let setID = Self.activeSetID(for: set), let pressed = onStageID(of: set),
-            let mode = spokenWriteMode(for: set), dictation.start(for: setID)
+            let mode = spokenWriteMode(for: set)
         else { return }
+        // The countdown's voice would be heard as the Spoken Set, so it ends before the mic opens.
+        countdown.cancel()
+        guard dictation.start(for: setID) else { return }
         dictatingSet = pressed
         dictatingMode = mode
     }

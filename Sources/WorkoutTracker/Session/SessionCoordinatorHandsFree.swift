@@ -58,6 +58,7 @@ extension SessionCoordinator {
         guard let dictation, case .listen(let setID) = entryRoute, Self.activeSetID(for: set) == setID, let listened = onStageID(of: set)
         else { return nil }
         _ = wiring.entry.take()
+        countdown.cancel()
         dictatingSet = listened
         dictatingMode = .logging
         let outcome = await dictation.listenUntilQuiet(for: setID, on: .card) { spokenSetContext(for: set) }

@@ -26,6 +26,7 @@ struct ActiveSetCard: View {
     let setCount: Int
     var mode: SetCardSlot.Mode = .logging
     var mic: SetCardMic?
+    var timedEffort: SetCardTimedEffort?  // default: no control, the answer for a Set with no Timed Effort
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -45,6 +46,11 @@ struct ActiveSetCard: View {
         mode.cardMode
     }
 
+    /// The running countdown cuts in over the card's values in their frame, so the card holds still.
+    private var countdownRun: CountdownRun? {
+        timedEffort?.countdown.run
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
@@ -61,8 +67,13 @@ struct ActiveSetCard: View {
                 onShow: { mic?.shows($0) }
             )
             .id(PillsIdentity(set: set.persistentModelID, mode: setCardMode))
+            .opacity(countdownRun == nil ? 1 : 0)
+            .accessibilityHidden(countdownRun != nil)
             .overlay {
                 if mode == .heldAfterSpokenWrite { heldValuesCover }
+                if let countdownRun, let timedEffort {
+                    EffortCountdownView(run: countdownRun, onCancel: timedEffort.cancel)
+                }
             }
         }
         .onChange(of: isPressingMic) { _, isPressing in
@@ -121,8 +132,13 @@ struct ActiveSetCard: View {
     private var headTrailingSlot: some View {
         switch mode.headAccessory(for: set) {
         case .none:
-            if let mic {
-                micControl(mic.dictation)
+            HStack(spacing: 4) {
+                if let timedEffort {
+                    TimedEffortControl(timedEffort: timedEffort, targetHeight: Self.headTargetSize)
+                }
+                if let mic {
+                    micControl(mic.dictation)
+                }
             }
         case .saved:
             HStack(spacing: 0) {
