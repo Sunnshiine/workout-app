@@ -1,5 +1,11 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(scripts/lint.sh)",
+      "Bash(scripts/ci-wait.sh *)",
+      "Bash(scripts/swift-format-changed.sh)",
+      "Bash(scripts/swift-format-changed.sh origin/main)"
+    ],
     "deny": [
       "EnterPlanMode",
       "ExitPlanMode",
