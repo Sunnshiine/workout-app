@@ -9,6 +9,10 @@ import AVFoundation
 final class SpokenCountdownCues: CountdownCuePlaying {
     /// Long enough past a cue to keep the music down across the Lead-in's one-second cues.
     private static let releaseDelay: Duration = .milliseconds(1_500)
+    /// How long a countdown cancelled mid-word waits before it lets the music back up.
+    private static let silencedReleaseDelay: Duration = .milliseconds(250)
+    private static let releaseRecheck: Duration = .milliseconds(250)
+    private static let releaseAttempts = 8
 
     private let synthesizer = AVSpeechSynthesizer()
     private var holdsAudioSession = false
@@ -20,26 +24,34 @@ final class SpokenCountdownCues: CountdownCuePlaying {
         // A cue still speaking when the next falls due gives way to it, so the voice keeps time.
         synthesizer.stopSpeaking(at: .immediate)
         synthesizer.speak(AVSpeechUtterance(string: cue.spokenText))
-        releaseAfterABeat()
+        release(after: Self.releaseDelay)
     }
 
     func silence() {
-        release?.cancel()
         synthesizer.stopSpeaking(at: .immediate)
-        deactivateAudioSession()
+        release(after: Self.silencedReleaseDelay)
     }
 
-    /// Lets the music back up once the voice has been quiet a beat. A cue played before then
-    /// starts the beat again.
-    private func releaseAfterABeat() {
+    /// Lets the music back up once the voice has been quiet for `delay`. A cue played before then
+    /// starts the wait again.
+    private func release(after delay: Duration) {
         release?.cancel()
         release = Task { [weak self] in
-            try? await Task.sleep(for: Self.releaseDelay)
-            while let self, synthesizer.isSpeaking, !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(250))
+            try? await Task.sleep(for: delay)
+            await self?.releaseOnceQuiet()
+        }
+    }
+
+    /// The session refuses to deactivate while the synthesizer still runs its audio, as it can just
+    /// after `stopSpeaking(at:)`, so a refused release tries again a beat later, a few times.
+    /// The session stays held until one succeeds, and the next cue's release tries again.
+    private func releaseOnceQuiet() async {
+        for _ in 0..<Self.releaseAttempts {
+            while synthesizer.isSpeaking, !Task.isCancelled {
+                try? await Task.sleep(for: Self.releaseRecheck)
             }
-            guard !Task.isCancelled else { return }
-            self?.deactivateAudioSession()
+            guard !Task.isCancelled, !deactivateAudioSession() else { return }
+            try? await Task.sleep(for: Self.releaseRecheck)
         }
     }
 
@@ -55,9 +67,15 @@ final class SpokenCountdownCues: CountdownCuePlaying {
         }
     }
 
-    private func deactivateAudioSession() {
-        guard holdsAudioSession else { return }
-        holdsAudioSession = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    /// True once the session is let go, or when it was never held.
+    private func deactivateAudioSession() -> Bool {
+        guard holdsAudioSession else { return true }
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            holdsAudioSession = false
+            return true
+        } catch {
+            return false
+        }
     }
 }
