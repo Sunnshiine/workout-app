@@ -26,7 +26,7 @@ A change to anything that moves needs that skill's Motion section: `verify.sh la
 The **WorkoutTracker** scheme opens a seeded Session fixture and never reaches onboarding. To see it, run the **Copy of WorkoutTracker** scheme, which runs live, on a fresh install:
 
 1. **Sign in with Google.** A Safari sheet opens for OAuth. Use an account with access to the training Sheet.
-2. **Pick the spreadsheet** from the list, or tap **Paste a URL instead** and paste the full Sheet URL. A bad URL shows an inline error.
+2. **Pick the spreadsheet** from the list, or tap **Paste a URL instead**, paste the full Sheet URL, then tap **Save**. A bad URL shows an inline error.
 3. On success the app opens the Session.
 
 ## Resetting State
