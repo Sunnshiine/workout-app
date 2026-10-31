@@ -30,13 +30,19 @@ enum Theme {
     // MARK: - Radius family (token sheet §6)
     //
     // A named concentric family replacing the retired 8 / 16 / 28 scale. Approved pixel values are
-    // kept verbatim, not rounded. `soft` belongs only to the one soft container and sheet shoulders.
+    // kept verbatim, not rounded. A container's radius is its corner child's radius plus the inset
+    // between them, so the two curves stay concentric. Sheets take the system's own corners.
 
     enum Radius {
         static let capsule: CGFloat = 999  // ∞ — all controls
-        static let soft: CGFloat = 30  // the one soft container: Active Set Card, ceremony stats, sheets
-        static let focusCard: CGFloat = 24  // the Block grid's focus card
-        static let card: CGFloat = 20  // collapsed week cards
+        static let soft: CGFloat = 30  // ceremony stats and the Settings confirmation card
+        // Concentric with the Log capsule at its corner: the capsule's measured ~29pt half-height plus
+        // the card's 14pt bottom inset.
+        static let activeSetCard: CGFloat = 43
+        // Concentric with the day tiles inside it: tile 15 + the card's 16pt `blockFocusCardPadding`.
+        static let focusCard: CGFloat = 31
+        // Collapsed week cards, already concentric: mini 6 + the 14pt `blockWeekCardPadding`.
+        static let card: CGFloat = 20
         static let rail: CGFloat = 18  // reps/RPE rails
         static let tile: CGFloat = 15  // day tiles
         static let cell: CGFloat = 14  // rail chips

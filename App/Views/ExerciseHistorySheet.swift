@@ -55,7 +55,6 @@ struct ExerciseHistorySheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
     }
 

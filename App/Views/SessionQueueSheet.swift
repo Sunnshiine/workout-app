@@ -29,7 +29,6 @@ struct SessionQueueSheet: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
-        .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
         .onDisappear {
             coordinator.cancelPairing()
