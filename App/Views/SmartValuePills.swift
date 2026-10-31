@@ -484,7 +484,7 @@ private struct HoldToSkipLogButton: View {
 }
 
 extension View {
-    fileprivate func logCapsuleMetrics() -> some View {
+    func logCapsuleMetrics() -> some View {
         themeFont(.logCapsule)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity)

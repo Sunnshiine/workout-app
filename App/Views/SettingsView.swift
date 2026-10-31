@@ -117,6 +117,7 @@ struct SettingsView: View {
                     } label: {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                             .labelStyle(.iconOnly)
+                            .frame(maxWidth: .infinity)
                     }
                     .disabled(isSheetBusy)
                     .accessibilityIdentifier("settings-sign-out-button")
@@ -255,9 +256,10 @@ struct SettingsView: View {
                 },
                 isSelectionDisabled: isSheetBusy
             )
-            .background(palette.gradient.ignoresSafeArea())
-            .navigationTitle("Training Sheet")
+            .padding()
+            .frame(maxHeight: .infinity, alignment: .top)
         }
+        .presentationBackground { palette.paperBackground }
         .destructiveConfirmation(
             "You have unsynced changes. Switch anyway?",
             isPresented: pendingSwitchConfirmation,
