@@ -12,8 +12,9 @@ and the card does not hold is never guessed.
 
 On the facade, `say` is `dictate(_ candidates: [String], at:)` with one transcript. `dictate` takes
 a recognizer's transcripts, most likely first, under the Dictation write policy: only the most
-likely transcript writes. A Set only the less likely ones read, and agree on, is `rejected` as
-`ambiguous` with nothing written. The headless Dictation the Action button and Control Center run
+likely transcript writes, read with the start or the "at" its alternatives heard where it lost them
+(below). A Set only the less likely ones read, and agree on, is `rejected` as `ambiguous` with
+nothing written. The headless Dictation the Action button and Control Center run
 on a locked phone writes through the same call.
 
 | `outcome` | Means | Carries | Exit |

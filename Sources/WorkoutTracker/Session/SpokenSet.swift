@@ -157,12 +157,12 @@ extension SpokenSet {
         let source: Source
     }
 
-    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. A
-    /// value the top cut off is settled by its alternatives when every one that hears the same Set
-    /// hears that value the same, and that value is the number the top heard in its place, if the top
-    /// heard one. Otherwise the alternatives are read only when the top is rejected, and stand in for
-    /// it only when every one that reads agrees, because two readings of one Set are two different
-    /// Set Logs.
+    /// The transcriber's top transcript first, then its alternatives, which may repeat the top. The
+    /// top is read with the words its alternatives heard where it lost them, and a value it cut off
+    /// is settled by its alternatives when every one that hears the same Set hears that value the
+    /// same, and that value is the number the top heard in its place, if the top heard one. Otherwise
+    /// the alternatives are read only when the top is rejected, and stand in for it only when every
+    /// one that reads agrees, because two readings of one Set are two different Set Logs.
     static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
         guard let top = candidates.first else { return .failure(.nothingHeard) }
         let alternatives = candidates.dropFirst()

@@ -178,9 +178,10 @@ extension WorkoutApplication {
     }
 
     /// `say` over a recognizer's transcripts, most likely first, under the Dictation write policy:
-    /// only the most likely transcript writes, and a Set it does not read that the others agree
-    /// on is reported `ambiguous` with nothing written. Every Dictation that writes without the
-    /// card, headless or from a recording, ends here.
+    /// only the most likely transcript writes, read with the words the others heard where it lost
+    /// them, and a Set it does not read that the others agree on is reported `ambiguous` with
+    /// nothing written. Every Dictation that writes without the card, headless or from a recording,
+    /// ends here.
     public func dictate(_ candidates: [String], at address: SetAddress) throws -> SayReport {
         let set = try resolveSet(address)
         let context = SpokenSetContext(for: set, history: lastPerformed.snapshot)
