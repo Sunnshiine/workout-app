@@ -44,6 +44,8 @@ struct OnboardingView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Signing in only cross-fades, so the first picker never drifts in as if going back.
+                .transition(.opacity)
             }
         }
         .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
