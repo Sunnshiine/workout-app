@@ -119,7 +119,7 @@ struct SessionStageBranch: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Set \(set.index + 1), \(SetRowPresentation(set: set).title)")
+            .accessibilityLabel(SetRowPresentation(set: set).accessibilityLabel)
         } else {
             glyph
         }

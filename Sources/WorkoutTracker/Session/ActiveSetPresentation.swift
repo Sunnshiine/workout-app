@@ -75,15 +75,23 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
 
 struct SetRowPresentation: Equatable, Sendable {
     let title: String
+    /// "Set 2, 5 · RPE 8", or "Set 2" alone when the coach left Reps and Load blank.
+    let accessibilityLabel: String
 
     init(set: ExerciseSet) {
+        let title = Self.title(of: set)
+        self.title = title
+        accessibilityLabel = title.isEmpty ? "Set \(set.index + 1)" : "Set \(set.index + 1), \(title)"
+    }
+
+    private static func title(of set: ExerciseSet) -> String {
         switch set.state {
         case .logged:
-            title = set.setLog?.formatted ?? set.displayReps
+            set.setLog?.formatted ?? set.displayReps
         case .skipped:
-            title = SetLogToken.skipSentinel
+            SetLogToken.skipSentinel
         case .pending:
-            title = [set.prescribedReps, set.prescribedLoad]
+            [set.prescribedReps, set.prescribedLoad]
                 .filter { !$0.isEmpty }
                 .joined(separator: " · ")
         }
