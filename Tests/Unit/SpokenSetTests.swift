@@ -115,6 +115,12 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
     #expect(SpokenSet.parse("5 to 6 reps") == .failure(.unrecognized))
 }
 
+/// Verbatim from the matrix: what the recognizer writes for Karen's "eight".
+@Test func ageIsEight() {
+    #expect(SpokenSet.parse("10 for 12 at age.") == values(.pounds(10), 12, .eight))
+    #expect(SpokenSet.parse("£135 for age.") == values(.pounds(135), 8, nil))
+}
+
 @Test(
     "Bodyweight in any spelling is the BW weight",
     arguments: [
