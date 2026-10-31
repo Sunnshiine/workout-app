@@ -38,11 +38,13 @@ enum WorkoutUITestFixtureOption: String {
 extension XCTestCase {
     @MainActor
     /// `transcript` is what the Active Set Card's mic hears on every press; nil leaves the mic off.
+    /// `contentSize` is a `UIContentSizeCategory` raw value; nil keeps the simulator's.
     func launchWorkoutApp(
         fixture: WorkoutUITestFixture,
         options: [WorkoutUITestFixtureOption] = [],
         animated: Bool = false,
-        dictating transcript: String? = nil
+        dictating transcript: String? = nil,
+        contentSize: String? = nil
     ) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -50,6 +52,7 @@ extension XCTestCase {
             fixture.launchArguments + options.map(\.rawValue)
             + (animated ? [] : ["-UITEST_DISABLE_ANIMATIONS"]) + ["-UITEST_DISABLE_LIVE_ACTIVITIES"]
             + (transcript.map { ["-UITEST_DICTATION", $0] } ?? [])
+            + (contentSize.map { ["-UIPreferredContentSizeCategoryName", $0] } ?? [])
         // Xcode points these at the build products for the app it launches. The app embeds
         // everything it links, so they find nothing, yet dyld checks them on each of about 1,500
         // image loads, a quarter second of every launch. Empty, dyld skips them.

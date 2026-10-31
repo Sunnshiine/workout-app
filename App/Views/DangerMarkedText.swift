@@ -14,6 +14,6 @@ struct DangerMarkedText: View {
             Text(message)
                 .foregroundStyle(palette.textPrimary)
         }
-        .font(Theme.font(role))
+        .themeFont(role)
     }
 }

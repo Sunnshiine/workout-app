@@ -108,6 +108,18 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
     let presentation = SetRowPresentation(set: set)
 
     #expect(presentation.title == "5 · RPE 8")
+    #expect(presentation.accessibilityLabel == "Set 1, 5 · RPE 8")
+}
+
+// The worst-case scenario's Landmine Press: a coach left Reps and Load blank.
+@MainActor
+@Test func aPendingSetWithNoPrescriptionReadsAsItsNumberAlone() {
+    let set = ExerciseSet(index: 2, prescribedReps: "", prescribedLoad: "", percentOneRM: nil, state: .pending)
+
+    let presentation = SetRowPresentation(set: set)
+
+    #expect(presentation.title.isEmpty)
+    #expect(presentation.accessibilityLabel == "Set 3")
 }
 
 @MainActor

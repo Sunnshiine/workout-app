@@ -20,12 +20,12 @@ import Testing
     }
 
     @Test func frauncesVoiceResolvesToTheBundledFaceNotSF() {
-        let font = Theme.uiFont(Theme.TypeRole.exerciseName.style)
+        let font = Theme.uiFont(Theme.TypeRole.exerciseName.style, size: 33)
         #expect(font.familyName == "Fraunces", "exerciseName fell back to \(font.familyName) instead of Fraunces")
     }
 
     @Test func sourceSansCarriesTheInstrumentNotSF() {
-        let font = Theme.uiFont(Theme.TypeRole.weightEntry.style)
+        let font = Theme.uiFont(Theme.TypeRole.weightEntry.style, size: 46)
         #expect(font.familyName == "Source Sans 3", "weightEntry fell back to \(font.familyName) instead of Source Sans 3")
     }
 
@@ -33,7 +33,7 @@ import Testing
     /// request; proportional only when explicitly asked for), so this observes the rendered result
     /// users see, not the `tabular` branch in `uiFont`. A fallback to SF fails it: SF is proportional.
     @Test func numeralRolesRenderTabular() {
-        let font = Theme.uiFont(Theme.TypeRole.weightEntry.style)
+        let font = Theme.uiFont(Theme.TypeRole.weightEntry.style, size: 46)
         let widths = "0123456789".map { digit in
             (String(digit) as NSString).size(withAttributes: [.font: font]).width
         }

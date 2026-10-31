@@ -16,7 +16,7 @@ struct BuildIdentityFooter: View {
     var body: some View {
         Button(action: copy) {
             Text(didCopy ? "Copied" : identity.compactLine)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .monospaced()
                 .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity)

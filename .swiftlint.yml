@@ -34,15 +34,16 @@ custom_rules:
   # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
   # Theme's type role table; no view constructs a font. This bans the three escape routes —
   # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —
-  # so type cannot drift per-view and adopting Dynamic Type later stays a one-file diff. The
-  # glyphFont(…) hatch is retired (it minted arbitrary system fonts through the seam).
+  # so type cannot drift per-view and every role scales with Dynamic Type through one growth
+  # table. The glyphFont(…) hatch is retired (it minted arbitrary system fonts through the seam).
   font_construction_via_theme:
     name: "Font construction via the Theme seam"
     message: >
-      Construct fonts only through the single type role table on the Theme seam (Theme.font(_:)).
+      Construct fonts only through the single type role table on the Theme seam (themeFont(_:),
+      or Theme.font(_:at:) inside a Text concatenation).
       Font.custom(…), .system(size:…) and the shorthand system text styles (.font(.headline) …)
-      are banned outside Theme.swift so type cannot drift per-view and Dynamic Type stays a
-      one-file diff (ADR-0014, token sheet §4).
+      are banned outside Theme.swift so type cannot drift per-view and every role scales with
+      Dynamic Type (ADR-0014, token sheet §4).
     regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
     included: '.*/(App|Sources/WorkoutTracker)/.*'
     # The Greenhouse contract slice (PRD #497 slice 9) retired every grandfathered exception: each

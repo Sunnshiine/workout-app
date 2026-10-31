@@ -89,14 +89,14 @@ struct OnboardingView: View {
                     .accessibilityHidden(true)
 
                 Text("Plant the program.")
-                    .font(Theme.font(.connectTitle))
+                    .themeFont(.connectTitle)
                     .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.center)
                     .padding(.top, 24)
                     .accessibilityIdentifier("onboarding-title")
 
                 Text("Connect the Sheet your coach programs. The app keeps it fresh and carries your logs back.")
-                    .font(Theme.font(.coachNote))
+                    .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 320)
@@ -112,7 +112,7 @@ struct OnboardingView: View {
 
                 Button(action: signIn) {
                     Text("Connect Google Sheet")
-                        .font(Theme.font(.logCapsule))
+                        .themeFont(.logCapsule)
                         .foregroundStyle(palette.actionText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
@@ -162,7 +162,7 @@ struct OnboardingView: View {
             }
 
             Text("Paste your sheet URL")
-                .font(Theme.font(.sheetTitle))
+                .themeFont(.sheetTitle)
 
             TextField(
                 fieldName,
@@ -262,7 +262,8 @@ struct SheetPickerView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Choose your training sheet")
-                .font(Theme.font(.sheetTitle))
+                .themeFont(.sheetTitle)
+                .fixedSize(horizontal: false, vertical: true)
 
             content
 
@@ -369,6 +370,7 @@ struct SheetPickerView: View {
 
 private struct SheetPickerRow: View {
     @Environment(\.themePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     let spreadsheet: SpreadsheetFile
     let modifiedText: String
@@ -383,12 +385,12 @@ private struct SheetPickerRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(spreadsheet.name)
-                            .font(Theme.font(.heading))
+                            .themeFont(.heading)
                             .foregroundStyle(.primary)
-                            .lineLimit(2)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
 
                         Text(modifiedText)
-                            .font(Theme.font(.historyChip))
+                            .themeFont(.historyChip)
                             .foregroundStyle(palette.textSecondary)
                     }
 

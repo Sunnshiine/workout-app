@@ -345,7 +345,7 @@
                 logs: "1025.5x1@10, 1015x1@9.5, felt heavy belt off knees caved on rep three"
             )
             let longNamedDays = (1...4).flatMap { week in (1...4).map { SessionAddress(week: week, day: $0) } }
-                .filter { $0 != SessionAddress(week: 1, day: 1) }
+                .filter { ![SessionAddress(week: 1, day: 1), SessionAddress(week: 1, day: 2)].contains($0) }
             return block(
                 daysPerWeek: [4, 4, 4, 4],
                 prescriptions: [
@@ -368,8 +368,23 @@
                         reps: "1",
                         load: "RPE10"
                     )
-                ] + longNamedDays.map(longNamedAccessory(at:))
+                ] + [coachEdgeCases(at: SessionAddress(week: 1, day: 2))] + longNamedDays.map(longNamedAccessory(at:))
             )
+        }
+
+        /// Cells a coach leaves half-typed: a Sets count of 0 and a blank one, a row with no Reps,
+        /// Load, or RPE, a four-digit Load, and a decimal one, none with a Last Performed.
+        private static func coachEdgeCases(at address: SessionAddress) -> [String: String] {
+            let (row, dayStart) = (firstPrescriptionRow(of: address), dayStartColumns[address.day - 1])
+            var blankSets = prescription(row: row + 1, dayStart: dayStart, name: "Cable Row", sets: 1, reps: "10", load: "50")
+            blankSets.removeValue(forKey: "\(columnName(dayStart + 1))\(row + 1)")
+            return merged([
+                prescription(row: row, dayStart: dayStart, name: "Zero Sets Curl", sets: 0, reps: "10", load: "RPE8"),
+                blankSets,
+                prescription(row: row + 2, dayStart: dayStart, name: "Landmine Press", sets: 3, reps: "", load: ""),
+                prescription(row: row + 3, dayStart: dayStart, name: "Rack Pull", sets: 2, reps: "1", load: "1405"),
+                prescription(row: row + 4, dayStart: dayStart, name: "Close-Grip Bench Press", sets: 2, reps: "5", load: "142.5")
+            ])
         }
 
         private static func longNamedAccessory(at address: SessionAddress) -> [String: String] {

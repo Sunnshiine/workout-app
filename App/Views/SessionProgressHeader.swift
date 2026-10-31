@@ -31,7 +31,8 @@ struct SessionProgressHeader: View {
             Spacer()
 
             Text(presentation.remainingText)
-                .font(Theme.font(.runlineSecondary))
+                .themeFont(.runlineSecondary)
+                .lineLimit(1)
                 .contentTransition(
                     reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
                 )
@@ -52,8 +53,10 @@ struct SessionProgressHeader: View {
                 BlockOverviewView(block: block, currentSession: currentSession)
             } label: {
                 locationLabelText
+                    .hitOutset(HitOutset.textLine)
             }
             .buttonStyle(.plain)
+            .givingBackHitOutset(HitOutset.textLine)
             .simultaneousGesture(TapGesture().onEnded(onNavigate))
             .accessibilityLabel(presentation.locationActionAccessibilityLabel)
             .accessibilityIdentifier("session-location-button")
@@ -65,7 +68,9 @@ struct SessionProgressHeader: View {
     private var locationLabelText: some View {
         Text("\(Image(systemName: "calendar")) \(presentation.runlineText)")
             .accessibilityLabel(presentation.runlineText)
-            .font(Theme.font(.runline))
+            .themeFont(.runline)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .foregroundStyle(palette.textSecondary)
     }
 }

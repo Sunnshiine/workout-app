@@ -29,6 +29,8 @@ struct SessionStageBranch: View {
         static let leafTiltBelow: CGFloat = 50
         static let ghostScale: CGFloat = 0.72  // a future is a smaller ghost of the leaf to come
         static let stemWidth: CGFloat = 2
+        /// Leaves sit closer than a finger, so each narrows to its share of the gap (DESIGN.md §8).
+        static let hitSide: CGFloat = 44
     }
 
     private enum LateralMetrics {
@@ -78,11 +80,18 @@ struct SessionStageBranch: View {
                 CurvePath(curve: stemCurve(in: drawing))
                     .stroke(pigment(.stem, focused: palette.stem), style: StrokeStyle(lineWidth: Metrics.stemWidth, lineCap: .round))
 
+                let centers = stem.indices.map { stemPoint(t: nodeT($0), in: drawing) }
+                let hitWidths = BranchNodeLayout.hitWidths(centers: centers, side: Metrics.hitSide)
                 ForEach(Array(stem.enumerated()), id: \.element.set.persistentModelID) { index, node in
-                    let point = stemPoint(t: nodeT(index), in: drawing)
                     let angle = stemAngle(t: nodeT(index), in: drawing)
-                    nodeCell(node.set, glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength))
-                        .position(point)
+                    nodeCell(
+                        node.set,
+                        hitWidth: hitWidths[index],
+                        glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength)
+                    )
+                    .position(centers[index])
+                    // The stem climbs and its leaves alternate sides, so screen order is not Set order.
+                    .accessibilitySortPriority(Double(stem.count - index))
                 }
             }
             // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,
@@ -100,17 +109,17 @@ struct SessionStageBranch: View {
     // MARK: - Nodes
 
     @ViewBuilder
-    private func nodeCell(_ set: ExerciseSet, glyph: some View) -> some View {
+    private func nodeCell(_ set: ExerciseSet, hitWidth: CGFloat, glyph: some View) -> some View {
         if let onTap {
             Button {
                 onTap(set)
             } label: {
                 glyph
-                    .frame(width: 44, height: 44)
+                    .frame(width: hitWidth, height: Metrics.hitSide)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Set \(set.index + 1), \(SetRowPresentation(set: set).title)")
+            .accessibilityLabel(SetRowPresentation(set: set).accessibilityLabel)
         } else {
             glyph
         }

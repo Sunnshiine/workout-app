@@ -48,7 +48,7 @@ struct ValueRail: View {
             .simultaneousGesture(dragToSelect)
 
             Text(label)
-                .font(Theme.font(.fieldLabel))
+                .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
         }
         .accessibilityElement(children: .contain)
@@ -92,7 +92,7 @@ struct ValueRail: View {
             HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
         } label: {
             Text(chip.label)
-                .font(Theme.font(.railChipValue))
+                .themeFont(.railChipValue)
                 .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
                 .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
                 .contentShape(.rect)
@@ -118,6 +118,9 @@ struct ValueRail: View {
                 }
         }
         .buttonStyle(.plain)
+        .accessibilityShowsLargeContentViewer {
+            Text("\(label) \(chip.label)")
+        }
         .accessibilityIdentifier(chip.accessibilityIdentifier)
         .accessibilityLabel("\(label) \(chip.label)")
         .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)

@@ -20,9 +20,17 @@ struct WeightStepperButton: View {
         height: Theme.weightStepperDiameter
     )
 
+    private var glyph: String {
+        direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill"
+    }
+
+    private var accessibilityLabel: String {
+        direction == .decrement ? "Decrease weight" : "Increase weight"
+    }
+
     var body: some View {
         Button(action: action) {
-            Image(systemName: direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill")
+            Image(systemName: glyph)
                 .resizable()
                 .scaledToFit()
                 .foregroundStyle(palette.stepperGlyph)
@@ -41,7 +49,10 @@ struct WeightStepperButton: View {
                 pressing = Self.bounds.contains(drag.location)
             }
         )
-        .accessibilityLabel(direction == .decrement ? "Decrease weight" : "Increase weight")
+        .accessibilityShowsLargeContentViewer {
+            Label(accessibilityLabel, systemImage: glyph)
+        }
+        .accessibilityLabel(accessibilityLabel)
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 }

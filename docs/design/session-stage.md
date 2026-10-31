@@ -132,8 +132,11 @@ Invalid fields mark themselves with `danger` on the specific bad field only;
 disabled states reduce opacity, not hue.
 
 **The Card Holds Still Rule.** The Active Set Card is the surface the
-athlete touches most, so its box never animates and never changes size. A
-log, a skip, a Superset switch, a branch-node tap, a review opening or
+athlete touches most, so its box never animates and never changes size
+within a Session; a different Dynamic Type size draws a different, equally
+still card (DESIGN.md §3, under "Where Emil's recommendation conflicts with
+an existing rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil
+wins." (operator, 2026-10-31)). A log, a skip, a Superset switch, a branch-node tap, a review opening or
 closing, rest, and sync all leave its frame where it was. Its values change
 in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a

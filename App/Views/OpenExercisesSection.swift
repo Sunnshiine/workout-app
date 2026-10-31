@@ -8,7 +8,7 @@ struct OpenExercisesSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Open Exercises")
-                .font(Theme.font(.heading))
+                .themeFont(.heading)
 
             ForEach(exercises, id: \.persistentModelID) { exercise in
                 Button {
@@ -35,10 +35,10 @@ private struct OpenExerciseRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.name)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(.primary)
                 Text(row.pendingSetLabel)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                     .foregroundStyle(palette.textSecondary)
             }
 
@@ -46,9 +46,9 @@ private struct OpenExerciseRow: View {
 
             HStack(spacing: 6) {
                 Text(row.sessionAddressLabel)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                 Image(systemName: "chevron.right")
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
             }
             .foregroundStyle(palette.actionInk)
         }

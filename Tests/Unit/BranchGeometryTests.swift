@@ -95,3 +95,30 @@ import Testing
 
     #expect(abs(t - 0.80) < 0.0001)
 }
+
+@Test func spreadNodesKeepTheirFullHitWidth() {
+    let widths = BranchNodeLayout.hitWidths(
+        centers: [CGPoint(x: 0, y: 0), CGPoint(x: 60, y: 0), CGPoint(x: 120, y: 10)],
+        side: 44
+    )
+
+    #expect(widths == [44, 44, 44])
+}
+
+@Test func crowdedNodesShrinkToTheirGapSoNoHitAreasOverlap() {
+    let centers = [CGPoint(x: 0, y: 0), CGPoint(x: 29, y: 12), CGPoint(x: 50, y: 20), CGPoint(x: 120, y: 30)]
+    let widths = BranchNodeLayout.hitWidths(centers: centers, side: 44)
+
+    #expect(widths == [29, 21, 21, 44])
+    for (i, a) in centers.enumerated() {
+        for (j, b) in centers.enumerated() where i < j && abs(a.y - b.y) < 44 {
+            #expect((widths[i] + widths[j]) / 2 <= abs(a.x - b.x))
+        }
+    }
+}
+
+@Test func aNodeStackedAboveAnotherDoesNotShrinkIt() {
+    let widths = BranchNodeLayout.hitWidths(centers: [CGPoint(x: 0, y: 0), CGPoint(x: 10, y: 50)], side: 44)
+
+    #expect(widths == [44, 44])
+}

@@ -228,8 +228,8 @@ enum Theme {
 // Every text style is one row of this single role table — no view ever constructs a font (a
 // SwiftLint rule enforces it). Fraunces is the voice (Exercise name + ceremony only), pinned at
 // SOFT 100 / WONK 0 / wght 490 with opsz tracking the point size; Source Sans 3 is the instrument,
-// every numeral role bold + tabular. Sizes are fixed (the Product Scale Rule); adopting Dynamic
-// Type later is a one-file diff here.
+// every numeral role bold + tabular. Each row's size is the role at the default content size; the
+// growth table below scales it with Dynamic Type (the Product Scale Rule).
 
 extension Theme {
     enum FontFace {
@@ -345,17 +345,15 @@ extension Theme {
         }
     }
 
-    /// The single choke point through which every text style resolves to a `Font`.
-    static func font(_ role: TypeRole) -> Font {
-        resolvedFont(role.style)
-    }
-
-    private static func resolvedFont(_ style: TypeStyle) -> Font {
+    /// The single choke point through which every text style resolves to a `Font`. Views reach it
+    /// through `themeFont(_:)`, which reads the environment's Dynamic Type size.
+    static func font(_ role: TypeRole, at size: DynamicTypeSize) -> Font {
         #if canImport(UIKit)
-            return Font(uiFont(style))
+            return Font(uiFont(role.style, size: scaledSize(role, at: size)))
         #else
-            // Fonts aren't registered off-device (unit tests on macOS); fall back to a fixed-size
-            // face so type still resolves without Dynamic Type scaling (the #410 trap).
+            // Fonts aren't registered off-device (unit tests on macOS), and UIFontMetrics is UIKit's,
+            // so fall back to the role's default size.
+            let style = role.style
             return Font.custom(style.face.familyName, fixedSize: style.size).weight(swiftUIWeight(style.weight))
         #endif
     }
@@ -372,14 +370,15 @@ extension Theme {
     }
 
     #if canImport(UIKit)
-        /// Builds the concrete `UIFont` for a role, driving the variable-font axes directly (SwiftUI's
-        /// `.bold()` does not) and enabling tabular figures via a Core Text feature setting.
-        static func uiFont(_ style: TypeStyle) -> UIFont {
+        /// Builds the concrete `UIFont` for a role at a point size, driving the variable-font axes
+        /// directly (SwiftUI's `.bold()` does not) and enabling tabular figures via a Core Text
+        /// feature setting.
+        static func uiFont(_ style: TypeStyle, size: CGFloat) -> UIFont {
             var axes: [UInt32: Double] = [:]
             switch style.face {
             case .fraunces:
                 axes[fontTag("wght")] = 490
-                axes[fontTag("opsz")] = Double(style.opticalSize ?? style.size)
+                axes[fontTag("opsz")] = Double(style.opticalSize ?? size)
                 axes[fontTag("SOFT")] = 100
                 axes[fontTag("WONK")] = 0
             case .sourceSans3:
@@ -403,7 +402,7 @@ extension Theme {
             }
 
             let descriptor = UIFontDescriptor(fontAttributes: attributes)
-            return UIFont(descriptor: descriptor, size: style.size)
+            return UIFont(descriptor: descriptor, size: size)
         }
 
         /// The OpenType axis/feature tag as its big-endian `FourCharCode`.
