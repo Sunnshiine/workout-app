@@ -36,6 +36,7 @@ struct ActiveSetCard: View {
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var inputDismissalRequestID = 0
     @GestureState private var isPressingMic = false
 
@@ -93,10 +94,10 @@ struct ActiveSetCard: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("Set \(setOrdinal)")
-                .font(Theme.font(.setNumber))
+                .font(Theme.font(.setNumber, at: dynamicTypeSize))
                 .foregroundColor(palette.textPrimary)
                 + Text(" of \(setCount)")
-                .font(Theme.font(.setOf))
+                .font(Theme.font(.setOf, at: dynamicTypeSize))
                 .foregroundColor(palette.textSecondary)
 
             Spacer(minLength: 0)
@@ -166,7 +167,7 @@ struct ActiveSetCard: View {
 
     private var savedConfirmation: some View {
         Label("Saved", systemImage: "checkmark.circle.fill")
-            .font(Theme.font(.setOf))
+            .themeFont(.setOf)
             .foregroundStyle(palette.actionInk)
     }
 

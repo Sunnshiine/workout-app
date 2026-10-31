@@ -42,7 +42,7 @@ struct ActiveSupersetSection: View {
                     .lineSpacing(2)
                     .lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
-                    .font(Theme.font(.supersetPartner))
+                    .themeFont(.supersetPartner)
                     .foregroundStyle(palette.supersetPartnerName)
                     .contentShape(Rectangle())
             }

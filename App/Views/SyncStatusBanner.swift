@@ -20,7 +20,7 @@ struct SyncStatusBanner: View {
             SyncStatusBannerLabel(text: presentation.text)
             Spacer(minLength: 0)
         }
-        .font(Theme.font(.lastPerformed))
+        .themeFont(.lastPerformed)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(palette.surface, in: Capsule())

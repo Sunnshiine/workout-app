@@ -6,7 +6,7 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         let app = launchPartialBlockOverviewApp()
 
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
-        app.otherElements["session-tile-W4-D1"].tap()
+        app.buttons["session-tile-W4-D1"].tap()
         waitForLabel("Open Block Overview for Week 4, Day 1", on: app.buttons["session-location-button"])
         XCTAssertEqual(app.staticTexts["stage-exercise-name"].label, "Accessory")
 
@@ -16,7 +16,7 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         queueButton.tap()
         tapWhenHittable(app.buttons["queue-move-on-button"])
 
-        let celebration = app.otherElements["move-on-celebration"]
+        let celebration = app.descendants(matching: .any)["move-on-celebration"]
         XCTAssertTrue(celebration.appears(within: 3))
         XCTAssertEqual(celebration.label, "Week 4, Day 1")
         waitForValueContaining("1 Sets, 1 Exercises, 1 Left", on: celebration)
@@ -25,7 +25,7 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
         XCTAssertFalse(celebration.exists)
-        XCTAssertTrue(app.otherElements["session-tile-W4-D1"].appears(within: 3))
+        XCTAssertTrue(app.buttons["session-tile-W4-D1"].appears(within: 3))
         XCTAssertTrue(app.otherElements["session-tile-W4-D2"].exists)
     }
 

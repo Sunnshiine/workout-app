@@ -35,4 +35,5 @@ Each accessibility rule lives with what it governs:
 - Contrast: `Tests/Component/ContrastTests.swift` holds text to 4.5:1 and non-text marks to 3:1 against the ground they sit on, with the exemptions it lists.
 - Labels on icon-only controls: DESIGN.md §8.
 - Dynamic Type: DESIGN.md §3, The Product Scale Rule.
+- Hit areas: DESIGN.md §8.
 - Reduce Motion: `docs/design/motion-and-haptics.md`.

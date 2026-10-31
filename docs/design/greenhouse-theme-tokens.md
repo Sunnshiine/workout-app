@@ -263,6 +263,8 @@ microlabels, italic coach note, hairlines) is superseded — do not carry.
 
 ## 5. Dynamic Type stance
 
+Superseded on 2026-10-31: text now scales with Dynamic Type (DESIGN.md §3, The Product Scale Rule).
+
 **The Product Scale Rule survives: fixed sizes** — now derived from the
 newly explicit **single-page principle** (the training surfaces never
 scroll; every locked composition was validated at fixed proportions and

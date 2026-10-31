@@ -10,6 +10,7 @@ struct ExerciseHistorySheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showVolume: Bool
     @State private var expandedWells: Set<String> = []
+    @AccessibilityFocusState private var isTitleFocused: Bool
 
     init(
         presentation: ExerciseHistorySheetPresentation,
@@ -37,7 +38,7 @@ struct ExerciseHistorySheet: View {
                     // claiming there is no history — the affordance already speaks for it.
                     if fillProgress == nil {
                         Text("No history yet")
-                            .font(Theme.font(.runlineSecondary))
+                            .themeFont(.runlineSecondary)
                             .foregroundStyle(palette.textSecondary)
                     }
                 } else {
@@ -56,16 +57,18 @@ struct ExerciseHistorySheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }
+        .task { isTitleFocused = true }
     }
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(presentation.title)
-                    .font(Theme.font(.sheetTitle))
+                    .themeFont(.sheetTitle)
                     .foregroundStyle(palette.textPrimary)
+                    .accessibilityFocused($isTitleFocused)
                 Text(presentation.subtitle)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             }
 
@@ -84,7 +87,7 @@ struct ExerciseHistorySheet: View {
             withAnimation(toggleAnimation) { showVolume.toggle() }
         } label: {
             Image(systemName: "chart.xyaxis.line")
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(showVolume ? palette.textPrimary : palette.textSecondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
@@ -96,13 +99,18 @@ struct ExerciseHistorySheet: View {
                     }
                 }
                 .frame(minWidth: 44, minHeight: 44)
+                // The medium detent draws the sheet at about 95%, so 44pt here is 42 on screen.
+                .padding(Self.detentOutset)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .padding(-Self.detentOutset)
         .accessibilityIdentifier("history-volume-toggle")
         .accessibilityLabel("Volume")
         .accessibilityAddTraits(showVolume ? .isSelected : [])
     }
+
+    private static let detentOutset: CGFloat = 2
 
     private var volumeControlRaisedBackground: some View {
         Capsule()
@@ -116,12 +124,12 @@ struct ExerciseHistorySheet: View {
     private func fillAffordance(_ progress: HistoryFillProgressPresentation) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(progress.message)
-                .font(Theme.font(.runlineSecondary))
+                .themeFont(.runlineSecondary)
                 .foregroundStyle(palette.textSecondary)
             ProgressView(value: progress.fraction)
                 .tint(palette.textSecondary)
             Text(progress.detail)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .foregroundStyle(palette.textSecondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -139,9 +147,9 @@ struct ExerciseHistorySheet: View {
     }
 
     private func blockSection(_ block: ExerciseHistorySheetPresentation.Block) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ExerciseHistoryRow.spacing) {
             Text(block.header)
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(palette.textSecondary)
 
             ForEach(Array(block.rows.enumerated()), id: \.offset) { index, row in
@@ -179,12 +187,16 @@ private struct ExerciseHistoryRow: View {
     let onToggleWell: () -> Void
 
     @Environment(\.themePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    static let spacing: CGFloat = 12
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 12) {
+            // The gutter's 52pt column clips its W/D label at an accessibility text size, so the
+            // label rides above the chips there.
+            rowLayout {
                 gutterLabel
-                    .frame(width: 52, alignment: .leading)
 
                 ChipFlowLayout(spacing: 6) {
                     ForEach(Array(row.chips.enumerated()), id: \.offset) { _, chip in
@@ -193,6 +205,7 @@ private struct ExerciseHistoryRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .fixedSize(horizontal: false, vertical: true)
 
             if row.hasWell, isWellExpanded {
                 well
@@ -202,24 +215,37 @@ private struct ExerciseHistoryRow: View {
         }
     }
 
+    private var rowLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+    }
+
     private var gutterLabel: some View {
         Button(action: onToggleWell) {
             VStack(alignment: .leading, spacing: 1) {
                 (Text(row.gutter) + wellMarker)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textPrimary)
                 if let cadence = row.cadence {
                     Text(cadence)
-                        .font(Theme.font(.cadence))
+                        .themeFont(.cadence)
                         .foregroundStyle(palette.textSecondary.opacity(0.75))
                 }
             }
+            .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 52, alignment: .leading)
+            // Rows can sit closer than a finger, so the tap fills the row and half the gap to each
+            // neighbour rather than overlap one (DESIGN.md §8).
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.vertical, Self.spacing / 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.vertical, -Self.spacing / 2)
         .disabled(!row.hasWell)
         .accessibilityElement(children: .combine)
         .accessibilityHint(row.hasWell ? "Shows skipped Sets and notes" : "")
+        .accessibilityIdentifier("history-row-gutter")
     }
 
     private var wellMarker: Text {
@@ -236,7 +262,7 @@ private struct ExerciseHistoryRow: View {
                     .foregroundStyle(palette.textSecondary)
             }
         }
-        .font(Theme.font(.historyChip))
+        .themeFont(.historyChip)
         .lineLimit(1)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
@@ -261,7 +287,7 @@ private struct ExerciseHistoryRow: View {
 
     private func annotationLine(_ annotation: ExerciseHistorySheetPresentation.Annotation) -> some View {
         Text(annotationText(annotation))
-            .font(Theme.font(.runlineSecondary))
+            .themeFont(.runlineSecondary)
             .italic()
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)

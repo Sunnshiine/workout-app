@@ -84,7 +84,7 @@ struct RestPillView: View {
             ring(presentation: presentation, cue: cue)
 
             Text(presentation.countdownText)
-                .font(Theme.font(.statsValue))
+                .themeFont(.statsValue)
                 .foregroundStyle(countdownColor(for: cue))
                 .opacity(countdownOpacity(for: cue))
                 .lineLimit(1)

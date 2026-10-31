@@ -51,4 +51,16 @@ enum BranchNodeLayout {
         let step = min((last - first) / CGFloat(count - 1), maxStep)
         return last - step * CGFloat(count - 1 - index)
     }
+
+    /// Each node's tap width: `side` where it fits, else the horizontal gap to the nearest node whose
+    /// square would overlap it. Two widths never exceed twice their gap, so no two hit areas overlap
+    /// (Emil: a hit area shrinks to its non-colliding share rather than steal a neighbour's tap).
+    static func hitWidths(centers: [CGPoint], side: CGFloat) -> [CGFloat] {
+        centers.map { center in
+            centers.reduce(side) { width, other in
+                guard other != center, abs(other.y - center.y) < side else { return width }
+                return min(width, abs(other.x - center.x))
+            }
+        }
+    }
 }

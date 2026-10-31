@@ -114,6 +114,8 @@ private struct SessionPage: View {
     let restTimer: RestTimer
     let banner: SyncOutcome
     let probe: FrameProbe
+    /// Set inside the page, so it wins over the host's baseline size.
+    var dynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize
 
     var body: some View {
         NavigationStack {
@@ -137,6 +139,7 @@ private struct SessionPage: View {
                 probe.stage = $0
             }
         }
+        .environment(\.dynamicTypeSize, dynamicTypeSize)
     }
 }
 
@@ -215,6 +218,52 @@ enum SessionPageHost {
         return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
             try frames(in: window, focused: exercises[0], probe: probe)
         }
+    }
+
+    /// The fresh Session mid-Exercise and out of rest, so Last Performed and Up next both show.
+    static func controls(at dynamicTypeSize: DynamicTypeSize) throws -> [AuditedControl] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        VisualFixtureRetainer.retain(scenario)
+        let lookup = LastPerformedLookupStore(context: scenario.context)
+        try lookup.ingest(WorkoutFixtureScenarios.backSquatHistory())
+        let session = try #require(scenario.store.viewedSession)
+        let page = SessionPage(
+            session: session,
+            coordinator: boundCoordinator(to: session, store: scenario.store),
+            restTimer: RestTimer(),
+            banner: .clear,
+            probe: FrameProbe(),
+            dynamicTypeSize: dynamicTypeSize
+        )
+        return try read(
+            page,
+            scenario: scenario,
+            lastPerformedLookup: lookup,
+            windowHeights: [WindowHeight.iPhone17Pro],
+            AuditedControl.controls
+        )[0]
+    }
+
+    /// The `worst-case` Current Session, whose eight Sets crowd the branch.
+    static func worstCaseControls(at dynamicTypeSize: DynamicTypeSize) throws -> [AuditedControl] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkbookScenario.worstCase.block())
+        VisualFixtureRetainer.retain(scenario)
+        let session = try #require(scenario.store.viewedSession)
+        let page = SessionPage(
+            session: session,
+            coordinator: boundCoordinator(to: session, store: scenario.store),
+            restTimer: RestTimer(),
+            banner: .clear,
+            probe: FrameProbe(),
+            dynamicTypeSize: dynamicTypeSize
+        )
+        return try read(
+            page,
+            scenario: scenario,
+            lastPerformedLookup: LastPerformedLookupStore(context: scenario.context),
+            windowHeights: [WindowHeight.iPhone17Pro],
+            AuditedControl.controls
+        )[0]
     }
 
     static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
