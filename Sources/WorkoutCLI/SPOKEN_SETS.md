@@ -12,8 +12,9 @@ and the card does not hold is never guessed.
 
 On the facade, `say` is `dictate(_ candidates: [String], at:)` with one transcript. `dictate` takes
 a recognizer's transcripts, most likely first, under the Dictation write policy: only the most
-likely transcript writes. A Set only the less likely ones read, and agree on, is `rejected` as
-`ambiguous` with nothing written. The headless Dictation the Action button and Control Center run
+likely transcript writes, read with the start or the "at" its alternatives heard where it lost them
+(below). A Set only the less likely ones read, and agree on, is `rejected` as `ambiguous` with
+nothing written. The headless Dictation the Action button and Control Center run
 on a locked phone writes through the same call.
 
 | `outcome` | Means | Carries | Exit |
@@ -33,7 +34,7 @@ again" with no earlier Set Log of the Exercise in the Session). A Dictation that
 transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`. A rejected
 `say` prints its report, then a `spoken_set_rejected` error.
 
-The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it. A number is a value only
+The grammar, as the `SpokenSetTests` files in `Tests/Unit/` pin it. A number is a value only
 where a word next to it, or the phrase around it, says which, never by its place in the transcript.
 
 - "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
@@ -43,21 +44,34 @@ where a word next to it, or the phrase around it, says which, never by its place
   "225 or 3" may be "225 for 3", and "20 or 25 reps" is a range.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
   number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
-  after it ("8 reps", "reps 8"), as do the "ribs", "rips", and "representatives" the recognizer
-  writes for it. "with" labels bodyweight or a number off the RPE ladder after it
+  after it ("8 reps", "reps 8"), as do the "rebs", "ribs", "rips", and "representatives" the
+  recognizer writes for it. "with" labels bodyweight or a number off the RPE ladder after it
   as the weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else,
   so "for 5 with 8" is `ambiguous`.
-- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "PE", "our fee", and "@" label the number after
-  them as the RPE, and "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
+- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "RPD", "RPH", "PE", "our fee", "felt like",
+  and "@" label the number after them as the RPE, and "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
   ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
 - Right after a whole weight for reps, "and", "of", "add", or "to" before a number is the "at" the
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" and "225 for 3 to
-  8" are `missingValues` with the RPE missing, because "185 for 5 and 5" may be five Sets of five. `hear` and the mic
+  8" are `missingValues` with the RPE missing, because "185 for 5 and 5" may be five Sets of five.
+  Only an "RPE" said last labels it: "135 for 8 and 9 RPE" logs 135x8@9. `hear` and the mic
   fill a value the top transcript cut off from the alternative transcripts, when every one that
   hears the same weight and reps hears the same RPE and it is the number the top wrote in its
   place: "185 for 5 and 8" beside "185 for 5 at 8" logs 185x5@8, and beside "185 for 5 at 7", or
   beside "185 for 5 at 8" and "185 for 5 at 9", stays `missingValues`. Where the top wrote no
   number, the alternatives supply it: "185 for 5 at" beside "185 for 5 at 8" logs 185x5@8.
+- An alternative that is the top transcript with words before it heard the start the top cut off,
+  and stands in for the top when every such alternative that reads agrees: "for 12 at 8" beside "10
+  for 12 at 8" logs 10x12@8 rather than the card's weight, and "reps at 135" beside "8 reps at 135"
+  logs 135x8. Two that restore it differently, as "10 for 12 at 8" and "20 for 12 at 8", are
+  `ambiguous`. An alternative whose first number is longer than the top's and ends in it may have
+  heard the start the top lost, so "25 for 3 add 8" beside "225 for 3 add 8" is `ambiguous`, and one
+  whose first number is the top's with a 0 after it may have heard the 0 the top lost, so "8 for 5 at
+  8" beside "80 for 5 at 8" is `ambiguous`.
+- Where the top has a number no word places, an alternative that is the top with only "at" added
+  heard the "at" the top lost, and stands in for the top when every such alternative that reads
+  agrees: "275 for 4 9" beside "275 for 4 at 9" logs 275x4@9. Any other word added leaves it a
+  guess, because "135 for 49 reps" beside "135 for 49" would read reps where "4 at 9" was said.
 - A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
   cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing, and only
   an alternative that hears 8 and a half settles it. A rep count is whole, so after one it is the
@@ -82,9 +96,9 @@ where a word next to it, or the phrase around it, says which, never by its place
   "one thousand", "a thousand and five", "one thousand five hundred", "eleven hundred", "ten fifty",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", a clock-style "1:35" for 135,
   and "1,005", where a comma before exactly three digits separates thousands ("135,8" stays 135 and 8).
-  "ate" is 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for a triple at 8") and
-  never part of a number word ("one eighty single for 5" is `ambiguous`), and "to"
-  or "too" is 2 only where a number is asked for. Number words in a row that
+  "ate", "age", and "gate" are 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for
+  a triple at 8") and never part of a number word ("one eighty single for 5" is `ambiguous`), and
+  "to" or "too" is 2 only where a number is asked for. Number words in a row that
   make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.
 - A number of 1,000 or more, in digits or words, is the weight only where it cannot hide another
