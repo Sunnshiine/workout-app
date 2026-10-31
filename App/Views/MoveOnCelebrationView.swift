@@ -23,10 +23,14 @@ struct MoveOnCelebrationView: View {
             palette.paperBackground
                 .ignoresSafeArea()
 
-            // At an accessibility text size the composition outgrows the screen, so it scrolls.
+            // At an accessibility text size the composition outgrows the screen, so it scrolls and
+            // Move On stays pinned under it, in reach without a scroll.
             ViewThatFits(in: .vertical) {
-                column
-                ScrollView { column }
+                column(endingInContinue: true)
+                VStack(spacing: 0) {
+                    ScrollView { column(endingInContinue: false) }
+                    continueButton
+                }
             }
             .padding(.horizontal, 22)
             .padding(.top, 26)
@@ -46,7 +50,7 @@ struct MoveOnCelebrationView: View {
         }
     }
 
-    private var column: some View {
+    private func column(endingInContinue: Bool) -> some View {
         VStack(spacing: 0) {
             header
                 .padding(.top, 8)
@@ -78,7 +82,9 @@ struct MoveOnCelebrationView: View {
 
             Spacer(minLength: 12)
 
-            continueButton
+            if endingInContinue {
+                continueButton
+            }
         }
     }
 

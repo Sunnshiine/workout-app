@@ -44,6 +44,29 @@ final class AccessibilityAuditUITests: XCTestCase {
     }
 
     @MainActor
+    func testMoveOnCeremonyKeepsContinueInReachAtTheLargestText() throws {
+        for contentSize in Self.contentSizes {
+            let app = launch(at: contentSize)
+            app.buttons["stage-queue-button"].tap()
+            let moveOn = app.buttons["queue-move-on-button"]
+            XCTAssertTrue(moveOn.appears(within: uiEventBudget))
+            let window = app.windows.firstMatch
+            for _ in 0..<4 where !moveOn.isHittable {
+                window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.9))
+                    .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.7)))
+            }
+            tapWhenHittable(moveOn)
+            let continueButton = app.buttons["move-on-celebration-continue"]
+            XCTAssertTrue(continueButton.appears(within: uiEventBudget))
+            XCTAssertTrue(
+                app.windows.firstMatch.frame.contains(continueButton.frame),
+                "Continue starts off screen at \(contentSize): \(continueButton.frame)"
+            )
+            XCTAssertTrue(continueButton.isHittable, "Continue is covered at \(contentSize)")
+        }
+    }
+
+    @MainActor
     private func launch(at contentSize: String) -> XCUIApplication {
         let app = launchWorkoutApp(fixture: .currentSession, contentSize: contentSize)
         XCTAssertTrue(app.buttons["stage-queue-button"].appears(within: uiEventBudget))
