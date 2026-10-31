@@ -33,28 +33,49 @@ are recorded inline.
 - Most role values are expressed as **paint @ opacity** (which is how the
   prototype CSS is literally written); oddballs (wash recipes, glow
   shadows, `tileCurrentBorder`) are honest literals.
-- **No derivation rule maps Day → Night.** Night is a hand-lit value sheet
-  (mint fails the action role at night; leaves re-light to foliage). A full
-  primitive layer would lie about the system and is rejected.
+- **Night is derived (amended 2026-10-31, DESIGN.md §2 The Mirror Rule).**
+  Every pigment is a step of an OKLCH ramp (`ThemeTone.swift`), and Night
+  reads its mirror step; a fill reads one step lighter. The leaf ramp keeps 75% of its chroma at Night;
+  ember takes 1.5×, capped at the sRGB ceiling, so danger still reads as
+  red. Lights (cream, the paper pair and washes, the bud's rim, the colophon
+  glass) are literals and do not mirror. Operator brief, 2026-10-31: "Where
+  Emil's recommendation conflicts with an existing rule in DESIGN.md,
+  PRODUCT.md, or a past operator decision, Emil wins." This replaces "No
+  derivation rule maps Day → Night".
+
+### The ramps
+
+One hue per ramp. Step L runs 0.97 (50) to 0.22 (950) in even 0.075
+steps. A chromatic step takes a share of its own sRGB ceiling (50: 35%,
+100: 50%, 200: 60%, 300: 70%, 400: 80%, 500: 85%, 600: 90%, 700–800: 95%,
+900: 90%, 950: 80%). Sage holds a flat C 0.024, its ceiling permitting.
+
+| Ramp | H | 50 | 200 | 300 | 500 | 600 | 700 | 800 | 950 |
+|---|---|---|---|---|---|---|---|---|---|
+| `sage` | 148 | `#EBFAEC` | `#BAC9BC` | `#A3B1A4` | `#768377` | `#606D61` | `#4B584D` | `#374339` | `#131E14` |
+| `leaf` | 156 | `#EDF9F1` | `#7FDBA4` | `#61C48A` | `#30945F` | `#1F7C4C` | `#0D643B` | `#084D2C` | `#072012` |
+| `ember` | 27 | `#F9F4F3` | `#E9B6AF` | `#E99187` | `#DF3632` | `#BE2323` | `#9D1015` | `#7A0A0E` | `#350807` |
 
 ### The paint box
 
-| Paint | Value | Notes |
-|---|---|---|
-| `ink` | `#152118` | day text; at low opacity: carved chips, shadows |
-| `inkNight` | `#EFF3E3` | night text |
-| `muted` | `#404E44` | day secondary text; at low opacity: `skipStroke`, `skipFillOverlay`, `tileGhostStroke` |
-| `mutedNight` | `#9AAA9B` | night secondary text |
-| `mutedNightLight` | `#AABAAA` | night Superset partner name; mutedNight falls under 4.5:1 beneath the sun wash |
-| `cream` | `#F2F7E8` | the workhorse — surfaces, pills, buds, ribs, action text (~15 roles at varying opacity) |
-| `actionDay` | `#0D6B40` | day action green; also day leaf/stem/bird pigment |
-| `actionDayInk` | `#0A5936` | day action green as words, glyphs, and system tint (not Settings action rows): the pressed Log green, because `#0D6B40` measures 3.97 to 4.40:1 as small text on the queue sheet's darker foot |
-| `actionNight` | `#1F8552` | night action green (mint is banned from the action role at night) |
-| `actionNightInk` | `#A8CFB4` | night action green as words, glyphs, and system tint (not Settings action rows): actionNight under cream @ 65%, because `#1F8552` measures 1.9 to 3.7:1 as text on night paper |
-| `foliage` | `#579168` | *the* night pigment: leaves, stems, bird, tiles re-light to this |
-| `foliageDeep` | `#3F6A4B` | day Superset partner name; a foliage deep enough for 4.5:1 on Day paper |
-| `paperDayTop` → `paperDayBottom` | `#E9EEDC → #CBE1C2` | base pair under the day washes (atmosphere pick — supersedes `#E8EDDB → #C7E0BF`) |
-| `paperNightTop` → `paperNightBottom` | `#232C20 → #121D14` | hue-preserved deep sage, never neutral black (#418) |
+| Paint | Pigment | Day | Night |
+|---|---|---|---|
+| `ink` / `inkNight` | sage 950 | `#131E14` oklch(0.22 0.024 148) | `#EBFAEC` oklch(0.97 0.024 148) |
+| `muted` / `mutedNight` | sage 800 | `#374339` oklch(0.37 0.024 148) | `#BAC9BC` oklch(0.82 0.024 148) |
+| `partnerInk` / `partnerInkNight` | sage 700 | `#4B584D` (the Superset partner name) | `#A3B1A4` |
+| `actionDay` / `actionNight` | leaf 700 | `#0D643B` oklch(0.445 0.103 156) | `#79BF93` oklch(0.745 0.095 156) |
+| `actionDayInk` / `actionNightInk` | leaf 800 | `#084D2C` oklch(0.37 0.085 156) | `#94D6AC` oklch(0.82 0.089 156) |
+| `actionDay` / `actionFillNight` | leaf 700 as a fill: Night lifts it one step | `#0D643B` | `#3B7754` oklch(0.52 0.085 156) |
+| `tileRim` | leaf 600 | `#1F7C4C` (`tileCurrentBorder`) | — (Night uses the bud's rim) |
+| `dangerDay` / `dangerNight` | ember 800 | `#7A0A0E` oklch(0.37 0.143 27) | `#FAAEA4` oklch(0.82 0.091 27) |
+| `budNight` | leaf 200, full chroma (a light) | — | `#7FDBA4` |
+| `cream` | light | `#F2F7E8` | same |
+| `paperDayTop` → `paperDayBottom` | light | `#E9EEDC → #CBE1C2` | — |
+| `paperNightTop` → `paperNightBottom` | light | — | `#232C20 → #121D14` |
+
+Cream and the paper sit near H 120 to 137, warmer than the sage ramp's
+148. That is deliberate: they are the sunlight, and §1 puts the warmth in
+the light, not the pigment.
 
 ## 3. Semantic roles — Day · Night
 
@@ -73,7 +94,7 @@ linear-gradient(180deg, #E9EEDC 0%, #CBE1C2 100%)
 Night:
 
 ```
-radial-gradient(80% 42% at 18% 4%,   rgba(255,233,170,0.14) 0%, transparent 60%)   /* warm lamp pool */
+radial-gradient(80% 42% at 18% 4%,   rgba(255,233,170,0.09) 0%, transparent 60%)   /* warm lamp pool; 0.14 until 2026-10-31 lifted the top-left ground to L 0.38 */
 radial-gradient(70% 40% at 108% 32%, rgba(87,145,104,0.16)  0%, transparent 70%)
 radial-gradient(80% 42% at -10% 62%, rgba(87,145,104,0.10)  0%, transparent 65%)
 radial-gradient(110% 55% at 55% 108%, rgba(9,18,12,0.70)    0%, transparent 70%)   /* dark floor pooling */
@@ -95,15 +116,16 @@ appearance.
 
 | Role | Day | Night |
 |---|---|---|
-| `stem` (2px, round cap) | actionDay | foliage |
-| `leafFill` | actionDay | foliage |
+| `stem` (2px, round cap) | actionDay | actionNight |
+| `leafFill` | actionDay | actionNight |
 | `leafRib` | cream @ 50% | cream @ 55% |
 | `budFill` | cream @ 95% | cream @ 92% |
-| `budStroke` | actionDay | `#78F0B2` |
-| `futureStroke` | actionDay @ 40% | foliage @ 45% |
+| `budStroke` | actionDay | budNight |
+| `futureStroke` | actionDay @ 40% | actionNight @ 45% |
 | `skipStroke` (dashed 5 4) | muted @ 42% | mutedNight @ 40% |
-| `supersetPartnerName` (the "& partner" line) | foliageDeep | mutedNightLight |
-| `budGlow` | none | `drop-shadow(0 0 7px rgba(120,240,178,0.32))` — the page's one glow |
+| `supersetPartnerBranch` | actionDay @ 55% | actionNight @ 55% |
+| `supersetPartnerName` (the "& partner" line) | partnerInk | partnerInkNight |
+| `budGlow` | none | budNight @ 32%, 7px — the page's one glow |
 
 Blade geometry (`M0,10 C16,-2 46,-4 64,3 C44,16 14,19 0,10 Z` in a 64x20
 design space, rib streak `M7,8.6 C24,4.6 42,2.6 56,3.4`; supersedes the
@@ -124,7 +146,7 @@ per layout, not tokenized.
 | `pillStroke` | `rgba(82,111,90,0.34)` | cream @ 16% |
 | `stepperGlyph` (weight ±) | actionDay | cream |
 | `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
-| rail chip selected | cream fill + inset 2px `action` ring | same recipe, night values |
+| `railSelectedFill` + rail chip selected | cream @ 95% + inset 2px `action` ring | cream @ 7% (14% until 2026-10-31), same ring |
 | prescription tick (last week) | `action`, 18×3, r2 | `action` |
 | weight entry `:focus` | `action` | `action` |
 
@@ -136,11 +158,12 @@ composition itself are locked by #455.
 
 | Role | Day | Night |
 |---|---|---|
-| `action` (fill) | actionDay | actionNight |
+| `action` (the mark: chip ring, tick, logged dot) | actionDay | actionNight |
+| `actionFill` (the Log capsule, Move On, the onboarding button, the Night selected segment) | actionDay | actionFillNight |
 | `actionText` | cream | cream |
-| `actionInk` (green words and glyphs on paper, system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
+| `actionInk` (green words: links, statuses, Saved; the system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
-| `skipFillOverlay` | muted @ 30% | — (build) |
+| `skipFillOverlay` | muted @ 30% | muted @ 30% (the wash dims in both appearances) |
 | skipped state | transparent, muted text, `1.5px dashed skipStroke` | same recipe |
 
 ### Stage foot
@@ -150,13 +173,13 @@ composition itself are locked by #455.
 | `footFill` (queue pill) | cream @ 50% | cream @ 6% |
 | `queueStroke` | `rgba(82,111,90,0.38)` | cream @ 20% |
 
-### Block grid (#435 variant d "Light and shade"; day set — night follows the #419 rule: tiles re-light like leaves, foliage + deep-ink text)
+### Block grid (#435 variant d "Light and shade"; day set — night follows the #419 rule as amended 2026-10-31: tiles re-light like leaves)
 
 | Role | Value (day) |
 |---|---|
 | `tileComplete` / text | actionDay / cream |
-| `tileCurrentFill` | cream @ 95%; Night: foliage |
-| `tileCurrentBorder` | **literal `#1F8552`** + `currentTileGlow` — kept exactly as approved; deliberately *not* aliased to a paint (it is the night action green used as a day accent, and normalizing it to actionDay would change the validated artifact). Night: the bud's `#78F0B2` rim |
+| `tileCurrentFill` | cream @ 95%; Night: cream @ 14%, lamp-lit |
+| `tileCurrentBorder` | tileRim (leaf 600) + `currentTileGlow`. Night: budNight |
 | `currentTileGlow` | `0 0 0 4px rgba(242,247,232,0.45), 0 2px 18px rgba(220,235,190,0.9)` |
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
@@ -183,7 +206,7 @@ composition itself are locked by #455.
 
 | Role | Day | Night |
 |---|---|---|
-| `birdFill` | actionDay | foliage ("The Bird Re-lights Like a Leaf" — no glow) |
+| `birdFill` | actionDay | actionNight ("The Bird Re-lights Like a Leaf" — no glow) |
 | `birdRib` (cream wing-hint) | cream @ 50% | cream @ 55% |
 | colophon (whole glass mark) | 40×40pt (≥ 28pt honesty floor); glass gradient `#4AA06C → #0E6E43 → #084E2F`, sheen + rim | **unchanged at night** — the glass keeps its icon greens |
 
@@ -300,15 +323,16 @@ Replaces the 8 / 16 / 28 scale.
    night screens simply predate #420.
 3. **Card padding**: 16/16/14 (#455, later round on the same question).
 4. **Exercise name**: 33pt.
-5. **`tileCurrentBorder`**: stays the approved literal `#1F8552`, named
-   honestly as its own token rather than aliased to a paint.
+5. **`tileCurrentBorder`**: was the approved literal `#1F8552`; since
+   2026-10-31 it is the `tileRim` pigment, leaf 600 (`#1F7C4C`).
 6. **Ceremony stats surface**: sunbird-moments recipe (shared `surface`,
    radius `soft`) supersedes sunlit-ledger-b.
 
 ## 9. Carried forward / build flags (no new decisions)
 
-- `danger` stays system red, for hold-to-skip only, pending a danger pass; no Greenhouse prototype
-  styled an error state.
+- `danger` is the ember ramp (2026-10-31 danger pass): ember 800 by Day,
+  ember 200 by Night, holding 4.5:1 as text and 3:1 as a mark.
 - Exercise History sheet night values follow the #418 sheet recipe (#434
   flagged: not re-prototyped — validate during the build).
-- Block grid night values follow #419 (foliage tiles, deep-ink text).
+- Block grid night values follow #419 as amended 2026-10-31: leaf tiles,
+  a lamp-lit current tile.

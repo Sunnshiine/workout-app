@@ -26,19 +26,28 @@ state beside its word (the Saved check, the danger mark).
 
 Two appearances ship: Day (`.day`), the primary, and Night (`.night`). The Settings preference is
 System / Light / Night, and System follows iOS. Athlete-facing copy calls it Night, not Dark. Night
-is a hand-lit value sheet, and no rule derives it from Day.
+is derived from Day by The Mirror Rule below, so no Night pigment is picked by hand.
 
 ### Color roles
 
 Views take semantic roles from the environment palette (`@Environment(\.themePalette)`), never a
 paint or a literal. The token sheet lists every paint and role with its Day and Night value.
 
-- Green words and glyphs on paper, and the system tint, take `actionInk`. The `action` greens stay
-  fill and stroke colours, because as small text `actionNight` measures 1.9 to 3.7:1 on night paper
-  and `actionDay` 4.0 to 4.4:1 on the queue sheet's darker foot. Settings action rows keep system
-  blue (§5.9).
-- The Log capsule is an `action` fill with cream text in both appearances. Mint fails the action
-  role at night, where it reads as candy.
+Every pigment is a step of one of three OKLCH ramps, each on a single hue: `sage` (the tinted
+neutral, H 148), `leaf` (the action green, H 156), and `ember` (destructive, H 27). Steps run 50
+to 950 evenly spaced in lightness, so a contrast gap is a step gap. Every step sits inside sRGB.
+
+- Text roles come in three tiers: `textPrimary` (sage 950), `textSecondary` (sage 800), and the
+  green `actionInk` (leaf 800) for words that confirm or link, Saved included. Greens that are not
+  words are `action` (leaf 700), the mark (a selected chip's ring, the prescription tick, a logged
+  Set's dot), and `actionFill`, the fill under cream text (the Log capsule, Move On).
+- The Log capsule is an `actionFill` with cream text in both appearances, leaf 700 by Day and leaf
+  600 by Night.
+- `danger` is ember 800 by Day and ember 200 by Night, for the invalid weight, the danger mark, and
+  Developer Tools' Conflict. Settings action rows keep system blue and Sign Out keeps system red
+  (§5.9).
+- No warning or success hue ships, because no screen draws a warning, and a logged Set's success is
+  the green growth itself.
 
 ### Living paper (atmosphere)
 
@@ -49,8 +58,20 @@ white.
 ### Named Rules
 
 **The Room Re-lights Rule.** Night is the same room re-lit, never recolored: hue-preserved deep sage
-paper, foliage pigment for everything that grows, cream kept as the light source. No neutral black,
+paper, the leaf ramp for everything that grows, cream kept as the light source. No neutral black,
 no new hues at night.
+
+**The Mirror Rule.** A pigment is named once, as a ramp step. An ink or a mark reads the mirror
+step at Night (200 ↔ 800, 300 ↔ 700, 50 ↔ 950). A fill reads one step lighter and keeps its text,
+because a mirrored fill would be the brightest object on the Night page. The leaf ramp keeps 75% of
+its chroma at Night so it does not vibrate on the dark paper. Lights do not mirror: cream, the
+paper pair and its washes, the bud's rim, and the colophon glass stay literals. A role that cannot
+pass contrast at Night changes its Day step, never only its Night one. Operator brief, 2026-10-31: "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
+
+**The Ink Is Not the Fill Rule.** Words take an ink role (`textPrimary`, `textSecondary`,
+`actionInk`, `danger`), marks take `action`, and fills take `actionFill`. One green that is a
+button fill, a mark, and small text fails one of them in one appearance. Same approval as The
+Mirror Rule.
 
 **The Green Means Action Rule.** The action greens are for the Log capsule, the current/selected
 state, and progress that has actually happened, never decoration.

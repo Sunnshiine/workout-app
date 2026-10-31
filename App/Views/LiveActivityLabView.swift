@@ -67,7 +67,7 @@ struct LiveActivityLabView: View {
                 systemImage: controller.areActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
             )
             .font(Theme.font(.queuePill))
-            .foregroundStyle(controller.areActivitiesEnabled ? palette.action : palette.danger)
+            .foregroundStyle(controller.areActivitiesEnabled ? palette.actionInk : palette.danger)
 
             Text(controller.isActive ? "Prototype is running." : "Prototype is stopped.")
                 .font(Theme.font(.queuePill))

@@ -38,7 +38,10 @@ extension Theme {
         let prescriptionTick: Color
 
         // Log capsule / action
+        /// The green mark: the selected chip's ring, the prescription tick, a logged Set's dot.
         let action: Color
+        /// The green fill under cream text: the Log capsule, Move On, the onboarding button.
+        let actionFill: Color
         let actionText: Color
         /// The Log capsule's elevation: a day green drop; at Night a green light (glow, no drop).
         let logShadow: [BoxShadow]
@@ -147,8 +150,8 @@ extension Theme {
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
-    private static let nightBud = rgb(120, 240, 178)  // #78F0B2 — the bud carries the page's one glow
-    private static let nightBudGlow = rgb(120, 240, 178, 0.32)
+    private static let nightBud = Paint.budNight
+    private static let nightBudGlow = Paint.budNight.opacity(0.32)
 }
 
 // MARK: - Appearance resolution
@@ -192,7 +195,7 @@ extension Theme {
         }
     }
 
-    // MARK: - Hand-lit value sheets
+    // MARK: - Value sheets
 
     private static let dayPalette = Palette(
         preferredColorScheme: .light,
@@ -217,8 +220,8 @@ extension Theme {
         futureStroke: Paint.actionDay.opacity(0.40),
         skipStroke: Paint.muted.opacity(0.42),
         budGlow: nil,
-        supersetPartnerBranch: Paint.foliage,  // Day quiets the partner by pigment
-        supersetPartnerName: Paint.foliageDeep,
+        supersetPartnerBranch: Paint.actionDay.opacity(0.55),  // both appearances quiet the partner by translucency
+        supersetPartnerName: Paint.partnerInk,
 
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
@@ -232,6 +235,7 @@ extension Theme {
         railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
         action: Paint.actionDay,
+        actionFill: Paint.actionDay,
         actionText: Paint.cream,
         logShadow: [
             BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
@@ -241,7 +245,7 @@ extension Theme {
         footFill: Paint.cream.opacity(0.50),
         queueStroke: rgb(82, 111, 90, 0.38),
         tileCurrentFill: Paint.cream.opacity(0.95),
-        tileCurrentBorder: rgb(31, 133, 82),  // literal #1F8552 — kept exactly as approved
+        tileCurrentBorder: Paint.tileRim,
         tileGhostStroke: Paint.muted.opacity(0.38),
         weekCardShade: rgb(226, 233, 214, 0.72),
         sheetFill: rgb(239, 244, 228),  // #EFF4E4
@@ -252,7 +256,7 @@ extension Theme {
         blockSeam: Paint.ink.opacity(0.14),
         birdFill: Paint.actionDay,
         birdRib: Paint.cream.opacity(0.50),
-        danger: rgb(255, 59, 48),  // system red, carried forward pending danger pass
+        danger: Paint.dangerDay,
         lighting: .day
     )
 
@@ -262,7 +266,7 @@ extension Theme {
             baseTop: Paint.paperNightTop,
             baseBottom: Paint.paperNightBottom,
             washes: [
-                RadialWash(color: rgb(255, 233, 170, 0.14), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.48),
+                RadialWash(color: rgb(255, 233, 170, 0.09), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.48),
                 RadialWash(color: rgb(87, 145, 104, 0.16), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
                 RadialWash(color: rgb(87, 145, 104, 0.10), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
                 RadialWash(color: rgb(9, 18, 12, 0.70), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
@@ -271,33 +275,34 @@ extension Theme {
         textPrimary: Paint.inkNight,
         textSecondary: Paint.mutedNight,
         actionInk: Paint.actionNightInk,
-        stem: Paint.foliage,
-        leafFill: Paint.foliage,
+        stem: Paint.actionNight,
+        leafFill: Paint.actionNight,
         leafRib: Paint.cream.opacity(0.55),
         budFill: Paint.cream.opacity(0.92),
         budStroke: nightBud,
-        futureStroke: Paint.foliage.opacity(0.45),
+        futureStroke: Paint.actionNight.opacity(0.45),
         skipStroke: Paint.mutedNight.opacity(0.40),
         budGlow: nightBudGlow,
-        supersetPartnerBranch: Paint.foliage.opacity(0.55),  // Night quiets the partner by translucency
-        supersetPartnerName: Paint.mutedNightLight,
+        supersetPartnerBranch: Paint.actionNight.opacity(0.55),
+        supersetPartnerName: Paint.partnerInkNight,
         surface: nightSurface,
         surfaceShadow: nightSurfaceShadow,
         pillFill: Paint.cream.opacity(0.06),
         pillStroke: Paint.cream.opacity(0.16),
         stepperGlyph: Paint.cream,
         railFill: Paint.cream.opacity(0.06),
-        railSelectedFill: Paint.cream.opacity(0.14),
+        railSelectedFill: Paint.cream.opacity(0.07),
         prescriptionTick: Paint.actionNight,
         action: Paint.actionNight,
+        actionFill: Paint.actionFillNight,
         actionText: Paint.cream,
         logShadow: [
             BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35))  // green light — glow, no drop
         ],
-        skipFillOverlay: Paint.mutedNight.opacity(0.30),  // muted hold-to-skip overlay, re-lit for Night (#488)
+        skipFillOverlay: Paint.muted.opacity(0.30),  // the hold-to-skip wash dims in both appearances
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
-        tileCurrentFill: Paint.foliage,
+        tileCurrentFill: Paint.cream.opacity(0.14),  // lamp-lit, as Day's current tile is sunlit cream
         tileCurrentBorder: nightBud,
         tileGhostStroke: Paint.mutedNight.opacity(0.38),
         weekCardShade: Paint.cream.opacity(0.06),
@@ -307,9 +312,9 @@ extension Theme {
         chipCarveEdge: Paint.cream.opacity(0.10),  // cream-toned bottom lip at Night
         chartLine: Paint.inkNight.opacity(0.35),
         blockSeam: Paint.inkNight.opacity(0.14),
-        birdFill: Paint.foliage,
+        birdFill: Paint.actionNight,
         birdRib: Paint.cream.opacity(0.55),
-        danger: rgb(255, 59, 48),
+        danger: Paint.dangerNight,
         lighting: .night
     )
 

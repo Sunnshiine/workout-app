@@ -214,7 +214,7 @@ enum Theme {
 #if canImport(UIKit)
     extension Theme {
         static let selectedSegmentFill = UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(palette(for: .night).action) : .white
+            traits.userInterfaceStyle == .dark ? UIColor(palette(for: .night).actionFill) : .white
         }
     }
 #endif

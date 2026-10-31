@@ -449,7 +449,7 @@ private struct HoldToSkipLogButton: View {
 
     private var logBackgroundStyle: Color {
         switch presentation.tone {
-        case .primary: palette.action
+        case .primary: palette.actionFill
         case .incomplete: palette.pillFill
         }
     }

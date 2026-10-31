@@ -43,11 +43,16 @@ green). The five legacy palettes are retired; `-WORKOUT_THEME` accepts only
 Settings preference arrived; a fixture launch pins the preference with `-UITEST_APPEARANCE dark`
 or `light` instead.
 
+**Amended 2026-10-31:** Night is derived. Every pigment is an OKLCH ramp step and Night reads its
+mirror step (DESIGN.md §2 The Mirror Rule), which cleared the contrast pairs the hand-lit sheet
+left parked. Lights (cream, paper, washes, the bud's rim, the colophon glass) stay hand-lit.
+
 ### Token architecture
 
 A small paint box plus flat semantic roles, consumed via the environment
-palette. Most roles are paint @ opacity; wash recipes, glows, and one
-deliberate literal (`tileCurrentBorder #1F8552`) are honest exceptions.
+palette. Most roles are paint @ opacity; wash recipes and glows are honest
+exceptions. (Amended 2026-10-31: `tileCurrentBorder` is now the leaf 600
+pigment, no longer a literal.)
 
 ### Typography
 

@@ -25,7 +25,7 @@ circle buds, and angled future strokes are fully retired; validated at 8
 Sets). Nodes anchor to a terminal at t=0.80 and step down the stem, so 2–3
 Sets read as one sprig on a full-length stem. The branch stands **textless**
 — no labels ride it. By day it inks in `actionDay`; at night it is moonlit
-foliage with cream ribs, and the active leaf carries the page's one glow.
+leaf (`actionNight`, the mirror step) with cream ribs, and the active leaf carries the page's one glow.
 
 - **Guardrail — the plain head:** the Active Set Card's head carries a plain
   `Set 3 of 5` in Source Sans 3. Position and progress are always legible as
@@ -182,10 +182,11 @@ partner's bud wakes on the other.
 
 The focus tie is **tone coupling**: by day the partner's whole branch and
 its Fraunces **partner name line** (the manual focus switch), led by a fork
-glyph (`arrow.triangle.branch`) on the name's first baseline, carry
-foliage green while full pigment stays with the focus; at night — where
-foliage *is* the leaf pigment — the partner subordinates by **translucency**
-instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
+glyph (`arrow.triangle.branch`) on the name's first baseline, stay
+quiet while full pigment stays with the focus: the partner branch is the
+leaf pigment @ 0.55 and the name is `partnerInk` (sage 700 by Day, its
+sage 300 mirror by Night). Both appearances quiet the partner by
+translucency (DESIGN.md §2 The Mirror Rule, 2026-10-31).
 The partner name line holds one line and truncates, so under a two-line
 Exercise name the branch keeps its room on an SE. Tapping it brings the
 partner's name to the stage.

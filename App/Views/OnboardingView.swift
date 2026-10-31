@@ -100,7 +100,7 @@ struct OnboardingView: View {
                         .foregroundStyle(palette.actionText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
-                        .background(palette.action, in: .capsule)
+                        .background(palette.actionFill, in: .capsule)
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("onboarding-connect-button")
@@ -258,7 +258,7 @@ struct SheetPickerView: View {
                     Text("Paste a URL instead")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(palette.action)
+                .foregroundStyle(palette.actionInk)
             }
         }
         .padding()
