@@ -160,7 +160,7 @@ struct OnboardingView: View {
             .keyboardType(.URL)
             .textContentType(.URL)
             .submitLabel(.go)
-            .onSubmit { if !urlText.isEmpty { saveURL() } }
+            .onSubmit { if canSaveURL { saveURL() } }
             .focused($urlFieldFocused)
             .accessibilityIdentifier("onboarding-url-field")
             .accessibilityLabel(fieldName)
@@ -178,7 +178,7 @@ struct OnboardingView: View {
 
             Button("Save") { saveURL() }
                 .buttonStyle(.bordered)
-                .disabled(urlText.isEmpty || !connection.canBeginDestructiveTransition)
+                .disabled(!canSaveURL)
         }
         .padding()
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
@@ -200,6 +200,10 @@ struct OnboardingView: View {
         } set: { isPresented in
             if !isPresented { signInErrorMessage = nil }
         }
+    }
+
+    private var canSaveURL: Bool {
+        !urlText.isEmpty && connection.canBeginDestructiveTransition
     }
 
     private func saveURL() {
