@@ -111,8 +111,9 @@ Five levels, lowest first. Each is a `Theme.BoxShadow` recipe in the token sheet
 | Card in shade | Collapsed week cards, Sheet tab Day cards | 1px ink edge @ 6% + `cardLow` | 1px cream ring @ 10% |
 | Lifted card | Active Set Card, ceremony stats, Settings confirmation card | 1px ink edge @ 5% + crisp and wide drops | 1px cream ring @ 10% |
 
-Three named lights sit outside the scale: the Log capsule's light, the focus card's sun halo, and
-the current tile's glow.
+Three named lights sit outside the scale: the Log capsule's light, the focus card's sun halo (at
+Night, a cream ring @ 14%, brighter than the week cards' edge), and the current tile's glow. A
+halo's reach is part of its card's footprint, so neighbours keep their spacing from the light.
 
 ### Radius family
 

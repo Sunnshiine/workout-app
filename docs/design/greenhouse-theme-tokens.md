@@ -164,7 +164,7 @@ composition itself are locked by #455.
 | tile partial | `pillFill` + bottom bar in `tileComplete`, height quantized quarters |
 | `weekCardShade` (collapsed, in shade) | `rgba(226,233,214,0.72)`, edge and drop from `weekCardElevation` |
 | `weekCardElevation` (card in shade) | `inset 0 0 0 1px` ink @ 6%, `cardLow`; Night: `inset 0 0 0 1px` cream @ 10% |
-| focus card (morning light) | `rgba(248,251,238,0.96)`, glow rim `cardLow, 0 0 0 5px rgba(250,252,238,0.5), 0 6px 30px rgba(228,240,200,0.95)` |
+| focus card (morning light) | `rgba(248,251,238,0.96)`, glow rim `cardLow, 0 0 0 5px rgba(250,252,238,0.5), 0 6px 30px rgba(228,240,200,0.95)`; Night: `inset 0 0 0 1px` cream @ 14% |
 | `cardLow` | `0 1px 2px rgba(21,33,24,0.06), 0 3px 8px rgba(21,33,24,0.07)` |
 | page sunbeam | `radial-gradient(120% 85% at 82% -8%, rgba(253,254,242,0.85), rgba(250,252,238,0.28) 46%, transparent 70%)` |
 

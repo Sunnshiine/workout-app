@@ -91,6 +91,11 @@ extension Theme {
         var isRing: Bool { !isInset && blur == 0 && spread > 0 }
     }
 
+    /// How far a recipe's outer rings reach past the shape, the room its neighbours leave it.
+    static func ringReach(of shadows: [BoxShadow]) -> CGFloat {
+        shadows.filter(\.isRing).map(\.spread).max() ?? 0
+    }
+
     /// A radial light recipe with explicit multi-stop colour ramp (the page sunbeam and a tile's
     /// top-light are multi-stop, unlike the single-colour `RadialWash`).
     struct RadialLight: Equatable {

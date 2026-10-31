@@ -139,12 +139,11 @@ extension Theme {
             pageSunbeam: nil,
             tileTopLight: nil,
             focusCardFill: nightSurface,
-            focusCardElevation: nightSurfaceShadow,
+            // The focus week's edge outshines the week cards' at Night, where no sun halo marks it.
+            focusCardElevation: nightLitEdge,
             raisedControlFill: nightSurface,
             // A touch brighter than a card's edge, so a control reads as the nearer surface.
-            raisedControlShadow: [
-                BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.14), inset: true)
-            ],
+            raisedControlShadow: nightLitEdge,
             weekCardElevation: nightSurfaceShadow,
             currentTileGlow: [BoxShadow(y: 0, blur: 14, color: nightBudGlow)]
         )
@@ -156,6 +155,9 @@ extension Theme {
     }
 
     private static let nightSurface = Paint.cream.opacity(0.07)
+    private static let nightLitEdge = [
+        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.14), inset: true)
+    ]
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]

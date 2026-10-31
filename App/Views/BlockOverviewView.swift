@@ -114,6 +114,7 @@ struct BlockOverviewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.lighting.focusCardFill, in: .rect(cornerRadius: Theme.Radius.focusCard))
         .themeElevation(palette.lighting.focusCardElevation, in: .rect(cornerRadius: Theme.Radius.focusCard))
+        .padding(.vertical, Theme.ringReach(of: palette.lighting.focusCardElevation))
     }
 
     // MARK: - Collapsed week — an elevated card in shade with a mini day-strip

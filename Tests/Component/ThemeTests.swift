@@ -212,3 +212,11 @@ func everyElevationRecipeFitsElevationsShadowSlots(appearance: Theme.Appearance)
         #expect(slots.dropFirst(drops.count).allSatisfy { $0 == .clear })
     }
 }
+
+/// The Day focus card's sun halo reaches 5pt past its edge, so the grid leaves it that much air; at
+/// Night no halo draws and the card keeps its neighbours' spacing.
+@MainActor
+@Test func focusCardHaloReachMatchesItsOuterRing() {
+    #expect(Theme.ringReach(of: Theme.palette(for: .day).lighting.focusCardElevation) == 5)
+    #expect(Theme.ringReach(of: Theme.palette(for: .night).lighting.focusCardElevation) == 0)
+}
