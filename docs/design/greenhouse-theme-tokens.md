@@ -21,7 +21,8 @@ are recorded inline.
   screenshots and tests: `-UITEST_APPEARANCE dark` renders Night and
   `-UITEST_APPEARANCE light` renders Day. The flag takes the preference's
   stored values (`system`, `light`, `dark`), and any other value, `night`
-  included, stops the launch with a fatal error that names them.
+  included, stops the launch with a fatal error that names them. Without the
+  flag, a fixture launch follows System.
 
 ## 2. Token architecture
 

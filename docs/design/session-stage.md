@@ -12,7 +12,8 @@ Exercise at a time, its progress drawn as a **branch that leafs out per
 logged Set**. From top: the Cadence line (muted, 11pt), the Fraunces Exercise
 name leading the page, the coach note, the branch, the Last Performed
 reference line, and the Active Set Card with the Log capsule. The foot holds
-the queue pill and up-next preview.
+the queue pill and up-next preview. A long Exercise name may run to two lines,
+and the branch cedes the vertical air.
 
 **The branch** is the page's one icon and one piece of flora — a 2px
 round-cap stem where **every mark is the same slender blade**: inked per
