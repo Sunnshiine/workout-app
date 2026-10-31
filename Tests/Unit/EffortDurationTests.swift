@@ -232,6 +232,7 @@ func proseWritesEachDurationItHolds(prose: String, seconds: [Int]) {
         ("Plank hold: 30 sec", 30),
         ("Isometric: 20 sec", 20),
         ("Start w/ 10 sec hold, superset with push ups", 10),
+        ("Start w/ 10 sec hold, then set up for the rep range", 10),
         ("Start w/ 5 sec hold", 5),
         ("Hold 6 sec", 6)
     ]
@@ -316,6 +317,12 @@ func aCoachNoteThatHoldsADurationAtTheStartPrescribesAnOpeningHold(coachNote: St
         "On the second set, hold 20 sec",
         "Set 1 – 20 sec hold",
         "Hold 20 sec on sets 1-2",
+        "On the third set, hold 30 sec",
+        "On the second and third sets, hold 10 sec",
+        "Start w/ 10 sec hold on the first three sets",
+        "Hold 10 sec on set one",
+        "Hold 10 sec on sets two and three",
+        "Set #2: hold 10 sec",
         "Each rep, hold 10 sec",
         "Every rep, hold 10 sec",
         "Per rep, hold 10 sec",

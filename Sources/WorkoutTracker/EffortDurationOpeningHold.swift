@@ -21,9 +21,15 @@ extension EffortDuration {
 private struct NoteClause {
     let text: String
 
-    /// `first set`, `top set`, `2nd set`, `last two sets`, `set 1`, `sets 1-2`.
+    /// `first set`, `top set`, `third set`, `2nd set`, `first three sets`, `set 1`, `set one`,
+    /// `Set #2`, `sets 1-2`.
     static var namesOneSet: Regex<Substring> {
-        /\b(?:first|last|final|top|second|\d+(?:st|nd|rd|th))\s+(?:(?:two|\d+)\s+)?sets?\b|\bsets?\s+\d/.ignoresCase()
+        #/
+        \b (?: first | second | third | fourth | fifth | sixth | seventh | eighth | ninth | tenth
+            | last | final | top | \d+ (?: st | nd | rd | th ) )
+        \s+ (?: (?: \d+ | one | two | three | four | five | six | seven | eight | nine | ten ) \s+ )? sets? \b
+        | \b sets? \s+ \#? \s* (?: \d | (?: one | two | three | four | five | six | seven | eight | nine | ten ) \b )
+        /#.ignoresCase()
     }
 
     /// A pause in each rep lasts this long or less, so a hold no longer than it opens the Set only
