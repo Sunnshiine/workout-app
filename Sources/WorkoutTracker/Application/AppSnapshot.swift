@@ -157,6 +157,26 @@ extension LoadBasisSnapshot {
     }
 }
 
+/// A Set's timed effort as the `workout` CLI prints it: `{"kind":"openingHold","seconds":10}`
+/// for an Opening Hold its Coach Note prescribes, `{"kind":"timedSet","seconds":40}` for a Reps
+/// cell that is a duration. A Set with neither has no `timedEffort`.
+public struct TimedEffortSnapshot: Encodable, Equatable, Sendable {
+    public enum Kind: String, Encodable, Sendable {
+        case openingHold, timedSet
+    }
+
+    public let kind: Kind
+    public let seconds: Int
+
+    init(_ effort: TimedEffort) {
+        switch effort {
+        case .openingHold: kind = .openingHold
+        case .timedSet: kind = .timedSet
+        }
+        seconds = effort.duration.seconds
+    }
+}
+
 public struct SetSnapshot: Encodable, Equatable, Sendable {
     public let id: SetAddress
     public let index: Int
@@ -169,6 +189,7 @@ public struct SetSnapshot: Encodable, Equatable, Sendable {
     public let unstructuredSetLog: String?
     public let loggedAt: Date?
     public let loadSuggestion: LoadSuggestionSnapshot
+    public let timedEffort: TimedEffortSnapshot?
 
     @MainActor
     init(_ set: ExerciseSet, id: SetAddress, history: LastPerformedLookupSnapshot) {
@@ -182,6 +203,7 @@ public struct SetSnapshot: Encodable, Equatable, Sendable {
         unstructuredSetLog = set.unstructuredSetLog
         loggedAt = set.loggedAt
         loadSuggestion = LoadSuggestionSnapshot(for: set, id: id, history: history)
+        timedEffort = set.timedEffort.map(TimedEffortSnapshot.init)
     }
 }
 

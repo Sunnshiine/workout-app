@@ -416,6 +416,13 @@ extension ActiveSetCard {
                     dismiss: { coordinator.dismissDictation() }
                 )
             },
+            timedEffort: coordinator.cardCountdown(for: slot).map { countdown in
+                SetCardTimedEffort(
+                    countdown: countdown,
+                    start: { coordinator.startCountdown(for: slot) },
+                    cancel: { coordinator.cancelCountdown() }
+                )
+            },
             onLog: { coordinator.log($0, for: slot) },
             onSkip: { coordinator.skip(for: slot) },
             onDelete: { coordinator.deleteLog(for: slot.set) },

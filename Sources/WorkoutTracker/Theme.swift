@@ -303,6 +303,7 @@ extension Theme {
         case statsValue
         case statsKey
         case sheetCell
+        case countdownNumeral
 
         /// One row per role, in declaration order. A table has no compiler exhaustiveness check,
         /// so `everyTypeRoleHasAStyle` in `Tests/Component/ThemeTypeRoleTests.swift` is what keeps
@@ -333,7 +334,9 @@ extension Theme {
             .cadence: TypeStyle(face: .sourceSans3, size: 11, weight: 600),
             .statsValue: TypeStyle(face: .sourceSans3, size: 26, weight: 700, tabular: true),
             .statsKey: TypeStyle(face: .sourceSans3, size: 12.5, weight: 600),
-            .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 500, tabular: true)
+            .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 500, tabular: true),
+            // The Effort Countdown's seconds, read at arm's length from the machine (DESIGN.md §5.2).
+            .countdownNumeral: TypeStyle(face: .sourceSans3, size: 96, weight: 700, tabular: true, tracking: -1.44)
         ]
 
         var style: TypeStyle {
