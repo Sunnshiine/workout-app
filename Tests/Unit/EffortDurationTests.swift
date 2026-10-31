@@ -31,6 +31,7 @@ import Testing
         ("25 min", 1500),
         ("60 min", 3600),
         ("30-45 sec", 30),
+        ("10-20 sec", 10),
         ("30 – 45 seconds", 30),
         ("30–45s", 30),
         ("1-2 min", 60),
@@ -55,6 +56,7 @@ import Testing
         ("1m30s", 90),
         ("1m 30s", 90),
         ("2 mins 5 secs", 125),
+        ("1 min 05 sec", 65),
         ("1-2 min 30 sec", 90)
     ]
 )
@@ -145,6 +147,7 @@ func textThatIsNotOneDurationReadsAsNothing(text: String) {
         ("20\" hold", [20]),
         ("\"Drive\" 20\" hold", [20]),
         ("\"Go\" 20\" hold", [20]),
+        ("\"Up\" \"Go\" 20\" hold", [20]),
         ("Say \"hold 20\" twice", [])
     ]
 )
