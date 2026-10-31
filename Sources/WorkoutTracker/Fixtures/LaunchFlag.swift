@@ -91,6 +91,13 @@
                 + " A launch that names no Scenario flag gets it too."
         )
 
+        static let worstCase = LaunchFlag(
+            argument: "-UITEST_WORST_CASE",
+            kind: .scenario(.worstCase),
+            meaning: "Seeds the worst-case workbook: the longest and oddest cells a coach realistically types, for finding"
+                + " where the UI breaks."
+        )
+
         static let disableAnimations = LaunchFlag(
             argument: "-UITEST_DISABLE_ANIMATIONS",
             kind: .switch,
@@ -221,6 +228,7 @@
             .longSession,
             .fullBlock,
             .partialUpload,
+            .worstCase,
             .disableAnimations,
             .disableLiveActivities,
             .endLiveActivities,

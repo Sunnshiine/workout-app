@@ -197,6 +197,26 @@ enum SessionPageHost {
         }
     }
 
+    /// The `worst-case` workbook's Current Session as the app boots into it, with no history: its
+    /// Cadence-prefixed mega-name and paragraph Coach Note on stage, alone or in a Superset with
+    /// the long-named two-Line Exercise.
+    static func worstCaseLayouts(_ stage: StageKind, windowHeights: [CGFloat]) throws -> [PageFrames] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkbookScenario.worstCase.block())
+        VisualFixtureRetainer.retain(scenario)
+        let session = try #require(scenario.store.viewedSession)
+        let exercises = session.exercises.sorted { $0.order < $1.order }
+        let coordinator = boundCoordinator(to: session, store: scenario.store)
+        if stage == .superset {
+            try #require(coordinator.createSuperset(from: exercises[0], to: exercises[2], in: session))
+        }
+        let probe = FrameProbe()
+        let page = SessionPage(session: session, coordinator: coordinator, restTimer: RestTimer(), banner: .clear, probe: probe)
+        let lookup = LastPerformedLookupStore(context: scenario.context)
+        return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
+            try frames(in: window, focused: exercises[0], probe: probe)
+        }
+    }
+
     static func completionPages(windowHeights: [CGFloat]) throws -> [CompletionPage] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(
             block: WorkbookScenario.completedOpenExercises.block()

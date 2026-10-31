@@ -31,12 +31,7 @@ struct ActiveSupersetSection: View {
 
     private var nameBlock: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(stage.focused.exerciseName.base)
-                .font(Theme.font(.exerciseName))
-                .foregroundStyle(palette.textPrimary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("stage-exercise-name")
+            StageExerciseName(name: stage.focused.exerciseName.base)
 
             Button {
                 coordinator.focusNextSupersetSet(for: stage.partner, in: session)
@@ -44,6 +39,7 @@ struct ActiveSupersetSection: View {
                 Text("\(Image(systemName: "arrow.triangle.branch"))\(Text("\u{00A0}").tracking(2))\(stage.partner.exerciseName.base)")
                     .imageScale(.small)
                     .lineSpacing(2)
+                    .lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
                     .font(Theme.font(.supersetPartner))
                     .foregroundStyle(palette.supersetPartnerName)

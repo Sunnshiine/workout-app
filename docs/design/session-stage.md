@@ -13,7 +13,8 @@ logged Set**. From top: the Cadence line (muted, 11pt), the Fraunces Exercise
 name leading the page, the coach note, the branch, the Last Performed
 reference line, and the Active Set Card with the Log capsule. The foot holds
 the queue pill and up-next preview. A long Exercise name may run to two lines,
-and the branch cedes the vertical air.
+and the branch cedes the vertical air. Past two lines it shrinks to 80%, then
+truncates.
 
 **The branch** is the page's one icon and one piece of flora — a 2px
 round-cap stem where **every mark is the same slender blade**: inked per
@@ -185,6 +186,9 @@ glyph (`arrow.triangle.branch`) on the name's first baseline, carry
 foliage green while full pigment stays with the focus; at night — where
 foliage *is* the leaf pigment — the partner subordinates by **translucency**
 instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
+The partner name line holds one line and truncates, so under a two-line
+Exercise name the branch keeps its room on an SE. Tapping it brings the
+partner's name to the stage.
 
 Coach note, Last Performed, and the Active Set Card follow the focus (the
 card head stays plain `Set N of M`); the foot's up-next names the partner's
@@ -212,3 +216,5 @@ row this short (#870). The header holds one height whether it shows the
 button, the X, or nothing, so the title never moves (operator rulings
 2026-10-11 and 2026-10-12: self-describing icons over words, V3's stem in
 V1's icon-only header button). The queue sheet itself is living paper (§2).
+A row's Exercise name runs two lines at most in a smaller face, so the queue
+shows more of a name the stage truncated.

@@ -23,7 +23,7 @@ export SIM=$(xcrun simctl create LANE_NAME "iPhone 17 Pro" com.apple.CoreSimulat
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
 `partial-block` (Block Overview, some sessions not uploaded), `completed-open-exercises`
-(completion stage), `developer-tools`. Extra `-UITEST_*` arguments pass through, for example
+(completion stage), `developer-tools`, `worst-case` (the longest realistic cells, for break-the-UI runs). Extra `-UITEST_*` arguments pass through, for example
 `launch settings -UITEST_PENDING_WRITE`. [launch-flags.md](launch-flags.md) lists every flag and
 what it does. `launch session -UITEST_APPEARANCE dark` renders Night
 without changing the simulator's appearance, and `light` renders Day. Any other value, `night`

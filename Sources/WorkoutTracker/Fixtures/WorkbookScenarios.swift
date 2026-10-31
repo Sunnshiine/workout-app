@@ -38,6 +38,12 @@
         /// One Session of every status Block Overview draws: a complete Day 1, Day 2 with Open
         /// Exercises, Day 3 to train next, and Week 2 Day 1 still upcoming.
         case blockOverviewWithMixedSessionStates = "block-overview-with-mixed-session-states"
+        /// The longest and oddest cells a coach realistically types, for finding where the UI breaks:
+        /// a Cadence-prefixed mega-name with a paragraph Coach Note and a text Load, a four-digit
+        /// Set Log beside an Unstructured one, a two-Line Exercise with a range and a timed Reps cell, a
+        /// three-letter name, and twelve one-rep Sets. Every other Session of its four Weeks holds
+        /// one long-named Exercise.
+        case worstCase = "worst-case"
 
         static let spreadsheetId = "FIXTURE"
         static let title = "Fixture Training Log"

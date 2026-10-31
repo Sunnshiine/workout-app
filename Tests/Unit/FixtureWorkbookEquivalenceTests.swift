@@ -226,7 +226,9 @@ private let recordedDrift: [WorkbookScenario: [Drift]] = [
     .openExercises: [],
     .completedOpenExercises: [],
     .longSession: [],
-    .perfectMoveOnCelebration: []
+    .perfectMoveOnCelebration: [],
+    // Seeded from its own workbook from the start, so nothing can drift.
+    .worstCase: []
 ]
 
 // MARK: - The gate

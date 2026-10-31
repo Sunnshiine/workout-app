@@ -21,6 +21,7 @@ Every flag but `-UITEST_DISABLE_LIVE_ACTIVITIES`, `-UITEST_END_LIVE_ACTIVITIES`,
 | `-UITEST_LONG_SESSION` | Scenario 4 | Seeds the long-session workbook: one Session of eight Exercises with only the first logged. |
 | `-UITEST_FULL_BLOCK` | Scenario 5 | Seeds the full-block workbook: four Weeks of four Sessions, every one an Available Session. |
 | `-UITEST_PARTIAL_UPLOAD` | Scenario 6 | Seeds the partial-upload workbook: four Weeks of four Days, eleven of them Unavailable Sessions. A launch that names no Scenario flag gets it too. |
+| `-UITEST_WORST_CASE` | Scenario 7 | Seeds the worst-case workbook: the longest and oddest cells a coach realistically types, for finding where the UI breaks. |
 | `-UITEST_DISABLE_ANIMATIONS` | Switch | Turns off UIKit animations and drops the animation from every SwiftUI transaction. |
 | `-UITEST_DISABLE_LIVE_ACTIVITIES` | Switch | Reports Live Activities as disabled, so no Live Activity starts. |
 | `-UITEST_END_LIVE_ACTIVITIES` | Switch | Ends every Live Activity still up from an earlier process at launch, so one never outlives a test session. |

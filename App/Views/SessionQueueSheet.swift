@@ -265,7 +265,8 @@ struct SessionQueueSheet: View {
                 Text(row.title)
                     .font(Theme.font(.queuePill))
                     .foregroundStyle(row.isComplete ? palette.textSecondary : palette.textPrimary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 SessionStageSetDots(sets: row.sets)
             }
