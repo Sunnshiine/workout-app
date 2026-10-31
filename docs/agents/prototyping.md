@@ -50,9 +50,8 @@ PNGs in the issue comment — that's where review actually happens.
    branch: the primary source survives here when it closes unmerged.
 3. **Ship it.** Apply the `testflight` label. One label application builds the
    current head once; the workflow removes the label when the run starts, so
-   after a push just apply it again for a new build. Label semantics, the
-   AGENT_PAT quirk (a label applied with the plain `GITHUB_TOKEN` never fires
-   the workflow), and the pipeline live in `docs/ci/testflight.md`.
+   after a push just apply it again for a new build. Label semantics and the
+   pipeline live in `docs/ci/testflight.md`.
 4. **Hand over.** The workflow posts a receipt comment when the build is
    installable. Point the user at **WT Dev** in TestFlight and restate the variants
    and switcher. Dev builds run against the live Sheets API — remind them to point

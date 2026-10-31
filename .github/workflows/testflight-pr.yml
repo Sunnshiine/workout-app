@@ -4,14 +4,8 @@ name: TestFlight PR
 # Dev" in App Store Connect, "WT Dev" on the home screen) when the `testflight`
 # label is applied to a PR. The label is a push button: the workflow removes it
 # as soon as a run starts, so applying it again is always enough for another
-# build. Pushes never upload. agent-review applies the label automatically
-# after a successful review pass on a binary-affecting PR. workflow_dispatch
-# (with a PR number) is the secondary path.
-#
-# A `testflight` label applied by a workflow using the plain GITHUB_TOKEN will
-# NOT fire this workflow — GitHub suppresses token-driven events. Agents must
-# apply the label with AGENT_PAT. Secrets inventory and conventions:
-# docs/ci/testflight.md.
+# build. Pushes never upload. workflow_dispatch (with a PR number) is the
+# secondary path. Secrets inventory and conventions: docs/ci/testflight.md.
 
 on:
   pull_request:

@@ -40,11 +40,9 @@ export interface RunWithRetryOptions<T> extends Omit<RunOptions, "output"> {
  *    `maxAttempts` times total.
  *
  * Resuming the failed session (rather than re-running from scratch) is only
- * possible because `StructuredOutputError` carries `sessionId` — see the host's
- * Sandcastle dependency (>= 0.5.12).
+ * possible because `StructuredOutputError` carries `sessionId`.
  *
- * Throws the final {@link StructuredOutputError} if every attempt fails, which
- * mirrors the pre-wrapper failure path.
+ * Throws the final {@link StructuredOutputError} if every attempt fails.
  */
 export async function runWithRetry<T>(
   options: RunWithRetryOptions<T>
@@ -72,7 +70,7 @@ export async function runWithRetry<T>(
       }
 
       // The retry uses an inline `prompt` (the feedback message), so drop
-      // `promptArgs` — Sandcastle only allows promptArgs alongside a promptFile,
+      // `promptArgs` — `run()` only allows promptArgs alongside a promptFile,
       // and the feedback prompt needs no substitution.
       const { promptArgs: _retryArgs, ...retryOptions } = runOptions;
       return await run({

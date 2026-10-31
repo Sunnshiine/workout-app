@@ -10,8 +10,8 @@ usage: scripts/lint-doc-symbols.py [ROOT]
 Reads the inline code spans of the repo-authored Markdown (DOC_SCOPE: AGENTS.md, the root guides,
 docs/, Sources/, tools/, and the repo's own skills), and the repo paths in their fenced blocks (a
 path whose first segment, after any ./, is a top-level entry of this tree, such as
-scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). Research notes are history, vendored skills
-are upstream text, and .sandcastle/ names examples, so all three stay out. ADRs stay in, so a
+scripts/flake-hunt.sh in "$(scripts/flake-hunt.sh)"). Research notes are history and vendored
+skills are upstream text, so both stay out. ADRs stay in, so a
 change that deletes a symbol an ADR cites fails until the ADR is amended. A span or fenced path
 that names something outside the tree on purpose, such as a name an ADR records as retired, is
 exempted in its doc with <!-- doc-symbols: not-in-tree NAME... -->. Every -UITEST_ flag in those

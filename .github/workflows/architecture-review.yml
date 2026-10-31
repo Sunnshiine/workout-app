@@ -73,7 +73,7 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OUTPUT_DIR: ${{ runner.temp }}
-        run: npx tsx .sandcastle/architecture-review/architecture-review.ts
+        run: npx tsx tools/architecture-review/architecture-review.ts
 
       - name: Publish PRD issue
         id: publish

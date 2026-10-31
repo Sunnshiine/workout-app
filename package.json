@@ -2,12 +2,11 @@
   "name": "workout-app-agent-tooling",
   "private": true,
   "type": "module",
-  "description": "Node tooling for the Sandcastle agent pipeline (.sandcastle/ + .github/workflows/agent-*.yml). The app itself is Swift — see Package.swift.",
+  "description": "Node tooling for the scheduled architecture review (tools/architecture-review/) and the prototype capture (scripts/prototype-capture/). The app itself is Swift — see Package.swift.",
   "scripts": {
-    "sandcastle": "tsx ./.sandcastle/main.ts",
-    "test:sandcastle": "vitest run .sandcastle",
+    "test:architecture-review": "vitest run tools/architecture-review",
     "test:prototype": "vitest run scripts/prototype-capture",
-    "typecheck:sandcastle": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "prototype:capture": "tsx ./scripts/prototype-capture/capture.ts"
   },
   "devDependencies": {

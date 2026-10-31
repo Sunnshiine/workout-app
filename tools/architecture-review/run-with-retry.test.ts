@@ -110,7 +110,7 @@ describe("runWithRetry", () => {
     expect(firstCall.promptArgs).toBe(promptArgs);
     expect(firstCall.promptFile).toBe("/repo/prompt.md");
 
-    // The retry swaps to an inline feedback prompt; Sandcastle rejects
+    // The retry swaps to an inline feedback prompt; `run()` rejects
     // promptArgs alongside an inline prompt, so it must be dropped.
     const retryCall = mockRun.mock.calls[1]![0];
     expect(retryCall.promptFile).toBeUndefined();

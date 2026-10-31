@@ -6,7 +6,7 @@ if [ $# != 0 ]; then
 Usage: scripts/refuse-record-mode.sh
 Fails when a Swift file under Tests/Visual/ commits `record: .all`. That flag, suite- or test-level,
 makes every snapshot test write its baseline instead of comparing, so the visual gate goes green
-while checking nothing. Recording flips are working state only (VISUAL_LOOP.md) and must never
+while checking nothing. Recording flips are working state only (docs/TESTING.md) and must never
 land. Only Swift can carry the flag, and reading the 105 MB of baseline PNGs beside the
 simulator's boot took this check 42 to 54 s. Also fails when Tests/Visual/ is missing or grep
 cannot search it.

@@ -108,7 +108,7 @@ describe("runWithExtraction", () => {
     expect(produceCall.promptArgs).toBe(promptArgs);
     expect(produceCall.promptFile).toBe("/repo/prompt.md");
 
-    // The extraction call swaps to an inline prompt; Sandcastle rejects
+    // The extraction call swaps to an inline prompt; `run()` rejects
     // promptArgs alongside an inline prompt, so it must be dropped.
     const extractCall = mockRun.mock.calls[1]![0];
     expect(extractCall.prompt).toBe("Emit the <output> block.");

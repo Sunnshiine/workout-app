@@ -76,7 +76,7 @@ not_receipts() { awk -F'\t' '$5 != "Receipts"' <<<"$1"; }
 
 no_run() {
     echo "no pull_request workflow $1 on ${sha:0:7} within 5 minutes" >&2
-    echo "land #$pr only when every path it changes is in ci.yml's paths-ignore and no agent workflow pushed ${sha:0:7} (#805)" >&2
+    echo "land #$pr only when every path it changes is in ci.yml's paths-ignore" >&2
     exit 3
 }
 

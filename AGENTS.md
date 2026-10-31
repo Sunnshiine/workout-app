@@ -165,8 +165,5 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
 
 - Issues and PRDs live in GitHub Issues for `Sunnshiine/workout-app`. The workflow is
   `docs/agents/issue-tracker.md`, and the five triage labels are `docs/agents/triage-labels.md`.
-- Sandcastle runs label-driven implementation and review in GitHub Actions. Prompts are in
-  `.sandcastle/`, workflows in `.github/workflows/agent-*.yml`, and the map is
-  `docs/agents/sandcastle.md`.
 - A UI prototype renders as HTML for a layout question, or ships to the phone through the
   `testflight` label for a question of feel. `docs/agents/prototyping.md` owns the decision.

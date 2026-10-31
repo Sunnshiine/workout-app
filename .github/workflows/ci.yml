@@ -1,9 +1,5 @@
 name: CI
 
-# Note: pushes made with the plain GITHUB_TOKEN do not trigger this workflow
-# (GitHub suppresses token-driven events). Agent workflows check out with
-# AGENT_PAT, so their pushes do trigger it.
-
 on:
   pull_request:
     # A retarget, by hand or by GitHub when a stacked PR's parent merges, fires only edited. A title
@@ -15,14 +11,13 @@ on:
       - "docs/**"
       - ".agents/**"
       - ".claude/**"
-      - ".sandcastle/**"
+      - "tools/architecture-review/**"
       - "scripts/prototype-capture/**"
       - "scripts/tests/**"
       - "scripts/contact-sheet.*"
       - "scripts/lint-workflow-ifs.sh"
       - "scripts/lint-skill-links.sh"
       - "scripts/ci-visual-diffs.sh"
-      - ".github/actions/**"
       - ".github/workflows/agent-*.yml"
       - ".github/workflows/verify-tools.yml"
       - ".github/workflows/script-tests.yml"

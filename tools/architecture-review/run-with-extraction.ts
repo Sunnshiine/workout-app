@@ -22,7 +22,7 @@ export interface RunWithExtractionOptions<T> extends Omit<
   /**
    * Prompt for the extraction pass, sent after resuming the produce session.
    * Must contain the configured opening tag literal (e.g. `<output>`), since
-   * Sandcastle requires the resolved prompt to contain it.
+   * `run()` requires the resolved prompt to contain it.
    */
   readonly extractionPrompt: string;
   /** Maximum number of extraction attempts before giving up. Default: 3. */
@@ -52,9 +52,7 @@ export interface RunWithExtractionOptions<T> extends Omit<
  * extraction run's `output` — extraction must not commit, so the produce
  * commits are the source of truth for callers that inspect `commits`.
  *
- * Throws the final `StructuredOutputError` if every attempt fails, which
- * mirrors the pre-wrapper failure path (the workflow marks the PR/issue
- * blocked).
+ * Throws the final `StructuredOutputError` if every attempt fails.
  *
  * For side-effect-free scripts where the output *is* the work, prefer
  * {@link runWithRetry} directly — there's no work to preserve, so the produce
@@ -77,7 +75,7 @@ export async function runWithExtraction<T>(
   }
 
   // The extraction pass uses an inline `prompt` (extractionPrompt), so drop the
-  // produce phase's `promptArgs` — Sandcastle only allows promptArgs alongside
+  // produce phase's `promptArgs` — `run()` only allows promptArgs alongside
   // a promptFile, and the extraction prompt needs no substitution.
   const { promptArgs: _produceArgs, ...extractionOptions } = produceOptions;
 
