@@ -145,7 +145,9 @@ final class KeyboardLaneUITests: XCTestCase {
 
     @MainActor
     func testSupersetNameShedWhileWeightFieldIsFocusedLeavesTheAccessibilityTree() throws {
-        let app = launchAnimated(options: [.offline])
+        // At the default size the name and Last Performed both fit above the keyboard, so nothing
+        // sheds. At the largest text size there is room for neither.
+        let app = launchAnimated(options: [.offline], contentSize: "UICTContentSizeCategoryXXXL")
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: uiEventBudget))
         pairBackSquatWithBBRDL(in: app)
@@ -220,8 +222,8 @@ final class KeyboardLaneUITests: XCTestCase {
     }
 
     @MainActor
-    private func launchAnimated(options: [WorkoutUITestFixtureOption]) -> XCUIApplication {
-        launchWorkoutApp(fixture: .currentSession, options: options, animated: true)
+    private func launchAnimated(options: [WorkoutUITestFixtureOption], contentSize: String? = nil) -> XCUIApplication {
+        launchWorkoutApp(fixture: .currentSession, options: options, animated: true, contentSize: contentSize)
     }
 }
 

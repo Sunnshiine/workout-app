@@ -23,6 +23,7 @@ extension Theme {
             .ceremonyTitle: .largeTitle,
             .connectTitle: .largeTitle,
             .weightEntry: .largeTitle,
+            .countdownNumeral: .largeTitle,
             .blockTitle: .title,
             .statsValue: .title,
             .sheetTitle: .title2,
@@ -76,21 +77,4 @@ extension Theme {
             uiTextStyles[style] ?? .body
         }
     #endif
-}
-
-extension View {
-    /// Sets a type role at the environment's Dynamic Type size. A surface caps its growth with
-    /// `.dynamicTypeSize(...)`, which this reads.
-    func themeFont(_ role: Theme.TypeRole) -> some View {
-        modifier(ThemeFontModifier(role: role))
-    }
-}
-
-private struct ThemeFontModifier: ViewModifier {
-    let role: Theme.TypeRole
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    func body(content: Content) -> some View {
-        content.font(Theme.font(role, at: dynamicTypeSize))
-    }
 }

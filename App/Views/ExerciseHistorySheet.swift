@@ -288,10 +288,9 @@ private struct ExerciseHistoryRow: View {
     private func annotationLine(_ annotation: ExerciseHistorySheetPresentation.Annotation) -> some View {
         Text(annotationText(annotation))
             .themeFont(.runlineSecondary)
-            .italic()
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(Theme.TypeRole.runlineSecondary.denseFloorScale)
     }
 
     private func annotationText(_ annotation: ExerciseHistorySheetPresentation.Annotation) -> String {

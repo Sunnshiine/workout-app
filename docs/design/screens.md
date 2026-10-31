@@ -64,7 +64,7 @@ celebratory moment, marking the athlete's explicit choice to Move On. On
 living paper: the stem grows (1.0s), a 0.10s beat, then the **perched
 songbird drops to the branch tip** (0.35s) — ≈1.5s total, at Brisk. The
 Fraunces ceremony title speaks; the stats render on the shared soft surface
-(values 26pt / 700, keys muted). With the bird present, the colophon is
+(`statsValue` 28pt / 700, `statsKey` muted). With the bird present, the colophon is
 absent and the composition re-centers.
 
 **Completion, Not Achievement Rule.** The ceremony marks completion of the

@@ -153,7 +153,7 @@ struct SmartValuePills: View {
             .themeFont(.runline)
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
-            .minimumScaleFactor(0.82)
+            .minimumScaleFactor(Theme.TypeRole.runline.denseFloorScale)
             .truncationMode(.tail)
     }
 

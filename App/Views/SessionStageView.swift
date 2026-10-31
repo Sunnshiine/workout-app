@@ -299,7 +299,6 @@ struct StageExerciseName: View {
         Text(name)
             .themeFont(.exerciseName)
             .foregroundStyle(palette.textPrimary)
-            .lineSpacing(3)
             .lineLimit(2)
             .minimumScaleFactor(0.8)
             .fixedSize(horizontal: false, vertical: true)
@@ -393,7 +392,6 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
             Text(note)
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
-                .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

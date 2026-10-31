@@ -11,7 +11,7 @@ struct LastPerformedCard: View {
             .themeFont(.lastPerformed)
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
-            .minimumScaleFactor(11.0 / 12.5)
+            .minimumScaleFactor(Theme.TypeRole.lastPerformed.denseFloorScale)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
             .hitOutset(HitOutset.textLine)
@@ -32,6 +32,5 @@ struct LastPerformedCard: View {
     private var matchedNameText: Text {
         guard let matchedName = presentation.matchedName else { return Text("") }
         return Text(" as “\(matchedName)”")
-            .italic()
     }
 }

@@ -271,6 +271,7 @@ struct SheetPickerView: View {
                     onPasteURL()
                 } label: {
                     Text("Paste a URL instead")
+                        .themeFont(.heading)
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(palette.actionInk)

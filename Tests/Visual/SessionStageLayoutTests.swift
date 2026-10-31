@@ -15,16 +15,16 @@ struct SessionStageLayoutTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 36),
                     partner: nil,
-                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
+                    note: CGRect(x: 16, y: 183, width: 270, height: 23),
                     leaves: [
-                        CGRect(x: 272, y: 238, width: 44, height: 44),
-                        CGRect(x: 196, y: 259, width: 44, height: 44),
-                        CGRect(x: 120, y: 286, width: 44, height: 44)
+                        CGRect(x: 272, y: 234, width: 44, height: 44),
+                        CGRect(x: 196, y: 255, width: 44, height: 44),
+                        CGRect(x: 120, y: 282, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 46),
+                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 47),
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 )
         )
@@ -37,10 +37,10 @@ struct SessionStageLayoutTests {
                 == PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
-                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 123, height: 36),
+                    partner: CGRect(x: 16, y: 204, width: 131, height: 25),
+                    note: CGRect(x: 16, y: 242, width: 262, height: 23),
                     leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -49,23 +49,47 @@ struct SessionStageLayoutTests {
         )
     }
 
+    // Type stops following the text size at its cap (DESIGN.md §3 The Product Scale Rule),
+    // because there both stages still keep every line and the card on one full-height page.
+    @Test func atTheTypeCeilingBothStagesKeepEveryLineOnOnePage() throws {
+        for stage in [StageKind.exercise, .superset] {
+            let page = try SessionPageHost.layout(
+                stage,
+                banner: .clear,
+                windowHeight: WindowHeight.iPhone17Pro,
+                dynamicTypeSize: Theme.TypeScale.largestSize
+            )
+            #expect(page.note != nil, "\(stage) dropped its coach note")
+            #expect(page.branchIsDrawn, "\(stage) dropped its branch")
+            let card = try #require(page.card)
+            let stageFrame = try #require(page.stage)
+            #expect(card.maxY <= stageFrame.maxY, "\(stage) pushed the card off the page")
+            if stage == .exercise {
+                #expect(page.lastPerformed != nil, "the Exercise stage dropped Last Performed")
+            } else {
+                #expect(page.cadence != nil, "the Superset stage dropped its Cadence line")
+                #expect(page.partner != nil, "the Superset stage dropped its partner")
+            }
+        }
+    }
+
     @Test func aSyncBannerMovesNothingAndClearsTheExerciseName() throws {
         let heights = [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se]
         let banners: [(outcome: SyncOutcome, frames: [CGRect])] = [
             (
                 .writesQueued(1),
                 [
-                    CGRect(x: 16, y: 70, width: 370, height: 34),
-                    CGRect(x: 16, y: 70, width: 370, height: 34),
-                    CGRect(x: 16, y: 70, width: 370, height: 34)
+                    CGRect(x: 16, y: 70, width: 370, height: 35),
+                    CGRect(x: 16, y: 70, width: 370, height: 35),
+                    CGRect(x: 16, y: 70, width: 370, height: 35)
                 ]
             ),
             (
                 .writesRefused(["x"]),
                 [
-                    CGRect(x: 16, y: 70, width: 370, height: 34),
-                    CGRect(x: 16, y: 70, width: 370, height: 34),
-                    CGRect(x: 16, y: 70, width: 370, height: 34)
+                    CGRect(x: 16, y: 70, width: 370, height: 35),
+                    CGRect(x: 16, y: 70, width: 370, height: 35),
+                    CGRect(x: 16, y: 70, width: 370, height: 35)
                 ]
             )
         ]
@@ -92,16 +116,16 @@ struct SessionStageLayoutTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 731),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 36),
                     partner: nil,
-                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
+                    note: CGRect(x: 16, y: 183, width: 270, height: 23),
                     leaves: [
-                        CGRect(x: 272, y: 238, width: 44, height: 44),
-                        CGRect(x: 196, y: 258, width: 44, height: 44),
-                        CGRect(x: 120, y: 286, width: 44, height: 44)
+                        CGRect(x: 272, y: 234, width: 44, height: 44),
+                        CGRect(x: 196, y: 255, width: 44, height: 44),
+                        CGRect(x: 120, y: 282, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 46),
+                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 47),
                     card: CGRect(x: 16, y: 429, width: 370, height: 308)
                 )
         )
@@ -114,10 +138,10 @@ struct SessionStageLayoutTests {
                 == PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 731),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
-                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 123, height: 36),
+                    partner: CGRect(x: 16, y: 204, width: 131, height: 25),
+                    note: CGRect(x: 16, y: 242, width: 262, height: 23),
                     leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -134,16 +158,16 @@ struct SessionStageLayoutTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 36),
                     partner: nil,
-                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
+                    note: CGRect(x: 16, y: 183, width: 270, height: 23),
                     leaves: [
-                        CGRect(x: 272, y: 229, width: 44, height: 44),
-                        CGRect(x: 196, y: 236, width: 44, height: 44),
-                        CGRect(x: 120, y: 246, width: 44, height: 44)
+                        CGRect(x: 272, y: 226, width: 44, height: 44),
+                        CGRect(x: 196, y: 233, width: 44, height: 44),
+                        CGRect(x: 120, y: 244, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 299, width: 370, height: 46),
+                    lastPerformed: CGRect(x: 16, y: 299, width: 370, height: 47),
                     card: CGRect(x: 16, y: 345, width: 370, height: 308)
                 )
         )
@@ -165,11 +189,11 @@ struct SessionStageLayoutTests {
                 PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 370, height: 69),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 370, height: 73),
                     partner: nil,
-                    note: CGRect(x: 16, y: 245, width: 362, height: 98),
-                    leaves: leaves(at: [(280, 366), (251, 370), (222, 374), (193, 379), (164, 385), (134, 392), (105, 399), (76, 407)]),
+                    note: CGRect(x: 16, y: 251, width: 362, height: 90),
+                    leaves: leaves(at: [(280, 364), (251, 368), (222, 373), (193, 378), (164, 384), (134, 391), (105, 398), (76, 406)]),
                     branchIsDrawn: true,
                     lastPerformed: nil,
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
@@ -178,10 +202,10 @@ struct SessionStageLayoutTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 370, height: 69),
+                    name: CGRect(x: 16, y: 133, width: 370, height: 73),
                     partner: nil,
                     note: nil,
-                    leaves: leaves(at: [(280, 225), (251, 230), (222, 235), (193, 241), (164, 248), (134, 255), (105, 263), (76, 272)]),
+                    leaves: leaves(at: [(280, 229), (251, 233), (222, 238), (193, 244), (164, 250), (134, 257), (105, 265), (76, 274)]),
                     branchIsDrawn: true,
                     lastPerformed: nil,
                     card: CGRect(x: 16, y: 345, width: 370, height: 308)
@@ -193,10 +217,10 @@ struct SessionStageLayoutTests {
                 PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 370, height: 69),
-                    partner: CGRect(x: 16, y: 234, width: 362, height: 25),
-                    note: CGRect(x: 16, y: 273, width: 362, height: 98),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 370, height: 73),
+                    partner: CGRect(x: 16, y: 240, width: 362, height: 25),
+                    note: CGRect(x: 16, y: 279, width: 362, height: 90),
                     leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -206,8 +230,8 @@ struct SessionStageLayoutTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 370, height: 69),
-                    partner: CGRect(x: 16, y: 205, width: 362, height: 25),
+                    name: CGRect(x: 16, y: 133, width: 370, height: 73),
+                    partner: CGRect(x: 16, y: 209, width: 362, height: 25),
                     note: nil,
                     leaves: [],
                     branchIsDrawn: true,
@@ -247,13 +271,13 @@ struct SessionStageLadderTransitionTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 632),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 36),
                     partner: nil,
-                    note: CGRect(x: 16, y: 188, width: 270, height: 22),
+                    note: CGRect(x: 16, y: 183, width: 270, height: 23),
                     leaves: [
-                        CGRect(x: 272, y: 231, width: 44, height: 44),
-                        CGRect(x: 196, y: 241, width: 44, height: 44),
-                        CGRect(x: 120, y: 254, width: 44, height: 44)
+                        CGRect(x: 272, y: 228, width: 44, height: 44),
+                        CGRect(x: 196, y: 238, width: 44, height: 44),
+                        CGRect(x: 120, y: 252, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -263,13 +287,13 @@ struct SessionStageLadderTransitionTests {
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 597),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 173, height: 41),
+                    name: CGRect(x: 16, y: 133, width: 173, height: 36),
                     partner: nil,
                     note: nil,
                     leaves: [
-                        CGRect(x: 272, y: 195, width: 44, height: 44),
-                        CGRect(x: 196, y: 205, width: 44, height: 44),
-                        CGRect(x: 120, y: 219, width: 44, height: 44)
+                        CGRect(x: 272, y: 191, width: 44, height: 44),
+                        CGRect(x: 196, y: 202, width: 44, height: 44),
+                        CGRect(x: 120, y: 216, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
                     lastPerformed: nil,
@@ -291,34 +315,34 @@ struct SessionStageLadderTransitionTests {
                 PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 778),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
-                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 123, height: 36),
+                    partner: CGRect(x: 16, y: 204, width: 131, height: 25),
+                    note: CGRect(x: 16, y: 242, width: 262, height: 23),
                     leaves: [],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 46),
+                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 47),
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 ),
                 PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 731),
-                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
-                    name: CGRect(x: 16, y: 163, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 207, width: 131, height: 25),
-                    note: CGRect(x: 16, y: 245, width: 262, height: 22),
+                    cadence: CGRect(x: 16, y: 133, width: 36, height: 17),
+                    name: CGRect(x: 16, y: 164, width: 123, height: 36),
+                    partner: CGRect(x: 16, y: 204, width: 131, height: 25),
+                    note: CGRect(x: 16, y: 242, width: 262, height: 23),
                     leaves: [],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 46),
+                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 47),
                     card: CGRect(x: 16, y: 429, width: 370, height: 308)
                 ),
                 PageFrames(
                     banner: nil,
                     stage: CGRect(x: 0, y: 62, width: 402, height: 647),
                     cadence: nil,
-                    name: CGRect(x: 16, y: 133, width: 123, height: 41),
-                    partner: CGRect(x: 16, y: 177, width: 131, height: 25),
-                    note: CGRect(x: 16, y: 216, width: 262, height: 22),
+                    name: CGRect(x: 16, y: 133, width: 123, height: 36),
+                    partner: CGRect(x: 16, y: 172, width: 131, height: 25),
+                    note: CGRect(x: 16, y: 211, width: 262, height: 23),
                     leaves: [],
                     branchIsDrawn: true,
                     lastPerformed: nil,

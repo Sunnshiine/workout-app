@@ -70,7 +70,7 @@ struct SessionProgressHeader: View {
             .accessibilityLabel(presentation.runlineText)
             .themeFont(.runline)
             .lineLimit(1)
-            .minimumScaleFactor(0.8)
+            .minimumScaleFactor(Theme.TypeRole.runline.denseFloorScale)
             .foregroundStyle(palette.textSecondary)
     }
 }
