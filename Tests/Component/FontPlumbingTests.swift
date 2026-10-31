@@ -40,4 +40,15 @@ import Testing
         let spread = (widths.max() ?? 0) - (widths.min() ?? 0)
         #expect(spread < 0.5, "weightEntry digits are not tabular (spread \(spread))")
     }
+
+    /// Display roles ride the large-title curve and reading roles the body curves, so a larger text
+    /// size grows the coach note proportionally more than the Exercise name, as iOS's own styles do.
+    @Test func readingRolesGrowFasterThanDisplayRoles() {
+        func growth(_ role: Theme.TypeRole) -> CGFloat {
+            Theme.scaledSize(role, at: .xxxLarge) / role.style.size
+        }
+        #expect(growth(.exerciseName) > 1)
+        #expect(growth(.coachNote) > growth(.exerciseName))
+        #expect(growth(.lastPerformed) > growth(.weightEntry))
+    }
 #endif

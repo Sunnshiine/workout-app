@@ -90,8 +90,17 @@ gold, orange, tan, or generic beige wellness styling.
 ## 3. Typography
 
 Two bundled variable faces carry the type. Fraunces is the voice and speaks rarely. Source Sans 3 is
-the instrument and carries everything else, numbers included. The token sheet's type roles give each
-role's size, weight, and axes.
+the instrument and carries everything else, numbers included. Every role is one row of the table in
+`Sources/WorkoutTracker/ThemeType.swift`, and a view sets type only with `themeFont(_:)`, which
+applies the role's face, size, tracking, and leading together. The token sheet's type roles give
+each role's values.
+
+The Emil redesign rewrote this section on 2026-10-31. Operator ruling that day: "Where Emil's
+recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or a past operator
+decision, Emil wins. Update DESIGN.md (through the product-design skill's feedback loop) so the new
+rule is written down." The One Scale Rule, The Tracking Follows Size Rule, The Leading Follows Role
+Rule, and The No Fake Styles Rule are new, and The Numbers Stay Plain Rule makes every figure
+tabular.
 
 ### Named Rules
 
@@ -99,9 +108,27 @@ role's size, weight, and axes.
 ceremony, connect, and sheet titles. It never labels chrome, never sets numbers, and stays off
 utility pages (Block grid, Settings, History chips).
 
-**The Numbers Stay Plain Rule.** Every numeral role is bold and tabular (`tnum`), so loads, reps,
-and RPE read as instrumentation. Loads, reps, RPE, Set counts, and sync state take no novelty
-styling, gradient text, or decorative tracking.
+**The Numbers Stay Plain Rule.** Source Sans 3 draws every figure tabular, and every numeral role
+is bold, so loads, reps, RPE, and timers hold their width as they change and read as
+instrumentation. Loads, reps, RPE, Set counts, and sync state take no novelty styling, gradient
+text, or decorative tracking.
+
+**The One Scale Rule.** Source Sans 3 sizes come from 12 · 13 · 15 · 17 · 28 · 46 · 96 and its
+weights from 400 · 600 · 700. Fraunces sets 20 · 24 · 33 · 36 at its one weight. A new role takes a
+step of the scale. A size between steps is a missing role, not a tweak.
+
+**The Tracking Follows Size Rule.** Source Sans 3 opens slightly at caption sizes, sits at zero for
+reading sizes, and tightens for display, judged at the size the text renders after Dynamic Type,
+and the role table computes it. Fraunces takes no tracking, because its optical-size axis already
+respaces it for each size. No view sets tracking on words.
+
+**The Leading Follows Role Rule.** A role that wraps declares its leading as a multiple of its
+size: 1.1 for the Fraunces titles, 1.5 for the coach note. A single-line role keeps the face's own.
+No view hand-sets line spacing.
+
+**The No Fake Styles Rule.** Both faces ship upright only, so nothing is set in italic: iOS would
+slant the roman to fake one. A quoted spelling, such as a Last Performed line's `as “Bench”`, is
+marked by its curly quotes.
 
 **The Product Scale Rule.** Text scales with Dynamic Type, up to `.xxxLarge`, the largest standard
 size, on every app-drawn screen. Each type role keeps its size at the default content size and grows
@@ -116,9 +143,13 @@ a past operator decision, Emil wins." (operator, 2026-10-31). The cap reaches ev
 uncapped sheets at AX5 looked "horribly large" and the operator said "apply" to capping them
 (2026-10-31).
 
+**The Two-Line Name Rule.** The stage's Exercise name runs two lines at most, shrinks to 80%, then
+truncates. The full name is never lost: VoiceOver reads it whole, and the Exercise History sheet's
+title wraps it in full.
+
 **The Shrink-Then-Truncate Rule.** Reference lines (Last Performed, history chips' text, runlines)
-never wrap: shrink to a dense floor (≈11pt), then truncate. Chips may flow to a new line; text
-itself never wraps.
+never wrap: shrink to the 12pt dense floor, then truncate. A role already at 12pt truncates without
+shrinking. Chips may flow to a new line; text itself never wraps.
 
 ## 4. Surfaces, Elevation & Radius
 

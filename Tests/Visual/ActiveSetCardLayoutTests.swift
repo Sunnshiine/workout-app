@@ -10,14 +10,14 @@ struct ActiveSetCardLayoutTests {
     @Test func everyCardModeDrawsTheSameFourRowsInTheSameCardFrame() throws {
         let rows = CardRows(
             card: CGRect(x: 16, y: 62, width: 370, height: 308),
-            head: CGRect(x: 32, y: 78, width: 59, height: 23),
-            weight: CGRect(x: 98, y: 117, width: 206, height: 66),
-            reps: CGRect(x: 32, y: 199, width: 163, height: 83),
-            rpe: CGRect(x: 207, y: 199, width: 163, height: 83),
-            action: CGRect(x: 32, y: 298, width: 338, height: 58)
+            head: CGRect(x: 32, y: 78, width: 63, height: 24),
+            weight: CGRect(x: 98, y: 118, width: 206, height: 66),
+            reps: CGRect(x: 32, y: 200, width: 163, height: 83),
+            rpe: CGRect(x: 207, y: 200, width: 163, height: 83),
+            action: CGRect(x: 32, y: 299, width: 338, height: 56)
         )
         let clearMenu = ["Clear menu": CGRect(x: 338, y: 68, width: 44, height: 44)]
-        let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 278, y: 80, width: 60, height: 20)]) { $1 }
+        let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 275, y: 79, width: 63, height: 22)]) { $1 }
         let mic = ["Mic": CGRect(x: 338, y: 68, width: 44, height: 44)]
 
         let drawn = try CardHost.drawings(of: [
@@ -67,7 +67,7 @@ struct ActiveSetCardLayoutTests {
                 "reviewing a logged Set just saved": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: ["Saved": CGRect(x: 310, y: 80, width: 60, height: 20)]
+                    headControls: ["Saved": CGRect(x: 307, y: 79, width: 63, height: 22)]
                 ),
                 "reviewing an Unstructured Set Log": CardDrawing(
                     rows: rows,

@@ -94,10 +94,10 @@ struct ActiveSetCard: View {
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("Set \(setOrdinal)")
-                .font(Theme.font(.setNumber, at: dynamicTypeSize))
+                .themeFont(.setNumber, at: dynamicTypeSize)
                 .foregroundColor(palette.textPrimary)
                 + Text(" of \(setCount)")
-                .font(Theme.font(.setOf, at: dynamicTypeSize))
+                .themeFont(.setOf, at: dynamicTypeSize)
                 .foregroundColor(palette.textSecondary)
 
             Spacer(minLength: 0)

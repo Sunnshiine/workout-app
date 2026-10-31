@@ -198,7 +198,6 @@ private struct SheetTabGrid: View {
                         .themeFont(.cadence)
                         .foregroundStyle(palette.textSecondary)
                         .lineLimit(2)
-                        .minimumScaleFactor(0.8)
                     Text(column.letter)
                         .themeFont(.cadence)
                         .foregroundStyle(palette.textSecondary.opacity(0.6))

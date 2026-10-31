@@ -174,7 +174,6 @@ private struct MoveOnCelebrationStatView: View {
                 .themeFont(.statsKey)
                 .foregroundStyle(palette.textSecondary)
                 .lineLimit(1)
-                .minimumScaleFactor(0.82)
                 .accessibilityIdentifier("move-on-celebration-\(identifierKey)-label")
         }
         .frame(maxWidth: .infinity)
