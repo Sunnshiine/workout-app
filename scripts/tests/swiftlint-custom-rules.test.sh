@@ -68,6 +68,8 @@ font_construction_via_theme App/Views/FontConstructionViaTheme.swift:23
 font_construction_via_theme App/Views/FontConstructionViaTheme.swift:24
 font_construction_via_theme App/Views/FontConstructionViaTheme.swift:29
 font_construction_via_theme Sources/WorkoutTracker/FontConstructionViaTheme.swift:5
+leading_and_slant_via_the_type_role App/Views/LeadingAndSlantViaTheTypeRole.swift:5
+leading_and_slant_via_the_type_role App/Views/LeadingAndSlantViaTheTypeRole.swift:9
 
 no_uppercase_microlabels App/Views/NoUppercaseMicrolabels.swift:5
 no_uppercase_microlabels App/Views/NoUppercaseMicrolabels.swift:9

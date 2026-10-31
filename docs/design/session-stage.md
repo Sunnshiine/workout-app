@@ -9,7 +9,7 @@ DESIGN.md or of one of its component files, which keep its numbering.
 
 The Session is a single "now playing" surface and the system's signature: one
 Exercise at a time, its progress drawn as a **branch that leafs out per
-logged Set**. From top: the Cadence line (muted, 11pt), the Fraunces Exercise
+logged Set**. From top: the Cadence line (muted, 12pt), the Fraunces Exercise
 name leading the page, the coach note, the branch, the Last Performed
 reference line, and the Active Set Card with the Log capsule. The foot holds
 the queue pill and up-next preview. A long Exercise name may run to two lines,
@@ -36,7 +36,7 @@ leaf (`actionNight`, the mirror step) with cream ribs, and the active leaf carri
   (the Set-Log shape says what it is), led on the left by a history clock
   (`clock.arrow.circlepath`) on its text baseline. It shrinks then truncates, never wraps. A
   Movement-level fallback match labels itself with the matched entry's own
-  entered name in muted italic (*as "Standing Calve Raises"*). Tapping it
+  entered name in curly quotes, muted (as “Standing Calve Raises”; DESIGN.md §3 The No Fake Styles Rule). Tapping it
   opens the Exercise History sheet, with at most the subtlest disclosure
   hint. It is the sheet's only entry point, so while a short page has shed
   it the sheet is out of reach from the stage.

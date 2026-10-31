@@ -91,8 +91,6 @@ Theme.BoxShadow|init|spread|number
 Theme.BoxShadow|init|x|number
 Theme.TypeStyle|init|lineHeight|nil
 Theme.TypeStyle|init|opticalSize|nil
-Theme.TypeStyle|init|tabular|bool
-Theme.TypeStyle|init|tracking|number
 Theme|rgb|_|number
 ValueRail|memberwise|isInvalid|bool
 VoiceActivity|init|levels|empty

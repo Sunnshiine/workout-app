@@ -32,26 +32,35 @@ excluded:
 
 custom_rules:
   # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
-  # Theme's type role table; no view constructs a font. This bans the three escape routes —
-  # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …) —
-  # so type cannot drift per-view and every role scales with Dynamic Type through one growth
-  # table. The glyphFont(…) hatch is retired (it minted arbitrary system fonts through the seam).
+  # the role table in ThemeType.swift, and a view sets it with themeFont(_:), which also applies the
+  # role's tracking, leading and Dynamic Type curve. This bans the three escape routes —
+  # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …).
   font_construction_via_theme:
     name: "Font construction via the Theme seam"
     message: >
-      Construct fonts only through the single type role table on the Theme seam (themeFont(_:),
-      or Theme.font(_:at:) inside a Text concatenation).
+      Set type only with themeFont(_:) and a role from the table in ThemeType.swift (or
+      Text.themeFont(_:at:) inside a Text concatenation).
       Font.custom(…), .system(size:…) and the shorthand system text styles (.font(.headline) …)
-      are banned outside Theme.swift so type cannot drift per-view and every role scales with
-      Dynamic Type (ADR-0014, token sheet §4).
+      skip the role's tracking, leading and Dynamic Type curve, so they are banned outside it
+      (ADR-0014, DESIGN.md §3, token sheet §4).
     regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
     included: '.*/(App|Sources/WorkoutTracker)/.*'
-    # The Greenhouse contract slice (PRD #497 slice 9) retired every grandfathered exception: each
-    # composition slice migrated its view onto Theme.font(_:), and the remaining chrome/dev surfaces
-    # were re-voiced through the same seam. Theme.swift stays the one sanctioned home of the role
-    # table (its off-device fallback uses Font.custom).
+    # ThemeType.swift is the one sanctioned home of the role table (its off-device fallback uses
+    # Font.custom).
     excluded:
-      - '.*/Theme\.swift'
+      - '.*/ThemeType\.swift'
+    severity: error
+
+  # The role carries its own leading, and neither bundled face ships an italic (DESIGN.md §3 The
+  # No Fake Styles Rule).
+  leading_and_slant_via_the_type_role:
+    name: "Leading and slant via the type role"
+    message: >
+      themeFont(_:) applies the role's leading, so a hand-set .lineSpacing(…) doubles it. Fraunces
+      and Source Sans 3 ship upright only, so .italic() draws a synthesized slant (DESIGN.md §3
+      The No Fake Styles Rule).
+    regex: '(\.lineSpacing\(|\.italic\(\))'
+    included: '.*/App/Views/.*'
     severity: error
 
   # Uppercase microlabels are editorial scaffolding the sunlit-ledger register carried; Greenhouse

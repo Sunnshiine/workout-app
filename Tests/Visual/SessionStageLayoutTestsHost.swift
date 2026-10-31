@@ -155,9 +155,17 @@ enum SessionPageHost {
         banner: SyncOutcome,
         windowHeight: CGFloat,
         history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory(),
-        isResting: Bool = true
+        isResting: Bool = true,
+        dynamicTypeSize: DynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize
     ) throws -> PageFrames {
-        try layouts(stage, banner: banner, windowHeights: [windowHeight], history: history, isResting: isResting)[0]
+        try layouts(
+            stage,
+            banner: banner,
+            windowHeights: [windowHeight],
+            history: history,
+            isResting: isResting,
+            dynamicTypeSize: dynamicTypeSize
+        )[0]
     }
 
     static func layouts(
@@ -165,7 +173,8 @@ enum SessionPageHost {
         banner: SyncOutcome,
         windowHeights: [CGFloat],
         history: [LastPerformedEntry] = WorkoutFixtureScenarios.backSquatHistory(),
-        isResting: Bool = true
+        isResting: Bool = true,
+        dynamicTypeSize: DynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize
     ) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         VisualFixtureRetainer.retain(scenario)
@@ -195,7 +204,13 @@ enum SessionPageHost {
             banner: banner,
             probe: probe
         )
-        return try read(page, scenario: scenario, lastPerformedLookup: lastPerformedLookup, windowHeights: windowHeights) { window in
+        return try read(
+            page,
+            scenario: scenario,
+            lastPerformedLookup: lastPerformedLookup,
+            windowHeights: windowHeights,
+            dynamicTypeSize: dynamicTypeSize
+        ) { window in
             try frames(in: window, focused: focused, probe: probe)
         }
     }
@@ -293,6 +308,7 @@ enum SessionPageHost {
         scenario: ConfiguredAppScenario,
         lastPerformedLookup: LastPerformedLookupStore,
         windowHeights: [CGFloat],
+        dynamicTypeSize: DynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize,
         _ body: (UIWindow) throws -> Result
     ) throws -> [Result] {
         let hosted =
@@ -305,7 +321,7 @@ enum SessionPageHost {
             )
             .environment(\.themePalette, Theme.palette(for: .day))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-            .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
+            .environment(\.dynamicTypeSize, dynamicTypeSize)
         return try AccessibilityHost.read(hosted, in: windowHeights.map { CGSize(width: 402, height: $0) }, body)
     }
 

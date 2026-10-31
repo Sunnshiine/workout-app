@@ -39,7 +39,6 @@ struct ActiveSupersetSection: View {
             } label: {
                 Text("\(Image(systemName: "arrow.triangle.branch"))\(Text("\u{00A0}").tracking(2))\(stage.partner.exerciseName.base)")
                     .imageScale(.small)
-                    .lineSpacing(2)
                     .lineLimit(1)
                     .fixedSize(horizontal: false, vertical: true)
                     .themeFont(.supersetPartner)
