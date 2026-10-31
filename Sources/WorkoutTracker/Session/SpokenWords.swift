@@ -141,7 +141,7 @@ enum SpokenWord: Equatable, Sendable {
         (["for", "x", "by", "times"], .token(.marker(.separator))),
         (["pound", "pounds", "lb", "lbs"], .token(.marker(.pounds))),
         (["rep", "reps", "rebs", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
-        (["rpe", "rp", "@", "rte", "rtd", "rtv", "rpa", "rpd", "pe"], .token(.marker(.rpe))),
+        (["rpe", "rp", "@", "rte", "rtd", "rtv", "rpa", "rpd", "rph", "pe"], .token(.marker(.rpe))),
         (["at"], .token(.marker(.at))),
         (["with"], .token(.marker(.with))),
         (["bw", "bodyweight"], .token(.bodyweight)),
