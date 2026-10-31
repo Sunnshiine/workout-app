@@ -91,6 +91,12 @@ final class SheetConnection {
         !isTransitioning && !sync.isSyncing
     }
 
+    /// The pasted-URL Save and the field's Return both ask this, so neither raises "A sync is
+    /// already in progress." mid-switch.
+    func canSaveSheetURL(_ text: String) -> Bool {
+        !text.isEmpty && canBeginDestructiveTransition
+    }
+
     var canSyncNow: Bool {
         canBeginDestructiveTransition && settings.spreadsheetId != nil
     }

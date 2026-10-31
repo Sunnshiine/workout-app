@@ -88,7 +88,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
-        let lastPerformed = app.staticTexts["Block 26 · W4 D3 — 245x5@6, 255x5@7"]
+        let lastPerformed = app.buttons["Block 26 · W4 D3 — 245x5@6, 255x5@7"]
         XCTAssertTrue(lastPerformed.appears(within: 3))
         tapWhenHittable(lastPerformed)
 

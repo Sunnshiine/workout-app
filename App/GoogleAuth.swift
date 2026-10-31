@@ -27,8 +27,21 @@ enum GoogleAuth {
         }
     }
 
-    static func signIn(presenting vc: UIViewController) async throws {
-        try await GIDSignIn.sharedInstance.signIn(withPresenting: vc, hint: nil, additionalScopes: scope)
+    enum SignInOutcome {
+        case signedIn
+        case canceled
+        case failed
+    }
+
+    static func signIn(presenting vc: UIViewController) async -> SignInOutcome {
+        do {
+            try await GIDSignIn.sharedInstance.signIn(withPresenting: vc, hint: nil, additionalScopes: scope)
+            return .signedIn
+        } catch let error as GIDSignInError where error.code == .canceled {
+            return .canceled
+        } catch {
+            return .failed
+        }
     }
 
     static func signOut() { GIDSignIn.sharedInstance.signOut() }

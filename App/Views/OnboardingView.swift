@@ -1,4 +1,3 @@
-import GoogleSignIn
 import SwiftUI
 
 struct OnboardingView: View {
@@ -116,14 +115,14 @@ struct OnboardingView: View {
     private func signIn() {
         Task {
             guard let vc = topViewController() else { return }
-            do {
-                try await GoogleAuth.signIn(presenting: vc)
+            switch await GoogleAuth.signIn(presenting: vc) {
+            case .signedIn:
                 withAnimation { settings.isSignedIn = true }
-            } catch let error as GIDSignInError where error.code == .canceled {
+            case .canceled:
                 settings.isSignedIn = false
-            } catch {
+            case .failed:
                 settings.isSignedIn = false
-                signInErrorMessage = error.localizedDescription
+                signInErrorMessage = "Google sign-in didn't finish. Check your connection, then try again."
             }
         }
     }
@@ -160,7 +159,7 @@ struct OnboardingView: View {
             .keyboardType(.URL)
             .textContentType(.URL)
             .submitLabel(.go)
-            .onSubmit { if canSaveURL { saveURL() } }
+            .onSubmit { if connection.canSaveSheetURL(urlText) { saveURL() } }
             .focused($urlFieldFocused)
             .accessibilityIdentifier("onboarding-url-field")
             .accessibilityLabel(fieldName)
@@ -178,7 +177,7 @@ struct OnboardingView: View {
 
             Button("Save") { saveURL() }
                 .buttonStyle(.bordered)
-                .disabled(!canSaveURL)
+                .disabled(!connection.canSaveSheetURL(urlText))
         }
         .padding()
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
@@ -200,10 +199,6 @@ struct OnboardingView: View {
         } set: { isPresented in
             if !isPresented { signInErrorMessage = nil }
         }
-    }
-
-    private var canSaveURL: Bool {
-        !urlText.isEmpty && connection.canBeginDestructiveTransition
     }
 
     private func saveURL() {
