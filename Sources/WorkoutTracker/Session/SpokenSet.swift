@@ -218,15 +218,15 @@ extension SpokenSet {
         return rest.isEmpty
     }
 
-    /// Compared as numbers, so "one thirty five" holds the "thirty five" it ends in as "135" holds "35".
+    /// Compared as whole numbers, so "one thirty five" holds the "thirty five" it ends in as "135"
+    /// holds "35", and "132 and a half" holds "32 and a half".
     private static func startsWithALongerNumber(_ alternative: [String], holdingTheFirstOf words: [String]) -> Bool {
         guard let number = firstWholeNumber(alternative), let top = firstWholeNumber(words), number > top else { return false }
         return String(number).hasSuffix(String(top)) || number == top * 10
     }
 
     private static func firstWholeNumber(_ words: [String]) -> Int? {
-        guard let value = SpokenNumber.read(words.map(SpokenWord.init)[...])?.number.value, value.rounded() == value else { return nil }
-        return Int(exactly: value)
+        SpokenNumber.read(words.map(SpokenWord.init)[...]).flatMap { Int(exactly: $0.number.value.rounded(.towardZero)) }
     }
 
     /// This Set with the value the recognizer cut off heard from the alternatives that hear every

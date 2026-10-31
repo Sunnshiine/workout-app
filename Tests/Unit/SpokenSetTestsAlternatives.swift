@@ -170,13 +170,17 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
 }
 
 @Test(
-    "A first number said in words is held by an alternative's longer one as one in digits is",
+    "A first number in words or with a fraction is held by an alternative's longer one as a whole one in digits is",
     arguments: [
         ["thirty five for five at eight", "one thirty five for five at eight"],
         ["eighty five for 5 at 8", "one eighty five for 5 at 8"],
         ["twenty for 5 at 8", "two twenty for 5 at 8"],
         ["five for five at eight", "one oh five for five at eight"],
-        ["eight for five at eight", "eighty for five at eight"]
+        ["eight for five at eight", "eighty for five at eight"],
+        ["32 and a half for 5 at 8", "132 and a half for 5 at 8"],
+        ["35 for 5 at 8", "135 and a half for 5 at 8"],
+        ["8 and a half for 5 at 8", "80 for 5 at 8"],
+        ["32.5 for 5 at 8", "132.5 for 5 at 8"]
     ]
 )
 func anAlternativeWhoseFirstNumberInWordsIsLongerKeepsTheTopFromWriting(candidates: [String]) {
