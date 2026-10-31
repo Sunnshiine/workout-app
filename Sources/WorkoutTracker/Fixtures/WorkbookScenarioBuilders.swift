@@ -36,7 +36,8 @@
             .completedOpenExercises: completedOpenExercises,
             .longSession: longSession,
             .perfectMoveOnCelebration: perfectMoveOnCelebration,
-            .blockOverviewWithMixedSessionStates: blockOverviewWithMixedSessionStates
+            .blockOverviewWithMixedSessionStates: blockOverviewWithMixedSessionStates,
+            .worstCase: worstCase
         ]
 
         private static func freshBlock() -> LocalWorkbook {
@@ -328,6 +329,58 @@
                 )
             ]
             return block(daysPerWeek: [3, 1], prescriptions: sessions.map { cells(of: $0.value, at: $0.key) })
+        }
+
+        private static func worstCase() -> LocalWorkbook {
+            let (row, day1) = (firstPrescriptionRow(of: SessionAddress(week: 1, day: 1)), dayStartColumns[0])
+            let squat = NotedExercise(
+                name: "2-3:1:0 Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
+                sets: 8,
+                reps: "AMRAP",
+                percentOneRM: "87.5%",
+                load: "Start conservative and work up to a heavy single",
+                notes: "Belt on from the second set. If the first rep moves slower than last week, cap the top set at RPE 8"
+                    + " and take the remaining sets as back-offs at 80% of it. Film the top set from the side and send it"
+                    + " to me before Thursday's session.",
+                logs: "1025.5x1@10, 1015x1@9.5, felt heavy belt off knees caved on rep three"
+            )
+            let longNamedDays = (1...4).flatMap { week in (1...4).map { SessionAddress(week: week, day: $0) } }
+                .filter { $0 != SessionAddress(week: 1, day: 1) }
+            return block(
+                daysPerWeek: [4, 4, 4, 4],
+                prescriptions: [
+                    cells(of: squat, row: row, dayStart: day1),
+                    prescription(row: row + 2, dayStart: day1, name: "Dip", sets: 1, reps: "5+", load: "BW"),
+                    prescription(
+                        row: row + 3,
+                        dayStart: day1,
+                        name: "Chest-Supported Dumbbell Row (Neutral Grip, 3-Second Eccentric)",
+                        sets: 2,
+                        reps: "8-10",
+                        load: "RPE 5.5"
+                    ),
+                    prescription(row: row + 4, dayStart: day1, name: nil, sets: 3, reps: "40 sec", load: "Drop 17.5%"),
+                    prescription(
+                        row: row + 5,
+                        dayStart: day1,
+                        name: "Single-Leg Romanian Deadlift to Overhead Press Complex",
+                        sets: 12,
+                        reps: "1",
+                        load: "RPE10"
+                    )
+                ] + longNamedDays.map(longNamedAccessory(at:))
+            )
+        }
+
+        private static func longNamedAccessory(at address: SessionAddress) -> [String: String] {
+            prescription(
+                row: firstPrescriptionRow(of: address),
+                dayStart: dayStartColumns[address.day - 1],
+                name: "Banded Pause Bench Press with Feet Up and Two-Second Hold",
+                sets: 4,
+                reps: "6",
+                load: "RPE7"
+            )
         }
 
         /// The Set Logs of a one-Line Exercise whose Notes cell at `row` holds its Coach Note. They

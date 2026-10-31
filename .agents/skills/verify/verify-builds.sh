@@ -7,6 +7,7 @@ fixture_args() {
     settings) echo "-UITEST_SETTINGS -UITEST_FULL_BLOCK" ;;
     onboarding) echo "-UITEST_ONBOARDING -UITEST_FULL_BLOCK" ;;
     long-session) echo "-UITEST_SESSION -UITEST_LONG_SESSION" ;;
+    worst-case) echo "-UITEST_SESSION -UITEST_WORST_CASE" ;;
     partial-block) echo "" ;;
     completed-open-exercises) echo "-UITEST_SESSION -UITEST_COMPLETED_OPEN_EXERCISES" ;;
     developer-tools) echo "-UITEST_DEVELOPER_TOOLS -UITEST_FULL_BLOCK" ;;

@@ -149,6 +149,74 @@ struct SessionStageLayoutTests {
         )
     }
 
+    // The `worst-case` workbook's four-line name took the Cadence line and the coach note off the
+    // full-height page and the branch off the SE-height one, the stage's only drawing of Set progress.
+    @Test func theWorstCaseNameKeepsToTwoLinesAndLeavesTheBranchOnEveryHeight() throws {
+        let heights = [WindowHeight.iPhone17Pro, WindowHeight.se]
+        func leaves(at points: [(x: Int, y: Int)]) -> [CGRect] {
+            points.map { CGRect(x: $0.x, y: $0.y, width: 44, height: 44) }
+        }
+        let exercise = try SessionPageHost.worstCaseLayouts(.exercise, windowHeights: heights)
+        let superset = try SessionPageHost.worstCaseLayouts(.superset, windowHeights: heights)
+
+        #expect(
+            exercise == [
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 370, height: 69),
+                    partner: nil,
+                    note: CGRect(x: 16, y: 245, width: 362, height: 98),
+                    leaves: leaves(at: [(272, 366), (243, 370), (214, 374), (185, 379), (156, 385), (127, 392), (98, 399), (69, 407)]),
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
+                ),
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 647),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 133, width: 370, height: 69),
+                    partner: nil,
+                    note: nil,
+                    leaves: leaves(at: [(272, 225), (243, 230), (214, 235), (185, 241), (156, 248), (127, 255), (98, 263), (69, 272)]),
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 345, width: 370, height: 308)
+                )
+            ]
+        )
+        #expect(
+            superset == [
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 778),
+                    cadence: CGRect(x: 16, y: 133, width: 32, height: 16),
+                    name: CGRect(x: 16, y: 163, width: 370, height: 69),
+                    partner: CGRect(x: 16, y: 234, width: 362, height: 25),
+                    note: CGRect(x: 16, y: 273, width: 362, height: 98),
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 476, width: 370, height: 308)
+                ),
+                PageFrames(
+                    banner: nil,
+                    stage: CGRect(x: 0, y: 62, width: 402, height: 647),
+                    cadence: nil,
+                    name: CGRect(x: 16, y: 133, width: 370, height: 69),
+                    partner: CGRect(x: 16, y: 205, width: 362, height: 25),
+                    note: nil,
+                    leaves: [],
+                    branchIsDrawn: true,
+                    lastPerformed: nil,
+                    card: CGRect(x: 16, y: 345, width: 370, height: 308)
+                )
+            ]
+        )
+    }
+
     @Test func aRunningRestLeavesTheExerciseAndSupersetPagesWhereTheyWere() throws {
         for stage in [StageKind.exercise, .superset] {
             let resting = try SessionPageHost.layout(stage, banner: .clear, windowHeight: WindowHeight.iPhone17Pro)

@@ -81,6 +81,14 @@ private let expectedShapes: [WorkbookScenario: BlockShape] = [
         exercises: 7,
         sets: 13,
         firstExercise: "Back Squat"
+    ),
+    .worstCase: BlockShape(
+        tabName: "Block 27",
+        weeks: 4,
+        sessions: 16,
+        exercises: 19,
+        sets: 86,
+        firstExercise: "2-3:1:0 Paused Low-Bar Competition Back Squat w/ Safety Squat Bar"
     )
 ]
 

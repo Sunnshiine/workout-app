@@ -104,12 +104,7 @@ struct SessionStageView: View {
                 }
             }
         ) {
-            Text(stage.exercise.exerciseName.base)
-                .font(Theme.font(.exerciseName))
-                .foregroundStyle(palette.textPrimary)
-                .lineSpacing(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("stage-exercise-name")
+            StageExerciseName(name: stage.exercise.exerciseName.base)
         } branch: {
             SessionStageBranch(branch: stage.branch, onTap: coordinator.focus(on:))
         } card: {
@@ -295,6 +290,25 @@ struct SessionStageView: View {
 private struct ExerciseHistoryAnchor: Identifiable {
     let name: ExerciseName
     var id: ExerciseName { name }
+}
+
+/// The Fraunces Exercise name that leads the stage. It runs two lines at most (DESIGN.md §3) and
+/// shrinks before it truncates: unbounded, a coach's longest names took four lines and pushed the
+/// Cadence line, the coach note, and on an SE the branch off the page.
+struct StageExerciseName: View {
+    let name: String
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        Text(name)
+            .font(Theme.font(.exerciseName))
+            .foregroundStyle(palette.textPrimary)
+            .lineSpacing(3)
+            .lineLimit(2)
+            .minimumScaleFactor(0.8)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityIdentifier("stage-exercise-name")
+    }
 }
 
 /// The card sits after the switch, at one position in both compositions, so its identity and the
