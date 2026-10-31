@@ -4,6 +4,7 @@ struct OnboardingView: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(SheetConnection.self) private var connection
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var urlText = ""
     @FocusState private var urlFieldFocused: Bool
     @State private var urlError = false
@@ -32,15 +33,19 @@ struct OnboardingView: View {
                                 await commitSelection(SheetSelection(spreadsheet))
                             },
                             onPasteURL: {
-                                withAnimation { showsURLFallback = true }
+                                withAnimation(stepAnimation) { showsURLFallback = true }
                             }
                         )
+                        .transition(stepTransition(from: .leading))
                     } else {
                         urlEntryCard
+                            .transition(stepTransition(from: .trailing))
                     }
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Signing in only cross-fades, so the first picker never drifts in as if going back.
+                .transition(.opacity)
             }
         }
         .alert("Couldn't load sheet", isPresented: selectionErrorPresented) {
@@ -53,6 +58,17 @@ struct OnboardingView: View {
         } message: {
             Text(signInErrorMessage ?? "")
         }
+    }
+
+    private var stepAnimation: Animation {
+        .smooth(duration: 0.3)
+    }
+
+    /// The URL card sits a step ahead of the picker, so each drifts toward its own side, the way
+    /// the Back chevron points, and returns along the same path.
+    private func stepTransition(from edge: HorizontalEdge) -> AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
     }
 
     private var step: OnboardingStep {
@@ -102,7 +118,7 @@ struct OnboardingView: View {
                         .padding(.vertical, 20)
                         .background(palette.action, in: .capsule)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressScale)
                 .accessibilityIdentifier("onboarding-connect-button")
             }
             .padding(.horizontal, 24)
@@ -117,7 +133,7 @@ struct OnboardingView: View {
             guard let vc = topViewController() else { return }
             switch await GoogleAuth.signIn(presenting: vc) {
             case .signedIn:
-                withAnimation { settings.isSignedIn = true }
+                withAnimation(stepAnimation) { settings.isSignedIn = true }
             case .canceled:
                 settings.isSignedIn = false
             case .failed:
@@ -138,7 +154,7 @@ struct OnboardingView: View {
             HStack {
                 BorderedCircleIconButton(label: "Back", systemImage: "chevron.left") {
                     urlError = false
-                    withAnimation { showsURLFallback = false }
+                    withAnimation(stepAnimation) { showsURLFallback = false }
                 }
                 .accessibilityIdentifier("onboarding-url-back-button")
 

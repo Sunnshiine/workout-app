@@ -8,6 +8,7 @@ struct RestPillView: View {
     @Environment(\.themePalette) private var palette
     @State private var finalFivePulse = false
     @State private var restartPulse = false
+    @State private var restartBeats = 0
     @State private var lastInterval: RestInterval?
 
     init(restTimer: RestTimer, visualBaselineDate: Date? = nil) {
@@ -22,10 +23,6 @@ struct RestPillView: View {
             TimelineView(.periodic(from: shownInterval?.start ?? .now, by: 1)) { context in
                 let remaining = shownInterval?.remaining(at: context.date) ?? 0
                 pillContainer(at: context.date)
-                    .task(id: restTimer.restartRevision) {
-                        finalFivePulse = false
-                        await playRestartBeat(for: restTimer.restartRevision)
-                    }
                     .task(id: hapticTickID(for: context.date)) {
                         fireDueHaptics(at: context.date)
                     }
@@ -37,6 +34,13 @@ struct RestPillView: View {
                     }
             }
             .id(shownInterval?.start)
+            // A pill that mounts with its rest has the stage's reveal, so only a rest restarting under
+            // a showing pill beats.
+            .onChange(of: restTimer.restartRevision) { restartBeats += 1 }
+            .task(id: restartBeats) {
+                finalFivePulse = false
+                await playRestartBeat(restartBeats)
+            }
             // A restart swaps this identity inside the log's animation. Without the opaque capsule,
             // a cross-fade would draw both countdowns at once, so the swap is instant.
             .transition(.identity)
@@ -132,8 +136,8 @@ struct RestPillView: View {
         reduceMotion ? .easeInOut(duration: 0.12) : .smooth(duration: 0.18)
     }
 
-    private func playRestartBeat(for revision: Int) async {
-        guard revision > 1 else { return }
+    private func playRestartBeat(_ beats: Int) async {
+        guard beats > 0 else { return }
         restartPulse = true
         try? await Task.sleep(for: .milliseconds(160))
         guard !Task.isCancelled else { return }

@@ -13,7 +13,9 @@ never reversed into a positive bird. It has no visual risks to take: it is
 the colophon, quiet and whole.
 
 **The Wing Is Timing.** The mark's one extraction is motion: the wing-curve
-ease `cubic-bezier(0.46, -0.09, 0.83, 0.32)` is the app's signature timing.
+ease `cubic-bezier(0.46, -0.09, 0.83, 0.32)` grows the Move On ceremony's
+stem. It eases in, so it times nothing a tap causes (DESIGN.md §7, The Ink
+Answers the Hand, 2026-10-31).
 
 **The Two Perches.** A separate **perched-songbird drawing** in the leaf
 language (not the mark's glyph) lives in exactly two homes: center screen on

@@ -63,7 +63,10 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
+        .animation(
+            .easeOut(duration: workout.moveOnCelebrationSession == nil ? 0.15 : 0.2),
+            value: workout.moveOnCelebrationSession?.persistentModelID
+        )
         .navigationDestination(isPresented: blockOverviewRequestBinding) {
             if let block = workout.block {
                 BlockOverviewView(block: block, currentSession: workout.currentSession)

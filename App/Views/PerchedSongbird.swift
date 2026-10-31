@@ -141,7 +141,7 @@ struct CeremonyBranch: View {
             elapsed: reduceMotion ? MoveOnCeremonyFrame.duration : elapsed,
             leafCount: leafCount
         )
-        // A withAnimation in onAppear loses to the presenter's 0.18 s .animation over the overlay's
+        // A withAnimation in onAppear loses to the presenter's .animation over the overlay's
         // insertion; the nearest .animation wins.
         .animation(.linear(duration: MoveOnCeremonyFrame.duration), value: elapsed)
         .onAppear { elapsed = MoveOnCeremonyFrame.duration }

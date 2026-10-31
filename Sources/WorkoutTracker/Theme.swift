@@ -59,12 +59,16 @@ enum Theme {
         let y2: Double
     }
 
-    /// The signature timing, confined to the three growth moments. All chrome — including the Log
-    /// capsule — stays on stock system springs.
+    /// The signature timing, drawn from the Sunbird's wing. It eases in, so it is the Move On
+    /// ceremony's alone, the one moment slow enough to carry it.
     static let wingEase = BezierEase(x1: 0.46, y1: -0.09, x2: 0.83, y2: 0.32)
 
-    static func wingAnimation(duration: Double) -> Animation {
-        .timingCurve(wingEase.x1, wingEase.y1, wingEase.x2, wingEase.y2, duration: duration)
+    /// A strong ease-out for the moments a log causes. The leaf moves on the frame the log's haptic
+    /// lands, and settles slowly enough to read.
+    static let inkEase = BezierEase(x1: 0.23, y1: 1, x2: 0.32, y2: 1)
+
+    static func inkAnimation(duration: Double) -> Animation {
+        .timingCurve(inkEase.x1, inkEase.y1, inkEase.x2, inkEase.y2, duration: duration)
     }
 
     enum BranchGrowth {
@@ -73,11 +77,12 @@ enum Theme {
         case budLift
         case relayout
 
-        fileprivate var wing: Animation {
+        fileprivate var motion: Animation {
             switch self {
-            case .leafInk, .relayout: Theme.wingAnimation(duration: Motion.leafInk)
-            case .budWake: Theme.wingAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
-            case .budLift: Theme.wingAnimation(duration: Motion.budOpenDelay)
+            case .leafInk: Theme.inkAnimation(duration: Motion.leafInk)
+            case .budWake: Theme.inkAnimation(duration: Motion.budOpen).delay(Motion.budOpenDelay)
+            case .budLift: Theme.inkAnimation(duration: Motion.budOpenDelay)
+            case .relayout: .smooth(duration: Motion.leafInk)
             }
         }
 
@@ -91,13 +96,13 @@ enum Theme {
     }
 
     static func branchAnimation(_ growth: BranchGrowth, reducingMotion: Bool) -> Animation? {
-        reducingMotion ? growth.crossfade : growth.wing
+        reducingMotion ? growth.crossfade : growth.motion
     }
 
     enum Motion {
-        static let leafInk = 0.42  // a leaf inks in
-        static let budOpen = 0.34  // the next bud wakes…
-        static let budOpenDelay = 0.26  // …starting inside the leaf's tail (One Log, One Fill)
+        static let leafInk = 0.3  // a leaf inks in
+        static let budOpen = 0.3  // the next bud wakes…
+        static let budOpenDelay = 0.12  // …starting inside the leaf's tail (One Log, One Fill)
         static let crossfade = 0.2
         static let ceremonyStem = 1.0
         static let ceremonyBeat = 0.10
@@ -186,31 +191,23 @@ enum Theme {
 
     static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
     static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
-    static let momentumFlowTotalDuration = 0.65
-    static let skipFadeUpDuration = 0.45
-    static let focusMorphDuration = 0.28
+    static let sessionMotionDuration = 0.3
     static let stageCompositionDuration = 0.25
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
 
-    static var momentumFlowAnimation: Animation {
-        .easeInOut(duration: momentumFlowTotalDuration)
-    }
-
-    static var skipFadeUpAnimation: Animation {
-        .easeOut(duration: skipFadeUpDuration)
-    }
-
-    static var focusMorphAnimation: Animation {
-        .easeInOut(duration: focusMorphDuration)
+    /// What a log, a skip, or a tap on a Set moves outside the branch and the card: one critically
+    /// damped spring inside the Set's 0.42 s budget (DESIGN.md §7).
+    static var sessionMotionAnimation: Animation {
+        .smooth(duration: sessionMotionDuration)
     }
 
     static var stageCompositionAnimation: Animation {
         .easeInOut(duration: stageCompositionDuration)
     }
 
-    /// The press on the Log capsule and the weight steppers (§5.2, §5.3): a system snappy spring
-    /// from touch-down until the finger lifts.
+    /// The press on the Log capsule, the weight steppers, and every primary capsule (§5.2, §5.3, §7):
+    /// a system snappy spring from touch-down until the finger lifts.
     static let pressScale = 0.97
     static var pressAnimation: Animation {
         .snappy(duration: 0.16)

@@ -352,6 +352,7 @@ private struct DestructiveAction {
 /// system alert, the card holds the presentation under it until the athlete answers.
 private struct DestructiveConfirmation: ViewModifier {
     @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AccessibilityFocusState private var isTitleFocused: Bool
     let title: String
     @Binding var isPresented: Bool
@@ -360,15 +361,17 @@ private struct DestructiveConfirmation: ViewModifier {
 
     func body(content: Content) -> some View {
         content.overlay {
-            if isPresented {
-                ZStack {
+            ZStack {
+                if isPresented {
                     Color.black.opacity(0.2).ignoresSafeArea()
+                        .transition(.opacity)
                     card
+                        .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
                 }
-                .transition(.opacity)
             }
         }
-        .animation(.easeOut(duration: 0.2), value: isPresented)
+        // The answer is already given, so the card leaves faster than it came.
+        .animation(.easeOut(duration: isPresented ? 0.2 : 0.15), value: isPresented)
         .interactiveDismissDisabled(isPresented)
     }
 
