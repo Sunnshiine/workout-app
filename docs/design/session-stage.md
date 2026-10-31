@@ -1,8 +1,8 @@
 # Design System: the Session stage components (DESIGN.md §5.1–§5.4)
 
 Part of [DESIGN.md](../../DESIGN.md), which holds the overview, color, type, surfaces, and the
-Do's and Don'ts these specs serve. The Sunbird is in [sunbird.md](sunbird.md) and motion in
-[motion-and-haptics.md](motion-and-haptics.md). A § number names a section of
+rules for every screen that these specs serve. The Sunbird is in [sunbird.md](sunbird.md) and
+motion in [motion-and-haptics.md](motion-and-haptics.md). A § number names a section of
 DESIGN.md or of one of its component files, which keep its numbering.
 
 ### 5.1 The Living Stage (Session stage)
@@ -12,7 +12,8 @@ Exercise at a time, its progress drawn as a **branch that leafs out per
 logged Set**. From top: the Cadence line (muted, 11pt), the Fraunces Exercise
 name leading the page, the coach note, the branch, the Last Performed
 reference line, and the Active Set Card with the Log capsule. The foot holds
-the queue pill and up-next preview.
+the queue pill and up-next preview. A long Exercise name may run to two lines,
+and the branch cedes the vertical air.
 
 **The branch** is the page's one icon and one piece of flora — a 2px
 round-cap stem where **every mark is the same slender blade**: inked per
@@ -80,7 +81,7 @@ scrolling Set-row list, no ambient rest-of-Session.
 **Growth Is State Rule.** The branch renders what the athlete actually
 logged — nothing more. Growth is performed only in the Move On ceremony;
 nothing persists between Sessions as an accumulating garden, streak, or
-trophy. A dashed leaf is honest about a Skip; a full branch marks
+trophy, and per-Session flora never carries between screens. A dashed leaf is honest about a Skip; a full branch marks
 completion, not achievement.
 
 **One Icon Per Page Rule.** The branch is the stage's icon budget spent.
