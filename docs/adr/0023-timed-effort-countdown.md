@@ -15,16 +15,25 @@ holds durations that are not holds ("rest 90 sec") and digits that are not durat
 ## Decision
 
 - **One parser reads every duration.** `EffortDuration` reads a count with a unit (s, sec,
-  second, min, minute) or a clock (`1:30`, `:45`). A range reads as its low end, and both ends must
-  resolve, low first. A duration runs from 1 s to 60 min in whole seconds. A match that touches
-  another digit or a colon, or a dash joined to a digit before it, is part of a Cadence or a
-  pyramid, and is no duration.
+  second, min, minute), minutes with the seconds after them (`1 min 30 sec`, `1m30s`), a double
+  prime (`40"`), or a clock (`1:30`, `:45`). A bare `m` is minutes only with seconds after it,
+  because alone it is as likely metres. A range reads as its low end, and both ends must resolve,
+  low first, with any dash between them: hyphen, en or em dash, non-breaking hyphen, figure dash,
+  or minus sign. A duration runs from 1 s to 60 min in whole seconds. A match that touches another
+  digit or a colon, or a dash joined to a digit before it, is part of a Cadence or a pyramid, and
+  is no duration. A Reps cell reads the same with one closing full stop.
 - **An Opening Hold comes from the Coach Note only when the note ties a duration to a hold at
-  the start.** The duration has to sit beside "hold" or "iso", and its clause must not name each,
-  every, per, between, after, last, or finish. So "rest 90 sec" and "10 sec hold after your final
-  rep" give none. When a note writes several holds, the first wins. The parser misses rather than
-  guesses. A missed hold leaves the athlete counting, as they do today, and a false one puts a
-  wrong count on the card.
+  the start of every Set.** The note reads as clauses, and each duration in a clause has a
+  governing word. The word right before it wins, so the `60 sec` of "Rest 60 sec hold 20 sec" is a
+  rest, and failing that the word right after it. Only "hold" or "iso" makes a hold. A double prime
+  is a hold only before "hold", since coaches write it for inches too ("Hold 2" off the floor"). A
+  clause that names each, every, per, all, between, after, last, final, finish, end, or a superset
+  gives none, and so does a hold at the bottom or of 5 s or less unless the clause says start or
+  begin, because those are a pause in each rep. A fragment that only says when or where ("Each
+  rep,", "At the bottom,") belongs to the clause after it. A note that names one Set ("last set",
+  "top set", "set 2") gives none, because the note speaks for every Set. When a note writes several
+  holds, the first wins. The parser misses rather than guesses. A missed hold leaves the athlete
+  counting, as they do today, and a false one puts a wrong count on the card.
 - **A Reps cell that is a duration makes the Set a Timed Set.** `PrescribedReps` gains a timed
   case. It has no rep target, so the Load Suggestion and everything else that reads the target are
   unchanged.
