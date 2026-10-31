@@ -14,12 +14,14 @@ struct LastPerformedCard: View {
             .minimumScaleFactor(11.0 / 12.5)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .hitOutset(HitOutset.textLine)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel(line)
             .accessibilityHint("Opens Exercise History")
             .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("last-performed-line")
             .onTapGesture(perform: onTap)
+            .givingBackHitOutset(HitOutset.textLine)
     }
 
     private var line: Text {

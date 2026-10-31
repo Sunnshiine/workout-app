@@ -52,8 +52,10 @@ struct SessionProgressHeader: View {
                 BlockOverviewView(block: block, currentSession: currentSession)
             } label: {
                 locationLabelText
+                    .hitOutset(HitOutset.textLine)
             }
             .buttonStyle(.plain)
+            .givingBackHitOutset(HitOutset.textLine)
             .simultaneousGesture(TapGesture().onEnded(onNavigate))
             .accessibilityLabel(presentation.locationActionAccessibilityLabel)
             .accessibilityIdentifier("session-location-button")

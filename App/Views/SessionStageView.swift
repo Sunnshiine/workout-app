@@ -209,9 +209,10 @@ struct SessionStageView: View {
                         .foregroundStyle(palette.textPrimary)
                         .lineLimit(1)
                 }
-                .contentShape(Rectangle())
+                .hitOutset(HitOutset.textLine)
             }
             .buttonStyle(.plain)
+            .givingBackHitOutset(HitOutset.textLine)
             .accessibilityIdentifier("stage-up-next")
             .opacity(isResting ? 0 : 1)
             .accessibilityHidden(isResting)

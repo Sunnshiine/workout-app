@@ -24,7 +24,7 @@ struct SessionStageLayoutTests {
                         CGRect(x: 120, y: 286, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
+                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 46),
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 )
         )
@@ -101,7 +101,7 @@ struct SessionStageLayoutTests {
                         CGRect(x: 120, y: 286, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 397, width: 370, height: 18),
+                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 46),
                     card: CGRect(x: 16, y: 429, width: 370, height: 308)
                 )
         )
@@ -143,7 +143,7 @@ struct SessionStageLayoutTests {
                         CGRect(x: 120, y: 246, width: 44, height: 44)
                     ],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 313, width: 370, height: 18),
+                    lastPerformed: CGRect(x: 16, y: 299, width: 370, height: 46),
                     card: CGRect(x: 16, y: 345, width: 370, height: 308)
                 )
         )
@@ -153,8 +153,9 @@ struct SessionStageLayoutTests {
     // full-height page and the branch off the SE-height one, the stage's only drawing of Set progress.
     @Test func theWorstCaseNameKeepsToTwoLinesAndLeavesTheBranchOnEveryHeight() throws {
         let heights = [WindowHeight.iPhone17Pro, WindowHeight.se]
+        // Eight leaves sit 29pt apart, so each tap area narrows to that share (BranchNodeLayout.hitWidths).
         func leaves(at points: [(x: Int, y: Int)]) -> [CGRect] {
-            points.map { CGRect(x: $0.x, y: $0.y, width: 44, height: 44) }
+            points.map { CGRect(x: $0.x, y: $0.y, width: 29, height: 44) }
         }
         let exercise = try SessionPageHost.worstCaseLayouts(.exercise, windowHeights: heights)
         let superset = try SessionPageHost.worstCaseLayouts(.superset, windowHeights: heights)
@@ -168,7 +169,7 @@ struct SessionStageLayoutTests {
                     name: CGRect(x: 16, y: 163, width: 370, height: 69),
                     partner: nil,
                     note: CGRect(x: 16, y: 245, width: 362, height: 98),
-                    leaves: leaves(at: [(272, 366), (243, 370), (214, 374), (185, 379), (156, 385), (127, 392), (98, 399), (69, 407)]),
+                    leaves: leaves(at: [(280, 366), (251, 370), (222, 374), (193, 379), (164, 385), (134, 392), (105, 399), (76, 407)]),
                     branchIsDrawn: true,
                     lastPerformed: nil,
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
@@ -180,7 +181,7 @@ struct SessionStageLayoutTests {
                     name: CGRect(x: 16, y: 133, width: 370, height: 69),
                     partner: nil,
                     note: nil,
-                    leaves: leaves(at: [(272, 225), (243, 230), (214, 235), (185, 241), (156, 248), (127, 255), (98, 263), (69, 272)]),
+                    leaves: leaves(at: [(280, 225), (251, 230), (222, 235), (193, 241), (164, 248), (134, 255), (105, 263), (76, 272)]),
                     branchIsDrawn: true,
                     lastPerformed: nil,
                     card: CGRect(x: 16, y: 345, width: 370, height: 308)
@@ -296,7 +297,7 @@ struct SessionStageLadderTransitionTests {
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 444, width: 370, height: 18),
+                    lastPerformed: CGRect(x: 16, y: 430, width: 370, height: 46),
                     card: CGRect(x: 16, y: 476, width: 370, height: 308)
                 ),
                 PageFrames(
@@ -308,7 +309,7 @@ struct SessionStageLadderTransitionTests {
                     note: CGRect(x: 16, y: 245, width: 262, height: 22),
                     leaves: [],
                     branchIsDrawn: true,
-                    lastPerformed: CGRect(x: 16, y: 397, width: 370, height: 18),
+                    lastPerformed: CGRect(x: 16, y: 383, width: 370, height: 46),
                     card: CGRect(x: 16, y: 429, width: 370, height: 308)
                 ),
                 PageFrames(

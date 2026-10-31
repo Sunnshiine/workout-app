@@ -139,7 +139,7 @@ struct ExerciseHistorySheet: View {
     }
 
     private func blockSection(_ block: ExerciseHistorySheetPresentation.Block) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ExerciseHistoryRow.spacing) {
             Text(block.header)
                 .themeFont(.queuePill)
                 .foregroundStyle(palette.textSecondary)
@@ -181,13 +181,14 @@ private struct ExerciseHistoryRow: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
+    static let spacing: CGFloat = 12
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             // The gutter's 52pt column clips its W/D label at an accessibility text size, so the
             // label rides above the chips there.
             rowLayout {
                 gutterLabel
-                    .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 52, alignment: .leading)
 
                 ChipFlowLayout(spacing: 6) {
                     ForEach(Array(row.chips.enumerated()), id: \.offset) { _, chip in
@@ -196,6 +197,7 @@ private struct ExerciseHistoryRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .fixedSize(horizontal: false, vertical: true)
 
             if row.hasWell, isWellExpanded {
                 well
@@ -223,9 +225,15 @@ private struct ExerciseHistoryRow: View {
                         .foregroundStyle(palette.textSecondary.opacity(0.75))
                 }
             }
+            .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 52, alignment: .leading)
+            // Rows can sit closer than a finger, so the tap fills the row and half the gap to each
+            // neighbour rather than overlap one (DESIGN.md §8).
+            .frame(maxHeight: .infinity, alignment: .top)
+            .padding(.vertical, Self.spacing / 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .padding(.vertical, -Self.spacing / 2)
         .disabled(!row.hasWell)
         .accessibilityElement(children: .combine)
         .accessibilityHint(row.hasWell ? "Shows skipped Sets and notes" : "")

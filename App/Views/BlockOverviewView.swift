@@ -164,13 +164,19 @@ struct BlockOverviewView: View {
                 show(tile.address)
             } label: {
                 SessionTile(state: tile.state, fillQuarters: tile.fillQuarters, variant: variant)
+                    .hitOutset(hitOutset(variant))
             }
             .buttonStyle(.plain)
+            .givingBackHitOutset(hitOutset(variant))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(tile.accessibilityLabel)
             .accessibilityValue(tile.accessibilityValue)
             .accessibilityIdentifier(tile.accessibilityIdentifier)
         }
+    }
+
+    private func hitOutset(_ variant: SessionTile.Variant) -> CGFloat {
+        variant == .mini ? HitOutset.textLine : 0
     }
 
     private func show(_ address: SessionAddress) {
