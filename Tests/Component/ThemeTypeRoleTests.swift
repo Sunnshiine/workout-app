@@ -8,6 +8,11 @@ import Testing
     #expect(styles.count == 24)
 }
 
+@Test func everyTypeRoleHasACurve() {
+    let curves = Dictionary(uniqueKeysWithValues: Theme.TypeRole.allCases.map { ($0, Theme.TypeScale.curve($0)) })
+    #expect(curves.count == 24)
+}
+
 @Test(arguments: [
     (Theme.TypeRole.exerciseName, Theme.TypeStyle(face: .fraunces, size: 33, weight: 490, lineHeight: 1.10)),
     (.ceremonyTitle, Theme.TypeStyle(face: .fraunces, size: 38, weight: 490, lineHeight: 1.10)),
@@ -40,8 +45,8 @@ func typeRoleCarriesItsDesignTokens(role: Theme.TypeRole, expected: Theme.TypeSt
 
 #if !canImport(UIKit)
     @Test func frauncesAndSourceSansRolesResolveToTheirBundledFamilies() {
-        #expect(Theme.font(.exerciseName) == Font.custom("Fraunces", fixedSize: 33).weight(.medium))
-        #expect(Theme.font(.weightEntry) == Font.custom("Source Sans 3", fixedSize: 46).weight(.bold))
+        #expect(Theme.font(.exerciseName, at: .large) == Font.custom("Fraunces", fixedSize: 33).weight(.medium))
+        #expect(Theme.font(.weightEntry, at: .accessibility5) == Font.custom("Source Sans 3", fixedSize: 46).weight(.bold))
     }
 #endif
 

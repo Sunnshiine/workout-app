@@ -26,7 +26,7 @@ struct TimedEffortControl: View {
                 Image(systemName: "timer")
                     .foregroundStyle(isRunning ? palette.action : palette.textPrimary)
             }
-            .font(Theme.font(.queuePill))
+            .themeFont(.queuePill)
             .foregroundStyle(palette.textPrimary)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -55,16 +55,16 @@ struct EffortCountdownView: View {
             let face = EffortCountdownFace(run, at: context.date)
             VStack(spacing: 10) {
                 Text(face.caption)
-                    .font(Theme.font(.heading))
+                    .themeFont(.heading)
                     .foregroundStyle(palette.textSecondary)
                 Text(face.numeral)
-                    .font(Theme.font(.weightEntry))
+                    .themeFont(.weightEntry)
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
                 progressBar(face.progress)
                 Text(face.hint)
-                    .font(Theme.font(.fieldLabel))
+                    .themeFont(.fieldLabel)
                     .foregroundStyle(palette.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

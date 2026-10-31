@@ -87,7 +87,7 @@ struct DeveloperToolsView: View {
 
                 if let localOnlyNote = info.localOnlyNote {
                     Text(localOnlyNote)
-                        .font(Theme.font(.historyChip))
+                        .themeFont(.historyChip)
                         .foregroundStyle(palette.action)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("current-session-debug-local-only-note")
@@ -164,11 +164,11 @@ struct DeveloperToolsView: View {
         DeveloperToolsSection(title: "Pending Sheet Writes") {
             if let diagnosticsErrorMessage {
                 Text(diagnosticsErrorMessage)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             } else if diagnostics.isEmpty {
                 Text("No pending or conflicted writes")
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             } else {
                 VStack(spacing: 10) {
@@ -184,11 +184,11 @@ struct DeveloperToolsView: View {
         DeveloperToolsSection(title: "Write Target Audit Log") {
             if let writeAuditErrorMessage {
                 Text(writeAuditErrorMessage)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             } else if writeAuditDiagnostics.isEmpty {
                 Text("No write-target audit entries")
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             } else {
                 VStack(spacing: 10) {
@@ -257,11 +257,11 @@ private struct CurrentSessionDebugRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .foregroundStyle(palette.textSecondary)
 
             Text(value)
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier(valueIdentifier)
@@ -278,7 +278,7 @@ private struct DeveloperToolsSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(Theme.font(.heading))
+                .themeFont(.heading)
 
             content
         }
@@ -297,10 +297,10 @@ private struct PendingWriteDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(diagnostic.exercise)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                 Spacer()
                 Text(diagnostic.status)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                     .foregroundStyle(statusColor)
             }
 
@@ -345,10 +345,10 @@ private struct PendingWriteDiagnosticRow: View {
     private func diagnosticField(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .foregroundStyle(palette.textSecondary)
             Text(value)
-                .font(Theme.font(.historyChip))
+                .themeFont(.historyChip)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)
@@ -366,11 +366,11 @@ private struct WriteTargetAuditDiagnosticRow: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text(diagnostic.semanticTarget)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Text(diagnostic.status)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                     .foregroundStyle(statusColor)
             }
 
@@ -409,10 +409,10 @@ private struct WriteTargetAuditDiagnosticRow: View {
     private func diagnosticField(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .foregroundStyle(palette.textSecondary)
             Text(value)
-                .font(Theme.font(.historyChip))
+                .themeFont(.historyChip)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }

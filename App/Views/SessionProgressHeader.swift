@@ -31,7 +31,7 @@ struct SessionProgressHeader: View {
             Spacer()
 
             Text(presentation.remainingText)
-                .font(Theme.font(.runlineSecondary))
+                .themeFont(.runlineSecondary)
                 .contentTransition(
                     reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
                 )
@@ -65,7 +65,7 @@ struct SessionProgressHeader: View {
     private var locationLabelText: some View {
         Text("\(Image(systemName: "calendar")) \(presentation.runlineText)")
             .accessibilityLabel(presentation.runlineText)
-            .font(Theme.font(.runline))
+            .themeFont(.runline)
             .foregroundStyle(palette.textSecondary)
     }
 }

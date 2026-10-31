@@ -66,16 +66,16 @@ struct LiveActivityLabView: View {
                 controller.areActivitiesEnabled ? "Live Activities enabled" : "Live Activities disabled",
                 systemImage: controller.areActivitiesEnabled ? "checkmark.circle.fill" : "xmark.circle.fill"
             )
-            .font(Theme.font(.queuePill))
+            .themeFont(.queuePill)
             .foregroundStyle(controller.areActivitiesEnabled ? palette.action : palette.danger)
 
             Text(controller.isActive ? "Prototype is running." : "Prototype is stopped.")
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(palette.textSecondary)
 
             if let lastError = controller.lastError {
                 Text(lastError)
-                    .font(Theme.font(.historyChip))
+                    .themeFont(.historyChip)
                     .foregroundStyle(palette.danger)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -276,7 +276,7 @@ private struct LiveActivityLabSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(Theme.font(.sheetTitle))
+                .themeFont(.sheetTitle)
 
             content
         }
@@ -294,13 +294,13 @@ private struct LabField: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(palette.textSecondary)
 
             Spacer(minLength: 12)
 
             Text(value)
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(.primary)
                 .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)

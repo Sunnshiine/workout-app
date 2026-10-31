@@ -11,6 +11,7 @@ struct SessionQueueSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var movesOnWhenDismissed = false
     @State private var isScrolled = false
 
@@ -86,7 +87,7 @@ struct SessionQueueSheet: View {
     private var header: some View {
         HStack {
             Text("This Session")
-                .font(Theme.font(.sheetTitle))
+                .themeFont(.sheetTitle)
                 .foregroundStyle(palette.textPrimary)
 
             Spacer(minLength: 12)
@@ -110,7 +111,7 @@ struct SessionQueueSheet: View {
             Group {
                 if isPairing {
                     Image(systemName: "xmark")
-                        .font(Theme.font(.queuePill))
+                        .themeFont(.queuePill)
                         .foregroundStyle(palette.textSecondary)
                 } else {
                     SupersetStemGlyph(form: .begin, color: palette.actionInk)
@@ -156,7 +157,7 @@ struct SessionQueueSheet: View {
     private func nowLabel(for row: SessionQueue.Row) -> some View {
         if row.isOnStage {
             Text("Now")
-                .font(Theme.font(.fieldLabel))
+                .themeFont(.fieldLabel)
                 .foregroundStyle(palette.actionInk)
         }
     }
@@ -258,19 +259,30 @@ struct SessionQueueSheet: View {
 
     // MARK: - Row label
 
+    /// At an accessibility text size the trailing mark takes the name's width, so it sits below.
+    private var rowLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(spacing: 12))
+    }
+
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
-        HStack(spacing: 12) {
+        rowLayout {
             VStack(alignment: .leading, spacing: 6) {
                 Text(row.title)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(row.isComplete ? palette.textSecondary : palette.textPrimary)
-                    .lineLimit(2)
+                    // Two lines hold a long name at the default size; at an accessibility size
+                    // they hold two words, so the row grows instead.
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 SessionStageSetDots(sets: row.sets)
             }
 
-            Spacer(minLength: 12)
+            if !dynamicTypeSize.isAccessibilitySize {
+                Spacer(minLength: 12)
+            }
 
             trailing()
         }

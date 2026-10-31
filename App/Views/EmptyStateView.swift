@@ -7,15 +7,15 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("No Session yet")
-                .font(Theme.font(.sheetTitle))
+                .themeFont(.sheetTitle)
             Text("Sessions appear here once your Sheet has one. The app keeps checking, and Settings can sync now.")
-                .font(Theme.font(.coachNote))
+                .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
             Button(action: onSettings) {
                 Label("Open Settings", systemImage: "gearshape")
                     .labelStyle(.iconOnly)
-                    .font(Theme.font(.logCapsule))
+                    .themeFont(.logCapsule)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.bordered)

@@ -51,7 +51,7 @@ struct SheetTabView: View {
         case .failed:
             VStack(spacing: Theme.cardSpacing) {
                 Text("Couldn't reach the Sheet. Check your connection and try again.")
-                    .font(Theme.font(.coachNote))
+                    .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)
                 Button("Retry") {
@@ -127,7 +127,7 @@ private struct SheetTabGrid: View {
                 .accessibilityIdentifier("sheet-tab-grid")
             } else {
                 Text("This tab has no Day headers.")
-                    .font(Theme.font(.coachNote))
+                    .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)
                     .frame(maxHeight: .infinity)
             }
@@ -151,18 +151,18 @@ private struct SheetTabGrid: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 Text(day.title.isEmpty ? "Day \(day.number)" : day.title)
-                    .font(Theme.font(.heading))
+                    .themeFont(.heading)
                     .foregroundStyle(palette.textPrimary)
                 Spacer(minLength: 0)
                 Text(day.date)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             }
             .padding(.horizontal, Theme.blockFocusCardPadding)
 
             if day.rows.isEmpty {
                 Text("Not uploaded")
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
                     .padding(.horizontal, Theme.blockFocusCardPadding)
             } else {
@@ -195,12 +195,12 @@ private struct SheetTabGrid: View {
             ForEach(Array(zip(day.columns, widths)), id: \.0.index) { column, width in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(column.label)
-                        .font(Theme.font(.cadence))
+                        .themeFont(.cadence)
                         .foregroundStyle(palette.textSecondary)
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                     Text(column.letter)
-                        .font(Theme.font(.cadence))
+                        .themeFont(.cadence)
                         .foregroundStyle(palette.textSecondary.opacity(0.6))
                 }
                 .padding(.horizontal, Theme.sheetCellInset)
@@ -252,7 +252,7 @@ private struct SheetTabGrid: View {
     private func cellFace(_ cell: SelectedCell, width: Double, isSelected: Bool) -> some View {
         let leadsExercise = cell.column.role == .name && cell.row.startsExercise
         return Text(cell.value)
-            .font(Theme.font(leadsExercise ? .runline : .sheetCell))
+            .themeFont(leadsExercise ? .runline : .sheetCell)
             .foregroundStyle(palette.textPrimary)
             .lineLimit(Theme.sheetCellLineLimit)
             .allowsTightening(true)
@@ -277,22 +277,22 @@ private struct SheetTabGrid: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(cell.reference)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textPrimary)
                     .accessibilityIdentifier("sheet-tab-cell-reference")
                 if !cell.column.label.isEmpty {
                     Text(cell.column.label)
-                        .font(Theme.font(.fieldLabel))
+                        .themeFont(.fieldLabel)
                         .foregroundStyle(palette.textSecondary)
                 }
                 if cell.row.isHidden {
                     Text("Hidden in the Sheet")
-                        .font(Theme.font(.fieldLabel))
+                        .themeFont(.fieldLabel)
                         .foregroundStyle(palette.textSecondary)
                 }
             }
             Text(cell.value)
-                .font(Theme.font(.coachNote))
+                .themeFont(.coachNote)
                 .foregroundStyle(palette.textPrimary)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)

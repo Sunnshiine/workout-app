@@ -150,7 +150,7 @@ struct SmartValuePills: View {
 
     private func loadBasisText(_ text: String) -> some View {
         Text(text)
-            .font(Theme.font(.runline))
+            .themeFont(.runline)
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(0.82)
@@ -192,7 +192,7 @@ struct SmartValuePills: View {
                         .accessibilityAddTraits(.isButton)
                 }
             }
-            .font(Theme.font(.weightEntry))
+            .themeFont(.weightEntry)
             .foregroundStyle(weightForeground)
             .lineLimit(1)
             .minimumScaleFactor(0.5)
@@ -485,7 +485,7 @@ private struct HoldToSkipLogButton: View {
 
 extension View {
     fileprivate func logCapsuleMetrics() -> some View {
-        font(Theme.font(.logCapsule))
+        themeFont(.logCapsule)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
     }

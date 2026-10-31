@@ -80,7 +80,7 @@ struct BlockOverviewView: View {
             presented = .settings
         } label: {
             Image(systemName: "gearshape")
-                .font(Theme.font(.queuePill))
+                .themeFont(.queuePill)
                 .foregroundStyle(palette.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .contentShape(.rect)
@@ -96,11 +96,11 @@ struct BlockOverviewView: View {
         VStack(alignment: .leading, spacing: Theme.blockFocusCardPadding - 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Week \(week.weekNumber)")
-                    .font(Theme.font(.statsValue))
+                    .themeFont(.statsValue)
                     .foregroundStyle(palette.textPrimary)
                 Spacer(minLength: 0)
                 Text(week.summary)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             }
 
@@ -123,11 +123,11 @@ struct BlockOverviewView: View {
         VStack(alignment: .leading, spacing: Theme.blockWeekCardPadding - 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Week \(week.weekNumber)")
-                    .font(Theme.font(.fieldLabel))
+                    .themeFont(.fieldLabel)
                     .foregroundStyle(palette.textSecondary)
                 Spacer(minLength: 0)
                 Text(week.collapsedSummary)
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)
             }
 

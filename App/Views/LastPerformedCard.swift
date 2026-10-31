@@ -8,7 +8,7 @@ struct LastPerformedCard: View {
 
     var body: some View {
         Text("\(Image(systemName: "clock.arrow.circlepath")) \(line)")
-            .font(Theme.font(.lastPerformed))
+            .themeFont(.lastPerformed)
             .foregroundStyle(palette.textSecondary)
             .lineLimit(1)
             .minimumScaleFactor(11.0 / 12.5)

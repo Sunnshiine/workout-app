@@ -65,6 +65,7 @@ struct SessionStageView: View {
                 updateRestPillMount(isResting: isResting)
             }
         }
+        .dynamicTypeSize(...Theme.TypeScale.trainingSurfaceCap)
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
         // column, the card's chrome, and empty space alike — child buttons and gestures
@@ -119,11 +120,11 @@ struct SessionStageView: View {
     private func completionStage(_ completion: CompletionStage) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Session complete")
-                .font(Theme.font(.exerciseName))
+                .themeFont(.exerciseName)
                 .foregroundStyle(palette.textPrimary)
 
             Text(completion.summary)
-                .font(Theme.font(.coachNote))
+                .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
 
             openExercisesIfMoveOnStillFits(completion.openExercises)
@@ -169,7 +170,7 @@ struct SessionStageView: View {
                 isQueuePresented = true
             } label: {
                 Image(systemName: "square.stack")
-                    .font(Theme.font(.queuePill))
+                    .themeFont(.queuePill)
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
@@ -179,6 +180,9 @@ struct SessionStageView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityShowsLargeContentViewer {
+                Label("Queue", systemImage: "square.stack")
+            }
             .accessibilityLabel("Queue")
             .accessibilityValue(stage.queue.position.label)
             .accessibilityIdentifier("stage-queue-button")
@@ -197,11 +201,11 @@ struct SessionStageView: View {
             } label: {
                 HStack(spacing: 5) {
                     Text("Up next ·")
-                        .font(Theme.font(.queuePill))
+                        .themeFont(.queuePill)
                         .foregroundStyle(palette.textSecondary)
 
                     Text(upNext.title)
-                        .font(Theme.font(.queuePill))
+                        .themeFont(.queuePill)
                         .foregroundStyle(palette.textPrimary)
                         .lineLimit(1)
                 }
@@ -298,7 +302,7 @@ struct StageExerciseName: View {
 
     var body: some View {
         Text(name)
-            .font(Theme.font(.exerciseName))
+            .themeFont(.exerciseName)
             .foregroundStyle(palette.textPrimary)
             .lineSpacing(3)
             .lineLimit(2)
@@ -382,7 +386,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
     private var cadenceLine: some View {
         if let cadence = exercise.exerciseName.cadence, !cadence.isEmpty {
             Text(cadence)
-                .font(Theme.font(.cadence))
+                .themeFont(.cadence)
                 .foregroundStyle(palette.textSecondary)
                 .accessibilityIdentifier("stage-cadence")
         }
@@ -392,7 +396,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
     private var noteLine: some View {
         if let note = exercise.coachNote {
             Text(note)
-                .font(Theme.font(.coachNote))
+                .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -458,7 +462,7 @@ struct SessionMoveOnButton: View {
     var body: some View {
         Button(action: onTap) {
             Text("Move On")
-                .font(Theme.font(.logCapsule))
+                .themeFont(.logCapsule)
                 .foregroundStyle(palette.actionText)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)

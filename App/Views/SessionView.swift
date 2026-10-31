@@ -132,6 +132,7 @@ extension SessionView {
         .padding(.horizontal, Theme.pageMargin)
         .padding(.top, 8)
         .contentShape(Rectangle())
+        .dynamicTypeSize(...Theme.TypeScale.trainingSurfaceCap)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
         .overlay(alignment: .top) {
@@ -177,7 +178,7 @@ private struct OffLiveEdgeControls: View {
         Button(action: onGoBack) {
             Label("Go back", systemImage: "arrow.backward")
                 .labelStyle(.iconOnly)
-                .font(Theme.font(.logCapsule))
+                .themeFont(.logCapsule)
                 .frame(width: 44, height: 44)
         }
         .buttonStyle(.bordered)
@@ -189,7 +190,7 @@ private struct OffLiveEdgeControls: View {
         Button(action: onMakeCurrent) {
             Label("Make current", systemImage: "play.fill")
                 .labelStyle(.iconOnly)
-                .font(Theme.font(.logCapsule))
+                .themeFont(.logCapsule)
                 .frame(width: 44, height: 44)
         }
         .buttonStyle(.bordered)
