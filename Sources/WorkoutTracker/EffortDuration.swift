@@ -138,38 +138,6 @@ struct EffortDuration: Equatable, Hashable, Sendable {
     }
 }
 
-extension EffortDuration {
-    /// The Opening Hold a Coach Note prescribes: the first duration the word hold or iso sits right
-    /// beside, as in `Start w/ 15 sec hold at the top`, `start with a 15 second hold`,
-    /// `10-second iso hold`, or `hold for 30 seconds`. A clause that puts the hold anywhere but the
-    /// start of the Set, as `2 sec hold at the bottom of each rep` or `finish with a 10 sec hold`
-    /// do, prescribes none, and neither does a duration with no hold beside it, as `rest 90 sec` or
-    /// `hold at the top for 2 sec`.
-    init?(openingHoldIn coachNote: String) {
-        let hold = coachNote.split(separator: Self.clauseEnd).lazy
-            .map(String.init)
-            .filter { !$0.contains(Self.notAtTheStart) }
-            .flatMap { clause in Self.written(in: clause).lazy.filter { Self.isHold(clause, $0.range) } }
-            .first
-        guard let hold else { return nil }
-        self = hold.duration
-    }
-
-    /// A comma, a semicolon, a line break, or a full stop before a new sentence. The full stop of
-    /// `15 sec. hold` or `1.5 min` ends nothing.
-    private static var clauseEnd: Regex<Substring> { /[,;!?\n]|\.(?=\s+[A-Z])/ }
-
-    private static var notAtTheStart: Regex<Substring> { /\b(?:each|every|per|between|after|last|finish(?:es|ing)?)\b/.ignoresCase() }
-
-    private static func isHold(_ clause: String, _ range: Range<String.Index>) -> Bool {
-        clause[range.upperBound...].prefixMatch(of: holdAfter) != nil || clause[..<range.lowerBound].contains(holdBefore)
-    }
-
-    private static var holdAfter: Regex<Substring> { /\.?\s*-?\s*(?:(?:iso(?:metric)?|static)\s+)?(?:hold|iso(?:metric)?)\b/.ignoresCase() }
-
-    private static var holdBefore: Regex<Substring> { /\b(?:hold(?:s|ing)?|iso(?:metric)?)\s+(?:for\s+)?$/.ignoresCase() }
-}
-
 extension Character {
     fileprivate var isASCIIDigit: Bool {
         isASCII && isNumber
