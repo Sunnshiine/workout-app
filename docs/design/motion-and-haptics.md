@@ -31,7 +31,8 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
 
 - A log, a skip, or a tap on a Set moves everything outside the branch and the card, such as the
   Exercise name when the stage changes Exercise, on one 0.3 s smooth spring. The Active Set Card
-  holds still across it (§5.2).
+  holds still across it (§5.2), and so does the Last Performed line above it, so the old and new
+  lines never draw over each other.
 - The header's `N Sets left` rolls its numeral on a 0.2 s snappy spring as a log or skip changes it.
 - The rest pill fades in once Up next has faded out. Its restart beat, 2.5% larger and brighter for
   about 0.16 s, plays only when a rest restarts under a pill already showing, never on its reveal.

@@ -143,8 +143,9 @@ went, or bridges a change that would otherwise jump. These rules replace the thr
 rule under the operator's brief of 2026-10-31: "Where Emil's recommendation conflicts with an
 existing rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
 
-**The Ink Answers the Hand.** Whatever a log or a skip causes starts moving on the frame its haptic
-lands, on the ink ease, a strong ease-out. Nothing a tap causes eases in. The wing ease eases in, so
+**The Ink Answers the Hand.** The leaf and bud a log or a skip changes start moving on the frame its
+haptic lands, on the ink ease, a strong ease-out. The rest of the stage rides one critically damped
+spring, and nothing a tap causes rides an ease-in curve. The wing ease eases in, so
 it belongs to the Move On ceremony alone.
 
 **Frequency Sets the Budget.** What the athlete sees every Set, the leaf, the bud, the press, and the
@@ -160,8 +161,9 @@ against 0.2 s, along the path it entered by.
 **One Entrance.** A view plays one entrance. A beat or a pulse that would land on top of a reveal is
 cut.
 
-Sheets, navigation, and system controls keep their stock iOS motion. Reduce Motion turns movement
-into short cross-fades, and only the branch re-laying out cuts.
+Sheets, navigation, and system controls keep their stock iOS motion. Under Reduce Motion the branch,
+the ceremony, the confirmation card, and onboarding cross-fade instead of moving, and the branch
+re-laying out cuts.
 
 The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 [docs/design/motion-and-haptics.md](docs/design/motion-and-haptics.md).

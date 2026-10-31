@@ -12,6 +12,7 @@ struct ActiveSupersetSection: View {
         SessionStageColumn(
             exercise: stage.focused,
             composition: composition,
+            cardIdentity: stage.card?.cardIdentity,
             lastPerformed: stage.lastPerformed.map { presentation in
                 LastPerformedCard(presentation: presentation) {
                     onShowHistory(stage.focused)
