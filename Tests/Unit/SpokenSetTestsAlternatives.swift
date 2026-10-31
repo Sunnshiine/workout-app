@@ -111,6 +111,25 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
     )
 }
 
+/// Verbatim from the matrix: Daniel says "two twenty five for three at eight" fast, and the top
+/// transcript loses the "two" that an alternative heard.
+@Test func anAlternativeWhoseFirstNumberIsLongerAndEndsInTheTopsKeepsTheTopFromWriting() {
+    #expect(
+        SpokenSet.parse(candidates: ["25 for 3 add 8.", "225 for 3 add 8.", "25 for 3 at 8.", "25 for 3 add eight."])
+            == .failure(.ambiguous)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["8 reps at 135", "18 reps at 135"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(18), rpe: .notSaid), from: .alternative)
+    )
+}
+
+@Test func anAlternativeWhoseFirstNumberIsShorterOrEndsOtherwiseLeavesTheTopAsRead() {
+    #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "85 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
+    #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "1855 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
+    #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "two 185 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
+}
+
 @Test func alternativesThatHearTwoValuesForTheOneCutOffOrAnotherSetLeaveItCutOff() {
     let cutOff = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .cutOff(.number(9))), from: .top)
     #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 9", "135 for 8 at 8"]) == cutOff)
