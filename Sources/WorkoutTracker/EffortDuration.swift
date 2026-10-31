@@ -44,8 +44,9 @@ struct EffortDuration: Equatable, Hashable, Sendable {
             (?: \s* [-–—‑‒−] \s* (?<high> [0-9]+ (?: \. [0-9]+ )? ) )?
             (?:
                 (?<doublePrime> ["″] )
-                | \s* [-–—‑‒−]? \s* (?<unit> seconds? | secs? | s | minutes? | mins? | m )
-                  (?: \s* (?<addedSeconds> [0-9]{1,2} ) \s* (?: seconds? | secs? | s ) )?
+                | \s* [-–—‑‒−]? \s* (?: seconds? | secs? | s )
+                | \s* [-–—‑‒−]? \s* (?<minutes> minutes? | mins? | m )
+                  (?: \s* (?<addedSeconds> [0-5]? [0-9] ) \s* (?: seconds? | secs? | s ) )?
             )
             (?! \w )
             /#
@@ -56,9 +57,9 @@ struct EffortDuration: Equatable, Hashable, Sendable {
             (?: \s* (?: seconds? | secs? | s | minutes? | mins? ) \b )?
             /#
         let counted = prose.matches(of: count.ignoresCase()).map { match in
-            let unit = CountUnit(match.unit, addedSeconds: match.addedSeconds, isDoublePrime: match.doublePrime != nil)
+            let unit = CountUnit(minutes: match.minutes, addedSeconds: match.addedSeconds)
             let ends = [match.low, match.high].compactMap { $0 }.map { Double($0).flatMap(unit.seconds) }
-            return WrittenEnds(range: match.range, seconds: ends, isDoublePrime: unit == .doublePrime)
+            return WrittenEnds(range: match.range, seconds: ends, isDoublePrime: match.doublePrime != nil)
         }
         let clocked = prose.matches(of: clock.ignoresCase()).map { match in
             let high = match.highSeconds.map { [clockSeconds(match.highMinutes, $0)] } ?? []
@@ -72,27 +73,23 @@ struct EffortDuration: Equatable, Hashable, Sendable {
 
     /// What a count is counted in. A bare `m` is minutes only with seconds after it, as in `1m30s`,
     /// because alone it is as likely metres.
-    private enum CountUnit: Equatable {
+    private enum CountUnit {
         case seconds
         case minutes(plusSeconds: Int)
-        case doublePrime
         case unreadable
 
-        init(_ unit: Substring?, addedSeconds: Substring?, isDoublePrime: Bool) {
-            let lowered = unit?.lowercased() ?? ""
-            let added = addedSeconds.flatMap { Int($0) }
-            switch (isDoublePrime, lowered.hasPrefix("m"), added) {
-            case (true, _, _): self = .doublePrime
-            case (false, true, let added?): self = added < 60 ? .minutes(plusSeconds: added) : .unreadable
-            case (false, true, nil): self = lowered == "m" ? .unreadable : .minutes(plusSeconds: 0)
-            case (false, false, nil): self = .seconds
-            case (false, false, _?): self = .unreadable
+        init(minutes: Substring?, addedSeconds: Substring?) {
+            guard let minutes else {
+                self = .seconds
+                return
             }
+            let added = addedSeconds.flatMap { Int($0) }
+            self = minutes.count == 1 && added == nil ? .unreadable : .minutes(plusSeconds: added ?? 0)
         }
 
         func seconds(_ count: Double) -> Double? {
             switch self {
-            case .seconds, .doublePrime: count
+            case .seconds: count
             case .minutes(let plusSeconds): count * 60 + Double(plusSeconds)
             case .unreadable: nil
             }

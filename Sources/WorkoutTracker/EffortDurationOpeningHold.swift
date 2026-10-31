@@ -71,11 +71,16 @@ private struct NoteClause {
     /// about each rep, the last rep, the time between Sets, or a superset, and at the bottom or as
     /// short as a rep's pause only when the clause opens the Set with it.
     var openingHold: EffortDuration? {
-        guard !text.contains(Self.pastTheStart), !text.contains(Self.superset),
-            let hold = EffortDuration.written(in: text).first(where: { HoldGovernor(of: $0, in: text) == .hold })?.duration
-        else { return nil }
-        let isARepPause = text.contains(Self.atTheBottom) || hold.seconds <= Self.longestRepPause
-        return isARepPause && text.prefixMatch(of: Self.opensTheSet) == nil ? nil : hold
+        guard !text.contains(Self.pastTheStart), !text.contains(Self.superset), let hold = firstHold else { return nil }
+        return isARepPause(hold) ? nil : hold
+    }
+
+    private var firstHold: EffortDuration? {
+        EffortDuration.written(in: text).first { HoldGovernor(of: $0, in: text) == .hold }?.duration
+    }
+
+    private func isARepPause(_ hold: EffortDuration) -> Bool {
+        (text.contains(Self.atTheBottom) || hold.seconds <= Self.longestRepPause) && text.prefixMatch(of: Self.opensTheSet) == nil
     }
 
     private var isAFrame: Bool {
