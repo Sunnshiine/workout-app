@@ -39,11 +39,11 @@ import Testing
 
     let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
 
-    #expect(presentation.weeks[0].summary == "2 of 3 Sessions")
+    #expect(presentation.weeks[0].summary == "2 of 3")
     #expect(presentation.weeks[0].detail == "· 1 in progress")
-    #expect(presentation.weeks[0].collapsedSummary == "2 of 3 Sessions · 1 in progress")
+    #expect(presentation.weeks[0].collapsedSummary == "2 of 3 · 1 in progress")
 
-    #expect(presentation.weeks[1].summary == "0 of 3 Sessions")
+    #expect(presentation.weeks[1].summary == "0 of 3")
     #expect(presentation.weeks[1].detail == "· 1 not uploaded")
 }
 
@@ -53,9 +53,9 @@ import Testing
 
     let presentation = BlockOverviewPresentation(block: block, currentSession: nil)
 
-    #expect(presentation.weeks[0].summary == "2 of 2 Sessions")
+    #expect(presentation.weeks[0].summary == "2 of 2")
     #expect(presentation.weeks[0].detail == "")
-    #expect(presentation.weeks[0].collapsedSummary == "2 of 2 Sessions")
+    #expect(presentation.weeks[0].collapsedSummary == "2 of 2")
 }
 
 @MainActor

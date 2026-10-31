@@ -39,7 +39,7 @@ struct BlockOverviewWeekPresentation: Equatable, Sendable {
     /// The Week's day tiles, ordered available-first with Unavailable Sessions ("empty
     /// beds") grouped at the Week's end.
     let tiles: [BlockOverviewTilePresentation]
-    /// The count clause, e.g. "2 of 3 Sessions" — complete Sessions over the Week's day count. The
+    /// The count clause, e.g. "2 of 3" — complete Sessions over the Week's day count. The
     /// focus card carries this alone; the tiles stay wordless.
     let summary: String
     /// The trailing state clause a collapsed card appends, e.g. "· 1 in progress" or
@@ -101,7 +101,7 @@ struct BlockOverviewPresentation: Equatable, Sendable {
                 weekNumber: week.number,
                 isFocus: week.number == resolvedFocus,
                 tiles: tiles,
-                summary: "\(complete) of \(dayCount) Sessions",
+                summary: "\(complete) of \(dayCount)",
                 detail: Self.detail(unavailable: unavailable, inProgress: inProgress)
             )
         }

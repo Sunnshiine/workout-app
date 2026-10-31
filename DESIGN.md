@@ -191,11 +191,13 @@ Active Set Card, the stage foot, the sync banner, and the week cards. A containe
 content by its padding, never by a second page margin. The completion stage's title sits where an
 Exercise name sits. The Move On ceremony keeps its own centered column (§5.7).
 
-**The Counts Speak Domain Rule.** A count names its `CONTEXT.md` term, capitalized, and says the
-same thing the same way on every screen: a Set still to do is `left` (`5 Sets left`, `1 Set left`
-on an Open Exercise and on the Live Activity), a week card counts `2 of 4 Sessions`, and a
-finished Session counts what it holds (`5 Sets across 3 Exercises`), never `done`, which the Set
-State avoid-list bars.
+**The Bare Count Rule.** A count is a bare number unless the screen can't be read without a word
+beside it. A week card reads `2 of 4`, because the tiles beside it already show what is counted.
+When a count does need a word, it is the `CONTEXT.md` term, capitalized, and the same on every
+screen: a Set still to do is `left` (`5 Sets left`, `1 Set left` on an Open Exercise and on the Live
+Activity), and a finished Session counts what it holds (`5 Sets across 3 Exercises`), never `done`,
+which the Set State avoid-list bars. The operator, 2026-10-31, on a week card that read
+`0 of 4 Sessions`: "I hate this, please prefer no descriptor text unless absolutely necessary."
 
 **The Empty State Speaks Plainly Rule.** An empty state is a title, one or two short sentences that
 say what is missing and what happens next, and the one action that recovers. It carries no
