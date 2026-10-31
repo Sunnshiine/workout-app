@@ -144,12 +144,14 @@ enum SpokenReading: Equatable, Sendable {
     }
 }
 
-/// One step of a phrase: a value it reads, a word it needs, or a step it may leave out.
+/// One step of a phrase: a value it reads, a word it needs, a step it may leave out, or the end of the
+/// transcript.
 enum SpokenStep: Equatable, Sendable {
     case value(SpokenReading)
     case marker(SpokenMarker)
     case misheardAt
     indirect case optional(SpokenStep)
+    case endOfTranscript
 
     /// The claims this step makes of the token, or nil when the step does not take it.
     func take(_ token: SpokenToken) -> [SpokenClaim]? {
@@ -181,8 +183,10 @@ struct SpokenMatch {
         rest = tokens
     }
 
-    /// Takes the next token if the step does, and passes an optional step that does not.
+    /// Takes the next token if the step does, passes an optional step that does not, and passes the
+    /// end of the transcript only where no token is left.
     mutating func take(_ step: SpokenStep) -> Bool {
+        guard step != .endOfTranscript else { return rest.isEmpty }
         guard let token = rest.first, let taken = step.take(token) else { return step.isOptional }
         claims += taken
         last = token
@@ -209,8 +213,21 @@ struct SpokenPhrase: Sendable {
         self.steps = steps
     }
 
-    /// Tried in order, so the misheard "at" of "185 for 5 and 8" is read before "185 for 5" alone.
+    /// Tried in order, so the misheard "at" of "185 for 5 and 8" is read before "185 for 5" alone, and
+    /// a number after it that an "RPE" said last labels, as the 9 of "135 for 8 and 9 RPE", is the RPE
+    /// heard.
     static let all = [
+        SpokenPhrase(
+            .value(.weight),
+            .optional(.marker(.pounds)),
+            .marker(.separator),
+            .value(.reps),
+            .optional(.marker(.reps)),
+            .misheardAt,
+            .value(.rpe),
+            .marker(.rpe),
+            .endOfTranscript
+        ),
         SpokenPhrase(
             .value(.weight),
             .optional(.marker(.pounds)),

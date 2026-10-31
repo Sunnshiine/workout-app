@@ -53,6 +53,14 @@ func aNumberAfterAndOfOrAddCutsTheRPEOff(transcript: String, weight: Weight, rep
     #expect(SpokenSet.parse(transcript) == rpeCutOff(weight, reps, .number(number)))
 }
 
+/// Verbatim from the matrix: "RPE" after the number names it, so the misheard "at" before it hides no
+/// other value.
+@Test func aNumberAfterAndOfOrAddThatRPELabelsIsTheRPE() {
+    #expect(SpokenSet.parse("135 for 8 and 9 RP.") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135 for 8 and 9 RPE.") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("185 for 5 add 12 RPE") == .failure(.offLadderRPE(12)))
+}
+
 @Test func andOrOfBeforeAnRPEMarkerIsFillerAndAddOrToAnywhereElseIsUnrecognized() {
     #expect(SpokenSet.parse("135 for 8 and RPE 9") == values(.pounds(135), 8, .nine))
     #expect(SpokenSet.parse("95 pounds per six of RPE 7") == values(.pounds(95), 6, .seven))
