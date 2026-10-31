@@ -58,6 +58,11 @@ where a word next to it, or the phrase around it, says which, never by its place
   place: "185 for 5 and 8" beside "185 for 5 at 8" logs 185x5@8, and beside "185 for 5 at 7", or
   beside "185 for 5 at 8" and "185 for 5 at 9", stays `missingValues`. Where the top wrote no
   number, the alternatives supply it: "185 for 5 at" beside "185 for 5 at 8" logs 185x5@8.
+- An alternative that is the top transcript with words before it heard the start the top cut off,
+  and stands in for the top when every such alternative that reads agrees: "for 12 at 8" beside "10
+  for 12 at 8" logs 10x12@8 rather than the card's weight, and "reps at 135" beside "8 reps at 135"
+  logs 135x8. Two that restore it differently, as "10 for 12 at 8" and "20 for 12 at 8", are
+  `ambiguous`.
 - A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
   cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing, and only
   an alternative that hears 8 and a half settles it. A rep count is whole, so after one it is the

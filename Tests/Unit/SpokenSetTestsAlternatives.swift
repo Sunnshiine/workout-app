@@ -85,6 +85,32 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
     #expect(SpokenSet.parse(candidates: ["1005 for one to 10.", "1005 for one at 9."]) == chosen(rpeCutOff(.pounds(1005), 1, .number(10))))
 }
 
+/// Verbatim from the matrix: Samantha says "10 for 12 at 8" and "8 reps at 135", and the top
+/// transcript loses the number said first, which a pre-filled card would otherwise fill.
+@Test func alternativesThatAreTheTopWithWordsBeforeItReadTheSetItsStartCutOff() {
+    #expect(
+        SpokenSet.parse(candidates: ["for 12 at 8.", "10 for 12 at 8.", "for 12 at eight.", "for 12 8."])
+            == chosen(values(.pounds(10), 12, .eight))
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["reps at 135.", "8 reps at 135.", "Reps at 135.", "Eight reps at 135.", "reps at 135"])
+            == chosen(values(.pounds(135), 8, nil))
+    )
+}
+
+@Test func alternativesThatRestoreTheStartDifferentlyAreAmbiguous() {
+    #expect(SpokenSet.parse(candidates: ["for 12 at 8", "10 for 12 at 8", "20 for 12 at 8"]) == .failure(.ambiguous))
+}
+
+@Test func anAlternativeWithWordsAnywhereButBeforeTheTopRestoresNothing() {
+    #expect(SpokenSet.parse(candidates: ["for 5", "for 5 at 8"]) == chosen(values(nil, 5, nil)))
+    #expect(SpokenSet.parse(candidates: ["for 5", "go for 5"]) == chosen(values(nil, 5, nil)))
+    #expect(
+        SpokenSet.parse(candidates: ["um", "185 for 5 at 8 um"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .heard(.eight)), from: .alternative)
+    )
+}
+
 @Test func alternativesThatHearTwoValuesForTheOneCutOffOrAnotherSetLeaveItCutOff() {
     let cutOff = chosen(.values(weight: .heard(.pounds(135)), reps: .heard(8), rpe: .cutOff(.number(9))), from: .top)
     #expect(SpokenSet.parse(candidates: ["135 for 8 and 9", "135 for 8 at 9", "135 for 8 at 8"]) == cutOff)

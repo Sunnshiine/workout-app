@@ -165,8 +165,23 @@ extension SpokenSet {
     /// Set Logs.
     static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
         guard let top = candidates.first else { return .failure(.nothingHeard) }
-        return parse(top).map { Chosen(spokenSet: $0.settled(by: candidates.dropFirst()), source: .top) }
-            .flatMapError { agreed(candidates.dropFirst(), else: $0) }
+        let alternatives = candidates.dropFirst()
+        return parse(top, restoringItsStartFrom: alternatives).map { Chosen(spokenSet: $0.settled(by: alternatives), source: .top) }
+            .flatMapError { agreed(alternatives, else: $0) }
+    }
+
+    /// The top transcript as read, unless the recognizer cut off the start of what was said: an
+    /// alternative that is the top with words before it, as "10 for 12 at 8" is "for 12 at 8", heard
+    /// the start, so those alternatives read the Set when every one that reads agrees.
+    private static func parse(_ top: String, restoringItsStartFrom alternatives: ArraySlice<String>) -> Result<SpokenSet, Rejection> {
+        let words = SpokenTranscript.words(in: top)
+        guard words.contains(where: { !SpokenWord($0).isFiller }) else { return parse(top) }
+        let restored = alternatives.map(SpokenTranscript.words(in:))
+            .filter { $0.count > words.count && $0.suffix(words.count).elementsEqual(words) }
+            .compactMap { try? spokenSet(in: $0) }
+        guard let reading = restored.first else { return parse(top) }
+        guard restored.allSatisfy({ $0 == reading }) else { return .failure(.ambiguous) }
+        return .success(reading)
     }
 
     /// This Set with the value the recognizer cut off heard from the alternatives that hear every
