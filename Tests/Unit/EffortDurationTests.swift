@@ -36,7 +36,23 @@ import Testing
         ("1-2 min", 60),
         ("0:30-0:45", 30),
         ("0:30 – 0:45", 30),
-        ("45-45 sec", 45)
+        ("45-45 sec", 45),
+        ("30—45 sec", 30),
+        ("30\u{2011}45 sec", 30),
+        ("30\u{2012}45 sec", 30),
+        ("30\u{2212}45 sec", 30),
+        ("0:30—0:45", 30),
+        ("40 sec.", 40),
+        ("40 Sec.", 40),
+        ("40s.", 40),
+        ("0:40.", 40),
+        ("1 min 30 sec", 90),
+        ("1 minute 30 seconds", 90),
+        ("1 min 30s", 90),
+        ("1m30s", 90),
+        ("1m 30s", 90),
+        ("2 mins 5 secs", 125),
+        ("1-2 min 30 sec", 90)
     ]
 )
 func textThatIsOneDurationReadsAsItsSeconds(text: String, seconds: Int) {
@@ -77,7 +93,18 @@ func textThatIsOneDurationReadsAsItsSeconds(text: String, seconds: Int) {
         "15 sec hold",
         "2x30s",
         "",
-        "sec"
+        "sec",
+        "1—2—3 min",
+        "1\u{2011}2\u{2011}3 min",
+        "1\u{2012}2\u{2012}3 min",
+        "1\u{2212}2\u{2212}3 min",
+        "40 sec..",
+        "1 min 60 sec",
+        "30 sec 20 sec",
+        "1 min 30",
+        "20m",
+        "1m 30",
+        "90 min 30 sec"
     ]
 )
 func textThatIsNotOneDurationReadsAsNothing(text: String) {
@@ -101,7 +128,13 @@ func textThatIsNotOneDurationReadsAsNothing(text: String) {
         ("rest .5 min", []),
         ("3-4-5 min", []),
         ("3–4–5 min", []),
-        ("3 - 4 - 5 min", [])
+        ("3 - 4 - 5 min", []),
+        ("3—4—5 min", []),
+        ("Hold 1 min 30 sec", [90]),
+        ("1m30s hold", [90]),
+        ("Hold 1 min, 30 sec rest", [60, 30]),
+        ("rest 1 min 30 sec hold", [90]),
+        ("Sled 20m, 10 sec hold", [10])
     ]
 )
 func proseWritesEachDurationItHolds(prose: String, seconds: [Int]) {
