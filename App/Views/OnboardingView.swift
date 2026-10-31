@@ -112,10 +112,8 @@ struct OnboardingView: View {
 
                 Button(action: signIn) {
                     Text("Connect Google Sheet")
-                        .themeFont(.logCapsule)
+                        .logCapsuleMetrics()
                         .foregroundStyle(palette.actionText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
                         .background(palette.action, in: .capsule)
                 }
                 .buttonStyle(.pressScale)
@@ -293,8 +291,8 @@ struct SheetPickerView: View {
         }
         .toolbar {
             if let onDone {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", systemImage: "checkmark") {
                         store?.cancelSelection()
                         onDone()
                     }
@@ -354,7 +352,10 @@ struct SheetPickerView: View {
                     }
                     .padding(.vertical, 4)
                 }
+                .scrollBounceBehavior(.basedOnSize)
                 .frame(maxHeight: 420)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(minHeight: store.isLoadingList && store.spreadsheets.isEmpty ? 180 : nil)
                 .overlay {
                     if store.isLoadingList && store.spreadsheets.isEmpty {
                         ProgressView()

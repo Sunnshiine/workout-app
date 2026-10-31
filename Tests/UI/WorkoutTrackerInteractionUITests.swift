@@ -127,7 +127,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         app.buttons["Cancel"].tap()
         XCTAssertTrue(confirmSwitch.disappears(within: 2))
         tapWhenHittable(app.buttons["sheet-picker-done-button"])
-        XCTAssertTrue(app.navigationBars["Training Sheet"].disappears(within: 3))
+        XCTAssertTrue(app.buttons["sheet-picker-done-button"].disappears(within: 3))
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
         tapWhenHittable(trainingSheetRow)

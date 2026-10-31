@@ -32,9 +32,11 @@ struct MoveOnCelebrationView: View {
                     continueButton
                 }
             }
-            .padding(.horizontal, 22)
-            .padding(.top, 26)
-            .padding(.bottom, 40)
+            // The stage's grid: the header rides the session header's row, and Continue lands where
+            // the completion stage's Move On sat, so the press stays on the button it becomes.
+            .padding(.horizontal, Theme.pageMargin)
+            .padding(.top, 9)
+            .padding(.bottom, 56)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(presentation.accessibilityLabel)
@@ -53,7 +55,6 @@ struct MoveOnCelebrationView: View {
     private func column(endingInContinue: Bool) -> some View {
         VStack(spacing: 0) {
             header
-                .padding(.top, 8)
 
             Spacer(minLength: 12)
 
@@ -102,10 +103,12 @@ struct MoveOnCelebrationView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(minHeight: 32)
     }
 
     private var contextText: some View {
-        Text(presentation.contextText)
+        Text("\(Image(systemName: "calendar")) \(presentation.contextText)")
+            .accessibilityLabel(presentation.contextText)
             .themeFont(.runline)
             .foregroundStyle(palette.textPrimary)
             .accessibilityIdentifier("move-on-celebration-context")
@@ -125,7 +128,6 @@ struct MoveOnCelebrationView: View {
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 18)
-        .frame(maxWidth: 380)
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.soft))
         .themeElevation(palette.surfaceShadow, in: .rect(cornerRadius: Theme.Radius.soft))
     }
@@ -139,10 +141,9 @@ struct MoveOnCelebrationView: View {
     private var continueButton: some View {
         Button(action: onDismiss) {
             Image(systemName: "sunrise")
-                .themeFont(.logCapsule)
+                .imageScale(.large)
+                .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
                 .background(palette.action, in: .capsule)
         }
         .buttonStyle(.pressScale)
