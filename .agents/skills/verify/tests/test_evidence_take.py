@@ -181,8 +181,8 @@ class Film(unittest.TestCase):
 
     def test_a_load_that_cannot_be_read_as_the_take_begins_drives_nothing(self):
         (self.tmp / "bin" / "sysctl").write_text("#!/bin/sh\necho 'sysctl: transient' >&2\nexit 1\n")
-        self.assertEqual(self.film(["fail"]), ("NoTake", "could not read the load as the take began: Command "
-                                               "'['sysctl', '-n', 'vm.loadavg']' returned non-zero exit status 1.", ""))
+        failure = subprocess.CalledProcessError(1, ["sysctl", "-n", "vm.loadavg"])
+        self.assertEqual(self.film(["fail"]), ("NoTake", "could not read the load as the take began: %s" % failure, ""))
 
     def test_a_failed_drive_is_the_failure_even_when_the_recorder_will_not_stop(self):
         failure = self.film_stuck(["fail"])
