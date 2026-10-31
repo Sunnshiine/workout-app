@@ -33,7 +33,7 @@ again" with no earlier Set Log of the Exercise in the Session). A Dictation that
 transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`. A rejected
 `say` prints its report, then a `spoken_set_rejected` error.
 
-The grammar, as the tests in `Tests/Unit/SpokenSetTests.swift` pin it. A number is a value only
+The grammar, as the `SpokenSetTests` files in `Tests/Unit/` pin it. A number is a value only
 where a word next to it, or the phrase around it, says which, never by its place in the transcript.
 
 - "for", "x", "by", and "times" put the weight before them and the reps after them ("185 for 5"),
