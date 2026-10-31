@@ -185,23 +185,15 @@ enum Theme {
 
     static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
     static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
-    static let momentumFlowTotalDuration = 0.65
-    static let skipFadeUpDuration = 0.45
-    static let focusMorphDuration = 0.28
+    static let sessionMotionDuration = 0.3
     static let stageCompositionDuration = 0.25
     static let pairingUnavailableOpacity = 0.3
     static let pairingConfirmationDuration = 0.22
 
-    static var momentumFlowAnimation: Animation {
-        .easeInOut(duration: momentumFlowTotalDuration)
-    }
-
-    static var skipFadeUpAnimation: Animation {
-        .easeOut(duration: skipFadeUpDuration)
-    }
-
-    static var focusMorphAnimation: Animation {
-        .easeInOut(duration: focusMorphDuration)
+    /// What a log, a skip, or a tap on a Set moves outside the branch and the card: one critically
+    /// damped spring inside the Set's 0.42 s budget (DESIGN.md §7).
+    static var sessionMotionAnimation: Animation {
+        .smooth(duration: sessionMotionDuration)
     }
 
     static var stageCompositionAnimation: Animation {

@@ -161,7 +161,7 @@ against 0.2 s, along the path it entered by.
 cut.
 
 Sheets, navigation, and system controls keep their stock iOS motion. Reduce Motion turns movement
-into short cross-fades, never into nothing.
+into short cross-fades, and only the branch re-laying out cuts.
 
 The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 [docs/design/motion-and-haptics.md](docs/design/motion-and-haptics.md).

@@ -306,9 +306,9 @@ struct SetCardPresentationTests {
 }
 
 @Test func eachSessionMotionRunsItsDesignedCurveAndDuration() {
-    #expect(SessionMotion.momentumFlow.animation == .easeInOut(duration: 0.65))
-    #expect(SessionMotion.skipFadeUp.animation == .easeOut(duration: 0.45))
-    #expect(SessionMotion.focusMorph.animation == .easeInOut(duration: 0.28))
+    #expect(SessionMotion.momentumFlow.animation == .smooth(duration: 0.3))
+    #expect(SessionMotion.skipFadeUp.animation == .smooth(duration: 0.3))
+    #expect(SessionMotion.focusMorph.animation == .smooth(duration: 0.3))
     #expect(SessionMotion.cut.animation == nil)
 }
 

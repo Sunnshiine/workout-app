@@ -241,7 +241,7 @@ struct SessionStageView: View {
         }
     }
 
-    // A log starts rest inside the coordinator's 0.65 s momentumFlow, which would cross-fade the
+    // A log starts rest inside the coordinator's momentumFlow, which would cross-fade the
     // timer over Up next. These overrides sequence the swap so the two are never drawn at once.
     private var upNextSwapAnimation: Animation {
         isResting ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
