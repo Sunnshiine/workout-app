@@ -6,7 +6,8 @@ import Observation
 /// A `SessionWiring` for suites that build a `SessionCoordinator` around one collaborator under
 /// test. Every collaborator not named keeps its writes and Lock Screen effects to itself: a Set
 /// Log fails as unwired, the flush and the Live Activity go nowhere, the Session reads as browsed
-/// away, and a rest starts on a clock that never moves and never expires on its own.
+/// away, and a rest or an Effort Countdown starts on a clock that never moves and never expires on
+/// its own, the countdown saying nothing.
 extension SessionWiring {
     @MainActor
     static func fixture(
@@ -16,6 +17,11 @@ extension SessionWiring {
         restTimer: RestTimer = RestTimer(
             clock: ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 0)),
             expiryScheduler: HeldRestExpiry()
+        ),
+        countdown: EffortCountdown = EffortCountdown(
+            clock: ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 0)),
+            scheduler: HeldRestExpiry(),
+            cues: SilentCountdownCues()
         ),
         restDurations: any SessionRestDurations = SettingsStore(defaults: .inMemory()),
         liveActivity: any SessionLiveActivityAdapter = InertSessionLiveActivity(),
@@ -28,6 +34,7 @@ extension SessionWiring {
             navigation: navigation,
             sync: sync,
             restTimer: restTimer,
+            countdown: countdown,
             restDurations: restDurations,
             liveActivity: liveActivity,
             motion: motion,
@@ -87,4 +94,11 @@ struct InertSessionLiveActivity: SessionLiveActivityAdapter {
 final class HeldRestExpiry: RestExpiryScheduling {
     func schedule(deadline: Date, expire: @escaping @MainActor () -> Void) {}
     func cancel() {}
+}
+
+/// Says and plays nothing.
+@MainActor
+final class SilentCountdownCues: CountdownCuePlaying {
+    func play(_ cue: CountdownCue) {}
+    func silence() {}
 }

@@ -12,6 +12,7 @@ struct WorkoutTrackerApp: App {
     /// One rest per process: whichever write starts it, the stage's pill, the Live Activity, and
     /// the rest-end notification read the same one.
     @State private var restTimer: RestTimer
+    @State private var countdown: EffortCountdown
     /// One owner of the Live Activity per process, whichever surface asked for it.
     @State private var liveActivityAdapter: LiveActivityProductionAdapter
     @State private var entry: AppEntryInbox
@@ -41,6 +42,9 @@ struct WorkoutTrackerApp: App {
         _focus = State(initialValue: focus)
         let restTimer = RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
         _restTimer = State(initialValue: restTimer)
+        _countdown = State(
+            initialValue: EffortCountdown(clock: SystemRestClock(), scheduler: RestExpiryTimerScheduler(), cues: SpokenCountdownCues())
+        )
         let liveActivityAdapter = LiveActivityProductionAdapter()
         _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
@@ -196,14 +200,27 @@ struct WorkoutTrackerApp: App {
                         dictation: dictation,
                         focus: focus,
                         restTimer: restTimer,
+                        countdown: countdown,
                         liveActivityAdapter: liveActivityAdapter
                     )
                 }
             } else {
-                RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
+                RootView(
+                    dictation: dictation,
+                    focus: focus,
+                    restTimer: restTimer,
+                    countdown: countdown,
+                    liveActivityAdapter: liveActivityAdapter
+                )
             }
         #else
-            RootView(dictation: dictation, focus: focus, restTimer: restTimer, liveActivityAdapter: liveActivityAdapter)
+            RootView(
+                dictation: dictation,
+                focus: focus,
+                restTimer: restTimer,
+                countdown: countdown,
+                liveActivityAdapter: liveActivityAdapter
+            )
         #endif
     }
 }

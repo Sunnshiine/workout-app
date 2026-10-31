@@ -4,6 +4,7 @@ struct RootView: View {
     let dictation: SetDictation?
     let focus: ActiveSetFocusManager
     let restTimer: RestTimer
+    let countdown: EffortCountdown
     let liveActivityAdapter: LiveActivityProductionAdapter
     @Environment(SettingsStore.self) private var settings
     @Environment(WorkoutStore.self) private var workout
@@ -83,7 +84,8 @@ struct RootView: View {
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,
                         motion: SwiftUISessionMotion(),
-                        restTimer: restTimer
+                        restTimer: restTimer,
+                        countdown: countdown
                     )
                 ),
                 dictation: dictation,

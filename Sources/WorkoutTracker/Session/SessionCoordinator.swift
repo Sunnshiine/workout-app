@@ -134,6 +134,7 @@ final class SessionCoordinator {
         cancelPairing()
         cancelSpokenWriteHold()
         dictation?.dismiss()
+        countdown.cancel()
         focusManager.reset(to: session)
         answerEntry()
     }
@@ -188,6 +189,7 @@ final class SessionCoordinator {
     /// no skip. A held Set takes no write from its card: only its Clear menu changes it.
     @discardableResult
     func write(_ write: CardWrite, to set: ExerciseSet, as mode: SetCardMode, from source: WriteSource) -> Bool {
+        countdown.cancel()
         switch (mode, write) {
         case (.logging, .log(let setLog)): log(set, as: setLog, from: source)
         case (.logging, .skip): skip(set, from: source)
@@ -287,9 +289,10 @@ final class SessionCoordinator {
     }
 
     /// Every change to which Set the card shows runs through here, so a press's rejection or fill
-    /// never outlives the card it was shown on.
+    /// never outlives the card it was shown on, and neither does an Effort Countdown.
     func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
         dictation?.dismiss()
+        defer { cancelCountdownOffItsSet() }
         guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
             return
@@ -319,6 +322,7 @@ extension SessionCoordinator {
     }
 
     func moveOn() {
+        countdown.cancel()
         cancelRestForSessionExit()
         wiring.navigation.requestMoveOnCelebration()
     }

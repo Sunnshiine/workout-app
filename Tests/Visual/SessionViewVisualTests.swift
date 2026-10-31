@@ -46,7 +46,8 @@ struct SessionViewVisualTests {
                     platform: SessionPlatform(
                         liveActivity: LiveActivityProductionAdapter(),
                         motion: SwiftUISessionMotion(),
-                        restTimer: RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared)
+                        restTimer: RestTimer(notificationScheduler: RestNotificationCenterScheduler.shared),
+                        countdown: EffortCountdown(clock: SystemRestClock(), scheduler: HeldRestExpiry(), cues: SilentCountdownCues())
                     )
                 )
             )

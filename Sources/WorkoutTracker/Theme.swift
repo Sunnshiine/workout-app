@@ -114,6 +114,7 @@ enum Theme {
         static let logTap = HapticTuning(intensity: 1.0, sharpness: 0.65)
         static let skipDud = HapticTuning(intensity: 0.45, sharpness: 0.15)
         static let stepperTick = HapticTuning(intensity: 0.45, sharpness: 0.80)
+        static let effortBegins = HapticTuning(intensity: 0.75, sharpness: 0.60)
     }
 
     // MARK: - Legacy composition constants

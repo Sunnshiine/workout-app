@@ -107,3 +107,6 @@ setLogConflict
 # A Spoken Set rejection reason: a value said twice, not a refused write.
 [unrelated]
 conflicting
+
+# AVFoundation's speech synthesizer type, which says an Effort Countdown's cue, not a Spoken Set.
+AVSpeechUtterance

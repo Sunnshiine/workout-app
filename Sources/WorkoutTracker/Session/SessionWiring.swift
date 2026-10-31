@@ -53,6 +53,8 @@ struct SessionWiring {
     let navigation: any SessionNavigationAdapter
     let sync: any SessionSyncAdapter
     let restTimer: RestTimer
+    /// The Effort Countdown the card starts, which speaks its cues through the app's voice.
+    let countdown: EffortCountdown
     let restDurations: any SessionRestDurations
     let liveActivity: any SessionLiveActivityAdapter
     let motion: any SessionMotionPerforming
@@ -63,9 +65,10 @@ struct SessionWiring {
 }
 
 /// The Session collaborators only the app can build, because each reaches an iOS-only API: the
-/// rest Live Activity, SwiftUI's motion, and the rest timer over the rest notifications. The app
-/// passes them in so nothing in `Sources/` reaches the notification center, which aborts a process
-/// with no app bundle, as `swift test` is (#1006).
+/// rest Live Activity, SwiftUI's motion, the rest timer over the rest notifications, and the
+/// Effort Countdown over the speech synthesizer. The app passes them in so nothing in `Sources/`
+/// reaches the notification center, which aborts a process with no app bundle, as `swift test` is
+/// (#1006).
 @MainActor
 struct SessionPlatform {
     let liveActivity: any SessionLiveActivityAdapter
@@ -73,6 +76,7 @@ struct SessionPlatform {
     /// The process's one rest, which a locked log may have started before the stage showed, so
     /// the stage's pill, the Live Activity, and the rest-end notification read the same one.
     let restTimer: RestTimer
+    let countdown: EffortCountdown
 }
 
 extension SessionWiring {
@@ -90,6 +94,7 @@ extension SessionWiring {
             navigation: workout,
             sync: SessionPendingWriteSyncAdapter(sync: sync, settings: settings),
             restTimer: platform.restTimer,
+            countdown: platform.countdown,
             restDurations: settings,
             liveActivity: platform.liveActivity,
             motion: platform.motion,

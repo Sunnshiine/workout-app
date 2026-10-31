@@ -121,6 +121,7 @@ import Testing
     #expect(Theme.Haptics.railDetentTick == Theme.HapticTuning(intensity: 0.35, sharpness: 0.85))
     #expect(Theme.Haptics.skipDud == Theme.HapticTuning(intensity: 0.45, sharpness: 0.15))
     #expect(Theme.Haptics.stepperTick == Theme.HapticTuning(intensity: 0.45, sharpness: 0.80))
+    #expect(Theme.Haptics.effortBegins == Theme.HapticTuning(intensity: 0.75, sharpness: 0.60))
 }
 
 // MARK: - Night validation of the two flagged surfaces (PRD #458 slice 8, ADR-0007)
