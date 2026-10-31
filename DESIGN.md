@@ -246,7 +246,9 @@ The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 left edge, `Theme.pageMargin` (16pt) in from the screen: the runline, the Exercise name, the
 Active Set Card, the stage foot, the sync banner, and the week cards. A container insets its own
 content by its padding, never by a second page margin. The completion stage's title sits where an
-Exercise name sits. The Move On ceremony keeps its own centered column (§5.7).
+Exercise name sits. The Move On ceremony centers its content between the same two edges, so a
+control that survives a screen change keeps its frame: Move On becomes Continue in place. Every
+full-width green capsule takes `logCapsuleMetrics()`, one height.
 
 **The Bare Count Rule.** A count is a bare number unless the screen can't be read without a word
 beside it. A week card reads `2 of 4`, because the tiles beside it already show what is counted.

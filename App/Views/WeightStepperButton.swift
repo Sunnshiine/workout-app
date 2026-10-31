@@ -35,6 +35,8 @@ struct WeightStepperButton: View {
                 .scaledToFit()
                 .foregroundStyle(palette.stepperGlyph)
                 .frame(width: 16, height: 16)
+                // A triangle's weight sits toward its base, so it is nudged toward its point to look centered.
+                .offset(y: direction == .decrement ? 1.5 : -1.5)
                 .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
                 .background(palette.pillFill, in: .circle)
                 .themeElevation(palette.lighting.raisedControlShadow, in: Circle())

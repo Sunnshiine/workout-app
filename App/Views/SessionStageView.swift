@@ -170,14 +170,7 @@ struct SessionStageView: View {
                 isQueuePresented = true
             } label: {
                 Image(systemName: "square.stack")
-                    .themeFont(.queuePill)
-                    .foregroundStyle(palette.textPrimary)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 9)
-                    .background(palette.footFill, in: .capsule)
-                    .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
+                    .footPill(palette)
             }
             .buttonStyle(.plain)
             .accessibilityShowsLargeContentViewer {
@@ -454,6 +447,20 @@ extension View {
     }
 }
 
+extension View {
+    /// The quiet glyph pill at a page's foot: the stage's queue button and the Block grid's Settings.
+    func footPill(_ palette: Theme.Palette) -> some View {
+        themeFont(.queuePill)
+            .foregroundStyle(palette.textPrimary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .background(palette.footFill, in: .capsule)
+            .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+    }
+}
+
 /// The Move On affordance, shown on the completion stage and in the queue
 /// sheet footer.
 struct SessionMoveOnButton: View {
@@ -464,10 +471,8 @@ struct SessionMoveOnButton: View {
     var body: some View {
         Button(action: onTap) {
             Text("Move On")
-                .themeFont(.logCapsule)
+                .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
                 .background(palette.actionFill, in: .capsule)
         }
         .buttonStyle(.pressScale)

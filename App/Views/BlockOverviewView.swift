@@ -80,10 +80,7 @@ struct BlockOverviewView: View {
             presented = .settings
         } label: {
             Image(systemName: "gearshape")
-                .themeFont(.queuePill)
-                .foregroundStyle(palette.textSecondary)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(.rect)
+                .footPill(palette)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings")
