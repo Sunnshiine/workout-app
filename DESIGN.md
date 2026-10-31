@@ -138,10 +138,32 @@ The app icon's mark inside the app, its timing, and the bird's two perches:
 
 ## 7. Motion & Haptics
 
-Custom motion is confined to **three growth moments**, all on the wing ease. Every piece of chrome,
-the Log capsule included, rides stock system springs. Do not add decorative motion.
+Motion is feedback, never decoration: each move answers the athlete's hand, shows where something
+went, or bridges a change that would otherwise jump. These rules replace the three-growth-moments
+rule under the operator's brief of 2026-10-31: "Where Emil's recommendation conflicts with an
+existing rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
 
-The three moments' timings, the haptics, hold-to-skip timing, and reduced motion:
+**The Ink Answers the Hand.** Whatever a log or a skip causes starts moving on the frame its haptic
+lands, on the ink ease, a strong ease-out. Nothing a tap causes eases in. The wing ease eases in, so
+it belongs to the Move On ceremony alone.
+
+**Frequency Sets the Budget.** What the athlete sees every Set, the leaf, the bud, the press, and the
+header's count, finishes inside 0.42 s. Occasional surfaces such as a confirmation card take about
+0.2 s. Only the rare moments, the Move On ceremony and onboarding, may run longer.
+
+**The Press Sinks.** The Log capsule, the weight steppers, and every primary capsule sink to 0.97
+on touch-down on the snappy press spring, and return when the finger lifts or leaves.
+
+**Exits Are Quieter.** A surface the athlete dismisses leaves faster than it came, about 0.15 s
+against 0.2 s, along the path it entered by.
+
+**One Entrance.** A view plays one entrance. A beat or a pulse that would land on top of a reveal is
+cut.
+
+Sheets, navigation, and system controls keep their stock iOS motion. Reduce Motion turns movement
+into short cross-fades, never into nothing.
+
+The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 [docs/design/motion-and-haptics.md](docs/design/motion-and-haptics.md).
 
 ## 8. Every screen
