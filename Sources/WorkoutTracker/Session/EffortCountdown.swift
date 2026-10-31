@@ -26,7 +26,7 @@ enum CountdownCue: Equatable, Sendable {
     var haptic: Haptic {
         switch self {
         case .leadIn, .closing: .rest(.lightTap)
-        case .begins: .input(Theme.Haptics.effortBegins)
+        case .begins: .input(Theme.Haptics.logTap)
         case .ends: .rest(.expiryBuzz)
         }
     }

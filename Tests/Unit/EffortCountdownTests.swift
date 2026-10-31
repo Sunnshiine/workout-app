@@ -73,7 +73,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
     let hold = TimedEffort.openingHold(try seconds(10))
 
     #expect(CountdownCue.leadIn(5).haptic == .rest(.lightTap))
-    #expect(CountdownCue.begins(hold).haptic == .input(Theme.Haptics.effortBegins))
+    #expect(CountdownCue.begins(hold).haptic == .input(Theme.Haptics.logTap))
     #expect(CountdownCue.closing(3).haptic == .rest(.lightTap))
     #expect(CountdownCue.ends(hold).haptic == .rest(.expiryBuzz))
 }

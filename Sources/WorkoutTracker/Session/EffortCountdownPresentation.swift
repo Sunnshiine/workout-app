@@ -37,7 +37,7 @@ extension EffortDuration {
     }
 }
 
-/// What the card's face shows of an Effort Countdown at one instant (DESIGN.md §5.2).
+/// What the card's face shows of an Effort Countdown at one instant.
 struct EffortCountdownFace: Equatable {
     /// `Get set` through the Lead-in, `Hold` or `Go` through the effort, `Done` or `Time` after.
     let caption: String

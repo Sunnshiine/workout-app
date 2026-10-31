@@ -58,7 +58,7 @@ struct EffortCountdownView: View {
                     .font(Theme.font(.heading))
                     .foregroundStyle(palette.textSecondary)
                 Text(face.numeral)
-                    .font(Theme.font(.countdownNumeral))
+                    .font(Theme.font(.weightEntry))
                     .foregroundStyle(palette.textPrimary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
