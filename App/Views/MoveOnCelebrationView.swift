@@ -5,6 +5,7 @@ struct MoveOnCelebrationView: View {
 
     @Environment(\.themePalette) private var palette
     @State private var presentation: MoveOnCelebrationPresentation
+    @AccessibilityFocusState private var isTitleFocused: Bool
 
     init(
         session: Session,
@@ -35,10 +36,13 @@ struct MoveOnCelebrationView: View {
             .accessibilityLabel(presentation.accessibilityLabel)
             .accessibilityValue(presentation.accessibilityValue)
             .accessibilityIdentifier("move-on-celebration")
+            // The stage stays in the tree under this overlay, so the trait keeps VoiceOver off it.
+            .accessibilityAddTraits(.isModal)
         }
         .preferredColorScheme(palette.preferredColorScheme)
         .task {
             HapticPlayer.shared.play(.moveOn)
+            isTitleFocused = true
         }
     }
 
@@ -54,6 +58,8 @@ struct MoveOnCelebrationView: View {
                 .foregroundStyle(palette.textPrimary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityFocused($isTitleFocused)
                 .accessibilityIdentifier("move-on-celebration-title")
 
             CeremonyBranch()

@@ -213,6 +213,7 @@ struct SessionStageView: View {
             }
             .buttonStyle(.plain)
             .givingBackHitOutset(HitOutset.textLine)
+            .accessibilityLabel("Up next, \(upNext.title)")
             .accessibilityIdentifier("stage-up-next")
             .opacity(isResting ? 0 : 1)
             .accessibilityHidden(isResting)

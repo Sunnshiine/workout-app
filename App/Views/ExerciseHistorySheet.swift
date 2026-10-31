@@ -10,6 +10,7 @@ struct ExerciseHistorySheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showVolume: Bool
     @State private var expandedWells: Set<String> = []
+    @AccessibilityFocusState private var isTitleFocused: Bool
 
     init(
         presentation: ExerciseHistorySheetPresentation,
@@ -56,6 +57,7 @@ struct ExerciseHistorySheet: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }
+        .task { isTitleFocused = true }
     }
 
     private var header: some View {
@@ -64,6 +66,7 @@ struct ExerciseHistorySheet: View {
                 Text(presentation.title)
                     .themeFont(.sheetTitle)
                     .foregroundStyle(palette.textPrimary)
+                    .accessibilityFocused($isTitleFocused)
                 Text(presentation.subtitle)
                     .themeFont(.queuePill)
                     .foregroundStyle(palette.textSecondary)

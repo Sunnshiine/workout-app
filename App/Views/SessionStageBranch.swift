@@ -90,6 +90,8 @@ struct SessionStageBranch: View {
                         glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength)
                     )
                     .position(centers[index])
+                    // The stem climbs and its leaves alternate sides, so screen order is not Set order.
+                    .accessibilitySortPriority(Double(stem.count - index))
                 }
             }
             // A node leaving or joining mid-ink keeps the frame it had when it left or joined. Grouped,

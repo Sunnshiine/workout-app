@@ -168,7 +168,6 @@ struct BlockOverviewView: View {
             }
             .buttonStyle(.plain)
             .givingBackHitOutset(hitOutset(variant))
-            .accessibilityElement(children: .ignore)
             .accessibilityLabel(tile.accessibilityLabel)
             .accessibilityValue(tile.accessibilityValue)
             .accessibilityIdentifier(tile.accessibilityIdentifier)

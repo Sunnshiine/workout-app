@@ -61,7 +61,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         app.buttons["session-location-button"].tap()
         XCTAssertTrue(app.navigationBars["Block 27"].appears(within: 3))
 
-        app.otherElements["session-tile-W1-D3"].tap()
+        app.buttons["session-tile-W1-D3"].tap()
         waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
         XCTAssertTrue(app.buttons["go-back-current-session-button"].appears(within: 3))
         XCTAssertTrue(app.buttons["make-current-session-button"].exists)
@@ -212,7 +212,7 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         let app = launchWorkoutApp(fixture: .currentSession, dictating: "235 for 5 at 7")
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
         app.buttons["session-location-button"].tap()
-        app.otherElements["session-tile-W1-D3"].tap()
+        app.buttons["session-tile-W1-D3"].tap()
         waitForLabel("Open Block Overview for Week 1, Day 3", on: app.buttons["session-location-button"])
         app.buttons["session-location-button"].tap()
         tapWhenHittable(app.buttons["block-overview-settings-row"])

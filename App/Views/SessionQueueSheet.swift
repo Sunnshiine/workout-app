@@ -14,6 +14,7 @@ struct SessionQueueSheet: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var movesOnWhenDismissed = false
     @State private var isScrolled = false
+    @AccessibilityFocusState private var isTitleFocused: Bool
 
     private var isPairing: Bool {
         queue.isPairing
@@ -31,6 +32,7 @@ struct SessionQueueSheet: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }
+        .task { isTitleFocused = true }
         .onDisappear {
             coordinator.cancelPairing()
             if movesOnWhenDismissed { coordinator.moveOn() }
@@ -89,6 +91,7 @@ struct SessionQueueSheet: View {
             Text("This Session")
                 .themeFont(.sheetTitle)
                 .foregroundStyle(palette.textPrimary)
+                .accessibilityFocused($isTitleFocused)
 
             Spacer(minLength: 12)
 
