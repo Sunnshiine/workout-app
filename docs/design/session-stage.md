@@ -188,7 +188,7 @@ foliage *is* the leaf pigment — the partner subordinates by **translucency**
 instead (foliage @ 0.55). Day quiets by pigment, night by translucency.
 The partner name line holds one line and truncates, so under a two-line
 Exercise name the branch keeps its room on an SE. Tapping it brings the
-partner's whole name to the stage.
+partner's name to the stage.
 
 Coach note, Last Performed, and the Active Set Card follow the focus (the
 card head stays plain `Set N of M`); the foot's up-next names the partner's
@@ -216,5 +216,5 @@ row this short (#870). The header holds one height whether it shows the
 button, the X, or nothing, so the title never moves (operator rulings
 2026-10-11 and 2026-10-12: self-describing icons over words, V3's stem in
 V1's icon-only header button). The queue sheet itself is living paper (§2).
-A row's Exercise name runs two lines at most, so the queue reads whole a
-name the stage truncated.
+A row's Exercise name runs two lines at most in a smaller face, so the queue
+shows more of a name the stage truncated.

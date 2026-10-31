@@ -199,7 +199,7 @@ enum SessionPageHost {
 
     /// The `worst-case` workbook's Current Session as the app boots into it, with no history: its
     /// Cadence-prefixed mega-name and paragraph Coach Note on stage, alone or in a Superset with
-    /// the long-named two-Line row.
+    /// the long-named two-Line Exercise.
     static func worstCaseLayouts(_ stage: StageKind, windowHeights: [CGFloat]) throws -> [PageFrames] {
         let scenario = try WorkoutScenarios.freshConfiguredApp(block: WorkbookScenario.worstCase.block())
         VisualFixtureRetainer.retain(scenario)

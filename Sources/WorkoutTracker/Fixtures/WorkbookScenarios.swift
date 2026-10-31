@@ -40,7 +40,7 @@
         case blockOverviewWithMixedSessionStates = "block-overview-with-mixed-session-states"
         /// The longest and oddest cells a coach realistically types, for finding where the UI breaks:
         /// a Cadence-prefixed mega-name with a paragraph Coach Note and a text Load, a four-digit
-        /// Set Log beside an Unstructured one, a two-Line row with a range and a timed Reps cell, a
+        /// Set Log beside an Unstructured one, a two-Line Exercise with a range and a timed Reps cell, a
         /// three-letter name, and twelve one-rep Sets. Every other Session of its four Weeks holds
         /// one long-named Exercise.
         case worstCase = "worst-case"
