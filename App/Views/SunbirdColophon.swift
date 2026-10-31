@@ -65,7 +65,7 @@ struct SunbirdColophon: View {
         .compositingGroup()
         .frame(width: diameter, height: diameter)
         // Light-glass physics (#370): a soft drop shadow lifts the disc off the paper.
-        .shadow(color: .black.opacity(0.18), radius: diameter * 0.10, y: diameter * 0.06)
+        .shadow(color: Theme.Paint.ink.opacity(0.18), radius: diameter * 0.10, y: diameter * 0.06)
         .accessibilityHidden(true)
     }
 }

@@ -185,7 +185,7 @@ private struct SheetTabGrid: View {
         .padding(.vertical, Theme.blockFocusCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(isCurrent ? palette.lighting.focusCardFill : palette.weekCardShade, in: shape)
-        .themeElevation(isCurrent ? palette.lighting.focusCardElevation : Theme.LightKit.cardLow, in: shape)
+        .themeElevation(isCurrent ? palette.lighting.focusCardElevation : palette.lighting.weekCardElevation, in: shape)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("sheet-tab-day-\(day.number)")
     }

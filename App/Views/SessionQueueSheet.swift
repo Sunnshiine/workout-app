@@ -120,7 +120,7 @@ struct SessionQueueSheet: View {
             }
             .frame(width: Self.headerButtonSize, height: Self.headerButtonSize)
             .background(Circle().fill(palette.pillFill))
-            .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
+            .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
             .contentShape(Circle())
         }
         .buttonStyle(.plain)

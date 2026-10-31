@@ -132,7 +132,7 @@ private let quietRoles: [String: String] = [
     "skipStroke": "a deliberately quiet dashed outline for a skipped Set; its label says Skipped",
     "supersetPartnerBranch": "the partner's branch, quieted on purpose so the focused branch leads",
     "pillStroke": "a hairline edge; the pill's fill carries the shape",
-    "queueStroke": "a hairline edge; the foot pill's fill carries the shape",
+    "queueStroke": "a hairline edge or divider; the tile, banner, or row it bounds carries the shape",
     "tileGhostStroke": "the dashed outline of an empty bed, quiet by design",
     "chipCarveShadow": "an inset shadow that carves the chip",
     "chipCarveEdge": "the highlight lip below a carved chip",

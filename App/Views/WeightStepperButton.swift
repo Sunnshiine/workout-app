@@ -29,7 +29,7 @@ struct WeightStepperButton: View {
                 .frame(width: 16, height: 16)
                 .frame(width: Theme.weightStepperDiameter, height: Theme.weightStepperDiameter)
                 .background(palette.pillFill, in: .circle)
-                .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
+                .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
         }
         .buttonStyle(.plain)
         // The plain style keeps its pressed and disabled dims; the Log capsule's press scale rides on top (§5.3).

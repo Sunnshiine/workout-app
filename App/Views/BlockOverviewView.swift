@@ -142,7 +142,7 @@ struct BlockOverviewView: View {
         .padding(Theme.blockWeekCardPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
-        .themeElevation(Theme.LightKit.cardLow, in: .rect(cornerRadius: Theme.Radius.card))
+        .themeElevation(palette.lighting.weekCardElevation, in: .rect(cornerRadius: Theme.Radius.card))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("week-card-W\(week.weekNumber)")
     }
