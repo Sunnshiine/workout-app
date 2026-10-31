@@ -118,10 +118,11 @@ per layout, not tokenized.
 
 | Role | Day | Night |
 |---|---|---|
-| `surface` (the one soft container) | cream @ 52% | cream @ 7% |
-| `surfaceShadow` | `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
+| `surface` (the Active Set Card) | cream @ 52% | cream @ 7% |
+| `surfaceShadow` (lifted card) | `inset 0 0 0 1px` ink @ 5%, `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
 | `pillFill` (stepper buttons) | cream @ 85% | cream @ 6% |
-| `pillStroke` | `rgba(82,111,90,0.34)` | cream @ 16% |
+| `pillStroke` (state outlines only; raised controls take `raisedControlShadow`) | `rgba(82,111,90,0.34)` | cream @ 16% |
+| `raisedControlShadow` (steppers, queue pill, header and countdown buttons, volume control) | `inset 0 0 0 1px` ink @ 8%, `cardLow` | `inset 0 0 0 1px` cream @ 14% |
 | `stepperGlyph` (weight ±) | actionDay | cream |
 | `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
 | rail chip selected | cream fill + inset 2px `action` ring | same recipe, night values |
@@ -161,7 +162,8 @@ composition itself are locked by #455.
 | tile top-light | `radial-gradient(90% 160% at 78% -30%, rgba(255,255,245,0.85), transparent 55%)` |
 | `tileGhostStroke` (empty bed: un-uploaded day; dashed = "empty bed" incl. Skipped, amending #419) | muted @ 38%, 1.5px dashed |
 | tile partial | `pillFill` + bottom bar in `tileComplete`, height quantized quarters |
-| `weekCardShade` (collapsed, in shade) | `rgba(226,233,214,0.72)`, border muted @ 22%, `cardLow` |
+| `weekCardShade` (collapsed, in shade) | `rgba(226,233,214,0.72)`, edge and drop from `weekCardElevation` |
+| `weekCardElevation` (card in shade) | `inset 0 0 0 1px` ink @ 6%, `cardLow`; Night: `inset 0 0 0 1px` cream @ 10% |
 | focus card (morning light) | `rgba(248,251,238,0.96)`, glow rim `cardLow, 0 0 0 5px rgba(250,252,238,0.5), 0 6px 30px rgba(228,240,200,0.95)` |
 | `cardLow` | `0 1px 2px rgba(21,33,24,0.06), 0 3px 8px rgba(21,33,24,0.07)` |
 | page sunbeam | `radial-gradient(120% 85% at 82% -8%, rgba(253,254,242,0.85), rgba(250,252,238,0.28) 46%, transparent 70%)` |
@@ -170,7 +172,7 @@ composition itself are locked by #455.
 
 | Role | Value (day) |
 |---|---|
-| `sheetFill` | `#EFF4E4`, radius 30 top shoulders, shadow `0 -8px 40px rgba(21,33,24,0.18)` |
+| `sheetFill` | `#EFF4E4`, the system's sheet corners, shadow `0 -8px 40px rgba(21,33,24,0.18)` |
 | `chipCarvedFill` (the app's only below-flat elevation) | ink @ 5.5% + `inset 0 1px 2px rgba(21,33,24,0.14), 0 1px 0 rgba(255,255,255,0.6)` |
 | chip padding | 4pt vertical, 10pt horizontal |
 | volume control raised | cream @ 90% + raised shadow |
@@ -255,15 +257,18 @@ Made **ETC** (easier to change), not merely frozen:
 
 ## 6. Radius family
 
-Named tokens, concentric-nesting logic (inner radius ≈ outer − inset); no
-view invents a radius outside the family. Approved pixel values are kept —
+Named tokens, concentric-nesting logic: a container whose corner holds a
+rounded child takes the child's radius plus the inset (DESIGN.md §4, The
+Concentric Corner Rule). Sheets take the system's corners. No view invents
+a radius outside the family. Approved pixel values are kept —
 not rounded to a prettier scale.
 
 | Token | Value | Used by |
 |---|---|---|
 | `capsule` | ∞ (999) | all controls: pills, steppers, queue pill, Log capsule, ledger chips, volume control |
-| `soft` | 30 | the one soft container: Active Set Card, ceremony stats, sheet shoulders |
-| `focusCard` | 24 | the Block grid's focus card |
+| `activeSetCard` | 43 | the Active Set Card: concentric with the Log capsule (≈29 half-height + 14 inset) |
+| `soft` | 30 | ceremony stats, the Settings confirmation card |
+| `focusCard` | 31 | the Block grid's focus card: concentric with its tiles (15 + 16 padding) |
 | `card` | 20 | collapsed week cards |
 | `rail` | 18 | reps/RPE rails |
 | `tile` | 15 | day tiles |

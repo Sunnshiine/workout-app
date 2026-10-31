@@ -154,6 +154,7 @@ extension Theme {
     private static func dayEdge(_ opacity: Double) -> BoxShadow {
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.ink.opacity(opacity), inset: true)
     }
+
     private static let nightSurface = Paint.cream.opacity(0.07)
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
