@@ -130,7 +130,7 @@ enum SpokenWord: Equatable, Sendable {
     private static let entries: [(words: [String], word: SpokenWord)] = [
         (["zero"], .unit(0)), (["one"], .unit(1)), (["two"], .unit(2)), (["three"], .unit(3)),
         (["four"], .four),
-        (["five"], .unit(5)), (["six"], .unit(6)), (["seven"], .unit(7)), (["eight", "ate", "age"], .unit(8)), (["nine"], .unit(9)),
+        (["five"], .unit(5)), (["six"], .unit(6)), (["seven"], .unit(7)), (["eight", "ate", "age", "gate"], .unit(8)), (["nine"], .unit(9)),
         (["ten"], .teen(10)), (["eleven"], .teen(11)), (["twelve"], .teen(12)), (["thirteen"], .teen(13)),
         (["fourteen"], .teen(14)), (["fifteen"], .teen(15)), (["sixteen"], .teen(16)), (["seventeen"], .teen(17)),
         (["eighteen"], .teen(18)), (["nineteen"], .teen(19)),

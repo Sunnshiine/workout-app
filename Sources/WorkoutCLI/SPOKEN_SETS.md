@@ -93,8 +93,8 @@ where a word next to it, or the phrase around it, says which, never by its place
   "one thousand", "a thousand and five", "one thousand five hundred", "eleven hundred", "ten fifty",
   "eight and a half", "8 1/2", "8½", "one eighty seven point five", a clock-style "1:35" for 135,
   and "1,005", where a comma before exactly three digits separates thousands ("135,8" stays 135 and 8).
-  "ate" and "age" are 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for a
-  triple at 8") and never part of a number word ("one eighty single for 5" is `ambiguous`), and
+  "ate", "age", and "gate" are 8, "single", "double", and "triple" are 1, 2, and 3 reps ("225 for
+  a triple at 8") and never part of a number word ("one eighty single for 5" is `ambiguous`), and
   "to" or "too" is 2 only where a number is asked for. Number words in a row that
   make no one number, as "nine five", are `ambiguous`. A tens word and a unit after it are always
   one number, so "forty four five" is 44 and an unplaced 5, `ambiguous`.

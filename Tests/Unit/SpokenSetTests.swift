@@ -116,9 +116,11 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
 }
 
 /// Verbatim from the matrix: what the recognizer writes for Karen's "eight".
-@Test func ageIsEight() {
+@Test func ageAndGateAreEight() {
     #expect(SpokenSet.parse("10 for 12 at age.") == values(.pounds(10), 12, .eight))
     #expect(SpokenSet.parse("£135 for age.") == values(.pounds(135), 8, nil))
+    #expect(SpokenSet.parse("135 gate reps, RPE 9.") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135 for 4, gate rebs, RPE 9.") == .failure(.conflicting(.reps)))
 }
 
 /// Verbatim from the matrix: "felt like" is how a lifter says the RPE.
