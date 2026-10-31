@@ -48,10 +48,8 @@ PNGs in the issue comment — that's where review actually happens.
    question, the variant list and how to switch, and "Throwaway — never merges.
    Close when the question is answered." This PR doubles as the skill's capture
    branch: the primary source survives here when it closes unmerged.
-3. **Ship it.** Apply the `testflight` label. One label application builds the
-   current head once; the workflow removes the label when the run starts, so
-   after a push just apply it again for a new build. Label semantics and the
-   pipeline live in `docs/ci/testflight.md`.
+3. **Ship it.** Apply the `testflight` label. Label semantics and the pipeline
+   live in `docs/ci/testflight.md`.
 4. **Hand over.** The workflow posts a receipt comment when the build is
    installable. Point the user at **WT Dev** in TestFlight and restate the variants
    and switcher. Dev builds run against the live Sheets API — remind them to point

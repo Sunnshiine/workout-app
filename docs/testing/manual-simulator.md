@@ -35,10 +35,3 @@ The app opens to **OnboardingView** on a fresh install (no sign-in, no sheet con
 To start fresh (re-trigger onboarding):
 
 - **Delete the app** from the simulator home screen → reinstall via Cmd+R
-
-Or from the Xcode menu: **Product → Scheme → Edit Scheme → Arguments** and add a launch argument to clear defaults on boot — or just delete and reinstall, it's faster.
-
-## Running via xcodebuild (no Xcode GUI)
-
-`AGENTS.md` lists the `xcodebuild build-for-testing` command, which builds the app and its test
-bundles. Cmd+R in Xcode is the quickest way to install and run the build.

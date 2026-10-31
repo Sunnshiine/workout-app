@@ -78,11 +78,6 @@ out explicitly (PR #505 build 49 is the case study).
 Concurrency groups `testflight-stable` / `testflight-pr-<number>` cancel
 in-progress runs — newest wins, stale archives stop.
 
-**Fallback** (documented, not built): if cloud signing proves flaky on hosted
-runners, fastlane `match` with a private cert-store repo is the researched
-alternative — see the
-[pipelines research](../research/2026-07-11-testflight-upload-pipelines.md).
-
 ## Secrets
 
 All live in GitHub → repo **Settings → Secrets and variables → Actions**.
