@@ -16,7 +16,7 @@ Highest authority first. When two conflict, follow the higher one and name the c
 3. `docs/design/greenhouse-picks/`, the approved renders. Prose wins where a pick disagrees.
 4. `Sources/WorkoutTracker/Theme.swift` and the shared views in `App/Views/`.
 5. Shipped code elsewhere. It shows what shipped, not what was decided.
-6. Outside skills, all optional and absent in Sandcastle: `apple-design` and `emil-design-eng` for craft, `write-swift` for the Swift. Translate Emil's CSS guidance to SwiftUI springs, `HapticPlayer`, and Reduce Motion, inside §7's limit on custom motion.
+6. Outside skills, all optional and absent in Sandcastle: `apple-design` and `emil-design-eng` for craft, `emil-unslop-design` for Review and step 5, `write-swift` for the Swift. Translate Emil's CSS guidance to SwiftUI springs, `HapticPlayer`, and Reduce Motion, inside §7's limit on custom motion.
 
 ## Modes
 
@@ -34,7 +34,7 @@ A design ticket gets two sessions. A third happens only when the operator asks f
 2. Read `PRODUCT.md`, `DESIGN.md`, and the spec and picks for each affected screen in full. List the open candidates with `gh issue list --label design-candidate --state open`. A candidate binds nothing, but one that matches this work is feedback the operator has already given.
 3. Build from `Theme` roles and the existing views. When the work needs a value, component, or behaviour no rule covers, run Explore on it before building.
 4. Verify through the [verify skill](../verify/SKILL.md). Screenshot every affected state in Day and Night (`-UITEST_APPEARANCE light` and `dark`). A system surface (Settings, alerts, the destructive confirmation card) also gets the largest Dynamic Type size, because §3 The Product Scale Rule fixes every other size. Film motion per the verify skill's [motion.md](../verify/motion.md), and check Reduce Motion against `docs/design/motion-and-haptics.md`. Open each screenshot and check it against every rule whose scope covers the screen.
-5. Before the operator sees a design, have a separate subagent grade its screenshots against `PRODUCT.md`'s Design Principles and Anti-references, DESIGN.md §8, and the Named Rules of each section the work touches. It marks each one pass or fail with the evidence, is told to be skeptical, and is calibrated on the picks in `docs/design/greenhouse-picks/`. Fix what fails. Its grade is advice, and the operator decides.
+5. Before the operator sees a design, have a separate subagent grade its screenshots against `PRODUCT.md`'s Design Principles and Anti-references, DESIGN.md §8, and the Named Rules of each section the work touches. It marks each one pass or fail with the evidence, is told to be skeptical, and is calibrated on the picks in `docs/design/greenhouse-picks/`. It also runs `emil-unslop-design`'s subtract-first walk and final audit when installed, and drops any finding a written rule decided, such as the paper washes, the One Glow, or the colophon's glass. Fix what fails. Its grade is advice, and the operator decides.
 6. Report.
 7. Run **Lessons** on every piece of design feedback the operator gives.
 
