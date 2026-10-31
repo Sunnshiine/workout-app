@@ -53,9 +53,9 @@ extension Theme {
 
     /// A single CSS box-shadow transcribed verbatim from the token sheet. Offsets, `blur` and
     /// `spread` keep the sheet's px values; `swiftUIRadius` maps CSS blur onto SwiftUI's radius
-    /// (≈ blur / 2). `isInset` distinguishes the night "border-as-light" recipes (an inset stroke,
-    /// not a drop) from the day drops. These are foundation roles: later composition slices consume
-    /// them, so slice 1 verifies the values behind the seam even before a view reads them.
+    /// (≈ blur / 2). A shadow is one of three things: a drop, an inset edge (`isInset`, the
+    /// translucent 1px ring that stands in for a border, in Day and Night alike), or an outer ring
+    /// (`isRing`, CSS `0 0 0 Npx`, a halo `spread` wide outside the shape).
     struct BoxShadow: Equatable {
         let xOffset: CGFloat
         let yOffset: CGFloat
@@ -85,6 +85,10 @@ extension Theme {
 
         /// The nearest SwiftUI `.shadow(radius:)` for this CSS blur.
         var swiftUIRadius: CGFloat { blur / 2 }
+
+        /// An unblurred outer spread, which a SwiftUI shadow cannot draw, so `Elevation` strokes it
+        /// outside the shape instead.
+        var isRing: Bool { !isInset && blur == 0 && spread > 0 }
     }
 
     /// A radial light recipe with explicit multi-stop colour ramp (the page sunbeam and a tile's
@@ -106,7 +110,8 @@ extension Theme {
     }
 
     enum LightKit {
-        /// The collapsed week card's quiet shade (`cardLow`) — it sits "in shade" under the focus card.
+        /// The quiet two-drop shade (`cardLow`) the Day week card, raised control and focus card
+        /// recipes build on.
         static let cardLow: [BoxShadow] = [
             BoxShadow(y: 1, blur: 2, color: Paint.ink.opacity(0.06)),
             BoxShadow(y: 3, blur: 8, color: Paint.ink.opacity(0.07))
@@ -163,9 +168,9 @@ extension Theme.Palette {
 // MARK: - Elevation
 
 extension View {
-    /// Applies a token-sheet elevation recipe (`surfaceShadow`, `logShadow`, the light kit). Drop
-    /// shadows stack as SwiftUI shadows; an inset recipe — the Night "border-as-light" — renders as
-    /// an inset stroke on `shape` instead of a drop (token sheet §Active Set Card / §Log capsule).
+    /// Applies a token-sheet elevation recipe (`surfaceShadow`, `logShadow`, the `Lighting`
+    /// recipes). Drop shadows stack as SwiftUI shadows, an inset edge strokes inside `shape`, and
+    /// an outer ring strokes outside it.
     func themeElevation(_ shadows: [Theme.BoxShadow], in shape: some InsettableShape) -> some View {
         modifier(Theme.Elevation(shadows: shadows, shape: shape))
     }
@@ -195,12 +200,12 @@ extension Theme {
         let shadows: [BoxShadow]
         let shape: Bed
 
-        /// The most drop shadows a recipe holds: the day focus card's.
-        static var dropSlotCount: Int { 4 }
+        /// The most drop shadows a recipe holds: the day focus card's three.
+        static var dropSlotCount: Int { 3 }
 
         /// The drop shadows of `shadows` in `dropSlotCount` slots, an unused slot holding a clear one.
         static func dropSlots(for shadows: [BoxShadow]) -> [BoxShadow] {
-            let drops = shadows.filter { !$0.isInset }
+            let drops = shadows.filter { !$0.isInset && !$0.isRing }
             assert(drops.count <= dropSlotCount, "an elevation recipe holds more drop shadows than Elevation has slots")
             return drops + Array(repeating: .clear, count: max(dropSlotCount - drops.count, 0))
         }
@@ -208,8 +213,9 @@ extension Theme {
         // A recipe gets the same chain of shadows in every palette. A chain as long as the recipe
         // gave Day and Night different view types, so the system's appearance flip for the app
         // switcher's snapshot rebuilt every elevated view and dropped its state, as a weight
-        // dialled on the Active Set Card. Only an empty recipe, empty in every palette, skips the
-        // chain, since even a clear shadow redraws the edges under it.
+        // dialled on the Active Set Card. Rings and inset edges go through a ForEach for the same
+        // reason. Only an empty recipe, empty in every palette, skips the chain, since even a clear
+        // shadow redraws the edges under it.
         @ViewBuilder
         func body(content: Content) -> some View {
             if shadows.isEmpty {
@@ -220,8 +226,12 @@ extension Theme {
                     .drop(drops[0])
                     .drop(drops[1])
                     .drop(drops[2])
-                    .drop(drops[3])
                     .overlay {
+                        // Above the drops, as CSS paints a ring listed before a glow; outside the
+                        // shape, so it covers none of the content.
+                        ForEach(Array(shadows.filter(\.isRing).enumerated()), id: \.offset) { _, shadow in
+                            shape.inset(by: -shadow.spread).strokeBorder(shadow.color, lineWidth: shadow.spread)
+                        }
                         ForEach(Array(shadows.filter(\.isInset).enumerated()), id: \.offset) { _, shadow in
                             shape.strokeBorder(shadow.color, lineWidth: max(shadow.spread, 1))
                         }

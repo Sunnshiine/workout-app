@@ -202,10 +202,10 @@ func everyElevationRecipeFitsElevationsShadowSlots(appearance: Theme.Appearance)
     let palette = Theme.palette(for: appearance)
     let recipes = [
         palette.surfaceShadow, palette.logShadow, palette.lighting.raisedControlShadow,
-        palette.lighting.focusCardElevation, palette.lighting.currentTileGlow, Theme.LightKit.cardLow
+        palette.lighting.weekCardElevation, palette.lighting.focusCardElevation, palette.lighting.currentTileGlow
     ]
     for recipe in recipes {
-        let drops = recipe.filter { !$0.isInset }
+        let drops = recipe.filter { !$0.isInset && !$0.isRing }
         let slots = Theme.Elevation<Capsule>.dropSlots(for: recipe)
         #expect(slots.count == Theme.Elevation<Capsule>.dropSlotCount)
         #expect(Array(slots.prefix(drops.count)) == drops)
