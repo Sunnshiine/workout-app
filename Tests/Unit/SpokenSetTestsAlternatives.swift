@@ -159,8 +159,20 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
     )
 }
 
+/// Verbatim from the matrix: Samantha says "80 for 5 at 8" at rate 240, and the top transcript
+/// loses the 0 that an alternative heard.
+@Test func anAlternativeWhoseFirstNumberIsTheTopsWithAZeroAfterItKeepsTheTopFromWriting() {
+    #expect(SpokenSet.parse(candidates: ["8 for 5 at 8.", "80 for 5 at 8.", "8 for 5 and 8.", "8 for 5 at eight."]) == .failure(.ambiguous))
+    #expect(
+        SpokenSet.parse(candidates: ["185 for 5 at 8", "1850 for 5 at 8"])
+            == chosen(.values(weight: .heard(.pounds(1850)), reps: .heard(5), rpe: .heard(.eight)), from: .alternative)
+    )
+}
+
 @Test func anAlternativeWhoseFirstNumberIsShorterOrEndsOtherwiseLeavesTheTopAsRead() {
     #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "85 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
+    #expect(SpokenSet.parse(candidates: ["185 for 5 at 8.", "18545 at 8."]) == chosen(values(.pounds(185), 5, .eight)))
+    #expect(SpokenSet.parse(candidates: ["8 for 5 at 8", "85 for 5 at 8"]) == chosen(values(.pounds(8), 5, .eight)))
     #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "1855 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
     #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "two 185 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
 }

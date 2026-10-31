@@ -65,7 +65,9 @@ where a word next to it, or the phrase around it, says which, never by its place
   for 12 at 8" logs 10x12@8 rather than the card's weight, and "reps at 135" beside "8 reps at 135"
   logs 135x8. Two that restore it differently, as "10 for 12 at 8" and "20 for 12 at 8", are
   `ambiguous`. An alternative whose first number is longer than the top's and ends in it may have
-  heard the start the top lost, so "25 for 3 add 8" beside "225 for 3 add 8" is `ambiguous`.
+  heard the start the top lost, so "25 for 3 add 8" beside "225 for 3 add 8" is `ambiguous`, and one
+  whose first number is the top's with a 0 after it may have heard the 0 the top lost, so "8 for 5 at
+  8" beside "80 for 5 at 8" is `ambiguous`.
 - Where the top has a number no word places, an alternative that is the top with only "at" added
   heard the "at" the top lost, and stands in for the top when every such alternative that reads
   agrees: "275 for 4 9" beside "275 for 4 at 9" logs 275x4@9. Any other word added leaves it a

@@ -176,12 +176,14 @@ extension SpokenSet {
     /// is the top with only "at" added, as "275 for 4 at 9" is "275 for 4 9", heard the "at" the top
     /// lost: those alternatives read the Set when every one that reads agrees. One whose first number
     /// is longer and ends in the top's, as "225 for 3 add 8" beside "25 for 3 add 8", either heard the
-    /// start of that number or misheard it, as "18" for "eight", so the top is ambiguous.
+    /// start of that number or misheard it, as "18" for "eight", and one whose first number is the
+    /// top's with a 0 after it, as "80 for 5 at 8" beside "8 for 5 at 8", heard the 0 the top lost or
+    /// misheard it, so the top is ambiguous.
     private static func parse(_ top: String, restoringWhatItLostFrom alternatives: ArraySlice<String>) -> Result<SpokenSet, Rejection> {
         let words = SpokenTranscript.words(in: top)
         guard words.contains(where: { !SpokenWord($0).isFiller }) else { return parse(top) }
         let heard = alternatives.map(SpokenTranscript.words(in:))
-        guard !heard.contains(where: { startsWithALongerNumber($0, endingInTheFirstOf: words) }) else { return .failure(.ambiguous) }
+        guard !heard.contains(where: { startsWithALongerNumber($0, holdingTheFirstOf: words) }) else { return .failure(.ambiguous) }
         let restored = heard.filter { $0.count > words.count && $0.suffix(words.count).elementsEqual(words) }
         return agreedReading(of: restored) ?? parse(top).flatMapError { restoringAnAt(words, from: heard, else: $0) }
     }
@@ -216,9 +218,9 @@ extension SpokenSet {
         return rest.isEmpty
     }
 
-    private static func startsWithALongerNumber(_ alternative: [String], endingInTheFirstOf words: [String]) -> Bool {
+    private static func startsWithALongerNumber(_ alternative: [String], holdingTheFirstOf words: [String]) -> Bool {
         guard let number = alternative.first, let top = words.first, (number + top).allSatisfy(\.isNumber) else { return false }
-        return number.count > top.count && number.hasSuffix(top)
+        return number.count > top.count && (number.hasSuffix(top) || number == top + "0")
     }
 
     /// This Set with the value the recognizer cut off heard from the alternatives that hear every
