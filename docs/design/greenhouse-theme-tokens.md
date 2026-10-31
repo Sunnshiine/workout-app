@@ -217,7 +217,7 @@ tabular** (#411).
 | `setNumber` / `setOf` | SS3 | 16pt / 700 tnum · 14pt / 500 muted |
 | `railChipValue` / glyph | SS3 | 17pt / 700 · 13pt / 500 |
 | `fieldLabel` | SS3 | 12pt / 600 muted |
-| `coachNote` | SS3 | 15pt / 1.45 muted |
+| `coachNote` | SS3 | 15pt / 400 / 1.45 muted |
 | `runline` | SS3 | 13.5pt / 600 tnum; secondary 500 muted |
 | `lastPerformed` | SS3 | 12.5pt / 1.5 muted tnum, nowrap; dense floor ≈ 11pt (shrink-then-truncate, never wrap) |
 | `queuePill` | SS3 | 13pt / 600 tnum |

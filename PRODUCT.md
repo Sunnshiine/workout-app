@@ -16,7 +16,7 @@ A supportive training partner. Encouraging and warm, it acknowledges real progre
 
 - **Bro-y hype / aggro fitness.** No neon-on-black "beast mode," flames, aggressive all-caps shouting, or streaks-as-pressure. Warmth must never tip into gym-bro intensity.
 - **Spreadsheet-in-an-app.** It is a Sheet client but must never look like one. No dense grids, tiny tap targets, raw cell editing, or visible row and column plumbing.
-- **Generic fitness SaaS.** Avoid the interchangeable consumer-fitness look: uniform rounded-card grids, stock gradients, ring charts everywhere, badge spam, and cheerful clip art.
+- **Generic fitness SaaS.** Avoid the interchangeable consumer-fitness look: uniform rounded-card grids, stock gradients, ring charts, badge spam, and cheerful clip art.
 - **Over-gamified.** No XP bars, confetti on every tap, mascots, points, levels, or streak pressure.
 
 ## Design Principles

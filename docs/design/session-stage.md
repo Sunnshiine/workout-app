@@ -81,7 +81,7 @@ scrolling Set-row list, no ambient rest-of-Session.
 **Growth Is State Rule.** The branch renders what the athlete actually
 logged — nothing more. Growth is performed only in the Move On ceremony;
 nothing persists between Sessions as an accumulating garden, streak, or
-trophy. A dashed leaf is honest about a Skip; a full branch marks
+trophy, and per-Session flora never carries between screens. A dashed leaf is honest about a Skip; a full branch marks
 completion, not achievement.
 
 **One Icon Per Page Rule.** The branch is the stage's icon budget spent.

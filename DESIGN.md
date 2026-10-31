@@ -69,9 +69,8 @@ gold, orange, tan, or generic beige wellness styling.
 ## 3. Typography
 
 Two bundled variable faces carry the type. Fraunces is the voice and speaks rarely. Source Sans 3 is
-the instrument and carries everything else, numbers included. Every text style is a `TypeRole` row
-resolved by `Theme.font(_:)`, and a SwiftLint rule bans building a font anywhere else. The token
-sheet's type roles give each role's size, weight, and axes.
+the instrument and carries everything else, numbers included. The token sheet's type roles give each
+role's size, weight, and axes.
 
 ### Named Rules
 
