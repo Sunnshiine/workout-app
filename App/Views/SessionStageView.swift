@@ -46,7 +46,7 @@ struct SessionStageView: View {
             // The zero minimum keeps an overflowing column from growing this frame, which would
             // hand the overflow to a centering parent.
             .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .bottom)
-            .padding(.horizontal)
+            .padding(.horizontal, Theme.pageMargin)
             .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
             ZStack {
@@ -98,6 +98,7 @@ struct SessionStageView: View {
         SessionStageColumn(
             exercise: stage.exercise,
             composition: composition,
+            cardIdentity: stage.card?.cardIdentity,
             lastPerformed: stage.lastPerformed.map { presentation in
                 LastPerformedCard(presentation: presentation) {
                     showHistory(of: stage.exercise)
@@ -132,7 +133,6 @@ struct SessionStageView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, Theme.sectionSpacing)
     }
 
     private func openExercisesIfMoveOnStillFits(_ openExercises: [Exercise]) -> some View {
@@ -183,7 +183,7 @@ struct SessionStageView: View {
             .accessibilityValue(stage.queue.position.label)
             .accessibilityIdentifier("stage-queue-button")
         }
-        .padding(.horizontal)
+        .padding(.horizontal, Theme.pageMargin)
         .padding(.vertical, 6)
     }
 
@@ -238,7 +238,7 @@ struct SessionStageView: View {
         }
     }
 
-    // A log starts rest inside the coordinator's 0.65 s momentumFlow, which would cross-fade the
+    // A log starts rest inside the coordinator's momentumFlow, which would cross-fade the
     // timer over Up next. These overrides sequence the swap so the two are never drawn at once.
     private var upNextSwapAnimation: Animation {
         isResting ? .smooth(duration: 0.12) : .smooth(duration: 0.18).delay(0.15)
@@ -313,11 +313,17 @@ struct StageExerciseName: View {
 struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
     let exercise: Exercise
     let composition: SessionStageComposition
+    let cardIdentity: String?
     let lastPerformed: LastPerformedCard?
     @ViewBuilder let name: () -> Name
     @ViewBuilder let branch: () -> Branch
     @ViewBuilder let card: () -> Card
     @Environment(\.themePalette) private var palette
+
+    /// Swaps on the card's frame, so the old and new lines never draw over each other.
+    private var heldLastPerformed: some View {
+        lastPerformed.holdsStill(acrossChangesOf: cardIdentity ?? "")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
@@ -329,7 +335,7 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                         name()
                         noteLine
                         flexibleBranch
-                        lastPerformed
+                        heldLastPerformed
                     }
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         cadenceLine
@@ -353,9 +359,9 @@ struct SessionStageColumn<Name: View, Branch: View, Card: View>: View {
                 ViewThatFits(in: .vertical) {
                     VStack(alignment: .leading, spacing: Theme.stageColumnSpacing) {
                         name()
-                        lastPerformed
+                        heldLastPerformed
                     }
-                    lastPerformed
+                    heldLastPerformed
                     Color.clear.frame(height: 0)
                         .emptyFallbackNode()
                 }
@@ -458,7 +464,7 @@ struct SessionMoveOnButton: View {
                 .padding(.vertical, 16)
                 .background(palette.actionFill, in: .capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressScale)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier(accessibilityID)
     }

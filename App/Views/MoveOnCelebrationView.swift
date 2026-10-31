@@ -106,7 +106,7 @@ struct MoveOnCelebrationView: View {
                 .padding(.vertical, 20)
                 .background(palette.actionFill, in: .capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressScale)
         .accessibilityLabel(presentation.continueText)
         .accessibilityHint(presentation.accessibilityHint)
         .accessibilityIdentifier("move-on-celebration-continue")

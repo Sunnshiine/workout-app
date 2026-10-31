@@ -136,6 +136,11 @@ blade: `budFill`/`budStroke` dress the cream-filled active leaf, and
 `futureStroke` draws the 0.72-scale ghost outline. Node scale runs are tuned
 per layout, not tokenized.
 
+### Page margin
+
+`pageMargin` **16pt**: the one left edge the Session stage, its foot, the sync banner, the Block
+grid, and the empty state align to (DESIGN.md §8 The One Edge Rule, 2026-10-31).
+
 ### Active Set Card & input block (#455 supersedes #413's pill display)
 
 | Role | Day | Night |
@@ -300,14 +305,19 @@ not rounded to a prettier scale.
 
 Replaces the 8 / 16 / 28 scale.
 
-## 7. Motion & haptics (transcribed — decided in #421/#452/#455, no new decisions)
+## 7. Motion & haptics (decided in #421/#452/#455; curves and timings revised 2026-10-31)
 
-- **Wing ease** `cubic-bezier(0.46, -0.09, 0.83, 0.32)` — the signature
-  timing, confined to the three growth moments; all chrome (including the
-  Log capsule) on stock system springs.
-- Leaf inks **0.42s**; next bud opens inside the tail (starts 0.26s in,
-  runs 0.34s) — **One Log, One Fill**: the bud wakes, it never reads as a
+- **Ink ease** `cubic-bezier(0.23, 1, 0.32, 1)` (`Theme.inkEase`) — the
+  leaf, the bud, and a Superset bud's lift, so a log moves on the frame its
+  haptic lands. **Wing ease** `cubic-bezier(0.46, -0.09, 0.83, 0.32)` — the
+  Move On ceremony's stem alone. Changed 2026-10-31 under the operator's
+  brief: "Where Emil's recommendation conflicts with an existing rule in
+  DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
+- Leaf inks **0.3s**; next bud opens inside the tail (starts 0.12s in,
+  runs 0.3s) — **One Log, One Fill**: the bud wakes, it never reads as a
   second leaf filling.
+- Press: 0.97 on a 0.16s snappy spring, on the Log capsule, the steppers,
+  and every primary capsule.
 - Ceremony at Brisk: stem 1.0s, 0.10s beat, bird drops 0.35s (≈1.5s).
 - Haptics **Crisp**, silent-chrome, semantic-only: RPE detent 0.35/0.85 ·
   log 1.0/0.65 · skip dud 0.45/0.15 · stepper ± 0.45/0.80 (floor hits the

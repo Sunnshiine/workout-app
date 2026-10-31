@@ -13,7 +13,7 @@ import Testing
     let row = OpenExerciseRowPresentation(exercise: backSquat)
 
     #expect(row.name == "Back Squat")
-    #expect(row.pendingSetLabel == "1 pending set")
+    #expect(row.pendingSetLabel == "1 Set left")
     #expect(row.sessionAddressLabel == "W1 D1")
 }
 
@@ -29,7 +29,7 @@ import Testing
 
     let row = OpenExerciseRowPresentation(exercise: backSquat)
 
-    #expect(row.pendingSetLabel == "2 pending sets")
+    #expect(row.pendingSetLabel == "2 Sets left")
 }
 
 @MainActor

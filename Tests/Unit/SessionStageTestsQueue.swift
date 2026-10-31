@@ -82,7 +82,7 @@ extension SessionStageTests {
 
         let stage = makeStage([squat, press, row])
 
-        #expect(try #require(completionStage(stage)).summary == "5 sets done across 3 exercises")
+        #expect(try #require(completionStage(stage)).summary == "5 Sets across 3 Exercises")
         #expect(stage.upNext == nil)
         #expect(stage.queue.rows.map(\.isComplete) == [true, true, true])
         #expect(stage.queue.rows.map(\.isOnStage) == [false, false, false])
@@ -91,7 +91,7 @@ extension SessionStageTests {
     @Test func theCompletionSummaryUsesSingularForms() throws {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
 
-        #expect(try #require(completionStage(makeStage([squat]))).summary == "1 set done across 1 exercise")
+        #expect(try #require(completionStage(makeStage([squat]))).summary == "1 Set across 1 Exercise")
     }
 
     @Test func moveOnAndTheOpenExercisesShowAtTheLiveEdge() throws {

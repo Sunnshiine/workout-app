@@ -100,19 +100,20 @@ import Testing
 
 @Test func themeMotionTokensMatchTokenSheet() {
     #expect(Theme.wingEase == Theme.BezierEase(x1: 0.46, y1: -0.09, x2: 0.83, y2: 0.32))
-    #expect(Theme.Motion.leafInk == 0.42)
-    #expect(Theme.Motion.budOpen == 0.34)
-    #expect(Theme.Motion.budOpenDelay == 0.26)
+    #expect(Theme.inkEase == Theme.BezierEase(x1: 0.23, y1: 1, x2: 0.32, y2: 1))
+    #expect(Theme.Motion.leafInk == 0.3)
+    #expect(Theme.Motion.budOpen == 0.3)
+    #expect(Theme.Motion.budOpenDelay == 0.12)
     #expect(Theme.Motion.crossfade == 0.2)
 }
 
 @Test func branchGrowthMotionRunsOnItsOwnTimingsAndCrossfadesUnderReduceMotion() {
-    #expect(Theme.branchAnimation(.leafInk, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.42))
-    #expect(Theme.branchAnimation(.budWake, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.34).delay(0.26))
-    #expect(Theme.branchAnimation(.relayout, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.42))
+    #expect(Theme.branchAnimation(.leafInk, reducingMotion: false) == .timingCurve(0.23, 1, 0.32, 1, duration: 0.3))
+    #expect(Theme.branchAnimation(.budWake, reducingMotion: false) == .timingCurve(0.23, 1, 0.32, 1, duration: 0.3).delay(0.12))
+    #expect(Theme.branchAnimation(.relayout, reducingMotion: false) == .smooth(duration: 0.3))
     #expect(Theme.branchAnimation(.leafInk, reducingMotion: true) == .easeInOut(duration: 0.2))
     #expect(Theme.branchAnimation(.budWake, reducingMotion: true) == .easeInOut(duration: 0.2).delay(0.2))
-    #expect(Theme.branchAnimation(.budLift, reducingMotion: false) == .timingCurve(0.46, -0.09, 0.83, 0.32, duration: 0.26))
+    #expect(Theme.branchAnimation(.budLift, reducingMotion: false) == .timingCurve(0.23, 1, 0.32, 1, duration: 0.12))
     #expect(Theme.branchAnimation(.budLift, reducingMotion: true) == .easeInOut(duration: 0.2))
     #expect(Theme.branchAnimation(.relayout, reducingMotion: true) == nil)
 }

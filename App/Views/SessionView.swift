@@ -27,7 +27,7 @@ struct SessionView: View {
                             onGoBack: workout.showCurrent,
                             onMakeCurrent: workout.makeViewedSessionCurrent
                         )
-                        .padding(.horizontal)
+                        .padding(.horizontal, Theme.pageMargin)
                         .padding(.top, 8)
                     }
 
@@ -48,7 +48,7 @@ struct SessionView: View {
                         isSettingsPresented = true
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal)
+                    .padding(.horizontal, Theme.pageMargin)
                     .padding(.vertical, 80)
                 }
             }
@@ -63,7 +63,10 @@ struct SessionView: View {
                 .transition(.opacity)
             }
         }
-        .animation(.easeInOut(duration: 0.18), value: workout.moveOnCelebrationSession?.persistentModelID)
+        .animation(
+            .easeOut(duration: workout.moveOnCelebrationSession == nil ? 0.15 : 0.2),
+            value: workout.moveOnCelebrationSession?.persistentModelID
+        )
         .navigationDestination(isPresented: blockOverviewRequestBinding) {
             if let block = workout.block {
                 BlockOverviewView(block: block, currentSession: workout.currentSession)
@@ -124,10 +127,9 @@ extension SessionView {
             currentSession: workout.currentSession,
             onNavigate: coordinator.cancelPairing
         )
-        .padding(.horizontal, 14)
         .padding(.top, 1)
         .padding(.bottom, 2)
-        .padding(.horizontal)
+        .padding(.horizontal, Theme.pageMargin)
         .padding(.top, 8)
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)

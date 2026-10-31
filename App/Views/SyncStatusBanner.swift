@@ -26,7 +26,7 @@ struct SyncStatusBanner: View {
         .background(palette.surface, in: Capsule())
         .background(palette.paper.baseTop, in: Capsule())
         .overlay(Capsule().strokeBorder(palette.queueStroke, lineWidth: 0.5))
-        .padding(.horizontal)
+        .padding(.horizontal, Theme.pageMargin)
         // The explicit label replaces the combined children, so it is the whole of what VoiceOver
         // reads here.
         .accessibilityElement(children: .combine)

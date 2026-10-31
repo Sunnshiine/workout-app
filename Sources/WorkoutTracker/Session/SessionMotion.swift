@@ -16,9 +16,7 @@ enum SessionMotion: Equatable, Sendable {
 
     var animation: Animation? {
         switch self {
-        case .momentumFlow: Theme.momentumFlowAnimation
-        case .skipFadeUp: Theme.skipFadeUpAnimation
-        case .focusMorph: Theme.focusMorphAnimation
+        case .momentumFlow, .skipFadeUp, .focusMorph: Theme.sessionMotionAnimation
         case .cut: nil
         }
     }
