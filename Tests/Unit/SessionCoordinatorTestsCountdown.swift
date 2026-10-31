@@ -264,3 +264,29 @@ func leavingTheSetEndsTheCountdown(action: String) throws {
     #expect(harness.cues.silences == 1)
     #expect(harness.cues.spoken.last == "Hold")
 }
+
+@MainActor
+@Test func aCountdownWhoseCoordinatorIsGoneEndsAtItsNextCue() throws {
+    let clock = ManualRestClock(now: Date(timeIntervalSinceReferenceDate: 0))
+    let time = SteppedCountdownTime(clock: clock)
+    let cues = RecordingCountdownCues(clock: clock)
+    let countdown = EffortCountdown(clock: clock, scheduler: time, cues: cues)
+    let session = makeOpeningHoldSession(day: 1)
+    let navigation = SpySessionNavigationAdapter()
+    navigation.viewedSession = session
+    var coordinator: SessionCoordinator? = SessionCoordinator(
+        session: session,
+        wiring: .fixture(logging: SpySessionLoggingAdapter(), navigation: navigation, countdown: countdown)
+    )
+    weak let released = coordinator
+    let rdl = try #require(session.exercises.first { $0.order == 1 }?.sets.first)
+    coordinator?.focus(on: rdl)
+    coordinator?.startCountdown(for: try card(try #require(coordinator), in: session))
+
+    coordinator = nil
+    try #require(released == nil)
+    time.advance(by: 30)
+
+    #expect(countdown.run == nil)
+    #expect(cues.spoken == ["5"])
+}
