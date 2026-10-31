@@ -19,15 +19,21 @@ struct TimedEffortControl: View {
 
     var body: some View {
         Button(action: isRunning ? timedEffort.cancel : timedEffort.start) {
-            Label(effort.controlLabel, systemImage: "timer")
-                .font(Theme.font(.queuePill))
-                .foregroundStyle(isRunning ? palette.action : palette.textPrimary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(palette.pillFill, in: .capsule)
-                .overlay(Capsule().strokeBorder(palette.pillStroke, lineWidth: 1))
-                .frame(minHeight: targetHeight)
-                .contentShape(.rect)
+            Label {
+                Text(effort.controlLabel)
+            } icon: {
+                // Only the glyph turns green while it runs: green text on the pill reads dim in Night.
+                Image(systemName: "timer")
+                    .foregroundStyle(isRunning ? palette.action : palette.textPrimary)
+            }
+            .font(Theme.font(.queuePill))
+            .foregroundStyle(palette.textPrimary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(palette.pillFill, in: .capsule)
+            .overlay(Capsule().strokeBorder(palette.pillStroke, lineWidth: 1))
+            .frame(minHeight: targetHeight)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(effort.spokenLabel)
