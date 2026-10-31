@@ -166,25 +166,54 @@ extension SpokenSet {
     static func parse(candidates: [String]) -> Result<Chosen, Rejection> {
         guard let top = candidates.first else { return .failure(.nothingHeard) }
         let alternatives = candidates.dropFirst()
-        return parse(top, restoringItsStartFrom: alternatives).map { Chosen(spokenSet: $0.settled(by: alternatives), source: .top) }
+        return parse(top, restoringWhatItLostFrom: alternatives).map { Chosen(spokenSet: $0.settled(by: alternatives), source: .top) }
             .flatMapError { agreed(alternatives, else: $0) }
     }
 
-    /// The top transcript as read, unless the recognizer cut off the start of what was said. An
-    /// alternative that is the top with words before it, as "10 for 12 at 8" is "for 12 at 8", heard
-    /// the start, so those alternatives read the Set when every one that reads agrees. One whose first
-    /// number is longer and ends in the top's, as "225 for 3 add 8" beside "25 for 3 add 8", either
-    /// heard the start of that number or misheard it, as "18" for "eight", so the top is ambiguous.
-    private static func parse(_ top: String, restoringItsStartFrom alternatives: ArraySlice<String>) -> Result<SpokenSet, Rejection> {
+    /// The top transcript as read, unless the recognizer lost words of what was said. An alternative
+    /// that is the top with words before it, as "10 for 12 at 8" is "for 12 at 8", heard the start
+    /// the top cut off, and where the top is ambiguous, as a number no word places makes it, one that
+    /// is the top with only "at" added, as "275 for 4 at 9" is "275 for 4 9", heard the "at" the top
+    /// lost: those alternatives read the Set when every one that reads agrees. One whose first number
+    /// is longer and ends in the top's, as "225 for 3 add 8" beside "25 for 3 add 8", either heard the
+    /// start of that number or misheard it, as "18" for "eight", so the top is ambiguous.
+    private static func parse(_ top: String, restoringWhatItLostFrom alternatives: ArraySlice<String>) -> Result<SpokenSet, Rejection> {
         let words = SpokenTranscript.words(in: top)
         guard words.contains(where: { !SpokenWord($0).isFiller }) else { return parse(top) }
         let heard = alternatives.map(SpokenTranscript.words(in:))
         guard !heard.contains(where: { startsWithALongerNumber($0, endingInTheFirstOf: words) }) else { return .failure(.ambiguous) }
         let restored = heard.filter { $0.count > words.count && $0.suffix(words.count).elementsEqual(words) }
-            .compactMap { try? spokenSet(in: $0) }
-        guard let reading = restored.first else { return parse(top) }
-        guard restored.allSatisfy({ $0 == reading }) else { return .failure(.ambiguous) }
-        return .success(reading)
+        return agreedReading(of: restored) ?? parse(top).flatMapError { restoringAnAt(words, from: heard, else: $0) }
+    }
+
+    private static func restoringAnAt(
+        _ words: [String],
+        from heard: [[String]],
+        else rejection: Rejection
+    ) -> Result<SpokenSet, Rejection> {
+        guard rejection == .ambiguous else { return .failure(rejection) }
+        return agreedReading(of: heard.filter { addsOnlyAt($0, to: words) }) ?? .failure(rejection)
+    }
+
+    private static func agreedReading(of heard: [[String]]) -> Result<SpokenSet, Rejection>? {
+        let readings = heard.compactMap { try? spokenSet(in: $0) }
+        guard let reading = readings.first else { return nil }
+        return readings.allSatisfy { $0 == reading } ? .success(reading) : .failure(.ambiguous)
+    }
+
+    /// Only "at", because the recognizer drops it between the reps and the RPE: a "reps" added to "135
+    /// for 49" would read the 49 that may be "4 at 9" as reps.
+    private static func addsOnlyAt(_ alternative: [String], to words: [String]) -> Bool {
+        guard alternative.count > words.count else { return false }
+        var rest = words[...]
+        for word in alternative {
+            guard word != rest.first else {
+                rest.removeFirst()
+                continue
+            }
+            guard SpokenWord(word) == .token(.marker(.at)) else { return false }
+        }
+        return rest.isEmpty
     }
 
     private static func startsWithALongerNumber(_ alternative: [String], endingInTheFirstOf words: [String]) -> Bool {
@@ -223,10 +252,8 @@ extension SpokenSet {
     }
 
     private static func agreed(_ alternatives: ArraySlice<String>, else rejection: Rejection) -> Result<Chosen, Rejection> {
-        let readings = alternatives.compactMap { try? parse($0).get() }
-        guard let reading = readings.first else { return .failure(rejection) }
-        guard readings.allSatisfy({ $0 == reading }) else { return .failure(.ambiguous) }
-        return .success(Chosen(spokenSet: reading, source: .alternative))
+        let reading = agreedReading(of: alternatives.map(SpokenTranscript.words(in:))) ?? .failure(rejection)
+        return reading.map { Chosen(spokenSet: $0, source: .alternative) }
     }
 }
 

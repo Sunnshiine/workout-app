@@ -111,6 +111,41 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
     )
 }
 
+/// Verbatim from the matrix: Samantha says "275 for 4 at 9" and "225 for a triple at 8", and the
+/// top transcript loses the "at" that places the RPE.
+@Test func alternativesThatAreTheTopWithAnAtAddedReadTheSetWhoseAtItLost() {
+    #expect(
+        SpokenSet.parse(candidates: ["275 for 4 9.", "275 for 49.", "275 for 4 at 9", "275 for 4 at 9.", "275 for 4 at nine."])
+            == chosen(values(.pounds(275), 4, .nine))
+    )
+    #expect(
+        SpokenSet.parse(candidates: [
+            "225 for a triple 8.", "225 for a triple eight.", "225 for a triple at 8.", "225 for a triple at eight."
+        ]) == chosen(values(.pounds(225), 3, .eight))
+    )
+}
+
+/// "49" may be "4 at 9", so an alternative that adds "reps" to "135 for 49" is only a guess.
+@Test func anAlternativeThatAddsMoreThanAnAtOrToATopThatReadsRestoresNothing() {
+    #expect(
+        SpokenSet.parse(candidates: ["135 for 49", "135 for 49 reps"])
+            == chosen(.values(weight: .heard(.pounds(135)), reps: .heard(49), rpe: .notSaid), from: .alternative)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["185, 5, 8", "185 for 5 at 8"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .heard(.eight)), from: .alternative)
+    )
+    #expect(
+        SpokenSet.parse(candidates: ["185 for 5 8", "185 for 5 and 8"])
+            == chosen(.values(weight: .heard(.pounds(185)), reps: .heard(5), rpe: .cutOff(.number(8))), from: .alternative)
+    )
+    #expect(SpokenSet.parse(candidates: ["185 for 5", "185 for 5 at 8"]) == chosen(values(.pounds(185), 5, nil)))
+    #expect(
+        SpokenSet.parse(candidates: ["1005 for 1 10", "1005 for 1 at 10"])
+            == chosen(.values(weight: .heard(.pounds(1005)), reps: .heard(1), rpe: .heard(.ten)), from: .alternative)
+    )
+}
+
 /// Verbatim from the matrix: Daniel says "two twenty five for three at eight" fast, and the top
 /// transcript loses the "two" that an alternative heard.
 @Test func anAlternativeWhoseFirstNumberIsLongerAndEndsInTheTopsKeepsTheTopFromWriting() {

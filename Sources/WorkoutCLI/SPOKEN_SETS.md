@@ -64,6 +64,10 @@ where a word next to it, or the phrase around it, says which, never by its place
   logs 135x8. Two that restore it differently, as "10 for 12 at 8" and "20 for 12 at 8", are
   `ambiguous`. An alternative whose first number is longer than the top's and ends in it may have
   heard the start the top lost, so "25 for 3 add 8" beside "225 for 3 add 8" is `ambiguous`.
+- Where the top has a number no word places, an alternative that is the top with only "at" added
+  heard the "at" the top lost, and stands in for the top when every such alternative that reads
+  agrees: "275 for 4 9" beside "275 for 4 at 9" logs 275x4@9. Any other word added leaves it a
+  guess, because "135 for 49 reps" beside "135 for 49" would read reps where "4 at 9" was said.
 - A transcript that ends on "and", "and a", or "point" right after a number had its half or decimal
   cut off, so that value is missing: "at 8 and a" is `missingValues` with the RPE missing, and only
   an alternative that hears 8 and a half settles it. A rep count is whole, so after one it is the
