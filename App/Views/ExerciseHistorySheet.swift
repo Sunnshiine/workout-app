@@ -99,13 +99,18 @@ struct ExerciseHistorySheet: View {
                     }
                 }
                 .frame(minWidth: 44, minHeight: 44)
+                // The medium detent draws the sheet at about 95%, so 44pt here is 42 on screen.
+                .padding(Self.detentOutset)
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .padding(-Self.detentOutset)
         .accessibilityIdentifier("history-volume-toggle")
         .accessibilityLabel("Volume")
         .accessibilityAddTraits(showVolume ? .isSelected : [])
     }
+
+    private static let detentOutset: CGFloat = 2
 
     private var volumeControlRaisedBackground: some View {
         Capsule()
@@ -240,6 +245,7 @@ private struct ExerciseHistoryRow: View {
         .disabled(!row.hasWell)
         .accessibilityElement(children: .combine)
         .accessibilityHint(row.hasWell ? "Shows skipped Sets and notes" : "")
+        .accessibilityIdentifier("history-row-gutter")
     }
 
     private var wellMarker: Text {
