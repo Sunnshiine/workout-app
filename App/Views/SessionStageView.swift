@@ -461,7 +461,7 @@ struct SessionMoveOnButton: View {
                 .padding(.vertical, 16)
                 .background(palette.action, in: .capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.pressScale)
         .accessibilityHint("Advances to the next session")
         .accessibilityIdentifier(accessibilityID)
     }

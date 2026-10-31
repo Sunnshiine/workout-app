@@ -208,8 +208,8 @@ enum Theme {
         .easeInOut(duration: stageCompositionDuration)
     }
 
-    /// The press on the Log capsule and the weight steppers (§5.2, §5.3): a system snappy spring
-    /// from touch-down until the finger lifts.
+    /// The press on the Log capsule, the weight steppers, and every primary capsule (§5.2, §5.3, §7):
+    /// a system snappy spring from touch-down until the finger lifts.
     static let pressScale = 0.97
     static var pressAnimation: Animation {
         .snappy(duration: 0.16)

@@ -102,7 +102,7 @@ struct OnboardingView: View {
                         .padding(.vertical, 20)
                         .background(palette.action, in: .capsule)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.pressScale)
                 .accessibilityIdentifier("onboarding-connect-button")
             }
             .padding(.horizontal, 24)
