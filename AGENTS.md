@@ -12,7 +12,8 @@ Each of these wins over anything written here. Read the one that governs the wor
   Use its words in code, tests, and issues.
 - `docs/adr/` records decisions. Read the ADRs for the area you change. If your change contradicts
   one, say so in the PR instead of overriding it.
-- `PRODUCT.md` and `DESIGN.md` govern product and UI work.
+- `PRODUCT.md` and `DESIGN.md` govern product and UI work. `.agents/skills/product-design/SKILL.md`
+  applies them and turns the operator's design feedback into rules.
 - `CODING_STANDARDS.md` is the review standard. Read it before changing a store, a coordinator, a
   View's logic, or a test, and apply it at review.
 - `.swift-format` and `.swiftlint.yml` own formatting and every mechanical rule.
