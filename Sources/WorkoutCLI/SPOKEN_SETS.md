@@ -47,8 +47,8 @@ where a word next to it, or the phrase around it, says which, never by its place
   recognizer writes for it. "with" labels bodyweight or a number off the RPE ladder after it
   as the weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else,
   so "for 5 with 8" is `ambiguous`.
-- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "PE", "our fee", and "@" label the number after
-  them as the RPE, and "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
+- "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "PE", "our fee", "felt like", and "@" label the
+  number after them as the RPE, and "RPE" labels the number before it too ("8 RPE"). After "at", a number on the RPE ladder is the RPE
   ("at 8"), and bodyweight or any other number is the weight ("8 reps at 12").
 - Right after a whole weight for reps, "and", "of", "add", or "to" before a number is the "at" the
   recognizer mishears, and the number after it is never read: "185 for 5 and 8" and "225 for 3 to

@@ -25,7 +25,7 @@ enum SpokenTranscript {
     /// ("Bobby waits") when a lifter says them fast.
     private static let phrases: [(words: [String], word: String)] = [
         (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["our", "pe"], "rpe"), (["are", "pe"], "rpe"), (["our", "fee"], "rpe"),
-        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
+        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["felt", "like"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
         (["body", "weights"], "bw"), (["body", "wait"], "bw"), (["body", "waits"], "bw"), (["bobby", "wait"], "bw"),
         (["bobby", "waits"], "bw"), (["k", "g"], "kg"), (["thank", "you"], "thanks")
     ]

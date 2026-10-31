@@ -121,6 +121,13 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
     #expect(SpokenSet.parse("£135 for age.") == values(.pounds(135), 8, nil))
 }
 
+/// Verbatim from the matrix: "felt like" is how a lifter says the RPE.
+@Test func feltLikeLabelsTheRPE() {
+    #expect(SpokenSet.parse("185 for 6, felt like an 8.") == values(.pounds(185), 6, .eight))
+    #expect(SpokenSet.parse("185 for 6 felt like an age.") == values(.pounds(185), 6, .eight))
+    #expect(SpokenSet.parse("185 for 6 felt like 135") == .failure(.offLadderRPE(135)))
+}
+
 @Test(
     "Bodyweight in any spelling is the BW weight",
     arguments: [
