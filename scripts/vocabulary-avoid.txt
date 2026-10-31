@@ -3,6 +3,8 @@
 # [avoid] holds phrases from the glossary's Avoid lists that name nothing else in this code. A
 # phrase that also names a real concept here, as "row", "source", or "max" do, stays off the list.
 [avoid]
+hold timer
+isometric hold
 displayed session
 preview session
 active session

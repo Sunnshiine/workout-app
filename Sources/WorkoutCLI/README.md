@@ -82,6 +82,15 @@ $ workout session w2d1 | jq -c '.exercises[0].sets[0].loadSuggestion'
 {"basis":{"origin":"history","session":"Block 27 · W1 D1","setLog":"315x5@7","text":"from 315x5@7 · W1 D1"},"kind":"estimate","weight":315}
 ```
 
+A Set with a Timed Effort carries `timedEffort`: `kind` `openingHold` when its Coach Note prescribes
+an Opening Hold, or `timedSet` when its Reps cell is a duration, and the effort's `seconds`. A Set
+with neither has no `timedEffort`.
+
+```console
+$ workout session w1d1 | jq -c '.exercises[1].sets[0].timedEffort'
+{"kind":"openingHold","seconds":10}
+```
+
 ## Spoken Sets and recordings
 
 `say` and `hear` read a Spoken Set from a transcript or a recording.

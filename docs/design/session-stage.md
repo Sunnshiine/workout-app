@@ -138,7 +138,9 @@ closing, rest, and sync all leave its frame where it was. Its values change
 in the next frame, with no crossfade. Every mode draws the same rows: the
 head, the weight, the rails, and the action capsule. A mode changes what a
 row says, never whether the row is there. Saved and Clear sit in the head's
-trailing slot, as does the mic on a Pending Set being logged. A Set written
+trailing slot, as does the mic on a Pending Set being logged, with the
+Timed Effort control (`10 s hold`, `40 s`, a `queuePill` capsule with a timer
+glyph) before it on a Set that has one. A Set written
 by speech stays on the card with Saved and Clear for four seconds, its values
 and action capsule disabled because only Clear changes it, then the card
 moves on as a log does, at once if the athlete touches it. Its open Clear
@@ -152,6 +154,17 @@ glyph's system replace into its listening fill and back, the rail recentring,
 and the hold-to-skip fill. A Superset switch is told above the card, by the
 Exercise name line and the active leaf. While the weight is edited, the card
 rides above the keyboard in one piece at the same size (§5.1).
+
+An Effort Countdown cuts in over the weight, the rails, and the action
+capsule, in their frame on the card's surface, with no transition. It shows
+what it counts (`Get set`, then `Hold` or `Go`, then `Done` or `Time`), the
+seconds in `countdownNumeral`, a 6pt `action` bar on `railFill` that steps
+once a second, and `Tap to stop`, or `Tap to close` once it is done. The
+rows stay under it at zero opacity, so the frame holds. A tap on the face or
+on the control ends it, and the finished face clears itself after two
+seconds. Its seconds cut once a second, so Reduce Motion changes nothing.
+The voice and the taps (§7) carry it for an athlete who is not looking, and
+the screen stays lit while it runs.
 
 **Inert-Space All-Clear Rule** (carried forward). Tapping inert stage
 background clears transient UI — dismisses keyboard editing and transient

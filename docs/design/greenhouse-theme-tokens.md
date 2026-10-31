@@ -226,6 +226,7 @@ tabular** (#411).
 | `cadence` | SS3 | 11pt / 600 |
 | stats value / key (ceremony) | SS3 | 26pt / 700 · 12.5pt / 600 muted |
 | `sheetCell` | SS3 | 12pt / 500 tnum; the Sheet tab's Day sections, single line, truncating |
+| `countdownNumeral` | SS3 | 96pt / 700, ls −0.015em, tnum; an Effort Countdown's seconds, read at arm's length |
 
 Tabular numerals on **every** numeric element (Numbers Stay Plain
 survives). The sunlit-ledger register (opsz 72 display, uppercase

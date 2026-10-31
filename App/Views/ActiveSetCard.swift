@@ -26,7 +26,7 @@ struct ActiveSetCard: View {
     let setCount: Int
     var mode: SetCardSlot.Mode = .logging
     var mic: SetCardMic?
-    var timedEffort: SetCardTimedEffort?
+    var timedEffort: SetCardTimedEffort?  // default: no control, the answer for a Set with no Timed Effort
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void

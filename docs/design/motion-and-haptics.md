@@ -16,7 +16,9 @@ names a section of DESIGN.md or of one of its component files, which keep its nu
 Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick
 0.35/0.85 · log 1.0/0.65 · skip dud 0.45/0.15 · stepper ± 0.45/0.80 (the
 floor hits the dud) · one identical swell-and-peak Move On pattern timed to
-the ceremony · none on form fields. Hold-to-skip: reveal 250ms, commit
+the ceremony · effort begins 0.75/0.60, the `Hold` or `Go` of an Effort
+Countdown, whose Lead-in and last three seconds take the rest timer's light
+tap and whose end takes its expiry buzz · none on form fields. Hold-to-skip: reveal 250ms, commit
 850ms, retreat 0.2s; logged-state hold 900ms. A Skipped Set's capsule takes
 no hold: a tap logs it, and its More menu clears it (#820).
 
