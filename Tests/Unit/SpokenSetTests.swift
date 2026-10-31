@@ -128,6 +128,8 @@ func everyNumberWordReadsAsItsNumber(word: String, number: Int) {
     #expect(SpokenSet.parse("185 for 6, felt like an 8.") == values(.pounds(185), 6, .eight))
     #expect(SpokenSet.parse("185 for 6 felt like an age.") == values(.pounds(185), 6, .eight))
     #expect(SpokenSet.parse("185 for 6 felt like 135") == .failure(.offLadderRPE(135)))
+    #expect(SpokenSet.parse("185 for 5 eight felt like") != values(.pounds(185), 5, .eight))
+    #expect(SpokenSet.parse("8 felt like") != .success(.values(weight: .notSaid, reps: .notSaid, rpe: .heard(.eight))))
 }
 
 @Test(

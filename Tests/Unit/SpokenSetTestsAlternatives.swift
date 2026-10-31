@@ -169,6 +169,20 @@ private func chosen(_ heard: HeardSpokenSet) -> Result<SpokenSet.Chosen, SpokenS
     )
 }
 
+@Test(
+    "A first number said in words is held by an alternative's longer one as one in digits is",
+    arguments: [
+        ["thirty five for five at eight", "one thirty five for five at eight"],
+        ["eighty five for 5 at 8", "one eighty five for 5 at 8"],
+        ["twenty for 5 at 8", "two twenty for 5 at 8"],
+        ["five for five at eight", "one oh five for five at eight"],
+        ["eight for five at eight", "eighty for five at eight"]
+    ]
+)
+func anAlternativeWhoseFirstNumberInWordsIsLongerKeepsTheTopFromWriting(candidates: [String]) {
+    #expect((try? SpokenSet.parse(candidates: candidates).get())?.source != .top)
+}
+
 @Test func anAlternativeWhoseFirstNumberIsShorterOrEndsOtherwiseLeavesTheTopAsRead() {
     #expect(SpokenSet.parse(candidates: ["185 for 5 at 8", "85 for 5 at 8"]) == chosen(values(.pounds(185), 5, .eight)))
     #expect(SpokenSet.parse(candidates: ["185 for 5 at 8.", "18545 at 8."]) == chosen(values(.pounds(185), 5, .eight)))

@@ -22,10 +22,11 @@ enum SpokenTranscript {
     }
 
     /// The joined words include what the recognizer writes for "RPE" ("our fee") and "body weight"
-    /// ("Bobby waits") when a lifter says them fast.
+    /// ("Bobby waits") when a lifter says them fast. "felt like" is "at RPE", so it labels only the
+    /// number after it, never the reps before it as a lone "RPE" may.
     private static let phrases: [(words: [String], word: String)] = [
         (["r", "p", "e"], "rpe"), (["r", "p"], "rpe"), (["our", "pe"], "rpe"), (["are", "pe"], "rpe"), (["our", "fee"], "rpe"),
-        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["felt", "like"], "rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
+        (["are", "fee"], "rpe"), (["r", "fee"], "rpe"), (["felt", "like"], "at rpe"), (["b", "w"], "bw"), (["body", "weight"], "bw"),
         (["body", "weights"], "bw"), (["body", "wait"], "bw"), (["body", "waits"], "bw"), (["bobby", "wait"], "bw"),
         (["bobby", "waits"], "bw"), (["k", "g"], "kg"), (["thank", "you"], "thanks")
     ]
@@ -35,7 +36,7 @@ enum SpokenTranscript {
         var rest = tokens[...]
         while let first = rest.first {
             let phrase = phrases.first { rest.starts(with: $0.words) }
-            words.append(phrase?.word ?? first)
+            words += phrase.map { $0.word.split(separator: " ").map(String.init) } ?? [first]
             rest = rest.dropFirst(phrase?.words.count ?? 1)
         }
         return words
