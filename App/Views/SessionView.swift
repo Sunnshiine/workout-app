@@ -132,7 +132,7 @@ extension SessionView {
         .padding(.horizontal, Theme.pageMargin)
         .padding(.top, 8)
         .contentShape(Rectangle())
-        .dynamicTypeSize(...Theme.TypeScale.trainingSurfaceCap)
+        .dynamicTypeSize(...Theme.TypeScale.largestSize)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("session-header-hud")
         .overlay(alignment: .top) {

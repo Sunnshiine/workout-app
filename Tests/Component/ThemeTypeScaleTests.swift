@@ -12,8 +12,13 @@ import Testing
     }
 
     @Test(arguments: Theme.TypeRole.allCases)
-    func everyRoleGrowsAtTheLargestAccessibilitySize(role: Theme.TypeRole) {
-        #expect(Theme.scaledSize(role, at: .accessibility5) > role.style.size * 1.5)
+    func everyRoleGrowsUpToTheLargestStandardSize(role: Theme.TypeRole) {
+        #expect(Theme.scaledSize(role, at: .xxxLarge) > role.style.size)
+    }
+
+    @Test(arguments: Theme.TypeRole.allCases)
+    func noRoleGrowsPastTheLargestStandardSize(role: Theme.TypeRole) {
+        #expect(Theme.scaledSize(role, at: .accessibility5) == Theme.scaledSize(role, at: .xxxLarge))
     }
 
     @Test func aScaledRoleKeepsItsFaceAndTabularFigures() {

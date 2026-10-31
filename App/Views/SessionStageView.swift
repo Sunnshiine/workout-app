@@ -65,7 +65,7 @@ struct SessionStageView: View {
                 updateRestPillMount(isResting: isResting)
             }
         }
-        .dynamicTypeSize(...Theme.TypeScale.trainingSurfaceCap)
+        .dynamicTypeSize(...Theme.TypeScale.largestSize)
         // The whole stage is the keyboard's escape surface: any tap that no control claims
         // resigns the weight field. Attached to the stage root so it covers the editorial
         // column, the card's chrome, and empty space alike — child buttons and gestures

@@ -8,12 +8,13 @@ extension Theme {
     /// How each role grows with Dynamic Type: the system text style whose curve scales the role's
     /// own size, so a role at `.large` keeps its row's size exactly.
     enum TypeScale {
-        /// The largest size the training surfaces (the Session stage, the Active Set Card, its rails
-        /// and the Log capsule) render at. Past it their fixed-size controls fall back to the Large
-        /// Content Viewer. At `.accessibility1` the card grew 64pt and the two-Exercise `session`
-        /// fixture shed its coach note and Last Performed, the History sheet's only entry point, on
-        /// an iPhone 17 Pro; at this size it keeps every row, and a rail cell still holds "100".
-        static let trainingSurfaceCap: DynamicTypeSize = .xxxLarge
+        /// The largest size app-drawn text renders at, on every screen. Past it the stage's
+        /// fixed-size controls fall back to the Large Content Viewer. At `.accessibility1` the card
+        /// grew 64pt and the two-Exercise `session` fixture shed its coach note and Last Performed,
+        /// the History sheet's only entry point, on an iPhone 17 Pro; at this size it keeps every
+        /// row, a rail cell still holds "100", and the sheets keep their proportions (operator,
+        /// 2026-10-31: the uncapped sheets at AX5 looked "horribly large").
+        static let largestSize: DynamicTypeSize = .xxxLarge
 
         /// One curve per role. `everyTypeRoleHasACurve` in `Tests/Component/ThemeTypeRoleTests.swift`
         /// keeps a new role from reaching `curve` without a row.
@@ -51,9 +52,11 @@ extension Theme {
     }
 
     #if canImport(UIKit)
-        /// The role's size times its curve's growth from `.large`. `UIFontMetrics.scaledValue` would
-        /// round to the pixel grid and move a 13.5pt role to 13.67 at the default size.
+        /// The role's size times its curve's growth from `.large`, up to `TypeScale.largestSize`.
+        /// `UIFontMetrics.scaledValue` would round to the pixel grid and move a 13.5pt role to 13.67
+        /// at the default size.
         static func scaledSize(_ role: TypeRole, at size: DynamicTypeSize) -> CGFloat {
+            let size = min(size, TypeScale.largestSize)
             let style = uiTextStyle(TypeScale.curve(role))
             return role.style.size * pointSize(of: style, at: size) / pointSize(of: style, at: .large)
         }

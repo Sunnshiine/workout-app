@@ -82,15 +82,18 @@ utility pages (Block grid, Settings, History chips).
 and RPE read as instrumentation. Loads, reps, RPE, Set counts, and sync state take no novelty
 styling, gradient text, or decorative tracking.
 
-**The Product Scale Rule.** Text scales with Dynamic Type. Each type role keeps its size at the
-default content size and grows along one system text style's curve (`Theme.TypeScale`), so every
-locked composition holds at the default. The training surfaces (the Session stage, the Active Set
-Card, its rails, steppers, and Log capsule) never scroll, so they scale only to `.xxxLarge`, the
-largest size the two-Exercise Session keeps its coach note and Last Performed at; past it their
-fixed-size controls show the Large Content Viewer on a long press. Reference and utility surfaces
-(the Block grid, the History and queue sheets, the Move On ceremony, onboarding) scale fully and
-wrap or scroll rather than clip. System-owned surfaces keep native text styles. Card Holds Still
-(§5.2) holds within a Session, not across content sizes. Supersedes fixed sizes, under "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins." (operator, 2026-10-31).
+**The Product Scale Rule.** Text scales with Dynamic Type, up to `.xxxLarge`, the largest standard
+size, on every app-drawn screen. Each type role keeps its size at the default content size and grows
+along one system text style's curve (`Theme.TypeScale`), so every locked composition holds at the
+default. At `.xxxLarge` the two-Exercise Session keeps its coach note and Last Performed, and the
+sheets keep their proportions. Past it, at the accessibility sizes, text stays at `.xxxLarge` and the
+stage's fixed-size controls (steppers, rail cells, queue pill) show the Large Content Viewer on a long
+press. App-drawn screens still wrap or scroll rather than clip. System-owned surfaces keep native text
+styles. Card Holds Still (§5.2) holds within a Session, not across content sizes. Supersedes fixed
+sizes, under "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or
+a past operator decision, Emil wins." (operator, 2026-10-31). The cap reaches every screen because the
+uncapped sheets at AX5 looked "horribly large" and the operator said "apply" to capping them
+(2026-10-31).
 
 **The Shrink-Then-Truncate Rule.** Reference lines (Last Performed, history chips' text, runlines)
 never wrap: shrink to a dense floor (≈11pt), then truncate. Chips may flow to a new line; text
