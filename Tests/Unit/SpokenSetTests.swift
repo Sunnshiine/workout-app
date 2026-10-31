@@ -139,7 +139,7 @@ func bodyweightInAnySpellingIsBW(transcript: String) {
     arguments: [
         "5 ribs with 185 pounds, RPE 9", "185 for 5 rips at 9", "185 for 5 representatives at 9", "185, 5 representatives, RPE 9",
         "185 for 5 RPA 9", "185 for 5 reps, 9 PE", "185 for 5 reps, 9 are fee", "185 for five, our fee 9", "185 for 5 at our fee 9",
-        "185 for 5 at 9 are fee", "185 for 5 R fee 9", "185 for 5 reps at our pe 9"
+        "185 for 5 at 9 are fee", "185 for 5 R fee 9", "185 for 5 reps at our pe 9", "185, 5 rebs, RPE9."
     ]
 )
 func theWordsTheRecognizerWritesForRepsAndRPELabelTheNumber(transcript: String) {

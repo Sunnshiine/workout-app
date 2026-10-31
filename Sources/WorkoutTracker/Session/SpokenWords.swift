@@ -140,7 +140,7 @@ enum SpokenWord: Equatable, Sendable {
         (["half"], .half), (["1/2"], .halfSign), (["single"], .repCount(1)), (["double"], .repCount(2)), (["triple"], .repCount(3)),
         (["for", "x", "by", "times"], .token(.marker(.separator))),
         (["pound", "pounds", "lb", "lbs"], .token(.marker(.pounds))),
-        (["rep", "reps", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
+        (["rep", "reps", "rebs", "ribs", "rips", "representative", "representatives"], .token(.marker(.reps))),
         (["rpe", "rp", "@", "rte", "rtd", "rtv", "rpa", "pe"], .token(.marker(.rpe))),
         (["at"], .token(.marker(.at))),
         (["with"], .token(.marker(.with))),

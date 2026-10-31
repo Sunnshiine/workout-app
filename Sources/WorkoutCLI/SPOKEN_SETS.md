@@ -43,8 +43,8 @@ where a word next to it, or the phrase around it, says which, never by its place
   "225 or 3" may be "225 for 3", and "20 or 25 reps" is a range.
 - "pounds", "pound", "lbs", and "lb" label the number before them as the weight, as "£" does the
   number after it, even after "at" ("12 reps at 10 pounds"). "reps" labels the number before or
-  after it ("8 reps", "reps 8"), as do the "ribs", "rips", and "representatives" the recognizer
-  writes for it. "with" labels bodyweight or a number off the RPE ladder after it
+  after it ("8 reps", "reps 8"), as do the "rebs", "ribs", "rips", and "representatives" the
+  recognizer writes for it. "with" labels bodyweight or a number off the RPE ladder after it
   as the weight, "pounds" after it or not ("5 reps with 185 pounds"), and is filler anywhere else,
   so "for 5 with 8" is `ambiguous`.
 - "RPE", "rp", "r p e", "RTE", "RTD", "RTV", "RPA", "PE", "our fee", and "@" label the number after
