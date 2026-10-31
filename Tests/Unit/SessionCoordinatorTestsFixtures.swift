@@ -64,6 +64,7 @@ final class SpySessionNavigationAdapter: SessionNavigationAdapter {
     var liveEdgeOfSession: (Session) -> LiveEdge
     var readAtCelebrationRequest: () -> Bool = { false }
     var currentSession: Session?
+    var viewedSession: Session?
     private(set) var celebrationRequests: [Bool] = []
     private(set) var shownAddresses: [SessionAddress] = []
     private(set) var currentSessionShows = 0

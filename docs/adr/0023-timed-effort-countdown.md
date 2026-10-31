@@ -51,9 +51,12 @@ holds durations that are not holds ("rest 90 sec") and digits that are not durat
   playback category in voice-prompt mode, ducking the athlete's music, so it sounds with the silent
   switch on. It holds the audio session only while it speaks and 1.5 s after.
 - **The countdown belongs to its Set.** A run is keyed by Session Coordinate and the Set's place
-  in its Session, so a sync's re-parse keeps it. Starting one ends a rest still running. Logging,
-  skipping, a focus change, another Session, Move On, the mic, leaving the Session screen, or a tap
-  ends it.
+  in its Session, so a sync's re-parse keeps it while the Set stays Pending with the same effort.
+  Starting one ends a rest still running. Logging, skipping, a focus change, another Session, Move
+  On, the mic, leaving the Session screen, or a tap ends it. So does a write the stage did not
+  make, such as a spoken log from the lock screen, or a sync that leaves its Set no longer Pending
+  or changes its effort. The countdown asks before each cue whether the card still offers it, so
+  such a change ends it by its next cue at the latest.
 
 ## Considered alternatives
 

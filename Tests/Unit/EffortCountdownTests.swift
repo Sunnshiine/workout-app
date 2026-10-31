@@ -35,7 +35,7 @@ private func seconds(_ seconds: Int) throws -> EffortDuration {
 @Test func anOpeningHoldCountsTheLeadInThenTheHoldAndSaysWhenItIsDone() throws {
     let harness = CountdownHarness()
 
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
     harness.time.advance(by: 30)
 
     #expect(harness.cues.spoken == ["5", "4", "3", "2", "1", "Hold", "3", "2", "1", "Done"])
@@ -47,7 +47,7 @@ private func seconds(_ seconds: Int) throws -> EffortDuration {
 @Test func aTimedSetSaysGoAndTime() throws {
     let harness = CountdownHarness()
 
-    harness.countdown.start(.timedSet(try seconds(40)), for: owner)
+    harness.countdown.start(.timedSet(try seconds(40)), for: owner) { _ in true }
     harness.time.advance(by: 60)
 
     #expect(harness.cues.spoken == ["5", "4", "3", "2", "1", "Go", "3", "2", "1", "Time"])
@@ -62,7 +62,7 @@ private func seconds(_ seconds: Int) throws -> EffortDuration {
 func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds: Int, closing: [String]) throws {
     let harness = CountdownHarness()
 
-    harness.countdown.start(.timedSet(try seconds(effortSeconds)), for: owner)
+    harness.countdown.start(.timedSet(try seconds(effortSeconds)), for: owner) { _ in true }
     harness.time.advance(by: 30)
 
     #expect(harness.cues.spoken == ["5", "4", "3", "2", "1", "Go"] + closing + ["Time"])
@@ -81,7 +81,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func theCountdownShowsTheLeadInThenTheEffortsSecondsLeftThenItsEnd() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
     var phases: [CountdownPhase?] = []
     let steps: [TimeInterval] = [0, 0.75, 3.25, 1, 0.5, 9, 0.5, 2]
 
@@ -107,7 +107,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func theFinishedCountdownStaysOnTheCardForItsLingerThenClears() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
 
     harness.time.advance(by: 15 + EffortCountdown.finishedLinger - 0.25)
     #expect(harness.phase == .finished)
@@ -120,7 +120,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func cancellingMidHoldSilencesItAndNothingMoreIsSaid() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
     harness.time.advance(by: 7)
 
     harness.countdown.cancel()
@@ -144,7 +144,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func aCountdownThatWakesLateSaysOnlyWhereItIsNow() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
 
     harness.time.clock.advance(by: 8)
     harness.time.ring()
@@ -156,7 +156,7 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func aWakeWithNothingDueSaysNothingAndKeepsTime() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
 
     harness.time.ring()
     harness.time.ring()
@@ -169,12 +169,27 @@ func anEffortShorterThanTheClosingCountClosesOnTheSecondsItReaches(effortSeconds
 @MainActor
 @Test func startingAgainSilencesTheCountdownRunningAndCountsFromTheTop() throws {
     let harness = CountdownHarness()
-    harness.countdown.start(.openingHold(try seconds(10)), for: owner)
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in true }
     harness.time.advance(by: 6)
 
-    harness.countdown.start(.timedSet(try seconds(40)), for: owner)
+    harness.countdown.start(.timedSet(try seconds(40)), for: owner) { _ in true }
 
     #expect(harness.cues.silences == 1)
     #expect(harness.phase == .leadIn(secondsLeft: 5))
     #expect(harness.cues.spoken.suffix(2) == ["Hold", "5"])
+}
+
+@MainActor
+@Test func aCountdownItsCardNoLongerOffersEndsSilencedAtItsNextCue() throws {
+    let harness = CountdownHarness()
+    var offered = true
+    harness.countdown.start(.openingHold(try seconds(10)), for: owner) { _ in offered }
+    harness.time.advance(by: 6)
+
+    offered = false
+    harness.time.advance(by: 30)
+
+    #expect(harness.countdown.run == nil)
+    #expect(harness.cues.spoken == ["5", "4", "3", "2", "1", "Hold"])
+    #expect(harness.cues.silences == 1)
 }

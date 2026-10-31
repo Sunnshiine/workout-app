@@ -3,13 +3,14 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Week 1 Day `day`: a Back Squat with no Coach Note, then a BB RDL whose note prescribes a 10 s
-/// Opening Hold. Two built are one Session parsed twice, as by a sync.
+/// Week 1 Day `day`: a Back Squat with no Coach Note, then a BB RDL whose note prescribes an
+/// Opening Hold, 10 s unless `holdSeconds` says otherwise. Two built are one Session parsed twice,
+/// as by a sync.
 @MainActor
-private func makeOpeningHoldSession(day: Int) -> Session {
+private func makeOpeningHoldSession(day: Int, holdSeconds: Int = 10) -> Session {
     let session = Session(dayNumber: day, date: nil)
     let squat = Exercise(name: "Back Squat", coachNote: nil, order: 0)
-    let rdl = Exercise(name: "2-3:1:0 BB RDL", coachNote: "Start w/ 10 sec hold, proceed to rep range.", order: 1)
+    let rdl = Exercise(name: "2-3:1:0 BB RDL", coachNote: "Start w/ \(holdSeconds) sec hold, proceed to rep range.", order: 1)
     for exercise in [squat, rdl] {
         exercise.sets = (0..<2).map {
             ExerciseSet(index: $0, prescribedReps: "8", prescribedLoad: "RPE 7", percentOneRM: nil, state: .pending)
@@ -26,6 +27,7 @@ private struct CountdownCoordinatorHarness {
     let cues: RecordingCountdownCues
     let restTimer: RestTimer
     let liveActivity = SpySessionLiveActivityAdapter()
+    let navigation = SpySessionNavigationAdapter()
     let coordinator: SessionCoordinator
 
     init() {
@@ -33,10 +35,12 @@ private struct CountdownCoordinatorHarness {
         time = SteppedCountdownTime(clock: clock)
         cues = RecordingCountdownCues(clock: clock)
         restTimer = RestTimer(clock: clock, expiryScheduler: HeldRestExpiry())
+        navigation.viewedSession = session
         coordinator = SessionCoordinator(
             session: session,
             wiring: .fixture(
                 logging: SpySessionLoggingAdapter(),
+                navigation: navigation,
                 restTimer: restTimer,
                 countdown: EffortCountdown(clock: clock, scheduler: time, cues: cues),
                 liveActivity: liveActivity
@@ -151,11 +155,26 @@ func leavingTheSetEndsTheCountdown(action: String) throws {
     harness.time.advance(by: 7)
     let parsed = makeOpeningHoldSession(day: 1)
 
+    harness.navigation.viewedSession = parsed
     harness.coordinator.view(parsed)
     harness.time.advance(by: 30)
 
     #expect(harness.cues.silences == 0)
     #expect(harness.cues.spoken.last == "Done")
+}
+
+@MainActor
+@Test func aSyncThatChangesTheHoldEndsTheCountdownOfTheOldOne() throws {
+    let harness = CountdownCoordinatorHarness()
+    _ = try harness.startTheRDLsHold()
+    harness.time.advance(by: 7)
+    let parsed = makeOpeningHoldSession(day: 1, holdSeconds: 20)
+
+    harness.navigation.viewedSession = parsed
+    harness.coordinator.view(parsed)
+
+    #expect(harness.coordinator.countdown.run == nil)
+    #expect(harness.cues.silences == 1)
 }
 
 @MainActor
@@ -192,4 +211,56 @@ func leavingTheSetEndsTheCountdown(action: String) throws {
     coordinator.startDictation(for: slot.set)
 
     #expect(coordinator.countdown.run == nil)
+}
+
+@MainActor
+@Test func aSyncThatParsesTheCountdownsSetAsLoggedEndsTheCountdown() throws {
+    let harness = CountdownCoordinatorHarness()
+    _ = try harness.startTheRDLsHold()
+    harness.time.advance(by: 7)
+    let parsed = makeOpeningHoldSession(day: 1)
+    let parsedSet = try #require(parsed.exercises.first { $0.order == 1 }?.sets.first { $0.index == 0 })
+    parsedSet.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .seven)
+    parsedSet.state = .logged
+
+    harness.navigation.viewedSession = parsed
+    harness.coordinator.view(parsed)
+    harness.time.advance(by: 30)
+
+    #expect(harness.coordinator.countdown.run == nil)
+    #expect(harness.cues.silences == 1)
+    #expect(harness.cues.spoken.last == "Hold")
+}
+
+@MainActor
+@Test func aWriteThatBypassesTheStageAndLogsTheCountdownsSetEndsTheCountdownBeforeItsNextCue() throws {
+    let harness = CountdownCoordinatorHarness()
+    _ = try harness.startTheRDLsHold()
+    harness.time.advance(by: 7)
+    let set = try harness.rdlSet(0)
+    set.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .seven)
+    set.state = .logged
+
+    harness.time.advance(by: 30)
+
+    #expect(harness.coordinator.countdown.run == nil)
+    #expect(harness.cues.silences == 1)
+    #expect(harness.cues.spoken.last == "Hold")
+}
+
+@MainActor
+@Test func aSpokenWriteFromTheLockScreenThatMovesTheFocusEndsTheCountdownBeforeItsNextCue() throws {
+    let harness = CountdownCoordinatorHarness()
+    _ = try harness.startTheRDLsHold()
+    harness.time.advance(by: 7)
+    let set = try harness.rdlSet(0)
+    set.setLog = SetLog(weight: .pounds(225), reps: 8, rpe: .seven)
+    set.state = .logged
+
+    _ = harness.coordinator.focusManager.advanceAfterSpokenWrite(set, in: harness.session, holding: false)
+    harness.time.advance(by: 30)
+
+    #expect(harness.coordinator.countdown.run == nil)
+    #expect(harness.cues.silences == 1)
+    #expect(harness.cues.spoken.last == "Hold")
 }

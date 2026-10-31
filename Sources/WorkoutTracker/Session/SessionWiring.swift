@@ -33,6 +33,8 @@ protocol SessionNavigationAdapter: AnyObject, Observable {
     var canMoveOn: Bool { get }
     var openExercises: [Exercise] { get }
     var currentSession: Session? { get }
+    /// The Session the athlete is viewing, as the store holds it now, parsed again by any sync.
+    var viewedSession: Session? { get }
     func liveEdge(for session: Session) -> LiveEdge
     func requestMoveOnCelebration()
     func show(_ address: SessionAddress)

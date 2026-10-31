@@ -70,6 +70,7 @@ final class BrowsedAwaySessionNavigation: SessionNavigationAdapter {
     var canMoveOn: Bool { false }
     var openExercises: [Exercise] { [] }
     var currentSession: Session? { nil }
+    var viewedSession: Session? { nil }
     func liveEdge(for session: Session) -> LiveEdge { .browsedAway }
     func requestMoveOnCelebration() {}
     func show(_ address: SessionAddress) {}

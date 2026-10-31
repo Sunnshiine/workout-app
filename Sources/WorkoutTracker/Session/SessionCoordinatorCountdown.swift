@@ -14,8 +14,9 @@ extension SessionCoordinator {
     /// effort. Every Pending Set of an Exercise whose Coach Note prescribes an Opening Hold
     /// offers it.
     func cardCountdown(for slot: SetCardSlot) -> SetCardCountdown? {
-        guard slot.mode == .logging, slot.set.isPending, let effort = slot.set.timedEffort, let owner = countdownOwner(of: slot.set)
-        else { return nil }
+        guard slot.mode == .logging, let effort = Self.offeredEffort(on: slot.set), let owner = countdownOwner(of: slot.set) else {
+            return nil
+        }
         return SetCardCountdown(effort: effort, run: countdown.run.flatMap { $0.owner == owner ? $0 : nil })
     }
 
@@ -25,19 +26,37 @@ extension SessionCoordinator {
         guard let card = cardCountdown(for: slot), card.run == nil, let owner = countdownOwner(of: slot.set) else { return }
         wiring.restTimer.dismiss()
         wiring.liveActivity.end()
-        countdown.start(card.effort, for: owner)
+        countdown.start(card.effort, for: owner) { [weak self] run in
+            self?.cardStillOffers(run) ?? false
+        }
     }
 
     func cancelCountdown() {
         countdown.cancel()
     }
 
-    /// Ends the countdown once the card no longer shows its Set to log: focus moved, a review or a
-    /// held Set covers it, or the stage left its Session. A sync's re-parse of the same Session
-    /// keeps the Set where it was, and the countdown with it.
+    /// Ends the countdown once the card no longer offers it: focus moved, a review or a held Set
+    /// covers it, the stage left its Session, its Set is no longer Pending, or a sync's re-parse
+    /// changed its effort. A re-parse that keeps the Set Pending with the same effort keeps the
+    /// countdown.
     func cancelCountdownOffItsSet() {
-        guard let run = countdown.run, run.owner != shownCountdownOwner else { return }
+        guard let run = countdown.run, !cardStillOffers(run) else { return }
         countdown.cancel()
+    }
+
+    /// True while the card shows the run's Set to log, in the Session the athlete is viewing, and
+    /// that Set still offers the run's effort.
+    private func cardStillOffers(_ run: CountdownRun) -> Bool {
+        guard run.owner == shownCountdownOwner, let session = wiring.navigation.viewedSession,
+            session.placement.coordinate == run.owner.session,
+            let set = SessionSetOrder.orderedSets(in: session).first(where: { $0.setID == run.owner.set })?.set
+        else { return false }
+        return Self.offeredEffort(on: set) == run.effort
+    }
+
+    /// A Pending Set's timed effort. A Set that is logged or skipped offers none.
+    private static func offeredEffort(on set: ExerciseSet) -> TimedEffort? {
+        set.isPending ? set.timedEffort : nil
     }
 
     /// The Set the card shows to log, as a countdown names it.

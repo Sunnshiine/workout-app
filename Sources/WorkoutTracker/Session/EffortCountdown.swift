@@ -111,6 +111,8 @@ final class EffortCountdown {
     private(set) var run: CountdownRun?
     /// The first cue of `run` not yet played.
     @ObservationIgnored private var nextCue = 0
+    /// Whether the card still offers `run`, asked before each cue.
+    @ObservationIgnored private var isOffered: (CountdownRun) -> Bool = { _ in false }
 
     @ObservationIgnored private let clock: any RestClock
     @ObservationIgnored private let scheduler: any RestExpiryScheduling
@@ -122,11 +124,14 @@ final class EffortCountdown {
         self.cues = cues
     }
 
-    /// Starts `effort` for `owner` now, in place of any countdown running.
-    func start(_ effort: TimedEffort, for owner: CountdownRun.Owner) {
+    /// Starts `effort` for `owner` now, in place of any countdown running. It runs while
+    /// `isOffered` holds, and ends silenced at the first cue it does not, since a write or a sync
+    /// that no verb of the stage made can log its Set or change its effort under it.
+    func start(_ effort: TimedEffort, for owner: CountdownRun.Owner, while isOffered: @escaping (CountdownRun) -> Bool) {
         cancel()
         run = CountdownRun(effort: effort, owner: owner, start: clock.now)
         nextCue = 0
+        self.isOffered = isOffered
         advance()
     }
 
@@ -142,9 +147,14 @@ final class EffortCountdown {
     /// Plays the latest cue fallen due since the last one played, and only that one, so a
     /// countdown that wakes late says where it is rather than every second it missed. Then it
     /// sleeps until the next cue, or past the finished linger, when it clears and leaves its last
-    /// cue to finish speaking. A wake with nothing due plays nothing.
+    /// cue to finish speaking. A wake with nothing due plays nothing, and a wake for a run its card
+    /// no longer offers ends it.
     private func advance() {
         guard let run else { return }
+        guard isOffered(run) else {
+            cancel()
+            return
+        }
         let schedule = run.cues
         let now = clock.now
         let due = schedule[nextCue...].prefix { run.start.addingTimeInterval(TimeInterval($0.second)) <= now }
