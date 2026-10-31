@@ -390,10 +390,7 @@ private struct SheetPickerRow: View {
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.Radius.card)
-                    .stroke(palette.pillStroke, lineWidth: 1)
-            )
+            .themeElevation(palette.lighting.raisedControlShadow, in: .rect(cornerRadius: Theme.Radius.card))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)

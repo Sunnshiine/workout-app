@@ -99,6 +99,8 @@ extension Theme {
         let focusCardElevation: [BoxShadow]
         let raisedControlFill: Color
         let raisedControlShadow: [BoxShadow]
+        /// A week or day card in shade beside the focus card.
+        let weekCardElevation: [BoxShadow]
         let currentTileGlow: [BoxShadow]
 
         static let day = Lighting(
@@ -125,7 +127,8 @@ extension Theme {
                 BoxShadow(y: 6, blur: 30, color: rgb(228, 240, 200, 0.95))
             ],
             raisedControlFill: Paint.cream.opacity(0.90),
-            raisedControlShadow: LightKit.cardLow,
+            raisedControlShadow: [dayEdge(0.08)] + LightKit.cardLow,
+            weekCardElevation: [dayEdge(0.06)] + LightKit.cardLow,
             currentTileGlow: [
                 BoxShadow(y: 0, blur: 0, spread: 4, color: rgb(242, 247, 232, 0.45)),
                 BoxShadow(y: 2, blur: 18, color: rgb(220, 235, 190, 0.9))
@@ -136,14 +139,25 @@ extension Theme {
             pageSunbeam: nil,
             tileTopLight: nil,
             focusCardFill: nightSurface,
-            focusCardElevation: nightSurfaceShadow,
+            // The focus week's edge outshines the week cards' at Night, where no sun halo marks it.
+            focusCardElevation: nightLitEdge,
             raisedControlFill: nightSurface,
-            raisedControlShadow: nightSurfaceShadow,
+            // A touch brighter than a card's edge, so a control reads as the nearer surface.
+            raisedControlShadow: nightLitEdge,
+            weekCardElevation: nightSurfaceShadow,
             currentTileGlow: [BoxShadow(y: 0, blur: 14, color: nightBudGlow)]
         )
     }
 
+    /// The Day 1px ink edge that stands in for a border on a raised surface.
+    private static func dayEdge(_ opacity: Double) -> BoxShadow {
+        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.ink.opacity(opacity), inset: true)
+    }
+
     private static let nightSurface = Paint.cream.opacity(0.07)
+    private static let nightLitEdge = [
+        BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.14), inset: true)
+    ]
     private static let nightSurfaceShadow = [
         BoxShadow(y: 0, blur: 0, spread: 1, color: Paint.cream.opacity(0.10), inset: true)
     ]
@@ -222,6 +236,7 @@ extension Theme {
 
         surface: Paint.cream.opacity(0.52),
         surfaceShadow: [
+            dayEdge(0.05),
             BoxShadow(y: 1, blur: 2, color: rgb(21, 33, 24, 0.04)),
             BoxShadow(y: 14, blur: 30, color: rgb(21, 33, 24, 0.07))
         ],

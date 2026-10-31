@@ -37,6 +37,7 @@ struct ValueRail: View {
                 .animation(.snappy(duration: 0.22), value: selectedIndex)
             }
             .frame(height: Theme.railTrackHeight)
+            .mask { edgeFadeMask }
             .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
             .clipShape(.rect(cornerRadius: Theme.Radius.rail))
             .contentShape(.rect(cornerRadius: Theme.Radius.rail))
@@ -44,8 +45,6 @@ struct ValueRail: View {
                 RoundedRectangle(cornerRadius: Theme.Radius.rail)
                     .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
             }
-            .overlay(alignment: .leading) { edgeFade(leading: true) }
-            .overlay(alignment: .trailing) { edgeFade(leading: false) }
             .simultaneousGesture(dragToSelect)
 
             Text(label)
@@ -124,16 +123,14 @@ struct ValueRail: View {
         .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
-    private func edgeFade(leading: Bool) -> some View {
-        LinearGradient(
-            colors: leading
-                ? [palette.railFill, palette.railFill.opacity(0)]
-                : [palette.railFill.opacity(0), palette.railFill],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-        .frame(width: Theme.railEdgeFadeWidth)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+    /// Fades the chips out at both ends without painting over the rail's rounded fill.
+    private var edgeFadeMask: some View {
+        HStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .leading, endPoint: .trailing)
+                .frame(width: Theme.railEdgeFadeWidth)
+            Color.black
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: Theme.railEdgeFadeWidth)
+        }
     }
 }

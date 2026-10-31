@@ -29,7 +29,6 @@ struct SessionQueueSheet: View {
         .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
-        .presentationCornerRadius(Theme.Radius.soft)
         .presentationBackground { palette.paperBackground }
         .onDisappear {
             coordinator.cancelPairing()
@@ -120,7 +119,7 @@ struct SessionQueueSheet: View {
             }
             .frame(width: Self.headerButtonSize, height: Self.headerButtonSize)
             .background(Circle().fill(palette.pillFill))
-            .overlay(Circle().strokeBorder(palette.pillStroke, lineWidth: 1))
+            .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
