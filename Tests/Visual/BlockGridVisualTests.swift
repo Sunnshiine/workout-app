@@ -86,7 +86,7 @@ private enum GridFixture {
     case sixDay
 
     /// Each fixture mirrors its pick: Week 2 is the focus, and the header/summary counts fall out
-    /// of the day states (e.g. 6-day: "7 of 24 · 8 not uploaded", Week 2 "2 of 6").
+    /// of the day states (e.g. 6-day: "7 of 24 Sessions · 8 not uploaded", Week 2 "2 of 6 Sessions").
     var weeks: [[FixtureDay]] {
         switch self {
         case .twoDay:

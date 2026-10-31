@@ -255,9 +255,9 @@ extension CompletionStage {
     fileprivate init(items: [StageItem], liveEdge: LiveEdgeContext) {
         let setCount = items.reduce(0) { $0 + $1.exercises.completedSetCount }
         let exerciseCount = items.reduce(0) { $0 + $1.exercises.count }
-        let sets = setCount == 1 ? "1 set" : "\(setCount) sets"
-        let exercises = exerciseCount == 1 ? "1 exercise" : "\(exerciseCount) exercises"
-        summary = "\(sets) done across \(exercises)"
+        let sets = setCount == 1 ? "1 Set" : "\(setCount) Sets"
+        let exercises = exerciseCount == 1 ? "1 Exercise" : "\(exerciseCount) Exercises"
+        summary = "\(sets) across \(exercises)"
         openExercises = liveEdge.openExercises
         showsMoveOn = liveEdge.showsMoveOn
     }

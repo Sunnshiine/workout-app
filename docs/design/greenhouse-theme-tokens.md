@@ -114,6 +114,11 @@ blade: `budFill`/`budStroke` dress the cream-filled active leaf, and
 `futureStroke` draws the 0.72-scale ghost outline. Node scale runs are tuned
 per layout, not tokenized.
 
+### Page margin
+
+`pageMargin` **16pt**: the one left edge the Session stage, its foot, the sync banner, the Block
+grid, and the empty state align to (DESIGN.md §8 The One Edge Rule, 2026-10-31).
+
 ### Active Set Card & input block (#455 supersedes #413's pill display)
 
 | Role | Day | Night |

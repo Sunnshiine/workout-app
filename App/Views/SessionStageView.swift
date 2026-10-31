@@ -46,7 +46,7 @@ struct SessionStageView: View {
             // The zero minimum keeps an overflowing column from growing this frame, which would
             // hand the overflow to a centering parent.
             .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .bottom)
-            .padding(.horizontal)
+            .padding(.horizontal, Theme.pageMargin)
             .padding(.top, composition == .reading ? Theme.sectionSpacing : 0)
 
             ZStack {
@@ -132,7 +132,6 @@ struct SessionStageView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, Theme.sectionSpacing)
     }
 
     private func openExercisesIfMoveOnStillFits(_ openExercises: [Exercise]) -> some View {
@@ -183,7 +182,7 @@ struct SessionStageView: View {
             .accessibilityValue(stage.queue.position.label)
             .accessibilityIdentifier("stage-queue-button")
         }
-        .padding(.horizontal)
+        .padding(.horizontal, Theme.pageMargin)
         .padding(.vertical, 6)
     }
 

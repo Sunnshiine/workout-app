@@ -27,7 +27,7 @@ import Testing
     #expect(content.setsDone == 1)
     #expect(content.setsTotal == 3)
     #expect(content.setsLeft == 2)
-    #expect(content.setsLeftText == "2 sets left")
+    #expect(content.setsLeftText == "2 Sets left")
     #expect(content.restStartDate == startDate)
     #expect(content.restEndDate == endDate)
     #expect(content.target?.setID == ActiveSetID(exerciseOrder: 0, setIndex: 1))
@@ -52,7 +52,7 @@ import Testing
 
     #expect(content.exerciseName == "Bench Press")
     #expect(content.prescribedLoad == "RPE 7")
-    #expect(content.setsLeftText == "2 sets left")
+    #expect(content.setsLeftText == "2 Sets left")
 }
 
 @MainActor
@@ -127,7 +127,7 @@ import Testing
     #expect(content.prescribedLoad == "RPE 7")
     #expect(content.setsDone == 0)
     #expect(content.setsTotal == 3)
-    #expect(content.setsLeftText == "3 sets left")
+    #expect(content.setsLeftText == "3 Sets left")
 }
 
 @MainActor

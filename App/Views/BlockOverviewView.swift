@@ -39,7 +39,7 @@ struct BlockOverviewView: View {
                 }
                 settingsRow
             }
-            .padding()
+            .padding(Theme.pageMargin)
         }
         .sheet(item: $presented) { surface in
             switch surface {

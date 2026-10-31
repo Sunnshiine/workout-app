@@ -13,7 +13,7 @@ struct OpenExerciseRowPresentation {
         name = exercise.exerciseName.base
 
         let pendingSetCount = exercise.pendingSetCount
-        pendingSetLabel = pendingSetCount == 1 ? "1 pending set" : "\(pendingSetCount) pending sets"
+        pendingSetLabel = pendingSetCount == 1 ? "1 Set left" : "\(pendingSetCount) Sets left"
 
         sessionAddressLabel = exercise.session?.address?.sessionLabel ?? ""
     }
