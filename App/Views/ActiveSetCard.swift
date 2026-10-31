@@ -84,8 +84,8 @@ struct ActiveSetCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.soft))
-        .themeElevation(palette.surfaceShadow, in: RoundedRectangle(cornerRadius: Theme.Radius.soft))
+        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.activeSetCard))
+        .themeElevation(palette.surfaceShadow, in: RoundedRectangle(cornerRadius: Theme.Radius.activeSetCard))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("active-set-card")
     }

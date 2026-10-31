@@ -77,7 +77,8 @@ struct SessionTile: View {
         case .complete:
             EmptyView()
         case .current:
-            shape.stroke(palette.tileCurrentBorder, lineWidth: Theme.blockTileCurrentStroke)
+            // Inside the edge, as a CSS border is, so the glow's outer ring never covers the rim.
+            shape.strokeBorder(palette.tileCurrentBorder, lineWidth: Theme.blockTileCurrentStroke)
         case .incomplete:
             shape.stroke(palette.queueStroke, lineWidth: Theme.blockTileStroke)
         case .unavailable:

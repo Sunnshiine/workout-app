@@ -31,7 +31,7 @@ struct TimedEffortControl: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(palette.pillFill, in: .capsule)
-            .overlay(Capsule().strokeBorder(palette.pillStroke, lineWidth: 1))
+            .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
             .frame(minHeight: targetHeight)
             .contentShape(.rect)
         }

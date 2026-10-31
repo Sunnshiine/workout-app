@@ -92,7 +92,7 @@ tiles are wordless fills).
 
 ### 5.2 Active Set Card & input block
 
-The Active Set Card is the one soft container, ordered like the athlete's
+The Active Set Card is the stage's one lifted card, ordered like the athlete's
 actual entry — weight deliberate before the lift, reps and RPE reported
 after:
 
@@ -200,7 +200,7 @@ dashes the lateral, **bud** is the lateral alone reaching for a plus,
 joint.
 
 At rest a round icon button sits in the header's top right, a 46pt pill-fill
-circle with a hairline pill stroke, holding the offer stem in action ink. It
+circle raised on the control elevation (DESIGN.md §4), holding the offer stem in action ink. It
 begins pairing from the Exercise on stage, and it is absent when that
 Exercise cannot pair. No row carries a pair glyph. While pairing, the title
 stays "This Session" and the same circle holds a grey X that cancels. The

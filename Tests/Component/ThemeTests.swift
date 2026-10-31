@@ -201,13 +201,21 @@ func everyElevationRecipeFitsElevationsShadowSlots(appearance: Theme.Appearance)
     let palette = Theme.palette(for: appearance)
     let recipes = [
         palette.surfaceShadow, palette.logShadow, palette.lighting.raisedControlShadow,
-        palette.lighting.focusCardElevation, palette.lighting.currentTileGlow, Theme.LightKit.cardLow
+        palette.lighting.weekCardElevation, palette.lighting.focusCardElevation, palette.lighting.currentTileGlow
     ]
     for recipe in recipes {
-        let drops = recipe.filter { !$0.isInset }
+        let drops = recipe.filter { !$0.isInset && !$0.isRing }
         let slots = Theme.Elevation<Capsule>.dropSlots(for: recipe)
         #expect(slots.count == Theme.Elevation<Capsule>.dropSlotCount)
         #expect(Array(slots.prefix(drops.count)) == drops)
         #expect(slots.dropFirst(drops.count).allSatisfy { $0 == .clear })
     }
+}
+
+/// The Day focus card's sun halo reaches 5pt past its edge, so the grid leaves it that much air; at
+/// Night no halo draws and the card keeps its neighbours' spacing.
+@MainActor
+@Test func focusCardHaloReachMatchesItsOuterRing() {
+    #expect(Theme.ringReach(of: Theme.palette(for: .day).lighting.focusCardElevation) == 5)
+    #expect(Theme.ringReach(of: Theme.palette(for: .night).lighting.focusCardElevation) == 0)
 }

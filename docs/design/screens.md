@@ -36,7 +36,7 @@ and the one place the app shows Sheet structure.
 
 ### 5.6 Exercise History sheet — the chip ledger
 
-A sheet (radius `soft` shoulders, living-paper fill) opened only from Last
+A sheet (the system's own corners, living-paper fill) opened only from Last
 Performed. Every Set is a small **carved chip** — `27.5×10 @8`, inset into
 the sheet — flowing off a `W1 D1` gutter label under quiet muted Block
 headers, newest first. Chips may flow to a second line; text never wraps.

@@ -173,11 +173,8 @@ struct SessionStageView: View {
                     .foregroundStyle(palette.textPrimary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)
-                    .background(palette.footFill, in: .rect(cornerRadius: Theme.Radius.card, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .strokeBorder(palette.queueStroke, lineWidth: 1)
-                    )
+                    .background(palette.footFill, in: .capsule)
+                    .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
             }
