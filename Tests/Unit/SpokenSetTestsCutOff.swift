@@ -113,9 +113,10 @@ func aFractionStartedLastCutsItsNumberOff(transcript: String, whole: Double) {
     #expect(SpokenSet.parse("135 for 5 at eight and half") == values(.pounds(135), 5, .eightPointFive))
 }
 
-@Test func rteRtdAndRtvAreAMisheardRPE() {
+@Test func rteRtdRtvAndRpdAreAMisheardRPE() {
     #expect(SpokenSet.parse("135 for 4 RTD 9") == values(.pounds(135), 4, .nine))
     #expect(SpokenSet.parse("135 for 8 reps RTV9") == values(.pounds(135), 8, .nine))
+    #expect(SpokenSet.parse("135 for 8 and 9 RPD.") == values(.pounds(135), 8, .nine))
 }
 
 /// A weight for reps falls from the weight to the reps, so "per" between bodyweight or a weight and
