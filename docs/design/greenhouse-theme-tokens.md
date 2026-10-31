@@ -172,6 +172,7 @@ composition itself are locked by #455.
 |---|---|
 | `sheetFill` | `#EFF4E4`, radius 30 top shoulders, shadow `0 -8px 40px rgba(21,33,24,0.18)` |
 | `chipCarvedFill` (the app's only below-flat elevation) | ink @ 5.5% + `inset 0 1px 2px rgba(21,33,24,0.14), 0 1px 0 rgba(255,255,255,0.6)` |
+| chip padding | 4pt vertical, 10pt horizontal |
 | volume control raised | cream @ 90% + raised shadow |
 | volume control pressed | = carved chip recipe |
 | chart line | ink @ 35%, 1.5px |
@@ -306,7 +307,7 @@ Replaces the 8 / 16 / 28 scale.
 
 ## 9. Carried forward / build flags (no new decisions)
 
-- `danger` stays system red pending a danger pass; no Greenhouse prototype
+- `danger` stays system red, for hold-to-skip only, pending a danger pass; no Greenhouse prototype
   styled an error state.
 - Exercise History sheet night values follow the #418 sheet recipe (#434
   flagged: not re-prototyped — validate during the build).

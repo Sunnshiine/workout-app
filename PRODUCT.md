@@ -10,7 +10,7 @@ Surface the athlete's coach-programmed training and let them log Sets without fr
 
 ## Brand Personality
 
-A supportive training partner. Encouraging and warm, it acknowledges real progress and treats the athlete as someone doing hard work worth respecting. Three words: **warm, focused, trustworthy**. The emotional goal is quiet confidence. The athlete feels accompanied and on track.
+A supportive training partner. Encouraging and warm, it acknowledges real progress and treats the athlete as someone doing hard work worth respecting. Three words: **warm, focused, trustworthy**. The emotional goal is quiet confidence. The athlete feels accompanied and on track, and never nagged.
 
 ## Anti-references
 

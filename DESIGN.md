@@ -102,10 +102,8 @@ from fill, stroke, and type before any shadow.
 
 ### Radius family
 
-Every corner comes from this named family, and a nested radius is concentric (inner ≈ outer −
-inset): `capsule ∞` (all controls: pills, steppers, queue pill, Log capsule, chips) · `soft 30` (the
-one soft container, sheet shoulders) · `focusCard 24` · `card 20` (week cards) · `rail 18` ·
-`tile 15` · `cell 14` · `mini 6` · `hairline 2–3`.
+Every corner comes from the named family in token sheet §6, plus `hairline 2–3`, and a nested
+radius is concentric (inner ≈ outer − inset).
 
 ### Named Rules
 
@@ -142,7 +140,7 @@ The app icon's mark inside the app, its timing, and the bird's two perches:
 ## 7. Motion & Haptics
 
 Custom motion is confined to **three growth moments**, all on the wing ease. Every piece of chrome,
-the Log capsule included, rides stock system springs.
+the Log capsule included, rides stock system springs. Do not add decorative motion.
 
 The three moments' timings, the haptics, hold-to-skip timing, and reduced motion:
 [docs/design/motion-and-haptics.md](docs/design/motion-and-haptics.md).
