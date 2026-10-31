@@ -276,7 +276,7 @@ extension WorkoutActivityAttributes.ContentState {
     }
 
     var setsLeftText: String {
-        setsLeft == 1 ? "1 set left" : "\(setsLeft) sets left"
+        setsLeft == 1 ? "1 Set left" : "\(setsLeft) Sets left"
     }
 
     var restContextText: String? {

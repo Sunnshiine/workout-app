@@ -208,3 +208,26 @@ The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 - Settings, sheets, navigation, and text input keep their native iOS affordances.
 - On-screen words are `CONTEXT.md`'s terms, never the synonyms its avoid-lists name.
 - Text is solid ink, never a gradient, and no surface carries a side-stripe border.
+
+**The One Edge Rule.** The Session stage, the Block grid, and the empty state hang every row on one
+left edge, `Theme.pageMargin` (16pt) in from the screen: the runline, the Exercise name, the
+Active Set Card, the stage foot, the sync banner, and the week cards. A container insets its own
+content by its padding, never by a second page margin. The completion stage's title sits where an
+Exercise name sits. The Move On ceremony keeps its own centered column (§5.7).
+
+**The Bare Count Rule.** A count is a bare number unless the screen can't be read without a word
+beside it. A week card reads `2 of 4`, because the tiles beside it already show what is counted.
+When a count does need a word, it is the `CONTEXT.md` term, capitalized, and the same on every
+screen: a Set still to do is `left` (`5 Sets left`, `1 Set left` on an Open Exercise and on the Live
+Activity), and a finished Session counts what it holds (`5 Sets across 3 Exercises`), never `done`,
+which the Set State avoid-list bars. The operator, 2026-10-31, on a week card that read
+`0 of 4 Sessions`: "I hate this, please prefer no descriptor text unless absolutely necessary."
+
+**The Empty State Speaks Plainly Rule.** An empty state is a title, one or two short sentences that
+say what is missing and what happens next, and the one action that recovers. It carries no
+illustration: a stock glyph like a dumbbell is the generic-fitness clip art `PRODUCT.md` turns away.
+
+These three rules came from the layout and hierarchy pass, under the operator's brief of
+2026-10-31: "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md,
+or a past operator decision, Emil wins. Update DESIGN.md (through the product-design skill's
+feedback loop) so the new rule is written down".

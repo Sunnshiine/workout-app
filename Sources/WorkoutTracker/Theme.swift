@@ -167,6 +167,7 @@ enum Theme {
     static let sheetSelectedCellStroke: CGFloat = 1.5
     static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
 
+    static let pageMargin: CGFloat = 16  // the one left edge every session and progress page aligns to
     static let cardSpacing: CGFloat = 16
     static let sectionSpacing: CGFloat = 28
     static let editingWeightFootGap: CGFloat = 10

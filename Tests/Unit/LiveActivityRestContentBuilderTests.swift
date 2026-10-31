@@ -22,7 +22,7 @@ import Testing
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
 
-        #expect(state.restContextText == "2 sets left")
+        #expect(state.restContextText == "2 Sets left")
     }
 
     @MainActor
@@ -113,7 +113,7 @@ import Testing
 
     #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
     #expect(LiveActivityInvalidationPolicy.isReady(content, at: restEndDate))
-    #expect(content.setsLeftText == "2 sets left")
+    #expect(content.setsLeftText == "2 Sets left")
 }
 
 @Test func liveActivityReadyReminderExpiresAtThirtyMinuteCap() {
@@ -178,7 +178,7 @@ import Testing
     )
 
     #expect(content.exerciseName == "DB Row")
-    #expect(content.setsLeftText == "1 set left")
+    #expect(content.setsLeftText == "1 Set left")
     #expect(content.target?.session == SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)))
 }
 

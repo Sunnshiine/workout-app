@@ -6,13 +6,9 @@ struct EmptyStateView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Image(systemName: "dumbbell")
-                .font(Theme.font(.ceremonyTitle))
-                .foregroundStyle(palette.textSecondary)
-                .accessibilityHidden(true)
-            Text("No session yet")
+            Text("No Session yet")
                 .font(Theme.font(.sheetTitle))
-            Text("Automatic sync keeps checking your Sheet. Use Settings for manual recovery.")
+            Text("Sessions appear here once your Sheet has one. The app keeps checking, and Settings can sync now.")
                 .font(Theme.font(.coachNote))
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
