@@ -99,15 +99,15 @@ final class SyncCoordinator {
         activeSyncCount += 1
         defer { activeSyncCount -= 1 }
 
-        syncLogger.info("Starting sync for spreadsheetId: \(spreadsheetId, privacy: .public)")
+        syncLogger.info("Starting sync for spreadsheetId: \(spreadsheetId, privacy: .private(mask: .hash))")
 
         let flushOutcome = await flushQueue(spreadsheetId: spreadsheetId)
 
         do {
             let titles = try await client.listTabTitles(spreadsheetId: spreadsheetId)
-            syncLogger.debug("Tab titles: \(titles, privacy: .public)")
+            syncLogger.debug("Tab titles: \(titles, privacy: .private)")
             guard let tab = currentBlockTab(from: titles) else {
-                syncLogger.error("No block tab matched from titles: \(titles, privacy: .public)")
+                syncLogger.error("No block tab matched from titles: \(titles, privacy: .private)")
                 outcome = .sync(sheetRead: .noBlockTab, flush: flushOutcome)
                 return false
             }
@@ -133,7 +133,7 @@ final class SyncCoordinator {
             )
             return true
         } catch {
-            syncLogger.error("Sync failed: \(String(describing: error), privacy: .public)")
+            syncLogger.error("Sync failed: \(String(describing: error), privacy: .private)")
             outcome = .sync(sheetRead: .sheetUnreachable, flush: flushOutcome)
             return false
         }

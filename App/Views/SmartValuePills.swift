@@ -296,6 +296,7 @@ struct SmartValuePills: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(caption)
             .accessibilityHint(isListening ? "" : "Shows the Log button")
+            .accessibilityAddTraits(isListening ? [] : .isButton)
             .accessibilityAction {
                 if !isListening { onDismissDictation() }
             }

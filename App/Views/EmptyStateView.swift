@@ -9,6 +9,7 @@ struct EmptyStateView: View {
             Image(systemName: "dumbbell")
                 .font(Theme.font(.ceremonyTitle))
                 .foregroundStyle(palette.textSecondary)
+                .accessibilityHidden(true)
             Text("No session yet")
                 .font(Theme.font(.sheetTitle))
             Text("Automatic sync keeps checking your Sheet. Use Settings for manual recovery.")

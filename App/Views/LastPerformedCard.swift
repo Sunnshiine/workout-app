@@ -17,6 +17,7 @@ struct LastPerformedCard: View {
             .contentShape(Rectangle())
             .accessibilityLabel(line)
             .accessibilityHint("Opens Exercise History")
+            .accessibilityAddTraits(.isButton)
             .accessibilityIdentifier("last-performed-line")
             .onTapGesture(perform: onTap)
     }

@@ -44,4 +44,20 @@ final class WorkoutTrackerOnboardingSwitchUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
     }
+
+    @MainActor
+    func testReturnInTheURLFieldSavesWithoutReachingForSave() throws {
+        let app = launchWorkoutApp(fixture: .onboarding)
+
+        XCTAssertTrue(app.staticTexts["Choose your training sheet"].appears(within: 3))
+        tapWhenHittable(app.buttons["Paste a URL instead"])
+
+        let field = app.textFields["onboarding-url-field"]
+        XCTAssertTrue(field.appears(within: 3))
+        tapWhenHittable(field)
+        XCTAssertTrue(app.keyboards.firstMatch.appears(within: 3))
+        field.typeText("https://docs.google.com/spreadsheets/d/REPLACEMENT/edit\n")
+
+        XCTAssertTrue(app.staticTexts["Replacement Squat"].appears(within: 3))
+    }
 }
