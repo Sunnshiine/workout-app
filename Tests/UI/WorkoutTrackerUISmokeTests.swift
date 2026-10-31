@@ -42,6 +42,17 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
     }
 
     @MainActor
+    func testADoubleTapOnLogLogsOneSet() throws {
+        let app = launchCurrentSessionSmokeApp(options: [.offline])
+
+        XCTAssertTrue(app.staticTexts["Set 1 of 3"].appears(within: 3))
+        app.buttons["log-active-set-button"].doubleTap()
+
+        XCTAssertTrue(app.staticTexts["Set 2 of 3"].appears(within: 3))
+        XCTAssertFalse(app.staticTexts["Set 3 of 3"].appears(within: 1), "the second tap logged Set 2 too")
+    }
+
+    @MainActor
     func testOffLiveEdgeControlsReturnToCurrentSession() throws {
         let app = launchCurrentSessionSmokeApp()
 

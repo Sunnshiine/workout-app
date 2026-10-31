@@ -119,6 +119,26 @@ import Testing
 }
 
 @MainActor
+@Test func aPastedSheetURLSavesOnlyWhenNonEmptyAndNoSwitchIsRunning() async throws {
+    let settings = SettingsStore(defaults: AppDefaults.inMemory())
+    settings.isSignedIn = true
+    let sync = SuspendedSyncSheetSwitchSync()
+    let connection = SheetConnection(settings: settings, sync: sync, onSynced: {})
+    let url = "https://docs.google.com/spreadsheets/d/new-sheet/edit"
+
+    #expect(connection.canSaveSheetURL("") == false)
+    #expect(connection.canSaveSheetURL(url) == true)
+
+    let switchTask = Task { await connection.requestSwitch(to: SheetSelection(spreadsheetId: "new-sheet")) }
+    await sync.waitForSyncStart()
+    #expect(connection.canSaveSheetURL(url) == false)
+    sync.completeSync()
+    _ = await switchTask.value
+
+    #expect(connection.canSaveSheetURL(url) == true)
+}
+
+@MainActor
 @Test func syncNowAndASheetSwitchAreRejectedWhileSignOutDiscardsTheQueue() async throws {
     let settings = SettingsStore(defaults: AppDefaults.inMemory())
     settings.isSignedIn = true

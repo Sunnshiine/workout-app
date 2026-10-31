@@ -200,7 +200,7 @@ final class KeyboardLaneUITests: XCTestCase {
         openWeightKeyboard(in: app)
         XCTAssertFalse(app.otherElements["session-header-hud"].exists)
 
-        tapWhenHittable(app.staticTexts["last-performed-line"])
+        tapWhenHittable(app.buttons["last-performed-line"])
         let historyTitle = app.staticTexts["Exercise History · last 5"]
         XCTAssertTrue(historyTitle.appears(within: uiEventBudget))
         historyTitle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(

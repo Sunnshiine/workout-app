@@ -9,6 +9,7 @@ struct OnboardingView: View {
     @State private var urlError = false
     @State private var showsURLFallback = false
     @State private var selectionErrorMessage: String?
+    @State private var signInErrorMessage: String?
 
     // A value, not a SettingsStore read. While a removed view fades out, SwiftUI keeps the last
     // value its parent built, so signing in with a sheet still stored fades the connect screen
@@ -46,6 +47,11 @@ struct OnboardingView: View {
             Button("OK", role: .cancel) { selectionErrorMessage = nil }
         } message: {
             Text(selectionErrorMessage ?? "")
+        }
+        .alert("Couldn't sign in", isPresented: signInErrorPresented) {
+            Button("OK", role: .cancel) { signInErrorMessage = nil }
+        } message: {
+            Text(signInErrorMessage ?? "")
         }
     }
 
@@ -109,10 +115,15 @@ struct OnboardingView: View {
     private func signIn() {
         Task {
             guard let vc = topViewController() else { return }
-            do {
-                try await GoogleAuth.signIn(presenting: vc)
+            switch await GoogleAuth.signIn(presenting: vc) {
+            case .signedIn:
                 withAnimation { settings.isSignedIn = true }
-            } catch { settings.isSignedIn = false }
+            case .canceled:
+                settings.isSignedIn = false
+            case .failed:
+                settings.isSignedIn = false
+                signInErrorMessage = "Google sign-in didn't finish. Check your connection, then try again."
+            }
         }
     }
 
@@ -145,6 +156,10 @@ struct OnboardingView: View {
             .textFieldStyle(.plain)
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
+            .keyboardType(.URL)
+            .textContentType(.URL)
+            .submitLabel(.go)
+            .onSubmit { if connection.canSaveSheetURL(urlText) { saveURL() } }
             .focused($urlFieldFocused)
             .accessibilityIdentifier("onboarding-url-field")
             .accessibilityLabel(fieldName)
@@ -162,7 +177,7 @@ struct OnboardingView: View {
 
             Button("Save") { saveURL() }
                 .buttonStyle(.bordered)
-                .disabled(urlText.isEmpty)
+                .disabled(!connection.canSaveSheetURL(urlText))
         }
         .padding()
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
@@ -175,6 +190,14 @@ struct OnboardingView: View {
             selectionErrorMessage != nil
         } set: { isPresented in
             if !isPresented { selectionErrorMessage = nil }
+        }
+    }
+
+    private var signInErrorPresented: Binding<Bool> {
+        Binding {
+            signInErrorMessage != nil
+        } set: { isPresented in
+            if !isPresented { signInErrorMessage = nil }
         }
     }
 
