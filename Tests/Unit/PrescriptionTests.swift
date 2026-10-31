@@ -59,7 +59,7 @@ func aRepsCellReadsAsPrescribedReps(cell: String, expected: PrescribedReps) {
 @Test(
     "A Reps cell that is one duration reads as a Timed Set",
     arguments: [
-        ("40 sec", 40), ("25 min", 1500), ("0:45", 45), (" 30-45 s ", 30), ("40 sec.", 40), ("0:40.", 40),
+        ("40 sec", 40), ("25 min", 1500), ("0:45", 45), (" 30-45 s ", 30), ("40 sec.", 40), ("0:40.", 40), ("40\"", 40),
         ("1 min 30 sec", 90), ("30—45 sec", 30), ("30\u{2011}45 sec", 30)
     ]
 )

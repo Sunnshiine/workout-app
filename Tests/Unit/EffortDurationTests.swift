@@ -46,6 +46,9 @@ import Testing
         ("40 Sec.", 40),
         ("40s.", 40),
         ("0:40.", 40),
+        ("40\"", 40),
+        ("40″", 40),
+        ("30-45\"", 30),
         ("1 min 30 sec", 90),
         ("1 minute 30 seconds", 90),
         ("1 min 30s", 90),
@@ -99,6 +102,7 @@ func textThatIsOneDurationReadsAsItsSeconds(text: String, seconds: Int) {
         "1\u{2012}2\u{2012}3 min",
         "1\u{2212}2\u{2212}3 min",
         "40 sec..",
+        "40 \"",
         "1 min 60 sec",
         "30 sec 20 sec",
         "1 min 30",
@@ -134,7 +138,10 @@ func textThatIsNotOneDurationReadsAsNothing(text: String) {
         ("1m30s hold", [90]),
         ("Hold 1 min, 30 sec rest", [60, 30]),
         ("rest 1 min 30 sec hold", [90]),
-        ("Sled 20m, 10 sec hold", [10])
+        ("Sled 20m, 10 sec hold", [10]),
+        ("20\" hold", [20]),
+        ("\"Drive\" 20\" hold", [20]),
+        ("Say \"hold 20\" twice", [])
     ]
 )
 func proseWritesEachDurationItHolds(prose: String, seconds: [Int]) {
@@ -194,6 +201,9 @@ func proseWritesEachDurationItHolds(prose: String, seconds: [Int]) {
         ("10\u{2011}15 sec hold", 10),
         ("Start w/ 10\u{2012}15 sec hold", 10),
         ("Start w/ 10\u{2212}15 sec hold", 10),
+        ("20\" hold", 20),
+        ("20″ hold", 20),
+        ("2\" deficit, start w/ 10 sec hold", 10),
         ("Sled 20m, 10 sec hold", 10),
         ("Start w/ 10 sec hold at the bottom", 10),
         ("Begin with a 10 sec hold at the bottom", 10),
@@ -308,6 +318,10 @@ func aCoachNoteThatHoldsADurationAtTheStartPrescribesAnOpeningHold(coachNote: St
         "In the bottom position, hold 10 sec",
         "Between sets, hold 20 sec",
         "During the last rep, hold 10 sec",
+        "Hold 2\" off the floor",
+        "Pause 1\" off chest",
+        "2\" deficit pulls",
+        "Say \"hold 20\" twice",
         "Hold at least",
         "Do 30 sec then hold",
         "Final rep, hold 10 sec",

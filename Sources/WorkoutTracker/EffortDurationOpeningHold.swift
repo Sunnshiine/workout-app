@@ -104,9 +104,10 @@ private enum HoldGovernor: Equatable {
     }
 
     /// The word right before the duration governs it, so the `60 sec` of `Rest 60 sec hold 20 sec`
-    /// is a rest. Failing that, the word right after does.
+    /// is a rest. Failing that, the word right after does. A double prime is read only with the
+    /// hold after it, because `Hold 2" off the floor` writes inches.
     init?(of written: EffortDuration.Written, in clause: String) {
-        let before = clause[..<written.range.lowerBound].firstMatch(of: Self.wordBefore)?.word
+        let before = written.isDoublePrime ? nil : clause[..<written.range.lowerBound].firstMatch(of: Self.wordBefore)?.word
         let after = clause[written.range.upperBound...].prefixMatch(of: Self.wordAfter)?.word
         guard let governor = before.flatMap(Self.governor) ?? after.flatMap(Self.governor) else { return nil }
         self = governor

@@ -1,16 +1,18 @@
 import Foundation
 
 /// A length of time as a coach writes one, in whole seconds from 1 second to 60 minutes: `15 sec`,
-/// `15s`, `15-sec`, `15 seconds`, `:15`, `0:45`, `1:30`, `1 min`, `1.5 min`, `2 minutes`, `1 min 30 sec`,
-/// `1m30s`, in any casing. A range reads as its low end, as a rep range does, and only when its
-/// ends both resolve, low end first: `30-45 sec`, `0:30 – 0:45`, with any dash between them. A
-/// Cadence is never one, because a clock time has one colon and two-digit seconds: `0:5:0` and
-/// `2-3:1:0` read as nothing.
+/// `15s`, `15-sec`, `15 seconds`, `40"`, `:15`, `0:45`, `1:30`, `1 min`, `1.5 min`, `2 minutes`,
+/// `1 min 30 sec`, `1m30s`, in any casing. A range reads as its low end, as a rep range does, and
+/// only when its ends both resolve, low end first: `30-45 sec`, `0:30 – 0:45`, with any dash
+/// between them. A Cadence is never one, because a clock time has one colon and two-digit seconds:
+/// `0:5:0` and `2-3:1:0` read as nothing.
 struct EffortDuration: Equatable, Hashable, Sendable {
     /// One duration written in prose, and where.
     struct Written: Equatable {
         let duration: EffortDuration
         let range: Range<String.Index>
+        /// Written with a double prime, as `20"` is, which a coach also writes for inches.
+        let isDoublePrime: Bool
     }
 
     static let longestSeconds = 60 * 60
@@ -34,14 +36,17 @@ struct EffortDuration: Equatable, Hashable, Sendable {
 
     /// Every duration `prose` writes, in order. A number that continues a run of numbers, as the
     /// `2-1 min` of `1-2-3-3-2-1 min` does, or that runs on into another colon, as `1:30:0` does,
-    /// is not one.
+    /// is not one, and neither is a double prime that closes a quotation.
     static func written(in prose: String) -> [Written] {
         let count =
             #/
             (?<low> [0-9]+ (?: \. [0-9]+ )? )
             (?: \s* [-–—‑‒−] \s* (?<high> [0-9]+ (?: \. [0-9]+ )? ) )?
-            \s* [-–—‑‒−]? \s* (?<unit> seconds? | secs? | s | minutes? | mins? | m )
-            (?: \s* (?<addedSeconds> [0-9]{1,2} ) \s* (?: seconds? | secs? | s ) )?
+            (?:
+                (?<doublePrime> ["″] )
+                | \s* [-–—‑‒−]? \s* (?<unit> seconds? | secs? | s | minutes? | mins? | m )
+                  (?: \s* (?<addedSeconds> [0-9]{1,2} ) \s* (?: seconds? | secs? | s ) )?
+            )
             (?! \w )
             /#
         let clock =
@@ -51,18 +56,18 @@ struct EffortDuration: Equatable, Hashable, Sendable {
             (?: \s* (?: seconds? | secs? | s | minutes? | mins? ) \b )?
             /#
         let counted = prose.matches(of: count.ignoresCase()).map { match in
-            let unit = CountUnit(match.unit, addedSeconds: match.addedSeconds)
+            let unit = CountUnit(match.unit, addedSeconds: match.addedSeconds, isDoublePrime: match.doublePrime != nil)
             let ends = [match.low, match.high].compactMap { $0 }.map { Double($0).flatMap(unit.seconds) }
-            return WrittenEnds(range: match.range, seconds: ends)
+            return WrittenEnds(range: match.range, seconds: ends, isDoublePrime: unit == .doublePrime)
         }
         let clocked = prose.matches(of: clock.ignoresCase()).map { match in
             let high = match.highSeconds.map { [clockSeconds(match.highMinutes, $0)] } ?? []
-            return WrittenEnds(range: match.range, seconds: [clockSeconds(match.lowMinutes, match.lowSeconds)] + high)
+            return WrittenEnds(range: match.range, seconds: [clockSeconds(match.lowMinutes, match.lowSeconds)] + high, isDoublePrime: false)
         }
         return (counted + clocked)
-            .filter { standsAlone($0.range, in: prose) }
+            .filter { standsAlone($0, in: prose) }
             .sorted { $0.range.lowerBound < $1.range.lowerBound }
-            .compactMap { ends in ends.duration.map { Written(duration: $0, range: ends.range) } }
+            .compactMap { ends in ends.duration.map { Written(duration: $0, range: ends.range, isDoublePrime: ends.isDoublePrime) } }
     }
 
     /// What a count is counted in. A bare `m` is minutes only with seconds after it, as in `1m30s`,
@@ -70,22 +75,24 @@ struct EffortDuration: Equatable, Hashable, Sendable {
     private enum CountUnit: Equatable {
         case seconds
         case minutes(plusSeconds: Int)
+        case doublePrime
         case unreadable
 
-        init(_ unit: Substring, addedSeconds: Substring?) {
-            let lowered = unit.lowercased()
+        init(_ unit: Substring?, addedSeconds: Substring?, isDoublePrime: Bool) {
+            let lowered = unit?.lowercased() ?? ""
             let added = addedSeconds.flatMap { Int($0) }
-            switch (lowered.hasPrefix("m"), added) {
-            case (true, let added?): self = added < 60 ? .minutes(plusSeconds: added) : .unreadable
-            case (true, nil): self = lowered == "m" ? .unreadable : .minutes(plusSeconds: 0)
-            case (false, nil): self = .seconds
-            case (false, _?): self = .unreadable
+            switch (isDoublePrime, lowered.hasPrefix("m"), added) {
+            case (true, _, _): self = .doublePrime
+            case (false, true, let added?): self = added < 60 ? .minutes(plusSeconds: added) : .unreadable
+            case (false, true, nil): self = lowered == "m" ? .unreadable : .minutes(plusSeconds: 0)
+            case (false, false, nil): self = .seconds
+            case (false, false, _?): self = .unreadable
             }
         }
 
         func seconds(_ count: Double) -> Double? {
             switch self {
-            case .seconds: count
+            case .seconds, .doublePrime: count
             case .minutes(let plusSeconds): count * 60 + Double(plusSeconds)
             case .unreadable: nil
             }
@@ -96,6 +103,7 @@ struct EffortDuration: Equatable, Hashable, Sendable {
     private struct WrittenEnds {
         let range: Range<String.Index>
         let seconds: [Double?]
+        let isDoublePrime: Bool
 
         /// The low end, when every end is a duration and none runs backward.
         var duration: EffortDuration? {
@@ -114,11 +122,13 @@ struct EffortDuration: Equatable, Hashable, Sendable {
 
     /// False for a match that a digit or a colon runs into on either side, or a decimal point
     /// before it, or that a dash joins to the number before it. Such a match is a piece of a
-    /// Cadence, a longer number, or a pyramid such as "3-4-5 min".
-    private static func standsAlone(_ range: Range<String.Index>, in prose: String) -> Bool {
-        let before = prose[..<range.lowerBound]
-        return !runsIn(prose[range.upperBound...].first, marks: ":") && !runsIn(before.last, marks: ":.")
-            && !endsInANumberAndDash(before)
+    /// Cadence, a longer number, or a pyramid such as "3-4-5 min". False too for a `"` that
+    /// closes a quotation, which an odd count of `"` before it opens.
+    private static func standsAlone(_ ends: WrittenEnds, in prose: String) -> Bool {
+        let before = prose[..<ends.range.lowerBound]
+        let closesAQuotation = prose[ends.range].hasSuffix("\"") && before.count { $0 == "\"" } % 2 == 1
+        return !runsIn(prose[ends.range.upperBound...].first, marks: ":") && !runsIn(before.last, marks: ":.")
+            && !endsInANumberAndDash(before) && !closesAQuotation
     }
 
     private static func runsIn(_ character: Character?, marks: String) -> Bool {
