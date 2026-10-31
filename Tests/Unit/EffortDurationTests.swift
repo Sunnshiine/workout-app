@@ -333,7 +333,8 @@ func aCoachNoteThatHoldsADurationAtTheStartPrescribesAnOpeningHold(coachNote: St
         "Superset with plank hold 30 sec",
         "Hold 2 sec at the top",
         "Hold 5 sec",
-        "5 sec hold at the top, 3 sec eccentric"
+        "5 sec hold at the top, 3 sec eccentric",
+        "Hold 2 sec at the bottom before you start back up"
     ]
 )
 func aCoachNoteWithNoHoldAtTheStartPrescribesNoOpeningHold(coachNote: String) {

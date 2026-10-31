@@ -28,8 +28,8 @@ holds durations that are not holds ("rest 90 sec") and digits that are not durat
   rest, and failing that the word right after it. Only "hold" or "iso" makes a hold. A double prime
   is a hold only before "hold", since coaches write it for inches too ("Hold 2" off the floor"). A
   clause that names each, every, per, all, between, after, last, final, finish, end, or a superset
-  gives none, and so does a hold at the bottom or of 5 s or less unless the clause says start or
-  begin, because those are a pause in each rep. A fragment that only says when or where ("Each
+  gives none, and so does a hold at the bottom or of 5 s or less unless the clause opens with start
+  or begin, because those are a pause in each rep. A fragment that only says when or where ("Each
   rep,", "At the bottom,") belongs to the clause after it. A note that names one Set ("last set",
   "top set", "set 2") gives none, because the note speaks for every Set. When a note writes several
   holds, the first wins. The parser misses rather than guesses. A missed hold leaves the athlete

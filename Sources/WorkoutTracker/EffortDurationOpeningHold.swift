@@ -45,7 +45,9 @@ private struct NoteClause {
     /// A clause about a superset speaks for the other Exercise.
     private static var superset: Regex<Substring> { /\bsuper\s*-?\s*set/.ignoresCase() }
 
-    private static var opensTheSet: Regex<Substring> { /\b(?:start|begin)/.ignoresCase() }
+    /// `Start w/`, `Begin with`, as the clause's first word. A start later in it, as in
+    /// `hold 2 sec at the bottom before you start back up`, is the start of a rep.
+    private static var opensTheSet: Regex<Substring> { /^\s*(?:start|begin)/.ignoresCase() }
 
     /// How a fragment that only says when or where begins, as `On the last rep` and
     /// `At the bottom` do.
@@ -73,7 +75,7 @@ private struct NoteClause {
             let hold = EffortDuration.written(in: text).first(where: { HoldGovernor(of: $0, in: text) == .hold })?.duration
         else { return nil }
         let isARepPause = text.contains(Self.atTheBottom) || hold.seconds <= Self.longestRepPause
-        return isARepPause && !text.contains(Self.opensTheSet) ? nil : hold
+        return isARepPause && text.prefixMatch(of: Self.opensTheSet) == nil ? nil : hold
     }
 
     private var isAFrame: Bool {
