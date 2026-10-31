@@ -111,8 +111,8 @@ final class EffortCountdown {
     private(set) var run: CountdownRun?
     /// The first cue of `run` not yet played.
     @ObservationIgnored private var nextCue = 0
-    /// Whether the card still offers `run`, asked before each cue.
-    @ObservationIgnored private var isOffered: (CountdownRun) -> Bool = { _ in false }
+    /// Whether the card still offers `run`, asked before each cue. Set with `run`.
+    @ObservationIgnored private var isOffered: ((CountdownRun) -> Bool)?
 
     @ObservationIgnored private let clock: any RestClock
     @ObservationIgnored private let scheduler: any RestExpiryScheduling
@@ -151,7 +151,7 @@ final class EffortCountdown {
     /// no longer offers ends it.
     private func advance() {
         guard let run else { return }
-        guard isOffered(run) else {
+        guard isOffered?(run) == true else {
             cancel()
             return
         }
