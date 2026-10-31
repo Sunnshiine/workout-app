@@ -168,7 +168,7 @@ struct ActiveSetCard: View {
     private var savedConfirmation: some View {
         Label("Saved", systemImage: "checkmark.circle.fill")
             .themeFont(.setOf)
-            .foregroundStyle(palette.action)
+            .foregroundStyle(palette.actionInk)
     }
 
     private var clearMenu: some View {

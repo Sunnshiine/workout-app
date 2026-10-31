@@ -144,7 +144,7 @@ struct MoveOnCelebrationView: View {
                 .imageScale(.large)
                 .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
-                .background(palette.action, in: .capsule)
+                .background(palette.actionFill, in: .capsule)
         }
         .buttonStyle(.pressScale)
         .accessibilityLabel(presentation.continueText)

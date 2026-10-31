@@ -10,7 +10,7 @@ DESIGN.md or of one of its component files, which keep its numbering.
 **The growth vocabulary does not extend to the Block grid.** Tiles are
 plain, wordless, wider-than-tall; state is fill + stroke alone: inked
 complete (green fill, cream text), cream-bud current (cream @ 95% with the
-approved `#1F8552` border + sun glow), quiet available, ghost unavailable.
+`tileCurrentBorder` rim, leaf 600, + sun glow), quiet available, ghost unavailable.
 Zero icons on the tiles — the lock icon is dead — and Fraunces stays off the
 page. The grid carries two control glyphs, not tile decoration: the
 `gearshape` Settings button at its foot, and the `tablecells` View Sheet
@@ -30,7 +30,9 @@ and the one place the app shows Sheet structure.
   un-uploaded day alike.
 - The **sunlit hour** (halo + panes + wash on the focus card) is the page's
   only delight — no branches, no bird.
-- Night: tiles re-light like leaves — foliage fills, deep-ink text.
+- Night: complete tiles re-light like leaves (the Night leaf, leaf 300).
+  The current tile is lamp-lit cream @ 14% under the bud's rim, as Day's
+  is sunlit cream.
 
 ### 5.6 Exercise History sheet — the chip ledger
 

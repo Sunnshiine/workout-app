@@ -36,6 +36,7 @@ private enum Surface: CaseIterable {
     case focusCard
     case raisedControl
     case weekCard
+    case currentTile
     case carvedChip
     case action
     case actionUnderSkipWash
@@ -52,9 +53,10 @@ private enum Surface: CaseIterable {
         case .focusCard: ["lighting.focusCardFill"]
         case .raisedControl: ["lighting.raisedControlFill"]
         case .weekCard: ["weekCardShade"]
+        case .currentTile: ["tileCurrentFill"]
         case .carvedChip: ["chipCarvedFill"]
-        case .action: ["action"]
-        case .actionUnderSkipWash: ["action", "skipFillOverlay"]
+        case .action: ["actionFill"]
+        case .actionUnderSkipWash: ["actionFill", "skipFillOverlay"]
         case .pillUnderSkipWash: ["surface", "pillFill", "skipFillOverlay"]
         }
     }
@@ -93,19 +95,19 @@ private enum Use {
 private let uses: [String: Use] = [
     "textPrimary": .ink(
         on: [
-            .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .raisedControl, .weekCard, .carvedChip,
-            .pillUnderSkipWash
+            .paper, .card, .pill, .rail, .railSelected, .foot, .focusCard, .raisedControl, .weekCard, .currentTile,
+            .carvedChip, .pillUnderSkipWash
         ],
         .text
     ),
     "textSecondary": .ink(on: [.paper, .card, .pill, .rail, .focusCard, .raisedControl, .weekCard, .carvedChip], .text),
-    "actionInk": .textWithGlyphs(text: [.paper, .card], glyphs: [.pill]),
+    "actionInk": .textWithGlyphs(text: [.paper, .card, .carvedChip], glyphs: [.pill]),
     "supersetPartnerName": .ink(on: [.stageHeading], .text),
     "actionText": .ink(on: [.action, .actionUnderSkipWash], .text),
     "stepperGlyph": .ink(on: [.pill], .nonText),
     "tileCurrentBorder": .ink(on: [.focusCard, .weekCard], .nonText),
     "danger": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .pill, .rail]),
-    "action": .textWithGlyphs(text: [.card, .carvedChip], glyphs: [.paper, .rail, .railSelected]),
+    "action": .ink(on: [.paper, .rail, .railSelected], .nonText),
     "stem": .ink(on: [.paper], .nonText),
     "leafFill": .ink(on: [.paper, .focusCard, .weekCard], .nonText),
     "budStroke": .ink(on: [.paper], .nonText),
@@ -117,14 +119,15 @@ private let uses: [String: Use] = [
     "footFill": .ground,
     "chipCarvedFill": .ground,
     "weekCardShade": .ground,
+    "tileCurrentFill": .ground,
     "lighting.focusCardFill": .ground,
     "lighting.raisedControlFill": .ground,
-    "skipFillOverlay": .ground
+    "skipFillOverlay": .ground,
+    "actionFill": .ground
 ]
 
 private let quietRoles: [String: String] = [
     "sheetFill": "the core punched into a chart dot; no ink sits on it",
-    "tileCurrentFill": "the current tile's body; tileCurrentBorder draws its rim against the card",
     "leafRib": "a highlight line inside the leaf; the leaf's own fill carries the mark",
     "budFill": "the bud's body; budStroke draws its rim against the page",
     "budGlow": "a glow shadow around the Night bud, not a mark",
@@ -148,62 +151,9 @@ private struct ParkedPair: Hashable {
     let surface: Surface
 }
 
-private let dangerCall =
-    "whether danger stays system red or takes a Greenhouse red that holds 4.5:1 as Developer Tools and Live Activity "
-    + "lab text and 3:1 as a glyph or rim"
-private let nightActionCall = "whether the Night action green lightens where it marks the page, the rail, and the selected chip"
-private let actionAsTextCall =
-    "whether the onboarding link, Developer Tools statuses and notes, and the Live Activity lab status keep the "
-    + "action green as text or take actionInk; #841 tracks the Night link text"
-private let nightBranchCall = "whether Night foliage lightens or the logged branch stays under 3:1 under the sun wash"
-private let nightSecondaryCall =
-    "whether Night mutedNight lightens; the token sheet records it falls under 4.5:1 beneath the sun wash"
-
-private let nightSkipWashCall = "whether the Night hold-to-skip wash dims the Log label less as it fills"
-
-private let daySecondaryCall =
-    "whether Day muted darkens, or the carved chip fill lightens, where the foot wash reaches a History chip"
-
-private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call: String)] = [
-    (.day, "danger", .paper, floor: 1.93, dangerCall),
-    (.day, "danger", .card, floor: 2.56, dangerCall),
-    (.day, "danger", .rail, floor: 2.92, dangerCall),
-    (.day, "danger", .carvedChip, floor: 1.75, dangerCall),
-    (.night, "danger", .paper, floor: 2.75, dangerCall),
-    (.night, "danger", .card, floor: 2.26, dangerCall),
-    (.night, "danger", .pill, floor: 1.93, dangerCall),
-    (.night, "danger", .rail, floor: 1.93, dangerCall),
-    (.night, "danger", .carvedChip, floor: 2.32, dangerCall),
-    (.night, "action", .paper, floor: 2.10, nightActionCall),
-    (.day, "action", .carvedChip, floor: 3.26, actionAsTextCall),
-    (.night, "action", .card, floor: 1.73, actionAsTextCall),
-    (.night, "action", .carvedChip, floor: 1.78, actionAsTextCall),
-    (.night, "action", .rail, floor: 1.48, nightActionCall),
-    (.night, "action", .railSelected, floor: 1.06, nightActionCall),
-    (.night, "prescriptionTick", .rail, floor: 1.48, "whether the Night prescription tick lightens off the action green"),
-    (.night, "prescriptionTick", .railSelected, floor: 1.06, "whether the Night prescription tick lightens off the action green"),
-    (.night, "actionText", .action, floor: 4.23, "whether the 18pt Log label counts as large text at 3:1, or the Night action darkens"),
-    (.night, "textPrimary", .railSelected, floor: 4.40, "whether the Night selected chip fill dims under the sun wash"),
-    (.night, "actionText", .actionUnderSkipWash, floor: 3.53, nightSkipWashCall),
-    (.night, "textPrimary", .pillUnderSkipWash, floor: 4.33, nightSkipWashCall),
-    (.night, "stem", .paper, floor: 2.62, nightBranchCall),
-    (.night, "leafFill", .paper, floor: 2.62, nightBranchCall),
-    (.night, "leafFill", .focusCard, floor: 2.16, nightBranchCall),
-    (.night, "leafFill", .weekCard, floor: 2.22, nightBranchCall),
-    (.night, "textSecondary", .paper, floor: 3.99, nightSecondaryCall),
-    (.night, "textSecondary", .card, floor: 3.28, nightSecondaryCall),
-    (.night, "textSecondary", .pill, floor: 2.81, nightSecondaryCall),
-    (.night, "textSecondary", .rail, floor: 2.81, nightSecondaryCall),
-    (.night, "textSecondary", .focusCard, floor: 3.28, nightSecondaryCall),
-    (.night, "textSecondary", .raisedControl, floor: 3.28, nightSecondaryCall),
-    (.night, "textSecondary", .weekCard, floor: 3.38, nightSecondaryCall),
-    (.night, "textSecondary", .carvedChip, floor: 3.38, nightSecondaryCall),
-    (.day, "textSecondary", .carvedChip, floor: 4.36, daySecondaryCall),
-    (
-        .day, "supersetPartnerName", .stageHeading, floor: 4.39,
-        "whether a long partner name may run under the right-hand foliage wash; it reads 4.5:1 left of it"
-    )
-]
+/// A pair that fails its bar while the operator decides a palette value: (appearance, role,
+/// surface, the floor it must not fall below, the decision). Add a row rather than loosen a bar.
+private let parkedRows: [(Theme.Appearance, String, Surface, floor: Double, call: String)] = []
 
 private let parked: [ParkedPair: (floor: Double, reason: String)] = Dictionary(
     uniqueKeysWithValues: parkedRows.map { appearance, role, surface, floor, call in

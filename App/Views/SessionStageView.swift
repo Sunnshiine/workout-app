@@ -473,7 +473,7 @@ struct SessionMoveOnButton: View {
             Text("Move On")
                 .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
-                .background(palette.action, in: .capsule)
+                .background(palette.actionFill, in: .capsule)
         }
         .buttonStyle(.pressScale)
         .accessibilityHint("Advances to the next session")

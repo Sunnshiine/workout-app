@@ -65,7 +65,7 @@ private enum SettingsSheetAtRestOnIPhone17Pro {
 
 @Test func paletteTokensResolveToTheirSRGBChannels() {
     let ink = srgbComponents(of: Theme.Paint.ink).rgb
-    #expect(abs(ink.red - 21) <= 0.5 && abs(ink.green - 33) <= 0.5 && abs(ink.blue - 24) <= 0.5)
+    #expect(abs(ink.red - 19) <= 0.5 && abs(ink.green - 30) <= 0.5 && abs(ink.blue - 20) <= 0.5, "sage 950, #131E14")
 }
 
 private let nightOpenedSessionBorderedButtonFill = Theme.rgb(76, 81, 71)

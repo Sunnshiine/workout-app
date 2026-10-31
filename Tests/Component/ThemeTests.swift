@@ -89,9 +89,9 @@ import Testing
                 Issue.record("Could not resolve \(appearance) danger")
                 return
             }
-            #expect(danger.red > 0.85, "\(appearance) danger should read as red")
-            #expect(danger.green < 0.35, "\(appearance) danger should not drift orange or green")
-            #expect(danger.blue < 0.25, "\(appearance) danger should not drift purple")
+            #expect(danger.red - danger.green >= 0.25, "\(appearance) danger should read as red, not orange")
+            #expect(danger.red - danger.blue >= 0.25, "\(appearance) danger should read as red, not purple")
+            #expect(abs(danger.green - danger.blue) < 0.08, "\(appearance) danger should not drift orange or brown")
         }
     }
 #endif
@@ -154,15 +154,14 @@ import Testing
     @Test func nightBlockGridObeysTheRoomRelightsRule() {
         let night = Theme.palette(for: Theme.Appearance.night)
 
-        for foliageTile in [night.leafFill, night.tileCurrentFill] {
-            expectSageLed(foliageTile)
-            if let foliage = rgbaComponents(of: foliageTile) {
-                #expect(foliage.green > 0.4 && foliage.green < 0.75, "night tiles are mid foliage, not ink or cream")
-            }
+        expectSageLed(night.leafFill)
+        if let foliage = rgbaComponents(of: night.leafFill) {
+            #expect(foliage.green > 0.4 && foliage.green < 0.85, "night complete tiles are lit foliage, not ink or cream")
         }
 
         expectSageLed(night.tileGhostStroke)
         expectSageLed(night.weekCardShade)
+        expectSageLed(night.tileCurrentFill)
         if let cream = rgbaComponents(of: night.weekCardShade) {
             #expect(cream.green > 0.85, "cream is kept as the light source, sage-led and bright")
         }

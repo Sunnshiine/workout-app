@@ -3,21 +3,28 @@ import SwiftUI
 extension Theme {
     // MARK: - Paint box
 
-    /// The small set of pigments every role is mixed from (token sheet §2). Most roles are
-    /// `paint @ opacity`; wash recipes, glows and `tileCurrentBorder` are honest literals.
+    /// The small set of pigments every role is mixed from (token sheet §2). Each pigment is a step
+    /// of an OKLCH ramp, and Night reads its mirror step, so no Night pigment is picked by hand. The
+    /// light sources (cream, the paper pair, the bud, the colophon glass) are literals, because
+    /// they light the room rather than sit in it.
     enum Paint {
-        static let ink = rgb(21, 33, 24)  // #152118 — day text
-        static let inkNight = rgb(239, 243, 227)  // #EFF3E3 — night text
-        static let muted = rgb(64, 78, 68)  // #404E44 — day secondary
-        static let mutedNight = rgb(154, 170, 155)  // #9AAA9B — night secondary
-        static let mutedNightLight = rgb(170, 186, 170)  // #AABAAA — night Superset partner name
-        static let cream = rgb(242, 247, 232)  // #F2F7E8 — the workhorse
-        static let actionDay = rgb(13, 107, 64)  // #0D6B40 — day action / leaf / stem / bird
-        static let actionNight = rgb(31, 133, 82)  // #1F8552 — night action (mint is banned at night)
-        static let actionDayInk = rgb(10, 89, 54)
-        static let actionNightInk = rgb(168, 207, 180)
-        static let foliage = rgb(87, 145, 104)  // #579168 — the night pigment
-        static let foliageDeep = rgb(63, 106, 75)  // #3F6A4B — day Superset partner name
+        static let ink = Pigment.ink.day
+        static let inkNight = Pigment.ink.night
+        static let muted = Pigment.muted.day
+        static let mutedNight = Pigment.muted.night
+        static let partnerInk = Pigment.partnerInk.day
+        static let partnerInkNight = Pigment.partnerInk.night
+        static let cream = rgb(242, 247, 232)  // #F2F7E8 — the workhorse light
+        static let actionDay = Pigment.action.day
+        static let actionNight = Pigment.action.night
+        static let actionDayInk = Pigment.actionInk.day
+        static let actionNightInk = Pigment.actionInk.night
+        static let actionFillNight = Pigment.actionFill.night
+        static let tileRim = Pigment.tileRim.day
+        static let dangerDay = Pigment.danger.day
+        static let dangerNight = Pigment.danger.night
+        /// The Night bud's rim: a light, so it keeps the leaf ramp's full chroma at step 200.
+        static let budNight = Ramp.leaf.tone(.s200).color
         static let paperDayTop = rgb(233, 238, 220)  // #E9EEDC
         static let paperDayBottom = rgb(203, 225, 194)  // #CBE1C2
         static let paperNightTop = rgb(35, 44, 32)  // #232C20

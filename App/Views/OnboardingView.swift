@@ -114,7 +114,7 @@ struct OnboardingView: View {
                     Text("Connect Google Sheet")
                         .logCapsuleMetrics()
                         .foregroundStyle(palette.actionText)
-                        .background(palette.action, in: .capsule)
+                        .background(palette.actionFill, in: .capsule)
                 }
                 .buttonStyle(.pressScale)
                 .accessibilityIdentifier("onboarding-connect-button")
@@ -273,7 +273,7 @@ struct SheetPickerView: View {
                     Text("Paste a URL instead")
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(palette.action)
+                .foregroundStyle(palette.actionInk)
             }
         }
         .padding()
