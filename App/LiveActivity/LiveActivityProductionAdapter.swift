@@ -17,7 +17,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         self.controller = controller
     }
 
-    private var currentRestContent: LiveActivityRestContent? {
+    var restContent: LiveActivityRestContent? {
         guard case .rest(let content) = owner else { return nil }
         return content
     }
@@ -56,6 +56,30 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         }
     }
 
+    /// Waits out a start still in flight, so the activity it brings up is the one updated.
+    func retarget(restContent: LiveActivityRestContent) {
+        guard self.restContent != nil else { return }
+        owner = .rest(restContent)
+        let pending = startUpdateTask
+        let operationID = UUID()
+        startUpdateID = operationID
+        scheduleLifecycleTasks(for: restContent)
+        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
+        let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
+
+        startUpdateTask = Task { @MainActor [weak self, controller] in
+            await pending?.value
+            guard self?.isCurrentOperation(operationID, content: restContent) ?? false else { return }
+            controller.refreshAuthorizationStatus()
+            guard controller.isActive else { return }
+            await controller.update(state: state, staleDate: staleDate)
+            guard self?.isCurrentOperation(operationID, content: restContent) ?? false else {
+                await self?.endIfOperationWasInvalidated()
+                return
+            }
+        }
+    }
+
     func end() {
         clearLifecycleTasks()
         owner = .nobody
@@ -70,18 +94,18 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     }
 
     func endIfInvalidated(at liveEdge: LiveEdge) {
-        guard let currentRestContent else { return }
+        guard let restContent else { return }
         let isInvalidated =
-            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: Date())
-            || LiveActivityInvalidationPolicy.shouldEnd(currentRestContent, at: liveEdge)
+            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: restContent, at: Date())
+            || LiveActivityInvalidationPolicy.shouldEnd(restContent, at: liveEdge)
         guard isInvalidated else { return }
         end()
     }
 
     func endIfReadyCapExpired(at date: Date = Date()) {
         guard
-            let currentRestContent,
-            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: currentRestContent, at: date)
+            let restContent,
+            LiveActivityInvalidationPolicy.shouldEndReadyReminder(for: restContent, at: date)
         else {
             return
         }
@@ -92,7 +116,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         clearLifecycleTasks()
         readyUpdateTask = Task { @MainActor [weak self] in
             await Self.sleep(until: content.restEndDate)
-            guard !Task.isCancelled, self?.currentRestContent == content else { return }
+            guard !Task.isCancelled, self?.restContent == content else { return }
             await self?.controller.update(
                 state: WorkoutActivityAttributes.ContentState(restContent: content, dictation: nil),
                 staleDate: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content)
@@ -100,7 +124,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         }
         capEndTask = Task { @MainActor [weak self] in
             await Self.sleep(until: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content))
-            guard !Task.isCancelled, self?.currentRestContent == content else { return }
+            guard !Task.isCancelled, self?.restContent == content else { return }
             self?.end()
         }
     }
@@ -113,7 +137,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     }
 
     private func isCurrentOperation(_ operationID: UUID, content: LiveActivityRestContent) -> Bool {
-        !Task.isCancelled && startUpdateID == operationID && currentRestContent == content
+        !Task.isCancelled && startUpdateID == operationID && restContent == content
     }
 
     private func endIfOperationWasInvalidated() async {

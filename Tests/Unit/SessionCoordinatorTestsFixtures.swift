@@ -104,13 +104,22 @@ final class SpySessionLiveActivityAdapter: SessionLiveActivityAdapter {
     private(set) var calls: [(content: LiveActivityRestContent, sessionLabel: String)] = []
     private(set) var endCallCount = 0
     private(set) var invalidationCalls: [LiveEdge] = []
+    private(set) var retargets: [LiveActivityRestContent] = []
+    private(set) var restContent: LiveActivityRestContent?
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
         calls.append((restContent, sessionLabel))
+        self.restContent = restContent
+    }
+
+    func retarget(restContent: LiveActivityRestContent) {
+        retargets.append(restContent)
+        self.restContent = restContent
     }
 
     func end() {
         endCallCount += 1
+        restContent = nil
     }
 
     func endIfInvalidated(at liveEdge: LiveEdge) {

@@ -85,7 +85,9 @@ struct InertSessionSync: SessionSyncAdapter {
 
 @MainActor
 struct InertSessionLiveActivity: SessionLiveActivityAdapter {
+    var restContent: LiveActivityRestContent? { nil }
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {}
+    func retarget(restContent: LiveActivityRestContent) {}
     func end() {}
     func endIfInvalidated(at liveEdge: LiveEdge) {}
 }

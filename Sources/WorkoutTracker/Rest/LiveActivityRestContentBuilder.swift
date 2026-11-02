@@ -148,7 +148,28 @@ enum LiveActivityRestContentBuilder {
         guard let target = targetSet(afterLogging: loggedSet, in: session, supersetState: supersetState) else {
             return nil
         }
+        return content(for: target, restStartDate: restStartDate, restEndDate: restEndDate)
+    }
 
+    /// The rest's content pointed at `position`, the Set the athlete has on the card.
+    static func content(
+        showing position: SessionSetPosition,
+        in session: Session,
+        restStartDate: Date,
+        restEndDate: Date
+    ) -> LiveActivityRestContent {
+        content(
+            for: RestTargetSet(session: session, exercise: position.exercise, set: position.set),
+            restStartDate: restStartDate,
+            restEndDate: restEndDate
+        )
+    }
+
+    private static func content(
+        for target: RestTargetSet,
+        restStartDate: Date,
+        restEndDate: Date
+    ) -> LiveActivityRestContent {
         let pendingCount = target.exercise.pendingSetCount
         let totalCount = target.exercise.sets.count
         return LiveActivityRestContent(
