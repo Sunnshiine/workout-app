@@ -40,4 +40,23 @@ extension SessionCoordinator {
 
         wiring.liveActivity.startOrUpdate(restContent: content, sessionLabel: session.liveActivityLabel)
     }
+
+    /// The rest Live Activity follows the Set on the card, so an Exercise picked out of order
+    /// takes it over, during the rest and after it ends. The rest keeps its dates.
+    func retargetLiveActivityAtActiveSet() {
+        guard
+            let running = wiring.liveActivity.restContent,
+            let coordinate = sessionCoordinate,
+            let session = currentSession(at: coordinate),
+            let activeSet = focusManager.activeSet(in: session)
+        else { return }
+        let content = LiveActivityRestContentBuilder.content(
+            showing: activeSet,
+            in: session,
+            restStartDate: running.restStartDate,
+            restEndDate: running.restEndDate
+        )
+        guard content != running else { return }
+        wiring.liveActivity.retarget(restContent: content)
+    }
 }

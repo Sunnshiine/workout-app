@@ -292,7 +292,10 @@ final class SessionCoordinator {
     /// never outlives the card it was shown on, and neither does an Effort Countdown.
     func perform(_ requested: SessionMotion?, _ change: () throws -> Void) rethrows {
         dictation?.dismiss()
-        defer { cancelCountdownOffItsSet() }
+        defer {
+            cancelCountdownOffItsSet()
+            retargetLiveActivityAtActiveSet()
+        }
         guard let requested, requested.runs(reducingMotion: wiring.motion.reducesMotion) else {
             try change()
             return

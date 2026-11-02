@@ -15,7 +15,11 @@ protocol SessionSyncAdapter {
 
 @MainActor
 protocol SessionLiveActivityAdapter {
+    /// The running rest's content; nil when no rest owns the Live Activity.
+    var restContent: LiveActivityRestContent? { get }
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String)
+    /// Shows `restContent` on the running rest's Live Activity. Starts none.
+    func retarget(restContent: LiveActivityRestContent)
     func end()
     func endIfInvalidated(at liveEdge: LiveEdge)
 }

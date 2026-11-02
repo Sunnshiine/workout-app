@@ -63,9 +63,13 @@ final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, S
         entries.append(.flushRequested)
     }
 
+    var restContent: LiveActivityRestContent? { nil }
+
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
         entries.append(.liveActivityStarted)
     }
+
+    func retarget(restContent: LiveActivityRestContent) {}
 
     func end() {}
 
