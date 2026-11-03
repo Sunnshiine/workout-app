@@ -29,7 +29,7 @@ private func makeStoreStage(dictation: SetDictation? = nil) async throws -> Stor
 
 @MainActor
 private func makeStorePress(saying heard: String) async throws -> (StoreStage, pressed: ExerciseSet) {
-    let stage = try await makeStoreStage(dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: [heard])))
+    let stage = try await makeStoreStage(dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: [heard]), reading: heard))
     let pressed = try card(stage.coordinator, in: try #require(stage.app.workout.viewedSession)).set
     try #require(pressed.exercise?.exerciseName.entered == "Back Squat" && pressed.exercise?.order == 0 && pressed.index == 0)
     stage.coordinator.startDictation(for: pressed)

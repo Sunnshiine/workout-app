@@ -25,12 +25,19 @@ struct BackgroundDictationHarness {
     init(hearing candidates: [String], selectingSpreadsheet: Bool = true, sheet: HeldWriteSheetsClient? = nil) async throws {
         try await self.init(
             transcriber: CannedSetTranscriber(candidates: candidates),
+            reading: .heard(candidates.first ?? "", segments: []),
             selectingSpreadsheet: selectingSpreadsheet,
             sheet: sheet
         )
     }
 
-    init(transcriber: any SetTranscriber, selectingSpreadsheet: Bool = true, sheet: HeldWriteSheetsClient? = nil) async throws {
+    /// `read` is what the recording engine makes of every press.
+    init(
+        transcriber: any SetTranscriber,
+        reading read: RecordingDecode.Result,
+        selectingSpreadsheet: Bool = true,
+        sheet: HeldWriteSheetsClient? = nil
+    ) async throws {
         app = try WorkoutApplication(
             environment: AppEnvironment(
                 storage: .inMemory,
@@ -45,7 +52,7 @@ struct BackgroundDictationHarness {
         }
         dictation = SetDictation(
             transcriber: transcriber,
-            reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+            reader: CannedRecordingTranscriber(answering: read),
             journal: app.dictationJournal,
             clock: clock
         )

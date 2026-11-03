@@ -1,6 +1,6 @@
 /// Speech-to-text over a press's whole recording once the athlete stops: the Recording Transcript.
-/// Not main-actor isolated: a conformer runs off the main actor, and a model that is not ready
-/// answers at once rather than load on the press's path.
+/// Not main-actor isolated: a conformer runs off the main actor. A read waits for a model the press
+/// is loading, and a model not ready any other way answers at once.
 protocol RecordingTranscriber: Sendable {
     /// Where the engine's model stands right now, without waiting.
     var readiness: SpeechModelState { get }

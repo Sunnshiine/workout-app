@@ -13,9 +13,9 @@ final class HeldSetTranscriber: SetTranscriber {
     private let recording: [Float]
     private var hearing: (@MainActor (String) -> Void)?
 
-    /// `recording` is the audio its mic hands the recorder: none, as a Simulator's, unless the test
-    /// is about the recording engine.
-    init(candidates: [String], recording: [Float] = []) {
+    /// `recording` is the audio its mic hands the recorder: a second of silence for the recording
+    /// engine to read, unless the test is about what that engine is given.
+    init(candidates: [String], recording: [Float] = CannedSetTranscriber.aSecondOfSilence) {
         self.candidates = candidates
         self.recording = recording
     }

@@ -40,7 +40,9 @@ func makeHandsFreeFixture(
     requested: Bool = true
 ) -> HandsFreeFixture {
     let clock = ManualListeningClock()
-    let dictation = candidates.map { SetDictation(transcriber: CannedSetTranscriber(candidates: $0), clock: clock) }
+    let dictation = candidates.map {
+        SetDictation(transcriber: CannedSetTranscriber(candidates: $0), reading: $0.first ?? "", clock: clock)
+    }
     let entry = AppEntryInbox(clock: clock)
     if requested {
         entry.deliver(.dictateCurrentSet)

@@ -94,14 +94,14 @@ extension SetDictation {
     /// What `decode` says of the Set by itself, under the single-engine policy in `context`.
     nonisolated static func heard(_ decode: RecordingDecode, in context: SpokenSetContext) -> HandsFreeEarlyRead.Heard {
         guard let transcript = decode.transcript, case .success(let spokenSet) = SpokenSet.parse(transcript),
-            writes(transcript, in: context)
+            writes(decode.result, in: context)
         else { return .partOfASet }
         return HandsFreeEarlyRead.Heard(spokenSet)
     }
 
-    /// Whether the recording-only single-engine policy writes the Set `transcript` says.
-    private nonisolated static func writes(_ transcript: String, in context: SpokenSetContext) -> Bool {
-        switch MergeRule.recordingOnly.decide(Hearing(live: .transcripts([]), recording: transcript), in: context).outcome {
+    /// Whether the recording-only single-engine policy writes the Set `read` says.
+    private nonisolated static func writes(_ read: RecordingDecode.Result, in context: SpokenSetContext) -> Bool {
+        switch MergeRule.recordingOnly.decide(Hearing(live: .transcripts([]), recording: read), in: context).outcome {
         case .logged, .skipped: true
         case .filled, .rejected: false
         }

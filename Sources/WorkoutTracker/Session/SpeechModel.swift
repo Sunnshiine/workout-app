@@ -209,6 +209,13 @@ enum SpeechModelPlan {
         }
     }
 
+    /// Whether a press's read waits for the model where it stands, rather than answer that the
+    /// model is not ready. A load, which the press itself starts, took about 1.2 s on the Mac bench,
+    /// inside the Decision Deadline. Any other state takes minutes, or waits for a launch or a press.
+    static func readWaits(for state: SpeechModelState) -> Bool {
+        state == .loading
+    }
+
     private static func pressure(_ reason: UnloadReason, in state: SpeechModelState) -> Step {
         switch state {
         case .ready, .loading: Step(.unloaded(reason), .unload)

@@ -202,7 +202,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 @MainActor
 @Test func aPressCancelledWhileListeningTakesTheReadbackOff() async throws {
     let transcriber = HeldSetTranscriber(candidates: ["235 for 5 at 7"])
-    let harness = try await BackgroundDictationHarness(transcriber: transcriber)
+    let harness = try await BackgroundDictationHarness(transcriber: transcriber, reading: .heard("235 for 5 at 7", segments: []))
 
     let run = Task { await harness.background.run() }
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")

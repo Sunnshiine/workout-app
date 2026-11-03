@@ -40,7 +40,7 @@ import Testing
 @Test func aSetLoggedByTapWhileItsTranscriptCameInIsWrittenOnceAndThePressLetGo() async throws {
     let session = makeCoordinatorSession()
     let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
-    let dictation = SetDictation(transcriber: transcriber)
+    let dictation = SetDictation(transcriber: transcriber, reading: "185 for 6 at 7")
     let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)
     let set = try card(coordinator, in: session).set
     coordinator.startDictation(for: set)
@@ -67,7 +67,7 @@ import Testing
     let (first, firstSet) = makeSingleSetSession(dayNumber: 1)
     let (second, secondSet) = makeSingleSetSession(dayNumber: 2)
     let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
-    let dictation = SetDictation(transcriber: transcriber)
+    let dictation = SetDictation(transcriber: transcriber, reading: "185 for 6 at 7")
     let (coordinator, ledger, _) = makeDictationCoordinator(session: first, dictation: dictation)
     coordinator.startDictation(for: firstSet)
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
@@ -107,7 +107,8 @@ func letGoOfTheMic(
 @Test func aSpokenSetLogLandingAfterTheAthleteMovedToAnotherSetLeavesTheCardThere() async throws {
     let session = makeCoordinatorSession()
     let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
-    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: SetDictation(transcriber: transcriber))
+    let dictation = SetDictation(transcriber: transcriber, reading: "185 for 6 at 7")
+    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: dictation)
     let released = try card(coordinator, in: session).set
     let row = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
     let releasing = await letGoOfTheMic(on: released, of: coordinator, hearing: transcriber)
@@ -127,7 +128,8 @@ func letGoOfTheMic(
 @Test func aSpokenSetLogLandingUnderAReviewKeepsTheReviewAndMovesTheActiveSetOn() async throws {
     let session = makeCoordinatorSession()
     let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
-    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: SetDictation(transcriber: transcriber))
+    let dictation = SetDictation(transcriber: transcriber, reading: "185 for 6 at 7")
+    let (coordinator, _, clock) = makeDictationCoordinator(session: session, dictation: dictation)
     let released = try card(coordinator, in: session).set
     let squat = try #require(session.exercises.first { $0.order == 0 }?.sets.first)
     let releasing = await letGoOfTheMic(on: released, of: coordinator, hearing: transcriber)

@@ -106,9 +106,10 @@ private func outcome(of listening: Task<SetDictation.Outcome?, Never>, from dict
 
 @MainActor
 @Test func handsFreeListeningEndsTheSilenceWindowAfterTheLastWordAndWritesWhatWasHeard() async {
-    let (dictation, transcriber, clock) = makeHandsFreeDictation()
+    let (dictation, transcriber, clock) = makeHandsFreeDictation(reading: "135 for 4 at 9")
     let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: frame, orRecord: "It never listened")
+    transcriber.play(CannedSetTranscriber.aSecondOfSilence)
 
     await clock.advanceUntilSleeping(by: .milliseconds(500), orRecord: "It stopped listening before a word")
     transcriber.say("135 for")
@@ -126,9 +127,10 @@ private func outcome(of listening: Task<SetDictation.Outcome?, Never>, from dict
 
 @MainActor
 @Test func aTranscriptHeardAgainUnchangedDoesNotRestartTheSilenceWindow() async {
-    let (dictation, transcriber, clock) = makeHandsFreeDictation()
+    let (dictation, transcriber, clock) = makeHandsFreeDictation(reading: "skip")
     let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: frame, orRecord: "It never listened")
+    transcriber.play(CannedSetTranscriber.aSecondOfSilence)
 
     await clock.advanceUntilSleeping(by: .milliseconds(500), orRecord: "It stopped listening before a word")
     transcriber.say("skip")
@@ -157,9 +159,10 @@ private func outcome(of listening: Task<SetDictation.Outcome?, Never>, from dict
 
 @MainActor
 @Test func theCapEndsHandsFreeListeningThatNeverFallsQuiet() async {
-    let (dictation, transcriber, clock) = makeHandsFreeDictation()
+    let (dictation, transcriber, clock) = makeHandsFreeDictation(reading: "skip")
     let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: frame, orRecord: "It never listened")
+    transcriber.play(CannedSetTranscriber.aSecondOfSilence)
 
     clock.advance(by: cap - .milliseconds(500))
     transcriber.say("skip")
@@ -188,9 +191,10 @@ private func outcome(of listening: Task<SetDictation.Outcome?, Never>, from dict
 
 @MainActor
 @Test func aTapOnTheMicFinishesHandsFreeListeningAndTheAutoStopWritesNothingMore() async {
-    let (dictation, transcriber, clock) = makeHandsFreeDictation()
+    let (dictation, transcriber, clock) = makeHandsFreeDictation(reading: "skip")
     let listening = Task { await dictation.listenUntilQuiet(for: firstSet, on: .card) { squat } }
     await clock.waitUntilSleeping(until: frame, orRecord: "It never listened")
+    transcriber.play(CannedSetTranscriber.aSecondOfSilence)
     transcriber.say("skip")
 
     let tapped = await dictation.finish(for: firstSet, in: squat)
@@ -278,14 +282,16 @@ private func outcome(of listening: Task<SetDictation.Outcome?, Never>, from dict
     #expect(records.map(\.decision.outcome.kind) == [.rejected, .rejected])
 }
 
+/// `transcript` is what the recording engine reads from whatever the test plays into the mic.
 @MainActor
 private func makeHandsFreeDictation(
+    reading transcript: String = "",
     holdingStart: Bool = false,
     failingToStart failure: SetTranscriberError? = nil,
     keepingRecordsIn journal: DictationJournal = DictationJournal(storage: .inMemory)
 ) -> (SetDictation, OpenMicTranscriber, ManualListeningClock) {
     let transcriber = OpenMicTranscriber(holdingStart: holdingStart, failingToStart: failure)
     let clock = ManualListeningClock()
-    let reader = CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent)))
+    let reader = CannedRecordingTranscriber(answering: .heard(transcript, segments: []))
     return (SetDictation(transcriber: transcriber, reader: reader, journal: journal, clock: clock), transcriber, clock)
 }

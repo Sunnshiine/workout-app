@@ -80,16 +80,16 @@
           },
           "latency" : {
             "missedTarget" : 2,
-            "targetMs" : 500,
+            "targetMs" : 2000,
             "waitCause" : {
               "decisionDeadline" : 1,
               "recordingTranscript" : 1
             },
             "waitMs" : {
-              "max" : 1500,
+              "max" : 5000,
               "p50" : 264,
-              "p90" : 1500,
-              "p99" : 1500
+              "p90" : 5000,
+              "p99" : 5000
             },
             "withinTarget" : 2
           },

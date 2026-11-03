@@ -45,6 +45,29 @@ enum SetCardDictation: Equatable {
         case .transcriber(.unavailable): "Speech isn’t available"
         case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
         case .spokenSet, .transcriber(.failed): rejection.readback(of: heard)
+        case .recording(let miss): caption(miss)
+        }
+    }
+
+    private static func caption(_ miss: RecordingMiss) -> String {
+        switch miss {
+        case .notAsked, .nothingRecorded: "Nothing heard"
+        case .modelNotReady(let state): notReady(state)
+        case .late: "Took too long to hear you, say it again"
+        case .tooHot: "Phone is too hot to hear you"
+        case .failed: "Couldn’t hear that, say it again"
+        }
+    }
+
+    /// A Speech Model the press found not ready, and what the athlete can do about it. A model the
+    /// press was loading is ready for the next press.
+    private static func notReady(_ state: SpeechModelState) -> String {
+        switch state {
+        case .absent, .waitingForNetwork: "Speech model downloads on Wi-Fi"
+        case .downloading: "Speech model is still downloading"
+        case .specializing: "Speech model is still preparing"
+        case .failed: "Speech model failed, reopen the app"
+        case .downloaded, .loading, .ready, .unloaded: "Speech model was loading, say it again"
         }
     }
 }

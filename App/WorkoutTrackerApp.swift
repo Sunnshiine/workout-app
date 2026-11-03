@@ -108,13 +108,15 @@ struct WorkoutTrackerApp: App {
     }
 
     #if DEBUG
-        /// A fixture's mic hears `transcript`. A Simulator proof launch also records a WAV file on
-        /// each press and reads it with the real recording engine, its model from a host folder.
+        /// Both of a fixture's engines hear `transcript`. A Simulator proof launch also records a WAV
+        /// file on each press and reads it with the real recording engine, its model from a host
+        /// folder.
         private static func fixtureSpeech(hearing transcript: String) -> Speech {
             let launch = UITestFixture.launch
-            let live = CannedSetTranscriber(candidates: [transcript], recording: launch.recordingPath.map(ProofLaunchFiles.recording) ?? [])
+            let recording = launch.recordingPath.map(ProofLaunchFiles.recording) ?? CannedSetTranscriber.aSecondOfSilence
+            let live = CannedSetTranscriber(candidates: [transcript], recording: recording)
             guard let models = launch.speechModelsPath else {
-                return Speech(live: live, recording: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))))
+                return Speech(live: live, recording: CannedRecordingTranscriber(answering: .heard(transcript, segments: [])))
             }
             let engine = WhisperEngine(models: .host(ProofLaunchFiles.speechModels(at: models)))
             return Speech(live: live, recording: engine, caption: { engine.caption })

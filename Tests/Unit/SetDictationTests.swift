@@ -7,7 +7,7 @@ private let squat = SpokenSetContext(draft: SetLogDraft(weight: .pounds(185), re
 private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 
 private func outcome(of candidates: [String], in context: SpokenSetContext = squat) -> SetDictation.Outcome {
-    SetDictation.decision(of: Hearing(live: .transcripts(candidates), recording: nil), in: context).outcome
+    SetDictation.outcome(of: candidates, in: context)
 }
 
 @Test func aCompleteSetLogReadFromTheTopTranscriptIsLogged() {
@@ -100,7 +100,7 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
 @MainActor
 @Test func dictationPreparesThenListensWithWhatIsHeardThenDecidesThenFinishesWithTheOutcome() async {
     let transcriber = HeldSetTranscriber(candidates: ["135 for 4 at 9"])
-    let dictation = SetDictation(transcriber: transcriber)
+    let dictation = SetDictation(transcriber: transcriber, reading: "135 for 4 at 9")
 
     dictation.start(for: firstSet)
     #expect(dictation.state == .preparing(firstSet))
@@ -119,7 +119,7 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
 
 @MainActor
 @Test func releasingBeforeTheTranscriberStartsStillFinishesWhatItHeard() async {
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]))
+    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reading: "skip")
 
     dictation.start(for: firstSet)
     let skipped = await dictation.finish(for: firstSet, in: squat)
@@ -133,7 +133,7 @@ private func outcome(of candidates: [String], in context: SpokenSetContext = squ
     arguments: [SetTranscriberError.microphoneDenied, .unavailable, .failed]
 )
 func aTranscriberThatFailsToStartIsRejected(error: SetTranscriberError) async {
-    let dictation = SetDictation(transcriber: FailingSetTranscriber(failsToStart: error))
+    let dictation = SetDictation(transcriber: FailingSetTranscriber(failsToStart: error), reading: "135 for 4 at 9")
 
     dictation.start(for: firstSet)
     let rejected = await dictation.finish(for: firstSet, in: squat)
@@ -148,7 +148,7 @@ func aTranscriberThatFailsToStartIsRejected(error: SetTranscriberError) async {
     arguments: [SetTranscriberError.nothingHeard, .failed]
 )
 func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError) async {
-    let dictation = SetDictation(transcriber: FailingSetTranscriber(hearing: "135 for", failsToFinish: error))
+    let dictation = SetDictation(transcriber: FailingSetTranscriber(hearing: "135 for", failsToFinish: error), reading: "135 for")
 
     dictation.start(for: firstSet)
     let rejected = await dictation.finish(for: firstSet, in: squat)
@@ -158,7 +158,7 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 
 @MainActor
 @Test func finishingAnotherSetThanTheOneListenedForDoesNothing() async {
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]))
+    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reading: "skip")
     let secondSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
 
     dictation.start(for: firstSet)
@@ -170,7 +170,7 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 
 @MainActor
 @Test func startingWhileListeningKeepsTheFirstSet() async {
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]))
+    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reading: "skip")
 
     dictation.start(for: firstSet)
     dictation.start(for: ActiveSetID(exerciseOrder: 1, setIndex: 0))
@@ -181,7 +181,7 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 @MainActor
 @Test func cancellingStopsTheTranscriberAndForgetsTheSet() async {
     let transcriber = HeldSetTranscriber(candidates: ["skip"])
-    let dictation = SetDictation(transcriber: transcriber)
+    let dictation = SetDictation(transcriber: transcriber, reading: "skip")
 
     dictation.start(for: firstSet)
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
@@ -195,7 +195,7 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 
 @MainActor
 @Test func dismissingAFinishedOutcomeReturnsToIdleAndAllowsAnotherStart() async {
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]))
+    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reading: "skip")
     dictation.start(for: firstSet)
     _ = await dictation.finish(for: firstSet, in: squat)
 
@@ -207,7 +207,7 @@ func aTranscriberThatFailsToFinishKeepsWhatItHadHeard(error: SetTranscriberError
 
 @MainActor
 @Test func aFinishedOutcomeGivesWayToTheNextStart() async {
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]))
+    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reading: "skip")
     dictation.start(for: firstSet)
     _ = await dictation.finish(for: firstSet, in: squat)
 

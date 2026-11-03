@@ -11,7 +11,13 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
 @Test func aPressDecidesAndTheNextOneStartsWhileTheDiskHoldsItsRecord() async throws {
     let store = HeldDictationRecordStore()
     let journal = DictationJournal(store: store)
-    let dictation = SetDictation(transcriber: CannedSetTranscriber(candidates: ["skip"]), reader: noModel, journal: journal)
+    let reader = CannedRecordingTranscriber(answering: .heard("skip", segments: []))
+    let dictation = SetDictation(
+        transcriber: CannedSetTranscriber(candidates: ["skip"]),
+        reader: reader,
+        journal: journal,
+        clock: ManualListeningClock()
+    )
 
     dictation.start(for: firstSet)
     #expect(await dictation.finish(for: firstSet, in: squat) == .skipped(heard: "skip"))
@@ -27,10 +33,10 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
     #expect(Set(records.map(\.id)).count == 2, "each press has its own record")
 }
 
-/// The baseline every phone ships with: no recording engine model, and a mic that records nothing
-/// for it, so the Live Transcript decides alone.
+/// A phone whose Speech Model has not downloaded: the Live Transcript reads a whole Set, and the
+/// press writes nothing and names the model, where every rule that reads the Live Transcript logs.
 @MainActor
-@Test func aCardPressWithNoRecordingEngineRecordsTheLiveTranscriptDecidingAlone() async throws {
+@Test func aCardPressWithNoSpeechModelRecordsWhyItWroteNothing() async throws {
     let journal = DictationJournal(storage: .inMemory)
     let clock = ManualListeningClock()
     let transcriber = HeldSetTranscriber(candidates: ["185 for 5 at 8"])
@@ -67,19 +73,21 @@ private let noModel = CannedRecordingTranscriber(answering: .missing(.modelNotRe
                 version: .shipped,
                 modelAtPress: .absent,
                 modelAtEnd: .absent,
-                result: .missing(.nothingRecorded),
-                audioSeconds: 0,
+                result: .missing(.modelNotReady(.absent)),
+                audioSeconds: 1,
                 truncated: false,
                 decodeMs: nil
             )
     )
     let logged = DictationRecord.Outcome(.logged(SetLog(weight: .pounds(185), reps: 5, rpe: .eight), heard: "185 for 5 at 8"))
-    #expect(decided.decision.rule == .lead)
+    let notReady = DictationRecord.Outcome(.rejected(.recording(.modelNotReady(.absent)), heard: ""))
+    #expect(notReady.rejection?.reason == .speechModelNotReady)
+    #expect(decided.decision.rule == .recordingOnly)
     #expect(decided.decision.agreement == .liveOnly)
-    #expect(decided.decision.outcome == logged)
+    #expect(decided.decision.outcome == notReady)
+    #expect(decided.decision.live == logged)
     #expect(decided.decision.recording == nil)
-    #expect(decided.decision.byRule[.recordingOnly]?.kind == .rejected)
-    #expect(decided.decision.byRule[.gate] == logged)
+    #expect(decided.decision.byRule == [.recordingOnly: notReady, .lead: logged, .gate: logged, .liveOnly: logged])
 }
 
 @MainActor

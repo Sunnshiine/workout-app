@@ -79,7 +79,7 @@ import Testing
     let (current, currentSet) = makeSingleSetSession(dayNumber: 1)
     let (_, otherSessionsSet) = makeSingleSetSession(dayNumber: 3)
     let transcriber = HeldSetTranscriber(candidates: ["185 for 6 at 7"])
-    let dictation = SetDictation(transcriber: transcriber)
+    let dictation = SetDictation(transcriber: transcriber, reading: "185 for 6 at 7")
     let coordinator = SessionCoordinator(wiring: .fixture(), dictation: dictation)
     coordinator.view(current)
     coordinator.startDictation(for: currentSet)

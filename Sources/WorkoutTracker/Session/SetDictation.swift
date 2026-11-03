@@ -35,14 +35,20 @@ final class SetDictation {
     enum Rejection: Equatable, Sendable {
         case spokenSet(SpokenSet.Rejection)
         case transcriber(SetTranscriberError)
+        /// No Recording Transcript to decide the press.
+        case recording(RecordingMiss)
     }
 
     /// How long after a press ends its outcome may wait for the Recording Transcript, the live
-    /// engine's finalize included. A safety bound, not the target: a press should decide within
+    /// engine's finalize included. A press with none writes nothing, so this waits long enough for
+    /// a press that finds the Speech Model out of memory to load it, about 1.2 s on the Mac bench,
+    /// and then read it. A safety bound, not the target: a press should decide within
     /// `latencyTarget`.
-    nonisolated static let decisionDeadline: Duration = .milliseconds(1500)
+    nonisolated static let decisionDeadline: Duration = .seconds(5)
     /// How long a press should take to decide once it ends, which each press is measured against.
-    nonisolated static let latencyTarget: Duration = .milliseconds(500)
+    /// Provisional: the four presses of the 2026-10-25 phone export that Whisper read in time
+    /// decided 905 to 1262 ms after they ended (ADR-0021).
+    nonisolated static let latencyTarget: Duration = .seconds(2)
 
     private(set) var state: State = .idle
     @ObservationIgnored private let transcriber: any SetTranscriber
@@ -274,7 +280,7 @@ final class SetDictation {
         in context: SpokenSetContext
     ) -> Outcome {
         var press = press
-        let hearing = Hearing(live: live, recording: recording.result.transcript)
+        let hearing = Hearing(live: live, recording: recording.result)
         let decision = Self.decision(of: hearing, in: context)
         press.timeline.decidedAt = clock.now
         let decided = DictationRecord.Decided(
