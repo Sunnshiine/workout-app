@@ -43,8 +43,12 @@ enum SetCardDictation: Equatable {
         switch rejection {
         case .transcriber(.microphoneDenied): "Microphone is off in Settings"
         case .transcriber(.unavailable): "Speech isn’t available"
-        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
+        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard), .recording(.notAsked), .recording(.nothingRecorded): "Nothing heard"
         case .spokenSet, .transcriber(.failed): rejection.readback(of: heard)
+        case .recording(.modelNotReady): "Speech model isn’t ready yet"
+        case .recording(.late): "Took too long to hear you, say it again"
+        case .recording(.tooHot): "Phone is too hot to hear you"
+        case .recording(.failed): "Couldn’t hear that, say it again"
         }
     }
 }

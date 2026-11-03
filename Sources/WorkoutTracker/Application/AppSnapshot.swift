@@ -387,6 +387,9 @@ public struct SpokenSetRejectionSnapshot: Codable, Equatable, Sendable {
         /// The recognizer, not the words: the mic is off in Settings, speech is not available, or
         /// listening failed.
         case microphoneDenied, speechUnavailable, listeningFailed
+        /// No Recording Transcript: the Speech Model is not ready, its read outlasted the Decision
+        /// Deadline, the phone was too hot to read, or the read failed.
+        case speechModelNotReady, recordingLate, tooHot, recordingFailed
     }
 
     public let reason: Reason
@@ -404,6 +407,11 @@ extension SpokenSetRejectionSnapshot {
         case .transcriber(.microphoneDenied): self.init(reason: .microphoneDenied, field: nil, value: nil)
         case .transcriber(.unavailable): self.init(reason: .speechUnavailable, field: nil, value: nil)
         case .transcriber(.failed): self.init(reason: .listeningFailed, field: nil, value: nil)
+        case .recording(.notAsked), .recording(.nothingRecorded): self.init(reason: .nothingHeard, field: nil, value: nil)
+        case .recording(.modelNotReady): self.init(reason: .speechModelNotReady, field: nil, value: nil)
+        case .recording(.late): self.init(reason: .recordingLate, field: nil, value: nil)
+        case .recording(.tooHot): self.init(reason: .tooHot, field: nil, value: nil)
+        case .recording(.failed): self.init(reason: .recordingFailed, field: nil, value: nil)
         }
     }
 

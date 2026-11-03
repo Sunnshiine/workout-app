@@ -35,6 +35,8 @@ final class SetDictation {
     enum Rejection: Equatable, Sendable {
         case spokenSet(SpokenSet.Rejection)
         case transcriber(SetTranscriberError)
+        /// No Recording Transcript to decide the press.
+        case recording(RecordingMiss)
     }
 
     /// How long after a press ends its outcome may wait for the Recording Transcript, the live
@@ -274,7 +276,7 @@ final class SetDictation {
         in context: SpokenSetContext
     ) -> Outcome {
         var press = press
-        let hearing = Hearing(live: live, recording: recording.result.transcript)
+        let hearing = Hearing(live: live, recording: recording.result)
         let decision = Self.decision(of: hearing, in: context)
         press.timeline.decidedAt = clock.now
         let decided = DictationRecord.Decided(

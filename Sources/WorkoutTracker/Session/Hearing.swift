@@ -2,8 +2,8 @@
 /// transcripts stay its own, so one engine's alternatives never settle a value the other cut off.
 struct Hearing: Equatable, Sendable {
     let live: LiveHearing
-    /// The Recording Transcript; nil when no engine read the press's recording.
-    let recording: String?
+    /// The Recording Transcript, or why the press has none.
+    let recording: RecordingDecode.Result
 }
 
 /// The Live Transcript, or why the engine that listened as the athlete spoke has none.
@@ -42,15 +42,15 @@ enum MergeRule: String, CaseIterable, Sendable, Codable, CodingKeyRepresentable 
     case lead
     /// The Live Transcript alone, as before a second engine.
     case liveOnly
-    /// The Recording Transcript alone: a press with none heard nothing.
+    /// The Recording Transcript alone: a press with none writes nothing and says why.
     case recordingOnly
 
     static let shipped = MergeRule.lead
 
     func decide(_ hearing: Hearing, in context: SpokenSetContext) -> SetDictation.Decision {
         let live = SetDictation.outcome(of: hearing.live, in: context)
-        guard let transcript = hearing.recording else {
-            let unread: SetDictation.Outcome = self == .recordingOnly ? .rejected(.spokenSet(.nothingHeard), heard: "") : live
+        guard let transcript = hearing.recording.transcript else {
+            let unread = self == .recordingOnly ? hearing.unread : live
             return SetDictation.Decision(outcome: unread, agreement: .liveOnly, live: live, recording: nil)
         }
         let recording = SetDictation.outcome(of: .transcripts([transcript]), in: context)
@@ -73,6 +73,21 @@ enum MergeRule: String, CaseIterable, Sendable, Codable, CodingKeyRepresentable 
         case (.gate, .disagreed): recording.guessed
         case (.gate, .liveFills): live.guessed
         case (.gate, _), (.lead, _), (.recordingOnly, _): recording
+        }
+    }
+}
+
+extension Hearing {
+    /// A press with no Recording Transcript, named by why it has none. A press the recording engine
+    /// was never asked to read is named by the live engine's failure, or heard nothing.
+    fileprivate var unread: SetDictation.Outcome {
+        switch (recording, live) {
+        case (.missing(.notAsked), .failed(let error, let caption)), (.missing(.nothingRecorded), .failed(let error, let caption)):
+            .rejected(.transcriber(error), heard: caption)
+        case (.missing(.notAsked), .transcripts), (.missing(.nothingRecorded), .transcripts), (.heard, _):
+            .rejected(.spokenSet(.nothingHeard), heard: "")
+        case (.missing(let miss), _):
+            .rejected(.recording(miss), heard: "")
         }
     }
 }

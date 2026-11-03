@@ -33,7 +33,7 @@ func aDecidedPressIsDecidedTheSameAgainFromItsRecord(line: String) throws {
     let press = try decided(try decoded(line))
     let hearing = Hearing(
         live: .transcripts(press.live.candidates),
-        recording: press.recording.result.transcript
+        recording: press.recording.result
     )
 
     for rule in MergeRule.allCases {

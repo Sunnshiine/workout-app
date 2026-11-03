@@ -33,7 +33,7 @@ enum DictationRecordFixtures {
         {"app":{"build":"431","version":"1.9"},"decision":{"agreement":"liveOnly",
         "byRule":{"gate":{"heard":"same again","kind":"logged","setLog":"BWx12@7.5"},"lead":{"heard":"same again",
         "kind":"logged","setLog":"BWx12@7.5"},"liveOnly":{"heard":"same again","kind":"logged","setLog":"BWx12@7.5"},
-        "recordingOnly":{"heard":"","kind":"rejected","rejection":{"reason":"nothingHeard"}}},
+        "recordingOnly":{"heard":"","kind":"rejected","rejection":{"reason":"recordingLate"}}},
         "live":{"heard":"same again","kind":"logged","setLog":"BWx12@7.5"},"outcome":{"heard":"same again",
         "kind":"logged","setLog":"BWx12@7.5"},"rule":"lead"},"device":{"footprintMB":388,"lowPower":true,
         "model":"iPhone16,2","os":"26.0.1","thermal":"fair"},"end":"silence",
