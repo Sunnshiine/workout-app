@@ -11,11 +11,11 @@ prescribed reps and RPE), and the rest keep the pre-fill. A weight or reps the a
 and the card does not hold is never guessed.
 
 On the facade, `say` is `dictate(_ candidates: [String], at:)` with one transcript. `dictate` takes
-a recognizer's transcripts, most likely first, under the Dictation write policy: only the most
+one recognizer's transcripts, most likely first, under the single-engine policy: only the most
 likely transcript writes, read with the start or the "at" its alternatives heard where it lost them
 (below). A Set only the less likely ones read, and agree on, is `rejected` as `ambiguous` with
-nothing written. The headless Dictation the Action button and Control Center run
-on a locked phone writes through the same call.
+nothing written. A press of the mic, on the card or on a locked phone, is decided instead by its
+Recording Transcript alone (ADR-0021).
 
 | `outcome` | Means | Carries | Exit |
 |---|---|---|---|
@@ -31,8 +31,9 @@ recognizer ran together), `ambiguous` (a number no word places, or words that ma
 lifter logs, more likely misheard than said: more than 100 reps, or a weight that is not a multiple
 of 0.25 pounds), `offLadderRPE` (the `value` heard is not an RPE), or `nothingToRepeat` ("same
 again" with no earlier Set Log of the Exercise in the Session). A Dictation that listened, rather than read a
-transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`. A rejected
-`say` prints its report, then a `spoken_set_rejected` error.
+transcript, may also be `microphoneDenied`, `speechUnavailable`, or `listeningFailed`, and a press
+with no Recording Transcript is `speechModelNotReady`, `recordingLate`, `tooHot`, or
+`recordingFailed`. A rejected `say` prints its report, then a `spoken_set_rejected` error.
 
 The grammar, as the `SpokenSetTests` files in `Tests/Unit/` pin it. A number is a value only
 where a word next to it, or the phrase around it, says which, never by its place in the transcript.
@@ -142,8 +143,8 @@ $ workout say w1d1.e0.s1 "at 9" | jq -c '{outcome, setLog}'     # the card's est
 through the model, configuration, and transcript mapping the Active Set Card's mic uses
 (`Sources/WorkoutTracker/Session/OnDeviceSpeech.swift`): SpeechTranscriber with alternatives for
 en-US, or DictationTranscriber where the Mac has no SpeechTranscriber. Then it hands every
-transcript, most likely first, to `dictate`, which writes under the same Dictation write policy
-as the locked phone. `candidates` is that list; `heard` is its first entry.
+transcript, most likely first, to `dictate`, which writes under the single-engine policy.
+`candidates` is that list; `heard` is its first entry.
 
 ```console
 $ say -o set.aiff "185 for 5 at 8"

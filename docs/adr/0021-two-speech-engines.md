@@ -40,6 +40,31 @@ decodes. Noise the level hears as speech delays the stop, or sends the next Paus
 Speech the level hears as quiet, as a half said under music, could stop listening on the read before
 it, and how often that happens is unknown. Recorded presses can now measure it.
 
+**Amended 2026-11-02:** `recordingOnly` ships. The Recording Transcript alone decides a press of
+the mic, and a press with none writes nothing and says why. The 2026-10-25 phone export, from an
+iPhone16,2, held 9 presses that heard speech. In 5 of them the Recording Transcript missed the 1.5 s
+deadline, so the Live Transcript decided them, and only 1 of the 5 logged. SpeechAnalyzer wrote
+"RPE ten" as "every time", "are free time", and "are produced 10". Whisper read the other 4 in time,
+and all 4 logged the labelled Set, deciding 905 to 1262 ms after the press ended. Nine presses
+measure no accuracy, but they agree with the bench's 89% for Whisper against 44% for SpeechAnalyzer.
+
+The Decision Deadline is now 5 s. A press that finds the Speech Model out of memory starts loading
+it, about 1.2 s on the Mac, and its read now waits for that load rather than answer at once, so the
+deadline covers the load and the read. A Recording Transcript still being read at 5 s is dropped and
+the press says it took too long. The target is now 2 s, generous against the 905 to 1262 ms
+measured, and provisional until more presses are recorded. Neither number has been measured with a
+load on an iPhone. A press with no Recording Transcript names why on the card and the Live Activity:
+the model was not ready, the read was late, the phone was too hot, or the read failed. Until the
+model has downloaded, which happens only on Wi-Fi, no press of the mic writes a Set.
+
+SpeechAnalyzer stays for the caption and the hands-free stop, and every Dictation Record keeps its
+Live Transcript and what `lead`, `gate`, and `liveOnly` would have decided, so `workout dictations
+replay` can still compare the rules. `say`, `hear`, and `dictate` in the CLI read one engine's
+transcripts under the single-engine policy, as before.
+
+This contradicts "`lead` ships" and "The decision deadline is a safety bound" below, and the lines
+that let the Live Transcript decide a press the Speech Model did not read.
+
 We run both engines. SpeechAnalyzer keeps listening live for the caption and the auto-stop, and the
 transcripts it hands over when the press ends are the Live Transcript. The same microphone tap
 records the press at 16 kHz, and Whisper small reads that recording once the press ends. Its
