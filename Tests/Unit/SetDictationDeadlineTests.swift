@@ -6,6 +6,7 @@ private let squat = SpokenSetContext(draft: SetLogDraft(weight: .pounds(185), re
 private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 private let said = "185 for 5 at 8"
 private let liveLogs = SetDictation.Outcome.logged(SetLog(weight: .pounds(185), reps: 5, rpe: .eight), heard: said)
+private let late = SetDictation.Outcome.rejected(.recording(.late), heard: "")
 private let recordingSkips = RecordingDecode(result: .heard("skip", segments: []), timings: nil)
 private let silence = [Float](repeating: 0, count: DictationRecorder.sampleRate)
 private let deadline = Duration.milliseconds(1500)
@@ -64,14 +65,14 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
 }
 
 @MainActor
-@Test func aReadStillRunningAtTheDeadlineIsCancelledAndTheLiveTranscriptDecides() async {
+@Test func aReadStillRunningAtTheDeadlineIsCancelledAndThePressWritesNothing() async {
     let press = await endPress()
     await press.finalizeLive()
     await press.clock.waitUntilSleeping(until: deadline, orRecord: "The press never waited for the read")
 
     press.clock.advance(by: deadline)
 
-    #expect(await press.finishing.value == liveLogs)
+    #expect(await press.finishing.value == late, "the Live Transcript reads a whole Set, and decides nothing")
     #expect(press.reader.wasCancelled)
     #expect(press.reader.transcribes == 1)
 }
@@ -91,7 +92,7 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
 }
 
 @MainActor
-@Test func aReadDroppedAtTheDeadlineIsRecordedLateAndTheLiveTranscriptsDecision() async throws {
+@Test func aReadDroppedAtTheDeadlineIsRecordedLateBesideWhatTheLiveTranscriptWouldHaveDecided() async throws {
     let press = await endPress()
     press.clock.advance(by: .milliseconds(30))
     await press.finalizeLive()
@@ -106,7 +107,8 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
         return
     }
     #expect(decided.recording.result == .missing(.late))
-    #expect(decided.decision.outcome == DictationRecord.Outcome(liveLogs))
+    #expect(decided.decision.outcome == DictationRecord.Outcome(late))
+    #expect(decided.decision.byRule[.lead] == DictationRecord.Outcome(liveLogs))
     #expect(decided.decision.agreement == .liveOnly)
     #expect(record.timeline.live == 0)
     #expect(record.timeline.liveFinished == 30)
@@ -125,18 +127,18 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
     await press.clock.waitUntilSleeping(until: deadline, orRecord: "The deadline moved with the live engine")
     press.clock.advance(by: deadline - .milliseconds(400))
 
-    #expect(await press.finishing.value == liveLogs)
+    #expect(await press.finishing.value == late)
     #expect(press.reader.wasCancelled)
 }
 
 @MainActor
-@Test func aLiveTranscriptInPastTheDeadlineDecidesAtOnceAndDropsTheRead() async {
+@Test func aLiveTranscriptInPastTheDeadlineDropsTheReadAtOnce() async {
     let press = await endPress()
-    press.clock.advance(by: .seconds(2))
+    press.clock.advance(by: deadline + .milliseconds(500))
 
     await press.finalizeLive()
 
-    #expect(await press.finishing.value == liveLogs)
+    #expect(await press.finishing.value == late)
     #expect(press.reader.wasCancelled)
 }
 
@@ -181,12 +183,12 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
 }
 
 @MainActor
-@Test func aPressThatRecordedNothingIsDecidedByTheLiveTranscriptWithNoRead() async {
+@Test func aPressThatRecordedNothingIsNeverReadAndHeardNothing() async {
     let press = await endPress(recording: [])
 
     await press.finalizeLive()
 
-    #expect(await press.finishing.value == liveLogs)
+    #expect(await press.finishing.value == .rejected(.spokenSet(.nothingHeard), heard: ""))
     #expect(press.reader.transcribes == 0)
 }
 

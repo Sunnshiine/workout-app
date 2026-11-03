@@ -162,7 +162,7 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     let journal = DictationJournal(storage: .inMemory)
     let dictation = SetDictation(
         transcriber: CannedSetTranscriber(candidates: ["185 for 6 at 7"]),
-        reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+        reader: CannedRecordingTranscriber(answering: .heard("185 for 6 at 7", segments: [])),
         journal: journal
     )
     let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)
@@ -189,7 +189,7 @@ private func makeCoordinatorSessionWithRowAboveBench() throws -> Session {
     let journal = DictationJournal(storage: .inMemory)
     let dictation = SetDictation(
         transcriber: CannedSetTranscriber(candidates: ["185 for 6 at 7"]),
-        reader: CannedRecordingTranscriber(answering: .missing(.modelNotReady(.absent))),
+        reader: CannedRecordingTranscriber(answering: .heard("185 for 6 at 7", segments: [])),
         journal: journal
     )
     let (coordinator, ledger, _) = makeDictationCoordinator(session: session, dictation: dictation)

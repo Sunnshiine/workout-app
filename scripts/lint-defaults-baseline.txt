@@ -4,7 +4,6 @@ ActiveSetCard|memberwise|mic|nil
 ApplicationError|init|candidates|nil
 Block|init|trainingMaxes|empty
 BorderedCircleIconButton|memberwise|role|nil
-CannedSetTranscriber|init|recording|empty
 ChipFlowLayout|memberwise|spacing|number
 DictationRecorder.Buffer|memberwise|frameFill|number
 DictationRecorder.Buffer|memberwise|frameSumOfSquares|number

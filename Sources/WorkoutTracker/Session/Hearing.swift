@@ -45,7 +45,7 @@ enum MergeRule: String, CaseIterable, Sendable, Codable, CodingKeyRepresentable 
     /// The Recording Transcript alone: a press with none writes nothing and says why.
     case recordingOnly
 
-    static let shipped = MergeRule.lead
+    static let shipped = MergeRule.recordingOnly
 
     func decide(_ hearing: Hearing, in context: SpokenSetContext) -> SetDictation.Decision {
         let live = SetDictation.outcome(of: hearing.live, in: context)

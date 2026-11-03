@@ -14,7 +14,7 @@ func makeDictationCoordinator(
 ) -> (coordinator: SessionCoordinator, ledger: SessionVerbLedger, clock: ManualSessionTransitionClock) {
     makeDictationCoordinator(
         session: session,
-        dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: candidates)),
+        dictation: SetDictation(transcriber: CannedSetTranscriber(candidates: candidates), reading: candidates.first ?? ""),
         restTimer: restTimer
     )
 }
@@ -340,12 +340,12 @@ func aHeldSetTakesNoWriteFromItsCard(saying transcript: String) async throws {
 @MainActor
 @Test func aSetLogFilledFromSpeechWritesNothingAndFillsTheCard() async throws {
     let session = makeCoordinatorSession()
-    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["13549", "135 for 4 at 9"])
+    let (coordinator, ledger, _) = makeDictationCoordinator(session: session, saying: ["135 for 4 at"])
 
     let outcome = try await sayIntoTheCard(coordinator, in: session)
 
-    let filled = SetLogDraft(weight: .pounds(135), reps: 4, rpe: .nine)
-    #expect(outcome == .filled(filled, heard: "13549"))
+    let filled = SetLogDraft(weight: .pounds(135), reps: 4, rpe: nil)
+    #expect(outcome == .filled(filled, heard: "135 for 4 at"))
     #expect(ledger.entries.isEmpty)
     let slot = try card(coordinator, in: session)
     #expect(slot.mode == .logging)

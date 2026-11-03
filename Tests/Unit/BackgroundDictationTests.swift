@@ -219,7 +219,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 @MainActor
 @Test func theLiveActivityShowsListeningBeforeTheMicOpens() async throws {
     let transcriber = HeldSetTranscriber(candidates: ["skip it"])
-    let harness = try await BackgroundDictationHarness(transcriber: transcriber)
+    let harness = try await BackgroundDictationHarness(transcriber: transcriber, reading: .heard("skip it", segments: []))
 
     let run = Task { await harness.background.run() }
     await transcriber.starting.waitUntilHeld(orRecord: "The transcriber never started")
@@ -249,13 +249,13 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 }
 
 @MainActor
-@Test func aSetOnlyTheLessLikelyTranscriptsReadWritesNothing() async throws {
+@Test func aSetOnlyTheLiveTranscriptsAlternativesReadWritesNothing() async throws {
     let harness = try await BackgroundDictationHarness(hearing: ["um", "185 for 5 at 8"])
 
     let outcome = await harness.runUntilQuiet()
 
-    #expect(outcome == .notLogged(.ambiguous(heard: "um"), at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .notLogged("“um”")])
+    #expect(outcome == .notLogged(.rejected(.spokenSet(.nothingHeard), heard: "um"), at: firstSet))
+    #expect(harness.liveActivity.readbacks == [.listening, .notLogged("Nothing heard")])
     try harness.expectNothingWritten()
 }
 
@@ -302,7 +302,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     arguments: [SetTranscriberError.microphoneDenied, .unavailable]
 )
 func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberError) async throws {
-    let harness = try await BackgroundDictationHarness(transcriber: FailingSetTranscriber(error))
+    let harness = try await BackgroundDictationHarness(transcriber: FailingSetTranscriber(error), reading: .missing(.notAsked))
 
     let outcome = await harness.background.run()
 
@@ -314,7 +314,8 @@ func aMicThatWillNotOpenTellsTheAthleteToOpenTheAppOnce(error: SetTranscriberErr
 @MainActor
 @Test func listeningThatFailsAsksForAnUnlockAndRecordsWhatRefusedTheMic() async throws {
     let harness = try await BackgroundDictationHarness(
-        transcriber: FailingSetTranscriber(.failed, refusal: DictationRecordFixtures.refusal)
+        transcriber: FailingSetTranscriber(.failed, refusal: DictationRecordFixtures.refusal),
+        reading: .missing(.notAsked)
     )
 
     _ = await harness.background.run()
