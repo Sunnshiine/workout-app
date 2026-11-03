@@ -9,7 +9,7 @@ private let liveLogs = SetDictation.Outcome.logged(SetLog(weight: .pounds(185), 
 private let late = SetDictation.Outcome.rejected(.recording(.late), heard: "")
 private let recordingSkips = RecordingDecode(result: .heard("skip", segments: []), timings: nil)
 private let silence = [Float](repeating: 0, count: DictationRecorder.sampleRate)
-private let deadline = Duration.milliseconds(1500)
+private let deadline = SetDictation.decisionDeadline
 
 /// A press that went live hearing `said` and ended: its live engine's finalize is parked until the
 /// test releases it, and its recording, when there is one, is being read until the test answers.
@@ -64,6 +64,21 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
     #expect(press.dictation.state == .finished(firstSet, .skipped(heard: "skip")))
 }
 
+/// The 2026-10-25 phone export's late reads missed a 1.5 s deadline, which the shipped one outlasts.
+@MainActor
+@Test func aRecordingTranscriptInPastTheOldDeadlineAndBeforeTheShippedOneDecidesThePress() async {
+    #expect(deadline == .seconds(5))
+    let press = await endPress()
+    await press.finalizeLive()
+    await press.clock.waitUntilSleeping(until: deadline, orRecord: "The press never waited for the read")
+
+    press.clock.advance(by: .seconds(3))
+    press.reader.answer(recordingSkips)
+
+    #expect(await press.finishing.value == .skipped(heard: "skip"))
+    #expect(press.reader.wasCancelled == false)
+}
+
 @MainActor
 @Test func aReadStillRunningAtTheDeadlineIsCancelledAndThePressWritesNothing() async {
     let press = await endPress()
@@ -113,8 +128,8 @@ private func endPress(recording: [Float] = silence, waitingAtMost decisionDeadli
     #expect(record.timeline.live == 0)
     #expect(record.timeline.liveFinished == 30)
     #expect(record.timeline.recordingRead == nil)
-    #expect(record.timeline.recordingDropped == 1500)
-    #expect(record.timeline.decided == 1500)
+    #expect(record.timeline.recordingDropped == 5000)
+    #expect(record.timeline.decided == 5000)
     #expect(record.waitCause == .decisionDeadline)
 }
 

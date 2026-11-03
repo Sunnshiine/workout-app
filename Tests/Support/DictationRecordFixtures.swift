@@ -44,8 +44,8 @@ enum DictationRecordFixtures {
         "options":"t0.nots.wc0.fb5","prompt":"p1","tokenizerRevision":"e8727524f962ee844a7319d92be39ac1bd25655a"}},
         "schema":1,"set":{"address":"w1d1.e2.s1",
         "block":"Block 27","draft":{"reps":12,"rpe":7.5,"weight":"BW"},"exercise":"Pull Up","previous":"BWx12@7.5"},
-        "surface":"headless","timelineMs":{"decided":4200,"ended":2700,"firstHeard":900,"lastHeard":1500,"live":150,
-        "liveFinished":2760,"recordingDropped":4200}}
+        "surface":"headless","timelineMs":{"decided":7700,"ended":2700,"firstHeard":900,"lastHeard":1500,"live":150,
+        "liveFinished":2760,"recordingDropped":7700}}
         """#,
         #"""
         {"app":{"build":"431","version":"1.9"},"device":{"footprintMB":401,"lowPower":false,"model":"iPhone17,1",
@@ -71,8 +71,8 @@ enum DictationRecordFixtures {
         "options":"t0.nots.wc0.fb5","prompt":"p1","tokenizerRevision":"e8727524f962ee844a7319d92be39ac1bd25655a"}},
         "schema":1,"set":{"address":"w1d1.e1.s0",
         "block":"Block 27","draft":{"reps":5,"rpe":8,"weight":"225"},"exercise":"Bench Press"},"surface":"card",
-        "timelineMs":{"decided":2900,"ended":2100,"firstHeard":700,"lastHeard":1600,"live":140,"liveFinished":2350,
-        "recordingRead":2900}}
+        "timelineMs":{"decided":4400,"ended":2100,"firstHeard":700,"lastHeard":1600,"live":140,"liveFinished":2350,
+        "recordingRead":4400}}
         """#,
         #"""
         {"app":{"build":"431","commit":"6aba617","version":"1.9"},"decision":{"agreement":"disagreed",

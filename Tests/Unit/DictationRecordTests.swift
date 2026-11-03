@@ -81,13 +81,13 @@ private func timeline(live: Int?, liveFinished: Int?, dropped: Int? = nil, decid
 }
 
 @Test(arguments: [
-    (timeline(live: 100, liveFinished: 1100, decided: 1500), nil),
-    (timeline(live: 100, liveFinished: 1400, decided: 1600), DictationRecord.WaitCause.liveFinalize),
-    (timeline(live: 100, liveFinished: 1050, decided: 1700), .recordingTranscript),
-    (timeline(live: 100, liveFinished: 1300, decided: 1600), .liveFinalize),
-    (timeline(live: 100, liveFinished: 1050, dropped: 2500, decided: 2500), .decisionDeadline),
-    (timeline(live: 1600, liveFinished: 1650, decided: 1700), .liveStart),
-    (timeline(live: nil, liveFinished: nil, decided: 1900), .liveStart)
+    (timeline(live: 100, liveFinished: 1100, decided: 3000), nil),
+    (timeline(live: 100, liveFinished: 2800, decided: 3100), DictationRecord.WaitCause.liveFinalize),
+    (timeline(live: 100, liveFinished: 1050, decided: 3200), .recordingTranscript),
+    (timeline(live: 100, liveFinished: 2050, decided: 3100), .liveFinalize),
+    (timeline(live: 100, liveFinished: 1050, dropped: 6000, decided: 6000), .decisionDeadline),
+    (timeline(live: 3100, liveFinished: 3150, decided: 3200), .liveStart),
+    (timeline(live: nil, liveFinished: nil, decided: 3400), .liveStart)
 ])
 func aWaitPastTheTargetNamesItsLargestShare(timeline: DictationRecord.Timeline, cause: DictationRecord.WaitCause?) throws {
     let record = try decoded(DictationRecordFixtures.lines[0])

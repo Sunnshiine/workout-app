@@ -284,5 +284,5 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     let summary = try json(try WorkoutApplication.dictationSummary(reading: journal, labels: nil))
 
     #expect(summary["presses"] as? Int == 0)
-    #expect((summary["latency"] as? [String: Any])?["targetMs"] as? Int == 500)
+    #expect((summary["latency"] as? [String: Any])?["targetMs"] as? Int == 2000)
 }
