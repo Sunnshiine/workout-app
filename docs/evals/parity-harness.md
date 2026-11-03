@@ -9,9 +9,9 @@ on 2026-11-02 against `origin/main` at d21de386.
 **Recommendation: adopt it in a narrower form.** Keep `scripts/parity.sh` as an opt-in local
 tool for refactors whose output reaches the disk or the CLI's wire contract. Do not add a CI job
 or a blanket AGENTS.md rule. Across 78 compiled mutants, `swift test` killed 64 and parity
-caught 26. Only one mutant was caught by parity alone, and no historical regression would have
-been caught by it. The case for keeping it is that agents already hand-run this check, and the
-harness makes it rerunnable at about 25 s.
+caught 31. Only one mutant was caught by parity alone, and no historical regression would have
+been caught by it. Across 63 historical refactor pairs it raised no noise. The case for keeping it
+is that agents already hand-run this check, and the harness makes it rerunnable at about 25 s.
 
 ## The harness
 
@@ -67,22 +67,37 @@ I checked two citations myself. #598's body says `workout` from the branch and f
 byte-identical". Agents already run this check by hand on refactors, which may be part of why
 none of these regressions reached trunk.
 
-**Sweep over every refactor/perf commit.** I ran parity on each of the 31 first-parent
-`refactor`/`perf` commits touching `Sources/WorkoutTracker/` since #634 (commit^ against commit).
-27 were clean. 4 differed, and none was a bug or noise:
+**Sweep over every refactor/perf change.** I ran parity on 63 pairs, each a commit against its
+first parent:
+
+- 31 first-parent `refactor`/`perf` commits touching `Sources/WorkoutTracker/` from #634 to HEAD,
+  on the 6-scenario corpus.
+- The 14 first-parent merges of the stacked UI series (#816 to #861), including #825 and #829,
+  whose refactor bugs the miner found. These ran on the 8-scenario corpus.
+- 18 `refactor`/`perf` commits from #532 to #634, from before the move to `Sources/`, also on the
+  8-scenario corpus.
+
+54 were clean, including all 14 merges. 9 differed, and none was a bug or noise:
 
 | Commit | Diff | Verdict |
 |---|---|---|
-| 96d99a87 (#949), 36e4d74d (#984), d9c4b0df (#1002) | `init --scenario` accepts a new scenario | Intended additive change. A per-scenario split of `every-scenario` would turn these into skips |
+| 96d99a87 (#949), 36e4d74d (#984), d9c4b0df (#1002) | `init --scenario` accepts a new scenario | Intended additive change |
+| 73f8b4d0 (#574), 804b3737 (#586) | The CLI gains `skip`, and `sync --viewing` with `viewedSession` | Intended additive change |
 | b9d1482a (#1009) | A fixture Set Log became a real cell (K17), so the CLI reads it as logged | Intended. The PR fixes #1000 under a `refactor` title |
+| 62ad0dbf (#600), 3ad06479 (#591) | The wire key syncState becomes `syncOutcome`, and displayedSession becomes `viewedSession` | Intended wire renames |
+| ce7820a1 (#563) | The invalid Set Log message lists the RPE rail values | Intended message change |
 
-So the rate of false positives from nondeterminism was 0 of 31. Every diff was a real behaviour
-change in a PR titled `refactor`, which a reviewer would want to see.
+So the rate of false positives from nondeterminism was 0 of 63. Every diff was a real behaviour
+change in a PR titled `refactor`, which a reviewer would want to see. Five of the nine are
+additive surface, a new verb, option, or scenario. The skew rule did not skip them, because it
+skips a whole scenario only when head runs it with no usage error, and each scenario also hit a
+command neither side had yet. Improvement 2 fixes this.
 
 ### Planted and generated bugs
 
 Each mutant was applied in a scratch worktree. Then `swift test` ran (1,821 tests), and then
-`scripts/parity.sh HEAD`. Three sources:
+`scripts/parity.sh HEAD`. The table compares parity against `swift test` alone. The other gates
+are discussed after it. Three sources:
 
 - **Planted.** A fresh subagent wrote 20 single-line "refactor slips" in mutate.sh sed form, 4 per
   area. It saw only the target files, never the corpus or the tests.
@@ -94,22 +109,32 @@ Each mutant was applied in a scratch worktree. Then `swift test` ran (1,821 test
 
 | Set | Compiled | `swift test` kills | Parity catches | Both | Parity only | Tests only | Neither |
 |---|---|---|---|---|---|---|---|
-| Planted | 20 | 20 | 9 | 9 | 0 | 11 | 0 |
-| Generated, core | 39 | 32 | 12 | 12 | 0 | 20 | 7 |
+| Planted | 20 | 20 | 12 | 12 | 0 | 8 | 0 |
+| Generated, core | 39 | 32 | 14 | 14 | 0 | 18 | 7 |
 | Generated, CLI and facade | 19 | 12 | 5 | 4 | **1** | 8 | 6 |
-| **Total** | **78** | **64** | **26** | **25** | **1** | **39** | **13** |
+| **Total** | **78** | **64** | **31** | **30** | **1** | **34** | **13** |
+
+Every row is on the final 8-scenario corpus. The planted and core sets first ran on 6 scenarios,
+which caught 9 and 12. I reran parity alone on every mutant it missed, after adding the two
+scenarios below.
 
 **The one unique catch** is C08, which changes `Manifest.currentVersion` from 2 to 3 in
 `Sources/WorkoutCLI/Home.swift`. That is a persisted-format change. No test pins the number, and
 parity sees it in every `manifest.json`. This is the class where parity adds value: a byte on disk
 or on the wire that no test asserts.
 
-**Why parity misses what tests kill.** Of the 11 planted misses, these are corpus gaps a scenario
-can close:
+C08 also survives every other gate. `grep` finds no test that mentions the manifest version.
+`Sources/WorkoutCLI/` is absent from `WorkoutTracker.xcodeproj`, so the simulator-hosted unit
+suite, the visual gate, and the UI suites never compile it. The CRAP gate and the flake guard
+assert no values. `verify.sh` drives the app, not the CLI's home. The other 30 parity catches
+are also `swift test` kills, so the extra gates cannot add to parity's unique count.
 
-- M18, the history basis picking the lowest-RPE Set Log.
-- M10, clearing the final Set expecting an empty RPE cell.
-- M02, compact Set Log list placement.
+**Why parity misses what tests kill.** Of the 11 misses on the first planted run, these were
+corpus gaps a scenario can close:
+
+- M18, the history basis picking the lowest-RPE Set Log (now caught).
+- M10, clearing the final Set expecting an empty RPE cell (now caught).
+- M02, compact Set Log list placement (now caught).
 - M03, a write in Week 2.
 - The CLI's own refusal dedup, C06 and C18. It needs a `sync` that itself refuses a write.
 
@@ -122,8 +147,9 @@ The rest are paths the CLI cannot reach:
 - M13 and M19, which need inputs the fixtures don't have.
 
 Two scenarios written after seeing the misses, `load-suggestions` and `final-set`, raised planted
-catches from 9 to 12 (M02, M10, M18). That shows the corpus is cheap to extend. It is not
-unbiased detection.
+catches from 9 to 12 (M02, M10, M18) and core catches from 12 to 14 (G19, G26). That shows the
+corpus is cheap to extend. The planted gain is not unbiased detection, because I wrote the
+scenarios after seeing those misses.
 
 **The 13 that neither caught.** These are G02, G11, G17, G27, G30, G36, and G39 in the core set,
 and C03, C04, C09, C14, C19, and C20 in the CLI set. I read the seven core ones:
@@ -147,24 +173,33 @@ AGENTS.md line telling refactors to run `scripts/parity.sh origin/main`. Checkou
 
 | | Tokens | Tool calls | Wall-clock | `swift test` | Parity on its commit (my run) | Behaviour change shipped |
 |---|---|---|---|---|---|---|
-| A, with harness | 89,583 | 31 | 9.5 min | 1,822 pass | 8 clean | No |
-| B, without | 72,352 | 22 | 6.1 min | 1,822 pass | 8 clean | No |
+| A, with harness | 89,583 | 31 | 9.5 min | 1,822 pass | 8 clean | None the corpus or tests found |
+| B, without | 72,352 | 22 | 6.1 min | 1,822 pass | 8 clean | None the corpus or tests found |
+
+I read both diffs. Each adds `SyncOutcomeSnapshot.Status.verdict` with an eight-case table test,
+deletes `leavesTheAthleteSomethingToDo`, routes `ApplicationError.syncFailed`, `SyncCommand`, and
+`FlushCommand` through it, and edits the README and CONTEXT.md. The changes are 7 files, +50 −22
+(A) and 8 files, +53 −25 (B). Parity's view of this refactor is narrow. The corpus reaches
+`clear` and `writesRefused` but not `noBlockTab`, `parseWarnings`, `sheetUnreachable`, or
+`writesQueued`. So "no change" rests mostly on `PublicSurfaceTests` and the CLI binary tests,
+which pin every `syncFailed` row and the exit codes.
 
 A spent about 6 calls on the harness and about 5 on a whole-tree `scripts/lint.sh` failure. My
 harness caused that failure, because `.build/parity` was in neither list in
-`scripts/build-dirs.sh`. It is fixed on this branch. Net harness overhead on this task was about
-+17k tokens (+24%) and +3.4 min, with no defect prevented. B relied on `PublicSurfaceTests` and
-the CLI binary tests, which already pin every `syncFailed` row and the exit codes. This is one
-pair, and token spread between runs is often wider than this gap, so treat it as an anecdote. The
-prompt-side cost is fixed: a clean run prints one line, and a dirty run prints a unified diff.
+`scripts/build-dirs.sh`. It is fixed on this branch. The raw gap was +17k tokens and +3.4 min,
+with no defect prevented. That number is contaminated, because about 5 of the 9 extra calls
+chased my lint bug. It is also one pair, and token spread between runs is often wider than this
+gap. What the A/B does show is that the overhead is nonzero, about 6 calls, and that the harness
+prevented nothing on this task. A clean run prints one line, and a dirty run prints a unified
+diff.
 
 ## Cost
 
 | Item | Measured or estimated |
 |---|---|
-| Cold `workout` build, local 12-core | 9.5 s wall, 36 s CPU (measured, 1 run) |
+| Cold `workout` build, local 12-core, fresh `.build` with toolchain and package caches warm | 9.5 s wall, 36 s CPU (measured, 1 run) |
 | Warm rebuild after a one-file touch | 2.0 s, and 0.6 s no-op (measured) |
-| One sweep pair: build two neighbouring commits plus run 6 scenarios | 20 to 38 s, median about 26 s (measured, 31 pairs, under mutant-run load) |
+| One sweep pair: build two neighbouring commits plus run the corpus | 20 to 38 s, median about 22 s (measured, 63 pairs, under mutant-run load) |
 | Warm run, 8 scenarios, binaries cached | 22.2, 22.5, 23.0 s (measured, 3 runs, load average about 8) |
 | `swift test`, warm | 22.9 s for 1,821 tests (measured, 1 run) |
 | A CI job on `refactor`/`perf` PRs | About 2 to 3 runner-minutes: 20 s checkout, two cold builds on a smaller hosted runner, 25 s run (estimate, not run on CI) |
@@ -179,10 +214,13 @@ near 5 s on this machine (estimate).
 ## Improvements
 
 1. **Default the base to `git merge-base origin/main HEAD`.** Local `main` in this checkout was
-   at d6ea9e28, weeks behind. `parity.sh main` would have printed weeks of real changes as
-   regressions.
-2. **One scenario per `WorkbookScenario`.** This turns additive scenario names into skips
-   instead of diffs. Three of the four sweep diffs were this.
+   at d6ea9e28, weeks behind, so `parity.sh main` would have printed weeks of real changes as
+   regressions. `origin/main` is also wrong once trunk moves past the branch point. The A/B
+   instruction worked only because `origin/main` still equalled the branch's base.
+2. **Handle skew per command, not per scenario.** When base exits 64 on a command that head
+   accepts, drop that command's output from both transcripts and count it, instead of diffing or
+   skipping the whole scenario. One scenario per `WorkbookScenario` also helps. Five of the nine
+   sweep diffs were additive surface.
 3. **Run scenarios in parallel**, each with its own home, to cut the 22 s run.
 4. **Corpus additions for the measured gaps:**
    - a `sync` that itself refuses a write (C06 and C18)
@@ -215,12 +253,12 @@ near 5 s on this machine (estimate).
 Why:
 
 - **Catch rate.** Its marginal catch rate over `swift test` is 1 in 78 mutants, and 0 in 7 weeks
-  of history. `swift test` kills 64 of 78 and parity catches 26. Per-PR CI minutes and a 24%
-  token surcharge on every refactor would buy almost nothing.
+  of history. `swift test` kills 64 of 78 and parity catches 31. A per-PR CI job, or a rule that
+  every refactor agent runs it, would add a fixed cost for almost no catches.
 - **The class it uniquely covers is real and untested.** Persisted format and CLI wire bytes
   (C08) are exactly what ADR-0015 calls a contract.
-- **It is quiet.** It raised 0 false positives from noise across 31 historical refactors and 4
-  real behaviour changes inside `refactor` PRs. A reviewer can trust a red result.
+- **It is quiet.** It raised 0 false positives from noise across 63 historical refactor pairs, and
+  flagged 9 real behaviour changes inside `refactor` PRs. A reviewer can trust a red result.
 - **Agents already do this by hand** (#598, #951, #948). A rerunnable script with a receipt is
   cheaper than an ad hoc one and leaves evidence.
 
@@ -235,6 +273,7 @@ or if a refactor-caused regression reaches trunk through a path the CLI reaches.
   Every row above can be reproduced with `scripts/parity.sh HEAD` after the sed or line change.
 - Timings ran while other work shared the machine (load average 8 to 46), so wall-clock numbers
   are upper bounds.
-- The eval itself took 79 min of wall-clock. The main thread made 87 API calls with 47k output
-  tokens, 152k cache-write tokens, and 9.6M cache-read tokens. Four subagents used 399k tokens:
-  the history miner 121k, the bug planter 116k, and the A/B arms 90k and 72k.
+- The eval itself took about 100 min of wall-clock through the final amend. The main thread made
+  about 115 API calls with about 72k output tokens, 190k cache-write tokens, and 14.5M cache-read
+  tokens. Four subagents used 399k tokens: the history miner 121k, the bug planter 116k, and the
+  A/B arms 90k and 72k.
