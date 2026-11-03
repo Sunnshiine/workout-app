@@ -325,12 +325,19 @@ extension BackgroundDictation.NotLogged {
         switch rejection {
         case .transcriber(.microphoneDenied), .transcriber(.unavailable): "Open WorkoutTracker once to allow the mic"
         case .transcriber(.failed): "Couldn’t listen. Unlock to log"
-        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard), .recording(.notAsked), .recording(.nothingRecorded): "Nothing heard"
+        case .spokenSet(.nothingHeard), .transcriber(.nothingHeard): "Nothing heard"
         case .spokenSet: rejection.readback(of: heard)
-        case .recording(.modelNotReady(let state)): notReady(state)
-        case .recording(.late): "Took too long to hear you, say it again"
-        case .recording(.tooHot): "Phone is too hot. Unlock to log"
-        case .recording(.failed): "Couldn’t hear that, say it again"
+        case .recording(let miss): caption(miss)
+        }
+    }
+
+    private static func caption(_ miss: RecordingMiss) -> String {
+        switch miss {
+        case .notAsked, .nothingRecorded: "Nothing heard"
+        case .modelNotReady(let state): notReady(state)
+        case .late: "Took too long to hear you, say it again"
+        case .tooHot: "Phone is too hot. Unlock to log"
+        case .failed: "Couldn’t hear that, say it again"
         }
     }
 

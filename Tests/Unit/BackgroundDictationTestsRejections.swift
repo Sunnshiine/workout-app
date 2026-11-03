@@ -27,6 +27,15 @@ private let cap = SetDictation.listeningCap
     try harness.expectNothingWritten()
 }
 
+/// A fill no locked card can take, which only a rule that lets the Live Transcript fill decides.
+@Test func aCompleteFillReadsBackWhatWasHeardAndAMissingValueSaysWhich() {
+    let complete = BackgroundDictation.NotLogged(filled: SetLogDraft(weight: .pounds(185), reps: 5, rpe: .eight), heard: "185 for 5 at 8")
+    let missing = BackgroundDictation.NotLogged(filled: SetLogDraft(weight: .pounds(185), reps: 5, rpe: nil), heard: "185 for 5")
+
+    #expect(complete.caption == "“185 for 5 at 8”")
+    #expect(missing.caption == "“185 for 5”, no RPE")
+}
+
 @MainActor
 @Test func aRejectedSpokenSetWritesNothingAndLeavesWhyForTheCard() async throws {
     let harness = try await BackgroundDictationHarness(hearing: ["100 kilos for 5"])

@@ -399,19 +399,33 @@ public struct SpokenSetRejectionSnapshot: Codable, Equatable, Sendable {
     public let value: Double?
 }
 
+extension SpokenSetRejectionSnapshot.Reason {
+    fileprivate init(_ error: SetTranscriberError) {
+        switch error {
+        case .nothingHeard: self = .nothingHeard
+        case .microphoneDenied: self = .microphoneDenied
+        case .unavailable: self = .speechUnavailable
+        case .failed: self = .listeningFailed
+        }
+    }
+
+    fileprivate init(_ miss: RecordingMiss) {
+        switch miss {
+        case .notAsked, .nothingRecorded: self = .nothingHeard
+        case .modelNotReady: self = .speechModelNotReady
+        case .late: self = .recordingLate
+        case .tooHot: self = .tooHot
+        case .failed: self = .recordingFailed
+        }
+    }
+}
+
 extension SpokenSetRejectionSnapshot {
     init(dictation rejection: SetDictation.Rejection) {
         switch rejection {
         case .spokenSet(let reason): self.init(reason)
-        case .transcriber(.nothingHeard): self.init(reason: .nothingHeard, field: nil, value: nil)
-        case .transcriber(.microphoneDenied): self.init(reason: .microphoneDenied, field: nil, value: nil)
-        case .transcriber(.unavailable): self.init(reason: .speechUnavailable, field: nil, value: nil)
-        case .transcriber(.failed): self.init(reason: .listeningFailed, field: nil, value: nil)
-        case .recording(.notAsked), .recording(.nothingRecorded): self.init(reason: .nothingHeard, field: nil, value: nil)
-        case .recording(.modelNotReady): self.init(reason: .speechModelNotReady, field: nil, value: nil)
-        case .recording(.late): self.init(reason: .recordingLate, field: nil, value: nil)
-        case .recording(.tooHot): self.init(reason: .tooHot, field: nil, value: nil)
-        case .recording(.failed): self.init(reason: .recordingFailed, field: nil, value: nil)
+        case .transcriber(let error): self.init(reason: Reason(error), field: nil, value: nil)
+        case .recording(let miss): self.init(reason: Reason(miss), field: nil, value: nil)
         }
     }
 
