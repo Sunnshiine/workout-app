@@ -61,7 +61,7 @@ private let cap = SetDictation.listeningCap
     let outcome = await harness.runUntilQuiet()
 
     #expect(outcome == .notLogged(.rejected(.recording(.modelNotReady(.loading)), heard: ""), at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.listening, .notLogged("Speech model isn’t ready. Unlock to log")])
+    #expect(harness.liveActivity.readbacks == [.listening, .notLogged("Speech model was loading, say it again")])
     try harness.expectNothingWritten()
     let press = try #require(try await harness.app.dictationJournal.records().first?.decided)
     #expect(press.decision.outcome.rejection?.reason == .speechModelNotReady)

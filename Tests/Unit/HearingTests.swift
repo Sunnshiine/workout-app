@@ -199,15 +199,15 @@ private let unread: [Unread] = [
         testDescription: "the Speech Model still loading",
         read: .missing(.modelNotReady(.loading)),
         live: .transcripts(["185 for 5 at 8"]),
-        card: "Speech model isn’t ready yet",
-        lockScreen: "Speech model isn’t ready. Unlock to log"
+        card: "Speech model was loading, say it again",
+        lockScreen: "Speech model was loading, say it again"
     ),
     Unread(
         testDescription: "the Speech Model not downloaded",
         read: .missing(.modelNotReady(.absent)),
         live: .transcripts(["185 for 5 at 8"]),
-        card: "Speech model isn’t ready yet",
-        lockScreen: "Speech model isn’t ready. Unlock to log"
+        card: "Speech model downloads on Wi-Fi",
+        lockScreen: "Speech model downloads on Wi-Fi. Unlock to log"
     ),
     Unread(
         testDescription: "a read still running at the Decision Deadline",

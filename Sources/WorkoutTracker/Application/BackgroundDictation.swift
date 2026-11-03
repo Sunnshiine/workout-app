@@ -327,10 +327,22 @@ extension BackgroundDictation.NotLogged {
         case .transcriber(.failed): "Couldn’t listen. Unlock to log"
         case .spokenSet(.nothingHeard), .transcriber(.nothingHeard), .recording(.notAsked), .recording(.nothingRecorded): "Nothing heard"
         case .spokenSet: rejection.readback(of: heard)
-        case .recording(.modelNotReady): "Speech model isn’t ready. Unlock to log"
+        case .recording(.modelNotReady(let state)): notReady(state)
         case .recording(.late): "Took too long to hear you, say it again"
         case .recording(.tooHot): "Phone is too hot. Unlock to log"
         case .recording(.failed): "Couldn’t hear that, say it again"
+        }
+    }
+
+    /// The Live Activity's words for a Speech Model not ready, with an unlock to log by hand where
+    /// another press would find it no readier.
+    private static func notReady(_ state: SpeechModelState) -> String {
+        switch state {
+        case .absent, .waitingForNetwork: "Speech model downloads on Wi-Fi. Unlock to log"
+        case .downloading: "Speech model still downloading. Unlock to log"
+        case .specializing: "Speech model still preparing. Unlock to log"
+        case .failed: "Speech model failed. Unlock to log"
+        case .downloaded, .loading, .ready, .unloaded: "Speech model was loading, say it again"
         }
     }
 
