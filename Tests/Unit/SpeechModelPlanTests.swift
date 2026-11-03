@@ -53,6 +53,12 @@ func everyLifecycleDecisionIsARowOfThePlan(state: SpeechModelState, event: Speec
     #expect(SpeechModelPlan.next(state, on: event) == step)
 }
 
+@Test func aReadWaitsOnlyForAModelLoading() {
+    let waits = SpeechModelState.allCases.filter(SpeechModelPlan.readWaits(for:))
+
+    #expect(waits == [.loading])
+}
+
 @Test func everyModelStateReadsBackAsWrittenUnderItsOwnName() throws {
     let names = SpeechModelState.allCases.map(\.name)
 

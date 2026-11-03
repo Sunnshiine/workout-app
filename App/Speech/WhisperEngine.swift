@@ -101,8 +101,10 @@ actor WhisperEngine: RecordingTranscriber {
     }
 
     func transcribe(_ recording: DictationRecording) async -> RecordingDecode {
-        // Never WhisperKit's own inline load, which would hide seconds inside the press.
-        guard let pipe, readiness == .ready else { return .missing(.modelNotReady(readiness)) }
+        if SpeechModelPlan.readWaits(for: readiness) { await working?.value }
+        // Never WhisperKit's own inline load, which would hide seconds inside the press. A load
+        // sets `pipe` before `readiness` turns ready.
+        guard let pipe else { return .missing(.modelNotReady(readiness)) }
         guard ProcessInfo.processInfo.thermalState != .critical else { return .missing(.tooHot) }
         let asked = ContinuousClock.now
         let previous = decoding
