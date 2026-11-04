@@ -36,6 +36,13 @@ private func legExtensionPlan(_ cells: [String: String] = [:]) throws -> SheetCe
     #expect(try legExtensionPlan() == SheetCellWrite(tabName: "Block - 31", a1: "K49", value: "105x9@9"))
 }
 
+@Test func writesPastAHiddenExerciseWhenTheVisibleRowHoldsOnlyAHelperColumn() throws {
+    #expect(
+        try legExtensionPlan(["J49": "superset"])
+            == SheetCellWrite(tabName: "Block - 31", a1: "K49", value: "105x9@9")
+    )
+}
+
 @Test func leavesAHiddenExercisesVisibleLogRowToIt() {
     #expect(throws: SheetWriterError.headerNotesBlockSetRow(exercise: .first("0:2:0 Leg Ext."), setIndex: 0)) {
         try legExtensionPlan(["K49": "95x10@8"])
