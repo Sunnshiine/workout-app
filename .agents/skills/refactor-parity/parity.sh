@@ -1,17 +1,18 @@
 #!/bin/bash
-# Runs every scenario under scripts/parity/ through the workout CLI built at BASE and at HEAD
+# Runs every scenario under scenarios/ through the workout CLI built at BASE and at HEAD
 # (default: this tree's working state) and diffs what each prints and persists. A refactor
 # should change nothing observable, so any diff is a behaviour change.
 set -euo pipefail
 
 usage() {
     cat <<'EOF'
-usage: scripts/parity.sh [--keep] <base> [<head>] [scenario.txt ...]
+usage: .agents/skills/refactor-parity/parity.sh [--keep] [<base> [<head>]] [scenario.txt ...]
 
 Builds `workout` at BASE and HEAD in a scratch tree (cached by tree hash under
 .build/parity/bin), runs each scenario in one fixed home with a frozen clock, and prints a
-unified diff of the two transcripts. HEAD defaults to the working tree, uncommitted edits
-included. Exit 0: no diff. 1: a diff. 2: usage or build failure.
+unified diff of the two transcripts. BASE defaults to the merge base of HEAD and origin/main.
+HEAD defaults to the working tree, uncommitted edits included. Scenarios default to every file in
+scenarios/ beside this script. Exit 0: no diff. 1: a diff. 2: usage or build failure.
 
 A scenario line is a workout command without the `workout`, or one of:
   coach <cell> <value...>   set a cell of the first tab in workbook.json, as the coach would
@@ -29,16 +30,19 @@ while [ $# -gt 0 ]; do
         *) break ;;
     esac
 done
-[ $# -ge 1 ] || { usage >&2; exit 2; }
 
 script_dir=$(cd "$(dirname "$0")" && pwd)
-# shellcheck source=scripts/scratch-tree.sh
-. "$script_dir/scratch-tree.sh"
 caller=$(git rev-parse --show-toplevel)
+# shellcheck source=scripts/scratch-tree.sh
+. "$caller/scripts/scratch-tree.sh"
 cd "$caller"
 
-base=$(git rev-parse --verify "$1^{commit}") || exit 2
-shift
+if [ $# -gt 0 ] && [[ $1 != *.txt ]]; then
+    base=$(git rev-parse --verify "$1^{commit}") || exit 2
+    shift
+else
+    base=$(git merge-base HEAD origin/main) || { echo "no merge base with origin/main; pass BASE" >&2; exit 2; }
+fi
 head_commit=HEAD head_tree=""
 if [ $# -gt 0 ] && [[ $1 != *.txt ]]; then
     head_commit=$(git rev-parse --verify "$1^{commit}") || exit 2
@@ -47,7 +51,7 @@ else
     head_tree=$(scratch_snapshot)
 fi
 scenarios=("$@")
-[ ${#scenarios[@]} -gt 0 ] || scenarios=("$script_dir"/parity/*.txt)
+[ ${#scenarios[@]} -gt 0 ] || scenarios=("$script_dir"/scenarios/*.txt)
 
 cache=$caller/.build/parity/bin
 mkdir -p "$cache"
@@ -56,7 +60,7 @@ mkdir -p "$cache"
 binary_for() {
     local key=${2:-$(git rev-parse "$1^{tree}")}
     if [ ! -x "$cache/$key/workout" ]; then
-        [ -n "${scratch:-}" ] || scratch_claim "scripts/parity.sh"
+        [ -n "${scratch:-}" ] || scratch_claim "refactor-parity/parity.sh"
         scratch_sync "$1" "${2:-}"
         (cd "$scratch" && swift build --product workout >&2) || { echo "build failed at $1" >&2; exit 2; }
         mkdir -p "$cache/$key"

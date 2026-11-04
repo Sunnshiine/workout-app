@@ -6,7 +6,7 @@ Should WorkoutTracker's verification loop run one script of `workout` commands t
 built at the merge base and one built at head, and fail on any difference? This eval measured it
 on 2026-11-02 against `origin/main` at d21de386.
 
-**Recommendation: adopt it in a narrower form.** Keep `scripts/parity.sh` as an opt-in local
+**Recommendation: adopt it in a narrower form.** Keep `.agents/skills/refactor-parity/parity.sh` as an opt-in local
 tool for refactors whose output reaches the disk or the CLI's wire contract. Do not add a CI job
 or a blanket AGENTS.md rule. Across 78 compiled mutants, `swift test` killed 64 and parity
 caught 31. Only one mutant was caught by parity alone, and no historical regression would have
@@ -15,10 +15,13 @@ is that agents already hand-run this check, and the harness makes it rerunnable 
 
 ## The harness
 
-`scripts/parity.sh <base> [<head>] [scenario.txt ...]` builds `workout` at both commits in a
+The harness now ships as the `refactor-parity` project skill, at
+`.agents/skills/refactor-parity/`, with its scenarios in `scenarios/` beside the script.
+
+`parity.sh [<base> [<head>]] [scenario.txt ...]` builds `workout` at both commits in a
 `scripts/scratch-tree.sh` slot. It caches each binary by tree hash under `.build/parity/bin`. Head
 defaults to the working tree, uncommitted edits included. It runs each scenario under
-`scripts/parity/` through both binaries and prints a unified diff of the two transcripts. A
+`scenarios/` through both binaries and prints a unified diff of the two transcripts. A
 transcript holds each command, its exit code, stdout, stderr, and a digest of `workbook.json`,
 `settings.json`, and `manifest.json` after every step, plus the full files at the end.
 
@@ -96,7 +99,7 @@ command neither side had yet. Improvement 2 fixes this.
 ### Planted and generated bugs
 
 Each mutant was applied in a scratch worktree. Then `swift test` ran (1,821 tests), and then
-`scripts/parity.sh HEAD`. The table compares parity against `swift test` alone. The other gates
+`.agents/skills/refactor-parity/parity.sh HEAD`. The table compares parity against `swift test` alone. The other gates
 are discussed after it. Three sources:
 
 - **Planted.** A fresh subagent wrote 20 single-line "refactor slips" in mutate.sh sed form, 4 per
@@ -169,7 +172,7 @@ the corpus never runs, and C19 is the internal-error exit code, which no scenari
 Two fresh agents on the same model got the same organic prompt. The task was points 1, 2, and 5
 of #1132: give the Sync Outcome one verdict that `ApplicationError`, `SyncCommand`, and
 `FlushCommand` ask, with no exit code or message moving. Checkout A had the harness and one
-AGENTS.md line telling refactors to run `scripts/parity.sh origin/main`. Checkout B had neither.
+AGENTS.md line telling refactors to run the harness against `origin/main`. Checkout B had neither.
 
 | | Tokens | Tool calls | Wall-clock | `swift test` | Parity on its commit (my run) | Behaviour change shipped |
 |---|---|---|---|---|---|---|
@@ -213,7 +216,7 @@ near 5 s on this machine (estimate).
 
 ## Improvements
 
-1. **Default the base to `git merge-base origin/main HEAD`.** Local `main` in this checkout was
+1. **Default the base to `git merge-base origin/main HEAD`** (done in the skill). Local `main` in this checkout was
    at d6ea9e28, weeks behind, so `parity.sh main` would have printed weeks of real changes as
    regressions. `origin/main` is also wrong once trunk moves past the branch point. The A/B
    instruction worked only because `origin/main` still equalled the branch's base.
@@ -236,14 +239,14 @@ near 5 s on this machine (estimate).
    - log lines, which it prints none of today
 6. **Masks needed: none.** Keep it that way by removing nondeterminism at the source (fixed home
    path, pinned clock, TZ, and locale) rather than masking.
-7. **Receipts.** Wrap a run as `scripts/receipt.sh parity -- scripts/parity.sh <base>`, so a
+7. **Receipts.** Wrap a run as `scripts/receipt.sh parity -- .agents/skills/refactor-parity/parity.sh`, so a
    "byte-identical" claim in a PR body, as in #598 and #951, becomes checkable.
 
 ## Recommendation
 
 **Adopt in a narrower form:**
 
-- Keep `scripts/parity.sh` and its corpus (this branch) as a local tool.
+- Keep `.agents/skills/refactor-parity/parity.sh` and its corpus (this branch) as a local tool.
 - Name it in `docs/TESTING.md` and `Sources/WorkoutCLI/README.md` as the way to back a
   "behaviour unchanged" claim. It fits best on refactors that touch `Sources/WorkoutCLI/`, the
   `WorkoutApplication` facade, or anything that encodes `manifest.json`, `settings.json`,
@@ -267,10 +270,10 @@ or if a refactor-caused regression reaches trunk through a path the CLI reaches.
 
 ## Method notes and spend
 
-- Artifacts: the harness and corpus are `scripts/parity.sh` and `scripts/parity/`. The A/B commits
+- Artifacts: the harness and corpus are `.agents/skills/refactor-parity/parity.sh` and `scenarios/`. The A/B commits
   are 4c014c9e (branch `sync-verdict-a`) and 35dcc994 (branch `sync-verdict-b`), both local.
 - Mutant results were kept in `/tmp/parity-mutants/` for the session and are not committed.
-  Every row above can be reproduced with `scripts/parity.sh HEAD` after the sed or line change.
+  Every row above can be reproduced with `.agents/skills/refactor-parity/parity.sh HEAD` after the sed or line change.
 - Timings ran while other work shared the machine (load average 8 to 46), so wall-clock numbers
   are upper bounds.
 - The eval itself took about 100 min of wall-clock through the final amend. The main thread made
