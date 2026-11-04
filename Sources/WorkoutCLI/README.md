@@ -66,7 +66,8 @@ does, syncs, and reports where the athlete ended up. At the live edge `viewedSes
 `currentSession`; browsed away it stays put (`scripts/viewed-session-across-sync.sh`).
 
 A write the Sheet rejects (its cell no longer holds the expected value) is marked `conflict` and
-never retried, exactly as in the app. `flush` and `sync` print the report to stdout, list it under
+never retried, exactly as in the app. A Set Log refused because the Sheet had no row for it is the
+exception: every flush tries it again, so it lands once the coach adds a row. `flush` and `sync` print the report to stdout, list it under
 `conflictedWrites` on every later run, and exit 4 until it is discarded, so a retry cannot read
 "nothing left to attempt" as "everything landed". Discarding is the next verb (`discard-writes`).
 

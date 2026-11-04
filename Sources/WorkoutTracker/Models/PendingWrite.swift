@@ -171,6 +171,24 @@ final class PendingWrite {
         status = .conflict
         lastError = message
     }
+
+    /// Refused because the Sheet had no row to hold this Set's log, so no cell's value was ever
+    /// compared with the expected one. The refusal tells the athlete to add a row and sync again,
+    /// which only works if the next flush tries the write again. A Last Set RPE write refused with
+    /// its Set Log carries the Set Log's refusal and comes back with it.
+    var awaitsASetRow: Bool {
+        guard status == .conflict else { return false }
+        let refusals: [SheetWriterError] = [
+            .headerNotesBlockSetRow(exercise: exercise, setIndex: setIndex),
+            .setRowNotFound(exercise: exercise, setIndex: setIndex)
+        ]
+        return refusals.contains { $0.errorDescription == lastError }
+    }
+
+    func requeue() {
+        status = .pending
+        lastError = nil
+    }
 }
 
 @Model
