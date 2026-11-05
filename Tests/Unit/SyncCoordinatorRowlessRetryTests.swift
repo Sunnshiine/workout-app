@@ -168,3 +168,23 @@ private let shippedNoRowRefusal = """
     #expect(client.writes.isEmpty)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).map(\.status) == [.conflict])
 }
+
+@MainActor
+@Test func flushLeavesALastSetRPEParkedWithASetLogRefusedByValueParked() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    try parkedWrite(
+        exercise: "Squat",
+        column: .lastSetRPE,
+        value: "8",
+        refusal: "Last Set RPE was not written because the paired Set Log failed: Squat: Expected '', found 'x'",
+        in: ctx
+    )
+    let client = FlushStubClient(grid: squatGrid(["I14": "Last set RPE", "C17": "Bench"]))
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.writes.isEmpty)
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).map(\.status) == [.conflict])
+}
