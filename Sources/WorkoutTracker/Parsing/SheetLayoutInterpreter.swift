@@ -38,8 +38,9 @@ struct DayColumns: Sendable {
     let notes: Int?
     let span: Range<Int>  // [dayStart, nextDayStart)
 
-    /// The columns the app reads a Set from. A coach's helper column beside them holds no Set.
-    var roles: [Int] { [sets, reps, percentOneRM, load, lastSetRPE, notes].compactMap { $0 } }
+    /// The columns only the coach writes, which prescribe a Set. The app writes Notes and Last Set
+    /// RPE itself, so a row's owner cannot depend on them: a Set Log landing there would move the row.
+    var prescription: [Int] { [sets, reps, percentOneRM, load].compactMap { $0 } }
 }
 
 struct SheetLayout: Sendable {
@@ -300,9 +301,9 @@ private func exerciseAnchors(
 
 /// The rows between a visible Exercise's anchor and the next visible Exercise that belong to it. A
 /// hidden anchor in between is a retired movement and keeps its rows, so its still-visible Prescription
-/// Lines and Set Logs are not read as the Exercise's own. It keeps them only up to its first visible
-/// row that is blank in every role column, which holds nothing of the retired movement. From there the rows are the Exercise's
-/// again, as they look to the coach who hid the movement above them.
+/// Lines are not read as the Exercise's own. It keeps them only up to its first visible row that
+/// prescribes nothing. From there the rows are the Exercise's again, as they look to the coach who
+/// hid the movement above them.
 private func spanRows(
     below anchor: Int,
     before end: Int,
@@ -316,7 +317,7 @@ private func spanRows(
         if anchorRows.contains(row) {
             inRetiredMovement = true
         } else if inRetiredMovement, snapshot.isRowVisible(row) {
-            inRetiredMovement = cols.roles.contains { !snapshot.values.cell(row: row, col: $0).trimmed.isEmpty }
+            inRetiredMovement = cols.prescription.contains { !snapshot.values.cell(row: row, col: $0).trimmed.isEmpty }
         }
         if !inRetiredMovement { rows.append(row) }
     }
