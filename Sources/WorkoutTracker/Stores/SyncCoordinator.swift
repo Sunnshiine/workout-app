@@ -53,6 +53,13 @@ final class SyncCoordinator {
         return orderPendingWritesForFlush((try? context.fetch(descriptor)) ?? [])
     }
 
+    private func requeueWritesAwaitingASetRow() {
+        let descriptor = FetchDescriptor<PendingWrite>(predicate: #Predicate { $0.statusRaw == "conflict" })
+        for write in (try? context.fetch(descriptor)) ?? [] where write.awaitsASetRow {
+            write.requeue()
+        }
+    }
+
     func reportLocalWriteFailure(_ error: any Error) {
         outcome = .localWriteFailed(error.localizedDescription)
     }
@@ -84,6 +91,7 @@ final class SyncCoordinator {
         activePendingWriteFlushCount += 1
         defer { activePendingWriteFlushCount -= 1 }
 
+        requeueWritesAwaitingASetRow()
         let pending = pendingWriteFlushQueue()
         guard !pending.isEmpty else { return .clear }
 

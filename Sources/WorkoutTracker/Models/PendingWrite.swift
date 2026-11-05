@@ -171,6 +171,34 @@ final class PendingWrite {
         status = .conflict
         lastError = message
     }
+
+    static func lastSetRPERefusal(pairedWith setLogRefusal: String) -> String {
+        "Last Set RPE was not written because the paired Set Log failed: \(setLogRefusal)"
+    }
+
+    /// Refused because the Sheet had no row to hold this Set's log, so no cell's value was ever
+    /// compared with the expected one. The refusal tells the athlete to add a row and sync again,
+    /// which only works if the next flush tries the write again. A Last Set RPE write refused with
+    /// its Set Log comes back with it. The stored message is the only record a write parked by an
+    /// older build has.
+    var awaitsASetRow: Bool {
+        let refusals = [
+            SheetWriterError.headerNotesBlockSetRow(exercise: exercise, setIndex: setIndex),
+            SheetWriterError.setRowNotFound(exercise: exercise, setIndex: setIndex)
+        ].compactMap(\.errorDescription)
+        return refusals.contains { refusal in
+            switch column {
+            case .notes: lastError == refusal
+            case .lastSetRPE:
+                lastError == Self.lastSetRPERefusal(pairedWith: "\(exercise.name.entered): \(refusal)")
+            }
+        }
+    }
+
+    func requeue() {
+        status = .pending
+        lastError = nil
+    }
 }
 
 @Model
