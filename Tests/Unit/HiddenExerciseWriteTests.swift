@@ -2,8 +2,9 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// Week 2 of Block 31: the coach hid a movement under Leg Ext., whose header Notes hold a Coach
-/// Note. Row 49 is the only visible row left before Preacher Curl.
+/// The visible rows of Block - 31's Week 2 Leg Ext., whose header Notes hold a Coach Note. Rows 47
+/// and 48 are hidden in that Sheet. What they hold here is assumed: a hidden movement is the layout
+/// that reproduces the refusal. Row 49 is the only visible row left before Preacher Curl.
 private func legExtensionPlan(_ cells: [String: String] = [:]) throws -> SheetCellWrite {
     let grid = gridFromA1(
         [
@@ -43,8 +44,14 @@ private func legExtensionPlan(_ cells: [String: String] = [:]) throws -> SheetCe
     )
 }
 
-@Test func leavesAHiddenExercisesVisibleLogRowToIt() {
+@Test func leavesAHiddenExercisesVisiblePrescriptionLineToIt() {
     #expect(throws: SheetWriterError.headerNotesBlockSetRow(exercise: .first("0:2:0 Leg Ext."), setIndex: 0)) {
+        try legExtensionPlan(["D49": "2"])
+    }
+}
+
+@Test func refusesToOverwriteAValueOnTheVisibleRowPastAHiddenExercise() {
+    #expect(throws: SheetWriterError.unexpectedCurrentValue(expected: "", actual: "95x10@8")) {
         try legExtensionPlan(["K49": "95x10@8"])
     }
 }

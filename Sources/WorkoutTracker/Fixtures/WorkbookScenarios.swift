@@ -44,6 +44,10 @@
         /// three-letter name, and twelve one-rep Sets. Every other Session of its four Weeks holds
         /// one long-named Exercise.
         case worstCase = "worst-case"
+        /// `fresh-block` with a movement hidden under the RDL, whose header Notes hold a Coach Note, and
+        /// one blank visible row between that movement and the next Exercise. The RDL's Set Logs land
+        /// on that row, K22. The hidden movement keeps its old log in K21.
+        case hiddenExerciseBelowCoachNote = "hidden-exercise-below-coach-note"
 
         static let spreadsheetId = "FIXTURE"
         static let title = "Fixture Training Log"
