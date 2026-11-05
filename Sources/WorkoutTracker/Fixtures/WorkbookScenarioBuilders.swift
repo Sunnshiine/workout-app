@@ -37,8 +37,19 @@
             .longSession: longSession,
             .perfectMoveOnCelebration: perfectMoveOnCelebration,
             .blockOverviewWithMixedSessionStates: blockOverviewWithMixedSessionStates,
-            .worstCase: worstCase
+            .worstCase: worstCase,
+            .hiddenExerciseBelowCoachNote: hiddenExerciseBelowCoachNote
         ]
+
+        private static func hiddenExerciseBelowCoachNote() -> LocalWorkbook {
+            var workbook = freshBlock()
+            let hidden = SheetRowVisibility(hiddenByUser: true)
+            workbook.tabs[blockTab]?.cells.merge(
+                ["C20": "0:2:0 Sissy Squat", "D20": "2", "K21": "100x10@8", "C23": "0:2:0 Preacher Curl", "D23": "2"]
+            ) { _, new in new }
+            workbook.tabs[blockTab]?.hiddenRows = [20: hidden, 21: hidden]
+            return workbook
+        }
 
         private static func freshBlock() -> LocalWorkbook {
             var cells: [String: String] = [
