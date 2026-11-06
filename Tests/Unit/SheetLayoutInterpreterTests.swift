@@ -69,7 +69,7 @@ import Testing
 
     #expect(day.exerciseAnchors.map(\.name) == ["Squat", "Bench Press"])
     #expect(day.exerciseAnchors.map(\.row) == [17, 24])
-    #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [24, grid.count])
+    #expect(day.exerciseAnchors.map(\.spanRows) == [Array(18..<24), Array(25..<grid.count)])
 }
 
 @Test func layoutInterpreterSkipsRetiredExerciseRowsHiddenInTheSheet() throws {
@@ -92,9 +92,9 @@ import Testing
 
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exerciseAnchors.map(\.row) == [14, 18])
-    // Back Squat stops at the hidden row rather than swallowing it: the retired movement's block
-    // still ends the block above it.
-    #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [16, 32])
+    // Back Squat leaves the retired movement's hidden row out of its span, and takes back the blank
+    // visible row below it.
+    #expect(day.exerciseAnchors.map(\.spanRows) == [[15, 17], Array(19..<32)])
 
     let backSquat = try #require(day.exerciseAnchors.first)
     #expect(
