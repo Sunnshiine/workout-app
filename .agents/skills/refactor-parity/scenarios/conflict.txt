@@ -1,0 +1,10 @@
+# A write the Sheet refuses, and every later run that reports it.
+init --scenario fresh-block
+log w1d1.e0.s0 185x5@8
+coach K15 300x5@7
+flush
+sync
+log w1d1.e0.s0 190x5@8
+flush
+status
+observe

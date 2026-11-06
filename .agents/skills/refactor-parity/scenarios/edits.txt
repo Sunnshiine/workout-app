@@ -1,0 +1,14 @@
+# Clear, re-log, Spoken Sets, a timed and a bodyweight Set, Last Set RPE.
+init --scenario fresh-block
+log w1d1.e0.s0 185x5@8
+delete-log w1d1.e0.s0
+log w1d1.e0.s0 190x5
+say w1d1.e0.s1 "185 for 5 at 8"
+say w1d1.e0.s2 "skip"
+log w1d1.e1.s0 "bw x 10"
+log w1d1.e9.s0 185x5@8
+log w9d9.e0.s0 185x5@8
+log w1d1.e0.s0 nonsense
+flush
+sync
+observe

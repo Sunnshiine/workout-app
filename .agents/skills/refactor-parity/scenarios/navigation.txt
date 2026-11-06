@@ -1,0 +1,11 @@
+# Make current, Move On, and the Viewed Session across a sync.
+init --scenario block-overview-with-mixed-session-states
+make-current w2d1
+sync --viewing w1d1
+move-on
+make-current w1d1
+move-on
+observe
+init --scenario perfect-move-on-celebration
+move-on
+observe
