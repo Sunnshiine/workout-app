@@ -30,7 +30,7 @@ struct SessionProgressHeader: View {
 
             Spacer()
 
-            SessionBriefSyncState()
+            SessionSyncStatusLabel()
 
             Text(presentation.remainingText)
                 .themeFont(.runlineSecondary)
@@ -87,7 +87,7 @@ struct SessionProgressHeader: View {
 
 /// Syncing, Offline, and `N unsynced` sit beside the count, so the athlete keeps their place while
 /// the state stays honest (PRODUCT.md, Trust the round-trip).
-private struct SessionBriefSyncState: View {
+private struct SessionSyncStatusLabel: View {
     @Environment(SyncCoordinator.self) private var sync: SyncCoordinator?
     @Environment(\.themePalette) private var palette
 
