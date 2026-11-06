@@ -19,7 +19,8 @@ import Testing
         failure
             == SyncStatusBannerPresentation(
                 text: "The sheet changed, so your log was not written",
-                detail: "Sheet write failed"
+                detail: "Sheet write failed",
+                isBrief: false
             )
     )
 }
