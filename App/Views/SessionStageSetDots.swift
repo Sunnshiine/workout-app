@@ -2,7 +2,7 @@ import SwiftUI
 
 struct SessionStageSetDots: View {
     let sets: [ExerciseSet]
-    private let dotSize: CGFloat = 6
+    private let dotSize: CGFloat = 7
     @Environment(\.themePalette) private var palette
 
     var body: some View {

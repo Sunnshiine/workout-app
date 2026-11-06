@@ -189,6 +189,8 @@ struct SetCardPresentation: Equatable, Sendable {
 
 struct SessionProgressHeaderPresentation: Equatable, Sendable {
     let runlineText: String
+    /// The Week and Day alone, for a header too full to carry the Block's name as well.
+    let compactRunlineText: String
     let completedSetCount: Int
     let totalSetCount: Int
     let locationActionAccessibilityLabel: String
@@ -204,6 +206,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
 
     init(session: Session, block: Block? = nil) {
         let locationCore = session.placement.locationText(separator: " · ")
+        compactRunlineText = locationCore
         if let block {
             runlineText = "\(block.tabName) · \(locationCore)"
         } else {

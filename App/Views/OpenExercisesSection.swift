@@ -35,10 +35,10 @@ private struct OpenExerciseRow: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.name)
-                    .themeFont(.queuePill)
+                    .themeFont(.heading)
                     .foregroundStyle(.primary)
                 Text(row.pendingSetLabel)
-                    .themeFont(.historyChip)
+                    .themeFont(.runlineSecondary)
                     .foregroundStyle(palette.textSecondary)
             }
 
@@ -46,9 +46,9 @@ private struct OpenExerciseRow: View {
 
             HStack(spacing: 6) {
                 Text(row.sessionAddressLabel)
-                    .themeFont(.historyChip)
+                    .themeFont(.runline)
                 Image(systemName: "chevron.right")
-                    .themeFont(.historyChip)
+                    .themeFont(.runline)
             }
             .foregroundStyle(palette.actionInk)
         }

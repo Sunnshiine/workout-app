@@ -195,11 +195,11 @@ private struct SheetTabGrid: View {
             ForEach(Array(zip(day.columns, widths)), id: \.0.index) { column, width in
                 VStack(alignment: .leading, spacing: 1) {
                     Text(column.label)
-                        .themeFont(.cadence)
+                        .themeFont(.historyChip)
                         .foregroundStyle(palette.textSecondary)
                         .lineLimit(2)
                     Text(column.letter)
-                        .themeFont(.cadence)
+                        .themeFont(.historyChip)
                         .foregroundStyle(palette.textSecondary.opacity(0.6))
                 }
                 .padding(.horizontal, Theme.sheetCellInset)

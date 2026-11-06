@@ -138,7 +138,7 @@ enum Theme {
     // Geometry constants (not palette); the named radius family owns the corners.
 
     static let blockTileHeight: CGFloat = 52  // full day tile — wider-than-tall
-    static let blockTileMiniHeight: CGFloat = 16  // collapsed card's mini day-strip
+    static let blockTileMiniHeight: CGFloat = 20  // collapsed card's mini day-strip
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1  // quiet available / mini strokes
@@ -161,7 +161,7 @@ enum Theme {
     /// Lines a cell wraps to before it truncates; tapping shows the rest.
     static let sheetCellLineLimit = 3
     static let sheetCellVerticalInset: CGFloat = 6
-    static let sheetCellInset: CGFloat = 4
+    static let sheetCellInset: CGFloat = 3
     static let sheetHairline: CGFloat = 0.5
     static let sheetSelectedCellStroke: CGFloat = 1.5
     static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
@@ -189,7 +189,7 @@ enum Theme {
     static let prescriptionTickWidth: CGFloat = 18  // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
 
-    static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
+    static let holdToSkipTapMaximumDuration = Motion.holdToSkipReveal  // a release before the skip shows is the Log tap
     static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
     static let sessionMotionDuration = 0.3
     static let stageCompositionDuration = 0.25

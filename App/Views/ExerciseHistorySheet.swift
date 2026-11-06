@@ -225,7 +225,7 @@ private struct ExerciseHistoryRow: View {
         Button(action: onToggleWell) {
             VStack(alignment: .leading, spacing: 1) {
                 (Text(row.gutter) + wellMarker)
-                    .themeFont(.queuePill)
+                    .themeFont(.runline)
                     .foregroundStyle(palette.textPrimary)
                 if let cadence = row.cadence {
                     Text(cadence)

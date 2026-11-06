@@ -68,7 +68,12 @@ struct OnboardingView: View {
     /// the Back chevron points, and returns along the same path.
     private func stepTransition(from edge: HorizontalEdge) -> AnyTransition {
         guard !reduceMotion else { return .opacity }
-        return .offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
+        let drift = AnyTransition.offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
+        // The old step clears first, so the two never read as one double-exposed card.
+        return .asymmetric(
+            insertion: drift.animation(stepAnimation.delay(0.08)),
+            removal: drift.animation(.easeOut(duration: 0.12))
+        )
     }
 
     private var step: OnboardingStep {
@@ -149,18 +154,18 @@ struct OnboardingView: View {
         // accessible name at all. Naming it explicitly gives it the same name in both states.
         let fieldName = "Google Sheet URL"
         return VStack(spacing: 20) {
-            HStack {
+            HStack(spacing: 12) {
                 BorderedCircleIconButton(label: "Back", systemImage: "chevron.left") {
                     urlError = false
                     withAnimation(stepAnimation) { showsURLFallback = false }
                 }
                 .accessibilityIdentifier("onboarding-url-back-button")
 
-                Spacer()
-            }
+                Text("Paste your sheet URL")
+                    .themeFont(.sheetTitle)
 
-            Text("Paste your sheet URL")
-                .themeFont(.sheetTitle)
+                Spacer(minLength: 0)
+            }
 
             TextField(
                 fieldName,
@@ -189,9 +194,14 @@ struct OnboardingView: View {
                 DangerMarkedText(message: "That doesn't look like a Sheet URL", role: .historyChip)
             }
 
-            Button("Save") { saveURL() }
-                .buttonStyle(.bordered)
-                .disabled(!connection.canSaveSheetURL(urlText))
+            Button(action: saveURL) {
+                Text("Save")
+                    .logCapsuleMetrics()
+                    .foregroundStyle(connection.canSaveSheetURL(urlText) ? palette.actionText : palette.textSecondary)
+                    .background(connection.canSaveSheetURL(urlText) ? palette.actionFill : palette.railFill, in: .capsule)
+            }
+            .buttonStyle(.pressScale)
+            .disabled(!connection.canSaveSheetURL(urlText))
         }
         .padding()
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))

@@ -114,17 +114,17 @@ extension Theme {
             .setOf: TypeStyle(face: .sourceSans3, size: 15, weight: 400),
             .railChipValue: TypeStyle(face: .sourceSans3, size: 17, weight: 700),
             .railChipGlyph: TypeStyle(face: .sourceSans3, size: 13, weight: 400),
-            .fieldLabel: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
+            .fieldLabel: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .coachNote: TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.5),
             .runline: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .runlineSecondary: TypeStyle(face: .sourceSans3, size: 13, weight: 400),
             .lastPerformed: TypeStyle(face: .sourceSans3, size: 13, weight: 400),
-            .queuePill: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
+            .queuePill: TypeStyle(face: .sourceSans3, size: 15, weight: 600),
             .historyChip: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
             .blockTitle: TypeStyle(face: .sourceSans3, size: 28, weight: 700),
-            .cadence: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
+            .cadence: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .statsValue: TypeStyle(face: .sourceSans3, size: 28, weight: 700),
-            .statsKey: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
+            .statsKey: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 400)
         ]
 

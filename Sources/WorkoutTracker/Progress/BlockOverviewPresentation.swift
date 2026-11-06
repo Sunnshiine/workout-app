@@ -39,17 +39,9 @@ struct BlockOverviewWeekPresentation: Equatable, Sendable {
     /// The Week's day tiles, ordered available-first with Unavailable Sessions ("empty
     /// beds") grouped at the Week's end.
     let tiles: [BlockOverviewTilePresentation]
-    /// The count clause, e.g. "2 of 3" — complete Sessions over the Week's day count. The
-    /// focus card carries this alone; the tiles stay wordless.
+    /// The count, e.g. "2 of 3": complete Sessions over the Week's day count. It stands alone,
+    /// because the tiles beside it already show what is partial or not uploaded.
     let summary: String
-    /// The trailing state clause a collapsed card appends, e.g. "· 1 in progress" or
-    /// "· 1 not uploaded". Empty when the Week is settled with nothing pending or missing.
-    let detail: String
-
-    /// The collapsed card's full one-line summary: the count plus any state clause.
-    var collapsedSummary: String {
-        detail.isEmpty ? summary : "\(summary) \(detail)"
-    }
 }
 
 struct BlockOverviewPresentation: Equatable, Sendable {
@@ -95,28 +87,13 @@ struct BlockOverviewPresentation: Equatable, Sendable {
             let dayCount = week.sessions.count
             let available = week.sessions.filter { tracker.isAvailable($0) }
             let complete = available.filter(\.isComplete).count
-            let unavailable = dayCount - available.count
-            let inProgress = available.filter { !$0.isComplete && $0.completedSetCount > 0 }.count
             return BlockOverviewWeekPresentation(
                 weekNumber: week.number,
                 isFocus: week.number == resolvedFocus,
                 tiles: tiles,
-                summary: "\(complete) of \(dayCount)",
-                detail: Self.detail(unavailable: unavailable, inProgress: inProgress)
+                summary: "\(complete) of \(dayCount)"
             )
         }
-    }
-
-    /// The trailing state clause. An un-uploaded day is the more urgent signal than an
-    /// in-progress one, so it wins when both are present; a settled Week shows neither.
-    private static func detail(unavailable: Int, inProgress: Int) -> String {
-        if unavailable > 0 {
-            return "· \(unavailable) not uploaded"
-        }
-        if inProgress > 0 {
-            return "· \(inProgress) in progress"
-        }
-        return ""
     }
 
     @MainActor

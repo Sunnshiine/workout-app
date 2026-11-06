@@ -26,6 +26,17 @@ struct SessionQueueSheet: View {
                 .padding(.horizontal)
 
             rows
+
+            // Pinned to the sheet's foot, where the thumb already is, so a short queue leaves no
+            // capsule stranded mid-sheet.
+            if queue.showsMoveOn, !isPairing {
+                SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
+                    movesOnWhenDismissed = true
+                    dismiss()
+                }
+                .padding(.horizontal, Theme.pageMargin)
+                .padding(.bottom, Theme.pageMargin)
+            }
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
         .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
@@ -56,14 +67,6 @@ struct SessionQueueSheet: View {
                     OpenExercisesSection(exercises: queue.openExercises) { exercise in
                         dismiss()
                         coordinator.showSourceSession(of: exercise)
-                    }
-                    .padding(.top, Theme.cardSpacing)
-                }
-
-                if queue.showsMoveOn, !isPairing {
-                    SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
-                        movesOnWhenDismissed = true
-                        dismiss()
                     }
                     .padding(.top, Theme.cardSpacing)
                 }
@@ -146,6 +149,11 @@ struct SessionQueueSheet: View {
         }
         .buttonStyle(.plain)
         .disabled(row.jumpTarget == nil)
+        .background {
+            if row.isOnStage {
+                Capsule().fill(palette.surface)
+            }
+        }
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
@@ -273,7 +281,7 @@ struct SessionQueueSheet: View {
         rowLayout {
             VStack(alignment: .leading, spacing: 6) {
                 Text(row.title)
-                    .themeFont(.queuePill)
+                    .themeFont(.heading)
                     .foregroundStyle(row.isComplete ? palette.textSecondary : palette.textPrimary)
                     // Two lines hold a long name at the default size; at an accessibility size
                     // they hold two words, so the row grows instead.

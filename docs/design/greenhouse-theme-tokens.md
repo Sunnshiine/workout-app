@@ -70,7 +70,7 @@ steps. A chromatic step takes a share of its own sRGB ceiling (50: 35%,
 | `dangerDay` / `dangerNight` | ember 800 | `#7A0A0E` oklch(0.37 0.143 27) | `#FAAEA4` oklch(0.82 0.091 27) |
 | `budNight` | leaf 200, full chroma (a light) | — | `#7FDBA4` |
 | `cream` | light | `#F2F7E8` | same |
-| `paperDayTop` → `paperDayBottom` | light | `#E9EEDC → #CBE1C2` | — |
+| `paperDayTop` → `paperDayBottom` | light | `#E9EEDC → #DCE7D2` | — |
 | `paperNightTop` → `paperNightBottom` | light | — | `#232C20 → #121D14` |
 
 Cream and the paper sit near H 120 to 137, warmer than the sage ramp's
@@ -84,12 +84,16 @@ the light, not the pigment.
 Day (top layer first):
 
 ```
-radial-gradient(90% 46% at 18% 4%,   rgba(255,250,224,0.85) 0%, transparent 60%)   /* warm sun wash, top-left */
-radial-gradient(70% 40% at 108% 32%, rgba(163,205,154,0.55) 0%, transparent 70%)   /* sage pooling, right */
-radial-gradient(80% 42% at -10% 62%, rgba(214,232,197,0.70) 0%, transparent 65%)   /* mint breath, left */
-radial-gradient(110% 55% at 55% 108%, rgba(151,189,140,0.75) 0%, transparent 70%)  /* deep sage pooling, foot */
-linear-gradient(180deg, #E9EEDC 0%, #CBE1C2 100%)
+radial-gradient(90% 46% at 18% 4%,   rgba(255,250,224,0.70) 0%, transparent 60%)   /* warm sun wash, top-left */
+radial-gradient(70% 40% at 108% 32%, rgba(186,214,176,0.30) 0%, transparent 70%)   /* sage pooling, right */
+radial-gradient(80% 42% at -10% 62%, rgba(226,236,212,0.50) 0%, transparent 65%)   /* mint breath, left */
+radial-gradient(110% 55% at 55% 108%, rgba(188,210,174,0.38) 0%, transparent 70%)  /* deep sage pooling, foot */
+linear-gradient(180deg, #E9EEDC 0%, #DCE7D2 100%)
 ```
+
+The operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the eyes." The washes and
+the foot of the paper eased, the card `surface` went from cream @ 52% to 82%, and the reps and RPE
+rails became a sage tint, so a card reads as one calm plane on a quiet page.
 
 Night:
 
@@ -145,13 +149,13 @@ grid, and the empty state align to (DESIGN.md §8 The One Edge Rule, 2026-10-31)
 
 | Role | Day | Night |
 |---|---|---|
-| `surface` (the Active Set Card) | cream @ 52% | cream @ 7% |
+| `surface` (the Active Set Card) | cream @ 82% | cream @ 7% |
 | `surfaceShadow` (lifted card) | `inset 0 0 0 1px` ink @ 5%, `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
 | `pillFill` (stepper buttons) | cream @ 85% | cream @ 6% |
 | `pillStroke` (state outlines only; raised controls take `raisedControlShadow`) | `rgba(82,111,90,0.34)` | cream @ 16% |
 | `raisedControlShadow` (steppers, queue pill, header and countdown buttons, volume control) | `inset 0 0 0 1px` ink @ 8%, `cardLow` | `inset 0 0 0 1px` cream @ 14% |
 | `stepperGlyph` (weight ±) | actionDay | cream |
-| `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
+| `railFill` (reps/RPE rails) | muted @ 7% | cream @ 6% |
 | `railSelectedFill` + rail chip selected | cream @ 95% + inset 2px `action` ring | cream @ 7% (14% until 2026-10-31), same ring |
 | prescription tick (last week) | `action`, 18×3, r2 | `action` |
 | weight entry `:focus` | `action` | `action` |
@@ -176,7 +180,7 @@ composition itself are locked by #455.
 
 | Role | Day | Night |
 |---|---|---|
-| `footFill` (queue pill) | cream @ 50% | cream @ 6% |
+| `footFill` (queue pill) | cream @ 72% | cream @ 6% |
 | `queueStroke` | `rgba(82,111,90,0.38)` | cream @ 20% |
 
 ### Block grid (#435 variant d "Light and shade"; day set — night follows the #419 rule as amended 2026-10-31: tiles re-light like leaves)
@@ -220,84 +224,9 @@ composition itself are locked by #455.
 Ceremony stats surface = the shared `surface` role at radius `soft`
 (sunbird-moments recipe supersedes sunlit-ledger-b's bespoke one).
 
-## 4. Type roles
+## 4–5. Type roles and Dynamic Type
 
-Revised 2026-10-31 by the typography pass of the Emil redesign. Operator ruling that day: "Where
-Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or a past operator
-decision, Emil wins."
-
-**Delivery.** Fraunces and Source Sans 3 bundle as variable TTFs
-(`UIAppFonts`), their axes driven through `UIFontDescriptor` variation
-attributes, because SwiftUI's `.bold()` does not drive VF axes. Source
-Sans 3 requests `tnum` on every role. **No view ever constructs a font**:
-every text style is one row of the role table in
-`Sources/WorkoutTracker/ThemeType.swift`, and a view sets it with
-`themeFont(_:)`, which applies the face, size, tracking and leading
-together and scales them with Dynamic Type (§5). A SwiftLint custom rule
-bans `Font.custom` / `.font(.system(...))` outside that file, and another
-bans a hand-set `.lineSpacing` or `.italic()` in a view.
-
-**Fraunces voice** (Exercise name + ceremony only): one axis setting
-everywhere — `SOFT 100, WONK 0, wght 490`, `opsz` tracking the rendered
-point size. It takes no tracking, because `opsz` respaces it per size.
-**Source Sans 3 carries everything else**, on the scale 12 · 13 · 15 · 17
-· 28 · 46 · 96 and the weights 400 · 600 · 700.
-
-**Tracking follows size** (Source Sans 3 only): +0.01em under 13pt, 0 from
-13 to 27pt, −0.01em from 28pt, −0.015em from 46pt, read at the size the text
-renders after Dynamic Type. It is computed, so no row sets it.
-
-**Leading** is a multiple of the point size and set only on roles that wrap.
-
-| Role | Face | Spec |
-|---|---|---|
-| `exerciseName` | Fraunces | 33pt / 1.1; two lines, shrinks to 80%, then truncates |
-| `ceremonyTitle` | Fraunces | 36pt / 1.1, centered |
-| `connectTitle` | Fraunces | 36pt / 1.1 |
-| `sheetTitle` | Fraunces | 24pt / 1.1 (opsz 22) |
-| `supersetPartner` | Fraunces | 20pt, one line |
-| `heading` | SS3 | 17pt / 600; utility section heads and picker rows, where Fraunces may not go |
-| `weightEntry` | SS3 | 46pt / 700 |
-| `countdownNumeral` | SS3 | 96pt / 700; an Effort Countdown's seconds, read at arm's length (#1157) |
-| `logCapsule` | SS3 | 17pt / 600 |
-| `setNumber` / `setOf` | SS3 | 17pt / 700 · 15pt / 400 muted |
-| `railChipValue` / glyph | SS3 | 17pt / 700 · 13pt / 400 |
-| `fieldLabel` | SS3 | 12pt / 600 muted |
-| `coachNote` | SS3 | 15pt / 400 / 1.5 muted |
-| `runline` | SS3 | 13pt / 600; secondary 400 muted |
-| `lastPerformed` | SS3 | 13pt / 400 muted, nowrap; shrinks to the 12pt dense floor, then truncates |
-| `queuePill` | SS3 | 13pt / 600 |
-| `historyChip` | SS3 | 12pt / 600 |
-| `blockTitle` | SS3 | 28pt / 700, muted |
-| `cadence` | SS3 | 12pt / 600 |
-| stats value / key (ceremony) | SS3 | 28pt / 700 · 12pt / 600 muted |
-| `sheetCell` | SS3 | 12pt / 400; the Sheet tab's Day sections, single line, truncating |
-
-The pass collapsed the half-point sizes (12.5, 13.5), the one-offs (11,
-14, 16, 18, 26, 38), and the weights 500 and 650 onto the scale, and
-raised the dense floor from ≈11pt to 12pt. The sunlit-ledger register
-(opsz 72 display, uppercase microlabels, italic coach note, hairlines) is
-superseded — do not carry.
-
-## 5. Dynamic Type stance
-
-Superseded on 2026-10-31: text now scales with Dynamic Type (DESIGN.md §3, The Product Scale Rule).
-
-1. Each role scales on the Dynamic Type curve of the system text style
-   `Theme.TypeScale` assigns it (`Theme.scaledSize(_:at:)`), so the 33pt
-   Exercise name rides the large-title curve and grows less than the 15pt
-   coach note on the subheadline curve. At the default `.large` size every
-   role keeps its table value.
-2. `Theme.TypeScale.largestSize` (`.xxxLarge`) caps every role on every
-   screen. `SessionStageLayoutTests.atTheTypeCeilingBothStagesKeepEveryLineOnOnePage`
-   proves the stage still fits at the cap.
-3. Fraunces' `opsz` follows the rendered size, and tracking and leading
-   scale with it.
-4. Type-coupled geometry (54pt steppers, rail heights, pill min-heights)
-   stays fixed in Theme constants. Up to the cap the scaled text fits
-   inside it.
-5. System-owned surfaces (Settings, alerts, share sheet) keep native text
-   styles and scale fully.
+[greenhouse-type-tokens.md](greenhouse-type-tokens.md) holds both sections, under these numbers.
 
 ## 6. Radius family
 

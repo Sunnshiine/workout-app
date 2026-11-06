@@ -342,6 +342,7 @@ struct SetCardPresentationTests {
     let presentation = SessionProgressHeaderPresentation(session: session, block: block)
 
     #expect(presentation.runlineText == "Block 27 · Week 2 · Day 3")
+    #expect(presentation.compactRunlineText == "Week 2 · Day 3")
     #expect(presentation.completedSetCount == 2)
     #expect(presentation.totalSetCount == 3)
     #expect(presentation.remainingText == "1 Set left")

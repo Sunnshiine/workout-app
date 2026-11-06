@@ -5,7 +5,7 @@ The queue bar at the foot of the session stage jumps to the next exercise, and i
 ## Sub-features
 
 - `queue-up-next` jumps to the next unfinished exercise from the bar's `Up next` button, without opening the sheet.
-- `queue-open` opens the sheet from the bar's queue button, a `square.stack` glyph labeled `Queue` whose value names the stage's position in the queue (`2 of 8`).
+- `queue-open` opens the sheet from the bar's queue button, a `list.bullet` glyph labeled `Queue` whose value names the stage's position in the queue (`2 of 8`).
 - `queue-list` lists every exercise, marks the one on stage `Now`, and greys a finished one.
 - `queue-revisit` reopens a finished exercise from its row with its first logged set open for review, so a set can be fixed without the Sheet. A finished superset's row stays disabled.
 - `queue-jump` opens an exercise's active set from its row.

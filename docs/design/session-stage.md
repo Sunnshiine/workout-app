@@ -9,7 +9,7 @@ DESIGN.md or of one of its component files, which keep its numbering.
 
 The Session is a single "now playing" surface and the system's signature: one
 Exercise at a time, its progress drawn as a **branch that leafs out per
-logged Set**. From top: the Cadence line (muted, 12pt), the Fraunces Exercise
+logged Set**. From top: the Cadence line (muted, 13pt), the Fraunces Exercise
 name leading the page, the coach note, the branch, the Last Performed
 reference line, and the Active Set Card with the Log capsule. The foot holds
 the queue pill and up-next preview. A long Exercise name may run to two lines,
@@ -40,8 +40,10 @@ leaf (`actionNight`, the mirror step) with cream ribs, and the active leaf carri
   opens the Exercise History sheet, with at most the subtlest disclosure
   hint. It is the sheet's only entry point, so while a short page has shed
   it the sheet is out of reach from the stage.
-- **The stage foot:** a **queue pill** drawn as a `square.stack` glyph opens
-  the day's Exercise queue sheet. It carries no count on screen; VoiceOver
+- **The stage foot:** a **queue pill** drawn as a `list.bullet` glyph opens
+  the day's Exercise queue sheet. It replaced `square.stack`, which read as a bin at this size. The
+  operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the
+  eyes." It carries no count on screen; VoiceOver
   reads its `N of M` position as the pill's value. Beside it sits a plain
   `Up next · ` preview. The old glass up-next bar and the position label
   above the name are gone.
@@ -68,7 +70,10 @@ leaf (`actionNight`, the mirror step) with cream ribs, and the active leaf carri
   coach note; and only then the branch, which leaves the Exercise name above
   the card. A Superset's drooping lateral lifts and shortens its leaves as
   the air under it closes. The sync banner comes and goes without moving the
-  card or its Log capsule. On a short page Last Performed is the first line
+  card or its Log capsule. `Syncing`, `Offline`, and `N unsynced` sit in the
+  header beside the Sets count, so the location stays readable; only a sentence
+  a failed sync must say takes the banner. The operator, 2026-11-06: "Make the
+  UI / UX emil approved. It should look way better and easier on the eyes." On a short page Last Performed is the first line
   to leave, and with it the only entry point to Exercise History; the
   follow-up is #759.
 - **When a finished Session runs short**, the Open Exercises list under the

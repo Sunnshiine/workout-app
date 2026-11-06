@@ -22,7 +22,6 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
 
     let titleText: String
     let contextText: String
-    let actionText: String
     let quoteText: String
     let continueText: String
     let stats: [MoveOnCelebrationStatPresentation]
@@ -47,7 +46,6 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         } else {
             contextText = locationCore
         }
-        actionText = "Move On"
         quoteText = selectedQuote
         continueText = "Continue"
         stats = [

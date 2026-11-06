@@ -37,9 +37,16 @@ struct BlockOverviewView: View {
                         collapsedWeek(week)
                     }
                 }
-                settingsRow
             }
             .padding(Theme.pageMargin)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                settingsRow
+            }
+            .padding(.horizontal, Theme.pageMargin)
+            .padding(.vertical, 6)
         }
         .sheet(item: $presented) { surface in
             switch surface {
@@ -120,11 +127,11 @@ struct BlockOverviewView: View {
         VStack(alignment: .leading, spacing: Theme.blockWeekCardPadding - 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text("Week \(week.weekNumber)")
-                    .themeFont(.fieldLabel)
-                    .foregroundStyle(palette.textSecondary)
-                Spacer(minLength: 0)
-                Text(week.collapsedSummary)
                     .themeFont(.queuePill)
+                    .foregroundStyle(palette.textPrimary)
+                Spacer(minLength: 0)
+                Text(week.summary)
+                    .themeFont(.runlineSecondary)
                     .foregroundStyle(palette.textSecondary)
             }
 

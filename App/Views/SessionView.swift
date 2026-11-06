@@ -157,7 +157,10 @@ private struct SessionSyncBanner: View {
     @Environment(SyncCoordinator.self) private var sync
 
     var body: some View {
-        SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
+        let presentation = SyncStatusBannerPresentation(outcome: sync.outcome, isSyncing: sync.isSyncing)
+        if let presentation, !presentation.isBrief {
+            SyncStatusBanner(outcome: sync.outcome, isSyncing: sync.isSyncing)
+        }
     }
 }
 

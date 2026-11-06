@@ -38,8 +38,9 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
   about 0.16 s, plays only when a rest restarts under a pill already showing, never on its reveal.
 - The destructive confirmation card rises from 0.96 over a fading scrim on a 0.2 s ease-out, and
   both leave in 0.15 s.
-- Onboarding's steps cross-fade on a 0.3 s smooth spring, and the URL card and the sheet picker each
-  drift 24 pt toward their own side, the way the Back chevron points.
+- Onboarding's old step leaves in 0.12 s on an ease-out, and the new one arrives 0.08 s in on a 0.3 s
+  smooth spring, so the two never read as one double-exposed card. The URL card and the sheet picker
+  each drift 24 pt toward their own side, the way the Back chevron points.
 - Sheets and navigation keep their stock presentation.
 
 ## Haptics
@@ -48,7 +49,9 @@ Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick 0.35/0.85 �
 skip dud 0.45/0.15 · stepper ± 0.45/0.80 (the floor hits the dud) · one identical swell-and-peak
 Move On pattern timed to the ceremony · none on form fields. A haptic and the motion it confirms
 start on the same frame. Hold-to-skip: reveal 250ms, commit 850ms, retreat 0.2s; logged-state hold
-900ms. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
+900ms. A release before the reveal logs, so no press is ever a dead one. The capsule's
+two labels take turns across a hold: `Log` is gone 0.18 s after the fill starts and `Skipped` fades in over
+its last 0.24 s, so the fill never carries one word over the other. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
 
 ## Reduce Motion
 

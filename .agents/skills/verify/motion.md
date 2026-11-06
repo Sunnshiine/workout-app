@@ -12,9 +12,8 @@ without it that moved, show one cut from the old screen to the new for these: a 
 weight keyboard closed, a skip's commit, a Superset log, the Move On celebration opening and
 closing, and the pairing state inside the queue sheet. The tapped button can show its pressed
 colour for up to about 90 ms before that cut. A Superset log's retiring card never draws. After a
-log the sync pill lands a frame or two after the card, reads `Syncing`, then `1 unsynced` under
-`-UITEST_OFFLINE`, and moves everything below it down about 20 points, the rest pill included. Two of the five log bursts
-saved for issues 618 and 696 caught the new card with no sync pill.
+log the header's sync state lands a frame or two after the card and reads `Syncing`, then
+`1 unsynced` under `-UITEST_OFFLINE`, beside the Sets count, so nothing else on the stage moves.
 
 Some states still change under the flag (issue 739). The rest pill's countdown and progress line
 change on their own while rest runs. Every rest after the first on the Session screen starts with

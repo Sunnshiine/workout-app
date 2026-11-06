@@ -30,6 +30,8 @@ struct SessionProgressHeader: View {
 
             Spacer()
 
+            SessionBriefSyncState()
+
             Text(presentation.remainingText)
                 .themeFont(.runlineSecondary)
                 .lineLimit(1)
@@ -66,11 +68,46 @@ struct SessionProgressHeader: View {
     }
 
     private var locationLabelText: some View {
-        Text("\(Image(systemName: "calendar")) \(presentation.runlineText)")
-            .accessibilityLabel(presentation.runlineText)
+        ViewThatFits(in: .horizontal) {
+            locationLine(presentation.runlineText)
+            locationLine(presentation.compactRunlineText)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(presentation.runlineText)
+    }
+
+    private func locationLine(_ text: String) -> some View {
+        Text("\(Image(systemName: "calendar")) \(text)")
             .themeFont(.runline)
             .lineLimit(1)
             .minimumScaleFactor(Theme.TypeRole.runline.denseFloorScale)
             .foregroundStyle(palette.textSecondary)
+    }
+}
+
+/// Syncing, Offline, and `N unsynced` sit beside the count, so the athlete keeps their place while
+/// the state stays honest (PRODUCT.md, Trust the round-trip).
+private struct SessionBriefSyncState: View {
+    @Environment(SyncCoordinator.self) private var sync: SyncCoordinator?
+    @Environment(\.themePalette) private var palette
+
+    private var presentation: SyncStatusBannerPresentation? {
+        sync.flatMap { SyncStatusBannerPresentation(outcome: $0.outcome, isSyncing: $0.isSyncing) }
+            .flatMap { $0.isBrief ? $0 : nil }
+    }
+
+    var body: some View {
+        Group {
+            if let presentation {
+                Text(presentation.text)
+                    .themeFont(.runlineSecondary)
+                    .lineLimit(1)
+                    .foregroundStyle(palette.textSecondary)
+                    .fixedSize()
+                    .transition(.opacity)
+                    .accessibilityLabel(presentation.accessibilityLabel)
+            }
+        }
+        .animation(.smooth(duration: 0.18), value: presentation?.text)
     }
 }

@@ -67,8 +67,9 @@ struct MoveOnCelebrationView: View {
                 .accessibilityFocused($isTitleFocused)
                 .accessibilityIdentifier("move-on-celebration-title")
 
+            // The bird perches above the branch's frame, so the air keeps it off the title.
             CeremonyBranch()
-                .padding(.top, 4)
+                .padding(.top, 28)
 
             Text(presentation.quoteText)
                 .themeFont(.coachNote)
@@ -89,21 +90,9 @@ struct MoveOnCelebrationView: View {
         }
     }
 
-    // Side by side, the header and the stats truncate at an accessibility text size, so they stack.
     private var header: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .firstTextBaseline) {
-                contextText
-                Spacer(minLength: 12)
-                actionText
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                contextText
-                actionText
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(minHeight: 32)
+        contextText
+            .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
     }
 
     private var contextText: some View {
@@ -114,13 +103,7 @@ struct MoveOnCelebrationView: View {
             .accessibilityIdentifier("move-on-celebration-context")
     }
 
-    private var actionText: some View {
-        Text(presentation.actionText)
-            .themeFont(.runlineSecondary)
-            .foregroundStyle(palette.textSecondary)
-            .accessibilityIdentifier("move-on-celebration-action")
-    }
-
+    // Side by side, the stats truncate at an accessibility text size, so they stack.
     private var statsRow: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) { stats }

@@ -76,7 +76,7 @@ A **lesson** is design feedback worth teaching the next agent. Fix the UI first,
 | Feedback | Home |
 | --- | --- |
 | A subjective call on look, layout, wording, or feel | A Named Rule in the matching `DESIGN.md` section, or a line in the surface's `docs/design/` spec |
-| A new or changed value | `docs/design/greenhouse-theme-tokens.md` and `Theme.swift`, in the same change |
+| A new or changed value | `docs/design/greenhouse-theme-tokens.md` (type roles in `greenhouse-type-tokens.md`) and `Theme.swift`, in the same change |
 | A repeated mistake code can catch | A `custom_rules` entry in `.swiftlint.yml` whose message cites the DESIGN.md rule it enforces. Propose the rule with it when none covers the mistake |
 | A visual regression | A `Tests/Visual` baseline, recorded on CI per `docs/TESTING.md` |
 | A fix specific to this change | Nothing |

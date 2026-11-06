@@ -429,13 +429,24 @@ private struct HoldToSkipLogButton: View {
         ZStack {
             Text(logTitle)
                 .opacity(presentation.logOpacity)
+                .animation(logLabelAnimation, value: skipProgress)
 
             // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
             Text("Skipped")
                 .opacity(presentation.skipOpacity)
+                .animation(skipLabelAnimation, value: skipProgress)
                 .accessibilityLabel("")
         }
         .frame(maxWidth: .infinity)
+    }
+
+    // The two labels take turns as the fill passes, so a hold never draws one over the other.
+    private var logLabelAnimation: Animation {
+        skipProgress > 0 ? .linear(duration: 0.18) : .easeOut(duration: Theme.Motion.holdToSkipRetreat)
+    }
+
+    private var skipLabelAnimation: Animation {
+        skipProgress > 0 ? .linear(duration: 0.24).delay(0.36) : .easeOut(duration: 0.1)
     }
 
     private var presentation: HoldToSkipButtonPresentation {

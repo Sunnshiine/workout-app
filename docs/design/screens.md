@@ -21,7 +21,7 @@ and the one place the app shows Sheet structure.
 
 - **Focus-week layout:** only the week holding the Current Session expands.
   Every collapsed week is an elevated tappable card in shade, carrying a
-  summary and a mini day-strip; the focus card alone stands in morning
+  bare count and a mini day-strip; the focus card alone stands in morning
   light with a glowing rim — hierarchy by **light and shade at one
   elevation**.
 - **Partial day:** ink rising from the tile's foot in quantized quarters.
