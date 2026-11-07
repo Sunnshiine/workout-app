@@ -1,7 +1,7 @@
 import Foundation
 
 /// One of the three lifts a Training Max is defined for. See CONTEXT.md, "Main Lift".
-enum MainLift: CaseIterable {
+enum MainLift: String, CaseIterable, Codable {
     case squat
     case bench
     case deadlift

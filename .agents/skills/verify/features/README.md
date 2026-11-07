@@ -40,6 +40,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Session queue](./session-queue.md) covers the exercise queue sheet, jumping to an exercise, reopening a finished one, Up next, and superset pairing.
 - [Block overview](./block-overview.md) covers the Block grid, opening another session, making it current, and sessions that are not uploaded.
 - [Session completion](./session-completion.md) covers the completion stage, open exercises, Move On from the stage or the queue, and the celebration.
+- [Meet Mode](./meet-mode.md) covers planning a Meet from the Block grid, the Warm-up Room Plan, the Attempts Out count, the Attempt Window, and the marks.
 - [Settings](./settings.md) covers appearance, rest timers, switching the training sheet, sync, sign out with pending writes, the build footer, and Developer Tools.
 - [Onboarding](./onboarding.md) covers the signed-out wall, choosing a training sheet or pasting its URL, and landing on its freshly synced session.
 - [Live Activity](./live-activity.md) covers the rest timer in the Dynamic Island after a logged set, its Say Set mic on the Lock Screen card and the expanded island, the readback of a Set logged by voice with the phone locked, and the Live Activity Lab that raises one from a sample state.

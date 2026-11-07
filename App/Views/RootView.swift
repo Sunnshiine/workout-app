@@ -10,6 +10,7 @@ struct RootView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(LastPerformedLookupStore.self) private var lastPerformed
+    @Environment(MeetStore.self) private var meet
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
@@ -68,9 +69,10 @@ struct RootView: View {
         }
         // The athlete's hands are on the machine, so the screen stays lit while an Effort
         // Countdown runs. The root watches it, because a Session screen that goes away mid-count
-        // ends the countdown as it leaves and would miss the end.
-        .onChange(of: countdown.run != nil) { _, isCounting in
-            UIApplication.shared.isIdleTimerDisabled = isCounting
+        // ends the countdown as it leaves and would miss the end. A chalky athlete on the Platform
+        // is the same case, so one condition owns the setting.
+        .onChange(of: countdown.run != nil || meet.isPlatformOnScreen) { _, staysLit in
+            UIApplication.shared.isIdleTimerDisabled = staysLit
         }
     }
 

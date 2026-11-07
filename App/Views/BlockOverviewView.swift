@@ -6,6 +6,7 @@ struct BlockOverviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppEntryInbox.self) private var entry
     @Environment(\.readBlockSheet) private var readBlockSheet
+    @Environment(MeetStore.self) private var meet
     @State private var presented: PresentedSurface?
 
     private enum PresentedSurface: Identifiable {
@@ -37,7 +38,7 @@ struct BlockOverviewView: View {
                         collapsedWeek(week)
                     }
                 }
-                settingsRow
+                footRow
             }
             .padding(Theme.pageMargin)
         }
@@ -75,16 +76,26 @@ struct BlockOverviewView: View {
         }
     }
 
-    private var settingsRow: some View {
-        Button {
-            presented = .settings
-        } label: {
-            Image(systemName: "gearshape")
-                .footPill(palette)
+    private var footRow: some View {
+        HStack(spacing: 10) {
+            Button {
+                presented = .settings
+            } label: {
+                Image(systemName: "gearshape")
+                    .footPill(palette)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Settings")
+            .accessibilityIdentifier("block-overview-settings-row")
+            NavigationLink {
+                MeetPlanView()
+            } label: {
+                Text(meet.meet?.date.entryLabel(from: meet.now(), in: .current) ?? "Meet")
+                    .footPill(palette)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("block-overview-meet-row")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Settings")
-        .accessibilityIdentifier("block-overview-settings-row")
     }
 
     // MARK: - Focus week — the one week in morning light with the glowing rim

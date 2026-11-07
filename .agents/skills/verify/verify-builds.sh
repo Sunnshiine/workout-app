@@ -11,6 +11,7 @@ fixture_args() {
     partial-block) echo "" ;;
     completed-open-exercises) echo "-UITEST_SESSION -UITEST_COMPLETED_OPEN_EXERCISES" ;;
     developer-tools) echo "-UITEST_DEVELOPER_TOOLS -UITEST_FULL_BLOCK" ;;
+    meet-day) echo "-UITEST_MEET_DAY -UITEST_FULL_BLOCK" ;;
     *) echo "unknown fixture: $1" >&2; usage ;;
   esac
 }
