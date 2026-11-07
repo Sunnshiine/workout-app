@@ -163,6 +163,13 @@ extension WorkoutApplication {
         return try report(on: set, at: address)
     }
 
+    /// `WorkoutStore.flag(_:as:)`: the same call the Set Flag sheet makes.
+    public func flag(_ address: SetAddress, as flag: SetFlag) throws -> LogReport {
+        let set = try resolveSet(address)
+        try workout.flag(set, as: flag)
+        return try report(on: set, at: address)
+    }
+
     /// `WorkoutStore.deleteLog(for:)`: the card's Clear. The card offers Clear only on a Logged or
     /// Skipped Set, so a Pending Set converges, writing nothing.
     public func deleteLog(_ address: SetAddress) throws -> LogReport {

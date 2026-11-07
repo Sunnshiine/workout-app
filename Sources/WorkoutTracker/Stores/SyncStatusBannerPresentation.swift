@@ -33,6 +33,8 @@ struct SyncStatusBannerPresentation: Equatable, Sendable {
             self.init(text: "\(count) unsynced", isBrief: true)
         case .writesRefused(let messages):
             self.init(text: "The sheet changed, so your log was not written", detail: messages.first, isBrief: false)
+        case .setFlagsRefused(let messages):
+            self.init(text: "The sheet changed, so your flag was not written", detail: messages.first, isBrief: false)
         case .noBlockTab:
             self.init(text: "This sheet has no block tab", isBrief: false)
         case .parseWarnings(let warnings):

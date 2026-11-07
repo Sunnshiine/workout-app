@@ -266,6 +266,21 @@ extension WorkoutStore {
         try writeNotes(of: set, operation: .delete, valueToWrite: nil) { set.markPending() }
     }
 
+    /// Queues `flag` for the Set's Cell Note. It moves no Set State and touches no Set Log, so a Set
+    /// keeps its flag through a Clear and a coach's edit to its value never refuses it.
+    func flag(_ set: ExerciseSet, as flag: SetFlag) throws {
+        guard let block, block.holds(set) else { throw WorkoutLoggingError.detachedSession }
+        set.record(flag, standing: .unsynced)
+        try enqueue(
+            for: set,
+            column: .setFlag,
+            operation: .upsert,
+            valueToWrite: SetFlagLine(setIndex: set.index, flag: flag).text,
+            expectedCurrentValue: ""
+        )
+        try context.save()
+    }
+
     private func writeNotes(
         of set: ExerciseSet,
         operation: PendingWriteOperation,

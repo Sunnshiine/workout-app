@@ -17,6 +17,9 @@ enum SyncOutcome: Equatable, Sendable {
     /// overwrite the coach (ADR-0003). `markConflict` takes it off the flush queue, which fetches
     /// only `.pending`, so nothing attempts it again.
     case writesRefused([String])
+    /// Only Set Flags were refused: no Visible Writable Row could take them, and nothing attempts
+    /// them again. A value write refused alongside them makes the flush `writesRefused`.
+    case setFlagsRefused([String])
     case noBlockTab
     /// The sync succeeded and the Block is cached.
     case parseWarnings([String])
@@ -31,10 +34,12 @@ extension SyncOutcome {
 
     /// The verdict one pending-write flush reports. A refusal wins over the writes still queued,
     /// because no later flush reports that refusal and the next one reports those writes (#784).
-    init(refusedWrites: [String], queued: Int) {
+    init(refusedWrites: [String], refusedSetFlags: [String], queued: Int) {
         self =
             if !refusedWrites.isEmpty {
-                .writesRefused(refusedWrites)
+                .writesRefused(refusedWrites + refusedSetFlags)
+            } else if !refusedSetFlags.isEmpty {
+                .setFlagsRefused(refusedSetFlags)
             } else if queued > 0 {
                 .writesQueued(queued)
             } else {
@@ -51,7 +56,7 @@ extension SyncOutcome {
     static func sync(sheetRead: SyncOutcome, flush: SyncOutcome) -> SyncOutcome {
         switch (sheetRead, flush) {
         case (.sheetUnreachable, _), (.noBlockTab, _): sheetRead
-        case (_, .writesRefused): flush
+        case (_, .writesRefused), (_, .setFlagsRefused): flush
         default: sheetRead
         }
     }

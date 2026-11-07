@@ -5,19 +5,28 @@
     ///
     /// Each tab is a sparse A1 map (`"K15": "185x5@8"`). `rows` and `cols` size the grid the parser
     /// sees and grow to fit any cell outside them; `hiddenRows` is keyed by the 1-based Sheet row
-    /// number, the same numbering the A1 keys use.
+    /// number, the same numbering the A1 keys use; `cellNotes` holds each cell's Cell Note under the
+    /// same A1 keys, and a tab with none leaves it out of the file.
     public struct LocalWorkbook: Codable, Equatable, Sendable {
         public struct Tab: Equatable, Sendable {
             public var rows: Int
             public var cols: Int
             public var cells: [String: String]
             public var hiddenRows: [Int: SheetRowVisibility]
+            public var cellNotes: [String: String]
 
-            public init(rows: Int = 0, cols: Int = 0, cells: [String: String], hiddenRows: [Int: SheetRowVisibility] = [:]) {
+            public init(
+                rows: Int = 0,
+                cols: Int = 0,
+                cells: [String: String],
+                hiddenRows: [Int: SheetRowVisibility] = [:],
+                cellNotes: [String: String] = [:]  // default: most tabs a scenario authors carry no Cell Note
+            ) {
                 self.rows = rows
                 self.cols = cols
                 self.cells = cells
                 self.hiddenRows = hiddenRows
+                self.cellNotes = cellNotes
             }
         }
 
@@ -85,7 +94,7 @@
 
     extension LocalWorkbook.Tab: Codable {
         private enum CodingKeys: String, CodingKey {
-            case rows, cols, cells, hiddenRows
+            case rows, cols, cells, hiddenRows, cellNotes
         }
 
         public init(from decoder: any Decoder) throws {
@@ -102,6 +111,11 @@
                 locatedBy: sheetRowNumber,
                 keysAre: "hiddenRows keys are 1-based row numbers"
             )
+            cellNotes = try container.decodeTable(
+                forKey: .cellNotes,
+                locatedBy: a1CellKey,
+                keysAre: "cellNotes keys are A1 references such as K15"
+            )
         }
 
         // `[Int: SheetRowVisibility]` would encode as a flat array; keying by the row number as a string keeps
@@ -115,6 +129,9 @@
                 Dictionary(uniqueKeysWithValues: hiddenRows.map { (String($0.key), $0.value) }),
                 forKey: .hiddenRows
             )
+            if !cellNotes.isEmpty {
+                try container.encode(cellNotes, forKey: .cellNotes)
+            }
         }
     }
 
@@ -124,7 +141,8 @@
                 rows: snapshot.values.count,
                 cols: snapshot.values.map(\.count).max() ?? 0,
                 cells: snapshot.sparseCells,
-                hiddenRows: snapshot.hiddenRowsByNumber
+                hiddenRows: snapshot.hiddenRowsByNumber,
+                cellNotes: snapshot.cellNotes
             )
         }
 
@@ -138,7 +156,8 @@
             }
             return SheetSnapshot(
                 values: gridFromA1(cells, rows: rowCount, cols: colCount),
-                rowVisibility: Dictionary(uniqueKeysWithValues: hiddenRows.map { ($0.key - 1, $0.value) })
+                rowVisibility: Dictionary(uniqueKeysWithValues: hiddenRows.map { ($0.key - 1, $0.value) }),
+                cellNotes: cellNotes
             )
         }
     }
@@ -195,6 +214,7 @@
         private let failedUpdateRequestNumbers: Set<Int>
         private var updateRequestCount = 0
         private(set) var recordedBatches: [[SheetCellWrite]] = []
+        private(set) var recordedCellNotes: [SheetCellNoteWrite] = []
 
         init(workbook: LocalWorkbook, failedUpdateRequestNumbers: Set<Int> = []) {
             self.spreadsheetId = workbook.spreadsheetId
@@ -262,6 +282,20 @@
             try storage.store(staged, spreadsheetId: self.spreadsheetId, title: title)
             recordedBatches.append(cells)
         }
+
+        func writeCellNote(_ note: SheetCellNoteWrite, spreadsheetId: String) async throws {
+            updateRequestCount += 1
+            if failedUpdateRequestNumbers.contains(updateRequestCount) {
+                throw LocalWorkbookSheetsClientError.writeFailed(updateRequestCount)
+            }
+            var tabs = try storage.tabs()
+            guard let snapshot = tabs[note.tabName] else {
+                throw LocalWorkbookSheetsClientError.unknownTab(note.tabName)
+            }
+            tabs[note.tabName] = snapshot.replacingCellNote(note.text, row: note.row, col: note.col)
+            try storage.store(tabs, spreadsheetId: self.spreadsheetId, title: title)
+            recordedCellNotes.append(note)
+        }
     }
 
     extension LocalWorkbookSheetsClient {
@@ -278,7 +312,7 @@
                 }
                 var values = snapshot.values
                 values.write([[cell.value]], atRow: cell.row, col: cell.col)
-                staged[cell.tabName] = SheetSnapshot(values: values, rowVisibility: snapshot.rowVisibility)
+                staged[cell.tabName] = snapshot.replacingValues(values)
             }
             return staged
         }

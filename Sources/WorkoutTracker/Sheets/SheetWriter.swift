@@ -93,6 +93,15 @@ struct SheetCellWrite: Sendable, Equatable {
     }
 }
 
+/// One planned Cell Note write. `text` is the whole note the cell ends up with, because the API
+/// replaces a note rather than adding to it. Its own type, so a client can never land it as a value.
+struct SheetCellNoteWrite: Sendable, Equatable {
+    let tabName: String
+    let row: Int
+    let col: Int
+    let text: String
+}
+
 struct SheetWriteTarget: Sendable, Equatable {
     let tabName: String
     let row: Int
@@ -149,11 +158,13 @@ extension SetLogPlacementResolution {
 extension SheetWriteRequest {
     /// Whether the target holds the value this write was planned against (ADR-0003). A Notes
     /// value matches by meaning, so a coach's spelling of the expected Set Log is not a conflict.
-    /// Last Set RPE compares by text.
+    /// Last Set RPE compares by text. A Set Flag lands in the Cell Note and changes no value, so no
+    /// value write may ever carry one.
     func expects(_ current: String) -> Bool {
         switch column {
         case .notes: SetLogToken.matches(current, expectedCurrentValue)
         case .lastSetRPE: current == expectedCurrentValue
+        case .setFlag: false
         }
     }
 }
@@ -237,11 +248,32 @@ struct SheetWritePlanner: Sendable {
         )
     }
 
-    func applying(_ cell: SheetCellWrite, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
-        let updatedSnapshot = SheetSnapshot(
-            values: applying(cell, to: snapshot.grid),
-            rowVisibility: snapshot.snapshot.rowVisibility
+    /// The Cell Note `request`'s Set Flag leaves on `target`. Only the coach's words and earlier lines
+    /// are kept, and a value check has nothing to say: a flag changes no value, so a coach's edit to
+    /// the cell never refuses it (ADR-0003). What the target cell holds is not read at all.
+    func planSetFlag(
+        _ request: SheetWriteRequest,
+        target: SheetWriteTarget,
+        in snapshot: SheetWritePlanningSnapshot
+    ) -> SheetCellNoteWrite {
+        SheetCellNoteWrite(
+            tabName: target.tabName,
+            row: target.row,
+            col: target.col,
+            text: SetFlagLine.cellNote(
+                snapshot.snapshot.cellNote(row: target.row, col: target.col),
+                adding: request.writtenValue
+            )
         )
+    }
+
+    func applying(_ cell: SheetCellWrite, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
+        let updatedSnapshot = snapshot.snapshot.replacingValues(applying(cell, to: snapshot.grid))
+        return SheetWritePlanningSnapshot(snapshot: updatedSnapshot, layout: snapshot.layout)
+    }
+
+    func applying(_ note: SheetCellNoteWrite, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
+        let updatedSnapshot = snapshot.snapshot.replacingCellNote(note.text, row: note.row, col: note.col)
         return SheetWritePlanningSnapshot(snapshot: updatedSnapshot, layout: snapshot.layout)
     }
 
@@ -261,7 +293,7 @@ struct SheetWritePlanner: Sendable {
 
         let (header, col): (String, Int?) =
             switch request.column {
-            case .notes: ("Notes", day.columns.notes)
+            case .notes, .setFlag: ("Notes", day.columns.notes)
             case .lastSetRPE: ("Last set RPE", day.columns.lastSetRPE)
             }
         guard let col else { return .columnNotFound(header: header) }
@@ -270,7 +302,7 @@ struct SheetWritePlanner: Sendable {
         switch request.column {
         case .lastSetRPE:
             return .lastSetRPE(anchor: anchor, col: col)
-        case .notes:
+        case .notes, .setFlag:
             return .setLog(
                 anchor: anchor,
                 anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
@@ -290,6 +322,7 @@ struct SheetWritePlanner: Sendable {
         in snapshot: SheetWritePlanningSnapshot
     ) throws -> String? {
         guard
+            request.column == .notes,
             let placement = placement(for: request, target: target, in: snapshot),
             let position = placement.listPosition
         else { return nil }

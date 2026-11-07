@@ -5,6 +5,7 @@ struct CellReport: Encodable {
     let tab: String
     let cell: String
     let value: String
+    let cellNote: String?
 }
 
 struct SheetCommand: AsyncParsableCommand {
@@ -29,7 +30,12 @@ struct SheetCommand: AsyncParsableCommand {
                 let reference = cell.uppercased()
                 guard isA1CellReference(reference) else { throw CLIError.invalidCell(cell) }
                 let snapshot = try await home.open().sheet(tab: tab)
-                return CellReport(tab: snapshot.tab, cell: reference, value: snapshot.cells[reference] ?? "")
+                return CellReport(
+                    tab: snapshot.tab,
+                    cell: reference,
+                    value: snapshot.cells[reference] ?? "",
+                    cellNote: snapshot.cellNotes[reference]
+                )
             }
         } else {
             try await Output.run { try await home.open().sheet(tab: tab) }

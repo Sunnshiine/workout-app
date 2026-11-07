@@ -44,6 +44,7 @@ private struct GoogleSheetsRowData: Decodable {
 
 private struct GoogleSheetsCellData: Decodable {
     let formattedValue: String?
+    let note: String?
 }
 
 private struct GoogleSheetsDimensionProperties: Decodable {
@@ -64,6 +65,61 @@ private struct GoogleSheetsValueRange: Encodable {
 private struct GoogleSheetsBatchUpdateBody: Encodable {
     let valueInputOption: String
     let data: [GoogleSheetsValueRange]
+}
+
+private struct GoogleSheetsTabIdsResponse: Decodable {
+    struct Sheet: Decodable {
+        let properties: Properties
+    }
+
+    /// Google leaves out a field at its default, so the id of a tab whose id is 0 can read as absent.
+    struct Properties: Decodable {
+        let sheetId: Int?
+        let title: String
+    }
+
+    let sheets: [Sheet]
+}
+
+/// `spreadsheets:batchUpdate` with one `updateCells` request. `fields: "note"` is what keeps the
+/// cell's value out of the write.
+private struct GoogleSheetsCellNoteBody: Encodable {
+    struct Request: Encodable {
+        let updateCells: UpdateCells
+    }
+
+    struct UpdateCells: Encodable {
+        let rows: [Row]
+        let fields = "note"
+        let start: Start
+    }
+
+    struct Row: Encodable {
+        let values: [Cell]
+    }
+
+    struct Cell: Encodable {
+        let note: String
+    }
+
+    struct Start: Encodable {
+        let sheetId: Int
+        let rowIndex: Int
+        let columnIndex: Int
+    }
+
+    let requests: [Request]
+
+    init(note: SheetCellNoteWrite, sheetId: Int) {
+        requests = [
+            Request(
+                updateCells: UpdateCells(
+                    rows: [Row(values: [Cell(note: note.text)])],
+                    start: Start(sheetId: sheetId, rowIndex: note.row, columnIndex: note.col)
+                )
+            )
+        ]
+    }
 }
 
 private struct GoogleDriveFilesResponse: Decodable {
@@ -154,7 +210,7 @@ struct GoogleSheetsClient: SheetsClient {
             URLQueryItem(name: "ranges", value: tabName),
             URLQueryItem(
                 name: "fields",
-                value: "sheets(data(startRow,startColumn,rowData(values(formattedValue)),rowMetadata(hiddenByUser,hiddenByFilter)))"
+                value: "sheets(data(startRow,startColumn,rowData(values(formattedValue,note)),rowMetadata(hiddenByUser,hiddenByFilter)))"
             )
         ]
         guard let url = components?.url else {
@@ -195,6 +251,35 @@ struct GoogleSheetsClient: SheetsClient {
         guard (200..<300).contains(statusCode) else { throw SheetsError.http(statusCode) }
     }
 
+    func writeCellNote(_ note: SheetCellNoteWrite, spreadsheetId: String) async throws {
+        let sheetId = try await sheetId(ofTab: note.tabName, spreadsheetId: spreadsheetId)
+        guard let url = URL(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId):batchUpdate") else {
+            throw SheetsError.malformedResponse
+        }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(GoogleSheetsCellNoteBody(note: note, sheetId: sheetId))
+
+        let (_, statusCode) = try await load(req)
+        guard (200..<300).contains(statusCode) else { throw SheetsError.http(statusCode) }
+    }
+
+    /// `updateCells` addresses a tab by its numeric id, which nothing else in the app has a use for.
+    private func sheetId(ofTab tabName: String, spreadsheetId: String) async throws -> Int {
+        var components = URLComponents(string: "https://sheets.googleapis.com/v4/spreadsheets/\(spreadsheetId)")
+        components?.queryItems = [URLQueryItem(name: "fields", value: "sheets.properties(sheetId,title)")]
+        guard let url = components?.url else {
+            throw SheetsError.malformedResponse
+        }
+        let response = try JSONDecoder().decode(GoogleSheetsTabIdsResponse.self, from: try await get(url))
+        guard let tab = response.sheets.first(where: { $0.properties.title == tabName }) else {
+            throw SheetsError.malformedResponse
+        }
+        return tab.properties.sheetId ?? 0
+    }
+
     private func get(_ url: URL) async throws -> Data {
         var req = URLRequest(url: url)
         req.setValue("Bearer \(try await tokenProvider())", forHTTPHeaderField: "Authorization")
@@ -217,7 +302,11 @@ struct GoogleSheetsClient: SheetsClient {
 
     private static func snapshot(from response: GoogleSheetsSnapshotResponse) -> SheetSnapshot {
         let gridData = response.sheets.flatMap { $0.data ?? [] }
-        return SheetSnapshot(values: valuesGrid(from: gridData), rowVisibility: rowVisibility(from: gridData))
+        return SheetSnapshot(
+            values: valuesGrid(from: gridData),
+            rowVisibility: rowVisibility(from: gridData),
+            cellNotes: cellNotes(from: gridData)
+        )
     }
 
     /// The cell grid the spans describe, each span's rows placed at its own start row and column.
@@ -227,6 +316,19 @@ struct GoogleSheetsClient: SheetsClient {
             values.write(span.rows.map(\.cellText), atRow: span.firstRow, col: span.firstColumn)
         }
         return values
+    }
+
+    private static func cellNotes(from gridData: [GoogleSheetsGridData]) -> [String: String] {
+        var notes: [String: String] = [:]
+        for span in gridData {
+            for (rowOffset, row) in span.rows.enumerated() {
+                for (colOffset, cell) in (row.values ?? []).enumerated() {
+                    guard let note = cell.note else { continue }
+                    notes[indexToA1(row: span.firstRow + rowOffset, col: span.firstColumn + colOffset)] = note
+                }
+            }
+        }
+        return notes
     }
 
     /// The rows the spans report as hidden, keyed by row index. A fully visible row is left out.
