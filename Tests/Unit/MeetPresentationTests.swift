@@ -80,7 +80,7 @@ struct MeetOnDeckFaceTests {
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.caption == "On the platform")
         #expect(face.numeral == "180")
-        #expect(face.instruction == "Squat opener")
+        #expect(face.instruction == "Opener")
         #expect(face.detail == nil)
         #expect(face.isOnThePlatform)
     }
@@ -212,6 +212,30 @@ struct MeetWeightEntryTests {
         entry.stepUp()
         #expect(entry.text == "182.5")
         #expect(entry.canSave(after: (Kilograms(whole: 180), .good)))
+    }
+
+    @Test func aWeightIsRefusedOnlyWhenNoBarCanLoadIt() {
+        var entry = MeetWeightEntry(called: nil, after: nil, rules: .ipf)
+        #expect(!entry.isRefused)
+        entry.text = "abc"
+        #expect(entry.isRefused)
+        entry.text = "180.3"
+        #expect(entry.isRefused)
+        entry.text = "183"
+        #expect(!entry.isRefused)
+    }
+
+    @Test func theSecondAnswerAtTimeIsWhatTheStepperHoldsWhenItDiffersAndLoads() {
+        let table = Kilograms(hundredths: 18250)
+        let previous = (kilograms: Kilograms(whole: 180), result: AttemptResult.good)
+        var entry = MeetWeightEntry(called: nil, after: Kilograms(whole: 180), rules: .ipf)
+        #expect(entry.handedIn(besides: table, after: previous) == nil)
+        entry.text = "182.5"
+        #expect(entry.handedIn(besides: table, after: previous) == nil)
+        entry.text = "180.3"
+        #expect(entry.handedIn(besides: table, after: previous) == nil)
+        entry.text = "190"
+        #expect(entry.handedIn(besides: table, after: previous) == Kilograms(whole: 190))
     }
 
     @Test func textThatIsNotAWeightIsRefusedInPlainWords() {

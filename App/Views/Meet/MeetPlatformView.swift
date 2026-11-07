@@ -164,6 +164,7 @@ private struct MeetOnDeckView: View {
                 title: face.place,
                 entry: MeetWeightEntry(called: deck.kilograms, after: nil, rules: meet.rules),
                 saveLabel: "Change to",
+                idleLabel: "Change",
                 unchanged: deck.kilograms,
                 onClear: nil
             ) { weight in
@@ -347,8 +348,7 @@ struct MeetUndoPill: View {
         Button {
             store.undo()
         } label: {
-            Image(systemName: "arrow.uturn.backward")
-                .footPill(palette)
+            MeetGlyphPill(systemName: "arrow.uturn.backward")
         }
         .buttonStyle(.pressScale)
         .accessibilityLabel("Undo")

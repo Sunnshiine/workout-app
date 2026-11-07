@@ -17,7 +17,7 @@ Meet Mode runs the coach's Attempts on the day of a Meet: the Plan holds the dat
 ## How to get to it (user POV)
 
 - Open the Block grid from the stage header, then tap the pill beside the gear.
-- From the Plan, tap `To the platform`. The screen stays awake while the Platform shows.
+- From the Plan, tap `To the Platform`. The screen stays awake while the Platform shows.
 
 ## Driving it with verify.sh
 
@@ -32,10 +32,11 @@ Preconditions:
 - **Window.** Tap `meet-mark-good`. `meet-window` values `… seconds left to submit your Second Attempt`. At 15 seconds left the value carries `No card means 182.5 kg` and `meet-window-rule` shows. At time, `meet-weight-question` shows and `meet-accept-table-entry` reads `The table entered 182.5 kilograms`, in the frame split from `meet-submit`.
 - **Next Attempt.** Tap `meet-weight-up`, tap `meet-handed-in`. `meet-readout` reads `Second Attempt`, `192.5 kilograms`, and `meet-attempts-out-value` reads the lifters in flight.
 - **Undo.** After a mark, tap `meet-undo`. The Platform is back on the same Attempt at zero, unmarked. After a submit, an answer at expiry, or a change, it goes back one gesture the same way, and tapping the count does not end it. An edit on the Plan does.
-- **No called Attempt.** On the Plan tap `meet-attempt-squat-second`, then `meet-weight-clear`. Tap `meet-attempt-squat-second` again and the sheet opens blank with its pad up. Dismiss it and run to a mark. `meet-weight-field` is blank, `meet-submit` is neutral, and `meet-weight-up` reads 2.5 above the marked weight. At time `meet-accept-table-entry` is the one answer.
+- **No called Attempt.** On the Plan tap `meet-attempt-squat-second`, then `meet-weight-clear`. Tap `meet-attempt-squat-second` again and the sheet opens blank with its pad up. Dismiss it and run to a mark. `meet-weight-field` is blank, `meet-submit` is neutral, and `meet-weight-up` reads 2.5 above the marked weight. At time `meet-accept-table-entry` is the one answer, and green because it is the page's one action.
 - **Rapid taps.** The mark pads and `meet-submit` overlap, so touches are held off for 0.4 s after the stage changes. Two `verify.sh axe touch` calls arrive further apart than that and the second lands, so prove it with `MeetPlatformUITests`, whose three-tap burst fails with the hold at zero. A `doubleTap` does not: its second touch beats the new control's commit.
 - **Headless.** `workout meet plan` and `workout meet tick` drive the same stores, as in `cli-headless.md`. `WORKOUT_NOW` moves the clock, so a window expires without waiting.
 - **Typing over.** Press `meet-weight-field` for any length (`verify.sh axe touch ... --down --up --delay 1.2`), then touch one key. Its value is that digit alone. A press held past about 0.6 s once landed a caret after the selection, leaving `1901`, so the field takes touches only once it has focus and a second press still places a caret. `MeetPlatformUITests` holds this, and it fails without the guard.
+- **Notes.** A weight no bar loads shows `meet-weight-note` with its danger mark at once, and inks `meet-weight-field` in `danger` once the keyboard is down. A rule note waits about 0.6 s after the last digit or step, so typing a legal weight never reads it out on the way through.
 - **Proof.** The window's numeral cuts once a second in place, and it and its caption do not move when the rule appears, when a note arrives, or at expiry. No hue changes at any stage: the closing and expired stages read in type alone.
 
 ## Gotchas
@@ -45,4 +46,5 @@ Preconditions:
 - `-UITEST_MEET_WORST_CASE` seeds the longest numbers and Rack Heights a Plan holds, for break-the-UI runs.
 - The keep-awake setting has nothing to read on the simulator, whose screen never sleeps. Only the code path is proven there.
 - `verify.sh type` entered nothing into the decimal pad. Touch the keys by coordinate with `verify.sh axe touch`. On iPhone 17 Pro, with the sheet's pad up, `1` sits at 68,616, `8` at 200,724, and `0` at 200,778.
+- A focused field keeps the ink it had when focus began, so a field that turned red while typing stays red through a refocus. The field inks only with the keyboard down for that reason. Read the ink with the keyboard both up and down after a refused weight.
 - A sheet that focuses its blank field as it presents shows no keyboard Done. Its save button stays above the pad, so nothing is lost. Tapping the field on the Platform's window does show Done.

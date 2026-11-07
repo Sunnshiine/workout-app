@@ -31,7 +31,7 @@ struct MeetOnDeckFace: Equatable {
     let caption: String
     let numeral: String
     let pounds: String
-    /// What to do at this weight: `5 reps`, or `Squat opener` on the platform.
+    /// What to do at this weight: `5 reps`, or `Opener` on the platform, under the lift's own name.
     let instruction: String?
     let detail: String?
     let isOnThePlatform: Bool
@@ -79,7 +79,7 @@ struct MeetOnDeckFace: Equatable {
                 Reading(
                     caption: "On the platform",
                     weight: weight,
-                    instruction: place,
+                    instruction: attemptName(ordinal),
                     detail: nil,
                     isOnThePlatform: true,
                     spoken: "On the platform, \(place), \(weight.spoken)"
@@ -101,8 +101,12 @@ struct MeetOnDeckFace: Equatable {
             )
         }
 
+        private static func attemptName(_ ordinal: AttemptOrdinal) -> String {
+            ordinal == .opener ? "Opener" : "\(ordinal.name) Attempt"
+        }
+
         private static func attempt(_ weight: Kilograms, ordinal: AttemptOrdinal, attemptsOut: Int, secondsUntil: Int) -> Reading {
-            let caption = ordinal == .opener ? "Opener" : "\(ordinal.name) Attempt"
+            let caption = attemptName(ordinal)
             let estimate = MeetCue.estimate(secondsUntil)
             return Reading(
                 caption: caption,
@@ -228,6 +232,19 @@ struct MeetWeightEntry: Equatable {
     func canSave(after previous: (kilograms: Kilograms, result: AttemptResult)?) -> Bool {
         guard let kilograms else { return false }
         return rules.verdict(on: kilograms, after: previous) != .notLoadable
+    }
+
+    /// What no bar can load or is no number at all, whatever came before it, so the field marks itself.
+    var isRefused: Bool {
+        if case .refused = note(after: nil) { return true }
+        return false
+    }
+
+    /// The second answer at time: what the stepper holds, when the table did not enter it and a bar
+    /// can load it.
+    func handedIn(besides tableEntry: Kilograms, after previous: (kilograms: Kilograms, result: AttemptResult)?) -> Kilograms? {
+        guard let kilograms, kilograms != tableEntry, canSave(after: previous) else { return nil }
+        return kilograms
     }
 
     func note(after previous: (kilograms: Kilograms, result: AttemptResult)?) -> MeetWeightNote? {

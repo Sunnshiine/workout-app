@@ -5,7 +5,7 @@ struct MeetAttemptStrip: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 10) {
             ForEach(Array(lift.attempts.enumerated()), id: \.offset) { index, attempt in
                 // Room for a mark in every gap at every type size, so a mark landing moves no numeral.
                 if index > 0 {
@@ -164,6 +164,21 @@ struct MeetFootChips<Trailing: View>: View {
     }
 }
 
+/// A glyph pill as tall as the word pills beside it.
+struct MeetGlyphPill: View {
+    let systemName: String
+    @Environment(\.themePalette) private var palette
+
+    var body: some View {
+        ZStack {
+            Text(verbatim: " ")
+                .hidden()
+            Image(systemName: systemName)
+        }
+        .footPill(palette)
+    }
+}
+
 /// A question that takes the pounds line's place. Its room stays held, so the numeral holds still
 /// when it is asked.
 struct MeetWeightQuestion {
@@ -187,17 +202,19 @@ struct MeetWeightStepper: View {
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
                 // The selection's handle stands above the field's top edge.
-                .padding(.bottom, isTyping ? 10 : 0)
+                .padding(.bottom, isTyping ? 14 : 0)
             HStack(spacing: 16) {
                 WeightStepperButton(direction: .decrement, accessibilityIdentifier: "meet-weight-down") { step { $0.stepDown() } }
                 TextField(
                     "Kilograms",
                     text: $entry.text,
                     selection: $selection,
-                    prompt: Text(verbatim: "0").foregroundStyle(palette.textSecondary)
+                    prompt: Text(verbatim: isTyping ? "" : "—").foregroundStyle(palette.textSecondary)
                 )
                 .themeFont(.weightEntry)
-                .foregroundStyle(palette.textPrimary)
+                // A focused field keeps the ink it had when focus began, which would leave a legal weight
+                // red. The note carries a refusal until typing ends.
+                .foregroundStyle(entry.isRefused && !isTyping ? palette.danger : palette.textPrimary)
                 .multilineTextAlignment(.center)
                 .keyboardType(.decimalPad)
                 .minimumScaleFactor(0.5)
@@ -245,7 +262,7 @@ struct MeetWeightStepper: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done", systemImage: "checkmark") { isTyping = false }
+                Button("Done", systemImage: "keyboard.chevron.compact.down") { isTyping = false }
             }
         }
     }
@@ -263,23 +280,42 @@ struct MeetWeightStepper: View {
 }
 
 struct MeetWeightNoteView: View {
-    let note: MeetWeightNote?
-    @Environment(\.themePalette) private var palette
+    let entry: MeetWeightEntry
+    let previous: (kilograms: Kilograms, result: AttemptResult)?
 
     var body: some View {
-        switch note {
+        switch entry.note(after: previous) {
         case .none:
             EmptyView()
         case .rule(let text):
-            Text(text)
-                .themeFont(.coachNote)
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-                .accessibilityIdentifier("meet-weight-note")
+            MeetRuleNote(text: text, entered: entry.text)
         case .refused(let text):
             DangerMarkedText(message: text, role: .coachNote)
                 .accessibilityIdentifier("meet-weight-note")
         }
+    }
+}
+
+/// Waits for a pause, so typing 190 does not read out the rule on its way through 1 and 19. Its room
+/// is taken at once, so nothing moves when it arrives.
+private struct MeetRuleNote: View {
+    let text: String
+    let entered: String
+    @Environment(\.themePalette) private var palette
+    @State private var hasPaused = false
+
+    var body: some View {
+        Text(text)
+            .themeFont(.coachNote)
+            .foregroundStyle(palette.textSecondary)
+            .multilineTextAlignment(.center)
+            .opacity(hasPaused ? 1 : 0)
+            .accessibilityHidden(!hasPaused)
+            .accessibilityIdentifier("meet-weight-note")
+            .task(id: entered) {
+                try? await Task.sleep(for: .seconds(0.6))
+                if !Task.isCancelled { hasPaused = true }
+            }
     }
 }
 

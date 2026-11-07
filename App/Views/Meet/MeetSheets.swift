@@ -2,7 +2,10 @@ import SwiftUI
 
 struct MeetWeightSheet: View {
     let title: String
+    /// Read with the weight: `Change to` 182.5 kg.
     let saveLabel: String
+    /// The capsule's word while there is no new weight to read with it.
+    let idleLabel: String
     /// The weight the save would leave as it is, so the capsule stays neutral until the number moves.
     let unchanged: Kilograms?
     let onClear: (() -> Void)?
@@ -16,12 +19,14 @@ struct MeetWeightSheet: View {
         title: String,
         entry: MeetWeightEntry,
         saveLabel: String,
+        idleLabel: String,
         unchanged: Kilograms?,
         onClear: (() -> Void)?,
         onSave: @escaping (Kilograms) -> Void
     ) {
         self.title = title
         self.saveLabel = saveLabel
+        self.idleLabel = idleLabel
         self.unchanged = unchanged
         self.onClear = onClear
         self.onSave = onSave
@@ -29,6 +34,11 @@ struct MeetWeightSheet: View {
     }
 
     private var canSave: Bool { entry.canSave(after: nil) && entry.kilograms != unchanged }
+
+    private var capsuleText: String {
+        guard let weight = entry.kilograms, weight != unchanged else { return idleLabel }
+        return "\(saveLabel) \(weight.label)"
+    }
 
     var body: some View {
         NavigationStack {
@@ -44,17 +54,14 @@ struct MeetWeightSheet: View {
                     spokenLabel: "Kilograms",
                     question: nil
                 )
-                MeetWeightNoteView(note: entry.note(after: nil))
+                MeetWeightNoteView(entry: entry, previous: nil)
                 Spacer(minLength: 0)
                 Button {
                     guard let weight = entry.kilograms else { return }
                     onSave(weight)
                     dismiss()
                 } label: {
-                    MeetCapsuleLabel(
-                        text: entry.kilograms.map { "\(saveLabel) \($0.label)" } ?? saveLabel,
-                        canAct: canSave
-                    )
+                    MeetCapsuleLabel(text: capsuleText, canAct: canSave)
                 }
                 .buttonStyle(.pressScale)
                 .disabled(!canSave)
@@ -121,7 +128,7 @@ struct MeetWarmupStepSheet: View {
                         spokenLabel: "Kilograms",
                         question: nil
                     )
-                    MeetWeightNoteView(note: entry.note(after: nil))
+                    MeetWeightNoteView(entry: entry, previous: nil)
                     MeetCountRow(label: "Reps", value: $reps, identifier: "meet-step-reps")
                     MeetCountRow(label: "Attempts Out", value: $attemptsOut, identifier: "meet-step-attempts-out")
                     Button {
@@ -139,8 +146,7 @@ struct MeetWarmupStepSheet: View {
                             onDelete()
                             dismiss()
                         } label: {
-                            Image(systemName: "trash")
-                                .footPill(palette)
+                            MeetGlyphPill(systemName: "trash")
                         }
                         .buttonStyle(.pressScale)
                         .accessibilityLabel("Delete this step")

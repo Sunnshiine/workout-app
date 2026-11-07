@@ -74,11 +74,6 @@ struct MeetPlanView: View {
         .sheet(isPresented: $areRulesShown) {
             MeetRulesSheet(federation: meet.federation)
         }
-        .confirmationDialog("Delete this Meet?", isPresented: $isDeleteAsked, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { store.delete() }
-        } message: {
-            Text("Its Attempts and warm-up plans leave this phone. Your Sheet never held them.")
-        }
     }
 
     private func dateAndFederation(_ meet: Meet) -> some View {
@@ -138,7 +133,7 @@ struct MeetPlanView: View {
                 },
                 identifier: "meet-pace"
             )
-            Text("Your estimates. They set the count after each mark and the minutes on the Platform.")
+            Text("Your estimates.")
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
         }
@@ -158,12 +153,17 @@ struct MeetPlanView: View {
             Button {
                 isDeleteAsked = true
             } label: {
-                Image(systemName: "trash")
-                    .footPill(palette)
+                MeetGlyphPill(systemName: "trash")
             }
             .buttonStyle(.pressScale)
             .accessibilityLabel("Delete this Meet")
             .accessibilityIdentifier("meet-delete")
+            // On the trash itself, so the popover's arrow points at what it asks about.
+            .confirmationDialog("Delete this Meet?", isPresented: $isDeleteAsked, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) { store.delete() }
+            } message: {
+                Text("Its Attempts and Warm-up Room Plans are erased from this phone. Your Sheet never held them.")
+            }
         }
     }
 
@@ -171,7 +171,7 @@ struct MeetPlanView: View {
         NavigationLink {
             MeetPlatformView()
         } label: {
-            Text("To the platform")
+            Text("To the Platform")
                 .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
                 .background(palette.actionFill, in: .capsule)
@@ -223,6 +223,7 @@ struct MeetPlanView: View {
             title: "\(lift.lift.name) \(ordinal.name.lowercased())",
             entry: MeetWeightEntry(called: existing?.kilograms, after: before, rules: rules),
             saveLabel: "Save",
+            idleLabel: "Save",
             unchanged: nil,
             onClear: existing == nil ? nil : { store.edit { $0.editLift(lift.lift) { $0.clear(from: ordinal) } } },
             onSave: { weight in

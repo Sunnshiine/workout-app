@@ -194,8 +194,7 @@ struct MeetLiftSection: View {
                 Button {
                     onEdit(.newStep(lift.lift))
                 } label: {
-                    Image(systemName: "plus")
-                        .footPill(palette)
+                    MeetGlyphPill(systemName: "plus")
                 }
                 .buttonStyle(.pressScale)
                 .accessibilityLabel("Add a warm-up step")

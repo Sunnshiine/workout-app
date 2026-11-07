@@ -48,7 +48,7 @@ private struct MeetAttemptWindowFaceView: View {
                 Spacer(minLength: 0)
                 // Above the stepper, so a note arriving under a thumb that is stepping moves nothing.
                 VStack(spacing: 8) {
-                    MeetWeightNoteView(note: entry.note(after: previous))
+                    MeetWeightNoteView(entry: entry, previous: previous)
                     MeetWeightStepper(
                         entry: $entry,
                         isTyping: $isTyping,
@@ -154,20 +154,26 @@ private struct MeetAttemptWindowFaceView: View {
     }
 
     /// The phone cannot see a card reach the table, so it asks, and neither answer stands out. The
-    /// first is what the rule says, the second what the stepper holds.
+    /// first is what the rule says, the second what the stepper holds. A lone answer is the page's
+    /// one action, so it is green.
     private var expiredAnswers: some View {
-        HStack(spacing: 12) {
+        let handedIn = entry.handedIn(besides: open.tableEntry, after: previous)
+        return HStack(spacing: 12) {
             Button {
                 HapticPlayer.shared.play(.input(Theme.Haptics.logTap))
                 try? store.acceptTableEntry()
             } label: {
-                Text(open.tableEntry.label)
-                    .meetAnswerCapsule(palette)
+                if handedIn == nil {
+                    MeetCapsuleLabel(text: open.tableEntry.label, canAct: true)
+                } else {
+                    Text(open.tableEntry.label)
+                        .meetAnswerCapsule(palette)
+                }
             }
             .buttonStyle(.pressScale)
             .accessibilityLabel("The table entered \(open.tableEntry.spoken)")
             .accessibilityIdentifier("meet-accept-table-entry")
-            if let handedIn = entry.kilograms, handedIn != open.tableEntry, entry.canSave(after: previous) {
+            if let handedIn {
                 Button {
                     submit()
                 } label: {
