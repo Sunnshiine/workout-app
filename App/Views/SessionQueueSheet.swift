@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The full Session queue in a medium sheet: every stage item in Session order
-/// with its Set dots, the one on stage marked "Now", and Move On in the footer
-/// when the Session can advance. Tapping a row brings it on stage, a finished one with its logged
-/// Set open for review.
+/// The full Session queue in a medium sheet: a wheel that rests on the Exercise on stage, finished
+/// rows above it and the rows left below, each with a mark per Set. Move On is pinned under the wheel
+/// when the Session can advance. Tapping a row brings it on stage, a finished one with its logged Set
+/// open for review.
 struct SessionQueueSheet: View {
     let queue: SessionQueue
     let session: Session
@@ -13,11 +13,16 @@ struct SessionQueueSheet: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var movesOnWhenDismissed = false
-    @State private var isScrolled = false
+    @State private var centeredRowID: String?
+    @State private var wheelHeight: CGFloat = 0
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     private var isPairing: Bool {
         queue.isPairing
+    }
+
+    private var showsOpenExercises: Bool {
+        !isPairing && !queue.openExercises.isEmpty
     }
 
     var body: some View {
@@ -25,7 +30,16 @@ struct SessionQueueSheet: View {
             header
                 .padding(.horizontal)
 
-            rows
+            wheel
+
+            if queue.showsMoveOn, !isPairing {
+                SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
+                    movesOnWhenDismissed = true
+                    dismiss()
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+            }
         }
         .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
         .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
@@ -39,10 +53,10 @@ struct SessionQueueSheet: View {
         }
     }
 
-    private var rows: some View {
+    private var wheel: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(queue.rows) { row in
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(queue.wheelRows) { row in
                     if row.kind == .superset {
                         supersetRow(for: row)
                     } else if isPairing {
@@ -52,38 +66,40 @@ struct SessionQueueSheet: View {
                     }
                 }
 
-                if !isPairing, !queue.openExercises.isEmpty {
+                if showsOpenExercises {
                     OpenExercisesSection(exercises: queue.openExercises) { exercise in
                         dismiss()
                         coordinator.showSourceSession(of: exercise)
                     }
-                    .padding(.top, Theme.cardSpacing)
-                }
-
-                if queue.showsMoveOn, !isPairing {
-                    SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
-                        movesOnWhenDismissed = true
-                        dismiss()
-                    }
+                    .padding(.horizontal)
                     .padding(.top, Theme.cardSpacing)
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .scrollTargetLayout()
         }
-        .safeAreaPadding(.top, 8)
-        .onScrollGeometryChange(for: Bool.self) {
-            $0.contentOffset.y + $0.contentInsets.top > 0
-        } action: {
-            isScrolled = $1
+        .scrollIndicators(.hidden)
+        .contentMargins(.vertical, max(0, (wheelHeight - Self.rowHeight) / 2), for: .scrollContent)
+        .scrollPosition(id: $centeredRowID, anchor: .center)
+        .scrollTargetBehavior(WheelSnap(snaps: !showsOpenExercises))
+        .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
+            wheelHeight = height
+            if centeredRowID == nil { centeredRowID = queue.restingRowID }
         }
+        .onChange(of: queue.restingRowID) { recenter() }
+        .onChange(of: isPairing) { recenter() }
         .mask {
             VStack(spacing: 0) {
-                LinearGradient(colors: [isScrolled ? .clear : .black, .black], startPoint: .top, endPoint: .bottom)
-                    .frame(height: 16)
+                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.edgeFade)
                 Color.black
+                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                    .frame(height: Self.edgeFade)
             }
         }
+    }
+
+    private func recenter() {
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0)) { centeredRowID = queue.restingRowID }
     }
 
     private var header: some View {
@@ -141,27 +157,18 @@ struct SessionQueueSheet: View {
             jump(to: row)
         } label: {
             rowLabel(for: row) {
-                nowLabel(for: row)
+                EmptyView()
             }
         }
         .buttonStyle(.plain)
         .disabled(row.jumpTarget == nil)
-        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+        .rowAccessibility(row)
     }
 
     private func jump(to row: SessionQueue.Row) {
         dismiss()
         if let target = row.jumpTarget {
             coordinator.jump(to: target)
-        }
-    }
-
-    @ViewBuilder
-    private func nowLabel(for row: SessionQueue.Row) -> some View {
-        if row.isOnStage {
-            Text("Now")
-                .themeFont(.fieldLabel)
-                .foregroundStyle(palette.actionInk)
         }
     }
 
@@ -173,24 +180,15 @@ struct SessionQueueSheet: View {
                 jump(to: row)
             }
         } label: {
-            HStack(spacing: 0) {
-                SupersetStemGlyph(form: .linked, color: palette.actionInk)
-                    .frame(width: 26, height: 26)
-                    .accessibilityLabel("Superset")
-                    .padding(.leading, 14)
-
-                rowLabel(for: row) {
-                    nowLabel(for: row)
-                }
+            rowLabel(for: row) {
+                Color.clear.frame(width: Self.unlinkButtonSize)
             }
-            .padding(.trailing, Self.unlinkButtonSize + 4)
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(row.jumpTarget == nil)
-        .background(Capsule().fill(palette.surface))
+        .background(Capsule().fill(palette.surface).padding(.horizontal, Self.capsuleInset))
         .dimmedWhenUnavailable(row.pairingRole)
-        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+        .rowAccessibility(row)
         .overlay(alignment: .trailing) {
             Button {
                 coordinator.dismissSuperset(containing: row.pairingExercise, in: session)
@@ -201,7 +199,7 @@ struct SessionQueueSheet: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 4)
+            .padding(.trailing, Self.capsuleInset + 4)
             .accessibilityLabel("Unlink Superset")
             .accessibilityIdentifier("stage-queue-unlink-\(row.id)")
             .visibleKeepingFrame(!isPairing)
@@ -226,15 +224,15 @@ struct SessionQueueSheet: View {
         .dimmedWhenUnavailable(row.pairingRole)
         .background {
             if row.pairingRole == .source || row.pairingRole == .confirmingTarget {
-                Capsule().fill(palette.actionInk.opacity(0.10))
+                Capsule().fill(palette.actionInk.opacity(0.10)).padding(.horizontal, Self.capsuleInset)
             }
         }
         .overlay {
             if row.pairingRole == .source {
-                Capsule().strokeBorder(palette.actionInk, lineWidth: 2)
+                Capsule().strokeBorder(palette.actionInk, lineWidth: 2).padding(.horizontal, Self.capsuleInset)
             }
         }
-        .accessibilityIdentifier("stage-queue-row-\(row.id)")
+        .rowAccessibility(row)
     }
 
     private func pick(_ row: SessionQueue.Row) {
@@ -271,17 +269,7 @@ struct SessionQueueSheet: View {
 
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         rowLayout {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(row.title)
-                    .themeFont(.queuePill)
-                    .foregroundStyle(row.isComplete ? palette.textSecondary : palette.textPrimary)
-                    // Two lines hold a long name at the default size; at an accessibility size
-                    // they hold two words, so the row grows instead.
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                SessionStageSetDots(sets: row.sets)
-            }
+            rowFace(for: row)
 
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 12)
@@ -289,18 +277,73 @@ struct SessionQueueSheet: View {
 
             trailing()
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: Self.rowHeight, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    /// Only the face shrinks, so every row keeps its full-size hit area and its capsule.
+    private func rowFace(for row: SessionQueue.Row) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                if row.kind == .superset {
+                    SupersetStemGlyph(form: .linked, color: palette.actionInk)
+                        .frame(width: 20, height: 20)
+                        .accessibilityLabel("Superset")
+                }
+
+                Text(row.title)
+                    .themeFont(row.isOnStage ? .queueNameOnStage : .queueName)
+                    .foregroundStyle(nameColor(for: row))
+                    // Two lines hold a long name at the default size; at an accessibility size
+                    // they hold two words, so the row grows instead.
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    .minimumScaleFactor(row.isOnStage ? 20 / 24 : 1)
+                    .truncationMode(row.kind == .superset ? .middle : .tail)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            QueueSetMarks(sets: row.sets)
+        }
+        .visualEffect { [reduceMotion] effect, proxy in
+            let wheelCenter = proxy.bounds(of: .scrollView)?.midY ?? proxy.size.height / 2
+            let rowsFromCenter = (proxy.size.height / 2 - wheelCenter) / Self.rowHeight
+            let scale = reduceMotion ? 1 : SessionQueue.lensScale(rowsFromCenter: rowsFromCenter)
+            return effect.scaleEffect(scale, anchor: .leading)
+        }
+    }
+
+    private func nameColor(for row: SessionQueue.Row) -> Color {
+        if row.isOnStage { return palette.actionInk }
+        return row.isComplete ? palette.textSecondary : palette.textPrimary
+    }
+
+    private static let rowHeight: CGFloat = 64
+    private static let capsuleInset: CGFloat = 4
+    private static let edgeFade: CGFloat = 24
+}
+
+/// Rests a row on the wheel's centre. Open Exercises scroll free, since one taller than the sheet
+/// would otherwise snap away from its own end.
+private struct WheelSnap: ScrollTargetBehavior {
+    let snaps: Bool
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        guard snaps else { return }
+        ViewAlignedScrollTargetBehavior(anchor: .center).updateTarget(&target, context: context)
     }
 }
 
 extension View {
     fileprivate func dimmedWhenUnavailable(_ role: QueuePairingRole) -> some View {
-        let isUnavailable = role == .ineligibleTarget
-        return opacity(isUnavailable ? Theme.pairingUnavailableOpacity : 1)
-            .accessibilityValue(isUnavailable ? "Unavailable" : "")
+        opacity(role == .ineligibleTarget ? Theme.pairingUnavailableOpacity : 1)
+    }
+
+    fileprivate func rowAccessibility(_ row: SessionQueue.Row) -> some View {
+        accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : row.spokenSets)
+            .accessibilityAddTraits(row.isOnStage ? .isSelected : [])
+            .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
     fileprivate func visibleKeepingFrame(_ isShown: Bool) -> some View {

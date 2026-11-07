@@ -50,6 +50,51 @@ extension SessionStageTests {
         #expect(stage.queue.rows.map(\.title) == ["Squat", "BB RDL"])
     }
 
+    @Test func theWheelListsFinishedRowsThenTheStageThenEveryRowLeft() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
+        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
+        let curl = makeExercise(name: "Curl", order: 3, setStates: [.skipped])
+
+        let queue = makeStage([squat, bench, row, curl], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))).queue
+
+        #expect(queue.wheelRows.map(\.title) == ["Bench Press", "Curl", "DB Row", "Squat"])
+        #expect(queue.rows.map(\.title) == ["Squat", "Bench Press", "DB Row", "Curl"])
+        #expect(queue.position.number == 3)
+    }
+
+    @Test func theWheelRestsOnTheRowOnStage() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
+
+        let queue = makeStage([squat, bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))).queue
+
+        #expect(queue.restingRowID == "exercise-2")
+    }
+
+    @Test func aFinishedSessionsWheelRestsOnItsLastRow() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
+
+        #expect(makeStage([squat, bench]).queue.restingRowID == "exercise-1")
+    }
+
+    @Test(arguments: [(0.0, 1.0), (1.0, 0.84), (-1.0, 0.84), (2.5, 0.6), (9.0, 0.6)])
+    func aRowShrinksWithItsDistanceFromTheCentreToAFloor(rowsFromCenter: Double, scale: Double) {
+        #expect(abs(SessionQueue.lensScale(rowsFromCenter: rowsFromCenter) - scale) < 0.0001)
+    }
+
+    @Test func aRowSpeaksItsSetsAndNamesSkipsOnlyWhenThereAreSome() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
+
+        let rows = makeStage([squat, bench]).queue.rows
+
+        #expect(rows[0].spokenSets == "1 of 4 Sets logged, 1 skipped")
+        #expect(rows[1].spokenSets == "1 of 2 Sets logged")
+    }
+
     @Test func thePillCountsThePlaceOfTheItemOnStage() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])

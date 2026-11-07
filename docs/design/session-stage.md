@@ -222,3 +222,46 @@ button, the X, or nothing, so the title never moves (operator rulings
 V1's icon-only header button). The queue sheet itself is living paper (§2).
 A row's Exercise name runs two lines at most in a smaller face, so the queue
 shows more of a name the stage truncated.
+
+**The Lens.** The sheet's rows are a wheel that rests on the Exercise on stage,
+with finished rows above it and every row left below it, one the athlete jumped
+past included, so what remains reads downward from the centre. A row carries its name and one mark per Set, with no
+count and no "Now". The name on stage is `queueNameOnStage` in action ink, a
+finished name is `queueName` in secondary text, and the rest are `queueName` in
+primary text. A name wraps to two lines and its row grows past 64pt. The name on
+stage shrinks to 20pt before it truncates, and a Superset truncates in the middle
+so its partner's name survives.
+
+Only a row's name and marks shrink, anchored to the left edge, by 16% per row
+from the centre down to 60% at 2.5 rows. Each row and capsule keeps its full
+size and hit area. Rows do not fade by distance; only the wheel's top and bottom
+24pt fade, so the Sets stay readable for planning. Reduce Motion draws every row
+at full size. Set marks are 20×7pt
+with a 2.5pt radius and a 3pt gap: Logged fills `action`, Pending strokes 1pt of
+secondary text, and Skipped dashes that stroke, as the branch dashes a Skipped
+leaf. Marks narrow together when they would overrun the row. One tap jumps. Move On is pinned under the
+wheel, and Open Exercises follow the last row, where the wheel stops snapping
+so the list can always reach its end. VoiceOver reads finished rows, then the
+rest, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
+trait on the row on stage.
+
+Decided from the session-queue prototype (operator, 2026-11-06: "List is boring.
+Let's do Lens!", on a panel reading row 64, on-stage name 24, other names 20,
+shrink 0.16, fade 0, Set mark 20×7 radius 2.5). Also from the operator that day:
+"we don't need, like, the little, um, pills on top", "I also don't think we need
+to show count", "really try to minimize text on the screen", and "the ability to
+see all of the sets that I have for each exercise" for planning warm-ups and gym
+time.
+
+Rejected, so the question stays closed:
+
+- **List**, Lens flattened with no snap or scale, which a design review
+  recommended: "List is boring."
+- **Drum**, the same wheel tilted on a raised band: the operator chose Lens over
+  it after the review found the tilt hurt legibility and the band added a capsule.
+- **Carousel**: "really cool idea" but "not quite, you know, for this app."
+- **Grow**, capsules that fill per Set under a session bar: the bar and counts
+  were unwanted and it "felt slightly off", maybe "too much round on round."
+- **Checklist and Split**: interesting, and Split's hiding of finished Exercises
+  carried into Lens as finished rows above the centre.
+- **Ledger, Stem, Tucked, Poster, Dial, Odometer**: not carried forward.

@@ -148,6 +148,13 @@ struct SessionQueue: Equatable {
         let jumpTarget: ExerciseSet?
         let kind: QueueRowKind
         let pairingRole: QueuePairingRole
+
+        var spokenSets: String {
+            let logged = sets.count { $0.state == .logged }
+            let skipped = sets.count { $0.state == .skipped }
+            let progress = "\(logged) of \(sets.count) Sets logged"
+            return skipped == 0 ? progress : "\(progress), \(skipped) skipped"
+        }
     }
 
     let rows: [Row]
@@ -164,6 +171,23 @@ struct SessionQueue: Equatable {
 
     var pairingSource: Row? {
         rows.first { $0.pairingRole == .source }
+    }
+
+    /// The sheet's order: finished rows sit above the wheel's centre and every row left reads downward
+    /// from it, one the athlete jumped past included. `position` keeps counting in Session order.
+    var wheelRows: [Row] {
+        let others = rows.filter { !$0.isOnStage }
+        return others.filter(\.isComplete) + rows.filter(\.isOnStage) + others.filter { !$0.isComplete }
+    }
+
+    /// The row the wheel rests on: the one on stage, or the last when a finished Session has none.
+    var restingRowID: String? {
+        (rows.first(where: \.isOnStage) ?? wheelRows.last)?.id
+    }
+
+    /// How large a row draws at its distance from the wheel's centre, measured in rows.
+    nonisolated static func lensScale(rowsFromCenter: Double) -> Double {
+        1 - min(abs(rowsFromCenter), 2.5) * 0.16
     }
 }
 
