@@ -37,9 +37,7 @@ private struct OpenExerciseRow: View {
                 Text(row.name)
                     .themeFont(.queuePill)
                     .foregroundStyle(.primary)
-                Text(row.pendingSetLabel)
-                    .themeFont(.historyChip)
-                    .foregroundStyle(palette.textSecondary)
+                QueueSetMarks(sets: row.sets)
             }
 
             Spacer(minLength: 12)
@@ -54,5 +52,6 @@ private struct OpenExerciseRow: View {
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
+        .accessibilityValue(row.sets.spokenProgress)
     }
 }

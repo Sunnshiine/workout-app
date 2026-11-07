@@ -80,9 +80,34 @@ extension SessionStageTests {
         #expect(makeStage([squat, bench]).queue.restingRowID == "exercise-1")
     }
 
-    @Test(arguments: [(0.0, 1.0), (1.0, 0.84), (-1.0, 0.84), (2.5, 0.6), (9.0, 0.6)])
-    func aRowShrinksWithItsDistanceFromTheCentreToAFloor(rowsFromCenter: Double, scale: Double) {
-        #expect(abs(SessionQueue.lensScale(rowsFromCenter: rowsFromCenter) - scale) < 0.0001)
+    @Test(arguments: [(0.0, 1.0), (64.0, 0.84), (-64.0, 0.84), (160.0, 0.6), (576.0, 0.6)])
+    func aRowShrinksWithItsDistanceFromTheCentreToAFloor(distance: Double, scale: Double) {
+        #expect(abs(SessionQueue.lensScale(distance: distance, rowHeight: 64) - scale) < 0.0001)
+    }
+
+    @Test func aTallerRowShrinksNoFasterThanOneAtTheDefaultSize() {
+        #expect(SessionQueue.lensScale(distance: 100, rowHeight: 100) == SessionQueue.lensScale(distance: 64, rowHeight: 64))
+    }
+
+    @Test func onlyASupersetAndThePairBeingChosenWearACapsule() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 3, setStates: [.pending])
+        let carry = makeExercise(name: "Carry", order: 4, setStates: [.pending])
+        let exercises = [squat, bench, press, row, carry]
+        let supersets = [Superset(first: press, second: row)]
+
+        let selecting = makeStage(exercises, supersets: supersets, pairable: [0, 1], pairingMode: .selecting(sourceOrder: 0))
+        let confirming = makeStage(
+            exercises,
+            supersets: supersets,
+            pairable: [0, 1],
+            pairingMode: .confirming(sourceOrder: 0, targetOrder: 1)
+        )
+
+        #expect(selecting.queue.rows.map(\.wearsCapsule) == [true, false, true, false])
+        #expect(confirming.queue.rows.map(\.wearsCapsule) == [true, true, true, false])
     }
 
     @Test func aRowSpeaksItsSetsAndNamesSkipsOnlyWhenThereAreSome() {
@@ -91,8 +116,8 @@ extension SessionStageTests {
 
         let rows = makeStage([squat, bench]).queue.rows
 
-        #expect(rows[0].spokenSets == "1 of 4 Sets logged, 1 skipped")
-        #expect(rows[1].spokenSets == "1 of 2 Sets logged")
+        #expect(rows[0].sets.spokenProgress == "1 of 4 Sets logged, 1 skipped")
+        #expect(rows[1].sets.spokenProgress == "1 of 2 Sets logged")
     }
 
     @Test func thePillCountsThePlaceOfTheItemOnStage() {

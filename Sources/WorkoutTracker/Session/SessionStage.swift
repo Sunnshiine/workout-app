@@ -149,11 +149,8 @@ struct SessionQueue: Equatable {
         let kind: QueueRowKind
         let pairingRole: QueuePairingRole
 
-        var spokenSets: String {
-            let logged = sets.count { $0.state == .logged }
-            let skipped = sets.count { $0.state == .skipped }
-            let progress = "\(logged) of \(sets.count) Sets logged"
-            return skipped == 0 ? progress : "\(progress), \(skipped) skipped"
+        var wearsCapsule: Bool {
+            kind == .superset || pairingRole == .source || pairingRole == .confirmingTarget
         }
     }
 
@@ -185,9 +182,19 @@ struct SessionQueue: Equatable {
         (rows.first(where: \.isOnStage) ?? wheelRows.last)?.id
     }
 
-    /// How large a row draws at its distance from the wheel's centre, measured in rows.
-    nonisolated static func lensScale(rowsFromCenter: Double) -> Double {
-        1 - min(abs(rowsFromCenter), 2.5) * 0.16
+    /// How large a row draws at its distance from the wheel's centre, counted in its own heights so
+    /// a row grown by Dynamic Type shrinks no faster than one at the default size.
+    nonisolated static func lensScale(distance: Double, rowHeight: Double) -> Double {
+        1 - min(abs(distance) / rowHeight, 2.5) * 0.16
+    }
+}
+
+extension [ExerciseSet] {
+    var spokenProgress: String {
+        let logged = count { $0.state == .logged }
+        let skipped = count { $0.state == .skipped }
+        let progress = "\(logged) of \(count) Sets logged"
+        return skipped == 0 ? progress : "\(progress), \(skipped) skipped"
     }
 }
 
@@ -505,7 +512,7 @@ private enum StageItem {
 
 @MainActor
 extension Exercise {
-    fileprivate var sortedSets: [ExerciseSet] {
+    var sortedSets: [ExerciseSet] {
         sets.sorted { $0.index < $1.index }
     }
 }

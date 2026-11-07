@@ -48,18 +48,32 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
         let onStage = app.buttons["stage-queue-row-exercise-1"]
         XCTAssertTrue(onStage.appears(within: 3))
+        waitForFrameToSettle(of: onStage)
         let center = onStage.frame.midY
 
         let below = app.buttons["stage-queue-row-exercise-2"]
         let start = below.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         start.press(forDuration: 0.01, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)))
-        Thread.sleep(forTimeInterval: 1)
+        waitForFrameToSettle(of: onStage)
 
         XCTAssertTrue(app.staticTexts["This Session"].exists, "a drag over a row does not jump to it")
         XCTAssertNotEqual(onStage.frame.midY, center, accuracy: 1, "the wheel moved")
         let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'stage-queue-row-'")).allElementsBoundByIndex
         let nearest = rows.map { abs($0.frame.midY - center) }.min() ?? .infinity
         XCTAssertLessThan(nearest, 2, "a row rests on the wheel's centre")
+    }
+
+    /// The wheel coasts, then snaps. A frame unchanged across a quarter second has come to rest.
+    @MainActor
+    private func waitForFrameToSettle(of element: XCUIElement) {
+        var last = element.frame.midY
+        let deadline = Date().addingTimeInterval(5)
+        repeat {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            let current = element.frame.midY
+            if current == last { return }
+            last = current
+        } while Date() < deadline
     }
 
     @MainActor

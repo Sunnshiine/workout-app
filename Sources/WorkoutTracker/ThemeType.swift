@@ -5,7 +5,7 @@ import SwiftUI
     import UIKit
 #endif
 
-// MARK: - Type roles (token sheet §4)
+// MARK: - Type roles (docs/design/greenhouse-type-roles.md)
 //
 // Every text style is one row of this role table, and a view reaches it only through
 // `themeFont(_:)`, which sets the face, size, tracking and leading together and scales them with

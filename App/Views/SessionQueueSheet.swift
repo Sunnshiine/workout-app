@@ -25,6 +25,10 @@ struct SessionQueueSheet: View {
         !isPairing && !queue.openExercises.isEmpty
     }
 
+    private var drawsLens: Bool {
+        !reduceMotion && !dynamicTypeSize.isAccessibilitySize
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -89,11 +93,19 @@ struct SessionQueueSheet: View {
         .onChange(of: isPairing) { recenter() }
         .mask {
             VStack(spacing: 0) {
-                LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
-                    .frame(height: Self.edgeFade)
+                LinearGradient(
+                    stops: [.init(color: .clear, location: 0.2), .init(color: .black, location: 1)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: Self.edgeFade)
                 Color.black
-                LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
-                    .frame(height: Self.edgeFade)
+                LinearGradient(
+                    stops: [.init(color: .black, location: 0), .init(color: .clear, location: 0.8)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: Self.edgeFade)
             }
         }
     }
@@ -223,7 +235,7 @@ struct SessionQueueSheet: View {
         .buttonStyle(.plain)
         .dimmedWhenUnavailable(row.pairingRole)
         .background {
-            if row.pairingRole == .source || row.pairingRole == .confirmingTarget {
+            if row.wearsCapsule {
                 Capsule().fill(palette.actionInk.opacity(0.10)).padding(.horizontal, Self.capsuleInset)
             }
         }
@@ -270,6 +282,7 @@ struct SessionQueueSheet: View {
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         rowLayout {
             rowFace(for: row)
+                .padding(.leading, row.wearsCapsule ? Self.capsuleContentInset : 0)
 
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 12)
@@ -278,7 +291,7 @@ struct SessionQueueSheet: View {
             trailing()
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, Self.rowVerticalPadding)
         .frame(maxWidth: .infinity, minHeight: Self.rowHeight, alignment: .leading)
         .contentShape(Rectangle())
     }
@@ -296,9 +309,9 @@ struct SessionQueueSheet: View {
                 Text(row.title)
                     .themeFont(row.isOnStage ? .queueNameOnStage : .queueName)
                     .foregroundStyle(nameColor(for: row))
-                    // Two lines hold a long name at the default size; at an accessibility size
-                    // they hold two words, so the row grows instead.
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    // Two lines hold a long name at the default size; from xxLarge they hold a few
+                    // words, so the row grows instead.
+                    .lineLimit(dynamicTypeSize >= .xxLarge ? nil : 2)
                     .minimumScaleFactor(row.isOnStage ? 20 / 24 : 1)
                     .truncationMode(row.kind == .superset ? .middle : .tail)
                     .fixedSize(horizontal: false, vertical: true)
@@ -306,10 +319,11 @@ struct SessionQueueSheet: View {
 
             QueueSetMarks(sets: row.sets)
         }
-        .visualEffect { [reduceMotion] effect, proxy in
+        .visualEffect { [drawsLens] effect, proxy in
+            guard drawsLens else { return effect.scaleEffect(1, anchor: .leading) }
             let wheelCenter = proxy.bounds(of: .scrollView)?.midY ?? proxy.size.height / 2
-            let rowsFromCenter = (proxy.size.height / 2 - wheelCenter) / Self.rowHeight
-            let scale = reduceMotion ? 1 : SessionQueue.lensScale(rowsFromCenter: rowsFromCenter)
+            let rowHeight = max(Self.rowHeight, proxy.size.height + 2 * Self.rowVerticalPadding)
+            let scale = SessionQueue.lensScale(distance: proxy.size.height / 2 - wheelCenter, rowHeight: rowHeight)
             return effect.scaleEffect(scale, anchor: .leading)
         }
     }
@@ -320,8 +334,10 @@ struct SessionQueueSheet: View {
     }
 
     private static let rowHeight: CGFloat = 64
+    private static let rowVerticalPadding: CGFloat = 12
     private static let capsuleInset: CGFloat = 4
-    private static let edgeFade: CGFloat = 24
+    private static let capsuleContentInset: CGFloat = 6
+    private static let edgeFade: CGFloat = 40
 }
 
 /// Rests a row on the wheel's centre. Open Exercises scroll free, since one taller than the sheet
@@ -341,7 +357,7 @@ extension View {
     }
 
     fileprivate func rowAccessibility(_ row: SessionQueue.Row) -> some View {
-        accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : row.spokenSets)
+        accessibilityValue(row.pairingRole == .ineligibleTarget ? "Unavailable" : row.sets.spokenProgress)
             .accessibilityAddTraits(row.isOnStage ? .isSelected : [])
             .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }

@@ -2,7 +2,8 @@
 
 Greenhouse is the app's design system (ADR-0014). `PRODUCT.md` holds the users, the design
 principles, and the anti-references, and they bind every screen this file covers. The token values
-live in `docs/design/greenhouse-theme-tokens.md` and `Sources/WorkoutTracker/Theme.swift`. This
+live in `docs/design/greenhouse-theme-tokens.md`, `docs/design/greenhouse-type-roles.md`, and
+`Sources/WorkoutTracker/Theme.swift`. This
 file holds the rules those values serve. A § number names a section of this file, or of the
 component spec that keeps its number (§5).
 
