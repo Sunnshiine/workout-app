@@ -28,33 +28,17 @@ struct BarbellLayout: Equatable, Sendable {
             let ordinal = seen[size, default: 0]
             seen[size] = ordinal + 1
             defer { offset += thickness + Self.gap }
-            return Plate(id: "\(size.rawValue)-\(ordinal)", offset: offset, thickness: thickness, height: size.drawnHeight)
+            return Plate(id: "\(size.label)-\(ordinal)", offset: offset, thickness: thickness, height: size.drawnHeight)
         }
     }
 }
 
 extension PlateDenomination {
-    /// Shares of a 45's diameter, from the plates a commercial gym stocks.
-    fileprivate var drawnHeight: Double {
-        switch self {
-        case .fortyFive: 1
-        case .thirtyFive: 0.86
-        case .twentyFive: 0.7
-        case .ten: 0.52
-        case .five: 0.42
-        case .twoAndAHalf: 0.34
-        }
-    }
+    /// A share of a 45's diameter, falling off slower than the weight so a 2.5 still reads as a plate.
+    fileprivate var drawnHeight: Double { 0.3 + 0.7 * shareOfAFortyFive }
 
-    /// Shares of a 45's thickness.
-    fileprivate var drawnThickness: Double {
-        switch self {
-        case .fortyFive: 1
-        case .thirtyFive: 0.86
-        case .twentyFive: 0.72
-        case .ten: 0.5
-        case .five: 0.4
-        case .twoAndAHalf: 0.3
-        }
-    }
+    /// A share of a 45's thickness.
+    fileprivate var drawnThickness: Double { 0.25 + 0.75 * shareOfAFortyFive }
+
+    private var shareOfAFortyFive: Double { pounds / Self.fortyFive.pounds }
 }

@@ -226,7 +226,18 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         #expect(layout.plates[0].thickness == 17)
         #expect(layout.plates[0].height == 1)
         #expect(layout.plates[1].offset == 18.5)
-        #expect(layout.plates[1].height == 0.7)
+        #expect(abs(layout.plates[1].height - 0.689) < 0.001)
+    }
+
+    @Test func aPlatesDrawnSizeFollowsItsWeight() {
+        let layout = BarbellLayout(perSide: PlateDenomination.allCases, sleeveLength: 140)
+
+        let heights = layout.plates.map(\.height)
+        let thicknesses = layout.plates.map(\.thickness)
+        #expect(zip(heights, heights.dropFirst()).allSatisfy { $0 > $1 })
+        #expect(zip(thicknesses, thicknesses.dropFirst()).allSatisfy { $0 > $1 })
+        #expect(abs(heights[5] - 0.339) < 0.001)
+        #expect(abs(thicknesses[5] - 4.96) < 0.01)
     }
 
     @Test func aSecondPlateOfASizeKeepsTheFirstsIdentity() {
@@ -243,7 +254,7 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         let layout = BarbellLayout(perSide: load.perSide, sleeveLength: 140)
 
         let last = try #require(layout.plates.last)
-        #expect(last.offset + last.thickness <= 126)
+        #expect(last.offset + last.thickness < 126.001)
         #expect(last.offset + last.thickness > 120)
     }
 

@@ -76,14 +76,16 @@ struct WarmupRampPresentation: Equatable, Sendable {
         readout = Self.readout(perSide)
         caption = perSide.isEmpty ? inventory.bar.label : "a side on the \(inventory.bar.label) Bar"
         note = Self.note(top: top, topLoad: topLoad, setLabel: setLabel, bar: inventory.bar)
+        rows = Self.rows(steps: steps, finished: finished, topLoad: topLoad, setLabel: setLabel)
+    }
+
+    private static func rows(steps: [WarmupStep], finished: Int, topLoad: PlateLoad?, setLabel: String) -> [Row] {
         let stepRows = steps.enumerated().map { index, step in
-            Self.row(for: step, state: Self.state(of: index, finished: finished))
+            row(for: step, state: state(of: index, finished: finished))
         }
-        let setRowState = Self.state(of: steps.count, finished: finished)
-        let setRow = topLoad.map { load in
-            Self.setRow(asked: load.reachable + load.remainder, load: load, setLabel: setLabel, state: setRowState)
-        }
-        rows = stepRows + (setRow.map { [$0] } ?? [])
+        guard let topLoad else { return stepRows }
+        let setState = state(of: steps.count, finished: finished)
+        return stepRows + [setRow(asked: topLoad.reachable + topLoad.remainder, load: topLoad, setLabel: setLabel, state: setState)]
     }
 
     /// `2 × 45 + 25`: each size once, with its count where the side holds more than one.

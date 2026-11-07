@@ -97,7 +97,7 @@ extension ApplicationError {
         ApplicationError(
             code: "invalid_plates",
             message: "\"\(raw)\" is not a list of plate sizes. Use any of "
-                + "\(PlateDenomination.allCases.map(\.rawValue).joined(separator: ",")), comma separated.",
+                + "\(PlateDenomination.allCases.map(\.label).joined(separator: ",")), comma separated.",
             kind: .domain
         )
     }

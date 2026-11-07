@@ -1,29 +1,24 @@
 import Foundation
 
-/// One plate size a gym can stock, heaviest first. The list is closed, so the drawing and Settings
-/// each hold one row per size.
-enum PlateDenomination: String, CaseIterable, Hashable, Sendable {
-    case fortyFive = "45"
-    case thirtyFive = "35"
-    case twentyFive = "25"
-    case ten = "10"
-    case five = "5"
-    case twoAndAHalf = "2.5"
+/// One plate size a gym can stock, heaviest first, by its weight in quarter pounds.
+enum PlateDenomination: Int, CaseIterable, Hashable, Sendable {
+    case fortyFive = 180
+    case thirtyFive = 140
+    case twentyFive = 100
+    case ten = 40
+    case five = 20
+    case twoAndAHalf = 10
 
-    var quarterPounds: Int {
-        switch self {
-        case .fortyFive: 180
-        case .thirtyFive: 140
-        case .twentyFive: 100
-        case .ten: 40
-        case .five: 20
-        case .twoAndAHalf: 10
-        }
+    var quarterPounds: Int { rawValue }
+
+    var pounds: Double { Double(rawValue) / 4 }
+
+    var label: String { Weight.pounds(pounds).label }
+
+    init?(label: String) {
+        guard let plate = Self.allCases.first(where: { $0.label == label }) else { return nil }
+        self = plate
     }
-
-    var pounds: Double { Double(quarterPounds) / 4 }
-
-    var label: String { rawValue }
 }
 
 /// The empty barbell a Plate Load goes on. Its own type and not a `Weight`, because a Bar is never
@@ -76,7 +71,7 @@ struct PlateInventory: Equatable, Sendable {
 extension PlateInventory {
     /// The plate sizes as `AppDefaults` stores them: `45,25,10`, and an empty string for none.
     var storedPlates: String {
-        denominations.map(\.rawValue).joined(separator: ",")
+        denominations.map(\.label).joined(separator: ",")
     }
 
     /// A stored size this build does not know is dropped. A value nothing stored yet keeps the full
@@ -85,7 +80,7 @@ extension PlateInventory {
         bar = storedBar.flatMap(Bar.init(rawValue:)) ?? Self.standard.bar
         plates =
             storedPlates.map { stored in
-                Set(stored.split(separator: ",").compactMap { PlateDenomination(rawValue: String($0)) })
+                Set(stored.split(separator: ",").compactMap { PlateDenomination(label: String($0)) })
             } ?? Self.standard.plates
     }
 }
