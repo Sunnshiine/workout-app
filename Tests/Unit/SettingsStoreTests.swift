@@ -182,3 +182,44 @@ func onboardingIsNeededOnlyOnceTheSignInRestoreHasAnswered(restoredSignIn: Bool?
     #expect(reloaded.spreadsheetId == nil)
     #expect(reloaded.spreadsheetTitle == nil)
 }
+
+@MainActor
+@Test func theBarAndPlatesStartAsACommercialGymStocksThem() {
+    let store = SettingsStore(defaults: AppDefaults.inMemory())
+
+    #expect(store.plateInventory == .standard)
+    #expect(store.plateInventory.bar.pounds == 45)
+    #expect(store.plateInventory.denominations.map(\.pounds) == [45, 35, 25, 10, 5, 2.5])
+}
+
+@MainActor
+@Test func theBarAndPlatesPersist() {
+    let defaults = AppDefaults.inMemory()
+    let store = SettingsStore(defaults: defaults)
+
+    store.setPlateInventory(PlateInventory(bar: .fifteenKilo, plates: [.fortyFive, .ten]))
+
+    let reloaded = SettingsStore(defaults: defaults)
+    #expect(reloaded.plateInventory.bar == .fifteenKilo)
+    #expect(reloaded.plateInventory.plates == [.fortyFive, .ten])
+}
+
+@MainActor
+@Test func aGymWithNoPlatesStaysThatWay() {
+    let defaults = AppDefaults.inMemory()
+    SettingsStore(defaults: defaults).setPlateInventory(PlateInventory(bar: .standard, plates: []))
+
+    #expect(SettingsStore(defaults: defaults).plateInventory.plates.isEmpty)
+}
+
+@MainActor
+@Test func aStoredBarOrPlateTheAppNoLongerKnowsIsDropped() {
+    let defaults = AppDefaults.inMemory()
+    defaults.set("20", forKey: "plateInventoryBar")
+    defaults.set("45,7,10", forKey: "plateInventoryPlates")
+
+    let inventory = SettingsStore(defaults: defaults).plateInventory
+
+    #expect(inventory.bar == .standard)
+    #expect(inventory.plates == [.fortyFive, .ten])
+}
