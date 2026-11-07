@@ -66,7 +66,7 @@ struct MeetOnDeckFaceTests {
         #expect(face.attemptsOutLabel == "Attempt Out")
     }
 
-    @Test func aPaceUnderAMinuteDoesNotClaimAMinute() throws {
+    @Test func secondsPerAttemptUnderAMinuteDoNotClaimAMinute() throws {
         var meet = try squatMeet()
         meet.secondsPerAttempt = 45
         try meet.setAttemptsOut(1)

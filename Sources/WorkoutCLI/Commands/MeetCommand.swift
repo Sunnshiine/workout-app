@@ -52,7 +52,7 @@ struct MeetCommand: AsyncParsableCommand {
         @Option(help: "Lifters in the athlete's Flight, which sets Attempts Out after a mark.")
         var lifters: Int?
 
-        @Option(help: "The athlete's estimate of the platform's pace.")
+        @Option(help: "The athlete's estimate of how long the platform takes over one Attempt, in seconds.")
         var secondsPerAttempt: Int?
 
         private var edit: MeetPlanEdit {

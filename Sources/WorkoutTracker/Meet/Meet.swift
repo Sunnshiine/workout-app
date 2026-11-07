@@ -177,8 +177,8 @@ struct Meet: Hashable, Codable, Sendable {
     private(set) var attemptWindow: AttemptWindow?
 
     static let defaultLiftersInFlight = 12
-    /// A round of 10 to 14 lifters takes about 10 to 15 minutes. No rulebook states a pace, so this
-    /// is only where the athlete's own setting starts.
+    /// A round of 10 to 14 lifters takes about 10 to 15 minutes. No rulebook states how long an Attempt
+    /// takes, so this is only where the athlete's own Seconds per Attempt starts.
     static let defaultSecondsPerAttempt = 60
 
     init(date: MeetDate, federation: Federation) {

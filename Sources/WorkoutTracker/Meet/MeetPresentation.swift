@@ -15,7 +15,7 @@ extension MeetDate {
 }
 
 extension MeetCue {
-    /// The pace is the athlete's estimate, so it never reads as a timer.
+    /// Seconds per Attempt is the athlete's estimate, so the wait never reads as a timer.
     fileprivate static func estimate(_ seconds: Int) -> String {
         seconds < 60 ? "under a minute" : "about \(Int((Double(seconds) / 60).rounded(.up))) min"
     }

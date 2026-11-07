@@ -8,8 +8,8 @@ struct WarmupRoomStep: Hashable, Codable, Sendable {
     var attemptsOut: Int
 }
 
-/// Every wait is whole Attempts, and seconds are those Attempts at the pace the athlete set, an
-/// estimate no rulebook states.
+/// Every wait is whole Attempts, and seconds are those Attempts at the athlete's Seconds per Attempt,
+/// an estimate no rulebook states.
 enum MeetCue: Equatable, Sendable {
     case warmUp(WarmupRoomStep, attemptsUntil: Int, secondsUntil: Int)
     /// The Warm-up Room Plan is done, or this Attempt has none. The athlete waits for the platform.

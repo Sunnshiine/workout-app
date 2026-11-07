@@ -131,7 +131,7 @@ struct MeetPlanView: View {
                 } set: { seconds in
                     store.edit { $0.secondsPerAttempt = seconds }
                 },
-                identifier: "meet-pace"
+                identifier: "meet-seconds-per-attempt"
             )
             Text("Your estimates.")
                 .themeFont(.coachNote)

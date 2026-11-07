@@ -10,8 +10,8 @@ private let plan = [
     WarmupRoomStep(kilograms: Kilograms(whole: 165), reps: 1, attemptsOut: 3)
 ]
 
-private func cue(_ attemptsOut: Int, warmups: [WarmupRoomStep] = plan, pace: Int = 60) -> MeetCue {
-    MeetClock.cue(attemptsOut: attemptsOut, secondsPerAttempt: pace, warmups: warmups, attempt: opener)
+private func cue(_ attemptsOut: Int, warmups: [WarmupRoomStep] = plan, secondsPerAttempt: Int = 60) -> MeetCue {
+    MeetClock.cue(attemptsOut: attemptsOut, secondsPerAttempt: secondsPerAttempt, warmups: warmups, attempt: opener)
 }
 
 @Suite("MeetClock")
@@ -47,9 +47,9 @@ struct MeetClockTests {
         #expect(cue(7, warmups: []) == .attempt(opener, attemptsOut: 7, secondsUntil: 420))
     }
 
-    @Test("The time is the athlete's own pace")
-    func theTimeIsTheAthletesPace() {
-        #expect(cue(7, warmups: [], pace: 45) == .attempt(opener, attemptsOut: 7, secondsUntil: 315))
+    @Test("The time is the athlete's own Seconds per Attempt")
+    func theTimeIsTheAthletesSecondsPerAttempt() {
+        #expect(cue(7, warmups: [], secondsPerAttempt: 45) == .attempt(opener, attemptsOut: 7, secondsUntil: 315))
     }
 }
 
