@@ -161,6 +161,7 @@ struct SessionQueue: Equatable {
     let pairingMode: PairingMode
     let showsMoveOn: Bool
     let openExercises: [Exercise]
+    let warmupEntry: WarmupEntry?
 
     var isPairing: Bool { pairingMode != .inactive }
 
@@ -233,7 +234,7 @@ extension SessionStage {
         let items = StageItem.items(in: session, supersets: focus.supersets)
         let onStage = StageItem.onStage(in: items, focusID: focus.visualFocusOwner?.setID)
         upNext = onStage.flatMap { StageItem.upNext(after: $0, in: items) }
-        queue = SessionQueue(items: items, onStage: onStage, snapshot: focus, pairingMode: pairingMode, liveEdge: liveEdge)
+        queue = SessionQueue(items: items, onStage: onStage, snapshot: focus, pairingMode: pairingMode, liveEdge: liveEdge, lookup: lookup)
         guard let onStage else {
             self.focus = .complete(CompletionStage(items: items, liveEdge: liveEdge))
             return
@@ -401,7 +402,8 @@ extension SessionQueue {
         onStage: StageItem?,
         snapshot: SessionFocusSnapshot,
         pairingMode: PairingMode,
-        liveEdge: LiveEdgeContext
+        liveEdge: LiveEdgeContext,
+        lookup: LastPerformedLookupSnapshot
     ) {
         rows = items.map { item in
             item.row(
@@ -415,6 +417,9 @@ extension SessionQueue {
         self.pairingMode = pairingMode
         showsMoveOn = liveEdge.showsMoveOn
         openExercises = liveEdge.openExercises
+        warmupEntry = onStage.flatMap {
+            WarmupEntry(exercise: $0.exerciseOnCard(focusID: snapshot.visualFocusOwner?.setID), history: lookup)
+        }
     }
 }
 
@@ -455,6 +460,14 @@ private enum StageItem {
             .exercise(ExerciseStage(exercise, snapshot: snapshot, savedLoggedSetID: savedLoggedSetID, lookup: lookup))
         case .superset(let superset):
             .superset(SupersetStage(superset, snapshot: snapshot, lookup: lookup))
+        }
+    }
+
+    /// The Exercise the card is showing: on a Superset, the one the focus is on.
+    func exerciseOnCard(focusID: ActiveSetID?) -> Exercise {
+        switch self {
+        case .exercise(let exercise): exercise
+        case .superset(let superset): superset.exercises.first { $0.order == focusID?.exerciseOrder } ?? superset.lowerOrdered
         }
     }
 

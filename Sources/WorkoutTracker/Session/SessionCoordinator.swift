@@ -22,6 +22,8 @@ final class SessionCoordinator {
     /// The Session on stage, by the coordinate a sync's re-parse keeps. Nil until the stage binds.
     private(set) var sessionCoordinate: SessionCoordinate?
     private(set) var savedLoggedSetID: ActiveSetID?
+    /// How far up each Warm-up Ramp the athlete has walked, for the Session on stage alone.
+    var warmupWalk = WarmupWalk()
 
     @ObservationIgnored let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
@@ -131,6 +133,7 @@ final class SessionCoordinator {
     private func bind(to session: Session) {
         sessionCoordinate = session.placement.coordinate
         savedLoggedSetID = nil
+        warmupWalk = WarmupWalk()
         cancelPairing()
         cancelSpokenWriteHold()
         dictation?.dismiss()
