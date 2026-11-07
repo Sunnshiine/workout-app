@@ -58,7 +58,7 @@ Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick 0.35/0.85 �
 skip dud 0.45/0.15 · stepper ± 0.45/0.80 (the floor hits the dud) · one identical swell-and-peak
 Move On pattern timed to the ceremony · none on form fields. A haptic and the motion it confirms
 start on the same frame. Hold-to-skip: reveal 250ms, commit 850ms, retreat 0.2s; logged-state hold
-900ms. A release before the reveal logs, so no press is ever a dead one. The fill is one wipe under
+900ms. A release before the reveal logs. The fill is one wipe under
 one label. The word swaps once, at the reveal, because a release no longer logs from there: the log
 clears in 0.08 s and `Skipped` fades in over 0.12 s, 0.08 s in. The edge never cuts a word. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
 
