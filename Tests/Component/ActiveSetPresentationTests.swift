@@ -18,6 +18,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationShowsTheLogTitleBeforeAHold() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
 
+    #expect(!presentation.holdIsRevealed)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
     #expect(presentation.accessibilityValue == "")
     #expect(presentation.tone == .primary)
@@ -26,6 +27,7 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationReadsSkippedOnceAHoldHasStarted() {
     let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log 185×5@8")
 
+    #expect(presentation.holdIsRevealed)
     #expect(presentation.accessibilityLabel == "Skipped")
     #expect(presentation.accessibilityValue == "65% Skip")
 }

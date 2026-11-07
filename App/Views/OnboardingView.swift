@@ -66,13 +66,11 @@ struct OnboardingView: View {
         .smooth(duration: 0.3)
     }
 
-    /// The URL card sits a step ahead of the picker, so each drifts toward its own side, the way
-    /// the Back chevron points, and returns along the same path.
     /// The card holds its surface while its height follows the step. The old content clears first,
     /// so the two never read as one double exposure.
     private var stepTransition: AnyTransition {
         .asymmetric(
-            insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.1)),
+            insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.09)),
             removal: .opacity.animation(.easeOut(duration: 0.1))
         )
     }
@@ -154,6 +152,7 @@ struct OnboardingView: View {
         // empty and only promotes it to a label once the athlete types, so an empty field has no
         // accessible name at all. Naming it explicitly gives it the same name in both states.
         let fieldName = "Google Sheet URL"
+        let canSave = connection.canSaveSheetURL(urlText)
         return VStack(spacing: 20) {
             HStack(spacing: 12) {
                 Button {
@@ -188,7 +187,7 @@ struct OnboardingView: View {
             .keyboardType(.URL)
             .textContentType(.URL)
             .submitLabel(.go)
-            .onSubmit { if connection.canSaveSheetURL(urlText) { saveURL() } }
+            .onSubmit { if canSave { saveURL() } }
             .focused($urlFieldFocused)
             .accessibilityIdentifier("onboarding-url-field")
             .accessibilityLabel(fieldName)
@@ -207,16 +206,12 @@ struct OnboardingView: View {
             Button(action: saveURL) {
                 Text("Save")
                     .logCapsuleMetrics()
-                    .foregroundStyle(connection.canSaveSheetURL(urlText) ? palette.actionText : palette.textSecondary)
-                    .background(connection.canSaveSheetURL(urlText) ? palette.actionFill : palette.pillFill, in: .capsule)
-                    .overlay {
-                        if !connection.canSaveSheetURL(urlText) {
-                            Capsule().strokeBorder(palette.pillStroke, lineWidth: 1)
-                        }
-                    }
+                    .foregroundStyle(canSave ? palette.actionText : palette.textSecondary)
+                    .background(canSave ? palette.actionFill : palette.pillFill, in: .capsule)
+                    .themeElevation(canSave ? [] : palette.lighting.raisedControlShadow, in: Capsule())
             }
             .buttonStyle(.pressScale)
-            .disabled(!connection.canSaveSheetURL(urlText))
+            .disabled(!canSave)
         }
     }
 

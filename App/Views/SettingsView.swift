@@ -368,8 +368,13 @@ private struct DestructiveConfirmation: ViewModifier {
                 if isPresented {
                     Color.black.opacity(0.35).ignoresSafeArea()
                         .transition(.opacity)
+                    // The card turns opaque ahead of its scale, so the rows behind never read through its words.
                     card
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
+                        .transition(
+                            reduceMotion
+                                ? .opacity
+                                : .scale(scale: 0.96).combined(with: .opacity.animation(.easeOut(duration: 0.1)))
+                        )
                 }
             }
         }
@@ -390,7 +395,7 @@ private struct DestructiveConfirmation: ViewModifier {
                 Button(role: .cancel) {
                     isPresented = false
                 } label: {
-                    Text("Cancel").frame(maxWidth: .infinity)
+                    Text("Cancel").frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 Button(role: .destructive) {
                     onConfirm()
@@ -398,10 +403,11 @@ private struct DestructiveConfirmation: ViewModifier {
                 } label: {
                     Label(action.label, systemImage: action.systemImage)
                         .labelStyle(.iconOnly)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .accessibilityIdentifier(action.identifier)
             }
+            .fixedSize(horizontal: false, vertical: true)
             .buttonStyle(.bordered)
             .buttonBorderShape(.capsule)
             .controlSize(.large)

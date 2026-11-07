@@ -39,8 +39,13 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
         holdPolicy != nil
     }
 
+    /// A release no longer logs past the reveal, so the capsule stops saying it will.
+    var holdIsRevealed: Bool {
+        clampedProgress > 0
+    }
+
     var accessibilityLabel: String {
-        showsSkippedBed || clampedProgress > 0 ? "Skipped" : logTitle
+        showsSkippedBed || holdIsRevealed ? "Skipped" : logTitle
     }
 
     var accessibilityValue: String {

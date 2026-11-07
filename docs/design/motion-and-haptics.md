@@ -26,8 +26,9 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
    read as the cream bud waking (logging then inks it solid), never a second leaf filling.
 3. **Ceremony**: stem 1.0 s on the wing ease, a 0.10 s beat, the bird drops in 0.35 s (about 1.5 s,
    Brisk). Move On's capsule stays where it is pressed and only its label changes: the word fades
-   out in 0.1 s and the `sunrise` glyph in over 0.16 s, 0.08 s in. The paper covers the stage in 0.12 s, then
-   the composition fades in over 0.2 s, 0.1 s in, so no title draws over another. It leaves in one
+   out in 0.1 s and the `sunrise` glyph in over 0.16 s, 0.08 s in. The location line holds still at the
+   stage's ink. The paper covers the stage in 0.12 s, then the rest of the composition fades in over
+   0.2 s, from 0.12 s, so no title draws over another. It leaves in one
    0.15 s fade.
 
 ## Chrome
@@ -39,10 +40,10 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
 - The header's `N Sets left` rolls its numeral on a 0.2 s snappy spring as a log or skip changes it.
 - The rest pill fades in once Up next has faded out. Its restart beat, 2.5% larger and brighter for
   about 0.16 s, plays only when a rest restarts under a pill already showing, never on its reveal.
-- The destructive confirmation card rises from 0.96 over a fading scrim on a 0.2 s ease-out, and
-  both leave in 0.15 s.
+- The destructive confirmation card rises from 0.96 over a fading scrim on a 0.2 s ease-out, opaque
+  within 0.1 s so the rows behind never read through its words, and the scrim leaves in 0.15 s.
 - Onboarding's card keeps its surface across a step, its height following on a 0.3 s smooth spring.
-  The old content clears in 0.1 s and the new fades in over 0.18 s, 0.1 s in, so the two never read
+  The old content clears in 0.1 s and the new fades in over 0.18 s, 0.09 s in, so the two never read
   as one double exposure.
 - The header's brief sync word must hold 0.5 s before it shows, so a flush on a good connection
   shows no word. A word already showing swaps in sequence.
@@ -55,9 +56,9 @@ Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick 0.35/0.85 �
 skip dud 0.45/0.15 · stepper ± 0.45/0.80 (the floor hits the dud) · one identical swell-and-peak
 Move On pattern timed to the ceremony · none on form fields. A haptic and the motion it confirms
 start on the same frame. Hold-to-skip: reveal 250ms, commit 850ms, retreat 0.2s; logged-state hold
-900ms. A release before the reveal logs, so no press is ever a dead one. The fill is one wipe with
-one leading edge: what it has passed reads `Skipped` and what it has not reads the log, so a hold
-never shows a blank capsule or one word over the other. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
+900ms. A release before the reveal logs, so no press is ever a dead one. The fill is one wipe under
+one label. The word swaps once, at the reveal, because a release no longer logs from there: the log
+clears in 0.08 s and `Skipped` fades in over 0.12 s, 0.06 s in. The edge never cuts a word. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
 
 ## Reduce Motion
 

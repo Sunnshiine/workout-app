@@ -60,10 +60,11 @@ struct MoveOnCelebrationView: View {
 
     private func column(endingInContinue: Bool) -> some View {
         VStack(spacing: 0) {
+            // The stage's own line at the stage's own ink, so it holds still as the paper covers it.
+            header
+
             // Arrives once the paper has covered the stage, so no title draws over another.
             Group {
-                header
-
                 Spacer(minLength: 12)
 
                 Text(presentation.titleText)
@@ -93,7 +94,7 @@ struct MoveOnCelebrationView: View {
                 Spacer(minLength: 12)
             }
             .opacity(isArriving ? 0 : 1)
-            .animation(.easeOut(duration: 0.2).delay(0.1), value: isArriving)
+            .animation(.easeOut(duration: 0.2).delay(0.12), value: isArriving)
 
             if endingInContinue {
                 continueButton
@@ -110,7 +111,7 @@ struct MoveOnCelebrationView: View {
         Text("\(Image(systemName: "calendar")) \(presentation.contextText)")
             .accessibilityLabel(presentation.contextText)
             .themeFont(.runline)
-            .foregroundStyle(palette.textPrimary)
+            .foregroundStyle(palette.textSecondary)
             .accessibilityIdentifier("move-on-celebration-context")
     }
 

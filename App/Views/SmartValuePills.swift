@@ -393,25 +393,30 @@ private struct HoldToSkipLogButton: View {
         }
     }
 
-    /// One wipe with one leading edge: what it has passed reads Skipped and what it has not reads
-    /// the log, so a hold never shows a blank capsule or one word over the other.
+    /// One wipe under one label. The word swaps once, at the reveal, so the edge never cuts a word
+    /// and the log's text still holds the capsule's height.
     private var logButtonSurface: some View {
-        Text(logTitle)
-            .logCapsuleMetrics()
-            .foregroundStyle(logForegroundStyle)
-            .background(logBackgroundStyle, in: .capsule)
+        let isRevealed = presentation.holdIsRevealed
+        let wordLeaves = Animation.easeOut(duration: 0.08)
+        let wordArrives = Animation.easeOut(duration: 0.12).delay(0.06)
+        return Text(logTitle)
+            .opacity(isRevealed ? 0 : 1)
+            .animation(isRevealed ? wordLeaves : wordArrives, value: isRevealed)
             .overlay {
                 // accessibilityHidden leaves this text in the tree, an empty label drops it.
                 Text("Skipped")
                     .accessibilityLabel("")
-                    .logCapsuleMetrics()
-                    .frame(maxHeight: .infinity)
-                    .foregroundStyle(logForegroundStyle)
-                    .background(palette.skipFillOverlay ?? palette.skipStroke)
-                    .background(logBackgroundStyle)
+                    .opacity(isRevealed ? 1 : 0)
+                    .animation(isRevealed ? wordArrives : wordLeaves, value: isRevealed)
+            }
+            .logCapsuleMetrics()
+            .foregroundStyle(logForegroundStyle)
+            .background {
+                (palette.skipFillOverlay ?? palette.skipStroke)
                     .mask(alignment: .leading) {
                         Color.black.scaleEffect(x: skipProgress, y: 1, anchor: .leading)
                     }
+                    .background(logBackgroundStyle)
                     .clipShape(.capsule)
             }
             .overlay {

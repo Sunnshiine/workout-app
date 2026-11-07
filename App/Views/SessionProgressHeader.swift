@@ -30,18 +30,21 @@ struct SessionProgressHeader: View {
 
             Spacer()
 
-            SessionSyncStatusLabel()
+            // No spacing here, so the label takes no room while it shows nothing.
+            HStack(spacing: 0) {
+                SessionSyncStatusLabel()
 
-            Text(presentation.remainingText)
-                .themeFont(.runlineSecondary)
-                .lineLimit(1)
-                .contentTransition(
-                    reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
-                )
-                // Its own spring, not the stage's momentumFlow or skipFadeUp, so a log and a skip roll alike.
-                .animation(.snappy(duration: 0.2), value: presentation.remainingSetCount)
-                .foregroundStyle(palette.textSecondary)
-                .accessibilityIdentifier("session-remaining-count")
+                Text(presentation.remainingText)
+                    .themeFont(.runlineSecondary)
+                    .lineLimit(1)
+                    .contentTransition(
+                        reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
+                    )
+                    // Its own spring, not the stage's momentumFlow or skipFadeUp, so a log and a skip roll alike.
+                    .animation(.snappy(duration: 0.2), value: presentation.remainingSetCount)
+                    .foregroundStyle(palette.textSecondary)
+                    .accessibilityIdentifier("session-remaining-count")
+            }
         }
         .frame(minHeight: 32)
         .accessibilityElement(children: .contain)
@@ -98,14 +101,15 @@ private struct SessionSyncStatusLabel: View {
     }
 
     var body: some View {
-        Group {
+        // A Group with nothing in it runs no task, so the first word would never arrive.
+        ZStack {
             if let shown {
                 Text(shown.text)
                     .themeFont(.runlineSecondary)
                     .lineLimit(1)
                     .foregroundStyle(palette.textSecondary)
                     .fixedSize()
-                    .padding(.trailing, 6)
+                    .padding(.trailing, 16)
                     .accessibilityLabel(shown.accessibilityLabel)
                     .id(shown.text)
                     .transition(
