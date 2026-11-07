@@ -166,6 +166,7 @@ private struct MeetOnDeckView: View {
                 saveLabel: "Change to",
                 idleLabel: "Change",
                 unchanged: deck.kilograms,
+                terms: face.change?.terms,
                 onClear: nil
             ) { weight in
                 try? store.changeOnDeck(to: weight)
@@ -223,14 +224,15 @@ private struct MeetOnDeckView: View {
             .buttonStyle(.pressScale)
             .accessibilityHint("Sets one Attempt out")
             .accessibilityIdentifier("meet-not-yet")
-        } else if let changeLabel = face.changeLabel {
+        } else if let change = face.change {
             Button {
                 isChanging = true
             } label: {
-                Text(changeLabel)
+                Text(change.label)
                     .footPill(palette)
             }
             .buttonStyle(.pressScale)
+            .accessibilityHint(change.terms.value)
             .accessibilityIdentifier("meet-change-attempt")
         }
     }

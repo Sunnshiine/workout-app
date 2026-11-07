@@ -115,12 +115,30 @@ struct MeetLift: Hashable, Codable, Sendable {
     }
 }
 
+/// When the table stops taking a change. The phone sees the athlete reach the platform, so a third
+/// deadlift's deadline holds, but not the Flight ahead, so an opener's is the athlete's call.
+enum ChangeDeadline: Equatable, Sendable {
+    case opener(FederationRules.OpenerDeadline)
+    /// The speaker calls the athlete to the loaded bar (IPF 6.1(l), USAPL 5.3.13.1).
+    case called
+
+    var phrase: String {
+        switch self {
+        case .opener(let deadline):
+            "until \(deadline.minutesBeforeFirstRound) minutes before the first round, or "
+                + "\(deadline.attemptsBeforePreviousFlightEnds) Attempts before the Flight ahead of you ends"
+        case .called:
+            "until you are called to the bar"
+        }
+    }
+}
+
 enum AttemptChangeAllowance: Equatable, Sendable {
-    case changesLeft(Int, rule: String)
+    case changesLeft(Int, rule: String, until: ChangeDeadline)
     case locked(rule: String)
 
     var canChange: Bool {
-        if case .changesLeft(let left, _) = self { return left > 0 }
+        if case .changesLeft(let left, _, _) = self { return left > 0 }
         return false
     }
 }
@@ -237,9 +255,17 @@ struct Meet: Hashable, Codable, Sendable {
     private func allowance(for attempt: Attempt, of lift: MainLift, at ordinal: AttemptOrdinal) -> AttemptChangeAllowance {
         switch (ordinal, lift) {
         case (.opener, _):
-            .changesLeft(rules.openerChanges.value - attempt.changesUsed, rule: rules.openerChanges.rule)
+            .changesLeft(
+                rules.openerChanges.value - attempt.changesUsed,
+                rule: rules.openerChanges.rule,
+                until: .opener(rules.openerDeadline.value)
+            )
         case (.third, .deadlift):
-            .changesLeft(rules.thirdDeadliftChanges.value - attempt.changesUsed, rule: rules.thirdDeadliftChanges.rule)
+            .changesLeft(
+                rules.thirdDeadliftChanges.value - attempt.changesUsed,
+                rule: rules.thirdDeadliftChanges.rule,
+                until: .called
+            )
         default:
             .locked(rule: rules.lockedAttempts)
         }
@@ -297,6 +323,8 @@ struct Meet: Hashable, Codable, Sendable {
         countedAttemptsOut = nil
     }
 
+    /// Holds the rule's count of changes, never its deadline: the phone cannot see the Flight ahead,
+    /// so a change it records late is one the table turns down.
     mutating func changeOnDeck(to kilograms: Kilograms, at now: Date) throws(MeetRefusal) {
         guard case .onDeck(let deck) = stage(at: now) else { throw .noAttemptOnDeck }
         guard deck.allowance.canChange else { throw .changeNotAllowed(rule: rule(of: deck.allowance)) }
@@ -307,7 +335,7 @@ struct Meet: Hashable, Codable, Sendable {
 
     private func rule(of allowance: AttemptChangeAllowance) -> String {
         switch allowance {
-        case .changesLeft(_, let rule), .locked(let rule): rule
+        case .changesLeft(_, let rule, _), .locked(let rule): rule
         }
     }
 

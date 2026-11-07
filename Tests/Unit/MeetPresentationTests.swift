@@ -85,17 +85,48 @@ struct MeetOnDeckFaceTests {
         #expect(face.isOnThePlatform)
     }
 
-    @Test func anOpenerNotYetChangedOffersItsOneChange() throws {
-        let meet = try squatMeet()
-        let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
-        #expect(face.changeLabel == "Change opener, 1 left")
+    @Test("IPF 6.1(i): at 1 Attempt Out the chip claims no change is open, and the sheet says until when the table takes one")
+    func lateInTheFlightTheOpenerChangeNamesItsDeadline() throws {
+        var meet = try squatMeet()
+        meet.setAttemptsOut(1)
+        let change = try #require(MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules).change)
+        #expect(change.label == "Change opener")
+        #expect(
+            change.terms
+                == .init(
+                    value: "The table takes 1 change until 3 minutes before the first round, "
+                        + "or 3 Attempts before the Flight ahead of you ends.",
+                    rule: "6.1(i)"
+                )
+        )
+    }
+
+    @Test("IPF 6.1(l): a third deadlift counts its changes down, until the athlete is called to the bar")
+    func aThirdDeadliftCountsItsChangesUntilCalled() throws {
+        var meet = Meet(date: try #require(MeetDate("2026-12-05")), federation: .ipf)
+        meet.editLift(.deadlift) { edit in
+            for (index, weight) in [200, 210, 220].enumerated() {
+                edit.enter(kilos(weight), at: AttemptOrdinal(rawValue: index) ?? .third)
+            }
+        }
+        for weight in [210, 220] {
+            meet.setAttemptsOut(0)
+            try meet.mark(.good, at: noon)
+            try meet.submitNext(kilos(weight), at: noon)
+        }
+        let first = try #require(MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules).change)
+        #expect(first.label == "Change third")
+        #expect(first.terms == .init(value: "The table takes 2 changes until you are called to the bar.", rule: "6.1(l)"))
+        try meet.changeOnDeck(to: Kilograms(hundredths: 22250), at: noon)
+        let second = try #require(MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules).change)
+        #expect(second.terms.value == "The table takes 1 change until you are called to the bar.")
     }
 
     @Test func atZeroTheOpenerIsPastChanging() throws {
         var meet = try squatMeet()
         try meet.setAttemptsOut(0)
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
-        #expect(face.changeLabel == nil)
+        #expect(face.change == nil)
     }
 
     @Test func aSubmittedSecondOffersNoChange() throws {
@@ -104,7 +135,7 @@ struct MeetOnDeckFaceTests {
         try meet.mark(.good, at: noon)
         try meet.submitNext(kilos(190), at: noon)
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
-        #expect(face.changeLabel == nil)
+        #expect(face.change == nil)
         #expect(face.caption == "Second Attempt")
     }
 

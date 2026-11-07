@@ -97,8 +97,7 @@ struct FederationRules: Equatable, Sendable {
     )
 
     var lines: [(text: String, rule: String)] {
-        let deadline = openerDeadline.value
-        return [
+        [
             (
                 "A card for your next Attempt is due within \(submissionWindowSeconds.value / 60) minute of the lights.",
                 submissionWindowSeconds.rule
@@ -109,12 +108,13 @@ struct FederationRules: Equatable, Sendable {
                 missedWindowIncrease.rule
             ),
             (
-                "Each opener takes \(openerChanges.value) change, until \(deadline.minutesBeforeFirstRound) minutes "
-                    + "before the first round, or \(deadline.attemptsBeforePreviousFlightEnds) Attempts "
-                    + "before the Flight ahead of you ends.",
+                "Each opener takes \(openerChanges.value) change, \(ChangeDeadline.opener(openerDeadline.value).phrase).",
                 openerDeadline.rule
             ),
-            ("A third deadlift takes \(thirdDeadliftChanges.value) changes.", thirdDeadliftChanges.rule),
+            (
+                "A third deadlift takes \(thirdDeadliftChanges.value) changes, \(ChangeDeadline.called.phrase).",
+                thirdDeadliftChanges.rule
+            ),
             ("No other second or third can change once it is in.", lockedAttempts),
             (
                 "The bar loads in \(barMultiple.value.label). A record Attempt may take \(recordMultiple.value.label).",

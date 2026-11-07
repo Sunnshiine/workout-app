@@ -213,6 +213,8 @@ public struct MeetReport: Encodable, Equatable, Sendable {
         public var secondsLeft: Int?
         public var tableEntry: Double?
         public var changesLeft: Int?
+        /// Until when the table takes a change, which the athlete judges.
+        public var changeDeadline: String?
         public var rule: String?
 
         init(stage: String) {
@@ -327,8 +329,9 @@ extension MeetReport.Next {
         ordinal = deck.ordinal.name.lowercased()
         attemptsOut = deck.attemptsOut
         switch deck.allowance {
-        case .changesLeft(let left, let rule):
+        case .changesLeft(let left, let rule, let until):
             changesLeft = max(0, left)
+            changeDeadline = until.phrase
             self.rule = rule
         case .locked(let rule):
             changesLeft = 0

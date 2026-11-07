@@ -8,12 +8,15 @@ struct MeetWeightSheet: View {
     let idleLabel: String
     /// The weight the save would leave as it is, so the capsule stays neutral until the number moves.
     let unchanged: Kilograms?
+    /// A change's count and deadline, beside the capsule that records it.
+    let terms: FederationRules.Cited<String>?
     let onClear: (() -> Void)?
     let onSave: (Kilograms) -> Void
     @State private var entry: MeetWeightEntry
     @FocusState private var isTyping: Bool
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(
         title: String,
@@ -21,6 +24,7 @@ struct MeetWeightSheet: View {
         saveLabel: String,
         idleLabel: String,
         unchanged: Kilograms?,
+        terms: FederationRules.Cited<String>?,
         onClear: (() -> Void)?,
         onSave: @escaping (Kilograms) -> Void
     ) {
@@ -28,6 +32,7 @@ struct MeetWeightSheet: View {
         self.saveLabel = saveLabel
         self.idleLabel = idleLabel
         self.unchanged = unchanged
+        self.terms = terms
         self.onClear = onClear
         self.onSave = onSave
         _entry = State(initialValue: entry)
@@ -56,6 +61,19 @@ struct MeetWeightSheet: View {
                 )
                 MeetWeightNoteView(entry: entry, previous: nil)
                 Spacer(minLength: 0)
+                if let terms {
+                    VStack(spacing: 2) {
+                        Text(terms.value)
+                            .themeFont(.coachNote)
+                        Text("Rule \(terms.rule)")
+                            .themeFont(.runlineSecondary)
+                    }
+                    .foregroundStyle(palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("meet-change-rule")
+                }
                 Button {
                     guard let weight = entry.kilograms else { return }
                     onSave(weight)
@@ -81,7 +99,9 @@ struct MeetWeightSheet: View {
             .padding(Theme.pageMargin)
             .background(palette.paperBackground.ignoresSafeArea())
         }
-        .presentationDetents([.medium, .large])
+        // Larger type grows a change's deadline past the medium detent, which would push the title
+        // under the grabber.
+        .presentationDetents([typeSize > .large ? .fraction(0.6) : .medium, .large])
         // A blank weight wants a number, so the keyboard comes up.
         .onAppear { isTyping = entry.text.isEmpty }
     }

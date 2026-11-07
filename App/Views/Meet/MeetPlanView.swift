@@ -225,6 +225,7 @@ struct MeetPlanView: View {
             saveLabel: "Save",
             idleLabel: "Save",
             unchanged: nil,
+            terms: nil,
             onClear: existing == nil ? nil : { store.edit { $0.editLift(lift.lift) { $0.clear(from: ordinal) } } },
             onSave: { weight in
                 store.edit { $0.editLift(lift.lift) { $0.enter(weight, at: ordinal) } }

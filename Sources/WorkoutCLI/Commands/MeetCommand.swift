@@ -107,7 +107,12 @@ struct MeetCommand: AsyncParsableCommand {
         @Flag(help: "Take back the last mark or pass.")
         var undo = false
 
-        @Option(help: "Change the Attempt on deck, in kilograms, where the rules allow one.")
+        @Option(
+            help: """
+                Record a change to the Attempt on deck, in kilograms, while next.changesLeft is above 0. \
+                next.changeDeadline is the athlete's call, because the phone cannot see the Flight ahead.
+                """
+        )
         var change: String?
 
         private var gestures: [MeetGesture] {

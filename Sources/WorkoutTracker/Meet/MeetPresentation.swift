@@ -26,6 +26,15 @@ extension MeetCue {
 }
 
 struct MeetOnDeckFace: Equatable {
+    /// A change the rule leaves the Attempt on deck. The chip only names it, and the sheet says its
+    /// deadline where the athlete makes it.
+    struct Change: Equatable {
+        /// `Change opener`.
+        let label: String
+        /// `The table takes 1 change until …`, with its rule number.
+        let terms: FederationRules.Cited<String>
+    }
+
     /// Which Attempt all this leads to: `Squat opener`.
     let place: String
     let caption: String
@@ -39,8 +48,7 @@ struct MeetOnDeckFace: Equatable {
     let attemptsOutLabel: String
     /// The interval's rule, on the opener of the next Main Lift until the athlete reaches the platform.
     let intervalNote: String?
-    /// `Change opener, 1 left`, when the rule allows the Attempt on deck a change.
-    let changeLabel: String?
+    let change: Change?
     let accessibilitySummary: String
 
     init(_ deck: AttemptOnDeck, rules: FederationRules) {
@@ -57,8 +65,7 @@ struct MeetOnDeckFace: Equatable {
         isOnThePlatform = reading.isOnThePlatform
         accessibilitySummary = reading.spoken
         intervalNote = deck.liftFinished == nil || reading.isOnThePlatform ? nil : rules.intervalLine
-        changeLabel =
-            reading.isOnThePlatform ? nil : deck.allowance.changesLeft.map { "Change \(deck.ordinal.name.lowercased()), \($0) left" }
+        change = reading.isOnThePlatform ? nil : Change(deck.allowance, ordinal: deck.ordinal)
     }
 
     private struct Reading {
@@ -120,10 +127,12 @@ struct MeetOnDeckFace: Equatable {
     }
 }
 
-extension AttemptChangeAllowance {
-    fileprivate var changesLeft: Int? {
-        guard case .changesLeft(let left, _) = self, left > 0 else { return nil }
-        return left
+extension MeetOnDeckFace.Change {
+    fileprivate init?(_ allowance: AttemptChangeAllowance, ordinal: AttemptOrdinal) {
+        guard case .changesLeft(let left, let rule, let until) = allowance, left > 0 else { return nil }
+        let changes = left == 1 ? "1 change" : "\(left) changes"
+        label = "Change \(ordinal.name.lowercased())"
+        terms = FederationRules.Cited(value: "The table takes \(changes) \(until.phrase).", rule: rule)
     }
 }
 

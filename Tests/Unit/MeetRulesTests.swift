@@ -108,7 +108,12 @@ struct MeetRuleLinesTests {
     @Test func theSentencesSayWhatTheTableDoes() {
         let lines = FederationRules.ipf.lines.map(\.text)
         #expect(lines.contains("With no card the table enters 2.5 kg more after a good lift, or the same weight after a no lift."))
-        #expect(lines.contains("A third deadlift takes 2 changes."))
+        #expect(lines.contains("A third deadlift takes 2 changes, until you are called to the bar."))
+        #expect(
+            lines.contains(
+                "Each opener takes 1 change, until 3 minutes before the first round, or 3 Attempts before the Flight ahead of you ends."
+            )
+        )
     }
 }
 

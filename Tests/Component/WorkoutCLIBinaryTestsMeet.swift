@@ -133,6 +133,26 @@
         #expect(try refused.errorJSON["code"] as? String == "attempt_change_refused")
     }
 
+    /// The verifier's repro: the phone cannot see the Flight ahead, so a change at 1 Attempt Out goes
+    /// in, and the report names the deadline rather than claiming the change is open.
+    @Test func anOpenerChangeAtOneAttemptOutGoesInAndNamesItsDeadline() throws {
+        let (cli, home) = try meetCLI()
+        defer { try? FileManager.default.removeItem(at: home) }
+        let deadline = "until 3 minutes before the first round, or 3 Attempts before the Flight ahead of you ends"
+        _ = try cli.run("meet", "plan", "--date", "2026-12-05", "--federation", "usapl", "--squat", "180,190,197.5")
+        let late = try cli.run("meet", "tick", "--attempts-out", "1")
+        #expect(try next(late)["changesLeft"] as? Int == 1)
+        #expect(try next(late)["changeDeadline"] as? String == deadline)
+
+        let changed = try cli.run("meet", "tick", "--change", "182.5")
+        #expect(changed.status == 0)
+        let after = try next(changed)
+        #expect(after["kilograms"] as? Double == 182.5)
+        #expect(after["changesLeft"] as? Int == 0)
+        #expect(after["changeDeadline"] as? String == deadline)
+        #expect(after["rule"] as? String == "5.3.1.1")
+    }
+
     @Test func aWeightNoBarLoadsIsRefusedAtThePlan() throws {
         let (cli, home) = try meetCLI()
         defer { try? FileManager.default.removeItem(at: home) }

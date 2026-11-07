@@ -31,6 +31,8 @@ private func deck(_ meet: Meet, at now: Date = start) throws -> AttemptOnDeck {
     return deck
 }
 
+private let openerDeadline = ChangeDeadline.opener(.init(minutesBeforeFirstRound: 3, attemptsBeforePreviousFlightEnds: 3))
+
 private func window(_ meet: Meet, at now: Date = start) throws -> OpenAttemptWindow {
     guard case .window(let window) = meet.stage(at: now) else {
         Issue.record("Expected an Attempt Window, found \(meet.stage(at: now))")
@@ -206,20 +208,29 @@ struct MeetDayTests {
     @Test("IPF 6.1(i): an opener takes one change, then none")
     func anOpenerTakesOneChange() throws {
         var day = try meet()
-        #expect(try deck(day).allowance == .changesLeft(1, rule: "6.1(i)"))
+        #expect(try deck(day).allowance == .changesLeft(1, rule: "6.1(i)", until: openerDeadline))
         try day.changeOnDeck(to: Kilograms(hundredths: 18250), at: start)
         #expect(try deck(day).kilograms == Kilograms(hundredths: 18250))
-        #expect(try deck(day).allowance == .changesLeft(0, rule: "6.1(i)"))
+        #expect(try deck(day).allowance == .changesLeft(0, rule: "6.1(i)", until: openerDeadline))
         #expect(throws: MeetRefusal.changeNotAllowed(rule: "6.1(i)")) {
             try day.changeOnDeck(to: Kilograms(whole: 185), at: start)
         }
+    }
+
+    @Test("IPF 6.1(i): an opener change at 1 Attempt Out goes in, because the table owns the deadline the phone cannot see")
+    func anOpenerChangeLateInTheFlightIsRecorded() throws {
+        var day = try meet()
+        day.setAttemptsOut(1)
+        try day.changeOnDeck(to: Kilograms(hundredths: 18250), at: start)
+        #expect(try deck(day).kilograms == Kilograms(hundredths: 18250))
+        #expect(try deck(day).allowance == .changesLeft(0, rule: "6.1(i)", until: openerDeadline))
     }
 
     @Test func changingToTheSameWeightSpendsNoChange() throws {
         var day = try meet()
         let kilograms = try deck(day).kilograms
         try day.changeOnDeck(to: kilograms, at: start)
-        #expect(try deck(day).allowance == .changesLeft(1, rule: "6.1(i)"))
+        #expect(try deck(day).allowance == .changesLeft(1, rule: "6.1(i)", until: openerDeadline))
     }
 
     @Test("IPF 6.1(k): a second squat is locked once it is in")
@@ -243,10 +254,10 @@ struct MeetDayTests {
             try day.mark(.good, at: start)
             try day.submitNext(Kilograms(whole: 220), at: start)
         }
-        #expect(try deck(day).allowance == .changesLeft(2, rule: "5.3.17.1"))
+        #expect(try deck(day).allowance == .changesLeft(2, rule: "5.3.17.1", until: .called))
         try day.changeOnDeck(to: Kilograms(whole: 222), at: start)
         try day.changeOnDeck(to: Kilograms(whole: 225), at: start)
-        #expect(try deck(day).allowance == .changesLeft(0, rule: "5.3.17.1"))
+        #expect(try deck(day).allowance == .changesLeft(0, rule: "5.3.17.1", until: .called))
     }
 
     @Test("A gesture the stage cannot take is refused and changes nothing")
