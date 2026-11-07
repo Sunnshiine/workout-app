@@ -25,7 +25,10 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
    and runs 0.3 s, so the whole log finishes at 0.42 s. **One Log, One Fill:** the transition must
    read as the cream bud waking (logging then inks it solid), never a second leaf filling.
 3. **Ceremony**: stem 1.0 s on the wing ease, a 0.10 s beat, the bird drops in 0.35 s (about 1.5 s,
-   Brisk). The overlay fades in on a 0.2 s ease-out and out in 0.15 s.
+   Brisk). Move On's capsule stays where it is pressed and only its label changes: the word fades
+   out in 0.1 s and the `sunrise` glyph in over 0.16 s, 0.08 s in. The paper covers the stage in 0.12 s, then
+   the composition fades in over 0.2 s, 0.1 s in, so no title draws over another. It leaves in one
+   0.15 s fade.
 
 ## Chrome
 
@@ -38,9 +41,12 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
   about 0.16 s, plays only when a rest restarts under a pill already showing, never on its reveal.
 - The destructive confirmation card rises from 0.96 over a fading scrim on a 0.2 s ease-out, and
   both leave in 0.15 s.
-- Onboarding's old step leaves in 0.12 s on an ease-out, and the new one arrives 0.08 s in on a 0.3 s
-  smooth spring, so the two never read as one double-exposed card. The URL card and the sheet picker
-  each drift 24 pt toward their own side, the way the Back chevron points.
+- Onboarding's card keeps its surface across a step, its height following on a 0.3 s smooth spring.
+  The old content clears in 0.1 s and the new fades in over 0.18 s, 0.1 s in, so the two never read
+  as one double exposure.
+- The header's brief sync word must hold 0.5 s before it shows, so a flush on a good connection
+  shows no word. A word already showing swaps in sequence.
+- The rest countdown cuts once a second on tabular figures. A number that ticks reads best still.
 - Sheets and navigation keep their stock presentation.
 
 ## Haptics
@@ -49,9 +55,9 @@ Haptics are **Crisp, silent-chrome, semantic-only**: RPE detent tick 0.35/0.85 �
 skip dud 0.45/0.15 · stepper ± 0.45/0.80 (the floor hits the dud) · one identical swell-and-peak
 Move On pattern timed to the ceremony · none on form fields. A haptic and the motion it confirms
 start on the same frame. Hold-to-skip: reveal 250ms, commit 850ms, retreat 0.2s; logged-state hold
-900ms. A release before the reveal logs, so no press is ever a dead one. The capsule's
-two labels take turns across a hold: `Log` is gone 0.18 s after the fill starts and `Skipped` fades in over
-its last 0.24 s, so the fill never carries one word over the other. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
+900ms. A release before the reveal logs, so no press is ever a dead one. The fill is one wipe with
+one leading edge: what it has passed reads `Skipped` and what it has not reads the log, so a hold
+never shows a blank capsule or one word over the other. A Skipped Set's capsule takes no hold: a tap logs it, and its More menu clears it (#820).
 
 ## Reduce Motion
 

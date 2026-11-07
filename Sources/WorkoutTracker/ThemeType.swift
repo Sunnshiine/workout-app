@@ -33,7 +33,7 @@ extension Theme {
         let size: CGFloat
         /// Variable-font `wght` axis value. Fraunces ignores this (pinned at 490).
         let weight: Double
-        /// Line height as a multiple of the point size; `nil` on roles that never wrap.
+        /// Line height as a multiple of the point size; `nil` on roles that keep the face's own.
         let lineHeight: CGFloat?
         /// `opsz` axis override for the rare role where optical size ≠ point size.
         let opticalSize: CGFloat?
@@ -114,7 +114,7 @@ extension Theme {
             .setOf: TypeStyle(face: .sourceSans3, size: 15, weight: 400),
             .railChipValue: TypeStyle(face: .sourceSans3, size: 17, weight: 700),
             .railChipGlyph: TypeStyle(face: .sourceSans3, size: 13, weight: 400),
-            .fieldLabel: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
+            .fieldLabel: TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3),
             .coachNote: TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.5),
             .runline: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .runlineSecondary: TypeStyle(face: .sourceSans3, size: 13, weight: 400),
@@ -122,7 +122,7 @@ extension Theme {
             .queuePill: TypeStyle(face: .sourceSans3, size: 15, weight: 600),
             .historyChip: TypeStyle(face: .sourceSans3, size: 12, weight: 600),
             .blockTitle: TypeStyle(face: .sourceSans3, size: 28, weight: 700),
-            .cadence: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
+            .cadence: TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3),
             .statsValue: TypeStyle(face: .sourceSans3, size: 28, weight: 700),
             .statsKey: TypeStyle(face: .sourceSans3, size: 13, weight: 600),
             .sheetCell: TypeStyle(face: .sourceSans3, size: 12, weight: 400)

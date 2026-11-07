@@ -32,7 +32,7 @@ leaf (`actionNight`, the mirror step) with cream ribs, and the active leaf carri
   text; the branch is never the only way to read them. This is the no-botany
   pressure valve — under extreme content the words still carry the page.
 - **Last Performed** is a quiet muted runline anchored to the Active Set
-  Card — `Block 26 · W4 D3 — 245x5@6, 255x5@7` — no "Last performed" label
+  Card — `Block 26 · W4 D3 — 245×5 @6, 255×5 @7` — no "Last performed" label
   (the Set-Log shape says what it is), led on the left by a history clock
   (`clock.arrow.circlepath`) on its text baseline. It shrinks then truncates, never wraps. A
   Movement-level fallback match labels itself with the matched entry's own

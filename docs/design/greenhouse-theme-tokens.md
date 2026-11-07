@@ -246,7 +246,7 @@ not rounded to a prettier scale.
 | `rail` | 18 | reps/RPE rails |
 | `tile` | 15 | day tiles |
 | `cell` | 14 | rail chips |
-| `mini` | 6 | week mini-chips |
+| `mini` | 4 | week mini-chips |
 
 Replaces the 8 / 16 / 28 scale.
 

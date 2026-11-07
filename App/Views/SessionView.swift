@@ -57,14 +57,15 @@ struct SessionView: View {
         .background(palette.paperBackground.ignoresSafeArea())
         .overlay {
             if let session = workout.moveOnCelebrationSession {
-                MoveOnCelebrationView(session: session) {
+                MoveOnCelebrationView(session: session, arrivesOverTheStage: true) {
                     workout.dismissMoveOnCelebration()
                 }
-                .transition(.opacity)
+                // It arrives in its own layers, and leaves as one fade.
+                .transition(.asymmetric(insertion: .identity, removal: .opacity))
             }
         }
         .animation(
-            .easeOut(duration: workout.moveOnCelebrationSession == nil ? 0.15 : 0.2),
+            .easeOut(duration: 0.15),
             value: workout.moveOnCelebrationSession?.persistentModelID
         )
         .navigationDestination(isPresented: blockOverviewRequestBinding) {

@@ -89,8 +89,6 @@ struct RestPillView: View {
                 .opacity(countdownOpacity(for: cue))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-                .contentTransition(.numericText(countsDown: true))
-                .animation(reduceMotion ? nil : .smooth(duration: 0.25), value: presentation.countdownText)
         }
         .scaleEffect(finalFiveScale(for: cue), anchor: .leading)
         .animation(finalFiveAnimation(for: cue), value: finalFivePulse)

@@ -9,7 +9,7 @@ import UIKit
 struct ActiveSetCardLayoutTests {
     @Test func everyCardModeDrawsTheSameFourRowsInTheSameCardFrame() throws {
         let rows = CardRows(
-            card: CGRect(x: 16, y: 62, width: 370, height: 308),
+            card: CGRect(x: 16, y: 62, width: 370, height: 307),
             head: CGRect(x: 32, y: 78, width: 63, height: 24),
             weight: CGRect(x: 98, y: 118, width: 206, height: 66),
             reps: CGRect(x: 32, y: 200, width: 163, height: 83),

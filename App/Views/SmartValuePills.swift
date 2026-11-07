@@ -393,17 +393,26 @@ private struct HoldToSkipLogButton: View {
         }
     }
 
+    /// One wipe with one leading edge: what it has passed reads Skipped and what it has not reads
+    /// the log, so a hold never shows a blank capsule or one word over the other.
     private var logButtonSurface: some View {
-        buttonContent
+        Text(logTitle)
             .logCapsuleMetrics()
             .foregroundStyle(logForegroundStyle)
-            .background {
-                ZStack(alignment: .leading) {
-                    logBackgroundStyle
-                    (palette.skipFillOverlay ?? palette.skipStroke)
-                        .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
-                }
-                .clipShape(.capsule)
+            .background(logBackgroundStyle, in: .capsule)
+            .overlay {
+                // accessibilityHidden leaves this text in the tree, an empty label drops it.
+                Text("Skipped")
+                    .accessibilityLabel("")
+                    .logCapsuleMetrics()
+                    .frame(maxHeight: .infinity)
+                    .foregroundStyle(logForegroundStyle)
+                    .background(palette.skipFillOverlay ?? palette.skipStroke)
+                    .background(logBackgroundStyle)
+                    .mask(alignment: .leading) {
+                        Color.black.scaleEffect(x: skipProgress, y: 1, anchor: .leading)
+                    }
+                    .clipShape(.capsule)
             }
             .overlay {
                 if case .incomplete = presentation.tone {
@@ -423,30 +432,6 @@ private struct HoldToSkipLogButton: View {
                 Capsule()
                     .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             }
-    }
-
-    private var buttonContent: some View {
-        ZStack {
-            Text(logTitle)
-                .opacity(presentation.logOpacity)
-                .animation(logLabelAnimation, value: skipProgress)
-
-            // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
-            Text("Skipped")
-                .opacity(presentation.skipOpacity)
-                .animation(skipLabelAnimation, value: skipProgress)
-                .accessibilityLabel("")
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    // The two labels take turns as the fill passes, so a hold never draws one over the other.
-    private var logLabelAnimation: Animation {
-        skipProgress > 0 ? .linear(duration: 0.18) : .easeOut(duration: Theme.Motion.holdToSkipRetreat)
-    }
-
-    private var skipLabelAnimation: Animation {
-        skipProgress > 0 ? .linear(duration: 0.24).delay(0.36) : .easeOut(duration: 0.1)
     }
 
     private var presentation: HoldToSkipButtonPresentation {

@@ -90,24 +90,41 @@ struct SessionProgressHeader: View {
 private struct SessionSyncStatusLabel: View {
     @Environment(SyncCoordinator.self) private var sync: SyncCoordinator?
     @Environment(\.themePalette) private var palette
+    @State private var shown: SyncStatusBannerPresentation?
 
-    private var presentation: SyncStatusBannerPresentation? {
+    private var current: SyncStatusBannerPresentation? {
         sync.flatMap { SyncStatusBannerPresentation(outcome: $0.outcome, isSyncing: $0.isSyncing) }
             .flatMap { $0.isBrief ? $0 : nil }
     }
 
     var body: some View {
         Group {
-            if let presentation {
-                Text(presentation.text)
+            if let shown {
+                Text(shown.text)
                     .themeFont(.runlineSecondary)
                     .lineLimit(1)
                     .foregroundStyle(palette.textSecondary)
                     .fixedSize()
-                    .transition(.opacity)
-                    .accessibilityLabel(presentation.accessibilityLabel)
+                    .padding(.trailing, 6)
+                    .accessibilityLabel(shown.accessibilityLabel)
+                    .id(shown.text)
+                    .transition(
+                        .asymmetric(
+                            insertion: .opacity.animation(.easeOut(duration: 0.14).delay(0.08)),
+                            removal: .opacity.animation(.easeOut(duration: 0.08))
+                        )
+                    )
             }
         }
-        .animation(.smooth(duration: 0.18), value: presentation?.text)
+        .task(id: current) { await settle() }
+    }
+
+    /// A flush that lands inside the delay shows no word, so a log on a good connection stays quiet.
+    /// A word already showing swaps at once, so the state never reads staler than it is.
+    private func settle() async {
+        if shown == nil, current != nil {
+            do { try await Task.sleep(for: .seconds(Theme.Motion.briefSyncStatusDelay)) } catch { return }
+        }
+        withAnimation { shown = current }
     }
 }

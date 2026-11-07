@@ -148,7 +148,7 @@ struct SettingsView: View {
             content: { sheetPickerSheet }
         )
         .destructiveConfirmation(
-            "You have unsynced changes. Sign out anyway?",
+            "You have unsynced changes.\nSign out anyway?",
             isPresented: $isSignOutConfirmationPresented,
             action: DestructiveAction(
                 label: "Sign Out",
@@ -256,12 +256,13 @@ struct SettingsView: View {
                 },
                 isSelectionDisabled: isSheetBusy
             )
+            .trainingSheetCard()
             .padding()
             .frame(maxHeight: .infinity, alignment: .top)
         }
         .presentationBackground { palette.paperBackground }
         .destructiveConfirmation(
-            "You have unsynced changes. Switch anyway?",
+            "You have unsynced changes.\nSwitch anyway?",
             isPresented: pendingSwitchConfirmation,
             action: DestructiveAction(
                 label: "Switch Anyway",
@@ -365,7 +366,7 @@ private struct DestructiveConfirmation: ViewModifier {
         content.overlay {
             ZStack {
                 if isPresented {
-                    Color.black.opacity(0.2).ignoresSafeArea()
+                    Color.black.opacity(0.35).ignoresSafeArea()
                         .transition(.opacity)
                     card
                         .transition(reduceMotion ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
@@ -407,9 +408,9 @@ private struct DestructiveConfirmation: ViewModifier {
             .padding(.top, 12)
         }
         .padding(24)
-        .frame(maxWidth: 320)
         .background(palette.sheetFill, in: .rect(cornerRadius: Theme.Radius.soft))
         .themeElevation(palette.surfaceShadow, in: .rect(cornerRadius: Theme.Radius.soft))
+        .padding(.horizontal, Theme.pageMargin)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
         .accessibilityLabel(title)

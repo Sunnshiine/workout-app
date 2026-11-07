@@ -27,7 +27,7 @@ import Testing
     (.setOf, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 400)),
     (.railChipValue, Theme.TypeStyle(face: .sourceSans3, size: 17, weight: 700)),
     (.railChipGlyph, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 400)),
-    (.fieldLabel, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
+    (.fieldLabel, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3)),
     (.coachNote, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.5)),
     (.runline, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
     (.runlineSecondary, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 400)),
@@ -35,7 +35,7 @@ import Testing
     (.queuePill, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 600)),
     (.historyChip, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 600)),
     (.blockTitle, Theme.TypeStyle(face: .sourceSans3, size: 28, weight: 700)),
-    (.cadence, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
+    (.cadence, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3)),
     (.statsValue, Theme.TypeStyle(face: .sourceSans3, size: 28, weight: 700)),
     (.statsKey, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
     (.sheetCell, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 400))

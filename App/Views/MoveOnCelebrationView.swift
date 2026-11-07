@@ -4,14 +4,17 @@ struct MoveOnCelebrationView: View {
     let onDismiss: () -> Void
 
     @Environment(\.themePalette) private var palette
+    @State private var isArriving: Bool
     @State private var presentation: MoveOnCelebrationPresentation
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     init(
         session: Session,
         quoteText: String? = nil,
+        arrivesOverTheStage: Bool,
         onDismiss: @escaping () -> Void
     ) {
+        _isArriving = State(initialValue: arrivesOverTheStage)
         _presentation = State(
             initialValue: MoveOnCelebrationPresentation(session: session, quoteText: quoteText)
         )
@@ -22,6 +25,8 @@ struct MoveOnCelebrationView: View {
         ZStack {
             palette.paperBackground
                 .ignoresSafeArea()
+                .opacity(isArriving ? 0 : 1)
+                .animation(.easeOut(duration: 0.12), value: isArriving)
 
             // At an accessibility text size the composition outgrows the screen, so it scrolls and
             // Move On stays pinned under it, in reach without a scroll.
@@ -46,6 +51,7 @@ struct MoveOnCelebrationView: View {
             .accessibilityAddTraits(.isModal)
         }
         .preferredColorScheme(palette.preferredColorScheme)
+        .onAppear { isArriving = false }
         .task {
             HapticPlayer.shared.play(.moveOn)
             isTitleFocused = true
@@ -54,35 +60,40 @@ struct MoveOnCelebrationView: View {
 
     private func column(endingInContinue: Bool) -> some View {
         VStack(spacing: 0) {
-            header
+            // Arrives once the paper has covered the stage, so no title draws over another.
+            Group {
+                header
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 12)
 
-            Text(presentation.titleText)
-                .themeFont(.ceremonyTitle)
-                .foregroundStyle(palette.textPrimary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .accessibilityAddTraits(.isHeader)
-                .accessibilityFocused($isTitleFocused)
-                .accessibilityIdentifier("move-on-celebration-title")
+                Text(presentation.titleText)
+                    .themeFont(.ceremonyTitle)
+                    .foregroundStyle(palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityFocused($isTitleFocused)
+                    .accessibilityIdentifier("move-on-celebration-title")
 
-            // The bird perches above the branch's frame, so the air keeps it off the title.
-            CeremonyBranch()
-                .padding(.top, 28)
+                // The bird perches above the branch's frame, so the air keeps it off the title.
+                CeremonyBranch()
+                    .padding(.top, 28)
 
-            Text(presentation.quoteText)
-                .themeFont(.coachNote)
-                .foregroundStyle(palette.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-                .padding(.top, 18)
-                .accessibilityIdentifier("move-on-celebration-coach-line")
+                Text(presentation.quoteText)
+                    .themeFont(.coachNote)
+                    .foregroundStyle(palette.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 320)
+                    .padding(.top, 18)
+                    .accessibilityIdentifier("move-on-celebration-coach-line")
 
-            statsRow
-                .padding(.top, 28)
+                statsRow
+                    .padding(.top, 28)
 
-            Spacer(minLength: 12)
+                Spacer(minLength: 12)
+            }
+            .opacity(isArriving ? 0 : 1)
+            .animation(.easeOut(duration: 0.2).delay(0.1), value: isArriving)
 
             if endingInContinue {
                 continueButton
@@ -123,8 +134,16 @@ struct MoveOnCelebrationView: View {
 
     private var continueButton: some View {
         Button(action: onDismiss) {
-            Image(systemName: "sunrise")
-                .imageScale(.large)
+            // Move On's own capsule, opaque from the first frame: only its label changes under the press.
+            Text("Move On")
+                .opacity(isArriving ? 1 : 0)
+                .animation(.easeOut(duration: 0.1), value: isArriving)
+                .overlay {
+                    Image(systemName: "sunrise")
+                        .imageScale(.large)
+                        .opacity(isArriving ? 0 : 1)
+                        .animation(.easeOut(duration: 0.16).delay(0.08), value: isArriving)
+                }
                 .logCapsuleMetrics()
                 .foregroundStyle(palette.actionText)
                 .background(palette.actionFill, in: .capsule)

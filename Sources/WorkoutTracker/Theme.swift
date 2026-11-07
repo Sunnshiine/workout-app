@@ -40,12 +40,12 @@ enum Theme {
         static let activeSetCard: CGFloat = 43
         // Concentric with the day tiles inside it: tile 15 + the card's 16pt `blockFocusCardPadding`.
         static let focusCard: CGFloat = 31
-        // Collapsed week cards, already concentric: mini 6 + the 14pt `blockWeekCardPadding`.
+        // Collapsed week cards, concentric: mini 4 + the 16pt `blockWeekCardPadding`.
         static let card: CGFloat = 20
         static let rail: CGFloat = 18  // reps/RPE rails
         static let tile: CGFloat = 15  // day tiles
         static let cell: CGFloat = 14  // rail chips
-        static let mini: CGFloat = 6  // week mini-chips
+        static let mini: CGFloat = 4  // week mini-chips
     }
 
     // MARK: - Motion & haptics (token sheet §7)
@@ -109,6 +109,7 @@ enum Theme {
         static let holdToSkipReveal = 0.25  // reveal at 250ms
         static let holdToSkipCommit = 0.85  // commit at 850ms
         static let holdToSkipRetreat = 0.2
+        static let briefSyncStatusDelay = 0.5  // a state must hold this long to reach the header
         static let holdToSkipLoggedCommit = 0.9  // logged-state hold
     }
 
@@ -145,7 +146,7 @@ enum Theme {
     static let blockTileCurrentStroke: CGFloat = 1.5  // the current tile's rim
     static let blockTileGhostStroke: CGFloat = 1.5  // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
-    static let blockWeekCardPadding: CGFloat = 14
+    static let blockWeekCardPadding: CGFloat = 16
     static let blockFocusCardPadding: CGFloat = 16
 
     // MARK: - Sheet tab Day cards

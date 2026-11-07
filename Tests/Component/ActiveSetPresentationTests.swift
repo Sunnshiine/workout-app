@@ -18,18 +18,14 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationShowsTheLogTitleBeforeAHold() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Log 185×5@8")
 
-    #expect(presentation.logOpacity == 1)
-    #expect(presentation.skipOpacity == 0)
     #expect(presentation.accessibilityLabel == "Log 185×5@8")
     #expect(presentation.accessibilityValue == "")
     #expect(presentation.tone == .primary)
 }
 
-@Test func holdToSkipButtonPresentationFadesTowardSkippedState() {
+@Test func holdToSkipButtonPresentationReadsSkippedOnceAHoldHasStarted() {
     let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log 185×5@8")
 
-    #expect(abs(presentation.logOpacity - 0.35) < 0.001)
-    #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
     #expect(presentation.accessibilityValue == "65% Skip")
 }
@@ -37,7 +33,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationKeepsIncompleteLogIdleStateClean() {
     let presentation = HoldToSkipButtonPresentation(progress: 0, logTitle: "Choose RPE to log", canLog: false)
 
-    #expect(presentation.skipOpacity == 0)
     #expect(presentation.tone == .incomplete)
     #expect(presentation.accessibilityHint == "Double tap to show what is missing. Press and hold to skip this Set.")
 }
@@ -45,7 +40,6 @@ private func activeSetPresentationContainer() throws -> ModelContainer {
 @Test func holdToSkipButtonPresentationShowsSkippedFeedbackOnlyDuringHoldProgress() {
     let presentation = HoldToSkipButtonPresentation(progress: 0.65, logTitle: "Log", canLog: false)
 
-    #expect(abs(presentation.skipOpacity - 0.65) < 0.001)
     #expect(presentation.accessibilityLabel == "Skipped")
 }
 
@@ -238,14 +232,14 @@ struct SetCardPresentationTests {
                 "logging a skipped Set": [.skipped, .skipped, .skipped],
                 "logging a logged Set": [.log, .log, .log],
                 "reviewing a structured Set Log": [
-                    .logged(line: "185x5@8"), .incompleteDraft, .logged(line: "185x5@8")
+                    .logged(line: "185 × 5 @8"), .incompleteDraft, .logged(line: "185 × 5 @8")
                 ],
                 "reviewing an Unstructured Set Log": [
                     .logged(line: "BW and vest for 12"),
                     .logged(line: "BW and vest for 12"),
                     .logged(line: "BW and vest for 12")
                 ],
-                "holding a Set logged by speech": [.logged(line: "185x5@8"), .logged(line: "185x5@8"), .logged(line: "185x5@8")],
+                "holding a Set logged by speech": [.logged(line: "185 × 5 @8"), .logged(line: "185 × 5 @8"), .logged(line: "185 × 5 @8")],
                 "holding a Set skipped by speech": [.skipped, .skipped, .skipped]
             ]
         )
@@ -391,7 +385,7 @@ struct SetCardPresentationTests {
 
     let presentation = LastPerformedCardPresentation(entry: entry)
 
-    #expect(presentation.resultText == "25x12@9")
+    #expect(presentation.resultText == "25×12 @9")
     #expect(presentation.sourceText == "W4 D3")
 }
 
@@ -435,7 +429,7 @@ struct SetCardPresentationTests {
         )
     )
 
-    #expect(presentation.resultText == "185x7@6")
+    #expect(presentation.resultText == "185×7 @6")
     #expect(presentation.sourceText == "W3 D1")
     withExtendedLifetime(container) {}
 }
@@ -490,4 +484,17 @@ struct SetCardPresentationTests {
 
     let presentation = LastPerformedCardPresentation(exercise: exercise, lookup: snapshot)
     #expect(presentation?.matchedName == nil)
+}
+
+@Test func lastPerformedRespellsItsSetLogsAndLeavesFreeTextAsTheSheetWroteIt() {
+    let presentation = LastPerformedCardPresentation(
+        entry: LastPerformedEntry(
+            exerciseName: "Back Squat",
+            resultText: "245x5@6, 255x5@7, felt heavy",
+            performedOn: Date(timeIntervalSinceReferenceDate: 0),
+            source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
+        )
+    )
+
+    #expect(presentation.resultText == "245×5 @6, 255×5 @7, felt heavy")
 }

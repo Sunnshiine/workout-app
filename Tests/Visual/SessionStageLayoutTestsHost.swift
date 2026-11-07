@@ -230,6 +230,14 @@ enum SessionPageHost {
         let probe = FrameProbe()
         let page = SessionPage(session: session, coordinator: coordinator, restTimer: RestTimer(), banner: .clear, probe: probe)
         let lookup = LastPerformedLookupStore(context: scenario.context)
+        try lookup.ingest([
+            LastPerformedEntry(
+                exerciseName: exercises[0].exerciseName,
+                resultText: "1025.5x1@10, 1015x1@9.5, felt heavy belt off knees caved on rep three",
+                performedOn: Date(timeIntervalSinceReferenceDate: 90),
+                source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
+            )
+        ])
         return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
             try frames(in: window, focused: exercises[0], probe: probe)
         }

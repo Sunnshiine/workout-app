@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The full Session queue in a medium sheet: every stage item in Session order
-/// with its Set dots, the one on stage marked "Now", and Move On in the footer
+/// with its Set dots, the one on stage in a rimmed capsule, and Move On in the footer
 /// when the Session can advance. Tapping a row brings it on stage, a finished one with its logged
 /// Set open for review.
 struct SessionQueueSheet: View {
@@ -144,7 +144,7 @@ struct SessionQueueSheet: View {
             jump(to: row)
         } label: {
             rowLabel(for: row) {
-                nowLabel(for: row)
+                EmptyView()
             }
         }
         .buttonStyle(.plain)
@@ -154,6 +154,8 @@ struct SessionQueueSheet: View {
                 Capsule().fill(palette.surface)
             }
         }
+        .overlay { onStageRim(for: row) }
+        .accessibilityValue(row.isOnStage ? "Now" : "")
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
     }
 
@@ -164,12 +166,11 @@ struct SessionQueueSheet: View {
         }
     }
 
+    /// The bud's rim, the mark of the current thing on the Block grid too.
     @ViewBuilder
-    private func nowLabel(for row: SessionQueue.Row) -> some View {
+    private func onStageRim(for row: SessionQueue.Row) -> some View {
         if row.isOnStage {
-            Text("Now")
-                .themeFont(.fieldLabel)
-                .foregroundStyle(palette.actionInk)
+            Capsule().strokeBorder(palette.tileCurrentBorder, lineWidth: 1)
         }
     }
 
@@ -188,7 +189,7 @@ struct SessionQueueSheet: View {
                     .padding(.leading, 14)
 
                 rowLabel(for: row) {
-                    nowLabel(for: row)
+                    EmptyView()
                 }
             }
             .padding(.trailing, Self.unlinkButtonSize + 4)
@@ -197,6 +198,8 @@ struct SessionQueueSheet: View {
         .buttonStyle(.plain)
         .disabled(row.jumpTarget == nil)
         .background(Capsule().fill(palette.surface))
+        .overlay { onStageRim(for: row) }
+        .accessibilityValue(row.isOnStage ? "Now" : "")
         .dimmedWhenUnavailable(row.pairingRole)
         .accessibilityIdentifier("stage-queue-row-\(row.id)")
         .overlay(alignment: .trailing) {

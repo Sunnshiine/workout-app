@@ -197,7 +197,7 @@ private struct SheetTabGrid: View {
                     Text(column.label)
                         .themeFont(.historyChip)
                         .foregroundStyle(palette.textSecondary)
-                        .lineLimit(2)
+                        .lineLimit(3)
                     Text(column.letter)
                         .themeFont(.historyChip)
                         .foregroundStyle(palette.textSecondary.opacity(0.6))

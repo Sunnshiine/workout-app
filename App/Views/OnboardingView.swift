@@ -25,7 +25,7 @@ struct OnboardingView: View {
                 // no glass card in the flow (DESIGN.md §5.8).
                 connectScreen
             case .sheetPicker, .urlEntry:
-                VStack(spacing: 0) {
+                ZStack {
                     if step == .sheetPicker {
                         SheetPickerView(
                             client: GoogleSheetsClient.forCurrentEnvironment(),
@@ -36,14 +36,16 @@ struct OnboardingView: View {
                                 withAnimation(stepAnimation) { showsURLFallback = true }
                             }
                         )
-                        .transition(stepTransition(from: .leading))
+                        .transition(stepTransition)
                     } else {
                         urlEntryCard
-                            .transition(stepTransition(from: .trailing))
+                            .transition(stepTransition)
                     }
                 }
+                .trainingSheetCard()
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(palette.paperBackground.ignoresSafeArea())
                 // Signing in only cross-fades, so the first picker never drifts in as if going back.
                 .transition(.opacity)
             }
@@ -66,13 +68,12 @@ struct OnboardingView: View {
 
     /// The URL card sits a step ahead of the picker, so each drifts toward its own side, the way
     /// the Back chevron points, and returns along the same path.
-    private func stepTransition(from edge: HorizontalEdge) -> AnyTransition {
-        guard !reduceMotion else { return .opacity }
-        let drift = AnyTransition.offset(x: edge == .leading ? -24 : 24).combined(with: .opacity)
-        // The old step clears first, so the two never read as one double-exposed card.
-        return .asymmetric(
-            insertion: drift.animation(stepAnimation.delay(0.08)),
-            removal: drift.animation(.easeOut(duration: 0.12))
+    /// The card holds its surface while its height follows the step. The old content clears first,
+    /// so the two never read as one double exposure.
+    private var stepTransition: AnyTransition {
+        .asymmetric(
+            insertion: .opacity.animation(.easeOut(duration: 0.18).delay(0.1)),
+            removal: .opacity.animation(.easeOut(duration: 0.1))
         )
     }
 
@@ -155,10 +156,19 @@ struct OnboardingView: View {
         let fieldName = "Google Sheet URL"
         return VStack(spacing: 20) {
             HStack(spacing: 12) {
-                BorderedCircleIconButton(label: "Back", systemImage: "chevron.left") {
+                Button {
                     urlError = false
                     withAnimation(stepAnimation) { showsURLFallback = false }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .themeFont(.queuePill)
+                        .foregroundStyle(palette.actionInk)
+                        .frame(width: 44, height: 44)
+                        .background(palette.pillFill, in: .circle)
+                        .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
                 }
+                .buttonStyle(.pressScale)
+                .accessibilityLabel("Back")
                 .accessibilityIdentifier("onboarding-url-back-button")
 
                 Text("Paste your sheet URL")
@@ -198,13 +208,16 @@ struct OnboardingView: View {
                 Text("Save")
                     .logCapsuleMetrics()
                     .foregroundStyle(connection.canSaveSheetURL(urlText) ? palette.actionText : palette.textSecondary)
-                    .background(connection.canSaveSheetURL(urlText) ? palette.actionFill : palette.railFill, in: .capsule)
+                    .background(connection.canSaveSheetURL(urlText) ? palette.actionFill : palette.pillFill, in: .capsule)
+                    .overlay {
+                        if !connection.canSaveSheetURL(urlText) {
+                            Capsule().strokeBorder(palette.pillStroke, lineWidth: 1)
+                        }
+                    }
             }
             .buttonStyle(.pressScale)
             .disabled(!connection.canSaveSheetURL(urlText))
         }
-        .padding()
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     // MARK: - Safe selection
@@ -287,9 +300,6 @@ struct SheetPickerView: View {
                 .foregroundStyle(palette.actionInk)
             }
         }
-        .padding()
-        .frame(maxWidth: 520)
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
         .task {
             guard store == nil else { return }
             let pickerStore = SheetPickerStore(
@@ -419,11 +429,28 @@ private struct SheetPickerRow: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.card))
-            .themeElevation(palette.lighting.raisedControlShadow, in: .rect(cornerRadius: Theme.Radius.card))
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.tile))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)
+    }
+}
+
+extension View {
+    /// The card a step of choosing a Training Sheet sits on, concentric with the rows inside it.
+    func trainingSheetCard() -> some View {
+        modifier(TrainingSheetCard())
+    }
+}
+
+private struct TrainingSheetCard: ViewModifier {
+    @Environment(\.themePalette) private var palette
+
+    func body(content: Content) -> some View {
+        content
+            .padding()
+            .frame(maxWidth: 520)
+            .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.soft))
     }
 }
 
