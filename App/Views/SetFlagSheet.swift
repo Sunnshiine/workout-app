@@ -7,38 +7,44 @@ struct SetFlagSheet: View {
     let onRaise: (SetFlag) -> Void
     @Environment(\.themePalette) private var palette
     @State private var draft: SetFlagDraft
+    @State private var typedWords: String
     @FocusState private var isWordsFocused: Bool
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     private static let chipHeight: CGFloat = 56
     private static let chipSpacing: CGFloat = 10
+    private static let raiseButtonID = "set-flag-raise-button"
 
     init(presentation: SetFlagSheetPresentation, draft: SetFlagDraft, onRaise: @escaping (SetFlag) -> Void) {
         self.presentation = presentation
         self.onRaise = onRaise
         _draft = State(initialValue: draft)
+        _typedWords = State(initialValue: draft.words)
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                kinds
-                wordsField
-                if !presentation.raisedFlags.isEmpty {
-                    raisedFlags
+        ScrollViewReader { scroll in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    header
+                    kinds
+                    wordsField
+                    raiseButton
+                        .id(Self.raiseButtonID)
+                    if !presentation.raisedFlags.isEmpty {
+                        raisedFlags
+                    }
                 }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .contentShape(.rect)
-        .onTapGesture { isWordsFocused = false }
-        .safeAreaInset(edge: .bottom) {
-            raiseButton
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
+            .scrollDismissesKeyboard(.interactively)
+            .contentShape(.rect)
+            .onTapGesture { isWordsFocused = false }
+            // A long name at the largest text can put the capsule behind the keyboard as the words grow,
+            // or under the sheet's edge when the keyboard closes.
+            .onChange(of: draft.words) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
+            .onChange(of: isWordsFocused) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
@@ -100,7 +106,7 @@ struct SetFlagSheet: View {
     private var wordsField: some View {
         TextField(
             "Words for your coach",
-            text: words,
+            text: $typedWords,
             prompt: Text(draft.placeholder).foregroundStyle(palette.textSecondary),
             axis: .vertical
         )
@@ -115,18 +121,16 @@ struct SetFlagSheet: View {
         .frame(minHeight: Self.chipHeight)
         .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
         .accessibilityIdentifier("set-flag-words")
+        .onChange(of: typedWords, takeDraftsWords)
     }
 
-    /// A vertical field takes Return as a new line, and a flag's words stay on one, so Return closes
-    /// the keyboard instead.
-    private var words: Binding<String> {
-        Binding(
-            get: { draft.words },
-            set: { typed in
-                if typed.contains(where: \.isNewline) { isWordsFocused = false }
-                draft.words = typed
-            }
-        )
+    /// A vertical field takes Return as a new line, and a flag's words stay on one, so Return closes the
+    /// keyboard instead. The draft's words go back into the field so it never shows what the flag dropped
+    /// past its length.
+    private func takeDraftsWords() {
+        if typedWords.contains(where: \.isNewline) { isWordsFocused = false }
+        draft.words = typedWords
+        typedWords = draft.words
     }
 
     private var raisedFlags: some View {
