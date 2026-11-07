@@ -44,7 +44,7 @@ private func anExercise(_ name: String, in session: Session) throws -> Exercise 
     await clock.waitForSleep()
     await clock.advance()
 
-    #expect(coordinator.setFlagSheet?.setLine == "Set 1 · 185x6@7")
+    #expect(coordinator.setFlagSheet?.setLine == "Set 1 · 185×6 @7")
     #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
     #expect(ledger.motions == [.momentumFlow])
 }
