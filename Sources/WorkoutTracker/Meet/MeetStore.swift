@@ -22,10 +22,10 @@ final class MeetStore {
     }
 
     var meet: Meet? { record?.meet }
-    var canUndoMark: Bool { record?.beforeLastMark != nil }
+    var canUndo: Bool { record?.beforeLastGesture != nil }
 
     func start(_ meet: Meet) {
-        save(MeetRecord(meet: meet, beforeLastMark: nil))
+        save(MeetRecord(meet: meet, beforeLastGesture: nil))
     }
 
     func delete() {
@@ -33,15 +33,19 @@ final class MeetStore {
         defaults.removeValue(forKey: Self.key)
     }
 
-    /// A change to the Plan, which ends any chance to take back a mark.
+    /// A change to the Plan, which ends any chance to take back a gesture.
     func edit(_ change: (inout Meet) -> Void) {
         guard var meet else { return }
         change(&meet)
-        save(MeetRecord(meet: meet, beforeLastMark: nil))
+        save(MeetRecord(meet: meet, beforeLastGesture: nil))
     }
 
+    /// The athlete keeps correcting this count, so a correction leaves the last gesture open to take back.
     func setAttemptsOut(_ count: Int) {
-        edit { $0.setAttemptsOut(count) }
+        guard let record else { return }
+        var meet = record.meet
+        meet.setAttemptsOut(count)
+        save(MeetRecord(meet: meet, beforeLastGesture: record.beforeLastGesture))
     }
 
     func mark(_ result: AttemptResult) throws(MeetRefusal) {
@@ -53,7 +57,7 @@ final class MeetStore {
     }
 
     func submitNext(_ kilograms: Kilograms) throws(MeetRefusal) {
-        try apply { meet throws(MeetRefusal) in try meet.submitNext(kilograms, at: now()) }
+        try takeBackable { meet throws(MeetRefusal) in try meet.submitNext(kilograms, at: now()) }
     }
 
     func acceptTableEntry() throws(MeetRefusal) {
@@ -62,25 +66,19 @@ final class MeetStore {
     }
 
     func changeOnDeck(to kilograms: Kilograms) throws(MeetRefusal) {
-        try apply { meet throws(MeetRefusal) in try meet.changeOnDeck(to: kilograms, at: now()) }
+        try takeBackable { meet throws(MeetRefusal) in try meet.changeOnDeck(to: kilograms, at: now()) }
     }
 
-    func undoMark() {
-        guard let before = record?.beforeLastMark else { return }
-        save(MeetRecord(meet: before, beforeLastMark: nil))
+    func undo() {
+        guard let before = record?.beforeLastGesture else { return }
+        save(MeetRecord(meet: before, beforeLastGesture: nil))
     }
 
     private func takeBackable(_ gesture: (inout Meet) throws(MeetRefusal) -> Void) throws(MeetRefusal) {
         guard var meet else { throw .noAttemptOnDeck }
         let before = meet
         try gesture(&meet)
-        save(MeetRecord(meet: meet, beforeLastMark: before))
-    }
-
-    private func apply(_ gesture: (inout Meet) throws(MeetRefusal) -> Void) throws(MeetRefusal) {
-        guard var meet else { throw .noAttemptOnDeck }
-        try gesture(&meet)
-        save(MeetRecord(meet: meet, beforeLastMark: nil))
+        save(MeetRecord(meet: meet, beforeLastGesture: before))
     }
 
     private func save(_ next: MeetRecord) {

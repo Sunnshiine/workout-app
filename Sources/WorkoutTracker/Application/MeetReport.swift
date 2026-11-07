@@ -230,7 +230,7 @@ public struct MeetReport: Encodable, Equatable, Sendable {
     public let lifts: [LiftLine]
     public let next: Next
     public let total: Double?
-    public let canUndoMark: Bool
+    public let canUndo: Bool
 }
 
 extension Kilograms {
@@ -239,7 +239,7 @@ extension Kilograms {
 }
 
 extension MeetReport {
-    init(_ meet: Meet, canUndoMark: Bool, now: Date, calendar: Calendar) {
+    init(_ meet: Meet, canUndo: Bool, now: Date, calendar: Calendar) {
         date = meet.date.description
         daysUntil = meet.date.daysUntil(from: now, in: calendar)
         federation = meet.federation.rawValue
@@ -250,7 +250,7 @@ extension MeetReport {
         lifts = meet.lifts.map(LiftLine.init)
         next = Next(meet.stage(at: now))
         total = meet.total?.wire
-        self.canUndoMark = canUndoMark
+        self.canUndo = canUndo
     }
 }
 
@@ -397,7 +397,7 @@ extension WorkoutApplication {
         case .submit(let text): try meet.submitNext(try meetWeight(text))
         case .acceptTableEntry: try meet.acceptTableEntry()
         case .pass: try meet.pass()
-        case .undo: meet.undoMark()
+        case .undo: meet.undo()
         case .change(let text): try meet.changeOnDeck(to: try meetWeight(text))
         }
     }
@@ -411,6 +411,6 @@ extension WorkoutApplication {
 
     private func meetReport() throws -> MeetReport {
         guard let current = meet.meet else { throw ApplicationError.noMeet }
-        return MeetReport(current, canUndoMark: meet.canUndoMark, now: meet.now(), calendar: .current)
+        return MeetReport(current, canUndo: meet.canUndo, now: meet.now(), calendar: .current)
     }
 }

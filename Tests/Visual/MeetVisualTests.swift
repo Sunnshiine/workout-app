@@ -6,8 +6,8 @@ import UIKit
 
 @testable import WorkoutTracker
 
-/// The Meet's pages in each stage of the day. The clock is frozen, so a window's numeral and bar are
-/// the same on every run.
+/// The Meet's pages in each stage of the day. The clock is frozen, so a window's numeral is the same
+/// on every run.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct MeetVisualTests {

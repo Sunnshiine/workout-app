@@ -111,21 +111,22 @@ struct FederationRules: Equatable, Sendable {
             (
                 "Each opener takes \(openerChanges.value) change, until \(deadline.minutesBeforeFirstRound) minutes "
                     + "before the first round, or \(deadline.attemptsBeforePreviousFlightEnds) attempts "
-                    + "before the flight ahead of you ends.",
+                    + "before the Flight ahead of you ends.",
                 openerDeadline.rule
             ),
             ("A third deadlift takes \(thirdDeadliftChanges.value) changes.", thirdDeadliftChanges.rule),
-            ("Every other second and third is locked once it is in.", lockedAttempts),
+            ("No other second or third can change once it is in.", lockedAttempts),
             (
                 "The bar loads in \(barMultiple.value.label). A record attempt may take \(recordMultiple.value.label).",
                 barMultiple.rule
             ),
             ("Never lower than your last attempt.", neverBelowPrevious),
-            (
-                "\(interval.value.oneFlightMinutes) minutes between lifts with one flight, \(interval.value.moreFlightsMinutes) with more.",
-                interval.rule
-            )
+            (intervalLine, interval.rule)
         ]
+    }
+
+    var intervalLine: String {
+        "\(interval.value.oneFlightMinutes) minutes between lifts with one Flight, \(interval.value.moreFlightsMinutes) with more."
     }
 
     /// What the table enters when the Attempt Window closes with no card.

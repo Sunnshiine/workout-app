@@ -49,24 +49,87 @@ struct MeetStoreTests {
         let store = try planned()
         store.setAttemptsOut(0)
         try store.mark(.noLift)
-        #expect(store.canUndoMark)
+        #expect(store.canUndo)
 
-        store.undoMark()
+        store.undo()
 
-        #expect(!store.canUndoMark)
+        #expect(!store.canUndo)
         #expect(store.meet?.attemptWindow == nil)
         #expect(store.meet?.lift(.squat).attempts[0].state == .planned)
         #expect(store.meet?.countedAttemptsOut == 0)
     }
 
-    @Test func theNextGestureEndsTheChanceToUndo() throws {
+    @Test func undoTakesBackASubmitAndReopensItsWindow() throws {
+        let store = try planned()
+        store.setAttemptsOut(0)
+        try store.mark(.good)
+        try store.submitNext(Kilograms(whole: 195))
+        #expect(store.canUndo)
+
+        store.undo()
+
+        #expect(store.meet?.attemptWindow != nil)
+        #expect(store.meet?.lift(.squat).attempts[1].kilograms == Kilograms(whole: 190))
+    }
+
+    @Test func undoGoesBackOneGestureOnly() throws {
         let store = try planned()
         store.setAttemptsOut(0)
         try store.mark(.good)
         try store.submitNext(Kilograms(whole: 190))
-        #expect(!store.canUndoMark)
-        store.undoMark()
+
+        store.undo()
+        #expect(!store.canUndo)
+        store.undo()
+
         #expect(store.meet?.lift(.squat).attempts[0].state == .good)
+    }
+
+    @Test func aMisCountedTapLeavesTheLastGestureOpenToTakeBack() throws {
+        let store = try planned()
+        store.setAttemptsOut(0)
+        try store.mark(.noLift)
+        try store.submitNext(Kilograms(whole: 180))
+        store.setAttemptsOut(5)
+        #expect(store.canUndo)
+
+        store.undo()
+
+        #expect(store.meet?.attemptWindow != nil)
+    }
+
+    @Test func anAnswerAtExpiryCanBeTakenBack() throws {
+        let store = try planned()
+        store.setAttemptsOut(0)
+        try store.mark(.good)
+        clock.date.addTimeInterval(120)
+        try store.acceptTableEntry()
+        #expect(store.meet?.lift(.squat).attempts[1].kilograms == Kilograms(hundredths: 18250))
+
+        store.undo()
+
+        #expect(store.meet?.lift(.squat).attempts[1].kilograms == Kilograms(whole: 190))
+        #expect(store.meet?.attemptWindow != nil)
+    }
+
+    @Test func aChangeToTheAttemptOnDeckCanBeTakenBack() throws {
+        let store = try planned()
+        try store.changeOnDeck(to: Kilograms(whole: 177))
+        #expect(store.canUndo)
+
+        store.undo()
+
+        #expect(store.meet?.lift(.squat).attempts[0].kilograms == Kilograms(whole: 180))
+    }
+
+    @Test func anEditToThePlanEndsTheChanceToUndo() throws {
+        let store = try planned()
+        store.setAttemptsOut(0)
+        try store.mark(.good)
+
+        store.edit { $0.liftersInFlight = 9 }
+
+        #expect(!store.canUndo)
     }
 
     @Test func anExpiredWindowOverwritesNothingUntilTheAthleteAnswers() throws {

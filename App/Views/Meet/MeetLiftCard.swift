@@ -22,9 +22,11 @@ struct MeetLiftCard: View {
     @Environment(\.themePalette) private var palette
     @FocusState private var isTypingRack: Bool
 
+    private static let cellPadding: CGFloat = 10
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(lift.lift.meetName)
+            Text(lift.lift.name)
                 .themeFont(.heading)
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityAddTraits(.isHeader)
@@ -36,17 +38,18 @@ struct MeetLiftCard: View {
         }
         .padding(Theme.cardSpacing)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
-        .themeElevation(palette.surfaceShadow, in: .rect(cornerRadius: Theme.Radius.card))
+        .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
+        .themeElevation(palette.lighting.weekCardElevation, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     private var attemptColumns: some View {
         HStack(alignment: .top, spacing: 8) {
             ForEach(AttemptOrdinal.allCases, id: \.self) { ordinal in
                 attemptColumn(ordinal)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -61,7 +64,7 @@ struct MeetLiftCard: View {
             }
             .buttonStyle(.pressScale)
             .disabled(attempt.isMarked)
-            .accessibilityLabel("\(lift.lift.meetName) \(ordinal.name.lowercased())")
+            .accessibilityLabel("\(lift.lift.name) \(ordinal.name.lowercased())")
             .accessibilityValue("\(attempt.kilograms.spoken), \(attempt.kilograms.poundsLabel), \(attempt.state.spoken)")
             .accessibilityIdentifier(identifier)
         } else if ordinal.rawValue == lift.attempts.count {
@@ -71,7 +74,7 @@ struct MeetLiftCard: View {
                 blankLabel(ordinal, isNext: true)
             }
             .buttonStyle(.pressScale)
-            .accessibilityLabel("Enter \(lift.lift.meetName) \(ordinal.name.lowercased())")
+            .accessibilityLabel("Enter \(lift.lift.name) \(ordinal.name.lowercased())")
             .accessibilityIdentifier(identifier)
         } else {
             blankLabel(ordinal, isNext: false)
@@ -79,12 +82,25 @@ struct MeetLiftCard: View {
         }
     }
 
+    /// A fill says this can still be changed, so a marked Attempt goes without one.
     private func attemptLabel(_ ordinal: AttemptOrdinal, attempt: Attempt) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(ordinal.name)
-                .themeFont(.fieldLabel)
-                .foregroundStyle(palette.textSecondary)
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
+            HStack(spacing: 3) {
+                Text(ordinal.name)
+                    .themeFont(.fieldLabel)
+                    .foregroundStyle(palette.textSecondary)
+                if let glyph = attempt.state.markGlyph {
+                    Image(systemName: glyph)
+                        .themeFont(.fieldLabel)
+                        .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
+                }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                // Holds the line's baseline, so a numeral that shrinks to fit stays level with its neighbours.
+                Text(verbatim: "0")
+                    .themeFont(.statsValue)
+                    .hidden()
+                    .frame(width: 0)
                 Text(attempt.kilograms.numeral)
                     .themeFont(.statsValue)
                     .foregroundStyle(palette.textPrimary)
@@ -93,11 +109,7 @@ struct MeetLiftCard: View {
                 Text("kg")
                     .themeFont(.runlineSecondary)
                     .foregroundStyle(palette.textSecondary)
-                if let glyph = attempt.state.markGlyph {
-                    Image(systemName: glyph)
-                        .themeFont(.runline)
-                        .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
-                }
+                    .padding(.leading, 3)
             }
             Text(attempt.kilograms.poundsLabel)
                 .themeFont(.runlineSecondary)
@@ -105,37 +117,46 @@ struct MeetLiftCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .padding(Self.cellPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(attempt.isMarked ? .clear : palette.railFill, in: .rect(cornerRadius: Theme.Radius.cell))
         .contentShape(.rect)
     }
 
+    /// Only the next Attempt is an empty bed. One that cannot be entered yet stays a bare word.
     private func blankLabel(_ ordinal: AttemptOrdinal, isNext: Bool) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(ordinal.name)
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
-            RoundedRectangle(cornerRadius: Theme.Radius.cell)
-                .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                .overlay {
-                    if isNext {
-                        Image(systemName: "plus")
-                            .themeFont(.runline)
-                            .foregroundStyle(palette.textPrimary)
-                    }
-                }
-                .frame(height: 44)
+            if isNext {
+                Image(systemName: "plus")
+                    .themeFont(.runline)
+                    .foregroundStyle(palette.textPrimary)
+                    .frame(maxWidth: .infinity, minHeight: 36)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Self.cellPadding)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .overlay {
+            if isNext {
+                RoundedRectangle(cornerRadius: Theme.Radius.cell)
+                    .strokeBorder(
+                        palette.tileGhostStroke,
+                        style: StrokeStyle(lineWidth: Theme.blockTileGhostStroke, dash: [Theme.blockTileGhostDash])
+                    )
+            }
+        }
         .contentShape(.rect)
     }
 
     private var rackField: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Rack")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Rack Height")
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
             TextField(
-                lift.lift == .squat ? "14, racks in" : "8, safety 4, blocks",
+                "Rack Height",
                 text: Binding {
                     lift.rackHeights
                 } set: { text in
@@ -143,6 +164,7 @@ struct MeetLiftCard: View {
                     if text.contains("\n") { isTypingRack = false }
                     store.edit { $0.editLift(lift.lift) { $0.rackHeights = text.replacingOccurrences(of: "\n", with: "") } }
                 },
+                prompt: Text(lift.lift == .squat ? "14, racks in" : "8, safety 4, blocks").foregroundStyle(palette.textSecondary),
                 axis: .vertical
             )
             .themeFont(.coachNote)
@@ -150,19 +172,31 @@ struct MeetLiftCard: View {
             .lineLimit(1...4)
             .submitLabel(.done)
             .focused($isTypingRack)
-            .accessibilityLabel("\(lift.lift.meetName) rack height")
+            .accessibilityLabel("\(lift.lift.name) Rack Height")
             .accessibilityIdentifier("meet-rack-\(lift.lift.rawValue)")
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.cell))
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.Radius.cell)
+                    .strokeBorder(palette.pillStroke, lineWidth: 1)
+            }
+            .contentShape(.rect)
+            .onTapGesture { isTypingRack = true }
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .contentShape(.rect)
-        .onTapGesture { isTypingRack = true }
     }
 
     private var warmups: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Warm-up room")
-                .themeFont(.fieldLabel)
-                .foregroundStyle(palette.textSecondary)
+            HStack {
+                Text("Warm-up Room Plan")
+                Spacer(minLength: 8)
+                if !lift.warmupRoomPlan.isEmpty {
+                    Text("Attempts Out")
+                }
+            }
+            .themeFont(.fieldLabel)
+            .foregroundStyle(palette.textSecondary)
             ForEach(lift.warmupRoomPlan, id: \.self) { step in
                 Button {
                     onEdit(.step(lift.lift, step))
@@ -187,6 +221,7 @@ struct MeetLiftCard: View {
                 .accessibilityLabel("Add a warm-up step")
                 .accessibilityIdentifier("meet-add-step-\(lift.lift.rawValue)")
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
@@ -205,18 +240,20 @@ struct MeetLiftCard: View {
 
     private func stepRow(_ step: WarmupRoomStep) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(step.kilograms.numeral)
+            Text(step.kilograms.label)
                 .themeFont(.setNumber)
                 .foregroundStyle(palette.textPrimary)
             Text("× \(step.reps)")
                 .themeFont(.setOf)
                 .foregroundStyle(palette.textSecondary)
             Spacer(minLength: 8)
-            Text("\(step.attemptsOut) out")
-                .themeFont(.runlineSecondary)
+            Text("\(step.attemptsOut)")
+                .themeFont(.setOf)
                 .foregroundStyle(palette.textSecondary)
         }
+        .padding(.horizontal, Self.cellPadding)
         .frame(minHeight: 44)
+        .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.cell))
         .contentShape(.rect)
     }
 }
