@@ -278,3 +278,18 @@ import Testing
     #expect(restTimer.interval?.end == Date(timeIntervalSinceReferenceDate: 2_077))
     #expect(restTimer.label == "Superset rest")
 }
+
+@MainActor
+@Test func aWarmUpWalkLastsAsLongAsItsSessionStaysOnStage() throws {
+    let fixture = try makeActionFixture()
+    let steps = WarmupRamp.make(top: .pounds(135), inventory: .standard)
+    fixture.coordinator.warmupWalk.tap(rowAt: 2, of: steps, forExerciseOrder: 0)
+    fixture.coordinator.warmupWalk.pick(top: 225, forExerciseOrder: 1)
+
+    fixture.coordinator.view(fixture.session)
+    #expect(fixture.coordinator.warmupWalk.finishedCount(of: steps, forExerciseOrder: 0) == 3)
+
+    fixture.coordinator.view(makeSingleSetSession(dayNumber: 2).session)
+    #expect(fixture.coordinator.warmupWalk.finishedCount(of: steps, forExerciseOrder: 0) == 0)
+    #expect(fixture.coordinator.warmupWalk.pickedTop(forExerciseOrder: 1) == nil)
+}
