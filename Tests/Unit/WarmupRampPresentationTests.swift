@@ -158,7 +158,7 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
     @Test func aSetWithNoTopAsksForOneAndShowsNoRows() {
         let presentation = WarmupRampPresentation(entry: entry(prefill: nil), inventory: .standard, walk: WarmupWalk())
 
-        #expect(presentation.note == "Pick Set 1's weight.")
+        #expect(presentation.note == "Pick Set 1’s weight.")
         #expect(presentation.rows.isEmpty)
         #expect(presentation.perSide.isEmpty)
     }

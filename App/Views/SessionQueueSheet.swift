@@ -146,6 +146,10 @@ struct SessionQueueSheet: View {
 
             Spacer(minLength: 12)
 
+            if !isPairing, let entry = queue.warmupEntry {
+                WarmupRampButton(entry: entry, coordinator: coordinator, size: Self.headerButtonSize)
+            }
+
             if isPairing || queue.supersetSource != nil {
                 supersetHeaderButton
             }
