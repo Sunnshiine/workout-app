@@ -215,7 +215,11 @@ struct SmartValuePills: View {
     @ViewBuilder
     private func weightStepper(_ direction: WeightStepperButton.Direction, id: String) -> some View {
         if form.allowsWeightStepping {
-            WeightStepperButton(direction: direction, accessibilityIdentifier: id) {
+            WeightStepperButton(
+                direction: direction,
+                accessibilityLabel: direction == .decrement ? "Decrease weight" : "Increase weight",
+                accessibilityIdentifier: id
+            ) {
                 stepWeight(direction)
             }
         } else {

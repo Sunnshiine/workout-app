@@ -204,7 +204,11 @@ struct MeetWeightStepper: View {
                 // The selection's handle stands above the field's top edge.
                 .padding(.bottom, isTyping ? 14 : 0)
             HStack(spacing: 16) {
-                WeightStepperButton(direction: .decrement, accessibilityIdentifier: "meet-weight-down") { step { $0.stepDown() } }
+                WeightStepperButton(
+                    direction: .decrement,
+                    accessibilityLabel: "Decrease weight",
+                    accessibilityIdentifier: "meet-weight-down"
+                ) { step { $0.stepDown() } }
                 TextField(
                     "Kilograms",
                     text: $entry.text,
@@ -235,7 +239,11 @@ struct MeetWeightStepper: View {
                 }
                 .accessibilityLabel(spokenLabel)
                 .accessibilityIdentifier("meet-weight-field")
-                WeightStepperButton(direction: .increment, accessibilityIdentifier: "meet-weight-up") { step { $0.stepUp() } }
+                WeightStepperButton(
+                    direction: .increment,
+                    accessibilityLabel: "Increase weight",
+                    accessibilityIdentifier: "meet-weight-up"
+                ) { step { $0.stepUp() } }
             }
             ZStack {
                 Text(entry.pounds)

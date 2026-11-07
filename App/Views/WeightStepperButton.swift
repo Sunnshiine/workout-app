@@ -13,22 +13,6 @@ struct WeightStepperButton: View {
     let action: () -> Void
     @Environment(\.themePalette) private var palette
 
-    init(direction: Direction, accessibilityIdentifier: String, action: @escaping () -> Void) {
-        self.init(
-            direction: direction,
-            accessibilityLabel: direction == .decrement ? "Decrease weight" : "Increase weight",
-            accessibilityIdentifier: accessibilityIdentifier,
-            action: action
-        )
-    }
-
-    init(direction: Direction, accessibilityLabel: String, accessibilityIdentifier: String, action: @escaping () -> Void) {
-        self.direction = direction
-        self.accessibilityLabel = accessibilityLabel
-        self.accessibilityIdentifier = accessibilityIdentifier
-        self.action = action
-    }
-
     private var glyph: String {
         direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill"
     }
