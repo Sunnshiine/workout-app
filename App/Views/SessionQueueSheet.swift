@@ -15,6 +15,7 @@ struct SessionQueueSheet: View {
     @State private var movesOnWhenDismissed = false
     @State private var centeredRowID: String?
     @State private var rowCenters: [String: CGFloat] = [:]
+    @State private var wheelHeight: CGFloat = 0
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     private var isPairing: Bool {
@@ -100,7 +101,11 @@ struct SessionQueueSheet: View {
         .scrollTargetBehavior(
             WheelSnap(rowCenters: queue.wheelRows.compactMap { rowCenters[$0.id] }, freePastLastRow: showsOpenExercises)
         )
-        .onAppear { centeredRowID = queue.restingRowID }
+        // Sized from the scroll box, so the row is centred against the layout the wheel keeps.
+        .onScrollGeometryChange(for: CGFloat.self, of: \.containerSize.height) { _, height in
+            wheelHeight = height
+            centeredRowID = queue.restingRowID
+        }
         .onChange(of: queue.restingRowID) { recenter() }
         .onChange(of: isPairing) { recenter() }
         .mask {
@@ -125,7 +130,7 @@ struct SessionQueueSheet: View {
     /// Half the wheel's height past each end, so any row, however tall, can rest on the centre. These
     /// are views and not content margins, which would shrink the scroll view's box to one row's height.
     private var wheelEndSpace: some View {
-        Color.clear.containerRelativeFrame(.vertical) { height, _ in height / 2 }
+        Color.clear.frame(height: wheelHeight / 2)
     }
 
     private func recenter() {
