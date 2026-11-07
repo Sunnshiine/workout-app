@@ -122,10 +122,11 @@ extension SetCardSlot.Mode {
         }
     }
 
-    /// A review offers the flag here, because a Set logged by tap never reaches a More menu. Anywhere
-    /// else the control appears once the Set has a flag, to say where that flag stands.
+    /// A Set the athlete came back to offers the flag here. A held Set is on the card for four seconds
+    /// and keeps the flag under More, so no spoken Set grows a prompt, and a Pending Set has nothing
+    /// written to flag yet. Either still shows the control once it has a flag, to say where that stands.
     func showsSetFlagControl(for set: ExerciseSet) -> Bool {
-        cardMode == .reviewingLogged || set.setFlagStanding != nil
+        set.setFlagStanding != nil || (cardMode != .held && set.state != .pending)
     }
 
     func headAccessory(for set: ExerciseSet) -> SetCardHeadAccessory {

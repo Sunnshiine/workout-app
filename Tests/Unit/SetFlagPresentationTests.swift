@@ -3,13 +3,24 @@ import Testing
 
 @testable import WorkoutTracker
 
-@Test func aDraftMakesNoFlagUntilAKindIsChosen() {
+@Test func aDraftMakesNoFlagUntilAKindOrWordsAreGiven() {
     var draft = SetFlagDraft()
-    draft.words = "left hip"
+    draft.words = "   "
+    #expect(draft.kind == nil)
     #expect(draft.flag == nil)
 
     draft.kind = .pain
-    #expect(draft.flag == SetFlag(kind: .pain, text: "left hip"))
+    #expect(draft.flag == SetFlag(kind: .pain, text: nil))
+}
+
+@Test func wordsTypedBeforeAKindChooseOtherAndALaterChoiceKeepsThem() {
+    var draft = SetFlagDraft()
+    draft.words = "left hip"
+    #expect(draft.flag == SetFlag(kind: .other, text: "left hip"))
+
+    draft.kind = .pain
+    draft.words = "left hip pinch"
+    #expect(draft.flag == SetFlag(kind: .pain, text: "left hip pinch"))
 }
 
 @Test func aDraftOfOtherMakesNoFlagUntilItHasWords() {
@@ -74,7 +85,7 @@ private func sheetLine(state: SetState, log: SetLog?) throws -> String {
 }
 
 @MainActor
-@Test func theSheetListsTheFlagsAlreadyRaisedWithWhereEachStands() throws {
+@Test func theSheetListsTheFlagsAlreadyRaisedNewestFirstWithWhereEachStands() throws {
     let session = makeCoordinatorSession()
     let set = try secondBenchSet(in: session, state: .logged, log: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
     set.record(try #require(SetFlag(kind: .pain, text: "left hip")), standing: .landed)
@@ -82,26 +93,32 @@ private func sheetLine(state: SetState, log: SetLog?) throws -> String {
 
     let raised = SetFlagSheetPresentation(id: try SetCoordinates(of: set).id, set: set).raisedFlags
 
-    #expect(raised.map(\.sentence) == ["Pain: left hip", "Technique"])
-    #expect(raised.map(\.standing) == [.landed, .unsynced])
+    #expect(raised.map(\.sentence) == ["Technique", "Pain: left hip"])
+    #expect(raised.map(\.standing) == [.unsynced, .landed])
 }
 
 @MainActor
-@Test func aReviewAlwaysOffersTheFlagAndOtherModesOnlySayWhereAFlagStands() throws {
+@Test func aSetTheAthleteCameBackToOffersTheFlagAndAHeldOrPendingSetOnlySaysWhereOneStands() throws {
     let session = makeCoordinatorSession()
-    let plain = try secondBenchSet(in: session, state: .logged, log: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
-    let flagged = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
-    flagged.state = .skipped
-    flagged.record(try #require(SetFlag(kind: .pain, text: nil)), standing: .unsynced)
+    let logged = try secondBenchSet(in: session, state: .logged, log: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    let exercise = try #require(session.exercises.first { $0.order == 1 })
+    let pending = try #require(exercise.sets.first { $0.index == 0 })
+    let skipped = try #require(session.exercises.first { $0.order == 2 }?.sets.first)
+    skipped.state = .skipped
 
     let review = SetCardSlot.Mode.reviewingLogged(showsSavedConfirmation: false)
-    #expect(review.showsSetFlagControl(for: plain))
-    #expect(review.showsSetFlagControl(for: flagged))
+    #expect(review.showsSetFlagControl(for: logged))
+    #expect(SetCardSlot.Mode.logging.showsSetFlagControl(for: logged))
+    #expect(SetCardSlot.Mode.logging.showsSetFlagControl(for: skipped))
 
-    #expect(!SetCardSlot.Mode.heldAfterSpokenWrite.showsSetFlagControl(for: plain))
-    #expect(SetCardSlot.Mode.heldAfterSpokenWrite.showsSetFlagControl(for: flagged))
-    #expect(!SetCardSlot.Mode.logging.showsSetFlagControl(for: plain))
-    #expect(SetCardSlot.Mode.logging.showsSetFlagControl(for: flagged))
+    #expect(!SetCardSlot.Mode.logging.showsSetFlagControl(for: pending))
+    #expect(!SetCardSlot.Mode.heldAfterSpokenWrite.showsSetFlagControl(for: logged))
+
+    let flag = try #require(SetFlag(kind: .pain, text: nil))
+    pending.record(flag, standing: .unsynced)
+    logged.record(flag, standing: .unsynced)
+    #expect(SetCardSlot.Mode.logging.showsSetFlagControl(for: pending))
+    #expect(SetCardSlot.Mode.heldAfterSpokenWrite.showsSetFlagControl(for: logged))
 }
 
 @Test func theStandingsWordsMatchTheSyncLanguage() {
