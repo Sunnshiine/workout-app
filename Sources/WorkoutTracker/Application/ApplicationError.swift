@@ -85,6 +85,23 @@ extension ApplicationError {
         )
     }
 
+    static func invalidBar(_ raw: String) -> ApplicationError {
+        ApplicationError(
+            code: "invalid_bar",
+            message: "\"\(raw)\" is not a Bar. Use one of \(Bar.allCases.map(\.rawValue).joined(separator: ", ")).",
+            kind: .domain
+        )
+    }
+
+    static func invalidPlates(_ raw: String) -> ApplicationError {
+        ApplicationError(
+            code: "invalid_plates",
+            message: "\"\(raw)\" is not a list of plate sizes. Use any of "
+                + "\(PlateDenomination.allCases.map(\.rawValue).joined(separator: ",")), comma separated.",
+            kind: .domain
+        )
+    }
+
     public static func invalidSetLog(_ raw: String) -> ApplicationError {
         ApplicationError(
             code: "invalid_set_log",
