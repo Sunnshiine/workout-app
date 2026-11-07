@@ -81,6 +81,8 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
         XCTAssertTrue(trainingSheetRow.label.contains("Fixture Training Log"))
 
         let confirmSignOut = app.buttons["sign-out-confirm-button"]
+        app.swipeUp()
+        XCTAssertTrue(app.buttons["settings-sign-out-button"].appears(within: 3))
         app.buttons["settings-sign-out-button"].tap()
         XCTAssertTrue(app.staticTexts["You have unsynced changes.\nSign out anyway?"].appears(within: 3))
         XCTAssertEqual(confirmSignOut.label, "Sign Out")
