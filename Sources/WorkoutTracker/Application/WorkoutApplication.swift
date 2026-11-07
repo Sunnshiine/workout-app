@@ -16,6 +16,9 @@ public final class WorkoutApplication {
     let sheetsClient: any SheetsClient
     /// Every press's Dictation Record, whichever surface pressed.
     let dictationJournal: DictationJournal
+    /// Every Form Clip on this device, outside the model container, so a sync replacing the cached
+    /// Block touches none of them.
+    let formClips: FormClipLibrary
 
     static let schema = Schema([
         Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
@@ -26,6 +29,7 @@ public final class WorkoutApplication {
         let context = container.mainContext
         sheetsClient = environment.sheetsClient
         dictationJournal = DictationJournal(storage: environment.dictationRecords)
+        formClips = FormClipLibrary(directory: environment.formClips, tracker: VisionBarPathTracker(), now: environment.now)
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,

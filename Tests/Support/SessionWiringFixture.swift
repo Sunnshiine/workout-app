@@ -27,7 +27,13 @@ extension SessionWiring {
         liveActivity: any SessionLiveActivityAdapter = InertSessionLiveActivity(),
         motion: any SessionMotionPerforming = ImmediateSessionMotion(),
         entry: AppEntryInbox = AppEntryInbox(),
-        history: @escaping () -> LastPerformedLookupSnapshot = { .empty }
+        history: @escaping () -> LastPerformedLookupSnapshot = { .empty },
+        formClips: FormClipLibrary = FormClipLibrary(
+            directory: URL.temporaryDirectory.appending(path: UUID().uuidString),
+            tracker: UnwiredBarPathTracker(),
+            now: { Date(timeIntervalSinceReferenceDate: 0) }
+        ),
+        spreadsheetId: @escaping () -> String? = { nil }
     ) -> SessionWiring {
         SessionWiring(
             logging: logging,
@@ -39,8 +45,17 @@ extension SessionWiring {
             liveActivity: liveActivity,
             motion: motion,
             entry: entry,
-            history: history
+            history: history,
+            formClips: formClips,
+            spreadsheetId: spreadsheetId
         )
+    }
+}
+
+/// A tracker for suites that never trace, which fails the test that reaches it.
+struct UnwiredBarPathTracker: BarPathTracker {
+    func trace(_ movie: URL, from start: BarPathStart, progress: @escaping @Sendable (Double) -> Void) async throws -> BarPath {
+        throw UnwiredSessionLoggingError.unwired
     }
 }
 

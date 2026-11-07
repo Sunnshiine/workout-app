@@ -44,3 +44,21 @@ struct SessionCoordinate: Hashable, Sendable {
 
     private static let separator = " · "
 }
+
+/// Encodes as `storageValue`, the one string every holder of a coordinate persists.
+extension SessionCoordinate: Codable {
+    init(from decoder: any Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        guard let coordinate = SessionCoordinate(storageValue: raw) else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Not a Session Coordinate: \(raw)")
+            )
+        }
+        self = coordinate
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(storageValue)
+    }
+}

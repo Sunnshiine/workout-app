@@ -42,6 +42,7 @@ struct BackgroundDictationHarness {
             environment: AppEnvironment(
                 storage: .inMemory,
                 dictationRecords: .inMemory,
+                formClips: URL.temporaryDirectory.appending(path: UUID().uuidString),
                 sheetsClient: sheet ?? HeldWriteSheetsClient(holding: false),
                 defaults: .inMemory(),
                 now: { frozenNow }

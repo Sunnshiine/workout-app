@@ -73,6 +73,7 @@ private func openWithThisBuild(_ store: URL, client: HeaderRankStubClient) throw
         environment: AppEnvironment(
             storage: .file(store),
             dictationRecords: .inMemory,
+            formClips: URL.temporaryDirectory.appending(path: UUID().uuidString),
             sheetsClient: client,
             defaults: .inMemory(),
             now: { Date(timeIntervalSince1970: 2) }
