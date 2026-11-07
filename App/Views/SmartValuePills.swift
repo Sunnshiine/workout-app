@@ -335,7 +335,7 @@ struct SmartValuePills: View {
 // MARK: - Log capsule
 
 /// The Log capsule (DESIGN.md §5.3): a true capsule with `logShadow`, previewing the exact Set Log.
-/// Hold-to-skip fills with the muted `skipFillOverlay` — never danger red, no icon badge — and the
+/// Hold-to-skip fills with the ink `skipFillOverlay` — never danger red, no icon badge — and the
 /// skipped state is a transparent capsule with muted text on a 1.5px dashed empty bed.
 private struct HoldToSkipLogButton: View {
     let logTitle: String
@@ -393,17 +393,31 @@ private struct HoldToSkipLogButton: View {
         }
     }
 
+    /// One wipe under one label. The word swaps once, at the reveal, so the edge never cuts a word
+    /// and the log's text still holds the capsule's height.
     private var logButtonSurface: some View {
-        buttonContent
+        let isRevealed = presentation.holdIsRevealed
+        let wordLeaves = Animation.easeOut(duration: 0.08)
+        let wordArrives = Animation.easeOut(duration: 0.12).delay(0.08)
+        return Text(logTitle)
+            .opacity(isRevealed ? 0 : 1)
+            .animation(isRevealed ? wordLeaves : wordArrives, value: isRevealed)
+            .overlay {
+                // accessibilityHidden leaves this text in the tree, an empty label drops it.
+                Text("Skipped")
+                    .accessibilityLabel("")
+                    .opacity(isRevealed ? 1 : 0)
+                    .animation(isRevealed ? wordArrives : wordLeaves, value: isRevealed)
+            }
             .logCapsuleMetrics()
             .foregroundStyle(logForegroundStyle)
             .background {
-                ZStack(alignment: .leading) {
-                    logBackgroundStyle
-                    (palette.skipFillOverlay ?? palette.skipStroke)
-                        .scaleEffect(x: skipProgress, y: 1, anchor: .leading)
-                }
-                .clipShape(.capsule)
+                (palette.skipFillOverlay ?? palette.skipStroke)
+                    .mask(alignment: .leading) {
+                        Color.black.scaleEffect(x: skipProgress, y: 1, anchor: .leading)
+                    }
+                    .background(logBackgroundStyle)
+                    .clipShape(.capsule)
             }
             .overlay {
                 if case .incomplete = presentation.tone {
@@ -423,19 +437,6 @@ private struct HoldToSkipLogButton: View {
                 Capsule()
                     .strokeBorder(palette.skipStroke, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
             }
-    }
-
-    private var buttonContent: some View {
-        ZStack {
-            Text(logTitle)
-                .opacity(presentation.logOpacity)
-
-            // accessibilityHidden leaves this crossfade text in the tree, an empty label drops it.
-            Text("Skipped")
-                .opacity(presentation.skipOpacity)
-                .accessibilityLabel("")
-        }
-        .frame(maxWidth: .infinity)
     }
 
     private var presentation: HoldToSkipButtonPresentation {

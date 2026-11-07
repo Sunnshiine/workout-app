@@ -11,14 +11,6 @@ struct WeightStepperButton: View {
     let accessibilityIdentifier: String
     let action: () -> Void
     @Environment(\.themePalette) private var palette
-    @GestureState private var isPressed = false
-
-    private static let bounds = CGRect(
-        x: 0,
-        y: 0,
-        width: Theme.weightStepperDiameter,
-        height: Theme.weightStepperDiameter
-    )
 
     private var glyph: String {
         direction == .decrement ? "arrowtriangle.down.fill" : "arrowtriangle.up.fill"
@@ -41,16 +33,7 @@ struct WeightStepperButton: View {
                 .background(palette.pillFill, in: .circle)
                 .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
         }
-        .buttonStyle(.plain)
-        // The plain style keeps its pressed and disabled dims; the Log capsule's press scale rides on top (§5.3).
-        .scaleEffect(isPressed ? Theme.pressScale : 1)
-        .animation(Theme.pressAnimation, value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0).updating($isPressed) { drag, pressing, _ in
-                // The scale lets go once the finger leaves the stepper, a little before the dim does.
-                pressing = Self.bounds.contains(drag.location)
-            }
-        )
+        .buttonStyle(.pressScale)
         .accessibilityShowsLargeContentViewer {
             Label(accessibilityLabel, systemImage: glyph)
         }

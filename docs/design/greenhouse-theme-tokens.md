@@ -70,7 +70,7 @@ steps. A chromatic step takes a share of its own sRGB ceiling (50: 35%,
 | `dangerDay` / `dangerNight` | ember 800 | `#7A0A0E` oklch(0.37 0.143 27) | `#FAAEA4` oklch(0.82 0.091 27) |
 | `budNight` | leaf 200, full chroma (a light) | — | `#7FDBA4` |
 | `cream` | light | `#F2F7E8` | same |
-| `paperDayTop` → `paperDayBottom` | light | `#E9EEDC → #CBE1C2` | — |
+| `paperDayTop` → `paperDayBottom` | light | `#E9EEDC → #DCE7D2` | — |
 | `paperNightTop` → `paperNightBottom` | light | — | `#232C20 → #121D14` |
 
 Cream and the paper sit near H 120 to 137, warmer than the sage ramp's
@@ -84,12 +84,16 @@ the light, not the pigment.
 Day (top layer first):
 
 ```
-radial-gradient(90% 46% at 18% 4%,   rgba(255,250,224,0.85) 0%, transparent 60%)   /* warm sun wash, top-left */
-radial-gradient(70% 40% at 108% 32%, rgba(163,205,154,0.55) 0%, transparent 70%)   /* sage pooling, right */
-radial-gradient(80% 42% at -10% 62%, rgba(214,232,197,0.70) 0%, transparent 65%)   /* mint breath, left */
-radial-gradient(110% 55% at 55% 108%, rgba(151,189,140,0.75) 0%, transparent 70%)  /* deep sage pooling, foot */
-linear-gradient(180deg, #E9EEDC 0%, #CBE1C2 100%)
+radial-gradient(90% 46% at 18% 4%,   rgba(255,250,224,0.70) 0%, transparent 60%)   /* warm sun wash, top-left */
+radial-gradient(70% 40% at 108% 32%, rgba(186,214,176,0.30) 0%, transparent 70%)   /* sage pooling, right */
+radial-gradient(80% 42% at -10% 62%, rgba(226,236,212,0.50) 0%, transparent 65%)   /* mint breath, left */
+radial-gradient(110% 55% at 55% 108%, rgba(188,210,174,0.38) 0%, transparent 70%)  /* deep sage pooling, foot */
+linear-gradient(180deg, #E9EEDC 0%, #DCE7D2 100%)
 ```
+
+The operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the eyes." The washes and
+the foot of the paper eased, the card `surface` went from cream @ 52% to 82%, and the reps and RPE
+rails became a sage tint, so a card reads as one calm plane on a quiet page.
 
 Night:
 
@@ -145,13 +149,13 @@ grid, and the empty state align to (DESIGN.md §8 The One Edge Rule, 2026-10-31)
 
 | Role | Day | Night |
 |---|---|---|
-| `surface` (the Active Set Card) | cream @ 52% | cream @ 7% |
+| `surface` (the Active Set Card) | cream @ 82% | cream @ 7% |
 | `surfaceShadow` (lifted card) | `inset 0 0 0 1px` ink @ 5%, `0 1px 2px rgba(21,33,24,0.04), 0 14px 30px rgba(21,33,24,0.07)` | `inset 0 0 0 1px` cream @ 10% (border-as-light, no drop) |
 | `pillFill` (stepper buttons) | cream @ 85% | cream @ 6% |
 | `pillStroke` (state outlines only; raised controls take `raisedControlShadow`) | `rgba(82,111,90,0.34)` | cream @ 16% |
 | `raisedControlShadow` (steppers, queue pill, header and countdown buttons, volume control) | `inset 0 0 0 1px` ink @ 8%, `cardLow` | `inset 0 0 0 1px` cream @ 14% |
 | `stepperGlyph` (weight ±) | actionDay | cream |
-| `railFill` (reps/RPE rails) | cream @ 55% | cream @ 6% |
+| `railFill` (reps/RPE rails) | muted @ 7% | cream @ 6% |
 | `railSelectedFill` + rail chip selected | cream @ 95% + inset 2px `action` ring | cream @ 7% (14% until 2026-10-31), same ring |
 | prescription tick (last week) | `action`, 18×3, r2 | `action` |
 | weight entry `:focus` | `action` | `action` |
@@ -169,14 +173,14 @@ composition itself are locked by #455.
 | `actionText` | cream | cream |
 | `actionInk` (green words: links, statuses, Saved; the system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
-| `skipFillOverlay` | muted @ 30% | muted @ 30% (the wash dims in both appearances) |
+| `skipFillOverlay` | ink @ 30% | ink @ 30% (the wash dims in both appearances; ink, not muted, because the fill is the only progress the hold shows once its word has swapped. The operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the eyes.") |
 | skipped state | transparent, muted text, `1.5px dashed skipStroke` | same recipe |
 
 ### Stage foot
 
 | Role | Day | Night |
 |---|---|---|
-| `footFill` (queue pill) | cream @ 50% | cream @ 6% |
+| `footFill` (queue pill) | cream @ 72% | cream @ 6% |
 | `queueStroke` | `rgba(82,111,90,0.38)` | cream @ 20% |
 
 ### Block grid (#435 variant d "Light and shade"; day set — night follows the #419 rule as amended 2026-10-31: tiles re-light like leaves)
@@ -242,7 +246,7 @@ not rounded to a prettier scale.
 | `rail` | 18 | reps/RPE rails |
 | `tile` | 15 | day tiles |
 | `cell` | 14 | rail chips |
-| `mini` | 6 | week mini-chips |
+| `mini` | 4 | week mini-chips |
 
 Replaces the 8 / 16 / 28 scale.
 

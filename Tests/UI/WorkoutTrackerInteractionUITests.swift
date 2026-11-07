@@ -88,7 +88,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
 
-        let lastPerformed = app.buttons["Block 26 · W4 D3 — 245x5@6, 255x5@7"]
+        let lastPerformed = app.buttons["Block 26 · W4 D3 — 245×5 @6, 255×5 @7"]
         XCTAssertTrue(lastPerformed.appears(within: 3))
         tapWhenHittable(lastPerformed)
 
@@ -113,6 +113,7 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         tapWhenHittable(replacementRow)
         let confirmSwitch = app.buttons["switch-sheet-confirm-button"]
         XCTAssertTrue(confirmSwitch.appears(within: 3))
+        XCTAssertFalse(app.buttons["sheet-picker-done-button"].exists, "the card holds the picker until it is answered")
 
         // A drag that starts on an element under the card makes XCTest's interruption handler tap
         // the card's Cancel first, so the drag starts from a screen coordinate.

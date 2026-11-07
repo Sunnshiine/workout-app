@@ -12,14 +12,15 @@ import Testing
     let offline = try #require(SyncStatusBannerPresentation(outcome: .sheetUnreachable, isSyncing: false))
     let failure = try #require(SyncStatusBannerPresentation(outcome: WorkoutScenarios.syncFailure(), isSyncing: false))
 
-    #expect(syncing == SyncStatusBannerPresentation(text: "Syncing"))
-    #expect(queued == SyncStatusBannerPresentation(text: "1 unsynced"))
-    #expect(offline == SyncStatusBannerPresentation(text: "Offline"))
+    #expect(syncing == SyncStatusBannerPresentation(text: "Syncing", isBrief: true))
+    #expect(queued == SyncStatusBannerPresentation(text: "1 unsynced", isBrief: true))
+    #expect(offline == SyncStatusBannerPresentation(text: "Offline", isBrief: true))
     #expect(
         failure
             == SyncStatusBannerPresentation(
                 text: "The sheet changed, so your log was not written",
-                detail: "Sheet write failed"
+                detail: "Sheet write failed",
+                isBrief: false
             )
     )
 }
@@ -31,7 +32,7 @@ import Testing
     let midSync = try #require(
         SyncStatusBannerPresentation(outcome: .writesRefused(["Squat: Expected '', found 'coach edited'"]), isSyncing: true)
     )
-    #expect(midSync == SyncStatusBannerPresentation(text: "Syncing"))
+    #expect(midSync == SyncStatusBannerPresentation(text: "Syncing", isBrief: true))
 }
 
 @MainActor

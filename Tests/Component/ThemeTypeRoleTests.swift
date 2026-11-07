@@ -29,17 +29,17 @@ import Testing
     (.setOf, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 400)),
     (.railChipValue, Theme.TypeStyle(face: .sourceSans3, size: 17, weight: 700)),
     (.railChipGlyph, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 400)),
-    (.fieldLabel, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 600)),
+    (.fieldLabel, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3)),
     (.coachNote, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 400, lineHeight: 1.5)),
     (.runline, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
     (.runlineSecondary, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 400)),
     (.lastPerformed, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 400)),
-    (.queuePill, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
+    (.queuePill, Theme.TypeStyle(face: .sourceSans3, size: 15, weight: 600)),
     (.historyChip, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 600)),
     (.blockTitle, Theme.TypeStyle(face: .sourceSans3, size: 28, weight: 700)),
-    (.cadence, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 600)),
+    (.cadence, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600, lineHeight: 1.3)),
     (.statsValue, Theme.TypeStyle(face: .sourceSans3, size: 28, weight: 700)),
-    (.statsKey, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 600)),
+    (.statsKey, Theme.TypeStyle(face: .sourceSans3, size: 13, weight: 600)),
     (.sheetCell, Theme.TypeStyle(face: .sourceSans3, size: 12, weight: 400))
 ])
 func typeRoleCarriesItsDesignTokens(role: Theme.TypeRole, expected: Theme.TypeStyle) {
@@ -56,7 +56,7 @@ func typeRoleCarriesItsDesignTokens(role: Theme.TypeRole, expected: Theme.TypeSt
 }
 
 @Test(arguments: [
-    (Theme.TypeRole.fieldLabel, 0.01),
+    (Theme.TypeRole.historyChip, 0.01),
     (.runline, 0),
     (.heading, 0),
     (.blockTitle, -0.01),

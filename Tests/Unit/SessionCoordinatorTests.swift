@@ -116,7 +116,7 @@ private func sessionCoordinatorContainer() throws -> ModelContainer {
         return
     }
     #expect(bench.exercise.order == 1)
-    #expect(bench.lastPerformed?.resultText == "185x6@7")
+    #expect(bench.lastPerformed?.resultText == "185×6 @7")
     #expect(bench.lastPerformed?.sourceText == "W3 D2")
     withExtendedLifetime(container) {}
 }

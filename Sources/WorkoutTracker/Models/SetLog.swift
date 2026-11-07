@@ -99,6 +99,16 @@ struct SetLog: Codable, Sendable, Equatable {
     var formatted: String {
         "\(weight.label)x\(reps)@\(rpe.label)"
     }
+
+    /// The Log capsule's spelling, which a logged Set's capsule keeps: `90 × 5 @8`.
+    var capsuleText: String {
+        "\(weight.label) × \(reps) @\(rpe.label)"
+    }
+
+    /// The spelling of reference material, History's chips and Last Performed: `90×5 @8`.
+    var referenceText: String {
+        "\(weight.label)×\(reps) @\(rpe.label)"
+    }
 }
 
 /// The three still-unparsed tokens of `<weight>x<reps>@<rpe>`.

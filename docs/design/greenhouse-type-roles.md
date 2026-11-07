@@ -29,7 +29,8 @@ point size. It takes no tracking, because `opsz` respaces it per size.
 13 to 27pt, −0.01em from 28pt, −0.015em from 46pt, read at the size the text
 renders after Dynamic Type. It is computed, so no row sets it.
 
-**Leading** is a multiple of the point size and set only on roles that wrap.
+**Leading** is a multiple of the point size, set on roles that wrap and on `fieldLabel` and `cadence`,
+which hold the height they had at 12pt, so rising to 13pt costs the stage no room.
 
 | Role | Face | Spec |
 |---|---|---|
@@ -46,16 +47,20 @@ renders after Dynamic Type. It is computed, so no row sets it.
 | `logCapsule` | SS3 | 17pt / 600 |
 | `setNumber` / `setOf` | SS3 | 17pt / 700 · 15pt / 400 muted |
 | `railChipValue` / glyph | SS3 | 17pt / 700 · 13pt / 400 |
-| `fieldLabel` | SS3 | 12pt / 600 muted |
+| `fieldLabel` | SS3 | 13pt / 600 / 1.3 muted |
 | `coachNote` | SS3 | 15pt / 400 / 1.5 muted |
 | `runline` | SS3 | 13pt / 600; secondary 400 muted |
 | `lastPerformed` | SS3 | 13pt / 400 muted, nowrap; shrinks to the 12pt dense floor, then truncates |
-| `queuePill` | SS3 | 13pt / 600 |
+| `queuePill` | SS3 | 15pt / 600 |
 | `historyChip` | SS3 | 12pt / 600 |
 | `blockTitle` | SS3 | 28pt / 700, muted |
-| `cadence` | SS3 | 12pt / 600 |
-| stats value / key (ceremony) | SS3 | 28pt / 700 · 12pt / 600 muted |
+| `cadence` | SS3 | 13pt / 600 / 1.3 |
+| stats value / key (ceremony) | SS3 | 28pt / 700 · 13pt / 600 muted |
 | `sheetCell` | SS3 | 12pt / 400; the Sheet tab's Day sections, single line, truncating |
+
+The operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the eyes." `fieldLabel`,
+`cadence`, and the stats key rose from 12pt to 13pt and `queuePill` from 13pt to 15pt, so nothing an
+athlete reads mid-Session sits at the floor.
 
 The pass collapsed the half-point sizes (12.5, 13.5), the one-offs (11,
 14, 16, 18, 26, 38), and the weights 500 and 650 onto the scale, and

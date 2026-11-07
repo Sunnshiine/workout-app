@@ -89,7 +89,7 @@ struct SmartValuePillsForm {
         guard let log = makeLog() else { return incompleteLogButtonTitle }
         // The Log capsule previews the exact Set Log with the spaced typography of
         // pick input-block3-c ("Log 90 × 5 @8").
-        return "Log \(log.weight.label) × \(log.reps) @\(log.rpe.label)"
+        return "Log \(log.capsuleText)"
     }
 
     init(set: ExerciseSet, suggestion: LoadSuggestion) {

@@ -76,7 +76,7 @@ import Testing
 
     let presentation = MoveOnCelebrationPresentation(session: session)
 
-    #expect(presentation.stats.map(\.label) == ["Sets", "Exercises", "Left"])
+    #expect(presentation.stats.map(\.label) == ["Sets", "Exercise", "Left"])
     #expect(presentation.stats.map(\.value) == ["3", "1", "0"])
     // Completion, not achievement: there is no elapsed-time surface on the ceremony.
     #expect(!presentation.accessibilityValue.contains("elapsed"))

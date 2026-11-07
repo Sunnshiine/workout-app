@@ -225,7 +225,7 @@ private struct ExerciseHistoryRow: View {
         Button(action: onToggleWell) {
             VStack(alignment: .leading, spacing: 1) {
                 (Text(row.gutter) + wellMarker)
-                    .themeFont(.queuePill)
+                    .themeFont(.runline)
                     .foregroundStyle(palette.textPrimary)
                 if let cadence = row.cadence {
                     Text(cadence)
@@ -233,6 +233,8 @@ private struct ExerciseHistoryRow: View {
                         .foregroundStyle(palette.textSecondary.opacity(0.75))
                 }
             }
+            // Measured, so the label's baseline sits on the first chip's.
+            .padding(.top, 3)
             .frame(width: dynamicTypeSize.isAccessibilitySize ? nil : 52, alignment: .leading)
             // Rows can sit closer than a finger, so the tap fills the row and half the gap to each
             // neighbour rather than overlap one (DESIGN.md §8).
@@ -240,7 +242,8 @@ private struct ExerciseHistoryRow: View {
             .padding(.vertical, Self.spacing / 2)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        // A plain button greys its label when disabled, and a row with no well is not a quieter row.
+        .buttonStyle(.pressScale)
         .padding(.vertical, -Self.spacing / 2)
         .disabled(!row.hasWell)
         .accessibilityElement(children: .combine)

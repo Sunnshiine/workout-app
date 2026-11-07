@@ -169,12 +169,12 @@ struct SessionStageView: View {
             Button {
                 isQueuePresented = true
             } label: {
-                Image(systemName: "square.stack")
+                Image(systemName: "list.bullet")
                     .footPill(palette)
             }
             .buttonStyle(.plain)
             .accessibilityShowsLargeContentViewer {
-                Label("Queue", systemImage: "square.stack")
+                Label("Queue", systemImage: "list.bullet")
             }
             .accessibilityLabel("Queue")
             .accessibilityValue(stage.queue.position.label)

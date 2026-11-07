@@ -217,10 +217,10 @@ extension Theme {
             baseTop: Paint.paperDayTop,
             baseBottom: Paint.paperDayBottom,
             washes: [
-                RadialWash(color: rgb(255, 250, 224, 0.85), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.54),
-                RadialWash(color: rgb(163, 205, 154, 0.55), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
-                RadialWash(color: rgb(214, 232, 197, 0.70), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
-                RadialWash(color: rgb(151, 189, 140, 0.75), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
+                RadialWash(color: rgb(255, 250, 224, 0.70), center: UnitPoint(x: 0.18, y: 0.04), radiusFraction: 0.54),
+                RadialWash(color: rgb(186, 214, 176, 0.30), center: UnitPoint(x: 1.08, y: 0.32), radiusFraction: 0.49),
+                RadialWash(color: rgb(226, 236, 212, 0.50), center: UnitPoint(x: -0.10, y: 0.62), radiusFraction: 0.52),
+                RadialWash(color: rgb(188, 210, 174, 0.38), center: UnitPoint(x: 0.55, y: 1.08), radiusFraction: 0.77)
             ]
         ),
         textPrimary: Paint.ink,
@@ -237,7 +237,7 @@ extension Theme {
         supersetPartnerBranch: Paint.actionDay.opacity(0.55),  // both appearances quiet the partner by translucency
         supersetPartnerName: Paint.partnerInk,
 
-        surface: Paint.cream.opacity(0.52),
+        surface: Paint.cream.opacity(0.82),
         surfaceShadow: [
             dayEdge(0.05),
             BoxShadow(y: 1, blur: 2, color: rgb(21, 33, 24, 0.04)),
@@ -246,7 +246,7 @@ extension Theme {
         pillFill: Paint.cream.opacity(0.85),
         pillStroke: rgb(82, 111, 90, 0.34),
         stepperGlyph: Paint.actionDay,
-        railFill: Paint.cream.opacity(0.55),
+        railFill: Paint.muted.opacity(0.07),
         railSelectedFill: Paint.cream.opacity(0.95),
         prescriptionTick: Paint.actionDay,
         action: Paint.actionDay,
@@ -256,8 +256,8 @@ extension Theme {
             BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
             BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16))
         ],
-        skipFillOverlay: Paint.muted.opacity(0.30),
-        footFill: Paint.cream.opacity(0.50),
+        skipFillOverlay: Paint.ink.opacity(0.30),
+        footFill: Paint.cream.opacity(0.72),
         queueStroke: rgb(82, 111, 90, 0.38),
         tileCurrentFill: Paint.cream.opacity(0.95),
         tileCurrentBorder: Paint.tileRim,
@@ -314,7 +314,7 @@ extension Theme {
         logShadow: [
             BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35))  // green light — glow, no drop
         ],
-        skipFillOverlay: Paint.muted.opacity(0.30),  // the hold-to-skip wash dims in both appearances
+        skipFillOverlay: Paint.ink.opacity(0.30),  // the hold-to-skip wash dims in both appearances
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
         tileCurrentFill: Paint.cream.opacity(0.14),  // lamp-lit, as Day's current tile is sunlit cream
