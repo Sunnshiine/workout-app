@@ -207,8 +207,7 @@ struct OnboardingView: View {
                 Text("Save")
                     .logCapsuleMetrics()
                     .foregroundStyle(canSave ? palette.actionText : palette.textSecondary)
-                    .background(canSave ? palette.actionFill : palette.pillFill, in: .capsule)
-                    .themeElevation(canSave ? [] : palette.lighting.raisedControlShadow, in: Capsule())
+                    .background(canSave ? palette.actionFill : palette.railFill, in: .capsule)
             }
             .buttonStyle(.pressScale)
             .disabled(!canSave)
@@ -424,7 +423,7 @@ private struct SheetPickerRow: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(palette.pillFill, in: .rect(cornerRadius: Theme.Radius.tile))
+            .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.tile))
         }
         .buttonStyle(.plain)
         .disabled(isDisabled)

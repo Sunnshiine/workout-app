@@ -102,8 +102,8 @@ blurs the surface under it and carries the question, the line "Pending logs for 
 current sheet will be discarded.", a text Cancel capsule, and a capsule
 holding the red action glyph (`rectangle.portrait.and.arrow.right` to sign
 out, `arrow.left.arrow.right` to switch). It behaves as a system alert does:
-the sheet under it cannot be swiped away until the athlete answers,
-VoiceOver moves to its title when it appears, and the escape gesture cancels
+the sheet under it cannot be swiped away or closed with Done until the
+athlete answers, VoiceOver moves to its title when it appears, and the escape gesture cancels
 it.
 
 **Settings Own Manual Sync Rule** (carried forward). Manual sync is a

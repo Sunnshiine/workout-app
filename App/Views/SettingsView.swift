@@ -134,11 +134,14 @@ struct SettingsView: View {
             .background(palette.paperBackground.ignoresSafeArea())
             .navigationTitle("Settings")
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done", systemImage: "checkmark") {
-                        dismiss()
+                // The toolbar floats above the card's scrim, so Done would stay live beside its question.
+                if !isSignOutConfirmationPresented {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done", systemImage: "checkmark") {
+                            dismiss()
+                        }
+                        .accessibilityIdentifier("settings-done-button")
                     }
-                    .accessibilityIdentifier("settings-done-button")
                 }
             }
         }
@@ -251,9 +254,7 @@ struct SettingsView: View {
                 onValidatedSelection: { spreadsheet in
                     await requestSwitch(to: spreadsheet)
                 },
-                onDone: {
-                    isSheetPickerPresented = false
-                },
+                onDone: pendingSwitch == nil ? { isSheetPickerPresented = false } : nil,
                 isSelectionDisabled: isSheetBusy
             )
             .trainingSheetCard()
@@ -363,25 +364,29 @@ private struct DestructiveConfirmation: ViewModifier {
     let onConfirm: () -> Void
 
     func body(content: Content) -> some View {
-        // The blur keeps the rows that outrun the card from reading as a second card behind it.
-        content.blur(radius: isPresented ? 6 : 0).overlay {
-            ZStack {
-                if isPresented {
-                    Color.black.opacity(0.35).ignoresSafeArea()
-                        .transition(.opacity)
-                    // The card turns opaque ahead of its scale, so the rows behind never read through its words.
-                    card
-                        .transition(
-                            reduceMotion
-                                ? .opacity
-                                : .scale(scale: 0.96).combined(with: .opacity.animation(.easeOut(duration: 0.1)))
-                        )
+        // The blur keeps the rows that outrun the card from reading as a second card behind it. It also
+        // fades the page at its edges, so the same paper sits under it and no rim shows.
+        content
+            .blur(radius: isPresented ? 6 : 0)
+            .background(palette.paperBackground.ignoresSafeArea())
+            .overlay {
+                ZStack {
+                    if isPresented {
+                        Color.black.opacity(0.35).ignoresSafeArea()
+                            .transition(.opacity)
+                        // The card turns opaque ahead of its scale, so the rows behind never read through its words.
+                        card
+                            .transition(
+                                reduceMotion
+                                    ? .opacity
+                                    : .scale(scale: 0.96).combined(with: .opacity.animation(.easeOut(duration: 0.1)))
+                            )
+                    }
                 }
             }
-        }
-        // The answer is already given, so the card leaves faster than it came.
-        .animation(.easeOut(duration: isPresented ? 0.2 : 0.15), value: isPresented)
-        .interactiveDismissDisabled(isPresented)
+            // The answer is already given, so the card leaves faster than it came.
+            .animation(.easeOut(duration: isPresented ? 0.2 : 0.15), value: isPresented)
+            .interactiveDismissDisabled(isPresented)
     }
 
     private var card: some View {

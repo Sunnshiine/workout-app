@@ -256,7 +256,7 @@ extension Theme {
             BoxShadow(y: 1, blur: 2, color: rgb(13, 46, 28, 0.22)),
             BoxShadow(y: 10, blur: 22, color: rgb(13, 60, 35, 0.16))
         ],
-        skipFillOverlay: Paint.muted.opacity(0.30),
+        skipFillOverlay: Paint.ink.opacity(0.30),
         footFill: Paint.cream.opacity(0.72),
         queueStroke: rgb(82, 111, 90, 0.38),
         tileCurrentFill: Paint.cream.opacity(0.95),
@@ -314,7 +314,7 @@ extension Theme {
         logShadow: [
             BoxShadow(y: 0, blur: 22, color: rgb(31, 133, 82, 0.35))  // green light — glow, no drop
         ],
-        skipFillOverlay: Paint.muted.opacity(0.30),  // the hold-to-skip wash dims in both appearances
+        skipFillOverlay: Paint.ink.opacity(0.30),  // the hold-to-skip wash dims in both appearances
         footFill: Paint.cream.opacity(0.06),
         queueStroke: Paint.cream.opacity(0.20),
         tileCurrentFill: Paint.cream.opacity(0.14),  // lamp-lit, as Day's current tile is sunlit cream

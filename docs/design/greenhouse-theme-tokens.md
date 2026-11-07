@@ -173,7 +173,7 @@ composition itself are locked by #455.
 | `actionText` | cream | cream |
 | `actionInk` (green words: links, statuses, Saved; the system tint; Settings action rows stay system blue) | actionDayInk | actionNightInk |
 | `logShadow` | `0 1px 2px rgba(13,46,28,0.22), 0 10px 22px rgba(13,60,35,0.16)` | `0 0 22px rgba(31,133,82,0.35)` (glow, no drop) |
-| `skipFillOverlay` | muted @ 30% | muted @ 30% (the wash dims in both appearances) |
+| `skipFillOverlay` | ink @ 30% | ink @ 30% (the wash dims in both appearances; ink, not muted, because the fill is the only progress the hold shows once its word has swapped. The operator, 2026-11-06: "Make the UI / UX emil approved. It should look way better and easier on the eyes.") |
 | skipped state | transparent, muted text, `1.5px dashed skipStroke` | same recipe |
 
 ### Stage foot

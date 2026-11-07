@@ -335,7 +335,7 @@ struct SmartValuePills: View {
 // MARK: - Log capsule
 
 /// The Log capsule (DESIGN.md §5.3): a true capsule with `logShadow`, previewing the exact Set Log.
-/// Hold-to-skip fills with the muted `skipFillOverlay` — never danger red, no icon badge — and the
+/// Hold-to-skip fills with the ink `skipFillOverlay` — never danger red, no icon badge — and the
 /// skipped state is a transparent capsule with muted text on a 1.5px dashed empty bed.
 private struct HoldToSkipLogButton: View {
     let logTitle: String
