@@ -19,6 +19,8 @@ struct ActiveSetCardLayoutTests {
         let clearMenu = ["Clear menu": CGRect(x: 338, y: 68, width: 44, height: 44)]
         let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 275, y: 79, width: 63, height: 22)]) { $1 }
         let mic = ["Mic": CGRect(x: 338, y: 68, width: 44, height: 44)]
+        let flag = ["Flag": CGRect(x: 326, y: 68, width: 44, height: 44)]
+        let flagAndClearMenu = clearMenu.merging(["Flag": CGRect(x: 294, y: 68, width: 44, height: 44)]) { $1 }
 
         let drawn = try CardHost.drawings(of: [
             "logging a pending Set": CardHost.Scene(state: .pending, mode: .logging),
@@ -52,27 +54,27 @@ struct ActiveSetCardLayoutTests {
                 "logging a skipped Set": CardDrawing(
                     rows: rows,
                     actionControl: "log-active-set-button",
-                    headControls: clearMenu
+                    headControls: flagAndClearMenu
                 ),
                 "logging a logged Set": CardDrawing(
                     rows: rows,
                     actionControl: "log-active-set-button",
-                    headControls: clearMenu
+                    headControls: flagAndClearMenu
                 ),
                 "reviewing a logged Set": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: [:]
+                    headControls: flag
                 ),
                 "reviewing a logged Set just saved": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: ["Saved": CGRect(x: 307, y: 79, width: 63, height: 22)]
+                    headControls: flag.merging(["Saved": CGRect(x: 263, y: 79, width: 63, height: 22)]) { $1 }
                 ),
                 "reviewing an Unstructured Set Log": CardDrawing(
                     rows: rows,
                     actionControl: "logged-set-capsule",
-                    headControls: [:]
+                    headControls: flag
                 ),
                 "holding a Set logged by speech": CardDrawing(
                     rows: rows,
@@ -181,7 +183,8 @@ private enum CardHost {
     private static let headControlNames = [
         "clear-logged-set-menu": "Clear menu",
         "Saved": "Saved",
-        "say-set-button": "Mic"
+        "say-set-button": "Mic",
+        "set-flag-control": "Flag"
     ]
 
     static func drawings(of scenes: KeyValuePairs<String, Scene>) throws -> [String: CardDrawing] {
@@ -241,6 +244,7 @@ private enum CardHost {
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {},
+                onFlag: {},
                 onTouchWhileHeld: {},
                 onClearMenuOpened: {},
                 onClearMenuClosed: {}

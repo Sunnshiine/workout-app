@@ -94,6 +94,15 @@ extension ApplicationError {
         )
     }
 
+    public static func invalidSetFlag(_ kind: SetFlagKind) -> ApplicationError {
+        ApplicationError(
+            code: "invalid_set_flag",
+            message: "That \(kind.rawValue) flag cannot be raised. Other needs words, and the words stop at "
+                + "\(SetFlag.maximumTextLength) characters.",
+            kind: .domain
+        )
+    }
+
     public static func spokenSetRejected(_ heard: String, reason: SpokenSetRejectionSnapshot.Reason) -> ApplicationError {
         ApplicationError(
             code: "spoken_set_rejected",
@@ -170,7 +179,7 @@ extension ApplicationError {
         let kind: Kind =
             switch status {
             case .clear, .sheetUnreachable, .writesQueued: .environment
-            case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: .conflict
+            case .localWriteFailed, .writesRefused, .setFlagsRefused, .noBlockTab, .parseWarnings, .historyFillFailed: .conflict
             }
         return ApplicationError(
             code: "sync_failed",

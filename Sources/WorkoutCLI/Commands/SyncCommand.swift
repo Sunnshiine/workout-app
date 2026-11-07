@@ -29,7 +29,7 @@ struct SyncCommand: AsyncParsableCommand {
             // This sync's refusals are a subset of the conflicted writes, so they print once.
             let messages =
                 report.conflictedWrites
-                + (report.syncOutcome.status == .writesRefused ? [] : report.syncOutcome.messages)
+                + (report.syncOutcome.status.isARefusal ? [] : report.syncOutcome.messages)
             guard !report.syncOutcome.status.leavesTheAthleteSomethingToDo, messages.isEmpty else {
                 throw CLIError.conflict(code: "sync_conflict", messages: messages)
             }
@@ -41,9 +41,12 @@ extension SyncOutcomeSnapshot.Status {
     /// Which outcomes exit 4. A refused write the Sheet will never retry, a Set Log the local
     /// store lost, a spreadsheet that is not a training log, and the two footnotes on an otherwise
     /// good sync all leave the athlete a decision; the other three do not.
+    /// `conflictedWrites` already lists a refusal's messages.
+    fileprivate var isARefusal: Bool { self == .writesRefused || self == .setFlagsRefused }
+
     fileprivate var leavesTheAthleteSomethingToDo: Bool {
         switch self {
-        case .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed: true
+        case .localWriteFailed, .writesRefused, .setFlagsRefused, .noBlockTab, .parseWarnings, .historyFillFailed: true
         case .clear, .sheetUnreachable, .writesQueued: false
         }
     }

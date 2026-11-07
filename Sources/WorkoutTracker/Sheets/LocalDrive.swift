@@ -34,6 +34,10 @@
             disconnected.insert(spreadsheetId)
         }
 
+        func reconnect(_ spreadsheetId: String) {
+            disconnected.remove(spreadsheetId)
+        }
+
         func holdTabListings(for duration: Duration) {
             tabListingHold = duration
         }
@@ -56,6 +60,10 @@
 
         func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws {
             try await workbook(spreadsheetId).write(cells, spreadsheetId: spreadsheetId)
+        }
+
+        func writeCellNote(_ note: SheetCellNoteWrite, spreadsheetId: String) async throws {
+            try await workbook(spreadsheetId).writeCellNote(note, spreadsheetId: spreadsheetId)
         }
 
         /// Google answers 404 for a spreadsheet the account cannot see.

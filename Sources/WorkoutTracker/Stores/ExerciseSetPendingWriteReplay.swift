@@ -1,6 +1,15 @@
 import Foundation
 
 extension ExerciseSet {
+    @MainActor
+    func replay(_ write: PendingWrite) {
+        switch write.column {
+        case .notes: apply(write)
+        case .setFlag: applySetFlag(write)
+        case .lastSetRPE: break
+        }
+    }
+
     /// Replays a still-queued Notes write onto this Set so a log the coach has not flushed yet does
     /// not vanish when a freshly parsed Block replaces the persisted one.
     ///
@@ -22,5 +31,21 @@ extension ExerciseSet {
         case (.logged, nil), (.pending, _):
             break
         }
+    }
+
+    /// Replays a queued Set Flag over what the Sheet's Cell Note said, so its standing survives a
+    /// freshly parsed Block. A flag the Sheet already holds while its write waits to converge stays
+    /// Unsynced until the flush confirms it.
+    @MainActor
+    private func applySetFlag(_ write: PendingWrite) {
+        guard let flag = write.setFlag else { return }
+        record(flag, standing: write.status == .conflict ? .refused : .unsynced)
+    }
+}
+
+extension PendingWrite {
+    @MainActor
+    var setFlag: SetFlag? {
+        valueToWrite.flatMap { SetFlagLine(parsing: $0) }?.flag
     }
 }

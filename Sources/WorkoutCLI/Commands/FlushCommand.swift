@@ -25,7 +25,7 @@ struct FlushCommand: AsyncParsableCommand {
                         + "(\(report.remainingPendingWrites) still queued). "
                         + "Fix the workbook and run `workout flush` again."
                 )
-            case .clear, .localWriteFailed, .writesRefused, .noBlockTab, .parseWarnings, .historyFillFailed:
+            case .clear, .localWriteFailed, .writesRefused, .setFlagsRefused, .noBlockTab, .parseWarnings, .historyFillFailed:
                 break
             }
         }

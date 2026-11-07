@@ -27,9 +27,13 @@ extension SheetWritePlanner {
     ) -> SheetWriteAuditDetails {
         let currentValue = currentValueForAudit(for: request, target: target, in: snapshot)
         let valueCheckOutcome =
-            request.expects(currentValue)
-            ? "Current value matched expected '\(request.expectedCurrentValue)'."
-            : "Expected '\(request.expectedCurrentValue)', found '\(currentValue)'."
+            if request.column == .setFlag {
+                "Not checked because a Set Flag changes no value."
+            } else if request.expects(currentValue) {
+                "Current value matched expected '\(request.expectedCurrentValue)'."
+            } else {
+                "Expected '\(request.expectedCurrentValue)', found '\(currentValue)'."
+            }
 
         return SheetWriteAuditDetails(
             selectedA1Target: singleCellRange(tabName: target.tabName, row: target.row, col: target.col),
@@ -233,6 +237,8 @@ struct PendingWriteDiagnostic: Equatable, Identifiable, Sendable {
             "Notes"
         case .lastSetRPE:
             "Last Set RPE"
+        case .setFlag:
+            "Set Flag"
         }
     }
 

@@ -14,6 +14,7 @@ final class SpySessionLoggingAdapter: SessionLoggingAdapter {
     private(set) var loggedSets: [(set: ExerciseSet, log: SetLog)] = []
     private(set) var skippedSets: [ExerciseSet] = []
     private(set) var deletedSets: [ExerciseSet] = []
+    private(set) var flaggedSets: [(set: ExerciseSet, flag: SetFlag)] = []
     var error: TestLoggingError?
     var afterLogWrite: () -> Void = {}
 
@@ -37,6 +38,12 @@ final class SpySessionLoggingAdapter: SessionLoggingAdapter {
         deletedSets.append(set)
         set.setLog = nil
         set.state = .pending
+    }
+
+    func flag(_ set: ExerciseSet, as flag: SetFlag) throws {
+        if let error { throw error }
+        flaggedSets.append((set, flag))
+        set.record(flag, standing: .unsynced)
     }
 }
 

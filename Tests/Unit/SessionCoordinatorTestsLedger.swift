@@ -55,6 +55,8 @@ final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, S
         set.state = .pending
     }
 
+    func flag(_ set: ExerciseSet, as flag: SetFlag) throws {}
+
     func reportLocalWriteFailure(_ error: any Error) {
         entries.append(.failureReported)
     }
