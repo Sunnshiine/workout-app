@@ -80,7 +80,7 @@ struct SetFlagSheetPresentation: Identifiable, Equatable {
     @MainActor
     private static func written(on set: ExerciseSet) -> String? {
         switch set.state {
-        case .logged: set.setLog?.formatted ?? set.displayReps
+        case .logged: set.setLog?.referenceText ?? set.displayReps
         case .skipped: "Skipped"
         case .pending: nil
         }

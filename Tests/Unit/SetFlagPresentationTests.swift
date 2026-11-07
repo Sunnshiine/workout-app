@@ -78,7 +78,7 @@ private func sheetLine(state: SetState, log: SetLog?) throws -> String {
     let logged = SetFlagSheetPresentation(id: try SetCoordinates(of: set).id, set: set)
 
     #expect(logged.exerciseName == "Bench Press")
-    #expect(logged.setLine == "Set 2 · 185x5@8")
+    #expect(logged.setLine == "Set 2 · 185×5 @8")
     #expect(logged.raiseTitle == "Flag Set 2")
     #expect(try sheetLine(state: .skipped, log: nil) == "Set 2 · Skipped")
     #expect(try sheetLine(state: .pending, log: nil) == "Set 2")
