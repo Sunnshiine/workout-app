@@ -182,12 +182,22 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         #expect(presentation.rows.last?.weight == "135")
     }
 
-    @Test func aSetLighterThanTheBarSaysSoAndShowsNoRows() {
-        let presentation = WarmupRampPresentation(entry: entry(prefill: 30), inventory: .standard, walk: WarmupWalk())
+    @Test func aSetLighterThanTheBarHasNoWalkUntilALighterBarFitsIt() {
+        let forty = entry(prefill: 40)
 
-        #expect(presentation.note == "Set 1 is 30, lighter than the 45 lb Bar.")
-        #expect(presentation.rows.isEmpty)
-        #expect(presentation.readout == "Bar")
+        #expect(!forty.hasWalk(on: .standard))
+        #expect(forty.hasWalk(on: PlateInventory.standard.withBar(.light)))
+    }
+
+    @Test func aSetAtTheBarsOwnWeightStillHasAWalkOfOneRow() {
+        let bar = entry(prefill: 45)
+
+        #expect(bar.hasWalk(on: .standard))
+        #expect(WarmupRampPresentation(entry: bar, inventory: .standard, walk: WarmupWalk()).rows.map(\.id) == ["warmup-set"])
+    }
+
+    @Test func aTopTheAthletePicksAlwaysHasAWalk() {
+        #expect(entry(prefill: nil).hasWalk(on: .standard))
     }
 
     @Test func theLighterBarChangesEveryRow() {
