@@ -257,7 +257,7 @@ struct MeetDayTests {
     func aMeetSurvivesJSON() throws {
         var day = try meet()
         try day.mark(.good, at: start)
-        let record = MeetRecord(meet: day, beforeLastMark: try meet())
+        let record = MeetRecord(meet: day, beforeLastGesture: try meet())
         let data = try JSONEncoder().encode(record)
         #expect(try JSONDecoder().decode(MeetRecord.self, from: data) == record)
     }

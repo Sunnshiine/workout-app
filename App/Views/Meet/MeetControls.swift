@@ -13,7 +13,7 @@ struct MeetAttemptStrip: View {
                             .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
                     }
                     Text(attempt.kilograms.numeral)
-                        .foregroundStyle(attempt.isMarked ? palette.textPrimary : palette.textSecondary)
+                        .foregroundStyle(attempt.state == .planned ? palette.textSecondary : palette.textPrimary)
                 }
                 .themeFont(.runline)
                 .accessibilityElement(children: .ignore)
@@ -48,7 +48,7 @@ struct MeetLiftHeader: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Text(lift.lift.meetName)
+            Text(lift.lift.name)
                 .themeFont(.heading)
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityAddTraits(.isHeader)
@@ -57,10 +57,42 @@ struct MeetLiftHeader: View {
     }
 }
 
-/// A page that holds the whole screen, with its controls at the foot, and scrolls once large type
-/// outgrows it.
-struct MeetFullPage<Content: View>: View {
+extension View {
+    /// One of two answers the app cannot choose between, so neither is green.
+    func meetAnswerCapsule(_ palette: Theme.Palette) -> some View {
+        logCapsuleMetrics()
+            .foregroundStyle(palette.textPrimary)
+            .background(palette.pillFill, in: .capsule)
+            .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
+    }
+
+    /// Holds off touches just after the controls under a thumb change, so the second tap of a double
+    /// tap, or one tap too many on the count, cannot land on what replaced them.
+    func meetSettles<Key: Equatable>(on key: Key) -> some View {
+        modifier(MeetSettling(key: key))
+    }
+}
+
+private struct MeetSettling<Key: Equatable>: ViewModifier {
+    let key: Key
+    @State private var isSettling = false
+
+    func body(content: Content) -> some View {
+        content
+            .allowsHitTesting(!isSettling)
+            .task(id: key) {
+                isSettling = true
+                try? await Task.sleep(for: .seconds(0.4))
+                if !Task.isCancelled { isSettling = false }
+            }
+    }
+}
+
+/// A page that holds the whole screen and scrolls once large type outgrows it. Its foot stays in
+/// reach of the thumb, above the keyboard, while the clock runs.
+struct MeetFullPage<Content: View, Foot: View>: View {
     @ViewBuilder let content: Content
+    @ViewBuilder let foot: Foot
 
     var body: some View {
         GeometryReader { proxy in
@@ -71,6 +103,11 @@ struct MeetFullPage<Content: View>: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            foot
+                .padding(.horizontal, Theme.pageMargin)
+                .padding(.bottom, 8)
         }
     }
 }
@@ -90,7 +127,7 @@ struct MeetWeightStepper: View {
                 .foregroundStyle(palette.textSecondary)
             HStack(spacing: 16) {
                 WeightStepperButton(direction: .decrement, accessibilityIdentifier: "meet-weight-down") { step { $0.stepDown() } }
-                TextField("kg", text: $entry.text)
+                TextField("Kilograms", text: $entry.text, prompt: Text(verbatim: "0").foregroundStyle(palette.textSecondary))
                     .themeFont(.weightEntry)
                     .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.center)
@@ -245,7 +282,7 @@ struct MeetWarmupStepSheet: View {
                     MeetWeightStepper(entry: $entry, label: "Kilograms", spokenLabel: "Kilograms")
                     MeetWeightNoteView(note: entry.note(after: nil))
                     MeetCountRow(label: "Reps", value: $reps, identifier: "meet-step-reps")
-                    MeetCountRow(label: "Attempts out", value: $attemptsOut, identifier: "meet-step-attempts-out")
+                    MeetCountRow(label: "Attempts Out", value: $attemptsOut, identifier: "meet-step-attempts-out")
                     Button {
                         guard let weight = entry.kilograms else { return }
                         onSave(WarmupRoomStep(kilograms: weight, reps: reps, attemptsOut: attemptsOut))

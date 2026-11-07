@@ -20,4 +20,10 @@ never reaches the Sheet (ADR-0001 still holds, because nothing the coach wrote c
 
 **Attempt Window**: The one minute after the referees' lights in which a second or third Attempt must reach the table, started by the tap that marks the Attempt before it. Its rule shows as it nears zero: with no card the table enters 2.5 kg more after a good lift, or the same weight after a no lift. The phone cannot see the card reach the table, so when the window closes it asks, and either answer submits the next Attempt. Avoid: submission timer, attempt timer, card clock.
 
+**Seconds per Attempt**: The athlete's estimate of how long the platform takes over one Attempt. With the lifters in the Flight it sets the count after a mark and the minutes the Platform shows, and it is never a timer. Avoid: pace, attempt speed.
+
+**Plan**: The screen that holds a Meet ahead of the day: its date, Federation Rules, Attempts, Rack Heights, and each Warm-up Room Plan.
+
+**Platform**: The screen that runs the day, from the warm-up room through each Attempt Window to the total. Lower-case, the platform is where the bar stands. Avoid: meet day screen, live view.
+
 **Rack Height**: The athlete's rack settings for a Main Lift, as they wrote them on the weigh-in sheet, such as `14, racks in` or `8, safety 4, blocks`. Plain text, because the numbers belong to that federation's racks. A deadlift has none. Avoid: rack setting, rack position.

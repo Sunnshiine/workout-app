@@ -40,7 +40,8 @@ struct MeetOnDeckFaceTests {
         #expect(face.caption == "Warm up now")
         #expect(face.numeral == "60")
         #expect(face.pounds == "132.3 lb")
-        #expect(face.detail == "5 reps at 18 out")
+        #expect(face.instruction == "5 reps")
+        #expect(face.detail == nil)
         #expect(!face.isOnThePlatform)
         #expect(face.attemptsOutNumeral == "18")
     }
@@ -51,7 +52,8 @@ struct MeetOnDeckFaceTests {
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.caption == "Warm up next")
         #expect(face.numeral == "150")
-        #expect(face.detail == "1 rep at 6 out, in 3 attempts, about 3 min")
+        #expect(face.instruction == "1 rep")
+        #expect(face.detail == "in 3 attempts, about 3 min")
     }
 
     @Test func oneAttemptOutReadsInTheSingular() throws {
@@ -59,8 +61,9 @@ struct MeetOnDeckFaceTests {
         try meet.setAttemptsOut(1)
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.caption == "Opener")
-        #expect(face.detail == "1 attempt out, about 1 min")
-        #expect(face.attemptsOutLabel == "attempt out")
+        #expect(face.instruction == nil)
+        #expect(face.detail == "about 1 min")
+        #expect(face.attemptsOutLabel == "Attempt Out")
     }
 
     @Test func aPaceUnderAMinuteDoesNotClaimAMinute() throws {
@@ -68,7 +71,7 @@ struct MeetOnDeckFaceTests {
         meet.secondsPerAttempt = 45
         try meet.setAttemptsOut(1)
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
-        #expect(face.detail == "1 attempt out, under a minute")
+        #expect(face.detail == "under a minute")
     }
 
     @Test func atZeroItNamesThePlatformAndTheAttempt() throws {
@@ -77,7 +80,8 @@ struct MeetOnDeckFaceTests {
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.caption == "On the platform")
         #expect(face.numeral == "180")
-        #expect(face.detail == "Squat opener")
+        #expect(face.instruction == "Squat opener")
+        #expect(face.detail == nil)
         #expect(face.isOnThePlatform)
     }
 
@@ -85,6 +89,13 @@ struct MeetOnDeckFaceTests {
         let meet = try squatMeet()
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.changeLabel == "Change opener, 1 left")
+    }
+
+    @Test func atZeroTheOpenerIsPastChanging() throws {
+        var meet = try squatMeet()
+        try meet.setAttemptsOut(0)
+        let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
+        #expect(face.changeLabel == nil)
     }
 
     @Test func aSubmittedSecondOffersNoChange() throws {
@@ -104,7 +115,19 @@ struct MeetOnDeckFaceTests {
         try meet.mark(.good, at: noon)
         try meet.pass()
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
-        #expect(face.intervalNote == "Squat is done. 20 minutes until Bench with one flight, 10 with more.")
+        #expect(face.intervalNote == "20 minutes between lifts with one Flight, 10 with more.")
+    }
+
+    @Test func thePlatformDropsTheIntervalOnceTheAthleteIsOnIt() throws {
+        var meet = try squatMeet()
+        meet.editLift(.bench) { $0.enter(kilos(110), at: .opener) }
+        try meet.setAttemptsOut(0)
+        try meet.mark(.good, at: noon)
+        try meet.pass()
+        try meet.setAttemptsOut(0)
+        let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
+        #expect(face.isOnThePlatform)
+        #expect(face.intervalNote == nil)
     }
 }
 
@@ -118,7 +141,7 @@ struct AttemptWindowFaceTests {
         guard case .window(let open) = meet.stage(at: noon.addingTimeInterval(secondsAfterMark)) else {
             throw MeetRefusal.noWindowOpen
         }
-        return AttemptWindowFace(open, windowSeconds: 60)
+        return AttemptWindowFace(open)
     }
 
     @Test func theFullMinuteReadsAsAClockAndHoldsTheRuleBack() throws {
@@ -127,28 +150,25 @@ struct AttemptWindowFaceTests {
         #expect(face.numeral == "1:00")
         #expect(face.markLine == "Good lift, 180 kg")
         #expect(face.attemptLabel == "Second attempt")
-        #expect(face.remaining == 1)
         #expect(!face.showsRule)
     }
 
     @Test func theLastFifteenSecondsShowTheTablesRule() throws {
         let open = try face(secondsAfterMark: 44)
         #expect(open.stage == .open)
-        #expect(open.numeral == "16")
+        #expect(open.numeral == "0:16")
         let closing = try face(secondsAfterMark: 45)
         #expect(closing.stage == .closing)
-        #expect(closing.numeral == "15")
+        #expect(closing.numeral == "0:15")
         #expect(closing.showsRule)
         #expect(closing.rule == "No card means 182.5 kg")
-        #expect(closing.remaining == 0.25)
     }
 
-    @Test func expiryKeepsTheRuleAndEmptiesTheBar() throws {
+    @Test func expiryKeepsTheRuleAndTheClocksWidth() throws {
         let face = try face(secondsAfterMark: 60)
         #expect(face.stage == .expired)
-        #expect(face.caption == "Time")
-        #expect(face.numeral == "0")
-        #expect(face.remaining == 0)
+        #expect(face.caption == "Time's up")
+        #expect(face.numeral == "0:00")
         #expect(face.rule == "No card means 182.5 kg")
     }
 

@@ -96,6 +96,7 @@ struct BlockOverviewView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("block-overview-meet-row")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Focus week — the one week in morning light with the glowing rim

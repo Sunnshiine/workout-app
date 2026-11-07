@@ -31,40 +31,41 @@ struct MeetOnDeckFace: Equatable {
     let caption: String
     let numeral: String
     let pounds: String
-    let detail: String
+    /// What to do at this weight: `5 reps`, or `Squat opener` on the platform.
+    let instruction: String?
+    let detail: String?
     let isOnThePlatform: Bool
     let attemptsOutNumeral: String
     let attemptsOutLabel: String
-    /// The Main Lift just finished and the interval's rule, on the opener of the next one.
+    /// The interval's rule, on the opener of the next Main Lift until the athlete reaches the platform.
     let intervalNote: String?
     /// `Change opener, 1 left`, when the rule allows the Attempt on deck a change.
     let changeLabel: String?
     let accessibilitySummary: String
 
     init(_ deck: AttemptOnDeck, rules: FederationRules) {
-        let place = "\(deck.lift.meetName) \(deck.ordinal.name.lowercased())"
+        let place = "\(deck.lift.name) \(deck.ordinal.name.lowercased())"
         self.place = place
         attemptsOutNumeral = "\(deck.attemptsOut)"
-        attemptsOutLabel = deck.attemptsOut == 1 ? "attempt out" : "attempts out"
-        intervalNote = deck.liftFinished.map { finished in
-            let interval = rules.interval.value
-            return "\(finished.meetName) is done. \(interval.oneFlightMinutes) minutes until \(deck.lift.meetName) with one flight, "
-                + "\(interval.moreFlightsMinutes) with more."
-        }
-        changeLabel = deck.allowance.changesLeft.map { "Change \(deck.ordinal.name.lowercased()), \($0) left" }
+        attemptsOutLabel = deck.attemptsOut == 1 ? "Attempt Out" : "Attempts Out"
         let reading = Reading.of(deck.cue, ordinal: deck.ordinal, place: place)
         caption = reading.caption
         numeral = reading.weight.numeral
         pounds = reading.weight.poundsLabel
+        instruction = reading.instruction
         detail = reading.detail
         isOnThePlatform = reading.isOnThePlatform
         accessibilitySummary = reading.spoken
+        intervalNote = deck.liftFinished == nil || reading.isOnThePlatform ? nil : rules.intervalLine
+        changeLabel =
+            reading.isOnThePlatform ? nil : deck.allowance.changesLeft.map { "Change \(deck.ordinal.name.lowercased()), \($0) left" }
     }
 
     private struct Reading {
         let caption: String
         let weight: Kilograms
-        let detail: String
+        let instruction: String?
+        let detail: String?
         let isOnThePlatform: Bool
         let spoken: String
 
@@ -78,7 +79,8 @@ struct MeetOnDeckFace: Equatable {
                 Reading(
                     caption: "On the platform",
                     weight: weight,
-                    detail: place,
+                    instruction: place,
+                    detail: nil,
                     isOnThePlatform: true,
                     spoken: "On the platform, \(place), \(weight.spoken)"
                 )
@@ -88,26 +90,27 @@ struct MeetOnDeckFace: Equatable {
         private static func warmUp(_ step: WarmupRoomStep, attemptsUntil: Int, secondsUntil: Int) -> Reading {
             let isNow = attemptsUntil == 0
             let caption = isNow ? "Warm up now" : "Warm up next"
-            let line = "\(step.repsLabel) at \(step.attemptsOut) out"
-            let detail = isNow ? line : "\(line), in \(MeetCue.attempts(attemptsUntil)), \(MeetCue.estimate(secondsUntil))"
+            let detail = isNow ? nil : "in \(MeetCue.attempts(attemptsUntil)), \(MeetCue.estimate(secondsUntil))"
             return Reading(
                 caption: caption,
                 weight: step.kilograms,
+                instruction: step.repsLabel,
                 detail: detail,
                 isOnThePlatform: false,
-                spoken: "\(caption), \(step.kilograms.spoken), \(detail)"
+                spoken: "\(caption), \(step.kilograms.spoken), \(step.repsLabel)" + (detail.map { ", \($0)" } ?? "")
             )
         }
 
         private static func attempt(_ weight: Kilograms, ordinal: AttemptOrdinal, attemptsOut: Int, secondsUntil: Int) -> Reading {
             let caption = ordinal == .opener ? "Opener" : "\(ordinal.name) attempt"
-            let detail = "\(MeetCue.attempts(attemptsOut)) out, \(MeetCue.estimate(secondsUntil))"
+            let estimate = MeetCue.estimate(secondsUntil)
             return Reading(
                 caption: caption,
                 weight: weight,
-                detail: detail,
+                instruction: nil,
+                detail: estimate,
                 isOnThePlatform: false,
-                spoken: "\(caption), \(weight.spoken), \(detail)"
+                spoken: "\(caption), \(weight.spoken), \(MeetCue.attempts(attemptsOut)) out, \(estimate)"
             )
         }
     }
@@ -152,11 +155,9 @@ struct AttemptWindowFace: Equatable {
     /// The table's rule, so the view can hold its room before it shows.
     let rule: String
     let showsRule: Bool
-    /// The share of the minute left, stepping once a second.
-    let remaining: Double
     let accessibilityValue: String
 
-    init(_ window: OpenAttemptWindow, windowSeconds: Int) {
+    init(_ window: OpenAttemptWindow) {
         let mark = window.result == .good ? "Good lift" : "No lift"
         markLine = "\(mark), \(window.marked.label)"
         attemptLabel = "\(window.ordinal.name) attempt"
@@ -168,27 +169,24 @@ struct AttemptWindowFace: Equatable {
             caption = "Time to submit"
             numeral = Self.numeral(left)
             showsRule = false
-            remaining = Double(left) / Double(windowSeconds)
             accessibilityValue = "\(Self.seconds(left)) left to submit your \(attemptLabel.lowercased())"
         case .closing(let left):
             stage = .closing
             caption = "Time to submit"
             numeral = Self.numeral(left)
             showsRule = true
-            remaining = Double(left) / Double(windowSeconds)
             accessibilityValue = "\(Self.seconds(left)) left. \(rule)"
         case .expired:
             stage = .expired
-            caption = "Time"
-            numeral = "0"
+            caption = "Time's up"
+            numeral = Self.numeral(0)
             showsRule = true
-            remaining = 0
-            accessibilityValue = "Time. \(rule)"
+            accessibilityValue = "Time's up. \(rule)"
         }
     }
 
     private static func numeral(_ seconds: Int) -> String {
-        seconds < 60 ? "\(seconds)" : "\(seconds / 60):" + String(format: "%02d", seconds % 60)
+        "\(seconds / 60):" + String(format: "%02d", seconds % 60)
     }
 
     private static func seconds(_ count: Int) -> String {

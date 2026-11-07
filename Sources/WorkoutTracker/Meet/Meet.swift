@@ -44,17 +44,6 @@ struct Attempt: Hashable, Codable, Sendable {
     var isMarked: Bool { state.result != nil }
 }
 
-extension MainLift {
-    /// The platform's short name, which is not the Sheet's `Bench Press`.
-    var meetName: String {
-        switch self {
-        case .squat: "Squat"
-        case .bench: "Bench"
-        case .deadlift: "Deadlift"
-        }
-    }
-}
-
 struct MeetLift: Hashable, Codable, Sendable {
     let lift: MainLift
     /// In order, with nothing after the last one called. Empty keeps this lift off the day.
@@ -335,7 +324,7 @@ struct Meet: Hashable, Codable, Sendable {
 /// Undoing restores the Meet as it stood, so a mistaken mark leaves nothing behind.
 struct MeetRecord: Hashable, Codable, Sendable {
     let meet: Meet
-    let beforeLastMark: Meet?
+    let beforeLastGesture: Meet?
 }
 
 /// Even steps from the empty bar up to the opener, which a Warm-up Room Plan can start from. It is

@@ -29,7 +29,7 @@ struct MeetPlanView: View {
             Text("No Meet planned")
                 .themeFont(.statsValue)
                 .foregroundStyle(palette.textPrimary)
-            Text("Enter the day and your coach's attempts. The app counts you through the warm-up room and the attempt window.")
+            Text("Enter the day and your coach's Attempts. The app counts you through the warm-up room and each Attempt Window.")
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
@@ -62,6 +62,7 @@ struct MeetPlanView: View {
             .padding(Theme.pageMargin)
         }
         .scrollDismissesKeyboard(.interactively)
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             if meet.stage(at: store.now()) != .noAttempts {
                 platformButton
@@ -120,7 +121,7 @@ struct MeetPlanView: View {
     private func flightCard(_ meet: Meet) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             MeetCountRow(
-                label: "Lifters in flight",
+                label: "Lifters in Flight",
                 value: Binding {
                     meet.liftersInFlight
                 } set: { count in
@@ -129,7 +130,7 @@ struct MeetPlanView: View {
                 identifier: "meet-lifters"
             )
             MeetCountRow(
-                label: "Seconds an attempt",
+                label: "Seconds per Attempt",
                 value: Binding {
                     meet.secondsPerAttempt
                 } set: { seconds in
@@ -137,14 +138,14 @@ struct MeetPlanView: View {
                 },
                 identifier: "meet-pace"
             )
-            Text("Your estimates. They only set the count after a mark and the minutes the Platform shows.")
-                .themeFont(.runlineSecondary)
+            Text("Your estimates. They set the count after each mark and the minutes on the Platform.")
+                .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
         }
         .padding(Theme.cardSpacing)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.card))
-        .themeElevation(palette.surfaceShadow, in: .rect(cornerRadius: Theme.Radius.card))
+        .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
+        .themeElevation(palette.lighting.weekCardElevation, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     private func footRow(_ meet: Meet) -> some View {
@@ -193,7 +194,7 @@ struct MeetPlanView: View {
             newStepSheet(meet.lift(lift), rules: meet.rules)
         case .step(let lift, let step):
             MeetWarmupStepSheet(
-                title: "\(lift.meetName) warm-up",
+                title: "\(lift.name) warm-up",
                 step: step,
                 rules: meet.rules,
                 onDelete: {
@@ -213,7 +214,7 @@ struct MeetPlanView: View {
             reps: last?.reps ?? 5,
             attemptsOut: max(1, (last?.attemptsOut ?? 21) - 3)
         )
-        return MeetWarmupStepSheet(title: "\(lift.lift.meetName) warm-up", step: start, rules: rules, onDelete: nil) { step in
+        return MeetWarmupStepSheet(title: "\(lift.lift.name) warm-up", step: start, rules: rules, onDelete: nil) { step in
             store.edit { $0.editLift(lift.lift) { $0.setWarmupRoomPlan($0.warmupRoomPlan + [step]) } }
         }
     }
@@ -222,7 +223,7 @@ struct MeetPlanView: View {
         let existing = lift.attempts.indices.contains(ordinal.rawValue) ? lift.attempts[ordinal.rawValue] : nil
         let before = ordinal.rawValue > 0 ? lift.attempts[ordinal.rawValue - 1].kilograms : nil
         return MeetWeightSheet(
-            title: "\(lift.lift.meetName) \(ordinal.name.lowercased())",
+            title: "\(lift.lift.name) \(ordinal.name.lowercased())",
             entry: MeetWeightEntry(existing?.kilograms ?? before, rules: rules),
             saveLabel: "Save",
             onClear: existing == nil ? nil : { store.edit { $0.editLift(lift.lift) { $0.clear(from: ordinal) } } },
