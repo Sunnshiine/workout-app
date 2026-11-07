@@ -175,7 +175,7 @@ struct WarmupRampSheet: View {
             HStack(spacing: 10) {
                 // Secondary ink, because a green mark says a Set is logged and a step never is.
                 Image(systemName: "checkmark")
-                    .themeFont(.queuePill)
+                    .themeFont(.runline)
                     .foregroundStyle(palette.textSecondary)
                     .opacity(row.state == .finished ? 1 : 0)
                     .accessibilityHidden(true)
