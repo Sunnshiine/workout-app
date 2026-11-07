@@ -32,6 +32,11 @@ private struct OfflineSheetsClient: SheetsClient {
         sync: SyncCoordinator(client: OfflineSheetsClient(), context: context),
         settings: SettingsStore(defaults: .inMemory()),
         lastPerformed: LastPerformedLookupStore(context: context),
+        formClips: FormClipLibrary(
+            directory: URL.temporaryDirectory.appending(path: UUID().uuidString),
+            tracker: UnwiredBarPathTracker(),
+            now: { Date(timeIntervalSinceReferenceDate: 0) }
+        ),
         entry: AppEntryInbox(),
         platform: SessionPlatform(
             liveActivity: InertSessionLiveActivity(),

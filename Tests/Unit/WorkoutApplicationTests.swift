@@ -13,6 +13,7 @@ func makeSelectedApp(storage: AppEnvironment.Storage = .inMemory) async throws -
         environment: AppEnvironment(
             storage: storage,
             dictationRecords: .inMemory,
+            formClips: URL.temporaryDirectory.appending(path: UUID().uuidString),
             sheetsClient: LocalWorkbookSheetsClient(workbook: WorkbookScenario.freshBlock.workbook()),
             defaults: .inMemory(),
             now: { frozenNow }
@@ -299,6 +300,7 @@ private func address(_ raw: String) throws -> SetAddress {
         environment: AppEnvironment(
             storage: .inMemory,
             dictationRecords: .inMemory,
+            formClips: URL.temporaryDirectory.appending(path: UUID().uuidString),
             sheetsClient: client,
             defaults: .inMemory(),
             now: { frozenNow }
@@ -322,6 +324,7 @@ private func address(_ raw: String) throws -> SetAddress {
         environment: AppEnvironment(
             storage: .inMemory,
             dictationRecords: .inMemory,
+            formClips: URL.temporaryDirectory.appending(path: UUID().uuidString),
             sheetsClient: client,
             defaults: .inMemory(),
             now: { frozenNow }

@@ -42,6 +42,11 @@ struct SessionViewVisualTests {
                     sync: sync,
                     settings: scenario.settings,
                     lastPerformed: lastPerformedLookup,
+                    formClips: FormClipLibrary(
+                        directory: URL.temporaryDirectory.appending(path: UUID().uuidString),
+                        tracker: VisionBarPathTracker(),
+                        now: Date.init
+                    ),
                     entry: entry,
                     platform: SessionPlatform(
                         liveActivity: LiveActivityProductionAdapter(),

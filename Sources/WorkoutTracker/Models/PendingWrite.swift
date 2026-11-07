@@ -17,6 +17,11 @@ struct ExerciseReference: Hashable, Sendable {
         ordinal == 0 ? name.entered : "\(name.entered) number \(ordinal + 1)"
     }
 
+    /// The Exercise as the athlete reads it: the Base Name, numbered the same way.
+    var athleteLabel: String {
+        ordinal == 0 ? name.base : "\(name.base) number \(ordinal + 1)"
+    }
+
     /// The Exercise anchor this names in `day`, or nil when the Day holds fewer Exercises of its name.
     /// It agrees with `Exercise.reference(in:)` because BlockBuilder sets an Exercise's `order` to its
     /// anchor's index in the Day, so change the two together.
@@ -29,6 +34,27 @@ struct ExerciseReference: Hashable, Sendable {
     /// lint rule bans it everywhere else.
     static func unchecked(name: ExerciseName, ordinal: Int) -> ExerciseReference {
         ExerciseReference(name: name, ordinal: ordinal)
+    }
+}
+
+/// A Form Clip keeps the reference a Sheet read gave its Set.
+extension ExerciseReference: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case name, ordinal
+    }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            name: ExerciseName(entered: try container.decode(String.self, forKey: .name)),
+            ordinal: try container.decode(Int.self, forKey: .ordinal)
+        )
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name.entered, forKey: .name)
+        try container.encode(ordinal, forKey: .ordinal)
     }
 }
 
