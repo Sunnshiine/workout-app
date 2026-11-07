@@ -3,6 +3,15 @@ import Foundation
 struct MoveOnCelebrationStatPresentation: Equatable, Sendable {
     let value: String
     let label: String
+
+    init(value: String, label: String) {
+        self.value = value
+        self.label = label
+    }
+
+    init(count: Int, singular: String) {
+        self.init(value: "\(count)", label: count == 1 ? singular : "\(singular)s")
+    }
 }
 
 /// The copy and stats behind the Move On ceremony (DESIGN.md §5.7, picks
@@ -22,7 +31,6 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
 
     let titleText: String
     let contextText: String
-    let actionText: String
     let quoteText: String
     let continueText: String
     let stats: [MoveOnCelebrationStatPresentation]
@@ -47,12 +55,11 @@ struct MoveOnCelebrationPresentation: Equatable, Sendable {
         } else {
             contextText = locationCore
         }
-        actionText = "Move On"
         quoteText = selectedQuote
         continueText = "Continue"
         stats = [
-            MoveOnCelebrationStatPresentation(value: "\(totalSetCount)", label: "Sets"),
-            MoveOnCelebrationStatPresentation(value: "\(exerciseCount)", label: "Exercises"),
+            MoveOnCelebrationStatPresentation(count: totalSetCount, singular: "Set"),
+            MoveOnCelebrationStatPresentation(count: exerciseCount, singular: "Exercise"),
             MoveOnCelebrationStatPresentation(value: "\(pendingSetCount)", label: "Left")
         ]
         accessibilityLabel = placement.locationText(separator: ", ")

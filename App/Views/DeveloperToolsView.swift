@@ -36,7 +36,7 @@ struct DeveloperToolsView: View {
         }
         .overlay {
             if let forcedCelebrationSession {
-                MoveOnCelebrationView(session: forcedCelebrationSession) {
+                MoveOnCelebrationView(session: forcedCelebrationSession, arrivesOverTheStage: false) {
                     forcedCelebrationAddress = nil
                 }
                 .transition(.opacity)

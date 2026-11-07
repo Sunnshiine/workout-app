@@ -26,7 +26,7 @@ extension Theme {
         /// The Night bud's rim: a light, so it keeps the leaf ramp's full chroma at step 200.
         static let budNight = Ramp.leaf.tone(.s200).color
         static let paperDayTop = rgb(233, 238, 220)  // #E9EEDC
-        static let paperDayBottom = rgb(203, 225, 194)  // #CBE1C2
+        static let paperDayBottom = rgb(220, 231, 210)  // #DCE7D2
         static let paperNightTop = rgb(35, 44, 32)  // #232C20
         static let paperNightBottom = rgb(18, 29, 20)  // #121D14
         // The Sunbird colophon's three-stop glass greens (token sheet §Bird & colophon). The glass

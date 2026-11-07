@@ -17,7 +17,7 @@ and the accepted aesthetic risk.
 **One illustrative icon per page.** The Session stage's branch is the stage's one illustrative icon.
 A control or status glyph does not count against it: any glyph on or inside a tappable control (the
 back arrow, play, X, chevrons, the steppers' triangles, the clear menu's ellipsis, the card's mic,
-the queue pill's stack, and the queue sheet's pairing stems, §5.4), one that leads a control's data
+the queue pill's list, and the queue sheet's pairing stems, §5.4), one that leads a control's data
 (the Last Performed clock, the runline's calendar, the Superset partner's fork), or one that marks a
 state beside its word (the Saved check, the danger mark).
 

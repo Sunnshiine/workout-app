@@ -21,7 +21,7 @@ and the one place the app shows Sheet structure.
 
 - **Focus-week layout:** only the week holding the Current Session expands.
   Every collapsed week is an elevated tappable card in shade, carrying a
-  summary and a mini day-strip; the focus card alone stands in morning
+  bare count and a mini day-strip; the focus card alone stands in morning
   light with a glowing rim — hierarchy by **light and shade at one
   elevation**.
 - **Partial day:** ink rising from the tile's foot in quantized quarters.
@@ -97,13 +97,16 @@ Night) lives here.
 
 **The Destructive Confirmation Card.** Signing out or switching sheets while
 Set Logs are pending asks first, on a card the app draws in place of a system
-alert, because an alert action drops its glyph on iOS 26. The card dims the
-surface under it and carries the question, the line "Pending logs for the
-current sheet will be discarded.", a text Cancel capsule, and a capsule
-holding the red action glyph (`rectangle.portrait.and.arrow.right` to sign
-out, `arrow.left.arrow.right` to switch). It behaves as a system alert does:
-the sheet under it cannot be swiped away until the athlete answers,
-VoiceOver moves to its title when it appears, and the escape gesture cancels
+alert, because an alert action drops its glyph on iOS 26. The card dims and
+blurs the surface under it and carries the question, the line "Pending logs for the
+current sheet will be discarded.", a text Cancel capsule, and a system red
+capsule holding the white action glyph (`rectangle.portrait.and.arrow.right` to
+sign out, `arrow.left.arrow.right` to switch). The red stays the system's, as the
+ruling above keeps it, and filling with it is what lifts the glyph over the 3:1 mark
+floor (the operator, 2026-11-06: "Make the UI / UX emil approved. It should look
+way better and easier on the eyes"). It behaves as a system alert does:
+the sheet under it cannot be swiped away or closed with Done until the
+athlete answers, VoiceOver moves to its title when it appears, and the escape gesture cancels
 it.
 
 **Settings Own Manual Sync Rule** (carried forward). Manual sync is a

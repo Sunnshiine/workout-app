@@ -143,6 +143,7 @@ struct SessionQueueSheet: View {
                 .themeFont(.sheetTitle)
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityFocused($isTitleFocused)
+                .padding(.leading, Self.textInset)
 
             Spacer(minLength: 12)
 
@@ -306,7 +307,7 @@ struct SessionQueueSheet: View {
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         rowLayout {
             QueueRowFace(row: row, drawsLens: drawsLens)
-                .padding(.leading, row.wearsCapsule ? Self.capsuleContentInset : 0)
+                .padding(.leading, Self.textInset)
 
             if !dynamicTypeSize.isAccessibilitySize {
                 Spacer(minLength: 12)
@@ -323,8 +324,8 @@ struct SessionQueueSheet: View {
     private static let wheelContent = "wheel-content"
     fileprivate static let rowHeight: CGFloat = 64
     fileprivate static let rowVerticalPadding: CGFloat = 12
-    private static let capsuleInset: CGFloat = 4
-    private static let capsuleContentInset: CGFloat = 6
+    private static let capsuleInset: CGFloat = 8
+    private static let textInset: CGFloat = 6
     private static let edgeFade: CGFloat = 40
 }
 

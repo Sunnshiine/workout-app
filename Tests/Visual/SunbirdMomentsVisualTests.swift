@@ -42,6 +42,7 @@ struct SunbirdMomentsVisualTests {
         let view = MoveOnCelebrationView(
             session: session,
             quoteText: "Bench 92.5×5 @8 topped last week's 90.",
+            arrivesOverTheStage: false,
             onDismiss: {}
         )
         .environment(\.themePalette, Theme.palette(for: appearance))

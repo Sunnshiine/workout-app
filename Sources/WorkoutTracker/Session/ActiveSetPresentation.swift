@@ -39,16 +39,13 @@ struct HoldToSkipButtonPresentation: Equatable, Sendable {
         holdPolicy != nil
     }
 
-    var skipOpacity: Double {
-        clampedProgress
-    }
-
-    var logOpacity: Double {
-        1 - clampedProgress
+    /// A release no longer logs past the reveal, so the capsule stops saying it will.
+    var holdIsRevealed: Bool {
+        clampedProgress > 0
     }
 
     var accessibilityLabel: String {
-        showsSkippedBed || clampedProgress > 0 ? "Skipped" : logTitle
+        showsSkippedBed || holdIsRevealed ? "Skipped" : logTitle
     }
 
     var accessibilityValue: String {
@@ -143,7 +140,12 @@ struct SetCardPresentation: Equatable, Sendable {
         /// A Set as written: Skipped, or its logged line.
         @MainActor
         static func written(_ set: ExerciseSet) -> ActionRow {
-            set.state == .skipped ? .skipped : .logged(line: set.displayReps)
+            set.state == .skipped ? .skipped : logged(set)
+        }
+
+        @MainActor
+        static func logged(_ set: ExerciseSet) -> ActionRow {
+            .logged(line: set.setLog?.capsuleText ?? set.displayReps)
         }
     }
 
@@ -169,7 +171,7 @@ struct SetCardPresentation: Equatable, Sendable {
             showsClearMenu = false
             commitsChangesOnDisappear = true
             editsValues = true
-            row = .logged(line: set.displayReps)
+            row = .logged(set)
             let isUnstructuredSetLog = set.setLog == nil
             incompleteDraftRow = isUnstructuredSetLog ? row : .incompleteDraft
         case .held:
@@ -189,6 +191,8 @@ struct SetCardPresentation: Equatable, Sendable {
 
 struct SessionProgressHeaderPresentation: Equatable, Sendable {
     let runlineText: String
+    /// The Week and Day alone, for a header too full to carry the Block's name as well.
+    let compactRunlineText: String
     let completedSetCount: Int
     let totalSetCount: Int
     let locationActionAccessibilityLabel: String
@@ -204,6 +208,7 @@ struct SessionProgressHeaderPresentation: Equatable, Sendable {
 
     init(session: Session, block: Block? = nil) {
         let locationCore = session.placement.locationText(separator: " · ")
+        compactRunlineText = locationCore
         if let block {
             runlineText = "\(block.tabName) · \(locationCore)"
         } else {
@@ -234,7 +239,7 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
     let matchedName: String?
 
     init(entry: LastPerformedEntry) {
-        resultText = entry.resultText
+        resultText = Self.referenceSpelling(of: entry.resultText)
         sourceText = entry.source
         matchedName = nil
     }
@@ -243,8 +248,15 @@ struct LastPerformedCardPresentation: Equatable, Sendable {
         guard let entry = lookup.lookup(for: exercise.exerciseName) else {
             return nil
         }
-        resultText = entry.resultText
+        resultText = Self.referenceSpelling(of: entry.resultText)
         sourceText = entry.sourceText
         matchedName = entry.matchedName
+    }
+
+    /// A token that is no Set Log, such as a coach's free text, stays as the Sheet wrote it.
+    private static func referenceSpelling(of resultText: String) -> String {
+        resultText.components(separatedBy: ", ")
+            .map { SetLogToken.classify($0).setLog?.referenceText ?? $0 }
+            .joined(separator: ", ")
     }
 }

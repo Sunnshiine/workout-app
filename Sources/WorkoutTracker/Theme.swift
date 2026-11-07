@@ -40,12 +40,12 @@ enum Theme {
         static let activeSetCard: CGFloat = 43
         // Concentric with the day tiles inside it: tile 15 + the card's 16pt `blockFocusCardPadding`.
         static let focusCard: CGFloat = 31
-        // Collapsed week cards, already concentric: mini 6 + the 14pt `blockWeekCardPadding`.
+        // Collapsed week cards, concentric: mini 4 + the 16pt `blockWeekCardPadding`.
         static let card: CGFloat = 20
         static let rail: CGFloat = 18  // reps/RPE rails
         static let tile: CGFloat = 15  // day tiles
         static let cell: CGFloat = 14  // rail chips
-        static let mini: CGFloat = 6  // week mini-chips
+        static let mini: CGFloat = 4  // week mini-chips
     }
 
     // MARK: - Motion & haptics (token sheet §7)
@@ -109,6 +109,7 @@ enum Theme {
         static let holdToSkipReveal = 0.25  // reveal at 250ms
         static let holdToSkipCommit = 0.85  // commit at 850ms
         static let holdToSkipRetreat = 0.2
+        static let briefSyncStatusDelay = 0.5  // a state must hold this long to reach the header
         static let holdToSkipLoggedCommit = 0.9  // logged-state hold
     }
 
@@ -138,14 +139,14 @@ enum Theme {
     // Geometry constants (not palette); the named radius family owns the corners.
 
     static let blockTileHeight: CGFloat = 52  // full day tile — wider-than-tall
-    static let blockTileMiniHeight: CGFloat = 16  // collapsed card's mini day-strip
+    static let blockTileMiniHeight: CGFloat = 20  // collapsed card's mini day-strip
     static let blockTileSpacing: CGFloat = 10
     static let blockTileMiniSpacing: CGFloat = 5
     static let blockTileStroke: CGFloat = 1  // quiet available / mini strokes
     static let blockTileCurrentStroke: CGFloat = 1.5  // the current tile's rim
     static let blockTileGhostStroke: CGFloat = 1.5  // the empty bed's dashed outline
     static let blockTileGhostDash: CGFloat = 4
-    static let blockWeekCardPadding: CGFloat = 14
+    static let blockWeekCardPadding: CGFloat = 16
     static let blockFocusCardPadding: CGFloat = 16
 
     // MARK: - Sheet tab Day cards
@@ -161,7 +162,7 @@ enum Theme {
     /// Lines a cell wraps to before it truncates; tapping shows the rest.
     static let sheetCellLineLimit = 3
     static let sheetCellVerticalInset: CGFloat = 6
-    static let sheetCellInset: CGFloat = 4
+    static let sheetCellInset: CGFloat = 3
     static let sheetHairline: CGFloat = 0.5
     static let sheetSelectedCellStroke: CGFloat = 1.5
     static let sheetHiddenRowOpacity: Double = 0.45  // dimmed, never dropped
@@ -189,7 +190,7 @@ enum Theme {
     static let prescriptionTickWidth: CGFloat = 18  // last-week tick under the rail value (18×3, r2)
     static let prescriptionTickHeight: CGFloat = 3
 
-    static let holdToSkipTapMaximumDuration = 0.18  // a release this soon is the Log tap
+    static let holdToSkipTapMaximumDuration = Motion.holdToSkipReveal  // a release before the skip shows is the Log tap
     static let holdToSkipTapSuppression = 0.25  // a tap this soon after a cancelled hold or a skip is its release
     static let sessionMotionDuration = 0.3
     static let stageCompositionDuration = 0.25

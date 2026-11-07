@@ -82,10 +82,12 @@ final class WorkoutTrackerUISmokeTests: XCTestCase {
 
         let confirmSignOut = app.buttons["sign-out-confirm-button"]
         app.buttons["settings-sign-out-button"].tap()
-        XCTAssertTrue(app.staticTexts["You have unsynced changes. Sign out anyway?"].appears(within: 3))
+        XCTAssertTrue(app.staticTexts["You have unsynced changes.\nSign out anyway?"].appears(within: 3))
         XCTAssertEqual(confirmSignOut.label, "Sign Out")
+        XCTAssertFalse(app.buttons["settings-done-button"].exists, "the card holds Settings until it is answered")
         app.buttons["Cancel"].tap()
         XCTAssertFalse(confirmSignOut.appears(within: 1))
+        XCTAssertTrue(app.buttons["settings-done-button"].appears(within: 1))
 
         app.buttons["settings-sign-out-button"].tap()
         XCTAssertTrue(confirmSignOut.appears(within: 3))

@@ -184,7 +184,7 @@ struct SessionStageTests {
         let stage = makeStage([bench], lookup: benchHistory())
 
         let lastPerformed = try #require(exerciseStage(stage)?.lastPerformed)
-        #expect(lastPerformed.resultText == "185x6@7")
+        #expect(lastPerformed.resultText == "185×6 @7")
         #expect(lastPerformed.sourceText == "W3 D2")
     }
 
@@ -320,7 +320,7 @@ struct SessionStageTests {
             lookup: benchHistory()
         )
 
-        #expect(try #require(supersetStage(stage)).lastPerformed?.resultText == "185x6@7")
+        #expect(try #require(supersetStage(stage)).lastPerformed?.resultText == "185×6 @7")
     }
 
     @Test func aSupersetWithoutTheActiveSetRestsOnItsLowerSidesNextPendingSet() throws {

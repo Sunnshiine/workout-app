@@ -230,8 +230,29 @@ enum SessionPageHost {
         let probe = FrameProbe()
         let page = SessionPage(session: session, coordinator: coordinator, restTimer: RestTimer(), banner: .clear, probe: probe)
         let lookup = LastPerformedLookupStore(context: scenario.context)
+        try lookup.ingest([
+            LastPerformedEntry(
+                exerciseName: exercises[0].exerciseName,
+                resultText: "1025.5x1@10, 1015x1@9.5, felt heavy belt off knees caved on rep three",
+                performedOn: Date(timeIntervalSinceReferenceDate: 90),
+                source: SessionCoordinate(blockTab: "Block 26", address: SessionAddress(week: 4, day: 3)).storageValue
+            )
+        ])
         return try read(page, scenario: scenario, lastPerformedLookup: lookup, windowHeights: windowHeights) { window in
             try frames(in: window, focused: exercises[0], probe: probe)
+        }
+    }
+
+    /// The width of the header's count at the largest text size, in each window width.
+    static func headerCountWidths(inWindowWidths widths: [CGFloat]) throws -> [CGFloat] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        VisualFixtureRetainer.retain(scenario)
+        let header = SessionProgressHeader(session: try #require(scenario.store.viewedSession))
+            .environment(\.themePalette, Theme.palette(for: .day))
+            .environment(\.dynamicTypeSize, Theme.TypeScale.largestSize)
+        let sizes = widths.map { CGSize(width: $0, height: WindowHeight.iPhone17Pro) }
+        return try AccessibilityHost.read(header, in: sizes) { window in
+            try #require(window.accessibilityFrames { $0.elementIdentifier == "session-remaining-count" }.first).width.rounded()
         }
     }
 
