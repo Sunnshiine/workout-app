@@ -199,6 +199,8 @@ func onboardingIsNeededOnlyOnceTheSignInRestoreHasAnswered(restoredSignIn: Bool?
 
     store.setPlateInventory(PlateInventory(bar: .fifteenKilo, plates: [.fortyFive, .ten]))
 
+    #expect(store.plateInventory.bar == .fifteenKilo)
+    #expect(store.plateInventory.plates == [.fortyFive, .ten])
     let reloaded = SettingsStore(defaults: defaults)
     #expect(reloaded.plateInventory.bar == .fifteenKilo)
     #expect(reloaded.plateInventory.plates == [.fortyFive, .ten])
