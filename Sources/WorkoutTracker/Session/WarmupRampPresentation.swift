@@ -80,7 +80,7 @@ struct WarmupRampPresentation: Equatable, Sendable {
         self.steps = steps
         perSide = shown?.perSide ?? []
         readout = Self.readout(perSide)
-        caption = perSide.isEmpty ? inventory.bar.label : "a side on the \(inventory.bar.label) Bar"
+        caption = perSide.isEmpty ? inventory.bar.label : "a side"
         note = Self.note(top: top, setLabel: setLabel)
         rows = Self.rows(steps: steps, finished: finished, topLoad: topLoad, setLabel: setLabel)
     }
@@ -134,18 +134,18 @@ struct WarmupRampPresentation: Equatable, Sendable {
         )
     }
 
-    /// The Set the walk ends on. It is the coach's, so the row names it and never counts as a step.
-    /// Where the Plate Inventory cannot make its weight, the row shows what it can and says so.
+    /// The Set the walk ends on. It is the coach's, so the row leads with the Set's own weight and
+    /// never counts as a step. Where the Plate Inventory cannot make it, the row says what loads.
     private static func setRow(asked pounds: Double, load: PlateLoad, setLabel: String, state: RowState) -> Row {
-        let weight = Weight.pounds(load.reachable).label
         let asked = Weight.pounds(pounds).label
+        let loaded = Weight.pounds(load.reachable).label
         let isExact = load.remainder == 0
         return Row(
             id: "warmup-set",
-            weight: weight,
-            detail: isExact ? setLabel : "\(setLabel) is \(asked)",
+            weight: asked,
+            detail: isExact ? setLabel : "\(setLabel), loads as \(loaded)",
             state: state,
-            accessibilityLabel: isExact ? "\(setLabel), \(weight) pounds" : "\(setLabel) is \(asked) pounds, loads as \(weight)"
+            accessibilityLabel: isExact ? "\(setLabel), \(asked) pounds" : "\(setLabel) is \(asked) pounds, loads as \(loaded)"
         )
     }
 }

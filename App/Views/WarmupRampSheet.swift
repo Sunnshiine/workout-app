@@ -128,8 +128,6 @@ struct WarmupRampSheet: View {
             Text(text).themeFont(.statsValue).multilineTextAlignment(.center)
         }
         .foregroundStyle(palette.textPrimary)
-        .contentTransition(reduceMotion ? .identity : .numericText())
-        .animation(reduceMotion ? nil : BarbellView.loadAnimation, value: text)
     }
 
     private func noWalk(_ note: String) -> some View {
@@ -175,9 +173,10 @@ struct WarmupRampSheet: View {
             coordinator.warmupWalk.tap(rowAt: index, of: presentation.steps, forExerciseOrder: entry.exerciseOrder)
         } label: {
             HStack(spacing: 10) {
+                // Secondary ink, because a green mark says a Set is logged and a step never is.
                 Image(systemName: "checkmark")
                     .themeFont(.queuePill)
-                    .foregroundStyle(palette.action)
+                    .foregroundStyle(palette.textSecondary)
                     .opacity(row.state == .finished ? 1 : 0)
                     .accessibilityHidden(true)
 
