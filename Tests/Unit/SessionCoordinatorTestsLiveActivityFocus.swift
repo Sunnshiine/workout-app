@@ -4,7 +4,9 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-private func makeFocusedRestFixture() throws -> (
+private func makeFocusedRestFixture(
+    sync: SpySessionSyncAdapter = SpySessionSyncAdapter()
+) throws -> (
     session: Session,
     coordinator: SessionCoordinator,
     liveActivity: SpySessionLiveActivityAdapter,
@@ -19,7 +21,7 @@ private func makeFocusedRestFixture() throws -> (
         wiring: .fixture(
             logging: SpySessionLoggingAdapter(),
             navigation: SpySessionNavigationAdapter(current: session),
-            sync: SpySessionSyncAdapter(),
+            sync: sync,
             restTimer: RestTimer(clock: clock),
             restDurations: restDurations(standard: 210),
             liveActivity: liveActivity,
@@ -29,6 +31,31 @@ private func makeFocusedRestFixture() throws -> (
     let bench = try #require(session.exercises.first { $0.order == 1 })
     coordinator.log(try #require(bench.sets.first { $0.index == 0 }), as: SetLog(weight: .pounds(185), reps: 6, rpe: .seven))
     return (session, coordinator, liveActivity, clock)
+}
+
+/// Leaving the app leaves its header behind, so the card takes the count.
+@MainActor
+@Test func leavingTheAppCountsTheQueueOnTheRestsCard() throws {
+    let sync = SpySessionSyncAdapter()
+    let fixture = try makeFocusedRestFixture(sync: sync)
+    sync.pendingWriteCount = 2
+
+    fixture.coordinator.retargetLiveActivityOnLeavingTheApp()
+
+    #expect(fixture.liveActivity.retargets.map(\.pendingWrites) == [2])
+}
+
+/// A retarget in the turn that logged a Set would replace the start bringing the card up, and a
+/// retarget brings up no activity of its own, so the Lock Screen would have no card at all.
+@MainActor
+@Test func aQueuedWriteDoesNotRetargetTheRestItsOwnLogJustStarted() throws {
+    let sync = SpySessionSyncAdapter()
+    sync.pendingWriteCount = 1
+
+    let fixture = try makeFocusedRestFixture(sync: sync)
+
+    #expect(fixture.liveActivity.calls.count == 1)
+    #expect(fixture.liveActivity.retargets.isEmpty)
 }
 
 @MainActor

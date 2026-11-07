@@ -13,7 +13,9 @@ private let rest = LiveActivityRestContent(
     setsTotal: 3,
     variant: .restTimerSetsLeft,
     restStartDate: Date(timeIntervalSince1970: 1_780_000_000),
-    restEndDate: Date(timeIntervalSince1970: 1_780_000_180)
+    restEndDate: Date(timeIntervalSince1970: 1_780_000_180),
+    press: .needsApp,
+    lastPerformed: []
 )
 
 @Test func withNoActivityUpAReadbackStartsOneAndAFinalOneEndsItShowingTheResult() {

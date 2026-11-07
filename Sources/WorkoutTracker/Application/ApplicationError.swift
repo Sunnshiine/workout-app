@@ -103,6 +103,10 @@ extension ApplicationError {
         )
     }
 
+    public static func rpeChipRefused(_ reason: String) -> ApplicationError {
+        ApplicationError(code: "rpe_chip_refused", message: "The press logged nothing: \(reason).", kind: .domain)
+    }
+
     public static func spokenSetRejected(_ heard: String, reason: SpokenSetRejectionSnapshot.Reason) -> ApplicationError {
         ApplicationError(
             code: "spoken_set_rejected",

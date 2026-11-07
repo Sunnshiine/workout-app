@@ -37,7 +37,8 @@ Sources/WorkoutTracker/  The library, compiled into the app, the CLI, and swift 
                          model, Sheet parsing, sync and stores, session and progress logic, the
                          fixtures, and WorkoutApplication.
 Sources/WorkoutCLI/      The workout executable. In neither the app nor the widget.
-WorkoutShared/           Live Activity attributes, compiled into the app and the widget.
+WorkoutShared/           Live Activity attributes and views, and the fonts, compiled into the app and
+                         the widget.
 WorkoutWidgets/          The widget extension.
 Tests/                   Unit/ and Component/ run under swift test. UI/ and Visual/ run on the
                          simulator only. Support/ holds the fakes and fixtures both runs share.

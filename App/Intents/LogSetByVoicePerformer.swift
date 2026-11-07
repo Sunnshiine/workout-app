@@ -62,7 +62,7 @@ final class LogSetByVoicePerformer: LogSetByVoicePerforming {
 }
 
 @MainActor
-private final class GoogleSignInRestorer: SignInRestoring {
+final class GoogleSignInRestorer: SignInRestoring {
     func restorePreviousSignIn() async -> Bool {
         #if DEBUG
             if UITestFixture.isEnabled { return true }

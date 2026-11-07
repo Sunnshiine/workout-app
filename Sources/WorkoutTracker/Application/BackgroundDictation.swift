@@ -15,6 +15,13 @@ protocol DictationLiveActivityAdapter: AnyObject {
     /// Takes the readback off once the card has the Set: a Live Activity started for it ends now,
     /// and a rest it rode on shows as the stage left it.
     func withdrawReadback() async
+    /// The rest the Live Activity runs; nil when none is running here.
+    var restContent: LiveActivityRestContent? { get }
+    /// Takes `readback` off once it has been read and shows `card`, unless another readback has
+    /// replaced it since.
+    func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async
+    /// Shows `card` over the one it follows, unless a readback is up.
+    func refresh(card: LiveActivityRestContent) async
 }
 
 /// Restores the Google sign-in that a launch with no scene never did.
@@ -71,22 +78,15 @@ final class BackgroundDictation {
         case micBusy
     }
 
-    /// How long the flush may hold the run after the result shows. A flush still going runs on,
-    /// and a write that never lands stays queued for the next foreground (ADR-0006).
-    nonisolated static let flushWait: Duration = .seconds(10)
-
     private let app: WorkoutApplication
     private let dictation: SetDictation
     /// The stage's focus, so this listens on the Set the card shows and moves the card past it.
     private let focus: ActiveSetFocusManager
-    /// The process's one rest, which a write here starts as the stage would: its pill, the Live
-    /// Activity, and the rest-end notification all read it.
-    private let restTimer: RestTimer
     private let liveActivity: any DictationLiveActivityAdapter
-    private let signIn: any SignInRestoring
-    private let clock: any ListeningClock
-    /// Held so the flush outlives `flushWait`; nil until a write asks for one.
-    private(set) var flushing: Task<FlushReport?, Never>?
+    private let writes: HeadlessWrites
+
+    /// Held so the flush outlives its wait; nil until a write asks for one.
+    var flushing: Task<FlushReport?, Never>? { writes.flushing }
 
     init(
         app: WorkoutApplication,
@@ -100,10 +100,8 @@ final class BackgroundDictation {
         self.app = app
         self.dictation = dictation
         self.focus = focus
-        self.restTimer = restTimer
         self.liveActivity = liveActivity
-        self.signIn = signIn
-        self.clock = clock
+        writes = HeadlessWrites(app: app, focus: focus, restTimer: restTimer, signIn: signIn, clock: clock)
     }
 
     func run() async -> Outcome {
@@ -129,7 +127,7 @@ final class BackgroundDictation {
     private func readBack(_ settled: Settled, sessionLabel: String) async -> Outcome {
         await liveActivity.show(settled.content, sessionLabel: sessionLabel)
         if settled.wrote {
-            await flush()
+            await writes.flush()
         }
         return settled.outcome
     }
@@ -228,7 +226,7 @@ final class BackgroundDictation {
                 outcome: .logged(setLog, at: setID),
                 content: LiveActivityDictationContent(
                     readback: .logged(setLog.readback, to: written),
-                    subject: restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
+                    subject: writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
                 ),
                 wrote: true
             )
@@ -251,42 +249,6 @@ final class BackgroundDictation {
             content: LiveActivityDictationContent(readback: .notLogged(why.caption), subject: .set(shown)),
             wrote: false
         )
-    }
-
-    /// Starts the rest the stage would after this Set, on the stage's own timer, and reads it back
-    /// toward the Set the card focuses next. With no rest to start, the logged Set's Exercise as it
-    /// now stands.
-    private func restSubject(
-        afterLogging position: SessionSetPosition,
-        in session: Session,
-        wasSupersetMember: Bool
-    ) -> LiveActivityDictationContent.Subject {
-        let set = position.set
-        guard
-            let interval = restTimer.startRest(
-                afterLogging: set,
-                in: session,
-                wasSupersetMember: wasSupersetMember,
-                durations: app.settings
-            ),
-            let content = focus.liveActivityRestContent(
-                afterLogging: set,
-                in: session,
-                restStartDate: interval.start,
-                restEndDate: interval.end
-            )
-        else { return .set(LiveActivitySetContent(position)) }
-        return .rest(content)
-    }
-
-    /// Restores the sign-in when no scene has, then flushes for at most `flushWait`.
-    private func flush() async {
-        if !app.settings.isSignedIn, await signIn.restorePreviousSignIn() {
-            app.settings.isSignedIn = true
-        }
-        let flushing = Task { @MainActor [app] in try? await app.flush() }
-        self.flushing = flushing
-        await BoundedWait.wait(for: flushing, until: clock.now + Self.flushWait, on: clock)
     }
 }
 

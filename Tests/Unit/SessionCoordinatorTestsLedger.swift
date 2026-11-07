@@ -65,6 +65,8 @@ final class SessionVerbLedger: SessionMotionPerforming, SessionLoggingAdapter, S
         entries.append(.flushRequested)
     }
 
+    var pendingWriteCount: Int { 0 }
+
     var restContent: LiveActivityRestContent? { nil }
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {

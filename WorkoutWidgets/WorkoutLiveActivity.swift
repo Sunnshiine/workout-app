@@ -4,11 +4,14 @@ import SwiftUI
 import WidgetKit
 
 struct WorkoutLiveActivity: Widget {
+    /// The system gives the expanded island 160pt, and the RPE Chips use all of it at the default size.
+    private static let islandLargestType = DynamicTypeSize.large
+
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             LockScreenWorkoutView(state: context.state)
                 .activityBackgroundTint(context.state.liveActivityColors.background)
-                .activitySystemActionForegroundColor(context.state.liveActivityColors.accent)
+                .activitySystemActionForegroundColor(context.state.liveActivityColors.action)
         } dynamicIsland: { context in
             DynamicIsland {
                 expandedContent(for: context)
@@ -19,7 +22,7 @@ struct WorkoutLiveActivity: Widget {
             } minimal: {
                 minimalContent(for: context.state)
             }
-            .keylineTint(context.state.liveActivityColors.accent)
+            .keylineTint(context.state.liveActivityColors.action)
             // At the default margin, about 18pt, the expanded island's rounded corners cut glyphs.
             .contentMargins(.horizontal, 34, for: .expanded)
         }
@@ -31,15 +34,19 @@ struct WorkoutLiveActivity: Widget {
     ) -> DynamicIslandExpandedContent<some View> {
         DynamicIslandExpandedRegion(.leading) {
             expandedLeading(for: context.state)
+                .dynamicTypeSize(...Self.islandLargestType)
         }
         DynamicIslandExpandedRegion(.trailing) {
             expandedTrailing(for: context.state)
+                .dynamicTypeSize(...Self.islandLargestType)
         }
         DynamicIslandExpandedRegion(.center) {
             expandedCenter(for: context)
+                .dynamicTypeSize(...Self.islandLargestType)
         }
         DynamicIslandExpandedRegion(.bottom) {
             expandedBottom(for: context)
+                .dynamicTypeSize(...Self.islandLargestType)
         }
     }
 
@@ -60,9 +67,25 @@ struct WorkoutLiveActivity: Widget {
                 SetProgressRing(state: state, lineWidth: 4)
                     .frame(width: 42, height: 42)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                PrescriptionStack(state: state)
-                    .lineLimit(1)
+                restLeading(for: state)
             }
+        }
+    }
+
+    /// The chips' line and tick state the prescription, so this keeps only what they leave out.
+    @ViewBuilder
+    private func restLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
+        switch state.loggablePress {
+        case .ready(let offer):
+            if let prescription = state.prescription(beyond: offer) {
+                Text(prescription)
+                    .liveActivityFont(.label)
+                    .foregroundStyle(state.liveActivityColors.islandSecondaryText)
+                    .lineLimit(2)
+            }
+        case .needsApp:
+            PrescriptionStack(state: state)
+                .lineLimit(1)
         }
     }
 
@@ -70,16 +93,16 @@ struct WorkoutLiveActivity: Widget {
     private func expandedTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
         if let dictation = state.dictation {
             if dictation.isListening {
-                DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 40)
+                DictationSymbol(dictation: dictation, colors: state.liveActivityColors, diameter: 44)
             } else if dictation.isAboutASet {
-                SaySetButton(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 44)
             }
         } else {
             switch state.variant {
             case .setProgress, .nowLifting:
                 PrescribedLoadBadge(state: state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                SaySetButton(state: state, diameter: 40)
+                SaySetButton(state: state, diameter: 44)
             }
         }
     }
@@ -97,9 +120,15 @@ struct WorkoutLiveActivity: Widget {
             case .nowLifting:
                 WeightForwardStack(state: context.state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount:
-                RestCountdownStack(state: context.state)
+                // The chips' Exercise and values read under it, so the digits need no label, and
+                // the chips take the room the digits would.
+                if context.state.loggablePress == .needsApp {
+                    RestCountdownStack(state: context.state, showsLabel: true, digits: .largeFigure)
+                } else {
+                    RestCountdownStack(state: context.state, showsLabel: false, digits: .figure)
+                }
             case .restTimerClean:
-                RestCountdownStack(state: context.state, showsLabel: false)
+                RestCountdownStack(state: context.state, showsLabel: false, digits: .largeFigure)
             }
         }
     }
@@ -113,6 +142,8 @@ struct WorkoutLiveActivity: Widget {
                 DictationProgress(state: context.state, dictation: dictation, style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        } else if context.state.variant.isRestTimer, case .ready(let offer) = context.state.loggablePress {
+            IslandRPEChips(state: context.state, offer: offer)
         } else {
             switch context.state.variant {
             case .setProgress:
@@ -126,7 +157,7 @@ struct WorkoutLiveActivity: Widget {
                 ExerciseNameStack(state: context.state)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .restTimer, .restTimerClean:
-                RestProgressBar(state: context.state)
+                RestProgressBar(state: context.state, fill: context.state.liveActivityColors.islandSecondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .restTimerSetsLeft, .restTimerSetCount:
                 RestProgressWithContext(state: context.state, style: .island)
@@ -144,13 +175,13 @@ struct WorkoutLiveActivity: Widget {
             switch state.variant {
             case .setProgress:
                 Image(systemName: "figure.strengthtraining.traditional")
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.action)
             case .nowLifting:
                 SetProgressRing(state: state, lineWidth: 3)
                     .frame(width: 22, height: 22)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
                 Image(systemName: "timer")
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.action)
             }
         }
     }
@@ -173,12 +204,12 @@ struct WorkoutLiveActivity: Widget {
             case .nowLifting:
                 Text(state.weightValue)
                     .font(.caption.weight(.heavy))
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.actionInk)
                     .minimumScaleFactor(0.75)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
                 RestCountdownText(state: state)
                     .font(.caption.weight(.heavy))
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.actionInk)
                     .monospacedDigit()
             }
         }
@@ -193,12 +224,12 @@ struct WorkoutLiveActivity: Widget {
             switch state.variant {
             case .setProgress:
                 Image(systemName: "dumbbell.fill")
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.action)
             case .nowLifting:
                 SetProgressRing(state: state, lineWidth: 3)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
                 Image(systemName: "timer")
-                    .foregroundStyle(state.liveActivityColors.accent)
+                    .foregroundStyle(state.liveActivityColors.action)
             }
         }
     }
@@ -208,107 +239,48 @@ private struct LockScreenWorkoutView: View {
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
-        if let dictation = state.dictation {
-            if dictation.isAboutASet {
-                DictationLockScreenView(state: state, dictation: dictation)
+        Group {
+            if let dictation = state.dictation {
+                if dictation.isAboutASet {
+                    DictationLockScreenView(state: state, dictation: dictation)
+                } else {
+                    NoSetLockScreenView(state: state, dictation: dictation)
+                }
+            } else if state.variant.isRestTimer {
+                SetOfferLockScreenView(state: state)
             } else {
-                NoSetLockScreenView(state: state, dictation: dictation)
-            }
-        } else {
-            restOrProgress
-        }
-    }
-
-    private var restOrProgress: some View {
-        let colors = state.liveActivityColors
-
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(state.exerciseName)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(colors.primaryText)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.82)
-
-                    if state.variant.isRestTimer {
-                        RestCountdownText(state: state)
-                            .font(.system(.title3, design: .rounded).weight(.heavy))
-                            .foregroundStyle(colors.accent)
-                            .monospacedDigit()
-
-                        RestProgressBar(state: state)
-
-                        if state.restContextText != nil {
-                            RestProgressWithContext(state: state, style: .lockScreen, showsBar: false)
-                        }
-                    } else {
-                        SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: colors)
-                    }
-                }
-
-                Spacer(minLength: 10)
-
-                if state.variant.isRestTimer {
-                    PrescriptionStack(state: state, style: .lockScreen)
-                        .minimumScaleFactor(0.75)
-
-                    SaySetButton(state: state, diameter: 44)
-                } else {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(state.weightValue)
-                            .font(.system(.title2, design: .rounded).weight(.heavy))
-                            .foregroundStyle(colors.accent)
-                            .monospacedDigit()
-
-                        Text(state.weightUnit)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(colors.secondaryText)
-                    }
-                }
+                progress
             }
         }
-        .padding(16)
+        .animation(.smooth(duration: 0.35), value: state.dictation)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
-}
 
-/// The Lock Screen while a Dictation the athlete ran without the app listens for the Set, and
-/// once it has an answer: the readback under the Exercise of the Set it is about, over the rest
-/// when a logged Set began one, else over the Exercise's Sets.
-private struct DictationLockScreenView: View {
-    let state: WorkoutActivityAttributes.ContentState
-    let dictation: LiveActivityDictation
-
-    var body: some View {
+    private var progress: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(dictation.writtenSet?.exerciseName ?? state.exerciseName)
-                        .font(.headline.weight(.semibold))
-                        .foregroundStyle(colors.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+        return HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(state.exerciseName)
+                    .liveActivityFont(.exerciseName)
+                    .foregroundStyle(colors.primaryText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
 
-                    DictationReadback(dictation: dictation, colors: colors, style: .lockScreen)
-                }
-
-                Spacer(minLength: 10)
-
-                if dictation.writtenSet == nil {
-                    PrescriptionStack(state: state, style: .lockScreen)
-                        .minimumScaleFactor(0.75)
-                }
-
-                if dictation.isListening {
-                    DictationSymbol(dictation: dictation, colors: colors, diameter: 44)
-                } else {
-                    SaySetButton(state: state, diameter: 44)
-                }
+                SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: colors)
             }
 
-            DictationProgress(state: state, dictation: dictation, style: .lockScreen)
+            Spacer(minLength: 10)
+
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(state.weightValue)
+                    .liveActivityFont(.largeFigure)
+                    .foregroundStyle(colors.actionInk)
+
+                Text(state.weightUnit)
+                    .liveActivityFont(.label)
+                    .foregroundStyle(colors.secondaryText)
+            }
         }
         .padding(16)
     }
@@ -327,144 +299,74 @@ private struct NoSetLockScreenView: View {
             VStack(alignment: .leading, spacing: 6) {
                 if let session = dictation.sessionName {
                     Text(session)
-                        .font(.headline.weight(.semibold))
+                        .liveActivityFont(.control)
                         .foregroundStyle(colors.primaryText)
                         .lineLimit(1)
                 }
 
-                DictationReadback(dictation: dictation, colors: colors, style: .lockScreen)
+                DictationReadback(dictation: dictation, colors: colors, style: .lockScreen(prescription: nil))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if state.restEndDate != nil {
-                DictationProgress(state: state, dictation: dictation, style: .lockScreen)
+                HStack(spacing: 8) {
+                    RestCountdownText(state: state)
+                        .liveActivityFont(.figure)
+                        .foregroundStyle(colors.primaryText)
+                        .frame(width: 52, alignment: .leading)
+
+                    RestProgressWithContext(state: state, style: .lockScreen)
+                }
             }
         }
         .padding(16)
     }
 }
 
-private struct DictationReadback: View {
-    enum Style {
-        case island
-        case lockScreen
-    }
-
-    let dictation: LiveActivityDictation
-    let colors: LiveActivityColors
-    let style: Style
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(dictation.headline)
-                .font(.system(.title3, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.readbackText(dictation.tone, onIsland: style == .island))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-
-            if let detail {
-                Text(detail)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(secondaryTextColor)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-            }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("live-activity-dictation")
-    }
-
-    /// The island has no line naming the Exercise, so a write's detail names it.
-    private var detail: String? {
-        guard style == .island, let set = dictation.writtenSet else { return dictation.detail }
-        return set.fullText
-    }
-
-    private var secondaryTextColor: Color {
-        switch style {
-        case .island: colors.islandSecondaryText
-        case .lockScreen: colors.secondaryText
-        }
-    }
-}
-
-/// The mic while listening, where the Say Set button sits otherwise.
-private struct DictationSymbol: View {
-    let dictation: LiveActivityDictation
-    let colors: LiveActivityColors
-    let diameter: CGFloat
-
-    var body: some View {
-        let symbol = colors.readbackSymbol(dictation.tone)
-        Image(systemName: dictation.symbolName)
-            .font(.system(size: diameter * 0.45, weight: .semibold))
-            .foregroundStyle(symbol.glyph)
-            .frame(width: diameter, height: diameter)
-            .background(symbol.circle, in: Circle())
-            .accessibilityLabel(dictation.headline)
-    }
-}
-
-/// The rest countdown when a logged Set began one, else the Exercise's Sets.
-private struct DictationProgress: View {
-    enum Style {
-        case island
-        case lockScreen
-    }
-
+/// The Exercise and what a chip logs, over the chips, since nothing else on the island names the
+/// Exercise a press logs to. The island's own lines name the prescription.
+private struct IslandRPEChips: View {
     let state: WorkoutActivityAttributes.ContentState
-    let dictation: LiveActivityDictation
-    let style: Style
-
-    var body: some View {
-        if state.restEndDate != nil {
-            // A timer Text asks for every point an HStack offers, so without a fixed width the
-            // bar and the Sets left beside it drew at zero width.
-            HStack(spacing: 8) {
-                RestCountdownText(state: state)
-                    .font(.system(.subheadline, design: .rounded).weight(.heavy))
-                    .foregroundStyle(state.liveActivityColors.accent)
-                    .monospacedDigit()
-                    .frame(width: 52, alignment: .leading)
-
-                RestProgressWithContext(state: state, style: progressStyle, context: nextSetText)
-            }
-        } else {
-            SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: state.liveActivityColors)
-        }
-    }
-
-    /// The rest after a write leads to another Set, so it names that Set's Exercise rather than
-    /// count Sets beside the written one.
-    private var nextSetText: String? {
-        guard dictation.writtenSet != nil else { return nil }
-        return "Next: \(state.exerciseName)"
-    }
-
-    private var progressStyle: RestProgressWithContext.Style {
-        switch style {
-        case .island: .island
-        case .lockScreen: .lockScreen
-        }
-    }
-}
-
-/// Presses Log a Set, which listens without bringing the app forward when it is behind.
-private struct SaySetButton: View {
-    let state: WorkoutActivityAttributes.ContentState
-    let diameter: CGFloat
+    let offer: LoggablePress.Offer
 
     var body: some View {
         let colors = state.liveActivityColors
 
-        Button(intent: LogSetByVoiceIntent()) {
-            Image(systemName: "mic")
-                .font(.system(size: diameter * 0.45, weight: .semibold))
-                .foregroundStyle(colors.accent)
-                .frame(width: diameter, height: diameter)
-                .background(colors.accent.opacity(0.18), in: Circle())
+        VStack(alignment: .leading, spacing: 6) {
+            ViewThatFits(in: .horizontal) {
+                setLine(beside: state.pendingWritesText ?? state.restContextText)
+                setLine(beside: nil)
+            }
+            .accessibilityElement(children: .combine)
+
+            RPEChipRow(offer: offer, labelColor: colors.islandPrimaryText, colors: colors, spacing: 4, chipHeight: 44)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Say Set")
+    }
+
+    /// The count gives way before the name, which says what a press logs to.
+    private func setLine(beside count: String?) -> some View {
+        let colors = state.liveActivityColors
+
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(state.exerciseName)
+                .liveActivityFont(.exerciseName)
+                .foregroundStyle(colors.islandPrimaryText)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            LoggableValuesText(offer: offer, color: colors.islandPrimaryText)
+                .liveActivityFont(.figure)
+                .fixedSize(horizontal: true, vertical: false)
+
+            Spacer(minLength: 0)
+
+            if let count {
+                Text(count)
+                    .liveActivityFont(.label)
+                    .foregroundStyle(colors.islandSecondaryText)
+                    .lineLimit(1)
+                    .layoutPriority(1)
+            }
+        }
     }
 }

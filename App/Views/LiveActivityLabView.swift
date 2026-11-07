@@ -186,8 +186,29 @@ struct LiveActivityLabView: View {
             appearance: appearance,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            dictation: nil
+            dictation: nil,
+            loggablePress: labPress,
+            lastPerformed: labLastPerformed,
+            pendingWrites: 0
         )
+    }
+
+    /// The sample's chips draw as a real Set's do. No Set answers to its identity, so a press of one
+    /// reads back why nothing logged.
+    private var labPress: LoggablePress {
+        .ready(
+            LoggablePress.Offer(
+                weight: "\(weight)",
+                reps: 5,
+                rpeChoices: ["6", "6.5", "7", "7.5", "8"],
+                prescribedRPE: "7",
+                setIdentity: "Lab"
+            )
+        )
+    }
+
+    private var labLastPerformed: [String] {
+        ["Block 26 · W4 D3 — \(weight)x5@6", "\(weight)x5@6"]
     }
 
     private var restDurationLabel: String {
@@ -257,7 +278,10 @@ struct LiveActivityLabView: View {
             appearance: appearance,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            dictation: nil
+            dictation: nil,
+            loggablePress: labPress,
+            lastPerformed: labLastPerformed,
+            pendingWrites: 0
         )
     }
 }

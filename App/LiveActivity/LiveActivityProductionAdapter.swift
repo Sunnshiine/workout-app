@@ -199,6 +199,18 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
+    func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
+        guard controller.currentState?.dictation == LiveActivityDictation(readback) else { return }
+        retarget(restContent: card)
+        await startUpdateTask?.value
+    }
+
+    func refresh(card: LiveActivityRestContent) async {
+        guard controller.currentState?.dictation == nil else { return }
+        retarget(restContent: card)
+        await startUpdateTask?.value
+    }
+
     /// True when a Live Activity shows the readback once the steps are done, an ended one
     /// included, which stays on the Lock Screen to be read.
     @discardableResult

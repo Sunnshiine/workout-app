@@ -59,7 +59,18 @@ struct WorkoutTrackerApp: App {
             liveActivity: liveActivityAdapter,
             entry: entry
         )
+        LogSetAtRPEIntent.performer = LogSetAtRPEPerformer(
+            app: app,
+            dictation: dictation,
+            focus: focus,
+            restTimer: restTimer,
+            liveActivity: liveActivityAdapter
+        )
         UISegmentedControl.appearance().selectedSegmentTintColor = Theme.selectedSegmentFill
+        Self.applyLaunchFlags(liveActivity: liveActivityAdapter)
+    }
+
+    private static func applyLaunchFlags(liveActivity: LiveActivityProductionAdapter) {
         #if DEBUG
             #if canImport(UIKit)
                 if UITestFixture.disablesAnimations {
@@ -67,7 +78,7 @@ struct WorkoutTrackerApp: App {
                 }
             #endif
             if UITestFixture.launch.endsLiveActivities {
-                liveActivityAdapter.end()
+                liveActivity.end()
             }
         #endif
     }

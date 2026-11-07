@@ -17,7 +17,9 @@ import Testing
             setsTotal: 3,
             variant: .restTimerSetsLeft,
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
-            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
+            press: .needsApp,
+            lastPerformed: []
         )
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
@@ -63,7 +65,9 @@ import Testing
                 setsTotal: 3,
                 variant: .restTimerSetsLeft,
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
-                restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
+                restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
+                press: .needsApp,
+                lastPerformed: []
             ),
             dictation: nil
         )
@@ -108,7 +112,9 @@ import Testing
         setsTotal: 3,
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
-        restEndDate: restEndDate
+        restEndDate: restEndDate,
+        press: .needsApp,
+        lastPerformed: []
     )
 
     #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
@@ -128,7 +134,9 @@ import Testing
         setsTotal: 3,
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
-        restEndDate: restEndDate
+        restEndDate: restEndDate,
+        press: .needsApp,
+        lastPerformed: []
     )
     let capDate = restEndDate.addingTimeInterval(30 * 60)
 
@@ -150,6 +158,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -172,6 +181,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: currentSession,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -204,6 +214,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: currentSession,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -237,6 +248,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: currentSession,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -269,6 +281,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: logging,
             in: currentSession,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -295,6 +308,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: currentSession,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -327,6 +341,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: first,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )

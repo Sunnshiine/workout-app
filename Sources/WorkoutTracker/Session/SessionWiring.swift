@@ -12,6 +12,7 @@ protocol SessionLoggingAdapter {
 protocol SessionSyncAdapter {
     func reportLocalWriteFailure(_ error: any Error)
     func requestPendingWriteFlush()
+    var pendingWriteCount: Int { get }
 }
 
 @MainActor
@@ -137,5 +138,9 @@ struct SessionPendingWriteSyncAdapter: SessionSyncAdapter {
         // Awaiting it would keep flushes apart, which changes when Set Logs are flushed (#702).
         // swiftlint:disable:next unstructured_task_is_held
         Task { await sync.flushPending(spreadsheetId: id) }
+    }
+
+    var pendingWriteCount: Int {
+        (try? sync.fetchPendingWriteRecords().count) ?? 0
     }
 }

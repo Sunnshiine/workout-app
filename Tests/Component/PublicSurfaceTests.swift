@@ -89,6 +89,23 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
 }
 
 @MainActor
+@Test func theLockScreenOfferAndAChipPressEncodeWhatTheyOffer() async throws {
+    let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.fullBlock.workbook()))
+    _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)
+
+    let offered = try json(app.lockScreenOffer())
+    #expect(offered["set"] as? String == "w1d1.e0.s0")
+    let offer = try #require(offered["offer"] as? [String: Any])
+    #expect(Set(offer.keys) == ["weight", "reps", "rpeChoices", "prescribedRPE", "setIdentity"])
+
+    let identity = try #require(offer["setIdentity"] as? String)
+    let press = try json(try app.pressRPEChip(setIdentity: identity, rpe: "7"))
+    #expect(press["outcome"] as? String == "logged")
+    #expect(press["set"] as? String == "w1d1.e0.s0")
+    #expect(press["pendingWriteCount"] as? Int == 1)
+}
+
+@MainActor
 @Test func sayEncodesWhatItHeardAndWhatItDid() async throws {
     let app = try WorkoutApplication(environment: .inMemory(workbook: WorkbookScenario.freshBlock.workbook()))
     _ = try await app.selectSpreadsheet(id: "FIXTURE", title: nil)

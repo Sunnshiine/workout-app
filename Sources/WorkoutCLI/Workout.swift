@@ -26,6 +26,8 @@ struct Workout: AsyncParsableCommand {
             DeleteLogCommand.self,
             SayCommand.self,
             HearCommand.self,
+            LockScreenCommand.self,
+            RPEChipCommand.self,
             FlushCommand.self,
             SheetCommand.self,
             SyncCommand.self,

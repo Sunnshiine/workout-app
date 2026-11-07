@@ -18,7 +18,10 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: restContent.restStartDate,
             restEndDate: restContent.restEndDate,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: LoggablePress(restContent.press),
+            lastPerformed: restContent.lastPerformed,
+            pendingWrites: restContent.pendingWrites
         )
     }
 
@@ -40,7 +43,10 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: nil,
             restEndDate: nil,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: .needsApp,
+            lastPerformed: [],
+            pendingWrites: 0
         )
     }
 
@@ -58,8 +64,41 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: nil,
             restEndDate: nil,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: .needsApp,
+            lastPerformed: [],
+            pendingWrites: 0
         )
+    }
+}
+
+extension LoggablePress {
+    init(_ press: LoggablePressContent) {
+        switch press {
+        case .ready(let weight, let reps, let rpeChoices, let prescribedRPE, let setIdentity):
+            self = .ready(
+                Offer(weight: weight, reps: reps, rpeChoices: rpeChoices, prescribedRPE: prescribedRPE, setIdentity: setIdentity)
+            )
+        case .needsApp:
+            self = .needsApp
+        }
+    }
+}
+
+extension LoggablePressContent {
+    init(_ press: LoggablePress) {
+        switch press {
+        case .ready(let offer):
+            self = .ready(
+                weight: offer.weight,
+                reps: offer.reps,
+                rpeChoices: offer.rpeChoices,
+                prescribedRPE: offer.prescribedRPE,
+                setIdentity: offer.setIdentity
+            )
+        case .needsApp:
+            self = .needsApp
+        }
     }
 }
 
@@ -77,6 +116,7 @@ extension LiveActivityDictation {
         case .logged(let setLog, let set): self = .logged(setLog, to: LiveActivityWrittenSet(set))
         case .skipped(let set): self = .skipped(LiveActivityWrittenSet(set))
         case .notLogged(let reason): self = .notLogged(reason)
+        case .settled(let setLog, let set): self = .settled(setLog: setLog, LiveActivityWrittenSet(set))
         }
     }
 }
@@ -96,8 +136,11 @@ extension LiveActivityRestContent {
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
+            press: LoggablePressContent(state.loggablePress),
+            lastPerformed: state.lastPerformed,
             target: nil
         )
+        pendingWrites = state.pendingWrites
     }
 }
 

@@ -11,6 +11,8 @@ struct LiveActivityDictationContent: Equatable, Sendable {
         case skipped(WrittenSet)
         /// Why nothing was written, in the card's words.
         case notLogged(String)
+        /// A press that changed nothing, because the Set had settled: what it holds, nil for a skip.
+        case settled(setLog: String?, WrittenSet)
     }
 
     /// The Set a write went to, named apart from the rest it began, which leads to another.
@@ -48,7 +50,7 @@ extension LiveActivityDictationContent.Readback {
     var writtenSet: LiveActivityDictationContent.WrittenSet? {
         switch self {
         case .logged(_, let set), .skipped(let set): set
-        case .listening, .notLogged: nil
+        case .listening, .notLogged, .settled: nil
         }
     }
 }

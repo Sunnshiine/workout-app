@@ -216,6 +216,7 @@ final class ActiveSetFocusManager {
     func liveActivityRestContent(
         afterLogging set: ExerciseSet,
         in session: Session,
+        history: LastPerformedLookupSnapshot,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent? {
@@ -223,6 +224,7 @@ final class ActiveSetFocusManager {
             afterLogging: set,
             in: session,
             supersetState: supersetState,
+            reading: LoggablePressSource(focus: self, history: history),
             restStartDate: restStartDate,
             restEndDate: restEndDate
         )

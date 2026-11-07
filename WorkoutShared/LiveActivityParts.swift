@@ -8,10 +8,10 @@ struct ExerciseNameStack: View {
 
         VStack(alignment: .leading, spacing: 3) {
             Text(state.exerciseName)
-                .font(.subheadline.weight(.semibold))
+                .liveActivityFont(.exerciseName)
                 .foregroundStyle(colors.islandPrimaryText)
                 .lineLimit(1)
-                .minimumScaleFactor(0.78)
+                .minimumScaleFactor(0.8)
         }
     }
 }
@@ -24,13 +24,12 @@ struct WeightForwardStack: View {
 
         HStack(alignment: .lastTextBaseline, spacing: 4) {
             Text(state.weightValue)
-                .font(.system(.title2, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
-                .monospacedDigit()
+                .liveActivityFont(.largeFigure)
+                .foregroundStyle(colors.actionInk)
                 .minimumScaleFactor(0.7)
 
             Text(state.weightUnit)
-                .font(.caption.weight(.bold))
+                .liveActivityFont(.label)
                 .foregroundStyle(colors.islandSecondaryText)
         }
         .accessibilityElement(children: .combine)
@@ -40,7 +39,8 @@ struct WeightForwardStack: View {
 
 struct RestCountdownStack: View {
     let state: WorkoutActivityAttributes.ContentState
-    var showsLabel = true
+    let showsLabel: Bool
+    let digits: LiveActivityType
 
     var body: some View {
         let colors = state.liveActivityColors
@@ -48,7 +48,7 @@ struct RestCountdownStack: View {
         VStack(alignment: .leading, spacing: 2) {
             if showsLabel {
                 Text("Rest")
-                    .font(.caption2.weight(.bold))
+                    .liveActivityFont(.label)
                     .foregroundStyle(colors.islandSecondaryText)
             }
 
@@ -58,9 +58,8 @@ struct RestCountdownStack: View {
                 .overlay(alignment: .leading) {
                     RestCountdownText(state: state)
                 }
-                .font(.system(.title2, design: .rounded).weight(.heavy))
-                .foregroundStyle(colors.accent)
-                .monospacedDigit()
+                .liveActivityFont(digits)
+                .foregroundStyle(colors.islandPrimaryText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.76)
         }
@@ -91,10 +90,9 @@ struct SetProgressBadge: View {
         HStack(spacing: 5) {
             Image(systemName: "dumbbell.fill")
             Text(state.setProgressText)
-                .monospacedDigit()
         }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(colors.accent)
+        .liveActivityFont(.label)
+        .foregroundStyle(colors.actionInk)
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background(colors.panelFill, in: Capsule())
@@ -108,11 +106,11 @@ struct PrescribedLoadBadge: View {
         let colors = state.liveActivityColors
 
         Text(state.prescriptionText)
-            .font(.caption.weight(.heavy))
-            .foregroundStyle(colors.accentText)
+            .liveActivityFont(.label)
+            .foregroundStyle(colors.actionText)
             .padding(.horizontal, 8)
             .padding(.vertical, 5)
-            .background(colors.accent, in: Capsule())
+            .background(colors.actionFill, in: Capsule())
             .minimumScaleFactor(0.72)
     }
 }
@@ -131,7 +129,7 @@ struct SetProgressRing: View {
             Circle()
                 .trim(from: 0, to: state.normalizedProgress)
                 .stroke(
-                    colors.accent,
+                    colors.action,
                     style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
@@ -141,51 +139,30 @@ struct SetProgressRing: View {
 }
 
 struct PrescriptionStack: View {
-    enum Style {
-        case island
-        case lockScreen
-    }
-
     let state: WorkoutActivityAttributes.ContentState
-    var style: Style = .island
 
     var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: alignment, spacing: 2) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(state.prescribedRepsText)
-                .font(.caption.weight(.heavy))
-                .foregroundStyle(colors.accent)
+                .liveActivityFont(.reference)
+                .foregroundStyle(colors.islandPrimaryText)
 
             Text(state.prescribedLoad)
-                .font(.caption2.weight(.bold))
-                .foregroundStyle(secondaryTextColor)
+                .liveActivityFont(.label)
+                .foregroundStyle(colors.islandSecondaryText)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Prescription \(state.prescriptionText)")
     }
-
-    private var alignment: HorizontalAlignment {
-        switch style {
-        case .island:
-            .leading
-        case .lockScreen:
-            .trailing
-        }
-    }
-
-    private var secondaryTextColor: Color {
-        switch style {
-        case .island:
-            state.liveActivityColors.islandSecondaryText
-        case .lockScreen:
-            state.liveActivityColors.secondaryText
-        }
-    }
 }
 
+/// The fill is rest passing, not progress that happened, so it stays out of the action greens
+/// (DESIGN.md, The Green Means Action Rule).
 struct RestProgressBar: View {
     let state: WorkoutActivityAttributes.ContentState
+    let fill: Color
 
     var body: some View {
         let colors = state.liveActivityColors
@@ -200,7 +177,7 @@ struct RestProgressBar: View {
                 .progressViewStyle(.linear)
                 .labelsHidden()
                 .controlSize(.mini)
-                .tint(colors.accent)
+                .tint(fill)
                 .clipShape(Capsule())
             } else {
                 Capsule()
@@ -221,23 +198,21 @@ struct RestProgressWithContext: View {
 
     let state: WorkoutActivityAttributes.ContentState
     let style: Style
-    var showsBar = true
     /// In place of the variant's own context.
     var context: String?
 
     var body: some View {
         HStack(spacing: 8) {
-            if showsBar {
-                RestProgressBar(state: state)
-            }
+            // A long Exercise name beside it must not starve the bar.
+            RestProgressBar(state: state, fill: textColor)
+                .frame(minWidth: 60)
 
             if let restContextText = context ?? state.restContextText {
                 Text(restContextText)
-                    .font(.caption2.weight(.bold))
+                    .liveActivityFont(.label)
                     .foregroundStyle(textColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
-                    .monospacedDigit()
+                    .truncationMode(.middle)
                     .layoutPriority(1)
             }
         }
@@ -263,7 +238,7 @@ struct SegmentedSets: View {
         HStack(spacing: 4) {
             ForEach(0..<clampedTotal, id: \.self) { index in
                 Capsule()
-                    .fill(index < clampedDone ? colors.accent : colors.track)
+                    .fill(index < clampedDone ? colors.action : colors.track)
                     .frame(height: 5)
             }
         }

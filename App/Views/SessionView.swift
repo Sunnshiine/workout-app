@@ -93,6 +93,8 @@ struct SessionView: View {
             guard phase == .background else { return }
             coordinator.endSpokenWriteHold()
             coordinator.cancelCountdown()
+            // The Lock Screen's RPE Chips log what the card shows, which the athlete may have just changed.
+            coordinator.retargetLiveActivityOnLeavingTheApp()
         }
         .onDisappear(perform: coordinator.cancelCountdown)
     }

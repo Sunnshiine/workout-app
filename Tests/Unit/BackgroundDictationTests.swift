@@ -283,6 +283,8 @@ private func restContent(toward target: LiveActivityRestTarget) -> LiveActivityR
         variant: .restTimerSetsLeft,
         restStartDate: frozenNow,
         restEndDate: frozenNow.addingTimeInterval(120),
+        press: .needsApp,
+        lastPerformed: [],
         target: target
     )
 }
