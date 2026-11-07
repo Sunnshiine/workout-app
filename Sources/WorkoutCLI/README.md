@@ -49,6 +49,13 @@ with exit 3; run `init` again.
 | `make-current w2d1` | `view(_:)`, then `makeCurrent()`, the Make current control's `WorkoutStore.makeViewedSessionCurrent()`, in one process; an Unavailable Session is refused | the snapshot `status` prints |
 | `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
 | `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
+| `clip add w1d1.e0.s0 movie.mov` | `addFormClip(copying:at:)`, the card's Add Clip; a Set that is not Logged is refused | the Form Clip: id, Set, facts, caption, size, duration. Writes nothing to the Sheet |
+| `clip list [w1d1.e0.s0]` | `formClips(at:)` | every Form Clip newest first, or those on one Set |
+| `clip trace <id> --x 0.46 --y 0.3 [--at 0]` | `traceBarPath(on:from:)`, the tap on the plate, with the same Vision tracker | the clip with its `barPath`: samples and `ending` (`endOfClip` or `lostPlate`) |
+| `clip mark <id> [--at 1.5]` | `markStart(of:at:)`, the flag in Compare; no `--at` clears it | the clip with its `startMark` |
+| `clip previous <id>` | `previousFormClip(of:)`, the clip a Compare opens beside this one | that clip, or `null` |
+| `clip delete <id>` | `deleteFormClip(_:)` | what is left, as `clip storage` prints it |
+| `clip storage` | `formClipStorage()` | the total, the count, and each clip's size |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |

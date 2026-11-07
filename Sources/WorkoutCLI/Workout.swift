@@ -7,7 +7,7 @@ struct Workout: AsyncParsableCommand {
         abstract: "Drive the WorkoutTracker application headlessly against a local workbook.",
         discussion: """
             Every command opens the application over a home directory (manifest.json, store.sqlite,
-            workbook.json, settings.json), performs one gesture, and prints its result as JSON on
+            workbook.json, settings.json, form-clips/), performs one gesture, and prints its result as JSON on
             stdout. A gesture whose state lives in memory makes all its facade calls in one process
             (move-on, make-current). Errors are JSON on stderr, after the report when the command
             printed one first.
@@ -17,7 +17,8 @@ struct Workout: AsyncParsableCommand {
         subcommands: [
             InitCommand.self, StatusCommand.self, SessionCommand.self, LogCommand.self,
             SkipCommand.self, MoveOnCommand.self, MakeCurrentCommand.self, DeleteLogCommand.self, SayCommand.self,
-            HearCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self, DictationsCommand.self
+            HearCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self, DictationsCommand.self,
+            ClipCommand.self
         ]
     )
 }
