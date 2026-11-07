@@ -36,6 +36,8 @@ final class SessionCoordinator {
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
+    /// The Set whose Set Flag sheet is open, by the coordinates a sync's re-parse keeps.
+    private(set) var flaggingSetID: SetCoordinates.ID?
 
     init(
         session: Session? = nil,
@@ -406,7 +408,7 @@ extension SessionCoordinator {
     /// The athlete touched the held card or closed its Clear menu without a Clear, or its time ran
     /// out: it moves on now. A hold already ended by a tap or a Clear stays ended.
     func endSpokenWriteHold() {
-        guard focusManager.isHoldingSpokenWrite else { return }
+        guard focusManager.isHoldingSpokenWrite, flaggingSetID == nil else { return }
         perform(.momentumFlow) { focusManager.endHoldAfterSpokenWrite() }
     }
 
@@ -414,6 +416,10 @@ extension SessionCoordinator {
     /// on at once.
     fileprivate func advanceAfterSpokenWrite(_ set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
         guard focusManager.advanceAfterSpokenWrite(set, in: session, holding: !wasSupersetMember) else { return }
+        runSpokenWriteHold()
+    }
+
+    private func runSpokenWriteHold() {
         spokenWriteHoldTask?.cancel()
         let clock = transitionClock
         spokenWriteHoldTask = Task { @MainActor [weak self] in
@@ -426,5 +432,42 @@ extension SessionCoordinator {
     private func cancelSpokenWriteHold() {
         spokenWriteHoldTask?.cancel()
         spokenWriteHoldTask = nil
+    }
+}
+
+extension SessionCoordinator {
+    /// The open Set Flag sheet's facts. Nil closes the sheet, as when a sync drops the Set from the Sheet.
+    var setFlagSheet: SetFlagSheetPresentation? {
+        guard let flaggingSetID, let set = setBeingFlagged(flaggingSetID) else { return nil }
+        return SetFlagSheetPresentation(id: flaggingSetID, set: set)
+    }
+
+    /// A held Set stays on the card while its sheet is open, as it does for an open Clear menu.
+    func beginFlagging(_ set: ExerciseSet) {
+        guard let id = onStageID(of: set) else { return }
+        suspendSpokenWriteHold()
+        flaggingSetID = id
+    }
+
+    /// The sheet closed, however it closed. A held Set gets its four seconds back, so the athlete sees
+    /// where the flag stands before the card moves on.
+    func endFlagging() {
+        flaggingSetID = nil
+        if focusManager.isHoldingSpokenWrite { runSpokenWriteHold() }
+    }
+
+    func raise(_ flag: SetFlag) {
+        defer { endFlagging() }
+        guard let flaggingSetID, let set = setBeingFlagged(flaggingSetID) else { return }
+        do {
+            try wiring.logging.flag(set, as: flag)
+            wiring.sync.requestPendingWriteFlush()
+        } catch {
+            wiring.sync.reportLocalWriteFailure(error)
+        }
+    }
+
+    private func setBeingFlagged(_ id: SetCoordinates.ID) -> ExerciseSet? {
+        wiring.navigation.viewedSession?.block?.setsByID[id]
     }
 }

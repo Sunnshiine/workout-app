@@ -130,7 +130,7 @@
             argument: "-UITEST_OFFLINE",
             kind: .switch,
             meaning: "Makes the fixture Sheet read as Offline after the boot, so a log stays queued and the header reads"
-                + " `N unsynced`."
+                + " `N unsynced`, until `verify.sh online` brings it back."
         )
 
         static let slowSync = LaunchFlag(

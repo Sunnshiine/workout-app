@@ -81,7 +81,8 @@ struct SetRowPresentation: Equatable, Sendable {
     init(set: ExerciseSet) {
         let title = Self.title(of: set)
         self.title = title
-        accessibilityLabel = title.isEmpty ? "Set \(set.index + 1)" : "Set \(set.index + 1), \(title)"
+        let parts = ["Set \(set.index + 1)", title, set.setFlagStanding.map { "Flag: \($0.word)" } ?? ""]
+        accessibilityLabel = parts.filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
     private static func title(of set: ExerciseSet) -> String {
@@ -122,6 +123,12 @@ extension SetCardSlot.Mode {
         case .reviewingLogged: .reviewingLogged
         case .heldAfterSpokenWrite: .held
         }
+    }
+
+    /// A review offers the flag here, because a Set logged by tap never reaches a More menu. Anywhere
+    /// else the control appears once the Set has a flag, to say where that flag stands.
+    func showsSetFlagControl(for set: ExerciseSet) -> Bool {
+        cardMode == .reviewingLogged || set.setFlagStanding != nil
     }
 
     func headAccessory(for set: ExerciseSet) -> SetCardHeadAccessory {

@@ -104,6 +104,25 @@ private let oneDay: [String: String] = [
     #expect(weekOneDayOne.rows.last?.cells == ["2-3:1:0 BB RDL", "2", "8", "", "RPE8", "", "Start w/ 10 sec hold"])
 }
 
+@Test func aCellNoteOnABlankCellKeepsItsRowAndColumnAndReadsBesideItsCell() throws {
+    let grid = gridFromA1(oneDay, rows: 12, cols: 9)
+    let snapshot = SheetSnapshot(
+        values: grid,
+        rowVisibility: [:],
+        cellNotes: ["H11": "Set 1 · Pain: left hip"]
+    )
+
+    let day = try #require(
+        SheetTabGridPresentation(SheetTabSnapshot(tab: "Block 1", snapshot: snapshot)).weeks.first?.days.first
+    )
+
+    #expect(day.columns.map(\.letter) == ["B", "C", "E", "F", "H"])
+    #expect(day.rows.map(\.number) == [7, 9, 11])
+    let notedRow = try #require(day.rows.last)
+    #expect(notedRow.cells == ["", "", "", "", ""])
+    #expect(notedRow.cellNotes == ["", "", "", "", "Set 1 · Pain: left hip"])
+}
+
 @Test func everyColumnFitsAndTheNameAndNotesShareWhatTheNumbersLeave() {
     let widths = SheetTabGridPresentation.columnWidths([.name, .value, .value, .notes], fitting: 300)
 

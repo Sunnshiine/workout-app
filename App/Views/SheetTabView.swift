@@ -77,6 +77,7 @@ private struct SelectedCell: Equatable {
     let row: SheetTabGridPresentation.Row
     let column: SheetTabGridPresentation.Column
     let value: String
+    let cellNote: String
 
     var reference: String { SheetTabGridPresentation.cellReference(row: row.number, column: column.index) }
 }
@@ -216,8 +217,16 @@ private struct SheetTabGrid: View {
     ) -> some View {
         // Cells sit on their first line, so a wrapped value hangs down like a wrapped Sheet cell.
         HStack(alignment: .firstTextBaseline, spacing: 0) {
-            ForEach(Array(zip(zip(day.columns, row.cells), widths)), id: \.0.0.index) { cell, width in
-                self.cell(SelectedCell(row: row, column: cell.0, value: cell.1), width: width)
+            ForEach(Array(zip(day.columns.indices, widths)), id: \.0) { index, width in
+                self.cell(
+                    SelectedCell(
+                        row: row,
+                        column: day.columns[index],
+                        value: row.cells[index],
+                        cellNote: row.cellNotes[index]
+                    ),
+                    width: width
+                )
             }
         }
         .frame(minHeight: Theme.sheetRowHeight)
@@ -232,7 +241,7 @@ private struct SheetTabGrid: View {
     @ViewBuilder
     private func cell(_ cell: SelectedCell, width: Double) -> some View {
         let isSelected = selected == cell
-        if cell.value.isEmpty {
+        if cell.value.isEmpty, cell.cellNote.isEmpty {
             // Blank cells would bury the filled ones for VoiceOver.
             cellFace(cell, width: width, isSelected: false).accessibilityHidden(true)
         } else {
@@ -296,6 +305,15 @@ private struct SheetTabGrid: View {
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("sheet-tab-cell-detail")
+            if !cell.cellNote.isEmpty {
+                Text(cell.cellNote)
+                    .themeFont(.coachNote)
+                    .foregroundStyle(palette.textSecondary)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Note: \(cell.cellNote)")
+                    .accessibilityIdentifier("sheet-tab-cell-note")
+            }
         }
         .padding(Theme.cardContentPadding)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -241,6 +241,7 @@ private enum CardHost {
                 onLog: { _ in },
                 onSkip: {},
                 onDelete: {},
+                onFlag: {},
                 onTouchWhileHeld: {},
                 onClearMenuOpened: {},
                 onClearMenuClosed: {}

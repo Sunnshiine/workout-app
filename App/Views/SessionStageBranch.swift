@@ -31,6 +31,7 @@ struct SessionStageBranch: View {
         static let stemWidth: CGFloat = 2
         /// Leaves sit closer than a finger, so each narrows to its share of the gap (DESIGN.md §8).
         static let hitSide: CGFloat = 44
+        static let flagMarkOffset: CGFloat = 13
     }
 
     private enum LateralMetrics {
@@ -88,6 +89,7 @@ struct SessionStageBranch: View {
                         node.set,
                         hitWidth: hitWidths[index],
                         glyph: glyph(node.state, on: .stem, index: index, angle: angle, leafLength: Metrics.leafLength)
+                            .overlay { setFlagMark(on: node.set, index: index) }
                     )
                     .position(centers[index])
                     // The stem climbs and its leaves alternate sides, so screen order is not Set order.
@@ -158,6 +160,18 @@ struct SessionStageBranch: View {
             blade(.cream(fill: palette.budFill, stroke: palette.budStroke, glow: palette.budGlow), leafLength)
                 .transition(.asymmetric(insertion: budWake, removal: budExitLayers.bud))
                 .zIndex(budExitLayers.budZIndex)
+        }
+    }
+
+    /// A flag stands across the stem from its blade, so the two never draw over each other. The word
+    /// is on the card and in VoiceOver's label, because no labels ride the branch.
+    @ViewBuilder
+    private func setFlagMark(on set: ExerciseSet, index: Int) -> some View {
+        if let standing = set.setFlagStanding {
+            SetFlagStatus(standing: standing, showsWord: false)
+                .themeFont(.fieldLabel)
+                .offset(y: index.isMultiple(of: 2) ? Metrics.flagMarkOffset : -Metrics.flagMarkOffset)
+                .accessibilityHidden(true)
         }
     }
 
