@@ -28,7 +28,7 @@ struct SetCoordinates: Equatable {
     /// replaces the cached one, when both Blocks number their Days the same way. The Session date is
     /// re-read from the Sheet on every parse, so it can move while the Set stays the one a pending
     /// write addressed.
-    struct ID: Hashable {
+    struct ID: Hashable, Codable, Sendable {
         let session: SessionCoordinate
         let exercise: ExerciseReference
         let setIndex: Int

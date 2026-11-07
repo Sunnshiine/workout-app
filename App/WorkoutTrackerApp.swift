@@ -75,7 +75,11 @@ struct WorkoutTrackerApp: App {
     private static func launchEnvironment() -> AppEnvironment {
         #if DEBUG
             if UITestFixture.isEnabled {
-                return .inMemory(sheets: UITestFixture.sheets, dictationRecords: .directory(AppEnvironment.deviceDictationRecords))
+                return .inMemory(
+                    sheets: UITestFixture.sheets,
+                    dictationRecords: .directory(AppEnvironment.deviceDictationRecords),
+                    formClips: AppEnvironment.deviceFormClips
+                )
             }
         #endif
         return .device()
@@ -162,6 +166,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.workout)
                 .environment(app.sync)
                 .environment(app.lastPerformed)
+                .environment(app.formClips)
                 .environment(app.historyFill)
                 .environment(app.connection)
                 .environment(entry)

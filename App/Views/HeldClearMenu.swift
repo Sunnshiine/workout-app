@@ -1,13 +1,16 @@
 import SwiftUI
 import UIKit
 
-/// The held Set's Clear menu, told when it opens and when it closes, however it closes. A SwiftUI
+/// The held Set's More menu, told when it opens and when it closes, however it closes. A SwiftUI
 /// menu's content can outlive its menu: closed by XCUITest, it never disappeared.
 struct HeldClearMenu: UIViewRepresentable {
     let tint: Color
     let onOpened: () -> Void
     let onClosed: () -> Void
     let onClear: () -> Void
+    /// Nil keeps a source out of the menu: a Set a clip cannot join, or a phone with no camera.
+    let onAddClip: (() -> Void)?
+    let onRecordClip: (() -> Void)?
 
     func makeUIView(context: Context) -> MenuReportingButton {
         let button = MenuReportingButton(type: .system)
@@ -29,9 +32,15 @@ struct HeldClearMenu: UIViewRepresentable {
         button.tintColor = UIColor(tint)
         button.onOpened = onOpened
         button.onClosed = onClosed
-        button.menu = UIMenu(children: [
-            UIAction(title: "Clear", attributes: .destructive) { [onClear] _ in onClear() }
-        ])
+        var actions: [UIAction] = []
+        if let onRecordClip {
+            actions.append(UIAction(title: "Record Clip") { _ in onRecordClip() })
+        }
+        if let onAddClip {
+            actions.append(UIAction(title: "Add Clip") { _ in onAddClip() })
+        }
+        actions.append(UIAction(title: "Clear", attributes: .destructive) { [onClear] _ in onClear() })
+        button.menu = UIMenu(children: actions)
     }
 }
 

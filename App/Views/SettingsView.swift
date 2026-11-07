@@ -78,6 +78,8 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-sync-now-button")
                     .accessibilityValue(connection.syncNowDetail)
 
+                    FormClipStorageRow()
+
                     NavigationLink {
                         DeveloperToolsView()
                     } label: {
@@ -149,6 +151,7 @@ struct SettingsView: View {
         )
         .destructiveConfirmation(
             "You have unsynced changes. Sign out anyway?",
+            message: "Pending logs for the current sheet will be discarded.",
             isPresented: $isSignOutConfirmationPresented,
             action: DestructiveAction(
                 label: "Sign Out",
@@ -262,6 +265,7 @@ struct SettingsView: View {
         .presentationBackground { palette.paperBackground }
         .destructiveConfirmation(
             "You have unsynced changes. Switch anyway?",
+            message: "Pending logs for the current sheet will be discarded.",
             isPresented: pendingSwitchConfirmation,
             action: DestructiveAction(
                 label: "Switch Anyway",
@@ -343,20 +347,21 @@ private struct StackedAtAccessibilitySizes: LabeledContentStyle {
     }
 }
 
-private struct DestructiveAction {
+struct DestructiveAction {
     let label: String
     let systemImage: String
     let identifier: String
 }
 
 /// An `.alert` action drops its Label's glyph on iOS 26 and draws the text alone, so the
-/// confirmations that discard pending Set Logs draw their own alert to show the icon. Like a
-/// system alert, the card holds the presentation under it until the athlete answers.
+/// confirmations of what can't be undone draw their own alert to show the icon. Like a system
+/// alert, the card holds the presentation under it until the athlete answers.
 private struct DestructiveConfirmation: ViewModifier {
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AccessibilityFocusState private var isTitleFocused: Bool
     let title: String
+    let message: String
     @Binding var isPresented: Bool
     let action: DestructiveAction
     let onConfirm: () -> Void
@@ -383,7 +388,7 @@ private struct DestructiveConfirmation: ViewModifier {
                 .fontWeight(.semibold)
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityFocused($isTitleFocused)
-            Text("Pending logs for the current sheet will be discarded.")
+            Text(message)
                 .foregroundStyle(palette.textSecondary)
             HStack(spacing: 12) {
                 Button(role: .cancel) {
@@ -419,14 +424,15 @@ private struct DestructiveConfirmation: ViewModifier {
 }
 
 extension View {
-    fileprivate func destructiveConfirmation(
+    func destructiveConfirmation(
         _ title: String,
+        message: String,
         isPresented: Binding<Bool>,
         action: DestructiveAction,
         onConfirm: @escaping () -> Void
     ) -> some View {
         modifier(
-            DestructiveConfirmation(title: title, isPresented: isPresented, action: action, onConfirm: onConfirm)
+            DestructiveConfirmation(title: title, message: message, isPresented: isPresented, action: action, onConfirm: onConfirm)
         )
     }
 }
@@ -495,7 +501,7 @@ private struct SharedFile: Identifiable {
 }
 
 /// The system share sheet over `items`.
-private struct ShareSheet: UIViewControllerRepresentable {
+struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {

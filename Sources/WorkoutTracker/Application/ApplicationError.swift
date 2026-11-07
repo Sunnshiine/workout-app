@@ -136,6 +136,39 @@ extension ApplicationError {
         )
     }
 
+    public static func setNotLogged(_ address: String) -> ApplicationError {
+        ApplicationError(
+            code: "set_not_logged",
+            message: "\(address) is not Logged, and a Form Clip attaches to a Logged Set. Run `workout log` first.",
+            kind: .domain
+        )
+    }
+
+    public static func unknownFormClip(_ id: String, candidates: [String]) -> ApplicationError {
+        ApplicationError(
+            code: "unknown_form_clip",
+            message: "No Form Clip \(id). This device holds \(candidates.count); `workout clip list` prints them.",
+            candidates: candidates,
+            kind: .domain
+        )
+    }
+
+    public static func notAMovie(_ path: String) -> ApplicationError {
+        ApplicationError(
+            code: "not_a_movie",
+            message: "\(path) is not a movie this machine can read, so no Form Clip was added.",
+            kind: .domain
+        )
+    }
+
+    public static func barPathNotFollowed(_ id: String) -> ApplicationError {
+        ApplicationError(
+            code: "bar_path_not_followed",
+            message: "The plate in \(id) was lost before a second frame, so there is no line to draw. Tap its center on another frame.",
+            kind: .domain
+        )
+    }
+
     public static let speechUnavailable = ApplicationError(
         code: "speech_unavailable",
         message: "This machine has no on-device speech-to-text for en-US: SpeechAnalyzer needs macOS 26 or iOS 26 "

@@ -41,8 +41,10 @@
 	<string>$(GID_CLIENT_ID)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Film a Set so you and your coach can look at it together. Clips stay on this phone until you share one.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Hold the mic and say your Set, like 185 for 5 at 8.</string>
+	<string>Hold the mic and say your Set, like 185 for 5 at 8. A clip you film keeps its sound too.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>UIAppFonts</key>

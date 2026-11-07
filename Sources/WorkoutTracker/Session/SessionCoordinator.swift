@@ -22,6 +22,11 @@ final class SessionCoordinator {
     /// The Session on stage, by the coordinate a sync's re-parse keeps. Nil until the stage binds.
     private(set) var sessionCoordinate: SessionCoordinate?
     private(set) var savedLoggedSetID: ActiveSetID?
+    /// What the stage presents for a Form Clip right now.
+    var clipRequest: FormClipRequest?
+    /// The Set a picked movie is on its way to.
+    var addingClipTo: SetCoordinates.ID?
+    var clipFailure: String?
 
     @ObservationIgnored let focusManager: ActiveSetFocusManager
     @ObservationIgnored private let pairing: SupersetPairing
@@ -36,6 +41,7 @@ final class SessionCoordinator {
     /// How the card writes the running press's Spoken Set, fixed when the press began.
     @ObservationIgnored var dictatingMode: SetCardMode?
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
+    @ObservationIgnored var clipAdding: Task<Void, Never>?
 
     init(
         session: Session? = nil,
@@ -60,6 +66,7 @@ final class SessionCoordinator {
     deinit {
         liveEdgeReconcile?.cancel()
         spokenWriteHoldTask?.cancel()
+        clipAdding?.cancel()
     }
 
     var activeSetID: ActiveSetID? { focusManager.activeSetID }

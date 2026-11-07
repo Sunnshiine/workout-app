@@ -36,6 +36,7 @@ Keep implementation details out of the map. Name only user paths, stable handles
 ## Features
 
 - [Log a set](./log-a-set.md) covers the active set card: weight, reps, RPE, logging, skipping, reviewing a logged set, exercise history, and the sync side effect.
+- [Form Clip](./form-clip.md) covers attaching a movie to a Logged Set, the full-screen review, the Bar Path, Compare, the caption on a share, and what clips take in Settings.
 - [Say a set](./say-a-set.md) covers saying a Set with the card's mic held, saying an edit to a reopened logged set, hands-free from the dictate link and the Log a Set shortcut, and logging by voice with the phone locked or the app closed.
 - [Session queue](./session-queue.md) covers the exercise queue sheet, jumping to an exercise, reopening a finished one, Up next, and superset pairing.
 - [Block overview](./block-overview.md) covers the Block grid, opening another session, making it current, and sessions that are not uploaded.

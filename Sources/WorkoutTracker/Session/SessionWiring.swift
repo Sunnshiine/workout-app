@@ -68,6 +68,10 @@ struct SessionWiring {
     let entry: AppEntryInbox
     /// What a card's first values suggest from, for a Spoken Set on a Set no card has reported.
     let history: () -> LastPerformedLookupSnapshot
+    /// Where a Logged Set's Form Clips live.
+    let formClips: FormClipLibrary
+    /// The Sheet a Form Clip belongs to, read when one is added.
+    let spreadsheetId: () -> String?
 }
 
 /// The Session collaborators only the app can build, because each reaches an iOS-only API: the
@@ -92,6 +96,7 @@ extension SessionWiring {
         sync: SyncCoordinator,
         settings: SettingsStore,
         lastPerformed: LastPerformedLookupStore,
+        formClips: FormClipLibrary,
         entry: AppEntryInbox,
         platform: SessionPlatform
     ) -> SessionWiring {
@@ -105,7 +110,9 @@ extension SessionWiring {
             liveActivity: platform.liveActivity,
             motion: platform.motion,
             entry: entry,
-            history: { lastPerformed.snapshot }
+            history: { lastPerformed.snapshot },
+            formClips: formClips,
+            spreadsheetId: { settings.spreadsheetId }
         )
     }
 }

@@ -10,6 +10,7 @@ struct RootView: View {
     @Environment(WorkoutStore.self) private var workout
     @Environment(SyncCoordinator.self) private var sync
     @Environment(LastPerformedLookupStore.self) private var lastPerformed
+    @Environment(FormClipLibrary.self) private var formClips
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @Environment(AppEntryInbox.self) private var entry
@@ -86,6 +87,7 @@ struct RootView: View {
                     sync: sync,
                     settings: settings,
                     lastPerformed: lastPerformed,
+                    formClips: formClips,
                     entry: entry,
                     platform: SessionPlatform(
                         liveActivity: liveActivityAdapter,

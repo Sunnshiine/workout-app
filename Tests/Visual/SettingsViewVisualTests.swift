@@ -73,6 +73,13 @@ struct SettingsViewVisualTests {
             .environment(sync)
             .environment(SheetConnection(settings: scenario.settings, sync: sync) { scenario.store.reload() })
             .environment(scenario.store)
+            .environment(
+                FormClipLibrary(
+                    directory: URL.temporaryDirectory.appending(path: UUID().uuidString),
+                    tracker: VisionBarPathTracker(),
+                    now: Date.init
+                )
+            )
             .environment(\.themePalette, Theme.palette(for: appearance))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)
