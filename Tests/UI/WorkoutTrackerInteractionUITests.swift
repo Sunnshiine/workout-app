@@ -36,7 +36,8 @@ final class WorkoutTrackerInteractionUITests: XCTestCase {
         XCTAssertTrue(trainingSheetRow.exists)
         XCTAssertTrue(syncNowButton.exists)
         XCTAssertTrue(developerToolsRow.exists)
-        XCTAssertTrue(signOutButton.exists)
+        app.swipeUp()
+        XCTAssertTrue(signOutButton.appears(within: 3))
 
         developerToolsRow.tap()
         XCTAssertTrue(app.navigationBars["Developer Tools"].appears(within: 3))
