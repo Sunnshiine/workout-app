@@ -14,7 +14,7 @@ struct SessionQueueSheet: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var movesOnWhenDismissed = false
     @State private var centeredRowID: String?
-    @State private var wheelHeight: CGFloat = 0
+    @State private var rowCenters: [String: CGFloat] = [:]
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     private var isPairing: Bool {
@@ -59,36 +59,48 @@ struct SessionQueueSheet: View {
 
     private var wheel: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(queue.wheelRows) { row in
-                    if row.kind == .superset {
-                        supersetRow(for: row)
-                    } else if isPairing {
-                        pairingRow(for: row)
-                    } else {
-                        queueRow(for: row)
-                    }
-                }
+            VStack(spacing: 0) {
+                wheelEndSpace
 
-                if showsOpenExercises {
-                    OpenExercisesSection(exercises: queue.openExercises) { exercise in
-                        dismiss()
-                        coordinator.showSourceSession(of: exercise)
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(queue.wheelRows) { row in
+                        Group {
+                            if row.kind == .superset {
+                                supersetRow(for: row)
+                            } else if isPairing {
+                                pairingRow(for: row)
+                            } else {
+                                queueRow(for: row)
+                            }
+                        }
+                        .onGeometryChange(
+                            for: CGFloat.self,
+                            of: { $0.frame(in: .named(Self.wheelContent)).midY },
+                            action: { rowCenters[row.id] = $0 }
+                        )
                     }
-                    .padding(.horizontal)
-                    .padding(.top, Theme.cardSpacing)
+
+                    if showsOpenExercises {
+                        OpenExercisesSection(exercises: queue.openExercises) { exercise in
+                            dismiss()
+                            coordinator.showSourceSession(of: exercise)
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, Theme.cardSpacing)
+                    }
                 }
+                .scrollTargetLayout()
+
+                wheelEndSpace
             }
-            .scrollTargetLayout()
+            .coordinateSpace(.named(Self.wheelContent))
         }
         .scrollIndicators(.hidden)
-        .contentMargins(.vertical, max(0, (wheelHeight - Self.rowHeight) / 2), for: .scrollContent)
         .scrollPosition(id: $centeredRowID, anchor: .center)
-        .scrollTargetBehavior(WheelSnap(snaps: !showsOpenExercises))
-        .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
-            wheelHeight = height
-            if centeredRowID == nil { centeredRowID = queue.restingRowID }
-        }
+        .scrollTargetBehavior(
+            WheelSnap(rowCenters: queue.wheelRows.compactMap { rowCenters[$0.id] }, freePastLastRow: showsOpenExercises)
+        )
+        .onAppear { centeredRowID = queue.restingRowID }
         .onChange(of: queue.restingRowID) { recenter() }
         .onChange(of: isPairing) { recenter() }
         .mask {
@@ -108,6 +120,12 @@ struct SessionQueueSheet: View {
                 .frame(height: Self.edgeFade)
             }
         }
+    }
+
+    /// Half the wheel's height past each end, so any row, however tall, can rest on the centre. These
+    /// are views and not content margins, which would shrink the scroll view's box to one row's height.
+    private var wheelEndSpace: some View {
+        Color.clear.containerRelativeFrame(.vertical) { height, _ in height / 2 }
     }
 
     private func recenter() {
@@ -193,8 +211,9 @@ struct SessionQueueSheet: View {
             }
         } label: {
             rowLabel(for: row) {
-                Color.clear.frame(width: Self.unlinkButtonSize)
+                EmptyView()
             }
+            .padding(.trailing, Self.unlinkButtonSize)
         }
         .buttonStyle(.plain)
         .disabled(row.jumpTarget == nil)
@@ -281,7 +300,7 @@ struct SessionQueueSheet: View {
 
     private func rowLabel(for row: SessionQueue.Row, @ViewBuilder trailing: () -> some View) -> some View {
         rowLayout {
-            rowFace(for: row)
+            QueueRowFace(row: row, drawsLens: drawsLens)
                 .padding(.leading, row.wearsCapsule ? Self.capsuleContentInset : 0)
 
             if !dynamicTypeSize.isAccessibilitySize {
@@ -296,58 +315,73 @@ struct SessionQueueSheet: View {
         .contentShape(Rectangle())
     }
 
-    /// Only the face shrinks, so every row keeps its full-size hit area and its capsule.
-    private func rowFace(for row: SessionQueue.Row) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                if row.kind == .superset {
-                    SupersetStemGlyph(form: .linked, color: palette.actionInk)
-                        .frame(width: 20, height: 20)
-                        .accessibilityLabel("Superset")
-                }
+    private static let wheelContent = "wheel-content"
+    fileprivate static let rowHeight: CGFloat = 64
+    fileprivate static let rowVerticalPadding: CGFloat = 12
+    private static let capsuleInset: CGFloat = 4
+    private static let capsuleContentInset: CGFloat = 6
+    private static let edgeFade: CGFloat = 40
+}
 
+/// A row's name and Set marks. Only the face shrinks, so every row keeps its full-size hit area and
+/// its capsule.
+private struct QueueRowFace: View {
+    let row: SessionQueue.Row
+    let drawsLens: Bool
+    @Environment(\.themePalette) private var palette
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if row.kind == .superset {
+                SupersetStemGlyph(form: .linked, color: palette.actionInk)
+                    .frame(width: 20, height: 20)
+                    .alignmentGuide(.firstTextBaseline) { $0.height * 0.8 }
+                    .accessibilityLabel("Superset")
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
                 Text(row.title)
                     .themeFont(row.isOnStage ? .queueNameOnStage : .queueName)
-                    .foregroundStyle(nameColor(for: row))
+                    .foregroundStyle(nameColor)
                     // Two lines hold a long name at the default size; from xxLarge they hold a few
                     // words, so the row grows instead.
                     .lineLimit(dynamicTypeSize >= .xxLarge ? nil : 2)
                     .minimumScaleFactor(row.isOnStage ? 20 / 24 : 1)
                     .truncationMode(row.kind == .superset ? .middle : .tail)
                     .fixedSize(horizontal: false, vertical: true)
-            }
 
-            QueueSetMarks(sets: row.sets)
+                QueueSetMarks(groups: row.exerciseSets)
+            }
         }
         .visualEffect { [drawsLens] effect, proxy in
             guard drawsLens else { return effect.scaleEffect(1, anchor: .leading) }
             let wheelCenter = proxy.bounds(of: .scrollView)?.midY ?? proxy.size.height / 2
-            let rowHeight = max(Self.rowHeight, proxy.size.height + 2 * Self.rowVerticalPadding)
+            let rowHeight = max(SessionQueueSheet.rowHeight, proxy.size.height + 2 * SessionQueueSheet.rowVerticalPadding)
             let scale = SessionQueue.lensScale(distance: proxy.size.height / 2 - wheelCenter, rowHeight: rowHeight)
             return effect.scaleEffect(scale, anchor: .leading)
         }
     }
 
-    private func nameColor(for row: SessionQueue.Row) -> Color {
+    private var nameColor: Color {
         if row.isOnStage { return palette.actionInk }
         return row.isComplete ? palette.textSecondary : palette.textPrimary
     }
-
-    private static let rowHeight: CGFloat = 64
-    private static let rowVerticalPadding: CGFloat = 12
-    private static let capsuleInset: CGFloat = 4
-    private static let capsuleContentInset: CGFloat = 6
-    private static let edgeFade: CGFloat = 40
 }
 
-/// Rests a row on the wheel's centre. Open Exercises scroll free, since one taller than the sheet
-/// would otherwise snap away from its own end.
+/// Rests a row's centre on the wheel's. `ViewAlignedScrollTargetBehavior(anchor: .center)` puts a row's
+/// top there instead.
 private struct WheelSnap: ScrollTargetBehavior {
-    let snaps: Bool
+    let rowCenters: [CGFloat]
+    let freePastLastRow: Bool
 
     func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-        guard snaps else { return }
-        ViewAlignedScrollTargetBehavior(anchor: .center).updateTarget(&target, context: context)
+        let center = SessionQueue.restingCenter(
+            near: target.rect.midY,
+            rowCenters: rowCenters.map(Double.init),
+            freePastLastRow: freePastLastRow
+        )
+        if let center { target.rect.origin.y = center - target.rect.height / 2 }
     }
 }
 

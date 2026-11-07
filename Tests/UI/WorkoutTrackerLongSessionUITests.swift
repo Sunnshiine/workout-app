@@ -50,17 +50,40 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         XCTAssertTrue(onStage.appears(within: 3))
         waitForFrameToSettle(of: onStage)
         let center = onStage.frame.midY
+        assertRests(onStage, onTheWheelsCentreIn: app)
 
-        let below = app.buttons["stage-queue-row-exercise-2"]
-        let start = below.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        start.press(forDuration: 0.01, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -100)))
+        let start = app.windows.firstMatch.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: onStage.frame.midX, dy: center))
+        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'stage-queue-row-'"))
+        for distance in [-100, -37, 43.0] {
+            start.press(forDuration: 0.01, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)))
+            waitForFrameToSettle(of: onStage)
+
+            XCTAssertTrue(app.staticTexts["This Session"].exists, "a drag over a row does not jump to it")
+            let nearest = rows.allElementsBoundByIndex.map { abs($0.frame.midY - center) }.min() ?? .infinity
+            XCTAssertLessThan(nearest, 2, "a row rests on the wheel's centre after a \(distance)pt drag")
+        }
+        XCTAssertNotEqual(onStage.frame.midY, center, accuracy: 1, "the wheel moved")
+    }
+
+    @MainActor
+    func testAtTheLargestScaledTextTheWheelOpensOnTheExerciseOnStage() throws {
+        let app = launchWorkoutApp(fixture: .longSession, contentSize: "UICTContentSizeCategoryXXXL")
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+
+        app.buttons["stage-queue-button"].tap()
+        let onStage = app.buttons["stage-queue-row-exercise-1"]
+        XCTAssertTrue(onStage.appears(within: 3))
         waitForFrameToSettle(of: onStage)
 
-        XCTAssertTrue(app.staticTexts["This Session"].exists, "a drag over a row does not jump to it")
-        XCTAssertNotEqual(onStage.frame.midY, center, accuracy: 1, "the wheel moved")
-        let rows = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'stage-queue-row-'")).allElementsBoundByIndex
-        let nearest = rows.map { abs($0.frame.midY - center) }.min() ?? .infinity
-        XCTAssertLessThan(nearest, 2, "a row rests on the wheel's centre")
+        assertRests(onStage, onTheWheelsCentreIn: app)
+    }
+
+    /// The wheel fills the space between the header's button and Move On.
+    @MainActor
+    private func assertRests(_ row: XCUIElement, onTheWheelsCentreIn app: XCUIApplication) {
+        let top = app.buttons["stage-queue-superset"].frame.maxY
+        let bottom = app.buttons["queue-move-on-button"].frame.minY
+        XCTAssertEqual(row.frame.midY, (top + bottom) / 2, accuracy: 3, "the row on stage rests on the wheel's centre")
     }
 
     /// The wheel coasts, then snaps. A frame unchanged across a quarter second has come to rest.

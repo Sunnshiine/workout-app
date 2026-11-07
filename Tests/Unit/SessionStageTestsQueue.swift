@@ -85,6 +85,20 @@ extension SessionStageTests {
         #expect(abs(SessionQueue.lensScale(distance: distance, rowHeight: 64) - scale) < 0.0001)
     }
 
+    @Test(arguments: [(90.0, 100.0), (130.0, 100.0), (170.0, 200.0), (900.0, 200.0), (-40.0, 100.0)])
+    func aScrollRestsOnTheNearestRowCentre(proposed: Double, center: Double) {
+        #expect(SessionQueue.restingCenter(near: proposed, rowCenters: [100, 200], freePastLastRow: false) == center)
+    }
+
+    @Test func aWheelFollowedByOpenExercisesRunsFreeOnlyPastItsLastRow() {
+        #expect(SessionQueue.restingCenter(near: 190, rowCenters: [100, 200], freePastLastRow: true) == 200)
+        #expect(SessionQueue.restingCenter(near: 233, rowCenters: [100, 200], freePastLastRow: true) == nil)
+    }
+
+    @Test func aWheelNotYetMeasuredDoesNotSnap() {
+        #expect(SessionQueue.restingCenter(near: 50, rowCenters: [], freePastLastRow: false) == nil)
+    }
+
     @Test func aTallerRowShrinksNoFasterThanOneAtTheDefaultSize() {
         #expect(SessionQueue.lensScale(distance: 100, rowHeight: 100) == SessionQueue.lensScale(distance: 64, rowHeight: 64))
     }
@@ -110,6 +124,15 @@ extension SessionStageTests {
         #expect(confirming.queue.rows.map(\.wearsCapsule) == [true, true, true, false])
     }
 
+    @Test func aSupersetRowKeepsEachExercisesSetsTogether() {
+        let press = makeExercise(name: "Press", order: 0, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 1, setStates: [.logged])
+
+        let groups = makeStage([press, row], supersets: [Superset(first: press, second: row)]).queue.rows[0].exerciseSets
+
+        #expect(groups.map { $0.map(\.state) } == [[.logged, .pending], [.logged]])
+    }
+
     @Test func aRowSpeaksItsSetsAndNamesSkipsOnlyWhenThereAreSome() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
         let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
@@ -118,6 +141,9 @@ extension SessionStageTests {
 
         #expect(rows[0].sets.spokenProgress == "1 of 4 Sets logged, 1 skipped")
         #expect(rows[1].sets.spokenProgress == "1 of 2 Sets logged")
+        #expect(
+            makeStage([makeExercise(name: "Dip", order: 0, setStates: [.pending])]).queue.rows[0].sets.spokenProgress == "0 of 1 Set logged"
+        )
     }
 
     @Test func thePillCountsThePlaceOfTheItemOnStage() {

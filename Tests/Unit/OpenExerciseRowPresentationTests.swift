@@ -10,10 +10,15 @@ import Testing
     let open = scenario.tracker.openExercises(for: current)
     let backSquat = try #require(open.first).exercise
 
+    backSquat.sets.insert(
+        ExerciseSet(index: 5, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending),
+        at: 0
+    )
+
     let row = OpenExerciseRowPresentation(exercise: backSquat)
 
     #expect(row.name == "Back Squat")
-    #expect(row.sets.map(\.id) == backSquat.sortedSets.map(\.id))
+    #expect(row.sets.map(\.index) == row.sets.map(\.index).sorted())
     #expect(row.sessionAddressLabel == "W1 D1")
 }
 

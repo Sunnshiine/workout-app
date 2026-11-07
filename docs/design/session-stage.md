@@ -238,11 +238,12 @@ keeps its full size and hit area. Rows do not fade by distance; only the wheel's
 top and bottom 40pt fade, the outermost 8pt fully clear, so the Sets stay
 readable for planning. Reduce Motion and accessibility text sizes draw every row
 at full size. Set marks are 20×7pt with a 2.5pt radius and a 3pt gap: Logged
-fills `action`, Pending strokes 1pt of secondary text, and Skipped dashes that
-stroke. Marks narrow together when they would overrun the row. One tap jumps.
+fills `action`, Pending strokes 1pt of secondary text, and Skipped dashes 1pt of
+`skipStroke`, so it recedes from the work left. A 9pt gap parts a Superset's
+Exercises. Marks narrow together when they would overrun the row. One tap jumps.
 Move On is pinned under the wheel. Open Exercises follow the last row and show
-the same marks in place of a count, here and on the completion stage. A sheet
-holding them scrolls free with no snap, so the list can always reach its end.
+the same marks in place of a count, here and on the completion stage. The wheel
+stops snapping past the last row, so the list can always reach its end.
 VoiceOver reads finished rows, then the
 rest, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
 trait on the row on stage.
@@ -259,9 +260,12 @@ Rejected, so the question stays closed:
 
 - **List**, Lens flattened with no snap or scale: "List is boring."
 - **Drum**, the same wheel tilted on a raised band: the operator picked Lens.
-- **Carousel**: "really cool idea" but "not quite, you know, for this app."
-- **Grow**, capsules that fill per Set under a session bar: the bar and counts
-  were unwanted and it "did feel slightly off", maybe "too much round on round."
-- **Checklist and Split**: "quite interesting", and "split hides finish
-  exercises" carried into Lens as finished rows above the centre.
+- **Carousel**: "really cool idea" but "I just don't think it's quite, you know,
+  for this app."
+- **Grow**, capsules that fill per Set under a session bar: "really interesting",
+  but "it did feel slightly off", perhaps "too much round on round", and "I also
+  don't think we need to show count."
+- **Checklist**: "quite interesting", and not carried forward.
+- **Split**: "split hides finish exercises" carried into Lens as finished rows
+  above the centre.
 - **Ledger, Stem, Tucked, Poster, Dial, Odometer**: not carried forward.

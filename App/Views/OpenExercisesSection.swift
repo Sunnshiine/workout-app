@@ -17,6 +17,7 @@ struct OpenExercisesSection: View {
                     OpenExerciseRow(exercise: exercise)
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(exercise.sortedSets.spokenProgress)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -37,7 +38,7 @@ private struct OpenExerciseRow: View {
                 Text(row.name)
                     .themeFont(.queuePill)
                     .foregroundStyle(.primary)
-                QueueSetMarks(sets: row.sets)
+                QueueSetMarks(groups: [row.sets])
             }
 
             Spacer(minLength: 12)
@@ -52,6 +53,5 @@ private struct OpenExerciseRow: View {
         }
         .padding(.vertical, 10)
         .contentShape(Rectangle())
-        .accessibilityValue(row.sets.spokenProgress)
     }
 }
