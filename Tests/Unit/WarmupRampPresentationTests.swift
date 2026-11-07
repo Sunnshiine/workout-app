@@ -90,7 +90,7 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
 
         #expect(presentation.perSide == [.fortyFive, .thirtyFive])
         #expect(presentation.readout == "45 + 35")
-        #expect(presentation.caption == "a side on the 45 lb Bar")
+        #expect(presentation.caption == "a side")
         #expect(walkedRows(presentation) == [.finished, .finished, .finished, .current, .ahead, .ahead])
     }
 
@@ -114,14 +114,14 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         #expect(WarmupRampPresentation.readout([]) == "Bar")
     }
 
-    @Test func aSetTheInventoryCannotMakeShowsWhatLoadsAndSaysSo() {
+    @Test func aSetTheInventoryCannotMakeKeepsItsWeightAndSaysWhatLoads() {
         let noChange = PlateInventory(bar: .standard, plates: [.fortyFive, .twentyFive, .ten, .five])
 
         let presentation = WarmupRampPresentation(entry: entry(prefill: 47.5), inventory: noChange, walk: WarmupWalk())
         let set = presentation.rows.last
 
-        #expect(presentation.rows.map(\.weight) == ["45"])
-        #expect(set?.detail == "Set 1 is 47.5")
+        #expect(presentation.rows.map(\.weight) == ["47.5"])
+        #expect(set?.detail == "Set 1, loads as 45")
         #expect(set?.accessibilityLabel == "Set 1 is 47.5 pounds, loads as 45")
     }
 
@@ -151,7 +151,7 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         let presentation = WarmupRampPresentation(entry: entry(prefill: 315), inventory: .standard, walk: walk)
         let empty = WarmupRampPresentation(entry: entry(prefill: 315), inventory: .standard, walk: WarmupWalk())
 
-        #expect(presentation.barAccessibilityLabel == "2 times 45 and 10 and 5 and 2.5 a side on the 45 lb Bar")
+        #expect(presentation.barAccessibilityLabel == "2 times 45 and 10 and 5 and 2.5 a side")
         #expect(empty.barAccessibilityLabel == "Bar, 45 lb, nothing on it")
     }
 
