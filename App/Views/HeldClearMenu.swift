@@ -1,12 +1,13 @@
 import SwiftUI
 import UIKit
 
-/// The held Set's Clear menu, told when it opens and when it closes, however it closes. A SwiftUI
+/// The held Set's More menu, told when it opens and when it closes, however it closes. A SwiftUI
 /// menu's content can outlive its menu: closed by XCUITest, it never disappeared.
 struct HeldClearMenu: UIViewRepresentable {
     let tint: Color
     let onOpened: () -> Void
     let onClosed: () -> Void
+    let onFlag: () -> Void
     let onClear: () -> Void
 
     func makeUIView(context: Context) -> MenuReportingButton {
@@ -30,6 +31,7 @@ struct HeldClearMenu: UIViewRepresentable {
         button.onOpened = onOpened
         button.onClosed = onClosed
         button.menu = UIMenu(children: [
+            UIAction(title: "Flag this Set", image: UIImage(systemName: "flag")) { [onFlag] _ in onFlag() },
             UIAction(title: "Clear", attributes: .destructive) { [onClear] _ in onClear() }
         ])
     }

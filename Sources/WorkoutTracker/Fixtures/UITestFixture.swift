@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import notify
 
     /// Boots the app into a deterministic, populated `SessionView` for unattended UI verification.
     ///
@@ -75,9 +76,26 @@
             }
             if launch.startsOffline {
                 await sheets.disconnect(WorkoutFixtureScenarios.sheetId)
+                reconnect(sheets, onNotification: reconnectNotification)
             }
             if launch.slowsSync {
                 await sheets.holdTabListings(for: .seconds(20))
+            }
+        }
+
+        /// `verify.sh online` posts this into the simulator, so an offline launch can come back online
+        /// the way a phone does, with the app still running and its queue still in it.
+        static let reconnectNotification = "app.workouttracker.uitest.reconnect"
+
+        @MainActor private static var reconnection: Task<Void, Never>?
+
+        @MainActor
+        private static func reconnect(_ sheets: LocalDrive, onNotification name: String) {
+            var token: Int32 = 0
+            notify_register_dispatch(name, &token, .main) { _ in
+                MainActor.assumeIsolated {
+                    reconnection = Task { await sheets.reconnect(WorkoutFixtureScenarios.sheetId) }
+                }
             }
         }
 
