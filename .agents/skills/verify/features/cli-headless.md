@@ -11,6 +11,7 @@ The `workout` CLI runs the app's stores against a local workbook file and prints
 - `cli-flush` writes queued sets to the workbook and reports conflicts.
 - `cli-sheet` reads one workbook cell, or every non-empty cell.
 - `cli-sync` re-reads the workbook and reports the parsed state, optionally viewing another session.
+- `cli-warmup` prints a Set's Warm-up Ramp and writes nothing. `cli-plates` prints or sets the Bar and the plates it loads from.
 
 ## How to get to it (user POV)
 
@@ -31,6 +32,8 @@ Preconditions:
 - **Flush.** Run `workout flush`. Exit 0, `"written" : 2`, `"remainingPendingWrites" : 0`, empty `conflictedWrites`.
 - **Stored value.** Run `workout sheet --cell K15`. `"value" : "185x5@8, skip"`. Without `--cell` it prints every non-empty cell, and `--tab` picks the tab.
 - **Sync.** Run `workout sync --viewing w2d3`. `"status" : "clear"` under `syncOutcome`, `"viewedSession" : "w2d3"`, and `"currentSession" : "w1d1"`. Then `workout session w1d1` reads the two sets back as `"logged"` and `"skipped"`, parsed from the workbook.
+- **Warm-up Ramp.** Run `workout warmup w1d1.e0.s0` after the log above. Exit 0, `"top" : "weight"`, `"pounds" : 185`, five `steps` from `"reachable" : 45`, and `topLoad` with `"perSide" : [45, 25]`. On a Set with no log and no weight, `"top" : "athletePicks"` and empty `steps`. `workout sheet --cell K15` is unchanged by it.
+- **Plate Inventory.** Run `workout plates --bar 35 --plates 45,25,10,5`. Exit 0, `"bar" : "35"`, `"barPounds" : 35`. `workout warmup w1d1.e0.s0` now reads 35, 65, 95, 125, 155. `workout plates --bar 99` fails on stderr with `"code":"invalid_bar"`.
 - **Error shape.** Run `workout log w1d1.e0.s9 185x5@8; echo $?`. Stdout empty, stderr one JSON line with `"code":"unknown_set"` and candidates, exit 1.
 - **Outcome shape.** Strip the `Day N` header cells with `jq '.tabs["Block 27"].cells |= with_entries(select(.value | test("^Day [0-9]+$") | not))' "$WORKOUT_HOME/workbook.json" > "$WORKOUT_HOME/wb.tmp" && mv "$WORKOUT_HOME/wb.tmp" "$WORKOUT_HOME/workbook.json"`, then run `workout sync; echo $?`. Exit 4 with `"status" : "parseWarnings"` under `syncOutcome` and `"code":"sync_conflict"` on stderr. A refused write exits 4 too and prints `"status" : "writesRefused"`, so the status is what tells them apart.
 - **Proof.** A CLI drive has no `launch` to name its evidence directory. Make `<run>` under the directory `verify.sh` files runs in, `<main checkout>/.claude/work/evidence/<branch>/`, and save each command's stdout, stderr, and exit code there.

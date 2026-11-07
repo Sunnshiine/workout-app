@@ -10,6 +10,75 @@
             return (home, cli)
         }
 
+        @Test func warmupPrintsTheWalkUpToALoggedSetAndWritesNothing() throws {
+            let (home, cli) = try freshBlock()
+            defer { try? FileManager.default.removeItem(at: home) }
+            _ = try cli.run("log", "w1d1.e0.s0", "135x5@8")
+            let queued = try cli.run("status").json["pendingWriteCount"] as? Int
+
+            let ramp = try cli.run("warmup", "w1d1.e0.s0")
+
+            #expect(ramp.status == 0)
+            #expect(try ramp.json["top"] as? String == "weight")
+            #expect(try ramp.json["exercise"] as? String == "Back Squat")
+            let steps = try #require(try ramp.json["steps"] as? [[String: Any]])
+            let walk = steps.map { step -> [Double] in
+                let load = step["load"] as? [String: Any]
+                return [load?["reachable"] as? Double ?? -1, Double(step["reps"] as? Int ?? -1)]
+            }
+            #expect(walk == [[45, 5], [60, 5], [80, 3], [95, 2], [115, 1]])
+            #expect((steps[1]["load"] as? [String: Any])?["perSide"] as? [Double] == [5, 2.5])
+            #expect(try cli.run("status").json["pendingWriteCount"] as? Int == queued)
+        }
+
+        @Test func warmupLetsTheAthletePickWhereTheSetGivesNoTop() throws {
+            let (home, cli) = try freshBlock()
+            defer { try? FileManager.default.removeItem(at: home) }
+
+            let ramp = try cli.run("warmup", "w1d1.e0.s0")
+
+            #expect(ramp.status == 0)
+            #expect(try ramp.json["top"] as? String == "athletePicks")
+            #expect((try ramp.json["steps"] as? [Any])?.isEmpty == true)
+        }
+
+        @Test func warmupRefusesAnAddressThatIsNotASet() throws {
+            let (home, cli) = try freshBlock()
+            defer { try? FileManager.default.removeItem(at: home) }
+
+            let ramp = try cli.run("warmup", "nope")
+
+            #expect(ramp.status != 0)
+            #expect(try ramp.errorJSON["code"] as? String == "invalid_address")
+        }
+
+        @Test func platesChangeWhatTheNextProcessWalksOn() throws {
+            let (home, cli) = try freshBlock()
+            defer { try? FileManager.default.removeItem(at: home) }
+            _ = try cli.run("log", "w1d1.e0.s0", "135x5@8")
+
+            let set = try cli.run("plates", "--bar", "35", "--plates", "45,25,10")
+
+            #expect(set.status == 0)
+            #expect(try set.json["barPounds"] as? Int == 35)
+            #expect(try set.json["plates"] as? [Double] == [45, 25, 10])
+            #expect(try cli.run("plates").json["bar"] as? String == "35")
+            let steps = try #require(try cli.run("warmup", "w1d1.e0.s0").json["steps"] as? [[String: Any]])
+            #expect(steps.first.flatMap { ($0["load"] as? [String: Any])?["reachable"] as? Double } == 35)
+        }
+
+        @Test func platesRefuseABarOrSizeTheAppDoesNotKnow() throws {
+            let (home, cli) = try freshBlock()
+            defer { try? FileManager.default.removeItem(at: home) }
+
+            let bar = try cli.run("plates", "--bar", "20")
+            let size = try cli.run("plates", "--plates", "45,7")
+
+            #expect(try bar.errorJSON["code"] as? String == "invalid_bar")
+            #expect(try size.errorJSON["code"] as? String == "invalid_plates")
+            #expect(try cli.run("plates").json["bar"] as? String == "45")
+        }
+
         @Test func moveOnMakesBothTapsAndASecondProcessReadsTheNextSession() throws {
             let (home, cli) = try freshBlock()
             defer { try? FileManager.default.removeItem(at: home) }

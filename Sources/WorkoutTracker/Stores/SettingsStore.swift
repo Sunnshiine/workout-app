@@ -16,6 +16,7 @@ final class SettingsStore {
     private(set) var spreadsheetId: String?
     private(set) var spreadsheetTitle: String?
     private(set) var showsLoadBasis: Bool
+    private(set) var plateInventory: PlateInventory
     private let defaults: AppDefaults
     private static let appearanceKey = "appearance"
     private static let standardRestDurationSecondsKey = "standardRestDurationSeconds"
@@ -23,6 +24,8 @@ final class SettingsStore {
     private static let spreadsheetIdKey = "spreadsheetId"
     private static let spreadsheetTitleKey = "spreadsheetTitle"
     private static let showsLoadBasisKey = "showsLoadBasis"
+    private static let barKey = "plateInventoryBar"
+    private static let platesKey = "plateInventoryPlates"
 
     init(defaults: AppDefaults, hasPriorAppState: Bool = false) {
         self.defaults = defaults
@@ -32,6 +35,10 @@ final class SettingsStore {
         self.standardRestDuration = Self.loadStandardRestDuration(defaults: defaults)
         self.supersetRestDuration = Self.loadSupersetRestDuration(defaults: defaults)
         self.showsLoadBasis = defaults.integer(forKey: Self.showsLoadBasisKey) == 1
+        self.plateInventory = PlateInventory(
+            storedBar: defaults.string(forKey: Self.barKey),
+            storedPlates: defaults.string(forKey: Self.platesKey)
+        )
     }
 
     /// Writing it, as the launch's restore, a sign-in, or Sign Out does, ends the restore.
@@ -60,6 +67,12 @@ final class SettingsStore {
         spreadsheetTitle = nil
         defaults.set(id, forKey: Self.spreadsheetIdKey)
         defaults.removeValue(forKey: Self.spreadsheetTitleKey)
+    }
+
+    func setPlateInventory(_ inventory: PlateInventory) {
+        plateInventory = inventory
+        defaults.set(inventory.bar.rawValue, forKey: Self.barKey)
+        defaults.set(inventory.storedPlates, forKey: Self.platesKey)
     }
 
     func setAppearance(_ preference: AppearancePreference) {

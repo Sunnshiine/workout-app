@@ -11,6 +11,7 @@ The queue bar at the foot of the session stage jumps to the next exercise, and i
 - `queue-jump` opens an exercise's active set from its row.
 - `queue-pair` starts pairing from the header's Superset button and cancels or completes it.
 - `queue-unlink` splits a superset back into its exercises from the superset row's trailing glyph.
+- `queue-warmup` summons the Warm-up Ramp from the header's barbell button, covered in [Warm-up Ramp](./warmup-ramp.md).
 
 ## How to get to it (user POV)
 

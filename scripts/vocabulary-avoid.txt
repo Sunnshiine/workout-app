@@ -88,6 +88,8 @@ incomplete block
 draft block
 completed from sheet
 already logged
+warmup set
+plate math
 
 # Existing names that spell "conflict", kept by the operator's choice (P8), and a persisted
 # component of a queued write. Delete a name when it is renamed.

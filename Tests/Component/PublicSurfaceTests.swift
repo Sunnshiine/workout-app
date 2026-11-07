@@ -79,6 +79,17 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     let sheet = try json(try await app.sheet(tab: nil))
     #expect((sheet["cells"] as? [String: String])?["K15"] == "185x5@8")
 
+    let ramp = try json(try app.warmupRamp(try #require(SetAddress("w1d1.e0.s0"))))
+    #expect(ramp["top"] as? String == "weight")
+    #expect(ramp["pounds"] as? Double == 185)
+    #expect((ramp["topLoad"] as? [String: Any])?["remainder"] as? Double == 0)
+    #expect((ramp["inventory"] as? [String: Any])?["bar"] as? String == "45")
+    #expect((ramp["steps"] as? [[String: Any]])?.first?["reps"] as? Int == 5)
+
+    let plates = try json(try app.setPlateInventory(bar: "35", plates: "45,10"))
+    #expect(plates["barPounds"] as? Int == 35)
+    #expect(plates["plates"] as? [Double] == [45, 10])
+
     let sync = try json(try await app.sync())
     #expect(sync["currentSession"] as? String == "w1d1")
 

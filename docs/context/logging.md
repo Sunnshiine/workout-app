@@ -64,3 +64,13 @@ defines the Program Structure, Load & Intensity, Progress, and Sync terms these 
 **Lead-in**: The five seconds an Effort Countdown counts down out loud before the Timed Effort begins, so the athlete who tapped has time to get their hands on the machine. Fixed, with no setting (ADR-0023). Avoid: get-ready, prep time.
 
 **Effort Countdown**: The count one tap on the Set card starts: the Lead-in, then the Timed Effort's seconds, each cue spoken and felt so an athlete with their hands on the machine follows it without looking ("5" to "1", "Hold" or "Go", the last three seconds, then "Done" or "Time"). Starting one ends a rest still running. Logging, skipping, or moving the card off its Set, pressing the mic, leaving the Session screen, or a tap on it ends it, and so does a write or a sync that leaves its Set no longer Pending or changes its Timed Effort, by its next cue at the latest. Never stored and never written to the Sheet (ADR-0023). Avoid: hold timer, interval timer.
+
+**Warm-up Ramp**: The walk of Warm-up Steps the app works out from the weight of an Exercise's first Pending Set: take the Bar off that weight, divide by 5, and add that much per jump from the empty Bar, each jump rounded down to what the Plate Inventory can load. It shows only when the athlete summons it, and reads the same whether or not the coach's own Sets already ramp. It never changes, suggests, or logs a Set's weight, and its Set stays the coach's. Avoid: warm-up calculator, warm-up ladder, warm-up plan.
+
+**Warm-up Step**: One weight and rep count on a Warm-up Ramp. A Warm-up Step is never a Set: it is not logged, it counts in no Set count, and it is never written to the Sheet. The athlete can mark how far up the ramp they have walked, and the mark lasts only while that Session stays on stage. A marked Warm-up Step reads Finished. Avoid: warmup set, warm-up set, working up, warm-up log.
+
+**Plate Load**: What goes on each side of the Bar to make a weight, heaviest plate first, from the Plate Inventory. When the inventory cannot make the weight exactly, the Plate Load is the nearest weight below it, and the screen says so. Avoid: plate math, plate calculator, plate breakdown.
+
+**Bar**: The empty barbell a Plate Load goes on: 45 lb, 35 lb, or 15 kg, which counts as 33 lb because every weight here is in pounds. Avoid: barbell weight, empty weight.
+
+**Plate Inventory**: The Bar and the plate sizes the athlete's gym has, chosen in Settings. It lives on the device and never reaches the Sheet. Avoid: gym profile, equipment list.

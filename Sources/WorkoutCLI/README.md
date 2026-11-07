@@ -49,6 +49,8 @@ with exit 3; run `init` again.
 | `make-current w2d1` | `view(_:)`, then `makeCurrent()`, the Make current control's `WorkoutStore.makeViewedSessionCurrent()`, in one process; an Unavailable Session is refused | the snapshot `status` prints |
 | `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
 | `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
+| `warmup w1d1.e0.s0` | `WorkoutApplication.warmupRamp(_:)`, over the first argument's Set; the queue sheet reads the first Pending Set | what the ramp walks up to (`top` is `weight`, `athletePicks`, `bodyweight`, or `timedSet`), each Warm-up Step with its Plate Load, and the Plate Inventory. Writes nothing |
+| `plates [--bar 45\|35\|15kg] [--plates 45,25,10]` | `WorkoutApplication.setPlateInventory(bar:plates:)`, Settings' Bar and Plates page | the Plate Inventory. No flag only prints it. `--plates ""` means none |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
 | `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |

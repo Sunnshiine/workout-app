@@ -53,6 +53,23 @@ struct SettingsView: View {
                 .listRowBackground(palette.surface)
 
                 Section {
+                    NavigationLink {
+                        PlateInventoryView()
+                    } label: {
+                        LabeledContent {
+                            RowValue(text: settings.plateInventory.bar.label)
+                        } label: {
+                            Text("Bar and Plates")
+                        }
+                    }
+                    .accessibilityIdentifier("settings-plates-row")
+                } header: {
+                    Text("Warm-up").foregroundStyle(palette.textSecondary)
+                }
+                .labeledContentStyle(StackedAtAccessibilitySizes())
+                .listRowBackground(palette.surface)
+
+                Section {
                     Button {
                         isSheetPickerPresented = true
                     } label: {
