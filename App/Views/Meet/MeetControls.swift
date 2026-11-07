@@ -5,11 +5,15 @@ struct MeetAttemptStrip: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 5) {
             ForEach(Array(lift.attempts.enumerated()), id: \.offset) { index, attempt in
+                // Room for a mark in every gap at every type size, so a mark landing moves no numeral.
+                if index > 0 {
+                    Image(systemName: "checkmark")
+                        .hidden()
+                }
                 Text(attempt.kilograms.numeral)
                     .foregroundStyle(attempt.state == .planned ? palette.textSecondary : palette.textPrimary)
-                    // In the gap between numerals, so a mark landing moves none of them.
                     .overlay(alignment: .leading) {
                         if let glyph = attempt.state.markGlyph {
                             Image(systemName: glyph)
@@ -18,13 +22,13 @@ struct MeetAttemptStrip: View {
                                 .offset(x: -3)
                         }
                     }
-                    .themeFont(.runline)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
                         "\(AttemptOrdinal(rawValue: index)?.name ?? ""), \(attempt.kilograms.spoken), \(attempt.state.spoken)"
                     )
             }
         }
+        .themeFont(.runline)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meet-attempt-strip-\(lift.lift.rawValue)")
     }
@@ -160,12 +164,20 @@ struct MeetFootChips<Trailing: View>: View {
     }
 }
 
-/// The numeral is a field, so a record attempt's half kilo can be typed.
+/// A question that takes the pounds line's place. Its room stays held, so the numeral holds still
+/// when it is asked.
+struct MeetWeightQuestion {
+    let text: String
+    let isAsked: Bool
+}
+
+/// The numeral is a field, so a record Attempt's half kilo can be typed.
 struct MeetWeightStepper: View {
     @Binding var entry: MeetWeightEntry
     @FocusState.Binding var isTyping: Bool
     let label: String
     let spokenLabel: String
+    let question: MeetWeightQuestion?
     @Environment(\.themePalette) private var palette
     @State private var selection: TextSelection?
 
@@ -195,10 +207,23 @@ struct MeetWeightStepper: View {
                 .accessibilityIdentifier("meet-weight-field")
                 WeightStepperButton(direction: .increment, accessibilityIdentifier: "meet-weight-up") { step { $0.stepUp() } }
             }
-            Text(entry.pounds)
-                .themeFont(.runlineSecondary)
-                .foregroundStyle(palette.textSecondary)
-                .accessibilityIdentifier("meet-weight-pounds")
+            ZStack {
+                Text(entry.pounds)
+                    .themeFont(.runlineSecondary)
+                    .foregroundStyle(palette.textSecondary)
+                    .opacity(poundsGiveWay ? 0 : 1)
+                    .accessibilityHidden(poundsGiveWay)
+                    .accessibilityIdentifier("meet-weight-pounds")
+                if let question {
+                    Text(question.text)
+                        .themeFont(.heading)
+                        .foregroundStyle(palette.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .opacity(question.isAsked ? 1 : 0)
+                        .accessibilityHidden(!question.isAsked)
+                        .accessibilityIdentifier("meet-weight-question")
+                }
+            }
         }
         .onChange(of: isTyping) { _, isTyping in
             // The first digit replaces the weight, not the front of it, while the clock runs.
@@ -210,6 +235,11 @@ struct MeetWeightStepper: View {
                 Button("Done", systemImage: "checkmark") { isTyping = false }
             }
         }
+    }
+
+    private var poundsGiveWay: Bool {
+        guard let question else { return false }
+        return question.isAsked
     }
 
     private func step(_ change: (inout MeetWeightEntry) -> Void) {
@@ -277,7 +307,13 @@ struct MeetWeightSheet: View {
                     .themeFont(.sheetTitle)
                     .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.center)
-                MeetWeightStepper(entry: $entry, isTyping: $isTyping, label: "Kilograms", spokenLabel: "Kilograms")
+                MeetWeightStepper(
+                    entry: $entry,
+                    isTyping: $isTyping,
+                    label: "Kilograms",
+                    spokenLabel: "Kilograms",
+                    question: nil
+                )
                 MeetWeightNoteView(note: entry.note(after: nil))
                 Spacer(minLength: 0)
                 Button {
@@ -324,6 +360,7 @@ struct MeetWarmupStepSheet: View {
     @FocusState private var isTyping: Bool
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     init(
         title: String,
@@ -347,7 +384,13 @@ struct MeetWarmupStepSheet: View {
                     Text(title)
                         .themeFont(.sheetTitle)
                         .foregroundStyle(palette.textPrimary)
-                    MeetWeightStepper(entry: $entry, isTyping: $isTyping, label: "Kilograms", spokenLabel: "Kilograms")
+                    MeetWeightStepper(
+                        entry: $entry,
+                        isTyping: $isTyping,
+                        label: "Kilograms",
+                        spokenLabel: "Kilograms",
+                        question: nil
+                    )
                     MeetWeightNoteView(note: entry.note(after: nil))
                     MeetCountRow(label: "Reps", value: $reps, identifier: "meet-step-reps")
                     MeetCountRow(label: "Attempts Out", value: $attemptsOut, identifier: "meet-step-attempts-out")
@@ -378,7 +421,8 @@ struct MeetWarmupStepSheet: View {
             }
             .background(palette.paperBackground.ignoresSafeArea())
         }
-        .presentationDetents([.medium, .large])
+        // Larger type grows the page past the medium detent, which would cut the trash in half.
+        .presentationDetents([typeSize > .large ? .fraction(0.6) : .medium, .large])
     }
 }
 

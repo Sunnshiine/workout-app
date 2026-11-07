@@ -27,7 +27,7 @@ enum AttemptResult: String, Codable, Sendable {
 /// The app reports this and never suggests another number.
 enum AttemptWeightVerdict: Equatable, Sendable {
     case legal
-    /// Off the bar's multiple, but a record attempt may take it.
+    /// Off the bar's multiple, but a record Attempt may take it.
     case recordAttemptOnly
     /// The rule asks for more than this weight, given the Attempt before it.
     case belowPrevious(Kilograms)

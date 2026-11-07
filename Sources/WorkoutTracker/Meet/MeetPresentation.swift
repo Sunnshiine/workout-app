@@ -150,7 +150,7 @@ struct AttemptWindowFace: Equatable {
     let markLine: String
     let caption: String
     let numeral: String
-    /// `Second attempt`, what the weight under the clock is for.
+    /// `Second Attempt`, what the weight under the clock is for.
     let attemptLabel: String
     /// The table's rule, so the view can hold its room before it shows.
     let rule: String
@@ -224,7 +224,7 @@ struct MeetWeightEntry: Equatable {
     }
 
     /// Whether this entry can go in. The rules decide only what no bar can load. A rule about the
-    /// last attempt reads as a note, because the table owns that call and the app records it.
+    /// last Attempt reads as a note, because the table owns that call and the app records it.
     func canSave(after previous: (kilograms: Kilograms, result: AttemptResult)?) -> Bool {
         guard let kilograms else { return false }
         return rules.verdict(on: kilograms, after: previous) != .notLoadable

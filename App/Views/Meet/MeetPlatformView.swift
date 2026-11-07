@@ -75,7 +75,7 @@ enum MeetStageTransition {
 struct MeetNumeral: View {
     let numeral: String
     let unit: String?
-    let countsDown: Bool
+    let ticks: Bool
     let ink: Color
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -87,8 +87,9 @@ struct MeetNumeral: View {
                 .foregroundStyle(ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-                .contentTransition(reduceMotion ? .opacity : .numericText(countsDown: countsDown))
-                .animation(.snappy(duration: 0.2), value: numeral)
+                // A number that ticks reads best still, so the clock cuts once a second.
+                .contentTransition(ticks ? .identity : reduceMotion ? .opacity : .numericText())
+                .animation(ticks ? nil : .snappy(duration: 0.2), value: numeral)
             if let unit {
                 Text(unit)
                     .themeFont(.statsValue)
@@ -104,7 +105,7 @@ struct MeetReadout: View {
     let numeral: String
     let unit: String?
     let beneath: String
-    let countsDown: Bool
+    let ticks: Bool
     let numeralInk: Color
     @Environment(\.themePalette) private var palette
 
@@ -114,7 +115,7 @@ struct MeetReadout: View {
                 .themeFont(.heading)
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
-            MeetNumeral(numeral: numeral, unit: unit, countsDown: countsDown, ink: numeralInk)
+            MeetNumeral(numeral: numeral, unit: unit, ticks: ticks, ink: numeralInk)
             Text(beneath)
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
@@ -178,7 +179,7 @@ private struct MeetOnDeckView: View {
                 numeral: face.numeral,
                 unit: "kg",
                 beneath: face.pounds,
-                countsDown: false,
+                ticks: false,
                 numeralInk: palette.textPrimary
             )
             .accessibilityElement(children: .ignore)
@@ -393,7 +394,7 @@ private struct MeetFinishedView: View {
         VStack(spacing: 6) {
             if let total = meet.total {
                 title("Total")
-                MeetNumeral(numeral: total.numeral, unit: "kg", countsDown: false, ink: palette.textPrimary)
+                MeetNumeral(numeral: total.numeral, unit: "kg", ticks: false, ink: palette.textPrimary)
                 Text(total.poundsLabel)
                     .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)

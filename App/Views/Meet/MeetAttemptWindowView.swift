@@ -53,13 +53,16 @@ private struct MeetAttemptWindowFaceView: View {
                         entry: $entry,
                         isTyping: $isTyping,
                         label: face.attemptLabel,
-                        spokenLabel: "\(face.attemptLabel) in kilograms"
+                        spokenLabel: "\(face.attemptLabel) in kilograms",
+                        question: MeetWeightQuestion(text: "What did the table enter?", isAsked: face.stage == .expired)
                     )
                 }
             }
         } foot: {
             actions
         }
+        // Once large type outgrows the page the controls stay in view, and a note arriving moves none of them.
+        .defaultScrollAnchor(.bottom)
         .toolbar {
             // The page gives way to the keyboard, and the clock it was showing stays in reach of the eye.
             ToolbarItem(placement: .principal) {
@@ -85,7 +88,7 @@ private struct MeetAttemptWindowFaceView: View {
                 numeral: face.numeral,
                 unit: nil,
                 beneath: face.markLine,
-                countsDown: true,
+                ticks: true,
                 numeralInk: face.stage == .expired ? palette.textSecondary : palette.textPrimary
             )
             rule
@@ -110,15 +113,7 @@ private struct MeetAttemptWindowFaceView: View {
 
     private var actions: some View {
         VStack(spacing: 12) {
-            // The question's room stays held and the answers take Submit's frame, so the page holds
-            // still when the clock runs out.
-            Text("What did the table enter?")
-                .themeFont(.heading)
-                .foregroundStyle(palette.textPrimary)
-                .multilineTextAlignment(.center)
-                .opacity(face.stage == .expired ? 1 : 0)
-                .accessibilityHidden(face.stage != .expired)
-                .accessibilityIdentifier("meet-table-question")
+            // The answers take Submit's frame, so the page holds still when the clock runs out.
             ZStack {
                 if face.stage == .expired {
                     expiredAnswers
