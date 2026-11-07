@@ -16,7 +16,7 @@ A Form Clip is a movie attached to one Logged Set, kept on the phone and never w
 ## How to get to it (user POV)
 
 - A Logged Set's card, reviewed from its leaf: the glyph left of the mic, `Add Clip` while it holds none, and `Review clip` once it holds one.
-- The More menu on a Set held after a spoken write: `Add Clip` above `Clear`.
+- The More menu on a Set held after a spoken write holds `Add Clip` and `Clear`. The system chooses their order, and `Clear` showed on top on iPhone 17 Pro, so press by label.
 - Inside a review: the `More` menu's `Add Clip`, `Retrace Bar Path`, and `Delete Clip`, and the `Compare` glyph at the foot.
 - Settings from the Block grid's gear: the `Form Clips` row, then a row to review it or its trash to delete it.
 
@@ -32,7 +32,7 @@ Preconditions:
 - **Pull to close.** Drag the movie downward at least 96 points, with `verify.sh axe swipe --start-x 200 --start-y 300 --end-x 200 --end-y 500 --delta 8`. The review closes. A shorter drag falls back, and so does one on a Compare pane that starts sideways, which scrubs that pane.
 - **Lost plate.** Seed with `--lost-at 4.3` and trace as above. `form-clip-status` reads `The path stops at 0:04.3, where the plate was lost.`
 - **Damaged movie.** Overwrite the back half of a traced clip's movie in the app's container with zeros, then press `form-clip-more`, `Retrace Bar Path`, and the plate. `form-clip-status` reads `This movie can't be read frame by frame, so it can't be traced.` The saved path stays on the movie, and the clip's JSON record keeps its old `barPath` and its save time.
-- **Compare.** Press `form-clip-compare`. With no other clip of the Movement the room reads `No other clip of Back Squat`, and `form-clip-compare-add` opens the picker. With one on another Set, `form-clip-pane-left` and `form-clip-pane-right` show both, and `form-clip-mark-left` stores the frame on screen as that clip's start.
+- **Compare.** Press `form-clip-compare`. With no other clip of the Movement the room reads `No other clip of Back Squat`, and `form-clip-compare-add` opens the picker. With one on another Set, `form-clip-pane-left` and `form-clip-pane-right` show both, and `form-clip-mark-left` stores the frame on screen as that clip's start. Drag both panes and press both flags, in either order. Neither pane moves, and each clip's `startMark` in its JSON record is the frame its own pane showed.
 - **Share.** Press `form-clip-share`. The share sheet names the file `Back Squat W1 D1 Set 1`. Press `Copy`, and `xcrun simctl pbpaste "$SIM"` prints `Back Squat · W1 D1 · Set 1 · 237.5×5 @6`.
 - **Many.** Press `form-clip-more`, then `Add Clip`, and pick again. `form-clip-next` reads `1 of 2`, and pressing it reads `2 of 2`. The card reads `Review 2 clips`.
 - **Delete.** Press `form-clip-more`, `Delete Clip`, then the card's `form-clip-delete-confirm`. The review moves to the clip that is left, and `form-clip-next` is gone.

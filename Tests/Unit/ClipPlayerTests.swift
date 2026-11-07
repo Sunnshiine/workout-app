@@ -217,7 +217,7 @@ private func reportsTime(in moments: ClosedRange<Double>, on player: ClipPlayer)
         #expect(both.right.time == 0)
     }
 
-    @Test func markingAPaneLinesBothUpOnTheNewMark() throws {
+    @Test func markingAPaneTakesItsFrameAsTheNewStart() throws {
         let both = try comparison(leftStart: 0, rightStart: 0)
         both.scrub(.right, to: 1.5)
 
@@ -228,6 +228,36 @@ private func reportsTime(in moments: ClosedRange<Double>, on player: ClipPlayer)
         #expect(both.right.time == 1.5)
         #expect(both.timeline.right.start == 1.5)
         #expect(both.sharedTime == 0)
+    }
+
+    @Test(arguments: [ClipComparison.Pane.left, .right])
+    func aFlagLeavesTheOtherPaneOnTheFrameItWasDraggedTo(flaggedFirst: ClipComparison.Pane) throws {
+        let both = try comparison(leftStart: 0, rightStart: 0)
+        both.scrub(.left, to: 1)
+        both.scrub(.right, to: 1.5)
+        let expected: [ClipComparison.Pane: Double] = [.left: 1, .right: 1.5]
+        let flaggedNext: ClipComparison.Pane = flaggedFirst == .left ? .right : .left
+
+        #expect(both.markStart(flaggedFirst) == expected[flaggedFirst])
+        #expect(both.markStart(flaggedNext) == expected[flaggedNext])
+
+        #expect(both.timeline.left.start == 1)
+        #expect(both.timeline.right.start == 1.5)
+        both.togglePlaying()
+        #expect(both.left.time == 1)
+        #expect(both.right.time == 1.5)
+    }
+
+    @Test func aFlagDuringPlayLinesBothUpOnTheNewMarkAndPlaysOn() throws {
+        let both = try comparison(leftStart: 0, rightStart: 0.5)
+        both.togglePlaying()
+        both.scrub(to: 2)
+
+        #expect(both.markStart(.left) == 2)
+
+        #expect(both.isPlaying)
+        #expect(both.left.time == 2)
+        #expect(both.right.time == 0.5)
     }
 
     @Test func aLoopReturnsToTheStartOfTheSpanAndWithoutOneBothStop() throws {

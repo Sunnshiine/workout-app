@@ -372,7 +372,8 @@ final class ClipComparison {
         }
     }
 
-    /// Takes the pane's current frame as its Set's start, and both clips line up on the new mark.
+    /// Takes the pane's current frame as its Set's start. Paused, nothing moves, because the other
+    /// pane may stand on the frame the athlete dragged it to, waiting for its own flag.
     func markStart(_ pane: Pane) -> Double {
         let mark = player(for: pane).time
         switch pane {
@@ -381,7 +382,7 @@ final class ClipComparison {
         case .right:
             timeline = CompareTimeline(left: timeline.left, right: .init(start: mark, duration: right.duration))
         }
-        lineUp(at: 0)
+        if isPlaying { start(from: 0) }
         return mark
     }
 }
