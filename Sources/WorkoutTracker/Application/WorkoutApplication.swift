@@ -171,6 +171,37 @@ extension WorkoutApplication {
         return try report(on: set, at: address)
     }
 
+    /// The Warm-up Ramp the queue sheet shows for `address`, over the Plate Inventory in Settings.
+    /// It writes nothing.
+    public func warmupRamp(_ address: SetAddress) throws -> WarmupRampReport {
+        let set = try resolveSet(address)
+        return WarmupRampReport(
+            set: address,
+            exercise: set.exercise?.exerciseName.base ?? "",
+            top: WarmupTop(for: set, history: lastPerformed.snapshot),
+            inventory: settings.plateInventory
+        )
+    }
+
+    /// Settings' Bar and Plates page. A nil argument leaves that part as it is.
+    public func setPlateInventory(bar: String?, plates: String?) throws -> PlateInventorySnapshot {
+        var inventory = settings.plateInventory
+        if let bar {
+            guard let parsed = Bar(rawValue: bar) else { throw ApplicationError.invalidBar(bar) }
+            inventory = inventory.withBar(parsed)
+        }
+        if let plates {
+            let sizes = plates.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+            let parsed = sizes.compactMap(PlateDenomination.init(rawValue:))
+            guard parsed.count == sizes.count else { throw ApplicationError.invalidPlates(plates) }
+            inventory = PlateInventory(bar: inventory.bar, plates: Set(parsed))
+        }
+        if inventory != settings.plateInventory {
+            settings.setPlateInventory(inventory)
+        }
+        return PlateInventorySnapshot(inventory)
+    }
+
     /// A Spoken Set read over what the Set's card pre-fills, then `log` or `skip` through the same
     /// store calls. One still missing a value, or rejected, writes nothing and reports why.
     public func say(_ transcript: String, at address: SetAddress) throws -> SayReport {
