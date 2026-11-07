@@ -99,8 +99,13 @@ import Testing
     }
 
     @Test func aPreFillPastAnythingABarHoldsLetsTheAthletePick() {
-        let typo = set(reps: "5", load: "RPE8", state: .logged, setLog: SetLog(weight: .pounds(99_999), reps: 1, rpe: RPE(rawValue: 9)!))
-        #expect(WarmupTop(for: typo, history: .empty) == .athletePicks)
+        func top(_ pounds: Double) -> WarmupTop {
+            let log = SetLog(weight: .pounds(pounds), reps: 1, rpe: RPE(rawValue: 9)!)
+            return WarmupTop(for: set(reps: "5", load: "RPE8", state: .logged, setLog: log), history: .empty)
+        }
+
+        #expect(top(99_999) == .athletePicks)
+        #expect(top(2000) == .weight(2000))
     }
 
     @Test func aTimedSetHasNoTopButAnOpeningHoldStillLoadsTheBar() {

@@ -254,8 +254,7 @@ private func walkedRows(_ presentation: WarmupRampPresentation) -> [WarmupRampPr
         let layout = BarbellLayout(perSide: load.perSide, sleeveLength: 140)
 
         let last = try #require(layout.plates.last)
-        #expect(last.offset + last.thickness < 126.001)
-        #expect(last.offset + last.thickness > 120)
+        #expect(abs(last.offset + last.thickness - 126) < 0.001)
     }
 
     @Test func aBarAloneHasNoPlates() {
