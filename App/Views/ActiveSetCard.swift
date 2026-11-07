@@ -188,39 +188,42 @@ struct ActiveSetCard: View {
 
     /// The flag's word goes first when the head runs short, because the sheet behind the control still
     /// says it. The flexible frame keeps that choice on the room the head has: a `ViewThatFits` placed at
-    /// the word's own width chooses again and can draw the glyph alone in a word-wide button.
+    /// the word's own width chooses again and can draw the glyph alone in a word-wide button. The guard
+    /// stays outside it, because a `ViewThatFits` whose choices all go empty keeps drawing the last one.
+    @ViewBuilder
     private var setFlagControlFittingHead: some View {
-        ViewThatFits(in: .horizontal) {
-            setFlagControl(showsWord: true)
-            setFlagControl(showsWord: false)
+        if mode.showsSetFlagControl(for: set) {
+            ViewThatFits(in: .horizontal) {
+                setFlagControl(showsWord: true)
+                setFlagControl(showsWord: false)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     /// `Saved` beside `Unsynced` reads as a contradiction, so the flag stands without its word here.
     private var savedAndFlag: some View {
         HStack(spacing: 0) {
             savedConfirmation
-            setFlagControl(showsWord: false)
+            if mode.showsSetFlagControl(for: set) {
+                setFlagControl(showsWord: false)
+            }
         }
     }
 
-    @ViewBuilder
     private func setFlagControl(showsWord: Bool) -> some View {
-        if mode.showsSetFlagControl(for: set) {
-            Button {
-                dismissInputIfLogging()
-                onFlag()
-            } label: {
-                setFlagFace(showsWord: showsWord)
-                    .frame(minWidth: Self.headTargetSize, minHeight: Self.headTargetSize)
-                    .contentShape(.rect)
-            }
-            .buttonStyle(.pressScale)
-            .accessibilityLabel("Flag Set \(setOrdinal)")
-            .accessibilityValue(set.setFlagStanding?.word ?? "")
-            .accessibilityIdentifier("set-flag-control")
+        Button {
+            dismissInputIfLogging()
+            onFlag()
+        } label: {
+            setFlagFace(showsWord: showsWord)
+                .frame(minWidth: Self.headTargetSize, minHeight: Self.headTargetSize)
+                .contentShape(.rect)
         }
+        .buttonStyle(.pressScale)
+        .accessibilityLabel("Flag Set \(setOrdinal)")
+        .accessibilityValue(set.setFlagStanding?.word ?? "")
+        .accessibilityIdentifier("set-flag-control")
     }
 
     @ViewBuilder
