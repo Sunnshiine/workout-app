@@ -1,6 +1,6 @@
-# Greenhouse → Theme.swift: type roles and Dynamic Type (token sheet §4–§5)
+# Greenhouse type roles
 
-Part of the [token sheet](greenhouse-theme-tokens.md), which keeps its section numbering.
+The type half of [the token sheet](greenhouse-theme-tokens.md). Section numbers continue from it.
 
 ## 4. Type roles
 
@@ -38,6 +38,8 @@ renders after Dynamic Type. It is computed, so no row sets it.
 | `connectTitle` | Fraunces | 36pt / 1.1 |
 | `sheetTitle` | Fraunces | 24pt / 1.1 (opsz 22) |
 | `supersetPartner` | Fraunces | 20pt, one line |
+| `queueName` | Fraunces | 20pt / 1.1; two lines; the queue sheet's names (operator, 2026-11-06: "Let's do Lens!") |
+| `queueNameOnStage` | Fraunces | 24pt / 1.1; two lines; the queue sheet's name on stage (same ruling) |
 | `heading` | SS3 | 17pt / 600; utility section heads and picker rows, where Fraunces may not go |
 | `weightEntry` | SS3 | 46pt / 700 |
 | `countdownNumeral` | SS3 | 96pt / 700; an Effort Countdown's seconds, read at arm's length (#1157) |

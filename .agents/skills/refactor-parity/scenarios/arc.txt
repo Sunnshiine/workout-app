@@ -1,0 +1,11 @@
+# The README arc: log, skip, flush, sync, Move On.
+init --scenario fresh-block
+observe
+log w1d1.e0.s0 185x5@8
+skip w1d1.e0.s1
+status
+flush
+sheet --cell K15
+sync
+move-on
+observe

@@ -50,6 +50,102 @@ extension SessionStageTests {
         #expect(stage.queue.rows.map(\.title) == ["Squat", "BB RDL"])
     }
 
+    @Test func theWheelListsFinishedRowsThenTheStageThenEveryRowLeft() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
+        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
+        let curl = makeExercise(name: "Curl", order: 3, setStates: [.skipped])
+
+        let queue = makeStage([squat, bench, row, curl], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))).queue
+
+        #expect(queue.wheelRows.map(\.title) == ["Bench Press", "Curl", "DB Row", "Squat"])
+        #expect(queue.rows.map(\.title) == ["Squat", "Bench Press", "DB Row", "Curl"])
+        #expect(queue.position.number == 3)
+    }
+
+    @Test func theWheelRestsOnTheRowOnStage() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
+
+        let queue = makeStage([squat, bench, row], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))).queue
+
+        #expect(queue.restingRowID == "exercise-2")
+    }
+
+    @Test func aFinishedSessionsWheelRestsOnItsLastRow() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
+
+        #expect(makeStage([squat, bench]).queue.restingRowID == "exercise-1")
+    }
+
+    @Test(arguments: [(0.0, 1.0), (64.0, 0.84), (-64.0, 0.84), (160.0, 0.6), (576.0, 0.6)])
+    func aRowShrinksWithItsDistanceFromTheCentreToAFloor(distance: Double, scale: Double) {
+        #expect(abs(SessionQueue.lensScale(distance: distance, rowHeight: 64) - scale) < 0.0001)
+    }
+
+    @Test(arguments: [(90.0, 100.0), (130.0, 100.0), (170.0, 200.0), (900.0, 200.0), (-40.0, 100.0)])
+    func aScrollRestsOnTheNearestRowCentre(proposed: Double, center: Double) {
+        #expect(SessionQueue.restingCenter(near: proposed, rowCenters: [100, 200], freePastLastRow: false) == center)
+    }
+
+    @Test func aWheelFollowedByOpenExercisesRunsFreeOnlyPastItsLastRow() {
+        #expect(SessionQueue.restingCenter(near: 190, rowCenters: [100, 200], freePastLastRow: true) == 200)
+        #expect(SessionQueue.restingCenter(near: 233, rowCenters: [100, 200], freePastLastRow: true) == nil)
+    }
+
+    @Test func aWheelNotYetMeasuredDoesNotSnap() {
+        #expect(SessionQueue.restingCenter(near: 50, rowCenters: [], freePastLastRow: false) == nil)
+    }
+
+    @Test func aTallerRowShrinksNoFasterThanOneAtTheDefaultSize() {
+        #expect(SessionQueue.lensScale(distance: 100, rowHeight: 100) == SessionQueue.lensScale(distance: 64, rowHeight: 64))
+    }
+
+    @Test func onlyASupersetAndThePairBeingChosenWearACapsule() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let press = makeExercise(name: "Press", order: 2, setStates: [.pending])
+        let row = makeExercise(name: "Row", order: 3, setStates: [.pending])
+        let carry = makeExercise(name: "Carry", order: 4, setStates: [.pending])
+        let exercises = [squat, bench, press, row, carry]
+        let supersets = [Superset(first: press, second: row)]
+
+        let selecting = makeStage(exercises, supersets: supersets, pairable: [0, 1], pairingMode: .selecting(sourceOrder: 0))
+        let confirming = makeStage(
+            exercises,
+            supersets: supersets,
+            pairable: [0, 1],
+            pairingMode: .confirming(sourceOrder: 0, targetOrder: 1)
+        )
+
+        #expect(selecting.queue.rows.map(\.wearsCapsule) == [true, false, true, false])
+        #expect(confirming.queue.rows.map(\.wearsCapsule) == [true, true, true, false])
+    }
+
+    @Test func aSupersetRowKeepsEachExercisesSetsTogether() {
+        let press = makeExercise(name: "Press", order: 0, setStates: [.logged, .pending])
+        let row = makeExercise(name: "Row", order: 1, setStates: [.logged])
+
+        let groups = makeStage([press, row], supersets: [Superset(first: press, second: row)]).queue.rows[0].exerciseSets
+
+        #expect(groups.map { $0.map(\.state) } == [[.logged, .pending], [.logged]])
+    }
+
+    @Test func aRowSpeaksItsSetsAndNamesSkipsOnlyWhenThereAreSome() {
+        let squat = makeExercise(name: "Squat", order: 0, setStates: [.logged, .skipped, .pending, .pending])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged, .pending])
+
+        let rows = makeStage([squat, bench]).queue.rows
+
+        #expect(rows[0].sets.spokenProgress == "1 of 4 Sets logged, 1 skipped")
+        #expect(rows[1].sets.spokenProgress == "1 of 2 Sets logged")
+        #expect(
+            makeStage([makeExercise(name: "Dip", order: 0, setStates: [.pending])]).queue.rows[0].sets.spokenProgress == "0 of 1 Set logged"
+        )
+    }
+
     @Test func thePillCountsThePlaceOfTheItemOnStage() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
         let press = makeExercise(name: "Press", order: 1, setStates: [.pending])

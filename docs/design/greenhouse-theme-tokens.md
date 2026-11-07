@@ -224,9 +224,9 @@ composition itself are locked by #455.
 Ceremony stats surface = the shared `surface` role at radius `soft`
 (sunbird-moments recipe supersedes sunlit-ledger-b's bespoke one).
 
-## 4–5. Type roles and Dynamic Type
+## 4. Type roles and 5. Dynamic Type stance
 
-[greenhouse-type-tokens.md](greenhouse-type-tokens.md) holds both sections, under these numbers.
+Moved to [greenhouse-type-roles.md](greenhouse-type-roles.md).
 
 ## 6. Radius family
 

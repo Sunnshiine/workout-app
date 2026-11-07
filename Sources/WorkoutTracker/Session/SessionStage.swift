@@ -141,13 +141,19 @@ struct SessionQueue: Equatable {
     struct Row: Equatable, Identifiable {
         let id: String
         let title: String
-        let sets: [ExerciseSet]
+        let exerciseSets: [[ExerciseSet]]
         let isComplete: Bool
         let isOnStage: Bool
         let pairingExercise: Exercise
         let jumpTarget: ExerciseSet?
         let kind: QueueRowKind
         let pairingRole: QueuePairingRole
+
+        var sets: [ExerciseSet] { exerciseSets.flatMap(\.self) }
+
+        var wearsCapsule: Bool {
+            kind == .superset || pairingRole == .source || pairingRole == .confirmingTarget
+        }
     }
 
     let rows: [Row]
@@ -164,6 +170,44 @@ struct SessionQueue: Equatable {
 
     var pairingSource: Row? {
         rows.first { $0.pairingRole == .source }
+    }
+
+    /// The sheet's order: finished rows sit above the wheel's centre and every row left reads downward
+    /// from it, one the athlete jumped past included. `position` keeps counting in Session order.
+    var wheelRows: [Row] {
+        let others = rows.filter { !$0.isOnStage }
+        return others.filter(\.isComplete) + rows.filter(\.isOnStage) + others.filter { !$0.isComplete }
+    }
+
+    /// The row the wheel rests on: the one on stage, or the last when a finished Session has none.
+    var restingRowID: String? {
+        (rows.first(where: \.isOnStage) ?? wheelRows.last)?.id
+    }
+
+    /// How large a row draws at its distance from the wheel's centre, counted in its own heights so
+    /// a row grown by Dynamic Type shrinks no faster than one at the default size.
+    nonisolated static func lensScale(distance: Double, rowHeight: Double) -> Double {
+        1 - min(abs(distance) / rowHeight, 2.5) * 0.16
+    }
+}
+
+extension SessionQueue {
+    /// The row centre a scroll ending at `proposed` rests on, or nil where the wheel runs free: past
+    /// the last row when Open Exercises follow it, so the list can reach its end.
+    nonisolated static func restingCenter(near proposed: Double, rowCenters: [Double], freePastLastRow: Bool) -> Double? {
+        let freeRunMargin = 32.0
+        guard let last = rowCenters.last else { return nil }
+        if freePastLastRow, proposed > last + freeRunMargin { return nil }
+        return rowCenters.min { abs($0 - proposed) < abs($1 - proposed) }
+    }
+}
+
+extension [ExerciseSet] {
+    var spokenProgress: String {
+        let logged = count { $0.state == .logged }
+        let skipped = count { $0.state == .skipped }
+        let progress = "\(logged) of \(count) \(count == 1 ? "Set" : "Sets") logged"
+        return skipped == 0 ? progress : "\(progress), \(skipped) skipped"
     }
 }
 
@@ -460,7 +504,7 @@ private enum StageItem {
         return SessionQueue.Row(
             id: id,
             title: title,
-            sets: SessionSetOrder.orderedSets(in: exercises).map(\.set),
+            exerciseSets: exercises.sorted { $0.order < $1.order }.map(\.sortedSets),
             isComplete: isComplete,
             isOnStage: isOnStage,
             pairingExercise: exercise,
@@ -481,7 +525,7 @@ private enum StageItem {
 
 @MainActor
 extension Exercise {
-    fileprivate var sortedSets: [ExerciseSet] {
+    var sortedSets: [ExerciseSet] {
         sets.sorted { $0.index < $1.index }
     }
 }

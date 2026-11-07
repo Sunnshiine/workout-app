@@ -1,0 +1,11 @@
+# Load suggestions read from today's and from history's Set Logs, ties included.
+init --scenario fresh-block
+log w1d1.e0.s0 185x5@8
+log w1d1.e0.s1 195x5@8
+log w1d1.e0.s2 190x3@9
+flush
+sync
+session w1d1
+session w2d1
+log w2d1.e0.s0 200x5@8
+session w2d1

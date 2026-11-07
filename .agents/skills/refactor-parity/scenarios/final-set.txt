@@ -1,0 +1,14 @@
+# A final Set's Last Set RPE: log, flush, clear, re-log, each flushed and read back from the Sheet.
+init --scenario fresh-block
+log w1d1.e0.s2 200x3@9
+flush
+sheet
+delete-log w1d1.e0.s2
+flush
+sheet
+log w1d1.e0.s0 185x5@8
+log w1d1.e0.s1 190x5@8
+log w1d1.e0.s2 200x3@9
+flush
+sync
+observe

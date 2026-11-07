@@ -1,0 +1,23 @@
+# Every WorkbookScenario as the onboarding sync reads it.
+init --scenario fresh-block
+observe
+init --scenario partial-upload
+observe
+init --scenario full-block
+observe
+init --scenario current-session-with-pending-sets
+observe
+init --scenario partially-logged-session
+observe
+init --scenario open-exercises
+observe
+init --scenario completed-open-exercises
+observe
+init --scenario long-session
+observe
+init --scenario perfect-move-on-celebration
+observe
+init --scenario block-overview-with-mixed-session-states
+observe
+init --scenario worst-case
+observe

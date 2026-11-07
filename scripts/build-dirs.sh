@@ -5,4 +5,4 @@
 # and drops each regenerable dir, which a build or a rerun makes again.
 # scripts/lint-build-dirs.sh, run by scripts/lint.sh, fails on a dir in neither list.
 results_dirs=(test-sim verify crap flake-hunt flake-guard mutate check-each-commit measure-host)
-regenerable_dirs=(debug scratch ci-visual-diffs)
+regenerable_dirs=(debug scratch ci-visual-diffs parity)

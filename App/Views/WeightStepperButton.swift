@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - Weight ± stepper
 
 /// A ~54pt round stepper flanking the weight value. Its triangle is sized by frame, not font, so
-/// the control carries no inline font (token sheet §4 choke point).
+/// the control carries no inline font (type roles sheet, the choke point).
 struct WeightStepperButton: View {
     enum Direction: Equatable { case decrement, increment }
 

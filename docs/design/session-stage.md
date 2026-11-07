@@ -216,8 +216,8 @@ source row takes a pale action-ink capsule with a 2px action-ink outline and
 the offer stem. Each eligible row shows the bud, the chosen partner fills and
 shows the joined fork, and an ineligible row dims with no glyph.
 
-A Superset row reads "Back Squat + Bench Press" on a surface capsule behind a
-joined stem in action ink. Its trailing grey split stem is **Unlink**, and it
+A Superset row reads "Back Squat + Bench Press" after a joined stem in action
+ink, on a surface capsule. Its trailing grey split stem is **Unlink**, and it
 returns both Exercises to the queue. While pairing, a Superset row dims like
 an ineligible row and hides Unlink without giving up its space. Every row
 highlight is a capsule, since a soft-radius rectangle draws flat ticks on a
@@ -225,5 +225,54 @@ row this short (#870). The header holds one height whether it shows the
 button, the X, or nothing, so the title never moves (operator rulings
 2026-10-11 and 2026-10-12: self-describing icons over words, V3's stem in
 V1's icon-only header button). The queue sheet itself is living paper (§2).
-A row's Exercise name runs two lines at most in a smaller face, so the queue
-shows more of a name the stage truncated.
+
+**The Lens.** The sheet's rows are a wheel that rests on the Exercise on stage,
+with finished rows above it and every row left below it, one the athlete jumped
+past included, so what remains reads downward from the centre. A row carries its name and one mark per Set, with no
+count and no "Now". The name on stage is `queueNameOnStage` in action ink, a
+finished name is `queueName` in secondary text, and the rest are `queueName` in
+primary text. A name wraps to two lines, or as many as it needs from xxLarge
+text, and its row grows past 64pt. The name on stage shrinks to 20pt before it
+truncates, and a Superset truncates in the middle so its partner's name
+survives. A capsule's content sits 6pt further in, and every row keeps 12pt above
+and below, so a two-line row's name and first mark clear the capsule's curve.
+
+Only a row's name and marks shrink, anchored to the left edge, by 16% per row of
+its own height from the centre down to 60% at 2.5 rows. Each row and capsule
+keeps its full size and hit area. Rows do not fade by distance; only the wheel's
+top and bottom 40pt fade, the outermost 8pt fully clear, so the Sets stay
+readable for planning. Reduce Motion and accessibility text sizes draw every row
+at full size. Set marks are 20×7pt with a 2.5pt radius and a 3pt gap: Logged
+fills `action`, Pending strokes 1pt of secondary text, and Skipped dashes 1pt of
+`skipStroke`, so it recedes from the work left. A 9pt gap parts a Superset's
+Exercises. Marks narrow together when they would overrun the row. One tap jumps.
+Move On is pinned under the wheel. Open Exercises follow the last row and show
+the same marks in place of a count, here and on the completion stage. With them
+below it, the wheel stops snapping 32pt past the last row, so the list can always
+reach its end. Move On's slot holds its frame when Move On is absent, so the
+wheel's centre never moves.
+VoiceOver reads finished rows, then the
+rest, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
+trait on the row on stage.
+
+Decided from the session-queue prototype (operator, 2026-11-06: "List is boring.
+Let's do Lens!", on a panel reading row 64, on-stage name 24, other names 20,
+shrink 0.16, fade 0, Set mark 20×7 radius 2.5). Also from the operator that day:
+"we don't need, like, the little, um, pills on top", "I also don't think we need
+to show count", "really try to minimize text on the screen", and "the ability to
+see all of the sets that I have for each exercise" for planning warm-ups and gym
+time.
+
+Rejected, so the question stays closed:
+
+- **List**, Lens flattened with no snap or scale: "List is boring."
+- **Drum**, the same wheel tilted on a raised band: the operator picked Lens.
+- **Carousel**: "really cool idea" but "I just don't think it's quite, you know,
+  for this app."
+- **Grow**, capsules that fill per Set under a session bar: "really interesting",
+  but "it did feel slightly off", perhaps "too much round on round", and "I also
+  don't think we need to show count."
+- **Checklist**: "quite interesting", and not carried forward.
+- **Split**: "split hides finish exercises" carried into Lens as finished rows
+  above the centre.
+- **Ledger, Stem, Tucked, Poster, Dial, Odometer**: not carried forward.

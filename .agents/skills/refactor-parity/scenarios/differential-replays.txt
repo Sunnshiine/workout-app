@@ -1,0 +1,50 @@
+# DifferentialStateTests' Replay and KnownDivergence scripts, with view+make-current as make-current
+# and request-move-on+dismiss-celebration as move-on.
+init --scenario fresh-block
+coach C19 Back Squat
+sync
+log w1d1.e1.s0 330x5@7
+flush
+observe
+init --scenario fresh-block
+coach K15 185.0x5@8
+sync
+log w1d1.e0.s0 190x5@8
+flush
+sync
+observe
+init --scenario fresh-block
+make-current w2d1
+sync
+move-on
+observe
+init --scenario fresh-block
+log w1d1.e0.s0 185x5@8
+flush
+coach C15 Front Squat
+sync
+observe
+init --scenario fresh-block
+coach K19 225x8
+sync
+log w1d1.e1.s0 185x5@8
+flush
+observe
+init --scenario fresh-block
+coach C19 Back Squat
+coach K19
+sync
+log w1d1.e0.s0 400x1@8
+log w1d1.e1.s0 330x5@7
+flush
+skip w1d1.e1.s0
+flush
+observe
+init --scenario fresh-block
+log w1d1.e0.s2 200x3@9
+flush
+coach K15
+sync
+log w1d1.e0.s2 200x3@9
+flush
+observe
