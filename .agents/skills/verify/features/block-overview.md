@@ -12,6 +12,7 @@ Block Overview shows the whole training Block as a grid of weeks and sessions wi
 - `block-make-current` makes the opened session the Current Session.
 - `block-return` returns from a non-current session to the Current Session.
 - `block-view-sheet` opens the Block's Sheet tab, read live, from the `tablecells` button labeled `View Sheet` in the navigation bar (`block-overview-view-sheet`). A segmented `sheet-tab-week-picker` opens on the focus Week. The Week's Days stack in `sheet-tab-grid` as one card each (`sheet-tab-day-<N>`), the Current Session's Day in the Block grid's lit focus-card fill. A card is titled with the Day's `Day N` header and date and labels its columns with the role headers over their letters, sized to fit the card, with the name and notes columns taking the room the number columns leave, and its rows are only the rest of that Day's section that holds a value. A Day with nothing below its headers reads `Not uploaded`. Each filled cell is `sheet-cell-<A1>` such as `sheet-cell-C12` (blank cells are inert and hidden from accessibility); tapping a filled cell shows its reference in `sheet-tab-cell-reference` and its full value in `sheet-tab-cell-detail`, and `sheet-tab-done` closes it.
+- `block-meet` opens the Meet from the pill beside the gear (`block-overview-meet-row`), driven in `meet-mode.md`.
 - `block-settings` opens Settings from the gear button, labeled `Settings`, at the grid's foot (`block-overview-settings-row`), driven in `settings.md` **From the stage**.
 
 ## How to get to it (user POV)

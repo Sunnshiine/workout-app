@@ -16,6 +16,7 @@ public final class WorkoutApplication {
     let sheetsClient: any SheetsClient
     /// Every press's Dictation Record, whichever surface pressed.
     let dictationJournal: DictationJournal
+    let meet: MeetStore
 
     static let schema = Schema([
         Block.self, PendingWrite.self, WriteTargetAuditEntry.self, LastPerformedEntry.self, HistoryFillCursor.self
@@ -26,6 +27,7 @@ public final class WorkoutApplication {
         let context = container.mainContext
         sheetsClient = environment.sheetsClient
         dictationJournal = DictationJournal(storage: environment.dictationRecords)
+        meet = MeetStore(defaults: environment.defaults, now: environment.now)
         lastPerformed = LastPerformedLookupStore(context: context)
         settings = SettingsStore(
             defaults: environment.defaults,

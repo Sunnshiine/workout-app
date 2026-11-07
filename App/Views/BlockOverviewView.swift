@@ -6,6 +6,7 @@ struct BlockOverviewView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(AppEntryInbox.self) private var entry
     @Environment(\.readBlockSheet) private var readBlockSheet
+    @Environment(MeetStore.self) private var meet
     @State private var presented: PresentedSurface?
 
     private enum PresentedSurface: Identifiable {
@@ -42,6 +43,7 @@ struct BlockOverviewView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack {
+                meetRow
                 Spacer(minLength: 0)
                 settingsRow
             }
@@ -80,6 +82,17 @@ struct BlockOverviewView: View {
                 }
             }
         }
+    }
+
+    private var meetRow: some View {
+        NavigationLink {
+            MeetPlanView()
+        } label: {
+            Text(meet.meet?.date.entryLabel(from: meet.now(), in: .current) ?? "Meet")
+                .footPill(palette)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("block-overview-meet-row")
     }
 
     private var settingsRow: some View {

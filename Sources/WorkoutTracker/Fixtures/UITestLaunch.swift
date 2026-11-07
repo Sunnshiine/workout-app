@@ -43,6 +43,12 @@
 
         var startsWithPendingWrite: Bool { has(.pendingWrite) }
 
+        /// The Meet this launch plans on the phone, if any.
+        var meet: Meet? {
+            if has(.meetWorstCase) { return MeetDayFixture.worstCase() }
+            return has(.meetDay) ? MeetDayFixture.meet() : nil
+        }
+
         var startsOffline: Bool { has(.offline) }
 
         var slowsSync: Bool { has(.slowSync) }

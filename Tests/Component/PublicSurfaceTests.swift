@@ -64,6 +64,24 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     #expect(block["benchTM"] as? Double == 245)
     #expect(block["deadliftTM"] as? Double == 455)
 
+    let meet = try json(
+        try app.meetPlan(
+            MeetPlanEdit(
+                date: "2026-12-05",
+                federation: "ipf",
+                attempts: ["squat": "180,190"],
+                rackHeights: [:],
+                warmupRoomPlans: [:],
+                fillsWarmupRoomPlans: false,
+                liftersInFlight: nil,
+                secondsPerAttempt: nil
+            )
+        )
+    )
+    #expect(meet["daysUntil"] is Int)
+    #expect((meet["next"] as? [String: Any])?["stage"] as? String == "attempt")
+    #expect(try json(try app.meetTick(.read))["federation"] as? String == "ipf")
+
     let session = try json(try app.session(nil))
     let exercises = try #require(session["exercises"] as? [[String: Any]])
     let sets = try #require(exercises[0]["sets"] as? [[String: Any]])
