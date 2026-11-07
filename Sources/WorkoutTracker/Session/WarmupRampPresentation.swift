@@ -8,6 +8,12 @@ struct WarmupEntry: Equatable, Sendable {
     let setNumber: Int
     /// The Set's pre-fill. Nil leaves the athlete to pick a top.
     let prefill: Double?
+
+    /// False while the Bar alone outweighs the Set, because there is nothing to walk up. A top the
+    /// athlete picks starts above every Bar.
+    func hasWalk(on inventory: PlateInventory) -> Bool {
+        prefill.map { PlateLoad(weighing: $0, on: inventory) != nil } ?? true
+    }
 }
 
 @MainActor
@@ -54,7 +60,7 @@ struct WarmupRampPresentation: Equatable, Sendable {
     let perSide: [PlateDenomination]
     let readout: String
     let caption: String
-    /// Says why there is no walk to show, in place of the bar.
+    /// Asks for a top, in place of the bar, while the Set has none.
     let note: String?
     let rows: [Row]
     let setLabel: String
@@ -75,7 +81,7 @@ struct WarmupRampPresentation: Equatable, Sendable {
         perSide = shown?.perSide ?? []
         readout = Self.readout(perSide)
         caption = perSide.isEmpty ? inventory.bar.label : "a side on the \(inventory.bar.label) Bar"
-        note = Self.note(top: top, topLoad: topLoad, setLabel: setLabel, bar: inventory.bar)
+        note = Self.note(top: top, setLabel: setLabel)
         rows = Self.rows(steps: steps, finished: finished, topLoad: topLoad, setLabel: setLabel)
     }
 
@@ -108,10 +114,8 @@ struct WarmupRampPresentation: Equatable, Sendable {
         return "\(readout.replacingOccurrences(of: " × ", with: " times ").replacingOccurrences(of: " + ", with: " and ")) \(caption)"
     }
 
-    private static func note(top: Double?, topLoad: PlateLoad?, setLabel: String, bar: Bar) -> String? {
-        guard let top else { return "Pick \(setLabel)’s weight." }
-        guard topLoad == nil else { return nil }
-        return "\(setLabel) is \(Weight.pounds(top).label), lighter than the \(bar.label) Bar."
+    private static func note(top: Double?, setLabel: String) -> String? {
+        top == nil ? "Pick \(setLabel)’s weight." : nil
     }
 
     private static func state(of index: Int, finished: Int) -> RowState {

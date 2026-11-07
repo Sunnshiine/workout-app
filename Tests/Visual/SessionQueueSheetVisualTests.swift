@@ -94,6 +94,7 @@ struct SessionQueueSheetVisualTests {
         let view = content()
             .frame(width: 393, height: height)
             .background(Theme.palette(for: appearance).paperBackground)
+            .environment(SettingsStore(defaults: .inMemory()))
             .environment(\.themePalette, Theme.palette(for: appearance))
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
             .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

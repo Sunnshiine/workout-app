@@ -1,29 +1,33 @@
 import SwiftUI
 
-/// The Lens's way to the ramp. It presents the sheet, so the sheet leaves when the entry does.
+/// The Lens's way to the ramp. It presents the sheet, so the sheet leaves when the entry does, and
+/// it offers nothing while the Bar alone outweighs the Set.
 struct WarmupRampButton: View {
     let entry: WarmupEntry
     let coordinator: SessionCoordinator
     let size: CGFloat
+    @Environment(SettingsStore.self) private var settings
     @Environment(\.themePalette) private var palette
     @State private var isPresented = false
 
     var body: some View {
-        Button {
-            isPresented = true
-        } label: {
-            BarbellGlyph(color: palette.actionInk)
-                .frame(width: 24, height: 24)
-                .frame(width: size, height: size)
-                .background(Circle().fill(palette.pillFill))
-                .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Warm-up Ramp")
-        .accessibilityIdentifier("stage-queue-warmup")
-        .sheet(isPresented: $isPresented) {
-            WarmupRampSheet(entry: entry, coordinator: coordinator)
+        if entry.hasWalk(on: settings.plateInventory) {
+            Button {
+                isPresented = true
+            } label: {
+                BarbellGlyph(color: palette.actionInk)
+                    .frame(width: 24, height: 24)
+                    .frame(width: size, height: size)
+                    .background(Circle().fill(palette.pillFill))
+                    .themeElevation(palette.lighting.raisedControlShadow, in: Circle())
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Warm-up Ramp")
+            .accessibilityIdentifier("stage-queue-warmup")
+            .sheet(isPresented: $isPresented) {
+                WarmupRampSheet(entry: entry, coordinator: coordinator)
+            }
         }
     }
 }
@@ -36,7 +40,9 @@ struct WarmupRampSheet: View {
     @Environment(SettingsStore.self) private var settings
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AccessibilityFocusState private var isTitleFocused: Bool
+    @Namespace private var currentRowSpace
 
     private var presentation: WarmupRampPresentation {
         WarmupRampPresentation(entry: entry, inventory: settings.plateInventory, walk: coordinator.warmupWalk)
@@ -44,6 +50,10 @@ struct WarmupRampSheet: View {
 
     private var pickedTop: Double? {
         coordinator.warmupWalk.pickedTop(forExerciseOrder: entry.exerciseOrder)
+    }
+
+    private var rowAnimation: Animation? {
+        reduceMotion ? nil : .smooth(duration: 0.3)
     }
 
     var body: some View {
@@ -68,7 +78,7 @@ struct WarmupRampSheet: View {
             }
             .scrollBounceBehavior(.basedOnSize)
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: presentation.rows.map(\.id))
+        .animation(rowAnimation, value: presentation.rows.map(\.id))
         .dynamicTypeSize(...Theme.TypeScale.largestSize)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
@@ -83,8 +93,10 @@ struct WarmupRampSheet: View {
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityFocused($isTitleFocused)
             Text(entry.exerciseTitle)
-                .themeFont(.runlineSecondary)
+                .themeFont(.queueName)
                 .foregroundStyle(palette.textSecondary)
+                // As in the Lens: two lines hold a long name until the size leaves room for a few words.
+                .lineLimit(dynamicTypeSize >= .xxLarge ? nil : 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 18)
@@ -132,6 +144,7 @@ struct WarmupRampSheet: View {
         VStack(spacing: 0) {
             ForEach(Array(presentation.rows.enumerated()), id: \.element.id) { index, row in
                 stepRow(row, index: index, presentation: presentation)
+                    .matchedGeometryEffect(id: row.id, in: currentRowSpace)
             }
 
             if entry.prefill == nil {
@@ -146,6 +159,15 @@ struct WarmupRampSheet: View {
                 .padding(.top, presentation.rows.isEmpty ? 0 : 16)
             }
         }
+        .background {
+            // One capsule behind every row, so it travels to the current row and is never two.
+            if let current = presentation.rows.first(where: { $0.state == .current }) {
+                Capsule()
+                    .fill(palette.actionInk.opacity(0.10))
+                    .matchedGeometryEffect(id: current.id, in: currentRowSpace, isSource: false)
+            }
+        }
+        .animation(rowAnimation, value: presentation.rows)
     }
 
     private func stepRow(_ row: WarmupRampPresentation.Row, index: Int, presentation: WarmupRampPresentation) -> some View {
@@ -177,11 +199,6 @@ struct WarmupRampSheet: View {
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
-            .background {
-                if row.state == .current {
-                    Capsule().fill(palette.actionInk.opacity(0.10))
-                }
-            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

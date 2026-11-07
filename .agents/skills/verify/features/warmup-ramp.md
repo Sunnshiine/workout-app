@@ -6,7 +6,7 @@ The queue Lens summons a sheet that walks the athlete up to the first Pending Se
 
 ## Sub-features
 
-- `warmup-entry` offers the sheet from the Lens header while the Exercise on stage has a ramp to walk, and offers nothing for a bodyweight Set, a Timed Set, or while pairing.
+- `warmup-entry` offers the sheet from the Lens header while the Exercise on stage has a ramp to walk, and offers nothing for a bodyweight Set, a Timed Set, a Set the Bar alone outweighs, or while pairing.
 - `warmup-walk` lists the steps and the Set they end on. A tap on a row ahead walks to it, and a tap on a Finished step goes back to it.
 - `warmup-bar` draws the current step's plates to scale, one side mirrored, with the sleeve in view at any load.
 - `warmup-pick` lets the athlete pick a top with the rail when the Set gave no weight.
@@ -30,9 +30,9 @@ Preconditions:
 - **Reach the Set.** Run `verify.sh tap --id warmup-set`. Every step reads `Finished`, `warmup-set` reads `Current`, and `warmup-bar` is labeled `2 times 45 and 5 a side on the 45 lb Bar`.
 - **Keep it for the Session.** Swipe the sheet down and tap `stage-queue-warmup` again. The walk is where it was. `verify.sh find log-active-set-button` and the Set's weight are unchanged.
 - **Pick a top.** Relaunch, run `verify.sh tap --id stage-up-next`, open the sheet, and read `warmup-note` labeled `Pick Set 1’s weight.` with no `warmup-bar`. Run `verify.sh tap --id warmup-top-135`. `warmup-bar` appears, and the steps read 45, 60, 80, 95, 115, and `warmup-set` labeled `Set 1, 135 pounds`.
-- **Worst cases.** Launch with `-UITEST_COACH_EDIT`, then sync through `session-location-button`, `block-overview-settings-row`, `settings-sync-now-button`, `settings-done-button`, and `BackButton`. `E7=1340` tops out at `10 × 45 + 25 + 5`. `E7=180` walks 45, 60, 80, 95, 115, 135. `E7=63.33` shows one row, `warmup-set` labeled `Set 1 is 47.5 pounds, loads as 45`. With `H15=BW` or `F15=40 sec`, `verify.sh find stage-queue-warmup` exits 1 in the Lens.
+- **Worst cases.** Launch with `-UITEST_COACH_EDIT`, then sync through `session-location-button`, `block-overview-settings-row`, `settings-sync-now-button`, `settings-done-button`, and `BackButton`. `E7=1340` tops out at `10 × 45 + 25 + 5`. `E7=180` walks 45, 60, 80, 95, 115, 135. `E7=63.33` shows one row, `warmup-set` labeled `Set 1 is 47.5 pounds, loads as 45`. With `H15=BW`, `F15=40 sec`, or `E7=40` (a 30 lb Set under the 45 lb Bar), `verify.sh find stage-queue-warmup` exits 1 in the Lens. `E7=53.33` is a 40 lb Set: the entry is gone on the 45 lb Bar, and `settings-bar-35` brings it back.
 - **A changed gym.** On `settings-plates-row`, tap `settings-bar-35`. Back in the sheet the walk reads 35, 75, 115, 155, 195, and `warmup-bar` says `on the 35 lb Bar`. Turn off `settings-plate-2.5` on the 45 lb Bar and the walk reads 45, 75, 115, 155, 195.
-- **Motion.** Run `verify.sh launch --animated session`, open the sheet, then `verify.sh record walk -- tap --id warmup-step-45`. Read frames across the move: plates slide on from the sleeve's open end, off the same way, and both sides stay level on the shaft. Under Reduce Motion the plates and the readout are at their end on the first changed frame, and only the row's press fade remains.
+- **Motion.** Run `verify.sh launch --animated session`, open the sheet, then `verify.sh record walk -- tap --id warmup-step-45`. Read frames across the move: plates slide on from the sleeve's open end, off the same way, both sides stay level on the shaft, and one capsule travels between the rows. Under Reduce Motion the plates, the readout, and the capsule are at their end on the first changed frame, and only the rows' ink and checkmark fade.
 - **Proof.** On the sheet, `walked` shows plates on both sleeves with the same readout beneath, one row in a capsule, and a checkmark above it. A CLI drive proves the ramp's numbers with no simulator: see [Headless CLI](./cli-headless.md).
 
 ## Gotchas
