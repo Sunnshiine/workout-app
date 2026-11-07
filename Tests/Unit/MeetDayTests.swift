@@ -215,6 +215,13 @@ struct MeetDayTests {
         }
     }
 
+    @Test func changingToTheSameWeightSpendsNoChange() throws {
+        var day = try meet()
+        let kilograms = try deck(day).kilograms
+        try day.changeOnDeck(to: kilograms, at: start)
+        #expect(try deck(day).allowance == .changesLeft(1, rule: "6.1(i)"))
+    }
+
     @Test("IPF 6.1(k): a second squat is locked once it is in")
     func aSecondIsLocked() throws {
         var day = try meet()

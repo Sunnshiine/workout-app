@@ -300,6 +300,7 @@ struct Meet: Hashable, Codable, Sendable {
     mutating func changeOnDeck(to kilograms: Kilograms, at now: Date) throws(MeetRefusal) {
         guard case .onDeck(let deck) = stage(at: now) else { throw .noAttemptOnDeck }
         guard deck.allowance.canChange else { throw .changeNotAllowed(rule: rule(of: deck.allowance)) }
+        guard kilograms != deck.kilograms else { return }
         guard rules.verdict(on: kilograms, after: nil) != .notLoadable else { throw .weightNotLoadable(kilograms) }
         editLift(deck.lift) { $0.changeNext(to: kilograms) }
     }

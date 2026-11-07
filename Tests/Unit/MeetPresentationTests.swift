@@ -53,7 +53,7 @@ struct MeetOnDeckFaceTests {
         #expect(face.caption == "Warm up next")
         #expect(face.numeral == "150")
         #expect(face.instruction == "1 rep")
-        #expect(face.detail == "in 3 attempts, about 3 min")
+        #expect(face.detail == "in 3 Attempts, about 3 min")
     }
 
     @Test func oneAttemptOutReadsInTheSingular() throws {
@@ -105,7 +105,7 @@ struct MeetOnDeckFaceTests {
         try meet.submitNext(kilos(190), at: noon)
         let face = MeetOnDeckFace(try deck(of: meet, at: noon), rules: meet.rules)
         #expect(face.changeLabel == nil)
-        #expect(face.caption == "Second attempt")
+        #expect(face.caption == "Second Attempt")
     }
 
     @Test func theNextLiftsOpenerCarriesTheIntervalRule() throws {
@@ -149,7 +149,7 @@ struct AttemptWindowFaceTests {
         #expect(face.stage == .open)
         #expect(face.numeral == "1:00")
         #expect(face.markLine == "Good lift, 180 kg")
-        #expect(face.attemptLabel == "Second attempt")
+        #expect(face.attemptLabel == "Second Attempt")
         #expect(!face.showsRule)
     }
 
@@ -186,11 +186,11 @@ struct AttemptWindowFaceTests {
 @Suite("A weight being entered")
 struct MeetWeightEntryTests {
     @Test func theSteppersMoveByTheBarsMultipleAndStopAtTheBar() throws {
-        var entry = MeetWeightEntry(Kilograms(whole: 180), rules: .ipf)
+        var entry = MeetWeightEntry(called: Kilograms(whole: 180), after: nil, rules: .ipf)
         entry.stepUp()
         #expect(entry.text == "182.5")
         #expect(entry.pounds == "402.3 lb")
-        var low = MeetWeightEntry(Kilograms(hundredths: 2100), rules: .ipf)
+        var low = MeetWeightEntry(called: Kilograms(hundredths: 2100), after: nil, rules: .ipf)
         low.stepDown()
         #expect(low.text == "20")
         low.stepDown()
@@ -198,32 +198,41 @@ struct MeetWeightEntryTests {
     }
 
     @Test func anEmptyEntryStepsFromTheBar() {
-        var entry = MeetWeightEntry(nil, rules: .ipf)
+        var entry = MeetWeightEntry(called: nil, after: nil, rules: .ipf)
         #expect(entry.kilograms == nil)
         #expect(entry.note(after: nil) == nil)
         entry.stepUp()
         #expect(entry.text == "22.5")
     }
 
+    @Test func anAttemptNobodyCalledStaysBlankAndCannotGoInUntilTheAthleteMovesIt() {
+        var entry = MeetWeightEntry(called: nil, after: Kilograms(whole: 180), rules: .ipf)
+        #expect(entry.text.isEmpty)
+        #expect(!entry.canSave(after: (Kilograms(whole: 180), .good)))
+        entry.stepUp()
+        #expect(entry.text == "182.5")
+        #expect(entry.canSave(after: (Kilograms(whole: 180), .good)))
+    }
+
     @Test func textThatIsNotAWeightIsRefusedInPlainWords() {
-        var entry = MeetWeightEntry(nil, rules: .ipf)
+        var entry = MeetWeightEntry(called: nil, after: nil, rules: .ipf)
         entry.text = "abc"
         #expect(!entry.canSave(after: nil))
         #expect(entry.note(after: nil) == .refused("Enter a weight in kilograms."))
     }
 
     @Test func aWeightNoBarLoadsCannotGoIn() {
-        var entry = MeetWeightEntry(nil, rules: .ipf)
+        var entry = MeetWeightEntry(called: nil, after: nil, rules: .ipf)
         entry.text = "180.3"
         #expect(!entry.canSave(after: nil))
         #expect(entry.note(after: nil) == .refused("No bar loads this. It takes multiples of 0.5 kg."))
     }
 
     @Test func aRecordMultipleAndABackwardsWeightAreNotedAndStillRecorded() {
-        var entry = MeetWeightEntry(nil, rules: .ipf)
+        var entry = MeetWeightEntry(called: nil, after: nil, rules: .ipf)
         entry.text = "180.5"
         #expect(entry.canSave(after: nil))
-        #expect(entry.note(after: nil) == .rule("Only a record attempt can take this weight."))
+        #expect(entry.note(after: nil) == .rule("Only a record Attempt can take this weight."))
         entry.text = "170"
         let previous = (kilograms: Kilograms(whole: 180), result: AttemptResult.good)
         #expect(entry.canSave(after: previous))
@@ -267,12 +276,12 @@ struct MeetSpokenTests {
 
     @Test func aStepReadsItsWeightRepsAndCountInTheSingularWhereItIsOne() {
         let many = WarmupRoomStep(kilograms: Kilograms(hundredths: 7250), reps: 3, attemptsOut: 12)
-        #expect(many.spoken == "72.5 kilograms, 3 reps, at 12 attempts out")
+        #expect(many.spoken == "72.5 kilograms, 3 reps, at 12 Attempts Out")
         let one = WarmupRoomStep(kilograms: Kilograms(whole: 150), reps: 1, attemptsOut: 1)
-        #expect(one.spoken == "150 kilograms, 1 rep, at 1 attempt out")
+        #expect(one.spoken == "150 kilograms, 1 rep, at 1 Attempt Out")
     }
 
     @Test func aLegalWeightHasNothingToSayUnderIt() {
-        #expect(MeetWeightEntry(Kilograms(whole: 190), rules: .ipf).note(after: (Kilograms(whole: 180), .good)) == nil)
+        #expect(MeetWeightEntry(called: Kilograms(whole: 190), after: nil, rules: .ipf).note(after: (Kilograms(whole: 180), .good)) == nil)
     }
 }

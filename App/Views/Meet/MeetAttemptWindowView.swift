@@ -24,12 +24,13 @@ private struct MeetAttemptWindowFaceView: View {
     @Environment(MeetStore.self) private var store
     @Environment(\.themePalette) private var palette
     @State private var entry: MeetWeightEntry
+    @FocusState private var isTyping: Bool
 
     init(face: AttemptWindowFace, open: OpenAttemptWindow, rules: FederationRules) {
         self.face = face
         self.open = open
         self.rules = rules
-        _entry = State(initialValue: MeetWeightEntry(open.planned ?? open.tableEntry, rules: rules))
+        _entry = State(initialValue: MeetWeightEntry(called: open.planned, after: open.marked, rules: rules))
     }
 
     private var previous: (kilograms: Kilograms, result: AttemptResult) { (open.marked, open.result) }
@@ -37,18 +38,40 @@ private struct MeetAttemptWindowFaceView: View {
     var body: some View {
         MeetFullPage {
             VStack(spacing: Theme.cardSpacing) {
-                MeetLiftHeader(lift: store.meet?.lift(open.lift) ?? .empty(open.lift))
-                MeetReadoutGap()
-                readout
+                if isTyping {
+                    rule
+                } else {
+                    MeetLiftHeader(lift: store.meet?.lift(open.lift) ?? .empty(open.lift), nameRole: .exerciseName)
+                    MeetReadoutGap()
+                    readout
+                }
                 Spacer(minLength: 0)
                 // Above the stepper, so a note arriving under a thumb that is stepping moves nothing.
                 VStack(spacing: 8) {
                     MeetWeightNoteView(note: entry.note(after: previous))
-                    MeetWeightStepper(entry: $entry, label: face.attemptLabel, spokenLabel: "\(face.attemptLabel) in kilograms")
+                    MeetWeightStepper(
+                        entry: $entry,
+                        isTyping: $isTyping,
+                        label: face.attemptLabel,
+                        spokenLabel: "\(face.attemptLabel) in kilograms"
+                    )
                 }
             }
         } foot: {
             actions
+        }
+        .toolbar {
+            // The page gives way to the keyboard, and the clock it was showing stays in reach of the eye.
+            ToolbarItem(placement: .principal) {
+                if isTyping {
+                    Text(face.numeral)
+                        .themeFont(.statsValue)
+                        .foregroundStyle(face.stage == .expired ? palette.textSecondary : palette.textPrimary)
+                        .accessibilityLabel(face.markLine)
+                        .accessibilityValue(face.accessibilityValue)
+                        .accessibilityIdentifier("meet-window")
+                }
+            }
         }
         .onChange(of: face.stage) { _, stage in
             feel(stage)
@@ -57,21 +80,32 @@ private struct MeetAttemptWindowFaceView: View {
 
     private var readout: some View {
         VStack(spacing: 10) {
-            MeetReadout(caption: face.caption, numeral: face.numeral, unit: nil, beneath: face.markLine, countsDown: true)
-            // The room stays held, so the numeral above does not move when the rule arrives.
-            Text(face.rule)
-                .themeFont(.heading)
-                .foregroundStyle(palette.textPrimary)
-                .multilineTextAlignment(.center)
-                .opacity(face.showsRule ? 1 : 0)
-                .animation(.easeOut(duration: Theme.Motion.crossfade), value: face.showsRule)
-                .accessibilityHidden(!face.showsRule)
-                .accessibilityIdentifier("meet-window-rule")
+            MeetReadout(
+                caption: face.caption,
+                numeral: face.numeral,
+                unit: nil,
+                beneath: face.markLine,
+                countsDown: true,
+                numeralInk: face.stage == .expired ? palette.textSecondary : palette.textPrimary
+            )
+            rule
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(face.markLine)
         .accessibilityValue(face.accessibilityValue)
         .accessibilityIdentifier("meet-window")
+    }
+
+    /// The room stays held, so the numeral above does not move when the rule arrives.
+    private var rule: some View {
+        Text(face.rule)
+            .themeFont(.heading)
+            .foregroundStyle(palette.textPrimary)
+            .multilineTextAlignment(.center)
+            .opacity(face.showsRule ? 1 : 0)
+            .animation(.easeOut(duration: Theme.Motion.crossfade), value: face.showsRule)
+            .accessibilityHidden(!face.showsRule)
+            .accessibilityIdentifier("meet-window-rule")
     }
 
     private var actions: some View {
@@ -96,10 +130,7 @@ private struct MeetAttemptWindowFaceView: View {
             }
             .animation(.easeOut(duration: Theme.Motion.crossfade), value: face.stage)
             .meetSettles(on: face.stage)
-            HStack(spacing: 10) {
-                if store.canUndo {
-                    MeetUndoPill()
-                }
+            MeetFootChips {
                 Button {
                     try? store.pass()
                 } label: {

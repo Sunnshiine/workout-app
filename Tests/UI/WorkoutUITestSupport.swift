@@ -7,6 +7,7 @@ enum WorkoutUITestFixture {
     case longSession
     case partiallyUploadedBlock
     case completedSessionWithOpenExercises
+    case meetDay
 
     var launchArguments: [String] {
         switch self {
@@ -22,6 +23,8 @@ enum WorkoutUITestFixture {
             ["-UITEST_FIXTURE"]
         case .completedSessionWithOpenExercises:
             ["-UITEST_FIXTURE", "-UITEST_SESSION", "-UITEST_COMPLETED_OPEN_EXERCISES"]
+        case .meetDay:
+            ["-UITEST_FIXTURE", "-UITEST_MEET_DAY", "-UITEST_FULL_BLOCK"]
         }
     }
 }

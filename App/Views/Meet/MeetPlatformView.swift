@@ -76,6 +76,7 @@ struct MeetNumeral: View {
     let numeral: String
     let unit: String?
     let countsDown: Bool
+    let ink: Color
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -83,7 +84,7 @@ struct MeetNumeral: View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(numeral)
                 .themeFont(.countdownNumeral)
-                .foregroundStyle(palette.textPrimary)
+                .foregroundStyle(ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .contentTransition(reduceMotion ? .opacity : .numericText(countsDown: countsDown))
@@ -104,6 +105,7 @@ struct MeetReadout: View {
     let unit: String?
     let beneath: String
     let countsDown: Bool
+    let numeralInk: Color
     @Environment(\.themePalette) private var palette
 
     var body: some View {
@@ -112,7 +114,7 @@ struct MeetReadout: View {
                 .themeFont(.heading)
                 .foregroundStyle(palette.textSecondary)
                 .multilineTextAlignment(.center)
-            MeetNumeral(numeral: numeral, unit: unit, countsDown: countsDown)
+            MeetNumeral(numeral: numeral, unit: unit, countsDown: countsDown, ink: numeralInk)
             Text(beneath)
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
@@ -145,22 +147,23 @@ private struct MeetOnDeckView: View {
         let face = face
         MeetFullPage {
             VStack(spacing: Theme.cardSpacing) {
-                MeetLiftHeader(lift: meet.lift(deck.lift))
+                MeetLiftHeader(lift: meet.lift(deck.lift), nameRole: .exerciseName)
                 MeetReadoutGap()
                 readout(face)
                 Spacer(minLength: Theme.cardSpacing)
             }
         } foot: {
             VStack(spacing: 12) {
-                changeRow(face)
                 control(face)
+                MeetFootChips { trailingChip(face) }
             }
         }
         .sheet(isPresented: $isChanging) {
             MeetWeightSheet(
                 title: face.place,
-                entry: MeetWeightEntry(deck.kilograms, rules: meet.rules),
+                entry: MeetWeightEntry(called: deck.kilograms, after: nil, rules: meet.rules),
                 saveLabel: "Change to",
+                unchanged: deck.kilograms,
                 onClear: nil
             ) { weight in
                 try? store.changeOnDeck(to: weight)
@@ -170,10 +173,17 @@ private struct MeetOnDeckView: View {
 
     private func readout(_ face: MeetOnDeckFace) -> some View {
         VStack(spacing: 12) {
-            MeetReadout(caption: face.caption, numeral: face.numeral, unit: "kg", beneath: face.pounds, countsDown: false)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(face.accessibilitySummary)
-                .accessibilityIdentifier("meet-readout")
+            MeetReadout(
+                caption: face.caption,
+                numeral: face.numeral,
+                unit: "kg",
+                beneath: face.pounds,
+                countsDown: false,
+                numeralInk: palette.textPrimary
+            )
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(face.accessibilitySummary)
+            .accessibilityIdentifier("meet-readout")
             VStack(spacing: 2) {
                 if let instruction = face.instruction {
                     Text(instruction)
@@ -200,36 +210,39 @@ private struct MeetOnDeckView: View {
     }
 
     @ViewBuilder
-    private func changeRow(_ face: MeetOnDeckFace) -> some View {
-        HStack(spacing: 10) {
-            if let changeLabel = face.changeLabel {
-                Button {
-                    isChanging = true
-                } label: {
-                    Text(changeLabel)
-                        .footPill(palette)
-                }
-                .buttonStyle(.pressScale)
-                .accessibilityIdentifier("meet-change-attempt")
+    private func trailingChip(_ face: MeetOnDeckFace) -> some View {
+        if face.isOnThePlatform {
+            Button {
+                store.setAttemptsOut(deck.attemptsOut + 1)
+            } label: {
+                Text("Not yet")
+                    .footPill(palette)
             }
-            if store.canUndo {
-                MeetUndoPill()
+            .buttonStyle(.pressScale)
+            .accessibilityHint("Sets one Attempt out")
+            .accessibilityIdentifier("meet-not-yet")
+        } else if let changeLabel = face.changeLabel {
+            Button {
+                isChanging = true
+            } label: {
+                Text(changeLabel)
+                    .footPill(palette)
             }
+            .buttonStyle(.pressScale)
+            .accessibilityIdentifier("meet-change-attempt")
         }
     }
 
     @ViewBuilder
     private func control(_ face: MeetOnDeckFace) -> some View {
         if face.isOnThePlatform {
-            MeetMarkButtons(attemptsOut: deck.attemptsOut)
+            MeetMarkButtons()
         } else {
             MeetAttemptsOutStepper(numeral: face.attemptsOutNumeral, label: face.attemptsOutLabel, count: deck.attemptsOut)
         }
     }
 }
 
-/// The pads are the widest the page allows and taller than any other control, for a chalky thumb
-/// that does not look.
 private struct MeetAttemptsOutStepper: View {
     let numeral: String
     let label: String
@@ -238,11 +251,9 @@ private struct MeetAttemptsOutStepper: View {
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private static let padHeight: CGFloat = 88
-
     var body: some View {
         HStack(spacing: 12) {
-            pad(direction: .decrement, label: "One attempt fewer", identifier: "meet-attempts-out-down") { step(-1) }
+            pad(direction: .decrement, label: "One Attempt fewer", identifier: "meet-attempts-out-down") { step(-1) }
             VStack(spacing: 0) {
                 Text(numeral)
                     .themeFont(.weightEntry)
@@ -260,7 +271,7 @@ private struct MeetAttemptsOutStepper: View {
             .frame(minWidth: 84)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("meet-attempts-out-value")
-            pad(direction: .increment, label: "One attempt more", identifier: "meet-attempts-out-up") { step(1) }
+            pad(direction: .increment, label: "One Attempt more", identifier: "meet-attempts-out-up") { step(1) }
         }
     }
 
@@ -277,11 +288,7 @@ private struct MeetAttemptsOutStepper: View {
                 .foregroundStyle(palette.stepperGlyph)
                 .frame(width: 24, height: 24)
                 .offset(y: direction == .decrement ? 2 : -2)
-                .frame(maxWidth: .infinity)
-                .frame(height: Self.padHeight)
-                .background(palette.pillFill, in: .capsule)
-                .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
-                .contentShape(Capsule())
+                .meetPad(palette)
         }
         .buttonStyle(.pressScale)
         .accessibilityShowsLargeContentViewer {
@@ -302,38 +309,27 @@ private struct MeetAttemptsOutStepper: View {
 }
 
 private struct MeetMarkButtons: View {
-    let attemptsOut: Int
     @Environment(MeetStore.self) private var store
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        VStack(spacing: 12) {
-            Button {
-                mark(.good)
-            } label: {
-                Label("Good lift", systemImage: "checkmark")
-                    .meetAnswerCapsule(palette)
-            }
-            .buttonStyle(.pressScale)
-            .accessibilityIdentifier("meet-mark-good")
-            Button {
-                mark(.noLift)
-            } label: {
-                Label("No lift", systemImage: "xmark")
-                    .meetAnswerCapsule(palette)
-            }
-            .buttonStyle(.pressScale)
-            .accessibilityIdentifier("meet-mark-no-lift")
-            Button {
-                store.setAttemptsOut(attemptsOut + 1)
-            } label: {
-                Text("Not yet")
-                    .footPill(palette)
-            }
-            .buttonStyle(.pressScale)
-            .accessibilityHint("Sets one attempt out")
-            .accessibilityIdentifier("meet-not-yet")
+        HStack(spacing: 12) {
+            pad("Good lift", glyph: "checkmark", result: .good, identifier: "meet-mark-good")
+            pad("No lift", glyph: "xmark", result: .noLift, identifier: "meet-mark-no-lift")
         }
+    }
+
+    private func pad(_ label: String, glyph: String, result: AttemptResult, identifier: String) -> some View {
+        Button {
+            mark(result)
+        } label: {
+            Label(label, systemImage: glyph)
+                .themeFont(.logCapsule)
+                .foregroundStyle(palette.textPrimary)
+                .meetPad(palette)
+        }
+        .buttonStyle(.pressScale)
+        .accessibilityIdentifier(identifier)
     }
 
     private func mark(_ result: AttemptResult) {
@@ -350,10 +346,11 @@ struct MeetUndoPill: View {
         Button {
             store.undo()
         } label: {
-            Label("Undo", systemImage: "arrow.uturn.backward")
+            Image(systemName: "arrow.uturn.backward")
                 .footPill(palette)
         }
         .buttonStyle(.pressScale)
+        .accessibilityLabel("Undo")
         .accessibilityIdentifier("meet-undo")
     }
 }
@@ -362,8 +359,8 @@ struct MeetUndoPill: View {
 
 private struct MeetFinishedView: View {
     let meet: Meet
-    @Environment(MeetStore.self) private var store
     @Environment(\.themePalette) private var palette
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         MeetFullPage {
@@ -372,14 +369,21 @@ private struct MeetFinishedView: View {
                 total
                 VStack(spacing: Theme.cardSpacing) {
                     ForEach(meet.lifts.filter { !$0.attempts.isEmpty }, id: \.lift) { lift in
-                        MeetLiftHeader(lift: lift)
+                        MeetLiftHeader(lift: lift, nameRole: .heading)
                     }
                 }
                 Spacer(minLength: 0)
             }
         } foot: {
-            if store.canUndo {
-                MeetUndoPill()
+            VStack(spacing: 12) {
+                Button {
+                    dismiss()
+                } label: {
+                    MeetCapsuleLabel(text: "Continue", canAct: true)
+                }
+                .buttonStyle(.pressScale)
+                .accessibilityIdentifier("meet-finished-continue")
+                MeetFootChips { EmptyView() }
             }
         }
     }
@@ -389,13 +393,13 @@ private struct MeetFinishedView: View {
         VStack(spacing: 6) {
             if let total = meet.total {
                 title("Total")
-                MeetNumeral(numeral: total.numeral, unit: "kg", countsDown: false)
+                MeetNumeral(numeral: total.numeral, unit: "kg", countsDown: false, ink: palette.textPrimary)
                 Text(total.poundsLabel)
                     .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)
             } else {
                 title("No total")
-                Text("A lift with no good attempt leaves no total.")
+                Text("A lift with no good Attempt leaves no total.")
                     .themeFont(.coachNote)
                     .foregroundStyle(palette.textSecondary)
                     .multilineTextAlignment(.center)

@@ -21,7 +21,7 @@ extension MeetCue {
     }
 
     fileprivate static func attempts(_ count: Int) -> String {
-        count == 1 ? "1 attempt" : "\(count) attempts"
+        count == 1 ? "1 Attempt" : "\(count) Attempts"
     }
 }
 
@@ -102,7 +102,7 @@ struct MeetOnDeckFace: Equatable {
         }
 
         private static func attempt(_ weight: Kilograms, ordinal: AttemptOrdinal, attemptsOut: Int, secondsUntil: Int) -> Reading {
-            let caption = ordinal == .opener ? "Opener" : "\(ordinal.name) attempt"
+            let caption = ordinal == .opener ? "Opener" : "\(ordinal.name) Attempt"
             let estimate = MeetCue.estimate(secondsUntil)
             return Reading(
                 caption: caption,
@@ -110,7 +110,7 @@ struct MeetOnDeckFace: Equatable {
                 instruction: nil,
                 detail: estimate,
                 isOnThePlatform: false,
-                spoken: "\(caption), \(weight.spoken), \(MeetCue.attempts(attemptsOut)) out, \(estimate)"
+                spoken: "\(caption), \(weight.spoken), \(MeetCue.attempts(attemptsOut)) Out, \(estimate)"
             )
         }
     }
@@ -126,9 +126,9 @@ extension AttemptChangeAllowance {
 extension WarmupRoomStep {
     var repsLabel: String { reps == 1 ? "1 rep" : "\(reps) reps" }
 
-    /// `60 kilograms, 5 reps, at 18 attempts out`, as VoiceOver reads a row of the plan.
+    /// `60 kilograms, 5 reps, at 18 Attempts Out`, as VoiceOver reads a row of the plan.
     var spoken: String {
-        let out = attemptsOut == 1 ? "1 attempt out" : "\(attemptsOut) attempts out"
+        let out = attemptsOut == 1 ? "1 Attempt Out" : "\(attemptsOut) Attempts Out"
         return "\(kilograms.spoken), \(repsLabel), at \(out)"
     }
 }
@@ -160,7 +160,7 @@ struct AttemptWindowFace: Equatable {
     init(_ window: OpenAttemptWindow) {
         let mark = window.result == .good ? "Good lift" : "No lift"
         markLine = "\(mark), \(window.marked.label)"
-        attemptLabel = "\(window.ordinal.name) attempt"
+        attemptLabel = "\(window.ordinal.name) Attempt"
         let rule = "No card means \(window.tableEntry.label)"
         self.rule = rule
         switch window.reading {
@@ -169,7 +169,7 @@ struct AttemptWindowFace: Equatable {
             caption = "Time to submit"
             numeral = Self.numeral(left)
             showsRule = false
-            accessibilityValue = "\(Self.seconds(left)) left to submit your \(attemptLabel.lowercased())"
+            accessibilityValue = "\(Self.seconds(left)) left to submit your \(attemptLabel)"
         case .closing(let left):
             stage = .closing
             caption = "Time to submit"
@@ -194,13 +194,16 @@ struct AttemptWindowFace: Equatable {
     }
 }
 
-/// An Attempt's number stays what the coach called until the athlete moves it.
+/// An Attempt's number stays what the coach called until the athlete moves it. With nothing called
+/// it stays blank, because the app never picks an Attempt.
 struct MeetWeightEntry: Equatable {
     var text: String
     let rules: FederationRules
+    private let blankStepsFrom: Kilograms
 
-    init(_ kilograms: Kilograms?, rules: FederationRules) {
-        text = kilograms?.numeral ?? ""
+    init(called: Kilograms?, after previous: Kilograms?, rules: FederationRules) {
+        text = called?.numeral ?? ""
+        blankStepsFrom = previous ?? WarmupRoomPlanFill.bar
         self.rules = rules
     }
 
@@ -209,11 +212,11 @@ struct MeetWeightEntry: Equatable {
     var pounds: String { kilograms?.poundsLabel ?? " " }
 
     mutating func stepUp() {
-        set((kilograms ?? WarmupRoomPlanFill.bar) + rules.barMultiple.value)
+        set((kilograms ?? blankStepsFrom) + rules.barMultiple.value)
     }
 
     mutating func stepDown() {
-        set((kilograms ?? WarmupRoomPlanFill.bar).subtracting(rules.barMultiple.value, floor: WarmupRoomPlanFill.bar))
+        set((kilograms ?? blankStepsFrom).subtracting(rules.barMultiple.value, floor: WarmupRoomPlanFill.bar))
     }
 
     private mutating func set(_ kilograms: Kilograms) {
@@ -239,7 +242,7 @@ struct MeetWeightEntry: Equatable {
         case .legal:
             nil
         case .recordAttemptOnly:
-            .rule("Only a record attempt can take this weight.")
+            .rule("Only a record Attempt can take this weight.")
         case .belowPrevious(let last):
             .rule("The rule asks for more than this after \(last.label).")
         case .notLoadable:

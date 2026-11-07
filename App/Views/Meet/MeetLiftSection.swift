@@ -14,7 +14,7 @@ enum MeetPlanEditing: Identifiable {
     }
 }
 
-struct MeetLiftCard: View {
+struct MeetLiftSection: View {
     let lift: MeetLift
     let rules: FederationRules
     let onEdit: (MeetPlanEditing) -> Void
@@ -36,10 +36,7 @@ struct MeetLiftCard: View {
             }
             warmups
         }
-        .padding(Theme.cardSpacing)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
-        .themeElevation(palette.lighting.weekCardElevation, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     private var attemptColumns: some View {
@@ -71,14 +68,13 @@ struct MeetLiftCard: View {
             Button {
                 onEdit(.attempt(lift.lift, ordinal))
             } label: {
-                blankLabel(ordinal, isNext: true)
+                blankLabel(ordinal)
             }
             .buttonStyle(.pressScale)
             .accessibilityLabel("Enter \(lift.lift.name) \(ordinal.name.lowercased())")
             .accessibilityIdentifier(identifier)
         } else {
-            blankLabel(ordinal, isNext: false)
-                .accessibilityHidden(true)
+            Color.clear
         }
     }
 
@@ -95,22 +91,10 @@ struct MeetLiftCard: View {
                         .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                // Holds the line's baseline, so a numeral that shrinks to fit stays level with its neighbours.
-                Text(verbatim: "0")
-                    .themeFont(.statsValue)
-                    .hidden()
-                    .frame(width: 0)
-                Text(attempt.kilograms.numeral)
-                    .themeFont(.statsValue)
-                    .foregroundStyle(palette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text("kg")
-                    .themeFont(.runlineSecondary)
-                    .foregroundStyle(palette.textSecondary)
-                    .padding(.leading, 3)
-            }
+            Text(attempt.kilograms.numeral)
+                .themeFont(.statsValue)
+                .foregroundStyle(palette.textPrimary)
+                .lineLimit(1)
             Text(attempt.kilograms.poundsLabel)
                 .themeFont(.runlineSecondary)
                 .foregroundStyle(palette.textSecondary)
@@ -123,29 +107,25 @@ struct MeetLiftCard: View {
         .contentShape(.rect)
     }
 
-    /// Only the next Attempt is an empty bed. One that cannot be entered yet stays a bare word.
-    private func blankLabel(_ ordinal: AttemptOrdinal, isNext: Bool) -> some View {
+    /// Only the next Attempt is an empty bed. One that cannot be entered yet does not exist.
+    private func blankLabel(_ ordinal: AttemptOrdinal) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(ordinal.name)
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
-            if isNext {
-                Image(systemName: "plus")
-                    .themeFont(.runline)
-                    .foregroundStyle(palette.textPrimary)
-                    .frame(maxWidth: .infinity, minHeight: 36)
-            }
+            Image(systemName: "plus")
+                .themeFont(.runline)
+                .foregroundStyle(palette.textPrimary)
+                .frame(maxWidth: .infinity, minHeight: 36)
         }
         .padding(Self.cellPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay {
-            if isNext {
-                RoundedRectangle(cornerRadius: Theme.Radius.cell)
-                    .strokeBorder(
-                        palette.tileGhostStroke,
-                        style: StrokeStyle(lineWidth: Theme.blockTileGhostStroke, dash: [Theme.blockTileGhostDash])
-                    )
-            }
+            RoundedRectangle(cornerRadius: Theme.Radius.cell)
+                .strokeBorder(
+                    palette.tileGhostStroke,
+                    style: StrokeStyle(lineWidth: Theme.blockTileGhostStroke, dash: [Theme.blockTileGhostDash])
+                )
         }
         .contentShape(.rect)
     }
@@ -164,7 +144,7 @@ struct MeetLiftCard: View {
                     if text.contains("\n") { isTypingRack = false }
                     store.edit { $0.editLift(lift.lift) { $0.rackHeights = text.replacingOccurrences(of: "\n", with: "") } }
                 },
-                prompt: Text(lift.lift == .squat ? "14, racks in" : "8, safety 4, blocks").foregroundStyle(palette.textSecondary),
+                prompt: Text("From your weigh-in").foregroundStyle(palette.textSecondary),
                 axis: .vertical
             )
             .themeFont(.coachNote)

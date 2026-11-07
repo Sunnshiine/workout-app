@@ -27,7 +27,7 @@ struct MeetPlanView: View {
     private var empty: some View {
         VStack(spacing: 16) {
             Text("No Meet planned")
-                .themeFont(.statsValue)
+                .themeFont(.sheetTitle)
                 .foregroundStyle(palette.textPrimary)
             Text("Enter the day and your coach's Attempts. The app counts you through the warm-up room and each Attempt Window.")
                 .themeFont(.coachNote)
@@ -50,20 +50,20 @@ struct MeetPlanView: View {
     }
 
     private func plan(_ meet: Meet) -> some View {
-        ScrollView {
-            VStack(spacing: Theme.cardSpacing) {
-                dateAndFederation(meet)
-                ForEach(meet.lifts, id: \.lift) { lift in
-                    MeetLiftCard(lift: lift, rules: meet.rules) { editing = $0 }
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: Theme.sectionSpacing) {
+                    dateAndFederation(meet)
+                    ForEach(meet.lifts, id: \.lift) { lift in
+                        MeetLiftSection(lift: lift, rules: meet.rules) { editing = $0 }
+                    }
+                    flight(meet)
+                    footRow(meet)
                 }
-                flightCard(meet)
-                footRow(meet)
+                .padding(Theme.pageMargin)
             }
-            .padding(Theme.pageMargin)
-        }
-        .scrollDismissesKeyboard(.interactively)
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        .safeAreaBar(edge: .bottom, spacing: 0) {
+            .scrollDismissesKeyboard(.interactively)
+            .meetScrollFade()
             if meet.stage(at: store.now()) != .noAttempts {
                 platformButton
             }
@@ -77,7 +77,7 @@ struct MeetPlanView: View {
         .confirmationDialog("Delete this Meet?", isPresented: $isDeleteAsked, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { store.delete() }
         } message: {
-            Text("Its attempts and warm-up plans leave this phone. Your Sheet never held them.")
+            Text("Its Attempts and warm-up plans leave this phone. Your Sheet never held them.")
         }
     }
 
@@ -118,7 +118,7 @@ struct MeetPlanView: View {
         }
     }
 
-    private func flightCard(_ meet: Meet) -> some View {
+    private func flight(_ meet: Meet) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             MeetCountRow(
                 label: "Lifters in Flight",
@@ -142,10 +142,7 @@ struct MeetPlanView: View {
                 .themeFont(.coachNote)
                 .foregroundStyle(palette.textSecondary)
         }
-        .padding(Theme.cardSpacing)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.weekCardShade, in: .rect(cornerRadius: Theme.Radius.card))
-        .themeElevation(palette.lighting.weekCardElevation, in: .rect(cornerRadius: Theme.Radius.card))
     }
 
     private func footRow(_ meet: Meet) -> some View {
@@ -224,8 +221,9 @@ struct MeetPlanView: View {
         let before = ordinal.rawValue > 0 ? lift.attempts[ordinal.rawValue - 1].kilograms : nil
         return MeetWeightSheet(
             title: "\(lift.lift.name) \(ordinal.name.lowercased())",
-            entry: MeetWeightEntry(existing?.kilograms ?? before, rules: rules),
+            entry: MeetWeightEntry(called: existing?.kilograms, after: before, rules: rules),
             saveLabel: "Save",
+            unchanged: nil,
             onClear: existing == nil ? nil : { store.edit { $0.editLift(lift.lift) { $0.clear(from: ordinal) } } },
             onSave: { weight in
                 store.edit { $0.editLift(lift.lift) { $0.enter(weight, at: ordinal) } }

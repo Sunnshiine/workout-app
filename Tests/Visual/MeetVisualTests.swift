@@ -137,6 +137,14 @@ struct MeetVisualTests {
         assertPage(.platform, store: try windowStore(secondsAfterLights: 50), appearance: .night, colorScheme: .dark)
     }
 
+    @Test func windowWithNoCalledAttemptMatchesVisualBaseline() throws {
+        let store = try dayStore()
+        store.edit { $0.editLift(.squat) { $0.clear(from: .second) } }
+        store.setAttemptsOut(0)
+        try store.mark(.good)
+        assertPage(.platform, store: store, appearance: .day, colorScheme: .light)
+    }
+
     @Test func expiredWindowMatchesVisualBaseline() throws {
         assertPage(.platform, store: try windowStore(secondsAfterLights: 70), appearance: .day, colorScheme: .light)
     }

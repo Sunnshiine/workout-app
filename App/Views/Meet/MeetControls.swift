@@ -5,21 +5,24 @@ struct MeetAttemptStrip: View {
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 20) {
             ForEach(Array(lift.attempts.enumerated()), id: \.offset) { index, attempt in
-                HStack(spacing: 3) {
-                    if let glyph = attempt.state.markGlyph {
-                        Image(systemName: glyph)
-                            .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
+                Text(attempt.kilograms.numeral)
+                    .foregroundStyle(attempt.state == .planned ? palette.textSecondary : palette.textPrimary)
+                    // In the gap between numerals, so a mark landing moves none of them.
+                    .overlay(alignment: .leading) {
+                        if let glyph = attempt.state.markGlyph {
+                            Image(systemName: glyph)
+                                .foregroundStyle(attempt.state == .good ? palette.action : palette.textSecondary)
+                                .frame(width: 0, alignment: .trailing)
+                                .offset(x: -3)
+                        }
                     }
-                    Text(attempt.kilograms.numeral)
-                        .foregroundStyle(attempt.state == .planned ? palette.textSecondary : palette.textPrimary)
-                }
-                .themeFont(.runline)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(
-                    "\(AttemptOrdinal(rawValue: index)?.name ?? ""), \(attempt.kilograms.spoken), \(attempt.state.spoken)"
-                )
+                    .themeFont(.runline)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        "\(AttemptOrdinal(rawValue: index)?.name ?? ""), \(attempt.kilograms.spoken), \(attempt.state.spoken)"
+                    )
             }
         }
         .accessibilityElement(children: .contain)
@@ -44,12 +47,14 @@ struct MeetCapsuleLabel: View {
 
 struct MeetLiftHeader: View {
     let lift: MeetLift
+    let nameRole: Theme.TypeRole
     @Environment(\.themePalette) private var palette
 
     var body: some View {
         VStack(spacing: 4) {
             Text(lift.lift.name)
-                .themeFont(.heading)
+                .themeFont(nameRole)
+                .multilineTextAlignment(.center)
                 .foregroundStyle(palette.textPrimary)
                 .accessibilityAddTraits(.isHeader)
             MeetAttemptStrip(lift: lift)
@@ -64,6 +69,30 @@ extension View {
             .foregroundStyle(palette.textPrimary)
             .background(palette.pillFill, in: .capsule)
             .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
+    }
+
+    /// The widest the page allows and taller than any other control, for a chalky thumb that does
+    /// not look.
+    func meetPad(_ palette: Theme.Palette) -> some View {
+        frame(maxWidth: .infinity, minHeight: 88)
+            .background(palette.pillFill, in: .capsule)
+            .themeElevation(palette.lighting.raisedControlShadow, in: Capsule())
+            .contentShape(Capsule())
+    }
+
+    /// Scrolled content fades out inside the page's edges and never passes under a bar or a control,
+    /// so nothing ghosts behind the title or a capsule. A page at rest keeps its margin clear of the fade.
+    func meetScrollFade() -> some View {
+        scrollEdgeEffectHidden(true)
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Theme.pageMargin)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom)
+                        .frame(height: Theme.pageMargin)
+                }
+            }
     }
 
     /// Holds off touches just after the controls under a thumb change, so the second tap of a double
@@ -95,16 +124,17 @@ struct MeetFullPage<Content: View, Foot: View>: View {
     @ViewBuilder let foot: Foot
 
     var body: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                content
-                    .padding(Theme.pageMargin)
-                    .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+        VStack(spacing: 0) {
+            GeometryReader { proxy in
+                ScrollView {
+                    content
+                        .padding(Theme.pageMargin)
+                        .frame(maxWidth: .infinity, minHeight: proxy.size.height)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollDismissesKeyboard(.interactively)
+                .meetScrollFade()
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollDismissesKeyboard(.interactively)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
             foot
                 .padding(.horizontal, Theme.pageMargin)
                 .padding(.bottom, 8)
@@ -112,31 +142,57 @@ struct MeetFullPage<Content: View, Foot: View>: View {
     }
 }
 
+/// Undo keeps one frame at the page's left edge on every stage, for a thumb that is not looking, and
+/// the row holds its room so the controls above it stay put when Undo comes and goes.
+struct MeetFootChips<Trailing: View>: View {
+    @ViewBuilder let trailing: Trailing
+    @Environment(MeetStore.self) private var store
+
+    var body: some View {
+        HStack(spacing: 10) {
+            if store.canUndo {
+                MeetUndoPill()
+            }
+            Spacer(minLength: 0)
+            trailing
+        }
+        .frame(minHeight: 44)
+    }
+}
+
 /// The numeral is a field, so a record attempt's half kilo can be typed.
 struct MeetWeightStepper: View {
     @Binding var entry: MeetWeightEntry
+    @FocusState.Binding var isTyping: Bool
     let label: String
     let spokenLabel: String
     @Environment(\.themePalette) private var palette
-    @FocusState private var isTyping: Bool
+    @State private var selection: TextSelection?
 
     var body: some View {
         VStack(spacing: 2) {
             Text(label)
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
+                // The selection's handle stands above the field's top edge.
+                .padding(.bottom, isTyping ? 10 : 0)
             HStack(spacing: 16) {
                 WeightStepperButton(direction: .decrement, accessibilityIdentifier: "meet-weight-down") { step { $0.stepDown() } }
-                TextField("Kilograms", text: $entry.text, prompt: Text(verbatim: "0").foregroundStyle(palette.textSecondary))
-                    .themeFont(.weightEntry)
-                    .foregroundStyle(palette.textPrimary)
-                    .multilineTextAlignment(.center)
-                    .keyboardType(.decimalPad)
-                    .minimumScaleFactor(0.5)
-                    .focused($isTyping)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityLabel(spokenLabel)
-                    .accessibilityIdentifier("meet-weight-field")
+                TextField(
+                    "Kilograms",
+                    text: $entry.text,
+                    selection: $selection,
+                    prompt: Text(verbatim: "0").foregroundStyle(palette.textSecondary)
+                )
+                .themeFont(.weightEntry)
+                .foregroundStyle(palette.textPrimary)
+                .multilineTextAlignment(.center)
+                .keyboardType(.decimalPad)
+                .minimumScaleFactor(0.5)
+                .focused($isTyping)
+                .frame(maxWidth: .infinity)
+                .accessibilityLabel(spokenLabel)
+                .accessibilityIdentifier("meet-weight-field")
                 WeightStepperButton(direction: .increment, accessibilityIdentifier: "meet-weight-up") { step { $0.stepUp() } }
             }
             Text(entry.pounds)
@@ -144,8 +200,10 @@ struct MeetWeightStepper: View {
                 .foregroundStyle(palette.textSecondary)
                 .accessibilityIdentifier("meet-weight-pounds")
         }
-        // A blank weight has no number to step from, so the keyboard comes up.
-        .onAppear { isTyping = entry.text.isEmpty }
+        .onChange(of: isTyping) { _, isTyping in
+            // The first digit replaces the weight, not the front of it, while the clock runs.
+            if isTyping { selection = TextSelection(range: entry.text.startIndex..<entry.text.endIndex) }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -185,9 +243,12 @@ struct MeetWeightNoteView: View {
 struct MeetWeightSheet: View {
     let title: String
     let saveLabel: String
+    /// The weight the save would leave as it is, so the capsule stays neutral until the number moves.
+    let unchanged: Kilograms?
     let onClear: (() -> Void)?
     let onSave: (Kilograms) -> Void
     @State private var entry: MeetWeightEntry
+    @FocusState private var isTyping: Bool
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
 
@@ -195,15 +256,19 @@ struct MeetWeightSheet: View {
         title: String,
         entry: MeetWeightEntry,
         saveLabel: String,
+        unchanged: Kilograms?,
         onClear: (() -> Void)?,
         onSave: @escaping (Kilograms) -> Void
     ) {
         self.title = title
         self.saveLabel = saveLabel
+        self.unchanged = unchanged
         self.onClear = onClear
         self.onSave = onSave
         _entry = State(initialValue: entry)
     }
+
+    private var canSave: Bool { entry.canSave(after: nil) && entry.kilograms != unchanged }
 
     var body: some View {
         NavigationStack {
@@ -212,7 +277,7 @@ struct MeetWeightSheet: View {
                     .themeFont(.sheetTitle)
                     .foregroundStyle(palette.textPrimary)
                     .multilineTextAlignment(.center)
-                MeetWeightStepper(entry: $entry, label: "Kilograms", spokenLabel: "Kilograms")
+                MeetWeightStepper(entry: $entry, isTyping: $isTyping, label: "Kilograms", spokenLabel: "Kilograms")
                 MeetWeightNoteView(note: entry.note(after: nil))
                 Spacer(minLength: 0)
                 Button {
@@ -222,11 +287,11 @@ struct MeetWeightSheet: View {
                 } label: {
                     MeetCapsuleLabel(
                         text: entry.kilograms.map { "\(saveLabel) \($0.label)" } ?? saveLabel,
-                        canAct: entry.canSave(after: nil)
+                        canAct: canSave
                     )
                 }
                 .buttonStyle(.pressScale)
-                .disabled(!entry.canSave(after: nil))
+                .disabled(!canSave)
                 .accessibilityIdentifier("meet-weight-save")
                 if let onClear {
                     Button {
@@ -244,6 +309,8 @@ struct MeetWeightSheet: View {
             .background(palette.paperBackground.ignoresSafeArea())
         }
         .presentationDetents([.medium, .large])
+        // A blank weight wants a number, so the keyboard comes up.
+        .onAppear { isTyping = entry.text.isEmpty }
     }
 }
 
@@ -254,6 +321,7 @@ struct MeetWarmupStepSheet: View {
     @State private var entry: MeetWeightEntry
     @State private var reps: Int
     @State private var attemptsOut: Int
+    @FocusState private var isTyping: Bool
     @Environment(\.themePalette) private var palette
     @Environment(\.dismiss) private var dismiss
 
@@ -267,7 +335,7 @@ struct MeetWarmupStepSheet: View {
         self.title = title
         self.onDelete = onDelete
         self.onSave = onSave
-        _entry = State(initialValue: MeetWeightEntry(step.kilograms, rules: rules))
+        _entry = State(initialValue: MeetWeightEntry(called: step.kilograms, after: nil, rules: rules))
         _reps = State(initialValue: step.reps)
         _attemptsOut = State(initialValue: step.attemptsOut)
     }
@@ -279,7 +347,7 @@ struct MeetWarmupStepSheet: View {
                     Text(title)
                         .themeFont(.sheetTitle)
                         .foregroundStyle(palette.textPrimary)
-                    MeetWeightStepper(entry: $entry, label: "Kilograms", spokenLabel: "Kilograms")
+                    MeetWeightStepper(entry: $entry, isTyping: $isTyping, label: "Kilograms", spokenLabel: "Kilograms")
                     MeetWeightNoteView(note: entry.note(after: nil))
                     MeetCountRow(label: "Reps", value: $reps, identifier: "meet-step-reps")
                     MeetCountRow(label: "Attempts Out", value: $attemptsOut, identifier: "meet-step-attempts-out")
@@ -310,7 +378,7 @@ struct MeetWarmupStepSheet: View {
             }
             .background(palette.paperBackground.ignoresSafeArea())
         }
-        .presentationDetents([.large])
+        .presentationDetents([.medium, .large])
     }
 }
 
