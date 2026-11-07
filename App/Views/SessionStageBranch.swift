@@ -31,7 +31,7 @@ struct SessionStageBranch: View {
         static let stemWidth: CGFloat = 2
         /// Leaves sit closer than a finger, so each narrows to its share of the gap (DESIGN.md §8).
         static let hitSide: CGFloat = 44
-        static let flagMarkOffset: CGFloat = 13
+        static let flagMarkOffset: CGFloat = 10
     }
 
     private enum LateralMetrics {

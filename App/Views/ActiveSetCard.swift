@@ -143,7 +143,7 @@ struct ActiveSetCard: View {
         switch mode.headAccessory(for: set) {
         case .none:
             HStack(spacing: 4) {
-                savedAndFlag(showsSaved: false)
+                setFlagControlFittingHead
                 if let timedEffort {
                     TimedEffortControl(timedEffort: timedEffort, targetHeight: Self.headTargetSize)
                 }
@@ -153,19 +153,19 @@ struct ActiveSetCard: View {
             }
         case .saved:
             HStack(spacing: 0) {
-                savedAndFlag(showsSaved: true)
+                savedAndFlag
                 if let mic {
                     micControl(mic.dictation)
                 }
             }
         case .clearMenu:
             HStack(spacing: 0) {
-                savedAndFlag(showsSaved: false)
+                setFlagControlFittingHead
                 clearMenu
             }
         case .savedAndClearMenu:
             HStack(spacing: 0) {
-                savedAndFlag(showsSaved: true)
+                savedAndFlag
                 HeldClearMenu(
                     tint: palette.textSecondary,
                     onOpened: onClearMenuOpened,
@@ -189,20 +189,19 @@ struct ActiveSetCard: View {
     /// The flag's word goes first when the head runs short, because the sheet behind the control still
     /// says it. The flexible frame keeps that choice on the room the head has: a `ViewThatFits` placed at
     /// the word's own width chooses again and can draw the glyph alone in a word-wide button.
-    private func savedAndFlag(showsSaved: Bool) -> some View {
+    private var setFlagControlFittingHead: some View {
         ViewThatFits(in: .horizontal) {
-            savedAndFlagRow(showsSaved: showsSaved, showsFlagWord: true)
-            savedAndFlagRow(showsSaved: showsSaved, showsFlagWord: false)
+            setFlagControl(showsWord: true)
+            setFlagControl(showsWord: false)
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
-    private func savedAndFlagRow(showsSaved: Bool, showsFlagWord: Bool) -> some View {
+    /// `Saved` beside `Unsynced` reads as a contradiction, so the flag stands without its word here.
+    private var savedAndFlag: some View {
         HStack(spacing: 0) {
-            if showsSaved {
-                savedConfirmation
-            }
-            setFlagControl(showsWord: showsFlagWord)
+            savedConfirmation
+            setFlagControl(showsWord: false)
         }
     }
 
@@ -239,7 +238,6 @@ struct ActiveSetCard: View {
 
     private var clearMenu: some View {
         Menu {
-            Button("Flag this Set", action: onFlag)
             Button("Clear", role: .destructive, action: onDelete)
         } label: {
             Image(systemName: "ellipsis")

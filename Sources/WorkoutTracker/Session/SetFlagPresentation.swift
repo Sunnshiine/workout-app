@@ -14,11 +14,13 @@ extension SetFlagStanding {
 
 /// What the athlete has chosen so far in the Set Flag sheet. Words stay on one line and inside what a
 /// flag can carry as they are typed, so the only flag this cannot make is one still missing something.
+/// Words typed before a kind choose Other, so typing first never ends at a capsule that will not press.
 struct SetFlagDraft: Equatable, Sendable {
     var kind: SetFlagKind?
     var words: String {
         didSet {
             words = String(String(words.map { $0.isNewline ? " " : $0 }).prefix(SetFlag.maximumTextLength))
+            if kind == nil, !words.allSatisfy(\.isWhitespace) { kind = .other }
         }
     }
 
@@ -56,6 +58,7 @@ struct SetFlagSheetPresentation: Identifiable, Equatable {
     /// The Set the flag lands on and what it holds: `Set 2 · 185x5@8`, or `Set 2` for a Pending Set.
     let setLine: String
     let raiseTitle: String
+    /// Newest first, because the sheet's first height shows only the top of the list.
     let raisedFlags: [RaisedFlag]
 
     @MainActor
@@ -65,7 +68,7 @@ struct SetFlagSheetPresentation: Identifiable, Equatable {
         exerciseName = set.exercise?.exerciseName.base ?? ""
         setLine = Self.written(on: set).map { "\(setName) · \($0)" } ?? setName
         raiseTitle = "Flag \(setName)"
-        raisedFlags = set.setFlags.map(RaisedFlag.init)
+        raisedFlags = set.setFlags.reversed().map(RaisedFlag.init)
     }
 
     @MainActor

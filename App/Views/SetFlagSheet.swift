@@ -13,6 +13,7 @@ struct SetFlagSheet: View {
 
     private static let chipHeight: CGFloat = 56
     private static let chipSpacing: CGFloat = 10
+    private static let footFade: CGFloat = 40
     private static let raiseButtonID = "set-flag-raise-button"
 
     init(presentation: SetFlagSheetPresentation, draft: SetFlagDraft, onRaise: @escaping (SetFlag) -> Void) {
@@ -38,11 +39,14 @@ struct SetFlagSheet: View {
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .contentMargins(.bottom, Self.footFade, for: .scrollContent)
+            .mask { footFadeMask }
             .scrollDismissesKeyboard(.interactively)
             .contentShape(.rect)
             .onTapGesture { isWordsFocused = false }
-            // A long name at the largest text can put the capsule behind the keyboard as the words grow,
-            // or under the sheet's edge when the keyboard closes.
+            // A long name at the largest text can put the capsule in the foot's fade as the sheet opens or
+            // the keyboard closes, or behind the keyboard as the words grow.
+            .onAppear { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
             .onChange(of: draft.words) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
             .onChange(of: isWordsFocused) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
         }
@@ -51,6 +55,20 @@ struct SetFlagSheet: View {
         .presentationBackground { palette.paperBackground }
         .dynamicTypeSize(...Theme.TypeScale.largestSize)
         .task { isTitleFocused = true }
+    }
+
+    /// The raised list runs off the sheet's first height, so it fades there as the Lens wheel does
+    /// instead of slicing a line. The content margin lets the last row and the capsule rest clear of it.
+    private var footFadeMask: some View {
+        VStack(spacing: 0) {
+            Color.black
+            LinearGradient(
+                stops: [.init(color: .black, location: 0), .init(color: .clear, location: 0.8)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: Self.footFade)
+        }
     }
 
     private var header: some View {
@@ -120,6 +138,10 @@ struct SetFlagSheet: View {
         .padding(.vertical, 12)
         .frame(minHeight: Self.chipHeight)
         .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.rail)
+                .strokeBorder(isWordsFocused ? palette.action : palette.pillStroke, lineWidth: 1)
+        }
         .accessibilityIdentifier("set-flag-words")
         .onChange(of: typedWords, takeDraftsWords)
     }
@@ -160,15 +182,16 @@ struct SetFlagSheet: View {
         }
         .buttonStyle(.pressScale)
         .disabled(draft.flag == nil)
-        .opacity(draft.flag == nil ? Theme.pairingUnavailableOpacity : 1)
+        .opacity(draft.flag == nil ? Theme.sheetHiddenRowOpacity : 1)
         .animation(Theme.pressAnimation, value: draft.flag == nil)
         .accessibilityIdentifier("set-flag-raise-button")
     }
 }
 
 /// Where a Set Flag stands: a status glyph beside its word (DESIGN.md §1), in Saved's type and, once
-/// the Sheet holds the flag, Saved's ink. A refusal takes the danger mark. Without its word the glyph
-/// is the mark on the branch, or what fits a crowded card head.
+/// the Sheet holds the flag, Saved's ink. The fill says a flag is raised, because the outline is the
+/// control that offers one, and the ink says how far it has gone. A refusal takes the danger mark.
+/// Without its word the glyph is the mark on the branch, or what fits a crowded card head.
 struct SetFlagStatus: View {
     let standing: SetFlagStanding
     let showsWord: Bool
@@ -185,22 +208,22 @@ struct SetFlagStatus: View {
                         .foregroundStyle(palette.danger)
                 }
             case .unsynced:
-                label(systemImage: "flag", color: palette.textSecondary)
+                raised(color: palette.textSecondary)
             case .landed:
-                label(systemImage: "flag.fill", color: palette.actionInk)
+                raised(color: showsWord ? palette.actionInk : palette.action)
             }
         }
         .fixedSize()
     }
 
     @ViewBuilder
-    private func label(systemImage: String, color: Color) -> some View {
+    private func raised(color: Color) -> some View {
         if showsWord {
-            Label(standing.word, systemImage: systemImage)
+            Label(standing.word, systemImage: "flag.fill")
                 .themeFont(.setOf)
                 .foregroundStyle(color)
         } else {
-            Image(systemName: systemImage)
+            Image(systemName: "flag.fill")
                 .foregroundStyle(color)
         }
     }

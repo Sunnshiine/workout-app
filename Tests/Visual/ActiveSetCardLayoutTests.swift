@@ -20,6 +20,7 @@ struct ActiveSetCardLayoutTests {
         let savedAndClearMenu = clearMenu.merging(["Saved": CGRect(x: 275, y: 79, width: 63, height: 22)]) { $1 }
         let mic = ["Mic": CGRect(x: 338, y: 68, width: 44, height: 44)]
         let flag = ["Flag": CGRect(x: 326, y: 68, width: 44, height: 44)]
+        let flagAndClearMenu = clearMenu.merging(["Flag": CGRect(x: 294, y: 68, width: 44, height: 44)]) { $1 }
 
         let drawn = try CardHost.drawings(of: [
             "logging a pending Set": CardHost.Scene(state: .pending, mode: .logging),
@@ -53,12 +54,12 @@ struct ActiveSetCardLayoutTests {
                 "logging a skipped Set": CardDrawing(
                     rows: rows,
                     actionControl: "log-active-set-button",
-                    headControls: clearMenu
+                    headControls: flagAndClearMenu
                 ),
                 "logging a logged Set": CardDrawing(
                     rows: rows,
                     actionControl: "log-active-set-button",
-                    headControls: clearMenu
+                    headControls: flagAndClearMenu
                 ),
                 "reviewing a logged Set": CardDrawing(
                     rows: rows,
