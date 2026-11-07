@@ -15,6 +15,13 @@ struct SetCardMic {
     let dismiss: () -> Void
 }
 
+/// The card's Form Clips, present only while its Set is Logged.
+struct SetCardClipControl {
+    let clips: SetCardClips
+    let add: (FormClipSource) -> Void
+    let open: (UUID) -> Void
+}
+
 struct ActiveSetCard: View {
     private struct PillsIdentity: Hashable {
         let set: PersistentIdentifier
@@ -27,6 +34,7 @@ struct ActiveSetCard: View {
     var mode: SetCardSlot.Mode = .logging
     var mic: SetCardMic?
     var timedEffort: SetCardTimedEffort?  // default: no control, the answer for a Set with no Timed Effort
+    var clips: SetCardClipControl?  // default: no control, the answer for a Set that is not Logged
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
@@ -137,6 +145,7 @@ struct ActiveSetCard: View {
                 if let timedEffort {
                     TimedEffortControl(timedEffort: timedEffort, targetHeight: Self.headTargetSize)
                 }
+                clipControl
                 if let mic {
                     micControl(mic.dictation)
                 }
@@ -144,6 +153,7 @@ struct ActiveSetCard: View {
         case .saved:
             HStack(spacing: 0) {
                 savedConfirmation
+                clipControl
                 if let mic {
                     micControl(mic.dictation)
                 }
@@ -157,12 +167,62 @@ struct ActiveSetCard: View {
                     tint: palette.textSecondary,
                     onOpened: onClearMenuOpened,
                     onClosed: onClearMenuClosed,
-                    onClear: onDelete
+                    onClear: onDelete,
+                    onAddClip: clips.map { clips in { clips.add(.photos) } },
+                    onRecordClip: clips.flatMap { clips in FormClipCamera.isAvailable ? { clips.add(.camera) } : nil }
                 )
                 .frame(width: Self.headTargetSize, height: Self.headTargetSize)
                 .padding(.trailing, -Self.headTargetOverhang)
             }
         }
+    }
+
+    /// A Logged Set's quiet clip state: add one, or open what it holds, in the head's trailing slot,
+    /// so the card's box never moves.
+    @ViewBuilder
+    private var clipControl: some View {
+        if let clips {
+            Group {
+                if clips.clips.isAdding {
+                    ProgressView()
+                        .tint(palette.textSecondary)
+                        .frame(width: Self.headTargetSize, height: Self.headTargetSize, alignment: clipGlyphAlignment)
+                        .accessibilityLabel("Adding clip")
+                } else if let newest = clips.clips.clips.first {
+                    Button {
+                        clips.open(newest.id)
+                    } label: {
+                        clipGlyph("play.rectangle")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(clips.clips.clips.count == 1 ? "Review clip" : "Review \(clips.clips.clips.count) clips")
+                } else {
+                    Menu {
+                        if FormClipCamera.isAvailable {
+                            Button("Record Clip") { clips.add(.camera) }
+                        }
+                        Button("Add Clip") { clips.add(.photos) }
+                    } label: {
+                        clipGlyph("video.badge.plus")
+                    }
+                    .accessibilityLabel("Add Clip")
+                }
+            }
+            .accessibilityIdentifier("form-clip-button")
+        }
+    }
+
+    /// With no mic beside it the glyph ends the head, so its ink stops at the card's content edge.
+    private var clipGlyphAlignment: Alignment {
+        mic == nil ? .trailing : .center
+    }
+
+    private func clipGlyph(_ name: String) -> some View {
+        Image(systemName: name)
+            .imageScale(.large)
+            .foregroundStyle(palette.textSecondary)
+            .frame(width: Self.headTargetSize, height: Self.headTargetSize, alignment: clipGlyphAlignment)
+            .contentShape(.rect)
     }
 
     private var savedConfirmation: some View {

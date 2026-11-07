@@ -84,9 +84,11 @@ struct SessionStageView: View {
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
+        .modifier(FormClipPresentation(coordinator: coordinator))
         .onChange(of: entry.coverClosings) {
             isQueuePresented = false
             history = nil
+            coordinator.closeClipRequest()
         }
         .onChange(of: coordinator.supersetFusions) {
             isQueuePresented = false
@@ -288,6 +290,58 @@ private struct ExerciseHistoryAnchor: Identifiable {
     var id: ExerciseName { name }
 }
 
+/// Presents whichever Form Clip request the coordinator holds: one cover, so a review can hand over
+/// to a picker without two presentations racing. A failed pick says why on the stage.
+private struct FormClipPresentation: ViewModifier {
+    let coordinator: SessionCoordinator
+
+    func body(content: Content) -> some View {
+        @Bindable var coordinator = coordinator
+        content
+            .fullScreenCover(item: $coordinator.clipRequest) { request in
+                switch request {
+                case .add(let target, .photos):
+                    FormClipPhotosPicker { provider in
+                        guard let provider else {
+                            coordinator.closeClipRequest()
+                            return
+                        }
+                        coordinator.addClip(to: target) { try await provider.loadFormClipMovie() }
+                    }
+                    .ignoresSafeArea()
+                case .add(let target, .camera):
+                    FormClipCamera { movie in
+                        guard let movie else {
+                            coordinator.closeClipRequest()
+                            return
+                        }
+                        coordinator.addClip(to: target) { movie }
+                    }
+                    .ignoresSafeArea()
+                case .review(let id):
+                    FormClipReviewView(clipID: id) { clip, source in
+                        coordinator.requestClip(from: source, for: clip)
+                    } onClose: {
+                        coordinator.closeClipRequest()
+                    }
+                }
+            }
+            .alert(
+                "Clip Not Added",
+                isPresented: Binding {
+                    coordinator.clipFailure != nil
+                } set: {
+                    if !$0 { coordinator.dismissClipFailure() }
+                },
+                presenting: coordinator.clipFailure
+            ) { _ in
+                Button("OK", role: .cancel) {}
+            } message: { failure in
+                Text(failure)
+            }
+    }
+}
+
 /// The Fraunces Exercise name that leads the stage. It runs two lines at most (DESIGN.md §3) and
 /// shrinks before it truncates: unbounded, a coach's longest names took four lines and pushed the
 /// Cadence line, the coach note, and on an SE the branch off the page.
@@ -421,6 +475,15 @@ extension ActiveSetCard {
                     countdown: countdown,
                     start: { coordinator.startCountdown(for: slot) },
                     cancel: { coordinator.cancelCountdown() }
+                )
+            },
+            clips: coordinator.cardClips(for: slot).map { clips in
+                SetCardClipControl(
+                    clips: clips,
+                    add: { source in
+                        coordinator.requestClip(from: source, for: clips.target)
+                    },
+                    open: { coordinator.showClip($0) }
                 )
             },
             onLog: { coordinator.log($0, for: slot) },

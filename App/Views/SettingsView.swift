@@ -78,6 +78,8 @@ struct SettingsView: View {
                     .accessibilityIdentifier("settings-sync-now-button")
                     .accessibilityValue(connection.syncNowDetail)
 
+                    FormClipStorageRow()
+
                     NavigationLink {
                         DeveloperToolsView()
                     } label: {
@@ -152,6 +154,7 @@ struct SettingsView: View {
         )
         .destructiveConfirmation(
             "You have unsynced changes.\nSign out anyway?",
+            message: "Pending logs for the current sheet will be discarded.",
             isPresented: $isSignOutConfirmationPresented,
             action: DestructiveAction(
                 label: "Sign Out",
@@ -264,6 +267,7 @@ struct SettingsView: View {
         .presentationBackground { palette.paperBackground }
         .destructiveConfirmation(
             "You have unsynced changes.\nSwitch anyway?",
+            message: "Pending logs for the current sheet will be discarded.",
             isPresented: pendingSwitchConfirmation,
             action: DestructiveAction(
                 label: "Switch Anyway",
@@ -409,7 +413,7 @@ private struct SharedFile: Identifiable {
 }
 
 /// The system share sheet over `items`.
-private struct ShareSheet: UIViewControllerRepresentable {
+struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
