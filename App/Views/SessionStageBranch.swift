@@ -170,6 +170,8 @@ struct SessionStageBranch: View {
         if let standing = set.setFlagStanding {
             SetFlagStatus(standing: standing, showsWord: false)
                 .themeFont(.fieldLabel)
+                // The leaves keep one size at every text size, and the mark stays in scale with them.
+                .dynamicTypeSize(.large)
                 .offset(y: index.isMultiple(of: 2) ? Metrics.flagMarkOffset : -Metrics.flagMarkOffset)
                 .accessibilityHidden(true)
         }

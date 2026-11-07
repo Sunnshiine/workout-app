@@ -58,7 +58,7 @@ struct SetFlagSheetPresentation: Identifiable, Equatable {
     /// The Set the flag lands on and what it holds: `Set 2 · 185x5@8`, or `Set 2` for a Pending Set.
     let setLine: String
     let raiseTitle: String
-    /// Newest first, because the sheet's first height shows only the top of the list.
+    /// Newest first, so the flag the athlete is most likely checking on leads the list.
     let raisedFlags: [RaisedFlag]
 
     @MainActor
@@ -69,6 +69,12 @@ struct SetFlagSheetPresentation: Identifiable, Equatable {
         setLine = Self.written(on: set).map { "\(setName) · \($0)" } ?? setName
         raiseTitle = "Flag \(setName)"
         raisedFlags = set.setFlags.reversed().map(RaisedFlag.init)
+    }
+
+    /// The sheet's first height has room for the kinds and the capsule alone, so a Set with raised flags
+    /// opens tall, where the athlete can read where each one stands.
+    var opensTall: Bool {
+        !raisedFlags.isEmpty
     }
 
     @MainActor

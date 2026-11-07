@@ -449,11 +449,11 @@ extension SessionCoordinator {
         flaggingSetID = id
     }
 
-    /// The sheet closed, however it closed. A held Set gets its four seconds back, so the athlete sees
-    /// where the flag stands before the card moves on.
+    /// The sheet closed, however it closed. A held Set moves on, as closing its More menu without a
+    /// Clear does (`docs/design/session-stage.md`), and its leaf says where the flag stands from there.
     func endFlagging() {
         flaggingSetID = nil
-        if focusManager.isHoldingSpokenWrite { runSpokenWriteHold() }
+        endSpokenWriteHold()
     }
 
     func raise(_ flag: SetFlag) {

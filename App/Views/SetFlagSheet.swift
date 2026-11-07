@@ -8,6 +8,7 @@ struct SetFlagSheet: View {
     @Environment(\.themePalette) private var palette
     @State private var draft: SetFlagDraft
     @State private var typedWords: String
+    @State private var detent: PresentationDetent
     @FocusState private var isWordsFocused: Bool
     @AccessibilityFocusState private var isTitleFocused: Bool
 
@@ -21,6 +22,7 @@ struct SetFlagSheet: View {
         self.onRaise = onRaise
         _draft = State(initialValue: draft)
         _typedWords = State(initialValue: draft.words)
+        _detent = State(initialValue: presentation.opensTall ? .large : .medium)
     }
 
     var body: some View {
@@ -50,15 +52,15 @@ struct SetFlagSheet: View {
             .onChange(of: draft.words) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
             .onChange(of: isWordsFocused) { scroll.scrollTo(Self.raiseButtonID, anchor: .bottom) }
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }
         .dynamicTypeSize(...Theme.TypeScale.largestSize)
         .task { isTitleFocused = true }
     }
 
-    /// The raised list runs off the sheet's first height, so it fades there as the Lens wheel does
-    /// instead of slicing a line. The content margin lets the last row and the capsule rest clear of it.
+    /// A long raised list runs off the sheet, so it fades there as the Lens wheel does instead of slicing
+    /// a line. The content margin lets the last row and the capsule rest clear of it.
     private var footFadeMask: some View {
         VStack(spacing: 0) {
             Color.black

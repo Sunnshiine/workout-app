@@ -177,10 +177,10 @@ struct SetFlagVisualTests {
         )
     }
 
-    @Test func aHeldSetWithAFlagBesideSavedMatchesVisualBaseline() throws {
+    @Test func aJustSavedReviewWithAFlagMatchesVisualBaseline() throws {
         try cardSnapshot(
             loggedSet(flags: [(SetFlag(kind: .pain, text: nil), .unsynced)]),
-            mode: .heldAfterSpokenWrite,
+            mode: .reviewingLogged(showsSavedConfirmation: true),
             appearance: .day,
             colorScheme: .light
         )

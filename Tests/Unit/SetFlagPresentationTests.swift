@@ -98,6 +98,18 @@ private func sheetLine(state: SetState, log: SetLog?) throws -> String {
 }
 
 @MainActor
+@Test func theSheetOpensTallOnlyWhenItHasRaisedFlagsToShow() throws {
+    let session = makeCoordinatorSession()
+    let set = try secondBenchSet(in: session, state: .logged, log: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))
+    let id = try SetCoordinates(of: set).id
+    #expect(!SetFlagSheetPresentation(id: id, set: set).opensTall)
+
+    set.record(try #require(SetFlag(kind: .pain, text: nil)), standing: .unsynced)
+
+    #expect(SetFlagSheetPresentation(id: id, set: set).opensTall)
+}
+
+@MainActor
 @Test func aSetTheAthleteCameBackToOffersTheFlagAndAHeldOrPendingSetOnlySaysWhereOneStands() throws {
     let session = makeCoordinatorSession()
     let logged = try secondBenchSet(in: session, state: .logged, log: SetLog(weight: .pounds(185), reps: 5, rpe: .eight))

@@ -62,19 +62,14 @@ private func anExercise(_ name: String, in session: Session) throws -> Exercise 
 }
 
 @MainActor
-@Test func closingTheSheetGivesTheHeldSetItsFourSecondsAgainThenMovesOn() async throws {
-    let (coordinator, ledger, clock, session, held) = try await heldBench()
+@Test func closingTheSheetMovesTheHeldSetOnAsClosingItsMenuDoes() async throws {
+    let (coordinator, ledger, _, session, held) = try await heldBench()
     coordinator.suspendSpokenWriteHold()
     coordinator.beginFlagging(held)
-    let sleepsBeforeClosing = clock.sleptDurations.count
 
     coordinator.endFlagging()
 
     #expect(coordinator.setFlagSheet == nil)
-    #expect(try card(coordinator, in: session).mode == .heldAfterSpokenWrite)
-    await waitUntil({ clock.sleptDurations.count > sleepsBeforeClosing }, orRecord: "the hold never restarted")
-    await clock.advance()
-
     let next = try card(coordinator, in: session)
     #expect(next.mode == .logging)
     #expect(SessionCoordinator.activeSetID(for: next.set) == secondBench)
