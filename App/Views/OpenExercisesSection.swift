@@ -9,6 +9,7 @@ struct OpenExercisesSection: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Open Exercises")
                 .themeFont(.heading)
+                .foregroundStyle(palette.textSecondary)
 
             ForEach(exercises, id: \.persistentModelID) { exercise in
                 Button {
