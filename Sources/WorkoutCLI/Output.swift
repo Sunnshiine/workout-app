@@ -98,6 +98,25 @@ enum Output {
         }
     }
 
+    /// Vision and AVFoundation print their own diagnostics on stdout and stderr, where this CLI
+    /// promises nothing but JSON, so both stay shut while a call into them runs. What they print
+    /// waits in a buffer, so it drains before the streams come back.
+    @MainActor
+    static func silencingMediaFrameworks<Value>(_ body: @MainActor () async throws -> Value) async rethrows -> Value {
+        let streams = [STDOUT_FILENO, STDERR_FILENO].map { (stream: $0, saved: dup($0)) }
+        let null = open("/dev/null", O_WRONLY)
+        for (stream, _) in streams { dup2(null, stream) }
+        close(null)
+        defer {
+            fflush(nil)
+            for (stream, saved) in streams {
+                dup2(saved, stream)
+                close(saved)
+            }
+        }
+        return try await body()
+    }
+
     private static func fail(_ error: any Error) -> ExitCode {
         let failure = Failure(error)
         if let data = try? stderrEncoder.encode(["error": failure.payload]) {
