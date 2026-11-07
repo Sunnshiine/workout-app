@@ -243,6 +243,19 @@ enum SessionPageHost {
         }
     }
 
+    /// The width of the header's count at the largest text size, in each window width.
+    static func headerCountWidths(inWindowWidths widths: [CGFloat]) throws -> [CGFloat] {
+        let scenario = try WorkoutScenarios.freshConfiguredApp()
+        VisualFixtureRetainer.retain(scenario)
+        let header = SessionProgressHeader(session: try #require(scenario.store.viewedSession))
+            .environment(\.themePalette, Theme.palette(for: .day))
+            .environment(\.dynamicTypeSize, Theme.TypeScale.largestSize)
+        let sizes = widths.map { CGSize(width: $0, height: WindowHeight.iPhone17Pro) }
+        return try AccessibilityHost.read(header, in: sizes) { window in
+            try #require(window.accessibilityFrames { $0.elementIdentifier == "session-remaining-count" }.first).width.rounded()
+        }
+    }
+
     /// The fresh Session mid-Exercise and out of rest, so Last Performed and Up next both show.
     static func controls(at dynamicTypeSize: DynamicTypeSize) throws -> [AuditedControl] {
         let scenario = try WorkoutScenarios.freshConfiguredApp()

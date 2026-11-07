@@ -73,6 +73,11 @@ struct SessionStageLayoutTests {
         }
     }
 
+    @Test func aCrowdedHeaderKeepsItsCountWhole() throws {
+        let widths = try SessionPageHost.headerCountWidths(inWindowWidths: [402, 100])
+        #expect(widths[0] == widths[1], "\(widths)")
+    }
+
     @Test func aSyncBannerMovesNothingAndClearsTheExerciseName() throws {
         let heights = [WindowHeight.iPhone17Pro, WindowHeight.mini, WindowHeight.se]
         let banners: [(outcome: SyncOutcome, frames: [CGRect])] = [

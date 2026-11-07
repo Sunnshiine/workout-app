@@ -37,6 +37,8 @@ struct SessionProgressHeader: View {
                 Text(presentation.remainingText)
                     .themeFont(.runlineSecondary)
                     .lineLimit(1)
+                    // The location gives way first, so the sync word never costs the count its words.
+                    .fixedSize()
                     .contentTransition(
                         reduceMotion ? .opacity : .numericText(value: Double(presentation.remainingSetCount))
                     )

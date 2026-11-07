@@ -97,8 +97,8 @@ Night) lives here.
 
 **The Destructive Confirmation Card.** Signing out or switching sheets while
 Set Logs are pending asks first, on a card the app draws in place of a system
-alert, because an alert action drops its glyph on iOS 26. The card dims the
-surface under it and carries the question, the line "Pending logs for the
+alert, because an alert action drops its glyph on iOS 26. The card dims and
+blurs the surface under it and carries the question, the line "Pending logs for the
 current sheet will be discarded.", a text Cancel capsule, and a capsule
 holding the red action glyph (`rectangle.portrait.and.arrow.right` to sign
 out, `arrow.left.arrow.right` to switch). It behaves as a system alert does:

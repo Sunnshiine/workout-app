@@ -363,7 +363,8 @@ private struct DestructiveConfirmation: ViewModifier {
     let onConfirm: () -> Void
 
     func body(content: Content) -> some View {
-        content.overlay {
+        // The blur keeps the rows that outrun the card from reading as a second card behind it.
+        content.blur(radius: isPresented ? 6 : 0).overlay {
             ZStack {
                 if isPresented {
                     Color.black.opacity(0.35).ignoresSafeArea()

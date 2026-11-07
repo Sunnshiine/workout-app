@@ -398,7 +398,7 @@ private struct HoldToSkipLogButton: View {
     private var logButtonSurface: some View {
         let isRevealed = presentation.holdIsRevealed
         let wordLeaves = Animation.easeOut(duration: 0.08)
-        let wordArrives = Animation.easeOut(duration: 0.12).delay(0.06)
+        let wordArrives = Animation.easeOut(duration: 0.12).delay(0.08)
         return Text(logTitle)
             .opacity(isRevealed ? 0 : 1)
             .animation(isRevealed ? wordLeaves : wordArrives, value: isRevealed)
