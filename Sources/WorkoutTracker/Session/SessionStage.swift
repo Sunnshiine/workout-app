@@ -195,8 +195,9 @@ extension SessionQueue {
     /// The row centre a scroll ending at `proposed` rests on, or nil where the wheel runs free: past
     /// the last row when Open Exercises follow it, so the list can reach its end.
     nonisolated static func restingCenter(near proposed: Double, rowCenters: [Double], freePastLastRow: Bool) -> Double? {
+        let freeRunMargin = 32.0
         guard let last = rowCenters.last else { return nil }
-        if freePastLastRow, proposed > last + 32 { return nil }
+        if freePastLastRow, proposed > last + freeRunMargin { return nil }
         return rowCenters.min { abs($0 - proposed) < abs($1 - proposed) }
     }
 }

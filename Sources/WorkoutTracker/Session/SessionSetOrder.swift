@@ -25,9 +25,7 @@ enum SessionSetOrder {
         orderedSets(in: session.exercises)
     }
 
-    /// The given Exercises' Sets in Exercise-order then Set-index order. The
-    /// Stage walks a single render item's Exercises through this same primitive
-    /// rather than re-sorting them itself.
+    /// The given Exercises' Sets in Exercise-order then Set-index order.
     static func orderedSets(in exercises: [Exercise]) -> [SessionSetPosition] {
         exercises
             .sorted { $0.order < $1.order }

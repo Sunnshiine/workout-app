@@ -242,8 +242,10 @@ fills `action`, Pending strokes 1pt of secondary text, and Skipped dashes 1pt of
 `skipStroke`, so it recedes from the work left. A 9pt gap parts a Superset's
 Exercises. Marks narrow together when they would overrun the row. One tap jumps.
 Move On is pinned under the wheel. Open Exercises follow the last row and show
-the same marks in place of a count, here and on the completion stage. The wheel
-stops snapping past the last row, so the list can always reach its end.
+the same marks in place of a count, here and on the completion stage. With them
+below it, the wheel stops snapping 32pt past the last row, so the list can always
+reach its end. Move On's slot holds its frame when Move On is absent, so the
+wheel's centre never moves.
 VoiceOver reads finished rows, then the
 rest, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
 trait on the row on stage.

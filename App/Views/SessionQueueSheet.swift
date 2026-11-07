@@ -36,17 +36,17 @@ struct SessionQueueSheet: View {
 
             wheel
 
-            if queue.showsMoveOn, !isPairing {
-                SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
-                    movesOnWhenDismissed = true
-                    dismiss()
-                }
-                .padding(.horizontal)
-                .padding(.bottom)
+            // The slot holds its frame when Move On is absent, so the wheel's centre never moves.
+            SessionMoveOnButton(accessibilityID: "queue-move-on-button") {
+                movesOnWhenDismissed = true
+                dismiss()
             }
+            .visibleKeepingFrame(queue.showsMoveOn && !isPairing)
+            .padding(.horizontal)
+            .padding(.bottom)
         }
-        .animation(.easeInOut(duration: 0.18), value: queue.pairingMode)
-        .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: queue.pairingMode)
+        .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.wheelRows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }

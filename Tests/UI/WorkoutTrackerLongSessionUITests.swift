@@ -78,6 +78,28 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
         assertRests(onStage, onTheWheelsCentreIn: app)
     }
 
+    @MainActor
+    func testPairingLeavesTheRowOnStageWhereItRests() throws {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+
+        app.buttons["stage-queue-button"].tap()
+        let onStage = app.buttons["stage-queue-row-exercise-1"]
+        XCTAssertTrue(onStage.appears(within: 3))
+        waitForFrameToSettle(of: onStage)
+        let center = onStage.frame.midY
+
+        app.buttons["stage-queue-superset"].tap()
+        XCTAssertTrue(app.buttons["stage-queue-cancel-pairing"].appears(within: 3))
+        waitForFrameToSettle(of: onStage)
+        XCTAssertEqual(onStage.frame.midY, center, accuracy: 3, "beginning to pair does not move the wheel's centre")
+
+        app.buttons["stage-queue-cancel-pairing"].tap()
+        XCTAssertTrue(app.buttons["stage-queue-superset"].appears(within: 3))
+        waitForFrameToSettle(of: onStage)
+        XCTAssertEqual(onStage.frame.midY, center, accuracy: 3, "cancelling leaves it there")
+    }
+
     /// The wheel fills the space between the header's button and Move On.
     @MainActor
     private func assertRests(_ row: XCUIElement, onTheWheelsCentreIn app: XCUIApplication) {
