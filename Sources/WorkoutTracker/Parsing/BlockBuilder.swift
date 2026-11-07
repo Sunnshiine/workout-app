@@ -24,6 +24,7 @@ enum BlockBuilder {
                             unstructuredSetLog: $0.unstructuredSetLog
                         )
                         set.setLog = $0.setLog
+                        set.setFlags = $0.setFlags.map { SetFlagEntry(flag: $0, standing: .landed) }
                         return set
                     }
                     return ex

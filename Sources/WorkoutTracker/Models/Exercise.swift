@@ -123,6 +123,7 @@ final class ExerciseSet {
     var setLogData: Data?
     var unstructuredSetLog: String?
     var loggedAt: Date?
+    var setFlagsData: Data?
     var exercise: Exercise?
 
     var state: SetState {
@@ -151,6 +152,48 @@ final class ExerciseSet {
                 exerciseModelLogger.error("Failed to encode SetLog: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// The Set Flags on this Set: the lines the last sync read from its Cell Note, plus what the
+    /// queue still holds. A sync parses the first and replays the second, as it does a Set Log.
+    var setFlags: [SetFlagEntry] {
+        get {
+            guard let setFlagsData else { return [] }
+            do {
+                return try JSONDecoder().decode([SetFlagEntry].self, from: setFlagsData)
+            } catch {
+                exerciseModelLogger.error("Failed to decode Set Flags: \(error.localizedDescription)")
+                return []
+            }
+        }
+        set {
+            guard !newValue.isEmpty else {
+                setFlagsData = nil
+                return
+            }
+            do {
+                setFlagsData = try JSONEncoder().encode(newValue)
+            } catch {
+                exerciseModelLogger.error("Failed to encode Set Flags: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    var setFlagStanding: SetFlagStanding? {
+        let standings = setFlags.map(\.standing)
+        return SetFlagStanding.allCases.first(where: standings.contains)
+    }
+
+    /// Records where `flag` stands. The same flag raised twice is one line in the Sheet, so it is one
+    /// entry here.
+    func record(_ flag: SetFlag, standing: SetFlagStanding) {
+        var entries = setFlags
+        if let index = entries.firstIndex(where: { $0.flag == flag }) {
+            entries[index].standing = standing
+        } else {
+            entries.append(SetFlagEntry(flag: flag, standing: standing))
+        }
+        setFlags = entries
     }
 
     var displayReps: String {

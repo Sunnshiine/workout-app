@@ -7,6 +7,9 @@ protocol SheetsClient: Sendable {
     /// Writes every cell in one all-or-nothing request, and throws unless callers can treat every
     /// cell as written (ADR-0006). An empty array writes nothing.
     func write(_ cells: [SheetCellWrite], spreadsheetId: String) async throws
+    /// Replaces one cell's Cell Note in one request, leaving the cell's value as it is. The API takes
+    /// a note by a different endpoint from a value, so this is never part of a `write` batch.
+    func writeCellNote(_ note: SheetCellNoteWrite, spreadsheetId: String) async throws
 }
 
 extension SheetsClient {

@@ -203,3 +203,55 @@ private func expectCorruptedWorkbook(_ json: String, saying message: String, for
     try await client.write([SheetCellWrite(tabName: "B", row: 1, col: 0, value: "athlete")], spreadsheetId: "s")
     #expect(try LocalWorkbook.load(from: url).tabs["B"]?.cells == ["A1": "coach", "A2": "athlete"])
 }
+
+@Test func aCellNoteSurvivesTheWorkbookFileUnderItsA1Key() throws {
+    let workbook = LocalWorkbook(
+        spreadsheetId: "FIXTURE",
+        title: "Fixture Training Log",
+        tabs: ["Block 27": LocalWorkbook.Tab(cells: ["K15": "185x5@8"], cellNotes: ["K15": "Set 1 · Pain"])]
+    )
+    let url = temporaryWorkbookURL()
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    try workbook.write(to: url)
+    let loaded = try LocalWorkbook.load(from: url)
+
+    #expect(loaded.tabs["Block 27"]?.cellNotes == ["K15": "Set 1 · Pain"])
+    #expect(loaded.tabs["Block 27"]?.snapshot.cellNote(row: 14, col: 10) == "Set 1 · Pain")
+}
+
+@Test func aTabWithNoCellNoteLeavesTheSectionOutOfTheFile() throws {
+    let workbook = LocalWorkbook(
+        spreadsheetId: "FIXTURE",
+        title: "Fixture Training Log",
+        tabs: ["Block 27": LocalWorkbook.Tab(cells: ["K15": "185x5@8"])]
+    )
+
+    let data = try JSONEncoder().encode(workbook)
+    let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    let tabs = try #require(json["tabs"] as? [String: Any])
+    let block = try #require(tabs["Block 27"] as? [String: Any])
+
+    #expect(block["cellNotes"] == nil)
+    #expect(try JSONDecoder().decode(LocalWorkbook.self, from: data) == workbook)
+}
+
+@Test func aHandAuthoredCellNoteFoldsItsKeyLikeACell() throws {
+    let json = """
+        { "spreadsheetId": "F", "title": "T", "tabs": { "B": { "cells": {}, "cellNotes": { "k15": "Brace" } } } }
+        """
+
+    let workbook = try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8))
+
+    #expect(workbook.tabs["B"]?.cellNotes == ["K15": "Brace"])
+}
+
+@Test func aCellNoteKeyThatNamesNoCellRejectsTheFile() {
+    let json = """
+        { "spreadsheetId": "F", "title": "T", "tabs": { "B": { "cells": {}, "cellNotes": { "here": "Brace" } } } }
+        """
+
+    #expect(throws: DecodingError.self) {
+        try JSONDecoder().decode(LocalWorkbook.self, from: Data(json.utf8))
+    }
+}

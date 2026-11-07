@@ -61,6 +61,10 @@ struct UnwiredSessionLogging: SessionLoggingAdapter {
     func deleteLog(for set: ExerciseSet) throws {
         throw UnwiredSessionLoggingError.unwired
     }
+
+    func flag(_ set: ExerciseSet, as flag: SetFlag) throws {
+        throw UnwiredSessionLoggingError.unwired
+    }
 }
 
 @MainActor

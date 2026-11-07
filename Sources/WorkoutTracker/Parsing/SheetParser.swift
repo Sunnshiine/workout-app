@@ -54,6 +54,7 @@ struct ParsedSet {
     var state: SetState
     var setLog: SetLog?
     var unstructuredSetLog: String?
+    var setFlags: [SetFlag] = []
 
     init(
         index: Int,
@@ -192,9 +193,31 @@ private func parsedMultiLineExercise(
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let cols = day.columns
     let lines = anchor.prescriptionLines(in: snapshot, setsColumn: cols.sets)
-    return lines.isMultiLine
+    var exercise =
+        lines.isMultiLine
         ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
         : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+    for position in exercise.sets.indices {
+        let setIndex = exercise.sets[position].index
+        exercise.sets[position].setFlags = landedSetFlags(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
+    }
+    return exercise
+}
+
+/// The Set Flags the Sheet holds for Set `setIndex`: the lines naming it in the Cell Note on the cell
+/// the placement query resolves, the same cell the flush wrote them to.
+private func landedSetFlags(
+    for setIndex: Int,
+    anchor: SheetLayoutExerciseAnchor,
+    snapshot: SheetSnapshot,
+    cols: DayColumns
+) -> [SetFlag] {
+    guard case .placed(let placement) = anchor.setLogPlacement(for: setIndex, in: snapshot, cols: cols) else {
+        return []
+    }
+    return SetFlagLine.all(in: snapshot.cellNote(row: placement.row, col: placement.col))
+        .filter { $0.setIndex == setIndex }
+        .map(\.flag)
 }
 
 private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {

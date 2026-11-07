@@ -10,11 +10,13 @@ enum SyncNowDetail {
         case .sheetUnreachable:
             return "Offline"
         case .writesQueued(let count):
-            return count == 1 ? "1 unsynced log" : "\(count) unsynced logs"
+            return "\(count) unsynced"
         case .localWriteFailed:
             return "Log not saved"
         case .writesRefused:
             return "Log not written"
+        case .setFlagsRefused:
+            return "Flag not written"
         case .noBlockTab:
             return "No block tab"
         case .parseWarnings:

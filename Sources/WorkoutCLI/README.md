@@ -49,8 +49,9 @@ with exit 3; run `init` again.
 | `make-current w2d1` | `view(_:)`, then `makeCurrent()`, the Make current control's `WorkoutStore.makeViewedSessionCurrent()`, in one process; an Unavailable Session is refused | the snapshot `status` prints |
 | `say w1d1.e0.s0 "185 for 5 at 8"` | `SpokenSet.parse`, then `WorkoutStore.log(_:as:)` or `WorkoutStore.skip(_:)` | what it heard, its outcome, and the same report `log` prints. No auto-flush |
 | `hear w1d1.e0.s0 set.aiff` | `SpeechListening.transcripts(of:installing:)`, the mic's speech model, then `dictate(_:at:)` | the transcripts it heard as `candidates`, plus what `say` prints for the most likely. No auto-flush |
+| `flag w1d1.e0.s0 pain "left hip"` | `WorkoutStore.flag(_:as:)`; the kind is `pain`, `technique`, `swapped`, or `other`, and `other` needs words | the same report `log` prints, the Set's `setFlags` included. No auto-flush |
 | `flush` | `SyncCoordinator.flushPending` | attempted, written, conflicted writes, remaining, sync outcome |
-| `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell, or one cell's value |
+| `sheet [--tab T] [--cell K15]` | `SheetsClient.fetchTabSnapshot` | every non-empty cell and `cellNotes`, or one cell's value and its `cellNote` |
 | `sync [--viewing w2d3]` | `view(_:)` when `--viewing` is given, then `SheetConnection.syncNow()`, the Sync now button's call, which syncs and then reloads | sync outcome, Block summary, Current Session, Viewed Session, pending write count, conflicted writes |
 | `dictations summary records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationSummary(reading:labels:)`, over a journal file or a `Dictation Records` directory copied off a phone; it opens no home | presses by surface and end, outcomes under the shipped rule and under each `MergeRule`, engine agreement, Recording Transcripts read and missed by reason, presses whose mic never went live by the start step that refused it and the phone's error, release-to-outcome wait against the 2 s target with the cause of each miss, `implausible` rejections by engine and field, `promptEcho`, stall and footprint percentiles, unreadable lines, and the caveats. With labels, `scored` counts the outcome that decided each press as CORRECT, WRONG, or NOWRITE |
 | `dictations replay records.jsonl [--labels labels.json]` | `WorkoutApplication.dictationReplay(reading:labels:)`, over the same files; it opens no home | per Speech Model version, the rule that decided each press, and for each `MergeRule` its outcomes and how many presses it decides differently. With labels, each rule's `scored` |
@@ -127,6 +128,18 @@ another rule would make on a press nothing wrote goes unscored. A correction is 
 wrong writes, since an athlete who never notices a wrong write never corrects it. Both caveats
 print with the scores.
 
+A Set with a Set Flag carries `setFlags`: each entry's `kind`, its `text` when it has words, the
+`line` the coach reads in the Cell Note, and its `standing`, `unsynced`, `landed`, or `refused`. A
+flag changes no value. The workbook file stores notes in each tab's `cellNotes`, keyed by A1 cell
+and absent when a tab has none.
+
+```console
+$ workout flag w1d1.e0.s0 pain "left hip pinch on the way up" > /dev/null
+$ workout flush > /dev/null
+$ workout sheet --cell K15 | jq -c .
+{"cell":"K15","cellNote":"Set 1 · Pain: left hip pinch on the way up","tab":"Block 27","value":"185x5@8"}
+```
+
 ## Sync outcome
 
 `status`, `flush`, and `sync` print `syncOutcome`, which carries one `status` per outcome, so a
@@ -140,11 +153,12 @@ the strings the step produced, verbatim. `count` appears only under `writesQueue
 | `sheetUnreachable` | the Sheet could not be read | |
 | `writesQueued` | writes are still queued; the next flush attempts them again | `count` |
 | `writesRefused` | the cell no longer held what the app expected, so the write was refused rather than overwrite the coach (ADR-0003); nothing retries it | `messages` |
+| `setFlagsRefused` | a Set Flag found no Visible Writable Row, so its Cell Note was not written; nothing retries it | `messages` |
 | `noBlockTab` | the spreadsheet has no Block tab | |
 | `parseWarnings` | the sync succeeded and the Block is cached; the parser has notes | `messages` |
 | `historyFillFailed` | the sync succeeded and the Session is usable; the Exercise History fill did not | `messages` |
 
-`sync` exits 4 on the five that want the athlete and 3 on `sheetUnreachable`. `flush` exits 3 on
+`sync` exits 4 on the six that want the athlete and 3 on `sheetUnreachable`. `flush` exits 3 on
 `writesQueued` and `sheetUnreachable`, because writes are still queued.
 
 ## Addresses
