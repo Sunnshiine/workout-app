@@ -31,7 +31,7 @@ struct HeldClearMenu: UIViewRepresentable {
         button.onOpened = onOpened
         button.onClosed = onClosed
         button.menu = UIMenu(children: [
-            UIAction(title: "Flag this Set", image: UIImage(systemName: "flag")) { [onFlag] _ in onFlag() },
+            UIAction(title: "Flag this Set") { [onFlag] _ in onFlag() },
             UIAction(title: "Clear", attributes: .destructive) { [onClear] _ in onClear() }
         ])
     }

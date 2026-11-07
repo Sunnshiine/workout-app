@@ -44,6 +44,7 @@ struct ActiveSetCard: View {
 
     private static let headTargetSize: CGFloat = 44
     private static let headTargetOverhang: CGFloat = 12
+    private static let flagWordInset: CGFloat = 12
 
     private var setCardMode: SetCardMode {
         mode.cardMode
@@ -142,7 +143,7 @@ struct ActiveSetCard: View {
         switch mode.headAccessory(for: set) {
         case .none:
             HStack(spacing: 4) {
-                setFlagControl
+                savedAndFlag(showsSaved: false)
                 if let timedEffort {
                     TimedEffortControl(timedEffort: timedEffort, targetHeight: Self.headTargetSize)
                 }
@@ -152,21 +153,19 @@ struct ActiveSetCard: View {
             }
         case .saved:
             HStack(spacing: 0) {
-                savedConfirmation
-                setFlagControl
+                savedAndFlag(showsSaved: true)
                 if let mic {
                     micControl(mic.dictation)
                 }
             }
         case .clearMenu:
             HStack(spacing: 0) {
-                setFlagControl
+                savedAndFlag(showsSaved: false)
                 clearMenu
             }
         case .savedAndClearMenu:
             HStack(spacing: 0) {
-                savedConfirmation
-                setFlagControl
+                savedAndFlag(showsSaved: true)
                 HeldClearMenu(
                     tint: palette.textSecondary,
                     onOpened: onClearMenuOpened,
@@ -187,14 +186,34 @@ struct ActiveSetCard: View {
             .fixedSize()
     }
 
+    /// The flag's word goes first when the head runs short, because the sheet behind the control still
+    /// says it. The flexible frame keeps that choice on the room the head has: a `ViewThatFits` placed at
+    /// the word's own width chooses again and can draw the glyph alone in a word-wide button.
+    private func savedAndFlag(showsSaved: Bool) -> some View {
+        ViewThatFits(in: .horizontal) {
+            savedAndFlagRow(showsSaved: showsSaved, showsFlagWord: true)
+            savedAndFlagRow(showsSaved: showsSaved, showsFlagWord: false)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private func savedAndFlagRow(showsSaved: Bool, showsFlagWord: Bool) -> some View {
+        HStack(spacing: 0) {
+            if showsSaved {
+                savedConfirmation
+            }
+            setFlagControl(showsWord: showsFlagWord)
+        }
+    }
+
     @ViewBuilder
-    private var setFlagControl: some View {
+    private func setFlagControl(showsWord: Bool) -> some View {
         if mode.showsSetFlagControl(for: set) {
             Button {
                 dismissInputIfLogging()
                 onFlag()
             } label: {
-                setFlagFace
+                setFlagFace(showsWord: showsWord)
                     .frame(minWidth: Self.headTargetSize, minHeight: Self.headTargetSize)
                     .contentShape(.rect)
             }
@@ -205,14 +224,12 @@ struct ActiveSetCard: View {
         }
     }
 
-    /// The word goes first when the head runs short, because the sheet behind this control still says it.
     @ViewBuilder
-    private var setFlagFace: some View {
+    private func setFlagFace(showsWord: Bool) -> some View {
         if let standing = set.setFlagStanding {
-            ViewThatFits(in: .horizontal) {
-                SetFlagStatus(standing: standing, showsWord: true)
-                SetFlagStatus(standing: standing, showsWord: false)
-            }
+            SetFlagStatus(standing: standing, showsWord: showsWord)
+                .imageScale(showsWord ? .medium : .large)
+                .padding(.leading, showsWord ? Self.flagWordInset : 0)
         } else {
             Image(systemName: "flag")
                 .imageScale(.large)
@@ -222,7 +239,7 @@ struct ActiveSetCard: View {
 
     private var clearMenu: some View {
         Menu {
-            Button("Flag this Set", systemImage: "flag", action: onFlag)
+            Button("Flag this Set", action: onFlag)
             Button("Clear", role: .destructive, action: onDelete)
         } label: {
             Image(systemName: "ellipsis")
