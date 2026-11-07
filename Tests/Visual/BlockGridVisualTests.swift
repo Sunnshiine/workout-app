@@ -46,12 +46,15 @@ struct BlockGridVisualTests {
         // fixture block. Only tapping a tile would touch the store, and the render never taps.
         let scenario = try WorkoutScenarios.freshConfiguredApp()
         BlockGridFixtureRetainer.retain(scenario.store)
+        let meet = MeetStore(defaults: .inMemory(), now: { Date(timeIntervalSince1970: 1_793_966_400) })
+        BlockGridFixtureRetainer.retain(meet)
 
         let view = NavigationStack {
             BlockOverviewView(block: built.block, currentSession: built.currentSession)
         }
         .environment(scenario.store)
         .environment(AppEntryInbox())
+        .environment(meet)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

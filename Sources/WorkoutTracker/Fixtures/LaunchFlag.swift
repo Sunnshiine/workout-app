@@ -216,6 +216,20 @@
                 + " stops the app."
         )
 
+        static let meetDay = LaunchFlag(
+            argument: "-UITEST_MEET_DAY",
+            kind: .switch,
+            meaning:
+                "Plans the fixture's Meet on the phone: IPF, three Attempts and a Warm-up Room Plan on each Main Lift."
+                + " The Sheet never holds it."
+        )
+
+        static let meetWorstCase = LaunchFlag(
+            argument: "-UITEST_MEET_WORST_CASE",
+            kind: .switch,
+            meaning: "Plans a Meet with the longest numbers and Rack Heights a Plan holds, for finding where the Meet's screens break."
+        )
+
         static let all: [LaunchFlag] = [
             .fixture,
             .session,
@@ -244,7 +258,9 @@
             .dictation,
             .recording,
             .speechModels,
-            .decisionDeadline
+            .decisionDeadline,
+            .meetDay,
+            .meetWorstCase
         ]
     }
 #endif

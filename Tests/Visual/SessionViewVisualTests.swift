@@ -35,6 +35,7 @@ struct SessionViewVisualTests {
         )
 
         let entry = AppEntryInbox()
+        let meet = MeetStore(defaults: .inMemory(), now: { Date(timeIntervalSince1970: 1_793_966_400) })
         let view = NavigationStack {
             SessionView(
                 wiring: .live(
@@ -58,6 +59,7 @@ struct SessionViewVisualTests {
         .environment(lastPerformedLookup)
         .environment(historyFill)
         .environment(entry)
+        .environment(meet)
         .environment(\.themePalette, Theme.palette(for: appearance))
         .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         .environment(\.dynamicTypeSize, WorkoutVisualBaseline.dynamicTypeSize)

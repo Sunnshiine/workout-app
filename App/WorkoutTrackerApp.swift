@@ -164,6 +164,7 @@ struct WorkoutTrackerApp: App {
                 .environment(app.lastPerformed)
                 .environment(app.historyFill)
                 .environment(app.connection)
+                .environment(app.meet)
                 .environment(entry)
                 .environment(\.speechModelCaption, speechModelCaption)
                 .environment(\.exportDictationRecords, { try await app.exportDictations(into: .temporaryDirectory) })

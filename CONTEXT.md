@@ -59,6 +59,14 @@ here.
 
 **Spoken Set**, **Dictation**, **Live Transcript**, **Recording Transcript**, **Pause**, **Speech Model**, **Decision Deadline**, **Dictation Record**
 
+### Meet
+
+The terms for running a competition day live in [docs/context/meet.md](docs/context/meet.md), where
+each one's definition and avoid-list binds as the rest of this glossary does. A new Meet term goes
+there, with its name added here.
+
+**Meet**, **Attempt**, **Flight**, **Federation Rules**, **Attempts Out**, **Warm-up Room Plan**, **Attempt Window**, **Rack Height**
+
 ### Progress
 
 **Current Session**: The session the athlete is actively working on in the current Block: the Current Session Pin while one is in force, otherwise the most recently logged Session, derived from the sheet on each sync. Always an Available Session: when no Session has been logged yet it defaults to the first Available Session in Block order, never an Unavailable Session. Avoid: today's workout, active session.

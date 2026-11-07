@@ -1,7 +1,7 @@
 import Foundation
 
 /// One of the three lifts a Training Max is defined for. See CONTEXT.md, "Main Lift".
-enum MainLift: CaseIterable {
+enum MainLift: String, CaseIterable, Codable {
     case squat
     case bench
     case deadlift
@@ -9,7 +9,7 @@ enum MainLift: CaseIterable {
     /// The order an ambiguous base name resolves in, so "Squat Rack Bench Press" claims squat.
     private static let matchPrecedence: [MainLift] = [.squat, .bench, .deadlift]
 
-    private var sheetLabel: String {
+    var name: String {
         switch self {
         case .squat: "Squat"
         case .bench: "Bench Press"
@@ -32,7 +32,7 @@ enum MainLift: CaseIterable {
         let cell = cell.trimmed
         guard
             let match = Self.allCases.first(where: {
-                $0.sheetLabel.caseInsensitiveCompare(cell) == .orderedSame
+                $0.name.caseInsensitiveCompare(cell) == .orderedSame
             })
         else { return nil }
         self = match
