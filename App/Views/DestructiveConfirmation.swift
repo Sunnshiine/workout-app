@@ -40,6 +40,8 @@ private struct DestructiveConfirmation: ViewModifier {
                                     removal: .opacity.animation(.easeOut(duration: 0.06))
                                 )
                             )
+                            // A removed view can draw under its sibling, so only a zIndex keeps the card above the scrim.
+                            .zIndex(1)
                     }
                 }
             }
