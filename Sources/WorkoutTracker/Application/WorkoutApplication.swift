@@ -192,7 +192,7 @@ extension WorkoutApplication {
         }
         if let plates {
             let sizes = plates.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
-            let parsed = sizes.compactMap(PlateDenomination.init(rawValue:))
+            let parsed = sizes.compactMap(PlateDenomination.init(label:))
             guard parsed.count == sizes.count else { throw ApplicationError.invalidPlates(plates) }
             inventory = PlateInventory(bar: inventory.bar, plates: Set(parsed))
         }

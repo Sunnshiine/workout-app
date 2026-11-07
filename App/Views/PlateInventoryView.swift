@@ -28,7 +28,7 @@ struct PlateInventoryView: View {
             Section {
                 ForEach(PlateDenomination.allCases, id: \.self) { plate in
                     Toggle("\(plate.label) lb", isOn: stocked(plate))
-                        .accessibilityIdentifier("settings-plate-\(plate.rawValue)")
+                        .accessibilityIdentifier("settings-plate-\(plate.label)")
                 }
             } header: {
                 Text("Plates").foregroundStyle(palette.textSecondary)

@@ -19,15 +19,14 @@ enum WarmupRamp {
         guard case .pounds(let pounds) = top, let topLoad = PlateLoad(weighing: pounds, on: inventory) else { return [] }
         let bar = inventory.bar.quarterPounds
         let climb = Int((pounds * 4).rounded(.down)) - bar
-        var steps: [WarmupStep] = []
-        for (jump, reps) in repsPerJump.enumerated() {
-            let asked = Double(bar + climb * jump / repsPerJump.count) / 4
-            guard let load = PlateLoad(weighing: asked, on: inventory), load.reachable < topLoad.reachable,
-                load.reachable != steps.last?.load.reachable
-            else { continue }
-            steps.append(WarmupStep(load: load, reps: reps))
+        let jumps = repsPerJump.enumerated().compactMap { jump, reps in
+            PlateLoad(weighing: Double(bar + climb * jump / repsPerJump.count) / 4, on: inventory)
+                .map { WarmupStep(load: $0, reps: reps) }
         }
-        return steps
+        return jumps.reduce(into: []) { steps, jump in
+            guard jump.load.reachable < topLoad.reachable, jump.load.reachable != steps.last?.load.reachable else { return }
+            steps.append(jump)
+        }
     }
 }
 

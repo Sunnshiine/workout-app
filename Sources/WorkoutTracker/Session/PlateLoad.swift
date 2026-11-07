@@ -27,13 +27,7 @@ struct PlateLoad: Equatable, Sendable {
     /// at one 45.
     private static func plates(perSideOf asked: Int, on inventory: PlateInventory) -> [PlateDenomination] {
         let sizes = inventory.denominations
-        let budget = (asked - inventory.bar.quarterPounds) / 2
-        var buildable = [Bool](repeating: false, count: budget + 1)
-        buildable[0] = true
-        for weight in stride(from: 1, through: budget, by: 1) {
-            buildable[weight] = sizes.contains { $0.quarterPounds <= weight && buildable[weight - $0.quarterPounds] }
-        }
-
+        let buildable = buildableWeights(upTo: (asked - inventory.bar.quarterPounds) / 2, from: sizes)
         var left = buildable.lastIndex(of: true) ?? 0
         var perSide: [PlateDenomination] = []
         while let plate = sizes.first(where: { left > 0 && $0.quarterPounds <= left && buildable[left - $0.quarterPounds] }) {
@@ -41,5 +35,14 @@ struct PlateLoad: Equatable, Sendable {
             left -= plate.quarterPounds
         }
         return perSide
+    }
+
+    private static func buildableWeights(upTo budget: Int, from sizes: [PlateDenomination]) -> [Bool] {
+        var buildable = [Bool](repeating: false, count: budget + 1)
+        buildable[0] = true
+        for weight in stride(from: 1, through: budget, by: 1) {
+            buildable[weight] = sizes.contains { $0.quarterPounds <= weight && buildable[weight - $0.quarterPounds] }
+        }
+        return buildable
     }
 }
