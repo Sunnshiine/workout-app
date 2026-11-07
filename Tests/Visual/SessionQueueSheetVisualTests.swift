@@ -47,7 +47,7 @@ struct SessionQueueSheetVisualTests {
         let session = Session(dayNumber: 1, date: nil)
         let exercises = [
             makeExercise(name: "Competition Bench Press", order: 0, setStates: [.logged, .logged, .logged, .logged, .logged]),
-            makeExercise(name: "Larsen Press", order: 1, setStates: [.logged, .logged, .logged]),
+            makeExercise(name: "Larsen Press", order: 1, setStates: [.logged, .skipped, .logged]),
             makeExercise(name: "DB Incline Press", order: 2, setStates: [.logged, .pending, .pending, .pending]),
             makeExercise(name: "Chest-Supported Row", order: 3, setStates: [.pending, .pending, .pending]),
             makeExercise(name: "Seated DB OHP", order: 4, setStates: [.pending, .pending]),

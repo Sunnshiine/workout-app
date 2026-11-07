@@ -5,12 +5,12 @@ import Testing
 
 @Test func everyTypeRoleHasAStyle() {
     let styles = Dictionary(uniqueKeysWithValues: Theme.TypeRole.allCases.map { ($0, $0.style) })
-    #expect(styles.count == 25)
+    #expect(styles.count == 27)
 }
 
 @Test func everyTypeRoleHasACurve() {
     let curves = Dictionary(uniqueKeysWithValues: Theme.TypeRole.allCases.map { ($0, Theme.TypeScale.curve($0)) })
-    #expect(curves.count == 25)
+    #expect(curves.count == 27)
 }
 
 @Test(arguments: [
@@ -20,6 +20,8 @@ import Testing
     (.sheetTitle, Theme.TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1, opticalSize: 22)),
     (.heading, Theme.TypeStyle(face: .sourceSans3, size: 17, weight: 600)),
     (.supersetPartner, Theme.TypeStyle(face: .fraunces, size: 20, weight: 490)),
+    (.queueName, Theme.TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.1)),
+    (.queueNameOnStage, Theme.TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1)),
     (.weightEntry, Theme.TypeStyle(face: .sourceSans3, size: 46, weight: 700)),
     (.countdownNumeral, Theme.TypeStyle(face: .sourceSans3, size: 96, weight: 700)),
     (.logCapsule, Theme.TypeStyle(face: .sourceSans3, size: 17, weight: 600)),

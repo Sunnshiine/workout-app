@@ -2,7 +2,8 @@
 
 Greenhouse is the app's design system (ADR-0014). `PRODUCT.md` holds the users, the design
 principles, and the anti-references, and they bind every screen this file covers. The token values
-live in `docs/design/greenhouse-theme-tokens.md` and `Sources/WorkoutTracker/Theme.swift`. This
+live in `docs/design/greenhouse-theme-tokens.md`, `docs/design/greenhouse-type-roles.md`, and
+`Sources/WorkoutTracker/Theme.swift`. This
 file holds the rules those values serve. A § number names a section of this file, or of the
 component spec that keeps its number (§5).
 
@@ -92,8 +93,8 @@ gold, orange, tan, or generic beige wellness styling.
 Two bundled variable faces carry the type. Fraunces is the voice and speaks rarely. Source Sans 3 is
 the instrument and carries everything else, numbers included. Every role is one row of the table in
 `Sources/WorkoutTracker/ThemeType.swift`, and a view sets type only with `themeFont(_:)`, which
-applies the role's face, size, tracking, and leading together. The token sheet's type roles give
-each role's values.
+applies the role's face, size, tracking, and leading together.
+`docs/design/greenhouse-type-roles.md` gives each role's values.
 
 The Emil redesign rewrote this section on 2026-10-31. Operator ruling that day: "Where Emil's
 recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md, or a past operator
@@ -284,10 +285,11 @@ full-width green capsule takes `logCapsuleMetrics()`, one height.
 **The Bare Count Rule.** A count is a bare number unless the screen can't be read without a word
 beside it. A week card reads `2 of 4`, because the tiles beside it already show what is counted.
 When a count does need a word, it is the `CONTEXT.md` term, capitalized, and the same on every
-screen: a Set still to do is `left` (`5 Sets left`, `1 Set left` on an Open Exercise and on the Live
-Activity), and a finished Session counts what it holds (`5 Sets across 3 Exercises`), never `done`,
+screen: a Set still to do is `left` (`5 Sets left`, `1 Set left` on the Live Activity), and a finished Session counts what it holds (`5 Sets across 3 Exercises`), never `done`,
 which the Set State avoid-list bars. The operator, 2026-10-31, on a week card that read
 `0 of 4 Sessions`: "I hate this, please prefer no descriptor text unless absolutely necessary."
+An Open Exercise shows its Set marks in place of a count. The operator, 2026-11-06: "I also don't
+think we need to show count."
 
 **The Empty State Speaks Plainly Rule.** An empty state is a title, one or two short sentences that
 say what is missing and what happens next, and the one action that recovers. It carries no

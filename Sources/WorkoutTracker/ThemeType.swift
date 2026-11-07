@@ -5,7 +5,7 @@ import SwiftUI
     import UIKit
 #endif
 
-// MARK: - Type roles (token sheet §4)
+// MARK: - Type roles (docs/design/greenhouse-type-roles.md)
 //
 // Every text style is one row of this role table, and a view reaches it only through
 // `themeFont(_:)`, which sets the face, size, tracking and leading together and scales them with
@@ -73,6 +73,8 @@ extension Theme {
         case sheetTitle
         case heading
         case supersetPartner
+        case queueName
+        case queueNameOnStage
         case weightEntry
         case countdownNumeral
         case logCapsule
@@ -106,6 +108,8 @@ extension Theme {
             // The Superset "& partner" name line: the warm serif voice, subordinate to the
             // 33pt focused Exercise name and doubling as the manual focus switch (DESIGN.md §5.4).
             .supersetPartner: TypeStyle(face: .fraunces, size: 20, weight: 490),
+            .queueName: TypeStyle(face: .fraunces, size: 20, weight: 490, lineHeight: 1.1),
+            .queueNameOnStage: TypeStyle(face: .fraunces, size: 24, weight: 490, lineHeight: 1.1),
             .weightEntry: TypeStyle(face: .sourceSans3, size: 46, weight: 700),
             // An Effort Countdown's seconds, read at arm's length from the machine's seat (#1157).
             .countdownNumeral: TypeStyle(face: .sourceSans3, size: 96, weight: 700),

@@ -31,7 +31,7 @@ excluded:
   - "**/Generated"
 
 custom_rules:
-  # The type choke point (token sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
+  # The type choke point (type roles sheet §4, ADR-0014, ledger §1.7). Every text style is one row of
   # the role table in ThemeType.swift, and a view sets it with themeFont(_:), which also applies the
   # role's tracking, leading and Dynamic Type curve. This bans the three escape routes —
   # Font.custom(…), .system(size:…), and the shorthand system text styles (.font(.headline) …).
@@ -42,7 +42,7 @@ custom_rules:
       Text.themeFont(_:at:) inside a Text concatenation).
       Font.custom(…), .system(size:…) and the shorthand system text styles (.font(.headline) …)
       skip the role's tracking, leading and Dynamic Type curve, so they are banned outside it
-      (ADR-0014, DESIGN.md §3, token sheet §4).
+      (ADR-0014, DESIGN.md §3, type roles sheet §4).
     regex: '(Font\.custom\(|\.system\(size|\.font\(\s*\.(largeTitle|title|title2|title3|headline|subheadline|body|callout|footnote|caption|caption2)\b)'
     included: '.*/(App|Sources/WorkoutTracker)/.*'
     # ThemeType.swift is the one sanctioned home of the role table (its off-device fallback uses
@@ -64,13 +64,13 @@ custom_rules:
     severity: error
 
   # Uppercase microlabels are editorial scaffolding the sunlit-ledger register carried; Greenhouse
-  # strips them (DESIGN.md §4, token sheet §4 "do not carry"). Field labels read in sentence/label
+  # strips them (DESIGN.md §4, type roles sheet §4 "do not carry"). Field labels read in sentence/label
   # case through the type roles — no view uppercases a microlabel via `.textCase(.uppercase)` or a
   # `.uppercased()` display string.
   no_uppercase_microlabels:
     name: "No uppercase microlabels"
     message: >
-      Greenhouse strips the uppercase microlabel (DESIGN.md §4, token sheet §4 — "do not carry").
+      Greenhouse strips the uppercase microlabel (DESIGN.md §4, type roles sheet §4 — "do not carry").
       Render field/section labels in their natural case through Theme.font(_:); do not apply
       .textCase(.uppercase) or .uppercased() to displayed text.
     regex: '(\.textCase\(\s*\.uppercase\s*\)|\.uppercased\(\))'

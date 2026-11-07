@@ -4,32 +4,22 @@ import Testing
 @testable import WorkoutTracker
 
 @MainActor
-@Test func openExerciseRowReadsBaseNamePendingSetsAndSource() throws {
+@Test func openExerciseRowReadsBaseNameSetsAndSource() throws {
     let scenario = WorkoutScenarios.openExercises()
     let current = try #require(scenario.currentSession)
     let open = scenario.tracker.openExercises(for: current)
     let backSquat = try #require(open.first).exercise
 
-    let row = OpenExerciseRowPresentation(exercise: backSquat)
-
-    #expect(row.name == "Back Squat")
-    #expect(row.pendingSetLabel == "1 Set left")
-    #expect(row.sessionAddressLabel == "W1 D1")
-}
-
-@MainActor
-@Test func openExerciseRowPluralizesPendingSets() throws {
-    let scenario = WorkoutScenarios.openExercises()
-    let current = try #require(scenario.currentSession)
-    let open = scenario.tracker.openExercises(for: current)
-    let backSquat = try #require(open.first).exercise
-    backSquat.sets.append(
-        ExerciseSet(index: 2, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending)
+    backSquat.sets.insert(
+        ExerciseSet(index: 5, prescribedReps: "5", prescribedLoad: "RPE8", percentOneRM: nil, state: .pending),
+        at: 0
     )
 
     let row = OpenExerciseRowPresentation(exercise: backSquat)
 
-    #expect(row.pendingSetLabel == "2 Sets left")
+    #expect(row.name == "Back Squat")
+    #expect(row.sets.map(\.index) == row.sets.map(\.index).sorted())
+    #expect(row.sessionAddressLabel == "W1 D1")
 }
 
 @MainActor
