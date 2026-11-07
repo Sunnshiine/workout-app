@@ -206,7 +206,7 @@ struct OnboardingView: View {
             Button(action: saveURL) {
                 Text("Save")
                     .logCapsuleMetrics()
-                    .foregroundStyle(canSave ? palette.actionText : palette.textSecondary)
+                    .foregroundStyle(canSave ? palette.actionText : palette.textSecondary.opacity(0.6))
                     .background(canSave ? palette.actionFill : palette.railFill, in: .capsule)
             }
             .buttonStyle(.pressScale)

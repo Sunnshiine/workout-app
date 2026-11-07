@@ -41,8 +41,9 @@ rule in DESIGN.md, PRODUCT.md, or a past operator decision, Emil wins."
 - The rest pill fades in once Up next has faded out. Its restart beat, 2.5% larger and brighter for
   about 0.16 s, plays only when a rest restarts under a pill already showing, never on its reveal.
 - The destructive confirmation card rises from 0.96 over a fading scrim and a 6 pt blur on a 0.2 s
-  ease-out, opaque within 0.1 s so the rows behind never read through its words, and the scrim and
-  blur leave in 0.15 s.
+  ease-out, opaque within 0.1 s so the rows behind never read through its words. On the way out the card
+  fades in 0.06 s and the scrim and blur follow over 0.1 s, 0.05 s in, so its words never hang over
+  rows already sharp.
 - Onboarding's card keeps its surface across a step, its height following on a 0.3 s smooth spring.
   The old content clears in 0.1 s and the new fades in over 0.18 s, 0.09 s in, so the two never read
   as one double exposure.
