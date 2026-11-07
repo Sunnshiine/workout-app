@@ -12,7 +12,7 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Set 1 of 1"].appears(within: 3))
         XCTAssertEqual(app.staticTexts["stage-exercise-name"].label, "Primer Row")
-        XCTAssertEqual(app.descendants(matching: .any)["logged-set-capsule"].label, "95x8@6", "its logged Set is open for review")
+        XCTAssertEqual(app.descendants(matching: .any)["logged-set-capsule"].label, "95 × 8 @6", "its logged Set is open for review")
     }
 
     @MainActor

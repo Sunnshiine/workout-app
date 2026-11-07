@@ -19,7 +19,7 @@ final class PartiallyUploadedBlockUITests: XCTestCase {
         let celebration = app.descendants(matching: .any)["move-on-celebration"]
         XCTAssertTrue(celebration.appears(within: 3))
         XCTAssertEqual(celebration.label, "Week 4, Day 1")
-        waitForValueContaining("1 Sets, 1 Exercises, 1 Left", on: celebration)
+        waitForValueContaining("1 Set, 1 Exercise, 1 Left", on: celebration)
 
         app.buttons["move-on-celebration-continue"].tap()
 
