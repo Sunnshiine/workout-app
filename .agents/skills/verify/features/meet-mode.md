@@ -35,7 +35,8 @@ Preconditions:
 - **No called Attempt.** On the Plan tap `meet-attempt-squat-second`, then `meet-weight-clear`. Tap `meet-attempt-squat-second` again and the sheet opens blank with its pad up. Dismiss it and run to a mark. `meet-weight-field` is blank, `meet-submit` is neutral, and `meet-weight-up` reads 2.5 above the marked weight. At time `meet-accept-table-entry` is the one answer.
 - **Rapid taps.** The mark pads and `meet-submit` overlap, so touches are held off for 0.4 s after the stage changes. Two `verify.sh axe touch` calls arrive further apart than that and the second lands, so prove it with `MeetPlatformUITests`, whose three-tap burst fails with the hold at zero. A `doubleTap` does not: its second touch beats the new control's commit.
 - **Headless.** `workout meet plan` and `workout meet tick` drive the same stores, as in `cli-headless.md`. `WORKOUT_NOW` moves the clock, so a window expires without waiting.
-- **Proof.** The window's numeral rolls down in place, and it and its caption do not move when the rule appears, when a note arrives, or at expiry. No hue changes at any stage: the closing and expired stages read in type alone.
+- **Typing over.** Press `meet-weight-field` for any length (`verify.sh axe touch ... --down --up --delay 1.2`), then touch one key. Its value is that digit alone. A press held past about 0.6 s once landed a caret after the selection, leaving `1901`, so the field takes touches only once it has focus and a second press still places a caret. `MeetPlatformUITests` holds this, and it fails without the guard.
+- **Proof.** The window's numeral cuts once a second in place, and it and its caption do not move when the rule appears, when a note arrives, or at expiry. No hue changes at any stage: the closing and expired stages read in type alone.
 
 ## Gotchas
 
