@@ -89,7 +89,7 @@ final class LockScreenPress {
     /// each RPE Chip carries them, so a row drawn again from scratch can never log other Reps.
     @discardableResult
     func chooseReps(setIdentity: String, reps: Int?) async -> Outcome {
-        if let surface = micInFlight { return await refuse(.micBusy(surface), pressing: setIdentity) }
+        if let surface = micInFlight { return await refuseWhileTheMicListens(surface, pressing: setIdentity) }
         focus.endHoldAfterSpokenWrite()
         let current = app.workout.currentSession
         switch LockScreenOffer.admits(reps) ? Self.target(of: setIdentity, session: current, focus: focus) : .refuse(.unreadable) {
@@ -108,7 +108,7 @@ final class LockScreenPress {
 
     @discardableResult
     func logSet(setIdentity: String, reps: Int, rpe: String) async -> Outcome {
-        if let surface = micInFlight { return await refuse(.micBusy(surface), pressing: setIdentity) }
+        if let surface = micInFlight { return await refuseWhileTheMicListens(surface, pressing: setIdentity) }
         guard rows.admitsRPEPress(at: clock.now) else {
             return await refuse(.tooSoonAfterReps, pressing: setIdentity, offeringRPEFor: reps)
         }
@@ -164,6 +164,14 @@ final class LockScreenPress {
         SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
     }
 
+    /// The Set a press's identity names in this Session; nil for one from another Session.
+    private static func set(named setIdentity: String?, in session: Session) -> SessionSetPosition? {
+        guard let identity = setIdentity.flatMap(LoggableSetIdentity.init(storageValue:)),
+            identity.session == session.placement.coordinate
+        else { return nil }
+        return set(identity.setID, in: session)
+    }
+
     private static func settled(_ pressed: SessionSetPosition, in session: Session, pressing setLog: SetLog) -> Decision {
         guard pressed.set.setLog != setLog else { return .sameSetLog(at: pressed.setID) }
         return .refuse(.setSettled(setLog: pressed.set.setLog?.readback, set: .init(pressed, in: session)))
@@ -200,6 +208,13 @@ final class LockScreenPress {
         return .logged(setLog, at: position.setID)
     }
 
+    /// With no rest running, a recording has the Live Activity to itself, and a readback would end
+    /// the activity the system records under.
+    private func refuseWhileTheMicListens(_ surface: SetDictation.Surface, pressing setIdentity: String) async -> Outcome {
+        guard liveActivity.restContent != nil else { return .notLogged(.micBusy(surface)) }
+        return await refuse(.micBusy(surface), pressing: setIdentity)
+    }
+
     /// Says why nothing was written, over the Set the card is on, else over the Set the press
     /// named, as a stale press on the Session's last Set does.
     private func refuse(
@@ -207,17 +222,11 @@ final class LockScreenPress {
         pressing setIdentity: String?,
         offeringRPEFor reps: Int? = nil  // default: only a too-soon press proved the row was on RPE for its Reps
     ) async -> Outcome {
-        // With no rest running, a recording has the Live Activity to itself, and a readback would
-        // end the activity the system records under.
-        if case .micBusy = why, liveActivity.restContent == nil { return .notLogged(why) }
         guard let session = app.workout.currentSession else {
             await liveActivity.show(.noCurrentSession)
             return .notLogged(why)
         }
-        let pressed = setIdentity.flatMap(LoggableSetIdentity.init(storageValue:)).flatMap { identity in
-            identity.session == session.placement.coordinate ? Self.set(identity.setID, in: session) : nil
-        }
-        guard let shown = focus.activeSet(in: session) ?? pressed else {
+        guard let shown = focus.activeSet(in: session) ?? Self.set(named: setIdentity, in: session) else {
             await liveActivity.show(.noSetLeft)
             return .notLogged(why)
         }
