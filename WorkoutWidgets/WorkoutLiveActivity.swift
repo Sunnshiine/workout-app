@@ -4,8 +4,8 @@ import SwiftUI
 import WidgetKit
 
 struct WorkoutLiveActivity: Widget {
-    /// The system gives the expanded island 160pt, and the RPE Chips use all of it at the default size.
-    private static let islandLargestType = DynamicTypeSize.large
+    /// DESIGN.md's Product Scale Rule: app-drawn text stops growing here.
+    fileprivate static let largestType = DynamicTypeSize.xxxLarge
 
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
@@ -34,19 +34,19 @@ struct WorkoutLiveActivity: Widget {
     ) -> DynamicIslandExpandedContent<some View> {
         DynamicIslandExpandedRegion(.leading) {
             expandedLeading(for: context.state)
-                .dynamicTypeSize(...Self.islandLargestType)
+                .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.trailing) {
             expandedTrailing(for: context.state)
-                .dynamicTypeSize(...Self.islandLargestType)
+                .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.center) {
             expandedCenter(for: context)
-                .dynamicTypeSize(...Self.islandLargestType)
+                .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.bottom) {
             expandedBottom(for: context)
-                .dynamicTypeSize(...Self.islandLargestType)
+                .dynamicTypeSize(...Self.largestType)
         }
     }
 
@@ -84,8 +84,10 @@ struct WorkoutLiveActivity: Widget {
                     .lineLimit(2)
             }
         case .needsApp:
+            // A long load shrinks to fit, since a prescription cut off mid-value reads wrong.
             PrescriptionStack(state: state)
                 .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
     }
 
@@ -123,7 +125,7 @@ struct WorkoutLiveActivity: Widget {
                 // The chips' Exercise and values read under it, so the digits need no label, and
                 // the chips take the room the digits would.
                 if context.state.loggablePress == .needsApp {
-                    RestCountdownStack(state: context.state, showsLabel: true, digits: .largeFigure)
+                    IslandRestCountdown(state: context.state)
                 } else {
                     RestCountdownStack(state: context.state, showsLabel: false, digits: .figure)
                 }
@@ -253,7 +255,7 @@ private struct LockScreenWorkoutView: View {
             }
         }
         .animation(.smooth(duration: 0.35), value: state.dictation)
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .dynamicTypeSize(...WorkoutLiveActivity.largestType)
     }
 
     private var progress: some View {
@@ -286,40 +288,15 @@ private struct LockScreenWorkoutView: View {
     }
 }
 
-/// The Lock Screen when a press found no Set to listen for: the Session it looked in, if any, over
-/// why, and the rest countdown when one is running.
-private struct NoSetLockScreenView: View {
+/// The rest with no chips under it. The system gives the expanded island's center the height it asks
+/// for and takes it from the row under it, so space cannot decide what gives way here: at the
+/// largest type the label goes, and the count of Sets left under it stays whole.
+private struct IslandRestCountdown: View {
     let state: WorkoutActivityAttributes.ContentState
-    let dictation: LiveActivityDictation
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        let colors = state.liveActivityColors
-
-        VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
-                if let session = dictation.sessionName {
-                    Text(session)
-                        .liveActivityFont(.control)
-                        .foregroundStyle(colors.primaryText)
-                        .lineLimit(1)
-                }
-
-                DictationReadback(dictation: dictation, colors: colors, style: .lockScreen(prescription: nil))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if state.restEndDate != nil {
-                HStack(spacing: 8) {
-                    RestCountdownText(state: state)
-                        .liveActivityFont(.figure)
-                        .foregroundStyle(colors.primaryText)
-                        .frame(width: 52, alignment: .leading)
-
-                    RestProgressWithContext(state: state, style: .lockScreen)
-                }
-            }
-        }
-        .padding(16)
+        RestCountdownStack(state: state, showsLabel: dynamicTypeSize < WorkoutLiveActivity.largestType, digits: .largeFigure)
     }
 }
 

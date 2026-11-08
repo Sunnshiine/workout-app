@@ -7,33 +7,57 @@ enum LockScreenCardMetrics {
     static let controlCornerRadius: CGFloat = 12
 }
 
+/// What a card keeps, tried in order until one fits the height the system gives it at the reader's
+/// type size, so the room decides what goes and the type itself never stops growing. The spare line
+/// goes first: Last Performed, or the second line of a readback's reason. The bottom row keeps the
+/// chips' height for as long as it can, because the system can keep a card's last height until the
+/// screen wakes, and a readback shorter than the next Set's card would draw its chips cut off.
+enum LockScreenCardFit: CaseIterable {
+    case whole
+    case withoutTheSpareLine
+    case withTheBottomRowAtItsOwnHeight
+
+    var keepsTheSpareLine: Bool {
+        self == .whole
+    }
+
+    var bottomRowHeight: CGFloat? {
+        self == .withTheBottomRowAtItsOwnHeight ? nil : LockScreenCardMetrics.controlSize
+    }
+}
+
 /// Every state of the Lock Screen card in one shape: the Exercise and the rest on the first line, the
-/// mic in one place, and a bottom row the height of the chips. The system can keep a card's last height
-/// until the screen wakes, so a card that grew would draw its chips cut off, and it gives a card
-/// 160pt, which every line here fits up to `.xxLarge`. Past it the card keeps all of them at that size
-/// over dropping one.
+/// mic in one place, and a bottom row the height of the chips.
 struct LockScreenCardLayout<Lines: View, Mic: View, BottomRow: View>: View {
     private let state: WorkoutActivityAttributes.ContentState
     private let exerciseName: String
-    private let lines: Lines
+    private let lines: (_ keepsTheSpareLine: Bool) -> Lines
     private let mic: Mic
     private let bottomRow: BottomRow
 
     init(
         state: WorkoutActivityAttributes.ContentState,
         exerciseName: String,
-        @ViewBuilder lines: () -> Lines,
+        @ViewBuilder lines: @escaping (_ keepsTheSpareLine: Bool) -> Lines,
         @ViewBuilder mic: () -> Mic,
         @ViewBuilder bottomRow: () -> BottomRow
     ) {
         self.state = state
         self.exerciseName = exerciseName
-        self.lines = lines()
+        self.lines = lines
         self.mic = mic()
         self.bottomRow = bottomRow()
     }
 
     var body: some View {
+        ViewThatFits(in: .vertical) {
+            ForEach(LockScreenCardFit.allCases, id: \.self) { fit in
+                card(fit)
+            }
+        }
+    }
+
+    private func card(_ fit: LockScreenCardFit) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
@@ -56,17 +80,16 @@ struct LockScreenCardLayout<Lines: View, Mic: View, BottomRow: View>: View {
                         }
                     }
 
-                    lines
+                    lines(fit.keepsTheSpareLine)
                 }
 
                 mic
             }
 
             bottomRow
-                .frame(maxWidth: .infinity, minHeight: LockScreenCardMetrics.controlSize, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: fit.bottomRowHeight, alignment: .leading)
         }
         .padding(12)
-        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 }
 
@@ -77,16 +100,12 @@ struct SetOfferLockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
-        LockScreenCardLayout(state: state, exerciseName: state.exerciseName) {
-            if state.lastPerformed.isEmpty {
-                Text(" ")
-                    .liveActivityFont(.lastPerformed)
-                    .hidden()
-            } else {
+        LockScreenCardLayout(state: state, exerciseName: state.exerciseName) { keepsTheSpareLine in
+            if keepsTheSpareLine, !state.lastPerformed.isEmpty {
                 lastPerformedLine
             }
 
-            valuesLine
+            valuesLines(holdingTheSpareLine: keepsTheSpareLine && state.lastPerformed.isEmpty)
         } mic: {
             SaySetButton(state: state, diameter: LockScreenCardMetrics.controlSize)
         } bottomRow: {
@@ -110,7 +129,7 @@ struct SetOfferLockScreenView: View {
         case .needsApp:
             // The mic beside it says the other half: this Set can still be said.
             Link(destination: RPEChipRow.appURL) {
-                Text("Unlock to log")
+                Text("Open to log")
                     .liveActivityFont(.control)
                     .foregroundStyle(colors.primaryText)
                     .frame(maxWidth: .infinity)
@@ -123,35 +142,72 @@ struct SetOfferLockScreenView: View {
 
     /// What a chip logs sits on the line over the chips, and with no chips the prescription does. The
     /// line drops whole parts, since a count cut off mid-word reads worse than no count. The queue
-    /// goes last among them: no other surface says it with the app closed.
-    private var valuesLine: some View {
+    /// goes last among them, since no other surface says it with the app closed: where it fits beside
+    /// nothing, it takes a line of its own, the spare line when the card holds that one empty.
+    private func valuesLines(holdingTheSpareLine: Bool) -> some View {
         ViewThatFits(in: .horizontal) {
             ForEach(Array(besideTheValues.enumerated()), id: \.offset) { _, text in
-                valuesLine(beside: text)
+                VStack(alignment: .leading, spacing: 1) {
+                    if holdingTheSpareLine {
+                        spareLine
+                    }
+
+                    valuesLine(beside: text)
+                }
+            }
+
+            if let queue = state.pendingWritesText {
+                VStack(alignment: .leading, spacing: 1) {
+                    valuesLine(beside: "")
+
+                    ViewThatFits(in: .horizontal) {
+                        if let setsLeft = state.restContextText {
+                            Text("\(queue) · \(setsLeft)")
+                        }
+
+                        Text(queue)
+                    }
+                    .lineLimit(1)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 1) {
+                if holdingTheSpareLine {
+                    spareLine
+                }
+
+                valuesLine(beside: "")
             }
         }
         .liveActivityFont(.reference)
         .foregroundStyle(state.liveActivityColors.secondaryText)
     }
 
+    /// Keeps a card with no Last Performed as tall as one with it.
+    private var spareLine: some View {
+        Text(" ")
+            .liveActivityFont(.lastPerformed)
+            .hidden()
+    }
+
     private func valuesLine(beside text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // A long cell shrinks to fit, and the hidden line keeps the card from losing height to it.
+            // A long cell shrinks to fit only on its own, so a count never costs it size, and the
+            // hidden line keeps the card from losing height to it.
             ZStack(alignment: .leading) {
                 Text(" ").hidden()
 
                 switch state.loggablePress {
                 case .ready(let offer):
                     LoggableValuesText(offer: offer, color: state.liveActivityColors.primaryText)
-                        .minimumScaleFactor(0.75)
                 case .needsApp:
                     Text(state.prescriptionText)
                         .foregroundStyle(state.liveActivityColors.primaryText)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.75)
                 }
             }
             .liveActivityFont(.figure)
+            .minimumScaleFactor(text.isEmpty ? 0.75 : 1)
 
             if !text.isEmpty {
                 Text(text)
@@ -160,7 +216,7 @@ struct SetOfferLockScreenView: View {
         }
     }
 
-    /// Longest first, ending on the values alone.
+    /// Longest first, ending on the queue alone.
     private var besideTheValues: [String] {
         let prescription: String? =
             switch state.loggablePress {
@@ -169,7 +225,7 @@ struct SetOfferLockScreenView: View {
             }
         let queue = state.pendingWritesText
         let setsLeft = state.restContextText
-        return [[prescription, queue, setsLeft], [prescription, queue], [queue, setsLeft], [queue], []]
+        return [[prescription, queue, setsLeft], [prescription, queue], [queue, setsLeft], [queue]]
             .map { $0.compactMap { $0 }.joined(separator: " · ") }
     }
 

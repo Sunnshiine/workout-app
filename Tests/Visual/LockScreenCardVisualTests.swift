@@ -6,8 +6,8 @@ import Testing
 
 /// The Lock Screen card in each palette the Live Activity Lab can choose, on a rest long over so the
 /// countdown reads a stable `Ready`. The production activity always takes the dark palette. Each draws
-/// at the width a card lays out at, in the 160pt the system gives it, so a state that outgrew the
-/// card would show cut off.
+/// at the width a card lays out at, in the height the system gives it at its type size, so a state
+/// that outgrew the card would show cut off.
 @MainActor
 @Suite(.snapshots(record: .never))
 struct LockScreenCardVisualTests {
@@ -93,6 +93,18 @@ struct LockScreenCardVisualTests {
         assertCardBaseline(state(.dark, press: .needsApp, lastPerformed: Self.lastPerformed), dynamicTypeSize: .xxxLarge)
     }
 
+    @Test func theQueueTakesTheSpareLineWhereItFitsBesideNothing() {
+        assertCardBaseline(Self.dropSet(.dark), dynamicTypeSize: .xxxLarge)
+    }
+
+    @Test func aCardShortOfRoomGivesUpLastPerformedBeforeAChip() {
+        assertCardBaseline(
+            state(.dark, press: Self.backSquatPress, lastPerformed: Self.lastPerformed),
+            dynamicTypeSize: .xxxLarge,
+            height: Self.systemHeight(at: .large)
+        )
+    }
+
     @Test func theNarrowestPhoneKeepsEveryChipOnTheCard() {
         assertCardBaseline(state(.dark, press: Self.backSquatPress, lastPerformed: Self.lastPerformed, pendingWrites: 3), width: 347)
     }
@@ -128,7 +140,7 @@ struct LockScreenCardVisualTests {
 
     @Test func aLongReasonStaysOnItsLineAtTheLargestType() {
         assertCardBaseline(
-            state(.dark, dictation: .notLogged("Couldn’t read that tap. Unlock to log")),
+            state(.dark, dictation: Self.longReason),
             dynamicTypeSize: .xxxLarge
         )
     }
@@ -194,6 +206,7 @@ struct LockScreenCardVisualTests {
     private static let backSquatSet = LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 2, setsTotal: 3)
     private static let logged = LiveActivityDictation.logged("252.5×5 @7", to: backSquatSet)
     private static let refused = LiveActivityDictation.settled(setLog: "252.5×5 @8", backSquatSet)
+    private static let longReason = LiveActivityDictation.notLogged("Couldn’t read that tap. Open to log")
 
     private struct Prescription {
         let exerciseName: String
@@ -216,6 +229,17 @@ struct LockScreenCardVisualTests {
                 "1025.5×1 @10, 1015×1 @9.5, …",
                 "1025.5×1 @10, …"
             ]
+        )
+    }
+
+    /// A drop Set with writes still queued, which the chips cannot log and nothing was performed of.
+    private static func dropSet(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
+        makeState(
+            Prescription(exerciseName: "BB RDL", reps: "8", load: "Drop 17.5%"),
+            appearance,
+            press: .needsApp,
+            lastPerformed: [],
+            pendingWrites: 4
         )
     }
 
@@ -270,25 +294,21 @@ struct LockScreenCardVisualTests {
         _ state: WorkoutActivityAttributes.ContentState,
         dynamicTypeSize: DynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize,
         width: CGFloat = cardWidth,
+        height: CGFloat? = nil,
         testName: String = #function
     ) {
-        let view = Group {
-            if let dictation = state.dictation {
-                DictationLockScreenView(state: state, dictation: dictation)
-            } else {
-                SetOfferLockScreenView(state: state)
-            }
-        }
-        .frame(width: width, height: 160, alignment: .top)
-        .background(state.liveActivityColors.background)
-        .environment(\.dynamicTypeSize, dynamicTypeSize)
-        .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+        let height = height ?? Self.systemHeight(at: dynamicTypeSize)
+        let view = Self.card(state)
+            .frame(width: width, height: height, alignment: .top)
+            .background(state.liveActivityColors.background)
+            .environment(\.dynamicTypeSize, dynamicTypeSize)
+            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
 
         assertSnapshot(
             of: view,
             as: .image(
                 precision: WorkoutVisualBaseline.labelAntialiasingPrecision,
-                layout: .fixed(width: width, height: 160),
+                layout: .fixed(width: width, height: height),
                 traits: UITraitCollection { traits in
                     traits.displayScale = 3
                     traits.userInterfaceStyle = state.appearance == .dark ? .dark : .light
@@ -296,5 +316,69 @@ struct LockScreenCardVisualTests {
             ),
             testName: testName
         )
+    }
+}
+
+extension LockScreenCardVisualTests {
+    /// The height the system offers a Lock Screen card, measured on the iOS 27 simulator with a card
+    /// of fixed-height rungs in a `ViewThatFits`: 160pt up to `.large`, then at least 170, 185, and
+    /// 200. A card shows the rung that fits.
+    fileprivate static func systemHeight(at size: DynamicTypeSize) -> CGFloat {
+        switch size {
+        case ...DynamicTypeSize.large: 160
+        case .xLarge: 170
+        case .xxLarge: 185
+        default: 200
+        }
+    }
+
+    @ViewBuilder
+    fileprivate static func card(_ state: WorkoutActivityAttributes.ContentState) -> some View {
+        if let dictation = state.dictation {
+            if dictation.isAboutASet {
+                DictationLockScreenView(state: state, dictation: dictation)
+            } else {
+                NoSetLockScreenView(state: state, dictation: dictation)
+            }
+        } else {
+            SetOfferLockScreenView(state: state)
+        }
+    }
+}
+
+/// At every type size up to where DESIGN.md's Product Scale Rule stops it, each state keeps every
+/// line in the height the system gives it. The system can keep a card's last height until the screen
+/// wakes, so a readback is never shorter than the card of the Set it moves on to.
+extension LockScreenCardVisualTests {
+    @Test func everyStateKeepsEveryLineAtEveryTypeSize() throws {
+        for size in DynamicTypeSize.allCases where size <= .xxxLarge {
+            let offers = [
+                state(.dark, press: Self.backSquatPress, lastPerformed: Self.lastPerformed),
+                state(.dark, press: Self.backSquatPress),
+                state(.dark, press: .needsApp, lastPerformed: Self.lastPerformed),
+                Self.longestCells(.dark, press: Self.heaviestPress),
+                Self.longestCells(.dark, press: .needsApp),
+                Self.dropSet(.dark)
+            ]
+            .map { height(of: $0, at: size) }
+            let readbacks = [Self.logged, Self.refused, .listening, Self.longReason]
+                .map { height(of: state(.dark, dictation: $0), at: size) }
+            let noSet = [LiveActivityDictation.noSetLeft(session: "Block 27 · W1 D1"), .noCurrentSession]
+                .map { height(of: state(.dark, dictation: $0), at: size) }
+            for height in offers + readbacks + noSet {
+                #expect(height <= Self.systemHeight(at: size), "At \(size) a card drew \(height)pt")
+            }
+            let shortestReadback = try #require(readbacks.min())
+            let tallestOffer = try #require(offers.max())
+            #expect(shortestReadback >= tallestOffer, "At \(size) a readback drew \(readbacks) over cards of \(offers)")
+        }
+    }
+
+    private func height(of state: WorkoutActivityAttributes.ContentState, at size: DynamicTypeSize) -> CGFloat {
+        let card = Self.card(state)
+            .environment(\.dynamicTypeSize, size)
+            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+        let unbounded = CGSize(width: Self.cardWidth, height: .greatestFiniteMagnitude)
+        return UIHostingController(rootView: card).sizeThatFits(in: unbounded).height
     }
 }

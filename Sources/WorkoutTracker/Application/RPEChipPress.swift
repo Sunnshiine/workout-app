@@ -198,14 +198,14 @@ extension RPEChipPress.NotLogged {
     /// Why, as a client with no Live Activity reports it and the Live Activity reads it back.
     var caption: String {
         switch self {
-        case .unreadable: "Couldn’t read that tap. Unlock to log"
+        case .unreadable: "Couldn’t read that tap. Open to log"
         case .noCurrentSession: "No Current Session"
-        case .sessionChanged: "The Session changed. Unlock to log"
+        case .sessionChanged: "The Session changed. Open to log"
         case .setSettled(let setLog, let set):
             "Set \(set.setOrdinal) of \(set.setsTotal) " + (setLog.map { "holds \($0)" } ?? "was skipped")
         case .cardMovedOn: "The card moved to another Set"
-        case .cardChanged: "The card changed. Unlock to log"
-        case .writeFailed: "Couldn’t save. Unlock to log"
+        case .cardChanged: "The card changed. Open to log"
+        case .writeFailed: "Couldn’t save. Open to log"
         }
     }
 

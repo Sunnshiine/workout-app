@@ -67,7 +67,7 @@
 
             #expect(press.status != 0)
             #expect(try press.json["outcome"] as? String == "notLogged")
-            #expect(try press.json["reason"] as? String == "The Session changed. Unlock to log")
+            #expect(try press.json["reason"] as? String == "The Session changed. Open to log")
             #expect(try press.json["pendingWriteCount"] as? Int == 0)
         }
 

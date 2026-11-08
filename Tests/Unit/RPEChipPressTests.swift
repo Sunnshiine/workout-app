@@ -222,7 +222,7 @@ extension BackgroundDictationHarness {
     let outcome = await harness.press(harness.identity(blockTab: "Block 26"))
 
     #expect(outcome == .notLogged(.sessionChanged))
-    #expect(harness.liveActivity.readbacks == [.notLogged("The Session changed. Unlock to log")])
+    #expect(harness.liveActivity.readbacks == [.notLogged("The Session changed. Open to log")])
     try harness.expectNothingWritten()
 }
 
@@ -257,7 +257,7 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async
     let outcome = await harness.press(harness.identity())
 
     #expect(outcome == .notLogged(.cardChanged))
-    #expect(harness.liveActivity.readbacks == [.notLogged("The card changed. Unlock to log")])
+    #expect(harness.liveActivity.readbacks == [.notLogged("The card changed. Open to log")])
     try harness.expectNothingWritten()
 }
 
@@ -295,10 +295,21 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async
     let context = { SpokenSetContext(for: set.set, history: history) }
     let listening = Task { await harness.dictation.listenUntilQuiet(for: set.setID, on: .headless, in: context) }
     await waitUntil({ harness.dictation.state.pressSetID != nil }, orRecord: "The mic never opened")
+    // A press that logged past the open mic holds its readback, and the mic it overtook never stops,
+    // so the press runs on a clock that moves and the outcome must hold before the mic is closed.
+    let chips = RPEChipPress(
+        app: harness.app,
+        dictation: harness.dictation,
+        focus: harness.focus,
+        restTimer: harness.restTimer,
+        liveActivity: harness.liveActivity,
+        signIn: harness.signIn,
+        clock: ContinuousListeningClock()
+    )
 
-    let outcome = await harness.chips.run(setIdentity: harness.identity(), rpe: "7")
+    let outcome = await chips.run(setIdentity: harness.identity(), rpe: "7")
 
-    #expect(outcome == .micBusy)
+    try #require(outcome == .micBusy)
     #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
     await harness.dictation.cancel()

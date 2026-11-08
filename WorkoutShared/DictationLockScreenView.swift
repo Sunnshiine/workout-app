@@ -11,8 +11,12 @@ struct DictationLockScreenView: View {
     var body: some View {
         let colors = state.liveActivityColors
 
-        LockScreenCardLayout(state: state, exerciseName: dictation.writtenSet?.exerciseName ?? state.exerciseName) {
-            DictationReadback(dictation: dictation, colors: colors, style: .lockScreen(prescription: state.prescriptionText))
+        LockScreenCardLayout(state: state, exerciseName: dictation.writtenSet?.exerciseName ?? state.exerciseName) { keepsTheSpareLine in
+            DictationReadback(
+                dictation: dictation,
+                colors: colors,
+                style: .lockScreen(prescription: state.prescriptionText, wrapsTheDetail: keepsTheSpareLine)
+            )
         } mic: {
             if dictation.isListening {
                 DictationSymbol(dictation: dictation, colors: colors, diameter: LockScreenCardMetrics.controlSize)
@@ -25,19 +29,65 @@ struct DictationLockScreenView: View {
     }
 }
 
+/// The Lock Screen when a press found no Set to listen for: the Session it looked in, if any, over
+/// why, and the rest countdown when one is running. A long reason wraps where the card has room.
+struct NoSetLockScreenView: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let dictation: LiveActivityDictation
+
+    var body: some View {
+        ViewThatFits(in: .vertical) {
+            card(wrapsTheReason: true)
+            card(wrapsTheReason: false)
+        }
+    }
+
+    private func card(wrapsTheReason: Bool) -> some View {
+        let colors = state.liveActivityColors
+
+        return VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                if let session = dictation.sessionName {
+                    Text(session)
+                        .liveActivityFont(.control)
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
+                }
+
+                DictationReadback(
+                    dictation: dictation,
+                    colors: colors,
+                    style: .lockScreen(prescription: nil, wrapsTheDetail: wrapsTheReason)
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if state.restEndDate != nil {
+                HStack(spacing: 8) {
+                    RestCountdownText(state: state)
+                        .liveActivityFont(.figure)
+                        .foregroundStyle(colors.primaryText)
+                        .frame(width: 52, alignment: .leading)
+
+                    RestProgressWithContext(state: state, style: .lockScreen)
+                }
+            }
+        }
+        .padding(16)
+    }
+}
+
 struct DictationReadback: View {
     enum Style {
         case island
         /// With no detail of its own, a readback about a Set reads its prescription, which holds the
-        /// line that Set's card keeps.
-        case lockScreen(prescription: String?)
+        /// line that Set's card keeps. A long detail wraps only where the card has room for it.
+        case lockScreen(prescription: String?, wrapsTheDetail: Bool)
     }
 
     let dictation: LiveActivityDictation
     let colors: LiveActivityColors
     let style: Style
-
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -56,12 +106,12 @@ struct DictationReadback: View {
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
                 }
-            case .lockScreen(let prescription):
+            case .lockScreen(let prescription, let wrapsTheDetail):
                 if let detail = dictation.detail ?? prescription {
                     Text(detail.isEmpty ? " " : detail)
                         .liveActivityFont(.reference)
                         .foregroundStyle(colors.secondaryText)
-                        .lineLimit(hasRoomForASecondLine ? 2 : 1)
+                        .lineLimit(wrapsTheDetail ? 2 : 1)
                         .minimumScaleFactor(0.75)
                 }
             }
@@ -73,11 +123,6 @@ struct DictationReadback: View {
     private var isOnIsland: Bool {
         if case .island = style { return true }
         return false
-    }
-
-    /// A long reason wraps only where the card stays under the 160pt the system gives it.
-    private var hasRoomForASecondLine: Bool {
-        dynamicTypeSize <= .large
     }
 }
 
