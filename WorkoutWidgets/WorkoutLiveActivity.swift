@@ -291,9 +291,12 @@ private struct IslandSetOffer: View {
         let colors = state.liveActivityColors
 
         VStack(alignment: .leading, spacing: 6) {
+            // The island drew a truncating name short of the room beside it, so the first two lines
+            // hold the name at its own width, and only the last lets it cut off.
             ViewThatFits(in: .horizontal) {
-                setLine(withTheTarget: true)
-                setLine(withTheTarget: false)
+                setLine(withTheTarget: true, nameFits: true)
+                setLine(withTheTarget: false, nameFits: true)
+                setLine(withTheTarget: false, nameFits: false)
             }
             .accessibilityElement(children: .combine)
 
@@ -321,7 +324,7 @@ private struct IslandSetOffer: View {
         }
     }
 
-    private func setLine(withTheTarget: Bool) -> some View {
+    private func setLine(withTheTarget: Bool, nameFits: Bool) -> some View {
         let colors = state.liveActivityColors
 
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -329,8 +332,10 @@ private struct IslandSetOffer: View {
                 .liveActivityFont(.exerciseName)
                 .foregroundStyle(colors.islandPrimaryText)
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(nameFits ? 1 : 0.8)
                 .truncationMode(.middle)
+                .fixedSize(horizontal: nameFits, vertical: false)
+                .layoutPriority(1)
 
             if !state.weightText.isEmpty {
                 SelectedWeightText(state: state, color: colors.islandPrimaryText)
