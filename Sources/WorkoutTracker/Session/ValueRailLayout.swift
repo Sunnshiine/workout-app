@@ -62,8 +62,9 @@ struct ValueRailLayout: Equatable {
 
     /// The detent the strip settles on from `offset` with the finger moving at `velocity` points
     /// per second, and the spring that carries it there. A throw lands on the detent nearest its
-    /// projected rest; a lift past an end, or one under Reduce Motion, lands on the detent nearest
-    /// the finger on the snap-back spring and carries no projection.
+    /// projected rest, seeded with the lift speed. A lift past an end, or one under Reduce Motion,
+    /// lands on the detent nearest the finger on the snap-back spring with no projection and no
+    /// seed: past the band the finger's speed is not the strip's, and a seed would throw it further out.
     func landing(liftedAt offset: CGFloat, velocity: CGFloat, reducesMotion: Bool) -> Landing {
         if reducesMotion {
             return Landing(index: centredIndex(at: offset), spring: Theme.Gesture.snapBack, initialVelocity: 0)
@@ -72,11 +73,20 @@ struct ValueRailLayout: Equatable {
         let projected = offset + velocity / 1000 * rate / (1 - rate)
         let index = centredIndex(at: projected)
         let remaining = self.offset(centering: index) - offset
+        if isPastAnEnd(offset) {
+            return Landing(index: index, spring: Theme.Gesture.snapBack, initialVelocity: 0)
+        }
         return Landing(
             index: index,
-            spring: isPastAnEnd(offset) ? Theme.Gesture.snapBack : Theme.Gesture.release,
+            spring: Theme.Gesture.release,
             initialVelocity: remaining == 0 ? 0 : velocity / remaining
         )
+    }
+
+    /// The spring that recentres the strip when a tap or a VoiceOver step moves the selection: the
+    /// release spring, or under Reduce Motion the snap-back, whose 0.2 s is the longest settle §9 allows.
+    static func settle(reducesMotion: Bool) -> Theme.SpringTuning {
+        reducesMotion ? Theme.Gesture.snapBack : Theme.Gesture.release
     }
 
     private func isPastAnEnd(_ offset: CGFloat) -> Bool {

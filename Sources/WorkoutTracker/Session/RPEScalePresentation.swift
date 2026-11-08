@@ -13,6 +13,13 @@ struct ValueRailChip: Equatable, Hashable, Identifiable, Sendable {
     var id: String { accessibilityIdentifier }
 }
 
+extension [ValueRailChip] {
+    /// What VoiceOver reads as the rail's value: the selected cell, or that none is chosen yet.
+    var spokenSelection: String {
+        first(where: \.isSelected)?.label ?? "Not set"
+    }
+}
+
 /// Drives the RPE one-tap scroll rail. The card never changes height, so the
 /// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {

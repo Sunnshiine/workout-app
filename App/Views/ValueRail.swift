@@ -45,7 +45,7 @@ struct ValueRailControl: View {
             rail
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(label)
-                .accessibilityValue(chips.first(where: \.isSelected)?.label ?? "")
+                .accessibilityValue(chips.spokenSelection)
                 .accessibilityAdjustableAction { direction in
                     select(index: selectedIndex + (direction == .increment ? 1 : -1))
                 }
@@ -155,14 +155,10 @@ private struct RailTrack<Strip: View>: View {
 
             strip
                 .frame(height: geo.size.height)
-                .background { Color.clear.modifier(DrawnOffsetProbe(x: offset, drawn: drawn)) }
-                .offset(x: offset)
-                .transaction { transaction in
-                    if drag != nil || transaction.disablesAnimations {
-                        transaction.animation = nil
-                    } else if transaction.animation == nil {
-                        transaction.animation = Theme.Gesture.release.animation(initialVelocity: 0)
-                    }
+                .transaction(slideTransaction) { content in
+                    content
+                        .background { Color.clear.modifier(DrawnOffsetProbe(x: offset, drawn: drawn)) }
+                        .offset(x: offset)
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
                 .contentShape(.rect)
@@ -177,15 +173,31 @@ private struct RailTrack<Strip: View>: View {
             RoundedRectangle(cornerRadius: Theme.Radius.rail)
                 .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
         }
-        // A gesture the system cancels never reaches `onEnded`; the gesture state's reset does.
+        // A gesture the system cancels never reaches `onEnded`, and one that yielded has nothing to
+        // release; the gesture state's reset ends both.
         .onChange(of: isTouching) { _, touching in
             guard !touching else { return }
+            if let drag {
+                release(drag, velocity: 0)
+            } else if yieldsToVertical {
+                onDragEnd()
+            }
             yieldsToVertical = false
-            if let drag { release(drag, velocity: 0) }
         }
     }
 
-    /// Past the hysteresis the first move decides the axis. A horizontal drag takes the strip from
+    /// The slide's own transaction, scoped to the offset and its probe so the cells keep the ambient
+    /// one: no animation while the finger is down, and a tap's recentre on the settle spring.
+    private func slideTransaction(_ transaction: inout Transaction) {
+        if drag != nil || transaction.disablesAnimations {
+            transaction.animation = nil
+        } else if transaction.animation == nil {
+            transaction.animation = ValueRailLayout.settle(reducesMotion: reducesMotion).animation(initialVelocity: 0)
+        }
+    }
+
+    /// Past the hysteresis the first move is a drag on either axis, so the cell under the finger
+    /// does not fire on release; then it decides the axis. A horizontal drag takes the strip from
     /// where it is drawn, so a grab mid-settle starts there, and commits each detent that crosses
     /// the centre. A vertical one is left to the surface beneath.
     private func slide(in layout: ValueRailLayout) -> some Gesture {
@@ -195,13 +207,13 @@ private struct RailTrack<Strip: View>: View {
                 let translation = value.translation.width
                 if drag == nil {
                     guard !yieldsToVertical else { return }
+                    onDragStart()
                     guard ValueRailLayout.claimsAxis(value.translation) else {
                         yieldsToVertical = true
                         return
                     }
                     let anchor = layout.dragAnchor(grabbedAt: drawn.value.withLock { $0 }, translation: translation)
                     drag = RailDrag(layout: layout, anchor: anchor, translation: translation, committedIndex: selectedIndex)
-                    onDragStart()
                 }
                 guard var moved = drag else { return }
                 moved.translation = translation
@@ -218,12 +230,14 @@ private struct RailTrack<Strip: View>: View {
             }
     }
 
+    /// The landing's value is written outside the animation, so the cell fill and the Log capsule
+    /// change in the next frame (§5.2) and only the strip's slide rides the spring.
     private func release(_ drag: RailDrag, velocity: CGFloat) {
         let offset = drag.layout.draggedOffset(anchor: drag.anchor, translation: drag.translation)
         let landing = drag.layout.landing(liftedAt: offset, velocity: velocity, reducesMotion: reducesMotion)
+        if landing.index != drag.committedIndex { onCommit(landing.index) }
         withAnimation(landing.spring.animation(initialVelocity: landing.initialVelocity)) {
             self.drag = nil
-            if landing.index != drag.committedIndex { onCommit(landing.index) }
         }
         onDragEnd()
     }

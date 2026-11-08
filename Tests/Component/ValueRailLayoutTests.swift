@@ -98,7 +98,7 @@ private let rpe = ValueRailLayout(trackWidth: 150, cellWidth: 48, spacing: 0, co
     #expect(rpe.landing(liftedAt: rpe.offset(centering: 1), velocity: 5000, reducesMotion: false).index == 0)
 }
 
-@Test func aLiftPastAnEndSnapsBackToTheEnd() {
+@Test func aLiftPastAnEndSnapsBackToTheEndWithNoSeed() {
     let end = rpe.offset(centering: 0)
     let pastTheEnd = rpe.draggedOffset(anchor: rpe.dragAnchor(grabbedAt: end, translation: 0), translation: 100)
 
@@ -106,7 +106,12 @@ private let rpe = ValueRailLayout(trackWidth: 150, cellWidth: 48, spacing: 0, co
 
     #expect(landing.index == 0)
     #expect(landing.spring == Theme.Gesture.snapBack)
-    #expect(landing.initialVelocity < 0)
+    #expect(landing.initialVelocity == 0)
+}
+
+@Test func aTapOrAVoiceOverStepRecentresOnTheReleaseSpringOrUnderReduceMotionTheSnapBack() {
+    #expect(ValueRailLayout.settle(reducesMotion: false) == Theme.Gesture.release)
+    #expect(ValueRailLayout.settle(reducesMotion: true) == Theme.Gesture.snapBack)
 }
 
 @Test func underReduceMotionALiftLandsOnTheDetentNearestTheFingerWithNoThrow() {

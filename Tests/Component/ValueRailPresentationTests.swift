@@ -78,3 +78,10 @@ func repsRailTicksNothingForRepsTextItDoesNotInterpret(prescribedReps: String) {
     // 8.5 is the seventh value [5, 6, 6.5, 7, 7.5, 8, 8.5, …] → index 6.
     #expect(rail.selectedIndex == 6)
 }
+
+@Test func theRailSpeaksItsSelectionOrThatNoneIsSet() {
+    #expect(RPEScalePresentation(prescribedRPE: .seven, selection: "8.5").chips.spokenSelection == "8.5")
+    // "RPE 5.5" is text the app does not interpret, so the rail centres on 8 with nothing selected.
+    #expect(RPEScalePresentation(prescribedRPE: nil, selection: "").chips.spokenSelection == "Not set")
+    #expect(RepsScalePresentation(prescribedReps: PrescribedReps("5"), selection: "").chips.spokenSelection == "Not set")
+}
