@@ -194,7 +194,7 @@ final class LockScreenPress {
         let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
         await liveActivity.show(LiveActivityDictationContent(readback: readback, subject: subject), sessionLabel: session.liveActivityLabel)
         async let flushed: Void = writes.flush()
-        await showCard(after: readback)
+        await showCard(after: readback, offeringRPEFor: nil)
         await flushed
         await showWhatTheFlushLeft()
         return .logged(setLog, at: position.setID)
@@ -202,7 +202,11 @@ final class LockScreenPress {
 
     /// Says why nothing was written, over the Set the card is on, else over the Set the press
     /// named, as a stale press on the Session's last Set does.
-    private func refuse(_ why: NotLogged, pressing setIdentity: String?, offeringRPEFor reps: Int? = nil) async -> Outcome {
+    private func refuse(
+        _ why: NotLogged,
+        pressing setIdentity: String?,
+        offeringRPEFor reps: Int? = nil  // default: only a too-soon press proved the row was on RPE for its Reps
+    ) async -> Outcome {
         // With no rest running, a recording has the Live Activity to itself, and a readback would
         // end the activity the system records under.
         if case .micBusy = why, liveActivity.restContent == nil { return .notLogged(why) }
@@ -236,7 +240,7 @@ final class LockScreenPress {
     /// still on RPE for `reps` when the press carried them. The system suspends the app once the
     /// intent returns, so nothing could do this later. With no rest running, the activity has
     /// ended on the readback, which stays to be read.
-    private func showCard(after readback: LiveActivityDictationContent.Readback, offeringRPEFor reps: Int? = nil) async {
+    private func showCard(after readback: LiveActivityDictationContent.Readback, offeringRPEFor reps: Int?) async {
         guard liveActivity.restContent != nil else { return }
         await clock.sleep(until: clock.now + Self.readbackHold)
         guard var card = currentCard() else { return }
