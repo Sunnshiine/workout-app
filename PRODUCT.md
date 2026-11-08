@@ -37,3 +37,4 @@ Each accessibility rule lives with what it governs:
 - Dynamic Type: DESIGN.md §3, The Product Scale Rule.
 - Hit areas: DESIGN.md §8.
 - Reduce Motion: `docs/design/motion-and-haptics.md`.
+- Gesture alternatives: DESIGN.md §9, Every Gesture Has a Button.
