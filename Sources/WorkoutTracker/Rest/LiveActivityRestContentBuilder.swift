@@ -78,8 +78,8 @@ struct LiveActivityRestContent: Equatable, Sendable {
         restStartDate: Date,
         restEndDate: Date,
         press: LoggablePressContent,
-        guidance: String? = nil,
-        start: LockScreenStart? = nil,
+        guidance: String?,
+        start: LockScreenStart?,
         target: LiveActivityRestTarget? = nil
     ) {
         self.exerciseName = exerciseName

@@ -25,7 +25,7 @@ struct LockScreenOffer: Equatable, Sendable {
     /// A `LoggableSetIdentity.storageValue`, which each press hands back.
     let setIdentity: String
     /// The Reps the athlete tapped, which turn the row to RPE. Nil until they tap one.
-    var chosenReps: Int?
+    var chosenReps: Int?  // default: a fresh offer has no Reps tapped, so none is chosen ahead of the athlete
 
     /// Consecutive values around `center`, held inside `repsRange` at its ends.
     static func repChoices(around center: Int) -> [Int] {

@@ -157,6 +157,7 @@ extension LiveActivityRestContent {
             restEndDate: restEndDate,
             press: LoggablePressContent(state.loggablePress),
             guidance: state.guidance,
+            start: nil,
             target: nil
         )
         pendingWrites = state.pendingWrites

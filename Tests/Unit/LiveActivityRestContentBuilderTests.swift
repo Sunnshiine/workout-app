@@ -21,7 +21,8 @@ import Testing
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
             press: .needsApp,
-            guidance: "3:1:1 · Pause on the chest."
+            guidance: "3:1:1 · Pause on the chest.",
+            start: nil
         )
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
@@ -70,7 +71,9 @@ import Testing
                 variant: .restTimerSetsLeft,
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
-                press: .needsApp
+                press: .needsApp,
+                guidance: nil,
+                start: nil
             ),
             dictation: nil
         )
@@ -116,7 +119,9 @@ import Testing
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
-        press: .needsApp
+        press: .needsApp,
+        guidance: nil,
+        start: nil
     )
 
     #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
@@ -137,7 +142,9 @@ import Testing
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
-        press: .needsApp
+        press: .needsApp,
+        guidance: nil,
+        start: nil
     )
     let capDate = restEndDate.addingTimeInterval(30 * 60)
 
