@@ -154,15 +154,27 @@ struct SetOfferLockScreenView: View {
     private func valuesLine(withTheQueue: Bool) -> some View {
         let colors = state.liveActivityColors
 
-        return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // The hidden line keeps a card with no weight as tall as one with it.
-            ZStack(alignment: .leading) {
-                Text(" ").hidden()
+        // The hidden line keeps a card with no weight as tall as one with it.
+        return ZStack(alignment: Alignment(horizontal: .leading, vertical: .firstTextBaseline)) {
+            Text(" ")
+                .liveActivityFont(.figure)
+                .hidden()
 
+            valuesText(withTheQueue: withTheQueue, colors: colors)
+        }
+        .liveActivityFont(.reference)
+        .foregroundStyle(colors.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func valuesText(withTheQueue: Bool, colors: LiveActivityColors) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if !state.weightText.isEmpty {
                 SelectedWeightText(state: state, color: colors.primaryText)
+                    .liveActivityFont(.figure)
+                    .fixedSize()
             }
-            .liveActivityFont(.figure)
-            .fixedSize()
 
             Text(state.prescriptionText)
                 .lineLimit(1)
@@ -175,10 +187,6 @@ struct SetOfferLockScreenView: View {
                     .layoutPriority(1)
             }
         }
-        .liveActivityFont(.reference)
-        .foregroundStyle(colors.secondaryText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
     }
 
     /// The queue, then the Cadence and Coach Note cut off at the end. A card with neither keeps the

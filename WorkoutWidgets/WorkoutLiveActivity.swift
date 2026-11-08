@@ -332,9 +332,11 @@ private struct IslandSetOffer: View {
                 .minimumScaleFactor(0.8)
                 .truncationMode(.middle)
 
-            SelectedWeightText(state: state, color: colors.islandPrimaryText)
-                .liveActivityFont(.figure)
-                .fixedSize()
+            if !state.weightText.isEmpty {
+                SelectedWeightText(state: state, color: colors.islandPrimaryText)
+                    .liveActivityFont(.figure)
+                    .fixedSize()
+            }
 
             if withTheTarget {
                 Text(state.prescriptionText)
