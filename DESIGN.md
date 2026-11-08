@@ -254,7 +254,8 @@ cut.
 
 Sheets, navigation, and system controls keep their stock iOS motion. Under Reduce Motion the branch,
 the ceremony, the confirmation card, and onboarding cross-fade instead of moving, and the branch
-re-laying out cuts.
+re-laying out cuts. A gesture under Reduce Motion keeps its tracking and loses its projection
+(§9 Reduce Motion Keeps the Finger).
 
 The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 [docs/design/motion-and-haptics.md](docs/design/motion-and-haptics.md).
@@ -299,3 +300,11 @@ These three rules came from the layout and hierarchy pass, under the operator's 
 2026-10-31: "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md,
 or a past operator decision, Emil wins. Update DESIGN.md (through the product-design skill's
 feedback loop) so the new rule is written down".
+
+## 9. Gestures
+
+A gesture is direct manipulation. While the finger is down the surface is the finger; when it
+lifts, a spring carrying the finger's speed finishes the move. §7 governs what a tap sets in
+motion, and §9 governs what a finger moves. Its twelve Named Rules, the values, and the map of
+every surface that answers a finger today, written under the operator's brief of 2026-11-08:
+[docs/design/gestures.md](docs/design/gestures.md).

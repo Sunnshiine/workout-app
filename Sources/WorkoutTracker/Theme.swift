@@ -127,6 +127,32 @@ enum Theme {
         static let stepperTick = HapticTuning(intensity: 0.45, sharpness: 0.80)
     }
 
+    // MARK: - Gestures (token sheet §10, DESIGN.md §9)
+
+    /// A spring in Apple's two designer parameters: `response`, the seconds it takes to reach its
+    /// target, and `bounce`, where 0 is critically damped and lands still.
+    struct SpringTuning: Equatable {
+        let response: Double
+        let bounce: Double
+    }
+
+    /// What a dragged surface does once the finger lifts (DESIGN.md §9). Tracking takes no token,
+    /// because while the finger is down the surface moves 1:1 with it.
+    enum Gesture {
+        /// A drag claims its axis after this much travel and yields the other axis beneath it.
+        static let hysteresis: CGFloat = 10
+        /// The rails' deceleration rate in Apple's projection, `v / 1000 * d / (1 - d)`, so a flick
+        /// throws a few detents rather than the whole scale.
+        static let railDecelerationRate = 0.99
+        /// The settle onto the detent nearest the projected rest, seeded with the release velocity.
+        static let release = SpringTuning(response: 0.3, bounce: 0)
+        /// The return of a gesture that did not commit, and the Reduce Motion settle.
+        static let snapBack = SpringTuning(response: 0.2, bounce: 0)
+        /// Apple's rubber-band constant. Past its last detent a surface follows
+        /// `(x * d * c) / (d + c * abs(x))`, with d the track's width.
+        static let rubberBandConstant = 0.55
+    }
+
     // MARK: - Legacy composition constants
     //
     // Geometry and motion consumed by the pre-Greenhouse screen compositions. These keep the
