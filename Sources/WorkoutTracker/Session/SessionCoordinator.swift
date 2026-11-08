@@ -38,6 +38,9 @@ final class SessionCoordinator {
     @ObservationIgnored private var spokenWriteHoldTask: Task<Void, Never>?
     /// The Set whose Set Flag sheet is open, by the coordinates a sync's re-parse keeps.
     private(set) var flaggingSetID: SetCoordinates.ID?
+    /// What the athlete has typed into a Set's flag so far. A sheet closed by a drag or a tap outside
+    /// keeps it for the next opening; a raise or a change of Session drops it.
+    private var setFlagDrafts: [SetCoordinates.ID: SetFlagDraft] = [:]
 
     init(
         session: Session? = nil,
@@ -133,6 +136,7 @@ final class SessionCoordinator {
     private func bind(to session: Session) {
         sessionCoordinate = session.placement.coordinate
         savedLoggedSetID = nil
+        setFlagDrafts = [:]
         cancelPairing()
         cancelSpokenWriteHold()
         dictation?.dismiss()
@@ -456,9 +460,18 @@ extension SessionCoordinator {
         endSpokenWriteHold()
     }
 
+    func setFlagDraft(for id: SetCoordinates.ID) -> SetFlagDraft {
+        setFlagDrafts[id] ?? SetFlagDraft()
+    }
+
+    func keepSetFlagDraft(_ draft: SetFlagDraft, for id: SetCoordinates.ID) {
+        setFlagDrafts[id] = draft
+    }
+
     func raise(_ flag: SetFlag) {
         defer { endFlagging() }
         guard let flaggingSetID, let set = setBeingFlagged(flaggingSetID) else { return }
+        setFlagDrafts[flaggingSetID] = nil
         do {
             try wiring.logging.flag(set, as: flag)
             wiring.sync.requestPendingWriteFlush()

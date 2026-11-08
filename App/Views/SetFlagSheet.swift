@@ -1,9 +1,12 @@
 import SwiftUI
 
 /// The flag waits in the queue as a Set Log does, so the sheet closes before it lands and the card
-/// says where it stands from there.
+/// says where it stands from there. The draft is the sheet's while it is open and the coordinator's
+/// between openings, so a raise can drop the coordinator's copy without emptying the sheet as it
+/// slides away.
 struct SetFlagSheet: View {
     let presentation: SetFlagSheetPresentation
+    let onKeep: (SetFlagDraft) -> Void
     let onRaise: (SetFlag) -> Void
     @Environment(\.themePalette) private var palette
     @State private var draft: SetFlagDraft
@@ -17,8 +20,14 @@ struct SetFlagSheet: View {
     private static let footFade: CGFloat = 40
     private static let raiseButtonID = "set-flag-raise-button"
 
-    init(presentation: SetFlagSheetPresentation, draft: SetFlagDraft, onRaise: @escaping (SetFlag) -> Void) {
+    init(
+        presentation: SetFlagSheetPresentation,
+        draft: SetFlagDraft,
+        onKeep: @escaping (SetFlagDraft) -> Void,
+        onRaise: @escaping (SetFlag) -> Void
+    ) {
         self.presentation = presentation
+        self.onKeep = onKeep
         self.onRaise = onRaise
         _draft = State(initialValue: draft)
         _typedWords = State(initialValue: draft.words)
@@ -57,6 +66,7 @@ struct SetFlagSheet: View {
         .presentationBackground { palette.paperBackground }
         .dynamicTypeSize(...Theme.TypeScale.largestSize)
         .task { isTitleFocused = true }
+        .onChange(of: draft) { _, draft in onKeep(draft) }
     }
 
     /// A long raised list runs off the sheet, so it fades there as the Lens wheel does instead of slicing
