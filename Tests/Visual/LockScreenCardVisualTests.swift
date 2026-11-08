@@ -85,7 +85,7 @@ struct LockScreenCardVisualTests {
         assertCardBaseline(state(.dark, press: Self.backSquatPress, guidance: Self.guidance), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func theLargestTypeKeepsTheQueueBesideTheTarget() {
+    @Test func theLargestTypeKeepsTheQueueAndEveryRPEChip() {
         assertCardBaseline(
             state(.dark, press: Self.chose(6), guidance: Self.guidance, pendingWrites: 3),
             dynamicTypeSize: .xxxLarge
