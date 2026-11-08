@@ -124,6 +124,16 @@ import Testing
     #expect(Theme.Haptics.stepperTick == Theme.HapticTuning(intensity: 0.45, sharpness: 0.80))
 }
 
+// MARK: - Gestures (token sheet §10)
+
+@Test func themeGestureTokensMatchTokenSheet() {
+    #expect(Theme.Gesture.hysteresis == 10)
+    #expect(Theme.Gesture.railDecelerationRate == 0.99)
+    #expect(Theme.Gesture.release == Theme.SpringTuning(response: 0.3, bounce: 0))
+    #expect(Theme.Gesture.snapBack == Theme.SpringTuning(response: 0.2, bounce: 0))
+    #expect(Theme.Gesture.rubberBandConstant == 0.55)
+}
+
 // MARK: - Night validation of the two flagged surfaces (PRD #458 slice 8, ADR-0007)
 //
 // The Exercise History sheet and the Block grid were the two surfaces never re-prototyped at

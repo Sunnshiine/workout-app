@@ -296,3 +296,23 @@ Replaces the 8 / 16 / 28 scale.
   flagged: not re-prototyped — validate during the build).
 - Block grid night values follow #419 as amended 2026-10-31: leaf tiles,
   a lamp-lit current tile.
+
+## 10. Gestures (DESIGN.md §9; decided 2026-11-08)
+
+The values a gesture settles with, as `Theme.Gesture`. Tracking takes no
+token, because while the finger is down the surface moves 1:1 with it. Approved by
+the operator, 2026-11-08: "Design pass. Read the existing DESIGN.md and add
+a Gestures section covering which surfaces are draggable or swipeable,
+dismiss thresholds, velocity and spring rules, rubber-banding, haptic
+moments, and reduced-motion behavior."
+
+| Token | Value | Where it lands |
+|---|---|---|
+| `Theme.Gesture.hysteresis` | 10 pt | a drag claims its axis past this much travel |
+| `Theme.Gesture.railDecelerationRate` | 0.99 | the rails' projection rate in `v / 1000 * d / (1 - d)` |
+| `Theme.Gesture.release` | response 0.3 s, bounce 0 | the settle onto the nearest detent after a lift |
+| `Theme.Gesture.snapBack` | response 0.2 s, bounce 0 | a gesture that did not commit, and the Reduce Motion settle |
+| `Theme.Gesture.rubberBandConstant` | 0.55 | past the first or last detent, `(x * d * 0.55) / (d + 0.55 * abs(x))` |
+
+The commit threshold stays prose until a gesture uses it: half the travel,
+or 500 pt/s toward the commit (`docs/design/gestures.md`).
