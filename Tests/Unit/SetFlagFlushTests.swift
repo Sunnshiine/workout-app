@@ -116,6 +116,19 @@ extension WorkoutApplication {
 }
 
 @MainActor
+@Test func aFlagWhoseLineTheNoteAlreadyHoldsSendsNoRequestAndStillLands() async throws {
+    let line = "Set 1 · Pain: left hip"
+    let (app, sheet) = try await makeApp(editing: { $0.tabs[tab]?.cellNotes["K15"] = line })
+
+    _ = try app.flag(address("w1d1.e0.s0"), as: pain("left hip"))
+    let flush = try await app.flush()
+
+    #expect(await sheet.recordedCellNotes.isEmpty)
+    #expect(flush.remainingPendingWrites == 0)
+    #expect(try standing(of: "w1d1.e0.s0", in: app) == [.landed])
+}
+
+@MainActor
 @Test func aSetLogWrittenAfterAFlagKeepsTheCellNote() async throws {
     let (app, _) = try await makeApp()
     _ = try app.flag(address("w1d1.e0.s0"), as: pain())

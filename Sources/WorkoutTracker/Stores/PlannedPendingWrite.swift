@@ -43,10 +43,11 @@ struct PlannedPendingWrite {
 }
 
 /// A Set Flag planned from one read, the way `PlannedPendingWrite` plans a value write. Only its
-/// target can refuse it, since a flag checks no value.
+/// target can refuse it, since a flag checks no value. `note` is nil when the cell's note already
+/// holds the flag's line.
 struct PlannedSetFlagWrite {
     let write: PendingWrite
-    let note: SheetCellNoteWrite
+    let note: SheetCellNoteWrite?
     let auditDetails: SheetWriteAuditDetails
 
     @MainActor

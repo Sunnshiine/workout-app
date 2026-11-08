@@ -308,8 +308,10 @@ extension SyncCoordinator {
                 let tab = write.recordedSession.blockTab
                 let workingCopy = try await gridSnapshot(for: tab, context: flushContext, snapshots: &snapshots)
                 let planned = try PlannedSetFlagWrite(write, against: workingCopy, planner: flushContext.planner)
-                try await client.writeCellNote(planned.note, spreadsheetId: flushContext.spreadsheetId)
-                snapshots[tab] = flushContext.planner.applying(planned.note, to: workingCopy)
+                if let note = planned.note {
+                    try await client.writeCellNote(note, spreadsheetId: flushContext.spreadsheetId)
+                    snapshots[tab] = flushContext.planner.applying(note, to: workingCopy)
+                }
                 record(.landed, of: write)
                 recordWriteTargetAudit(for: write, details: planned.auditDetails, finalStatus: .succeeded, message: nil)
                 context.delete(write)

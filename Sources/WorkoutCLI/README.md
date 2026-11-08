@@ -131,7 +131,9 @@ print with the scores.
 A Set with a Set Flag carries `setFlags`: each entry's `kind`, its `text` when it has words, the
 `line` the coach reads in the Cell Note, and its `standing`, `unsynced`, `landed`, or `refused`. A
 flag changes no value. The workbook file stores notes in each tab's `cellNotes`, keyed by A1 cell
-and absent when a tab has none.
+and absent when a tab has none. A flag whose line the note already holds sends no request and
+leaves the workbook alone, though `flush` still counts it in `written`, which counts writes off the
+queue.
 
 ```console
 $ workout flag w1d1.e0.s0 pain "left hip pinch on the way up" > /dev/null

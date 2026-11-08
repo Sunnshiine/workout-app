@@ -248,23 +248,19 @@ struct SheetWritePlanner: Sendable {
         )
     }
 
-    /// The Cell Note `request`'s Set Flag leaves on `target`. Only the coach's words and earlier lines
-    /// are kept, and a value check has nothing to say: a flag changes no value, so a coach's edit to
-    /// the cell never refuses it (ADR-0003). What the target cell holds is not read at all.
+    /// The Cell Note `request`'s Set Flag leaves on `target`, or nil when the note already holds its
+    /// line, so a replay sends nothing. Only the coach's words and earlier lines are kept, and a value
+    /// check has nothing to say: a flag changes no value, so a coach's edit to the cell never refuses
+    /// it (ADR-0003). What the target cell holds is not read at all.
     func planSetFlag(
         _ request: SheetWriteRequest,
         target: SheetWriteTarget,
         in snapshot: SheetWritePlanningSnapshot
-    ) -> SheetCellNoteWrite {
-        SheetCellNoteWrite(
-            tabName: target.tabName,
-            row: target.row,
-            col: target.col,
-            text: SetFlagLine.cellNote(
-                snapshot.snapshot.cellNote(row: target.row, col: target.col),
-                adding: request.writtenValue
-            )
-        )
+    ) -> SheetCellNoteWrite? {
+        let current = snapshot.snapshot.cellNote(row: target.row, col: target.col)
+        let note = SetFlagLine.cellNote(current, adding: request.writtenValue)
+        guard note != current else { return nil }
+        return SheetCellNoteWrite(tabName: target.tabName, row: target.row, col: target.col, text: note)
     }
 
     func applying(_ cell: SheetCellWrite, to snapshot: SheetWritePlanningSnapshot) -> SheetWritePlanningSnapshot {
