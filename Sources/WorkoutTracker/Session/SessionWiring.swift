@@ -5,6 +5,7 @@ protocol SessionLoggingAdapter {
     func log(_ set: ExerciseSet, as log: SetLog) throws
     func skip(_ set: ExerciseSet) throws
     func deleteLog(for set: ExerciseSet) throws
+    func flag(_ set: ExerciseSet, as flag: SetFlag) throws
 }
 
 @MainActor

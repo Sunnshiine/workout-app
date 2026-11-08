@@ -84,9 +84,18 @@ struct SessionStageView: View {
                 fillProgress: historyFill.progress.map(HistoryFillProgressPresentation.init)
             )
         }
+        .sheet(
+            item: Binding(
+                get: { coordinator.setFlagSheet },
+                set: { if $0 == nil { coordinator.endFlagging() } }
+            )
+        ) { presentation in
+            SetFlagSheet(presentation: presentation, draft: SetFlagDraft(), onRaise: coordinator.raise)
+        }
         .onChange(of: entry.coverClosings) {
             isQueuePresented = false
             history = nil
+            coordinator.endFlagging()
         }
         .onChange(of: coordinator.supersetFusions) {
             isQueuePresented = false
@@ -426,6 +435,7 @@ extension ActiveSetCard {
             onLog: { coordinator.log($0, for: slot) },
             onSkip: { coordinator.skip(for: slot) },
             onDelete: { coordinator.deleteLog(for: slot.set) },
+            onFlag: { coordinator.beginFlagging(slot.set) },
             onTouchWhileHeld: { coordinator.endSpokenWriteHold() },
             onClearMenuOpened: { coordinator.suspendSpokenWriteHold() },
             onClearMenuClosed: { coordinator.endSpokenWriteHold() }

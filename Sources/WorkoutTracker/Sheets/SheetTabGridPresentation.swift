@@ -54,6 +54,7 @@ struct SheetTabGridPresentation: Equatable, Sendable {
         let number: Int
         /// One value per kept column, `""` for an empty cell.
         let cells: [String]
+        let cellNotes: [String]
         let isHidden: Bool
         /// The row names an Exercise rather than continuing the one above.
         let startsExercise: Bool
@@ -65,14 +66,16 @@ struct SheetTabGridPresentation: Equatable, Sendable {
     let weeks: [Week]
 
     init(_ snapshot: SheetTabSnapshot) {
-        let indices = snapshot.cells.compactMap { a1, value in value.isEmpty ? nil : a1CellIndex(a1) }
+        let indices =
+            snapshot.cells.compactMap { a1, value in value.isEmpty ? nil : a1CellIndex(a1) }
+            + snapshot.cellNotes.keys.compactMap(a1CellIndex)
         let grid = gridFromA1(
             snapshot.cells,
             rows: (indices.map(\.row).max() ?? -1) + 1,
             cols: (indices.map(\.col).max() ?? -1) + 1
         )
         let rowVisibility = Dictionary(uniqueKeysWithValues: snapshot.hiddenRows.map { ($0.key - 1, $0.value) })
-        let sheet = SheetSnapshot(values: grid, rowVisibility: rowVisibility)
+        let sheet = SheetSnapshot(values: grid, rowVisibility: rowVisibility, cellNotes: snapshot.cellNotes)
 
         tab = snapshot.tab
         weeks = SheetLayoutInterpreter().interpret(sheet).weeks.map { week in
@@ -84,7 +87,10 @@ struct SheetTabGridPresentation: Equatable, Sendable {
         let grid = sheet.values
         let rows = week.headerRow..<week.endRow
         let nameColumn = day.columns.name
-        func holdsValue(_ row: Int, _ col: Int) -> Bool { !grid.cell(row: row, col: col).trimmed.isEmpty }
+        // A Cell Note on an empty cell keeps its row and column, or the note could not be read here.
+        func holdsValue(_ row: Int, _ col: Int) -> Bool {
+            !grid.cell(row: row, col: col).trimmed.isEmpty || !sheet.cellNote(row: row, col: col).isEmpty
+        }
         func isLifted(_ row: Int, _ col: Int) -> Bool {
             row == week.roleHeaderRow || (col == nameColumn && (row == week.headerRow || row == week.dateRow))
         }
@@ -108,6 +114,7 @@ struct SheetTabGridPresentation: Equatable, Sendable {
                 Row(
                     number: row + 1,
                     cells: columns.map { grid.cell(row: row, col: $0) },
+                    cellNotes: columns.map { sheet.cellNote(row: row, col: $0) },
                     isHidden: !sheet.isRowVisible(row),
                     startsExercise: exerciseRows.contains(row)
                 )

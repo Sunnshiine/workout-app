@@ -117,6 +117,7 @@ struct ActiveSetCardVisualTests {
                     onLog: { _ in },
                     onSkip: {},
                     onDelete: {},
+                    onFlag: {},
                     onTouchWhileHeld: {},
                     onClearMenuOpened: {},
                     onClearMenuClosed: {}

@@ -30,6 +30,7 @@ struct ActiveSetCard: View {
     let onLog: (SetLog) -> Void
     let onSkip: () -> Void
     let onDelete: () -> Void
+    let onFlag: () -> Void
     let onTouchWhileHeld: () -> Void
     let onClearMenuOpened: () -> Void
     let onClearMenuClosed: () -> Void
@@ -38,10 +39,12 @@ struct ActiveSetCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var inputDismissalRequestID = 0
+    @State private var headLabelWidth: CGFloat = 0
     @GestureState private var isPressingMic = false
 
     private static let headTargetSize: CGFloat = 44
     private static let headTargetOverhang: CGFloat = 12
+    private static let flagWordInset: CGFloat = 12
 
     private var setCardMode: SetCardMode {
         mode.cardMode
@@ -93,12 +96,13 @@ struct ActiveSetCard: View {
 
     private var header: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("Set \(setOrdinal)")
+            (Text("Set \(setOrdinal)")
                 .themeFont(.setNumber, at: dynamicTypeSize)
                 .foregroundColor(palette.textPrimary)
                 + Text(" of \(setCount)")
                 .themeFont(.setOf, at: dynamicTypeSize)
-                .foregroundColor(palette.textSecondary)
+                .foregroundColor(palette.textSecondary))
+                .onGeometryChange(for: CGFloat.self, of: \.size.width) { headLabelWidth = $0 }
 
             Spacer(minLength: 0)
         }
@@ -109,7 +113,12 @@ struct ActiveSetCard: View {
                 .simultaneousGesture(touchWhileHeld, including: touchMask)
                 .accessibilityHidden(true)
         }
-        .overlay(alignment: .trailing) { headTrailingSlot }
+        .overlay(alignment: .trailing) {
+            // The slot's width is what the head's label leaves, which decides whether a flag's word fits.
+            headTrailingSlot
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.leading, headLabelWidth + 8)
+        }
     }
 
     /// A touch on the held card moves it on; the Clear menu sits outside it, so undo stays a touch away.
@@ -134,6 +143,7 @@ struct ActiveSetCard: View {
         switch mode.headAccessory(for: set) {
         case .none:
             HStack(spacing: 4) {
+                setFlagControlFittingHead
                 if let timedEffort {
                     TimedEffortControl(timedEffort: timedEffort, targetHeight: Self.headTargetSize)
                 }
@@ -143,20 +153,24 @@ struct ActiveSetCard: View {
             }
         case .saved:
             HStack(spacing: 0) {
-                savedConfirmation
+                savedAndFlag
                 if let mic {
                     micControl(mic.dictation)
                 }
             }
         case .clearMenu:
-            clearMenu
+            HStack(spacing: 0) {
+                setFlagControlFittingHead
+                clearMenu
+            }
         case .savedAndClearMenu:
             HStack(spacing: 0) {
-                savedConfirmation
+                savedAndFlag
                 HeldClearMenu(
                     tint: palette.textSecondary,
                     onOpened: onClearMenuOpened,
                     onClosed: onClearMenuClosed,
+                    onFlag: onFlag,
                     onClear: onDelete
                 )
                 .frame(width: Self.headTargetSize, height: Self.headTargetSize)
@@ -169,6 +183,60 @@ struct ActiveSetCard: View {
         Label("Saved", systemImage: "checkmark.circle.fill")
             .themeFont(.setOf)
             .foregroundStyle(palette.actionInk)
+            .fixedSize()
+    }
+
+    /// The flag's word goes first when the head runs short, because the sheet behind the control still
+    /// says it. The flexible frame keeps that choice on the room the head has: a `ViewThatFits` placed at
+    /// the word's own width chooses again and can draw the glyph alone in a word-wide button. The guard
+    /// stays outside it, because a `ViewThatFits` whose choices all go empty keeps drawing the last one.
+    @ViewBuilder
+    private var setFlagControlFittingHead: some View {
+        if mode.showsSetFlagControl(for: set) {
+            ViewThatFits(in: .horizontal) {
+                setFlagControl(showsWord: true)
+                setFlagControl(showsWord: false)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    /// `Saved` beside `Unsynced` reads as a contradiction, so the flag stands without its word here.
+    private var savedAndFlag: some View {
+        HStack(spacing: 0) {
+            savedConfirmation
+            if mode.showsSetFlagControl(for: set) {
+                setFlagControl(showsWord: false)
+            }
+        }
+    }
+
+    private func setFlagControl(showsWord: Bool) -> some View {
+        Button {
+            dismissInputIfLogging()
+            onFlag()
+        } label: {
+            setFlagFace(showsWord: showsWord)
+                .frame(minWidth: Self.headTargetSize, minHeight: Self.headTargetSize)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.pressScale)
+        .accessibilityLabel("Flag Set \(setOrdinal)")
+        .accessibilityValue(set.setFlagStanding?.word ?? "")
+        .accessibilityIdentifier("set-flag-control")
+    }
+
+    @ViewBuilder
+    private func setFlagFace(showsWord: Bool) -> some View {
+        if let standing = set.setFlagStanding {
+            SetFlagStatus(standing: standing, showsWord: showsWord)
+                .imageScale(showsWord ? .medium : .large)
+                .padding(.leading, showsWord ? Self.flagWordInset : 0)
+        } else {
+            Image(systemName: "flag")
+                .imageScale(.large)
+                .foregroundStyle(palette.textSecondary)
+        }
     }
 
     private var clearMenu: some View {

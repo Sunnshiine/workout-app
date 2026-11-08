@@ -20,10 +20,30 @@ public struct SheetRowVisibility: Sendable, Equatable, Codable {
 struct SheetSnapshot: Sendable, Equatable {
     let values: SheetGrid
     let rowVisibility: [Int: SheetRowVisibility]
+    let cellNotes: [String: String]
 
     init(values: SheetGrid, rowVisibility: [Int: SheetRowVisibility] = [:]) {
+        self.init(values: values, rowVisibility: rowVisibility, cellNotes: [:])
+    }
+
+    init(values: SheetGrid, rowVisibility: [Int: SheetRowVisibility], cellNotes: [String: String]) {
         self.values = values
         self.rowVisibility = rowVisibility
+        self.cellNotes = cellNotes
+    }
+
+    func replacingValues(_ values: SheetGrid) -> SheetSnapshot {
+        SheetSnapshot(values: values, rowVisibility: rowVisibility, cellNotes: cellNotes)
+    }
+
+    func replacingCellNote(_ text: String, row: Int, col: Int) -> SheetSnapshot {
+        var cellNotes = cellNotes
+        cellNotes[indexToA1(row: row, col: col)] = text
+        return SheetSnapshot(values: values, rowVisibility: rowVisibility, cellNotes: cellNotes)
+    }
+
+    func cellNote(row: Int, col: Int) -> String {
+        cellNotes[indexToA1(row: row, col: col)] ?? ""
     }
 
     func isRowVisible(_ row: Int) -> Bool {

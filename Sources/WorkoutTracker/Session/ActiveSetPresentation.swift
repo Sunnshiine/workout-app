@@ -78,7 +78,8 @@ struct SetRowPresentation: Equatable, Sendable {
     init(set: ExerciseSet) {
         let title = Self.title(of: set)
         self.title = title
-        accessibilityLabel = title.isEmpty ? "Set \(set.index + 1)" : "Set \(set.index + 1), \(title)"
+        let parts = ["Set \(set.index + 1)", title, set.setFlagStanding.map { "Flag: \($0.word)" } ?? ""]
+        accessibilityLabel = parts.filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
     private static func title(of set: ExerciseSet) -> String {
@@ -119,6 +120,13 @@ extension SetCardSlot.Mode {
         case .reviewingLogged: .reviewingLogged
         case .heldAfterSpokenWrite: .held
         }
+    }
+
+    /// A Set the athlete came back to offers the flag here. A held Set is on the card for four seconds
+    /// and keeps the flag under More, so no spoken Set grows a prompt, and a Pending Set has nothing
+    /// written to flag yet. Either still shows the control once it has a flag, to say where that stands.
+    func showsSetFlagControl(for set: ExerciseSet) -> Bool {
+        set.setFlagStanding != nil || (cardMode != .held && set.state != .pending)
     }
 
     func headAccessory(for set: ExerciseSet) -> SetCardHeadAccessory {

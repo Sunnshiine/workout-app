@@ -56,6 +56,9 @@ enum DayNumbering: String, Sendable {
 enum PendingWriteColumn: String, Codable, Sendable {
     case notes
     case lastSetRPE
+    /// A Set Flag, whose value is its line. It goes to the Cell Note of the cell the Set's Set Log
+    /// addresses, never into the cell's value.
+    case setFlag
 }
 
 enum PendingWriteOperation: String, Codable, Sendable {

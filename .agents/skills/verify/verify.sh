@@ -73,6 +73,12 @@ case $cmd in
     await_front
     ;;
 
+  online)
+    # Brings an -UITEST_OFFLINE launch back online in place, so its queue flushes as a phone's does.
+    xcrun simctl spawn "$SIM" notifyutil -p app.workouttracker.uitest.reconnect
+    echo "fixture Sheet back online"
+    ;;
+
   doctor)
     resolve_sim; require_lease "$sim"
     ensure_axe

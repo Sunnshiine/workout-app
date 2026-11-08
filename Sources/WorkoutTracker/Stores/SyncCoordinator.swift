@@ -89,9 +89,10 @@ final class SyncCoordinator {
 
         let flushContext = PendingWriteFlushContext(spreadsheetId: spreadsheetId, planner: sheetWritePlanner)
 
-        let conflicts = await flushPendingWrites(pending, context: flushContext)
+        let conflicts = await flushPendingWrites(pending.filter { $0.column != .setFlag }, context: flushContext)
+        let refusedSetFlags = await flushSetFlags(pending.filter { $0.column == .setFlag }, context: flushContext)
         try? context.save()
-        return SyncOutcome(refusedWrites: conflicts, queued: pendingWriteFlushQueue().count)
+        return SyncOutcome(refusedWrites: conflicts, refusedSetFlags: refusedSetFlags, queued: pendingWriteFlushQueue().count)
     }
 
     @discardableResult
@@ -151,9 +152,9 @@ final class SyncCoordinator {
     private func overlayPendingWrites(on block: Block, layout: SheetLayout) {
         let writes = (try? context.fetch(FetchDescriptor<PendingWrite>())) ?? []
         let sets = block.setsByID
-        for write in writes where write.recordedSession.blockTab == block.tabName && write.column == .notes {
+        for write in writes where write.recordedSession.blockTab == block.tabName {
             guard write.overlays(on: layout) else { continue }
-            sets[SetCoordinates.ID(write)]?.apply(write)
+            sets[SetCoordinates.ID(write)]?.replay(write)
         }
     }
 
@@ -290,6 +291,46 @@ extension SyncCoordinator {
 
         try? await flush(batch, context: flushContext)
         return conflicts
+    }
+
+    /// Runs after every value write, off the batches, so a Set Flag cannot hold up a Set Log: a flush
+    /// stops at the first write that fails, and a flag the Sheet keeps turning down would otherwise
+    /// keep every later Set Log off it. Each flag's note comes from a read taken after those writes,
+    /// which is as close as the API lets a note's read sit to its write (ADR-0006).
+    fileprivate func flushSetFlags(
+        _ flags: [PendingWrite],
+        context flushContext: PendingWriteFlushContext
+    ) async -> [String] {
+        var snapshots: [String: SheetWritePlanningSnapshot] = [:]
+        var refusals: [String] = []
+        for write in flags {
+            do {
+                let tab = write.recordedSession.blockTab
+                let workingCopy = try await gridSnapshot(for: tab, context: flushContext, snapshots: &snapshots)
+                let planned = try PlannedSetFlagWrite(write, against: workingCopy, planner: flushContext.planner)
+                if let note = planned.note {
+                    try await client.writeCellNote(note, spreadsheetId: flushContext.spreadsheetId)
+                    snapshots[tab] = flushContext.planner.applying(note, to: workingCopy)
+                }
+                record(.landed, of: write)
+                recordWriteTargetAudit(for: write, details: planned.auditDetails, finalStatus: .succeeded, message: nil)
+                context.delete(write)
+                try? context.save()
+            } catch let refusal as PendingWritePlanningConflict {
+                refusals.append(recordConflict(refusal, for: write))
+                record(.refused, of: write)
+            } catch {
+                recordRetry(for: write, error: error)
+            }
+        }
+        return refusals
+    }
+
+    private func record(_ standing: SetFlagStanding, of write: PendingWrite) {
+        guard let flag = write.setFlag else { return }
+        let blocks = (try? context.fetch(FetchDescriptor<Block>())) ?? []
+        let block = blocks.first { $0.tabName == write.recordedSession.blockTab }
+        block?.setsByID[SetCoordinates.ID(write)]?.record(flag, standing: standing)
     }
 
     fileprivate func append(

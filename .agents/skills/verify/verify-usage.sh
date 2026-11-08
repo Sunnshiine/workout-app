@@ -18,6 +18,7 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               preference issue 700 names when it is on, and says so
                               fixtures: session settings onboarding long-session partial-block
                                         completed-open-exercises developer-tools worst-case
+  online                      bring an -UITEST_OFFLINE launch back online in place, its queue intact
   doctor                      read-only: is the installed app this worktree's build or a cached one, is
                               the running instance ours, current, and answering, and is the software
                               keyboard hidden by the preference issue 700 names?
