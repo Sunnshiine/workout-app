@@ -153,6 +153,52 @@ extension WorkoutApplication {
 }
 
 @MainActor
+@Test func aDifferentFlagOnASetWhoseFlagLandedStillQueuesAndLands() async throws {
+    let (app, _) = try await makeApp()
+    let technique = try #require(SetFlag(kind: .technique, text: "knees caved"))
+    _ = try app.flag(address("w1d1.e0.s0"), as: pain("left hip"))
+    _ = try await app.flush()
+
+    let second = try app.flag(address("w1d1.e0.s0"), as: technique)
+    let flush = try await app.flush()
+
+    #expect(second.pendingWriteCount == 1)
+    #expect(flush.written == 1)
+    #expect(try standing(of: "w1d1.e0.s0", in: app) == [.landed, .landed])
+    #expect(
+        try await app.sheet(tab: tab).cellNotes["K15"] == "Set 1 · Pain: left hip\nSet 1 · Technique: knees caved"
+    )
+}
+
+@MainActor
+@Test func aRefusedFlagRaisedAgainAfterTheCoachClearsTheWayQueuesAndLands() async throws {
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent("set-flag-\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: file) }
+    var blocked = WorkbookScenario.freshBlock.workbook()
+    blocked.tabs[tab]?.cells["K15"] = "coach prose: see me"
+    for row in 16...18 { hideRow(row, in: &blocked) }
+    try blocked.write(to: file)
+    let app = try await makeApp(over: try LocalWorkbookSheetsClient(file: file))
+    let swapped = try #require(SetFlag(kind: .swapped, text: "front squat instead"))
+    _ = try app.flag(address("w1d1.e0.s0"), as: swapped)
+    _ = try await app.flush()
+    let refused = try standing(of: "w1d1.e0.s0", in: app)
+
+    var cleared = try LocalWorkbook.load(from: file)
+    cleared.tabs[tab]?.cells["K15"] = ""
+    cleared.tabs[tab]?.hiddenRows = [:]
+    try cleared.write(to: file)
+    _ = try app.flag(address("w1d1.e0.s0"), as: swapped)
+    let retry = try await app.flush()
+
+    #expect(refused == [.refused])
+    #expect(retry.attempted == 1)
+    #expect(retry.written == 1)
+    #expect(try standing(of: "w1d1.e0.s0", in: app) == [.landed])
+    #expect(try LocalWorkbook.load(from: file).tabs[tab]?.cellNotes["K15"] == "Set 1 · Swapped: front squat instead")
+}
+
+@MainActor
 @Test func aSetLogWrittenAfterAFlagKeepsTheCellNote() async throws {
     let (app, _) = try await makeApp()
     _ = try app.flag(address("w1d1.e0.s0"), as: pain())
