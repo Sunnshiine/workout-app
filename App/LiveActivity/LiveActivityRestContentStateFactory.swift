@@ -20,7 +20,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: restContent.restEndDate,
             dictation: dictation,
             loggablePress: LoggablePress(restContent.press),
-            lastPerformed: restContent.lastPerformed,
+            guidance: restContent.guidance,
+            start: restContent.start.map(LockScreenStartOffer.init),
             pendingWrites: restContent.pendingWrites
         )
     }
@@ -45,8 +46,9 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            lastPerformed: [],
-            pendingWrites: 0
+            guidance: nil,
+            start: nil,
+            pendingWrites: setContent.pendingWrites
         )
     }
 
@@ -66,7 +68,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            lastPerformed: [],
+            guidance: nil,
+            start: nil,
             pendingWrites: 0
         )
     }
@@ -75,9 +78,16 @@ extension WorkoutActivityAttributes.ContentState {
 extension LoggablePress {
     init(_ press: LoggablePressContent) {
         switch press {
-        case .ready(let weight, let reps, let rpeChoices, let prescribedRPE, let setIdentity):
+        case .ready(let offer):
             self = .ready(
-                Offer(weight: weight, reps: reps, rpeChoices: rpeChoices, prescribedRPE: prescribedRPE, setIdentity: setIdentity)
+                Offer(
+                    repChoices: offer.repChoices,
+                    prescribedReps: offer.prescribedReps,
+                    rpeChoices: offer.rpeChoices,
+                    prescribedRPE: offer.prescribedRPE,
+                    setIdentity: offer.setIdentity,
+                    chosenReps: offer.chosenReps
+                )
             )
         case .needsApp:
             self = .needsApp
@@ -90,15 +100,24 @@ extension LoggablePressContent {
         switch press {
         case .ready(let offer):
             self = .ready(
-                weight: offer.weight,
-                reps: offer.reps,
-                rpeChoices: offer.rpeChoices,
-                prescribedRPE: offer.prescribedRPE,
-                setIdentity: offer.setIdentity
+                LockScreenOffer(
+                    repChoices: offer.repChoices,
+                    prescribedReps: offer.prescribedReps,
+                    rpeChoices: offer.rpeChoices,
+                    prescribedRPE: offer.prescribedRPE,
+                    setIdentity: offer.setIdentity,
+                    chosenReps: offer.chosenReps
+                )
             )
         case .needsApp:
             self = .needsApp
         }
+    }
+}
+
+extension LockScreenStartOffer {
+    init(_ start: LockScreenStart) {
+        self.init(label: start.effort.controlLabel, spokenLabel: start.effort.spokenLabel, url: start.request.url)
     }
 }
 
@@ -137,7 +156,7 @@ extension LiveActivityRestContent {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(state.loggablePress),
-            lastPerformed: state.lastPerformed,
+            guidance: state.guidance,
             target: nil
         )
         pendingWrites = state.pendingWrites

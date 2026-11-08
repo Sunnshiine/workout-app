@@ -35,6 +35,18 @@ extension SessionCoordinator {
         countdown.cancel()
     }
 
+    /// True while the Lock Screen's Start waits for `slot`'s card to count its effort.
+    func startsCountdownOnArrival(_ slot: SetCardSlot) -> Bool {
+        slot.mode == .logging && setTaking(.start, at: slot.set) != nil
+    }
+
+    /// Takes the Lock Screen's Start and counts the card's effort, as a tap on its control does.
+    func startRequestedCountdown(for slot: SetCardSlot) {
+        guard startsCountdownOnArrival(slot) else { return }
+        _ = wiring.entry.take()
+        startCountdown(for: slot)
+    }
+
     /// Ends the countdown once the card no longer offers it: focus moved, a review or a held Set
     /// covers it, the stage left its Session, its Set is no longer Pending, or a sync's re-parse
     /// changed its effort. A re-parse that keeps the Set Pending with the same effort keeps the

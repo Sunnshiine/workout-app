@@ -7,50 +7,6 @@ private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 private let secondSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
 private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
-extension BackgroundDictationHarness {
-    fileprivate var chips: RPEChipPress {
-        RPEChipPress(
-            app: app,
-            dictation: dictation,
-            focus: focus,
-            restTimer: restTimer,
-            liveActivity: liveActivity,
-            signIn: signIn,
-            clock: clock
-        )
-    }
-
-    /// What a chip the Lock Screen drew for `setID` hands back.
-    fileprivate func identity(
-        of setID: ActiveSetID = firstSet,
-        weight: Weight = .pounds(235),
-        reps: Int = 5,
-        blockTab: String = "Block 27"
-    ) -> String {
-        LoggableSetIdentity(
-            session: SessionCoordinate(blockTab: blockTab, address: SessionAddress(week: 1, day: 1)),
-            setID: setID,
-            weight: weight,
-            reps: reps
-        ).storageValue
-    }
-
-    /// Presses a chip and lets the readback's hold run out.
-    fileprivate func press(_ identity: String, rpe: String = "7") async -> RPEChipPress.Outcome {
-        let chips = self.chips
-        let run = Task { await chips.run(setIdentity: identity, rpe: rpe) }
-        let shown = liveActivity.shown.count + liveActivity.noSets.count
-        await waitUntil({ liveActivity.shown.count + liveActivity.noSets.count > shown }, orRecord: "It never read back")
-        if liveActivity.restContent != nil {
-            let hold = RPEChipPress.readbackHold
-            await clock.waitUntilSleeping(until: clock.now + hold, orRecord: "The readback never held")
-            clock.advance(by: hold)
-        }
-        return await run.value
-    }
-
-}
-
 @MainActor
 @Test func aChipLogsWhatTheLockScreenShowedStartsTheRestAndFlushes() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
@@ -82,9 +38,9 @@ extension BackgroundDictationHarness {
     let chips = harness.chips
     let identity = harness.identity()
 
-    let run = Task { await chips.run(setIdentity: identity, rpe: "7") }
+    let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + RPEChipPress.readbackHold,
+        until: harness.clock.now + LockScreenPress.readbackHold,
         orRecord: "The readback never held"
     )
     #expect(harness.liveActivity.replacements.isEmpty)
@@ -93,7 +49,7 @@ extension BackgroundDictationHarness {
         orRecord: "The flush never landed"
     )
 
-    harness.clock.advance(by: RPEChipPress.readbackHold)
+    harness.clock.advance(by: LockScreenPress.readbackHold)
     #expect(await run.value == .logged(logged235, at: firstSet))
 
     let replacement = try #require(harness.liveActivity.replacements.first)
@@ -112,13 +68,13 @@ extension BackgroundDictationHarness {
     let chips = harness.chips
     let identity = harness.identity()
 
-    let run = Task { await chips.run(setIdentity: identity, rpe: "7") }
+    let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
     await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + RPEChipPress.readbackHold,
+        until: harness.clock.now + LockScreenPress.readbackHold,
         orRecord: "The readback never held"
     )
-    harness.clock.advance(by: RPEChipPress.readbackHold)
+    harness.clock.advance(by: LockScreenPress.readbackHold)
     await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The card waited for the flush")
 
     sheet.release()
@@ -135,13 +91,13 @@ extension BackgroundDictationHarness {
     let chips = harness.chips
     let identity = harness.identity()
 
-    let run = Task { await chips.run(setIdentity: identity, rpe: "7") }
+    let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
     await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + RPEChipPress.readbackHold,
+        until: harness.clock.now + LockScreenPress.readbackHold,
         orRecord: "The readback never held"
     )
-    harness.clock.advance(by: RPEChipPress.readbackHold)
+    harness.clock.advance(by: LockScreenPress.readbackHold)
     await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The card waited for the flush")
     #expect(harness.liveActivity.replacements.first?.card.pendingWrites == 1)
 
@@ -157,7 +113,7 @@ extension BackgroundDictationHarness {
     _ = await harness.press(identity)
     let shown = harness.liveActivity.readbacks
 
-    let outcome = await harness.chips.run(setIdentity: identity, rpe: "7")
+    let outcome = await harness.chips.logSet(setIdentity: identity, reps: 5, rpe: "7")
 
     #expect(outcome == .sameSetLog(at: firstSet))
     #expect(harness.liveActivity.readbacks == shown)
@@ -227,12 +183,12 @@ extension BackgroundDictationHarness {
 }
 
 @MainActor
-@Test(arguments: [("not an identity", "7"), ("identity", "7.25"), ("identity", "")])
-func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async throws {
+@Test(arguments: [("not an identity", 5, "7"), ("identity", 5, "7.25"), ("identity", 5, ""), ("identity", 0, "7"), ("identity", 101, "7")])
+func aPressThisBuildCannotReadWritesNothing(identity: String, reps: Int, rpe: String) async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
     let pressed = identity == "identity" ? harness.identity() : identity
 
-    let outcome = await harness.press(pressed, rpe: rpe)
+    let outcome = await harness.press(pressed, reps: reps, rpe: rpe)
 
     #expect(outcome == .notLogged(.unreadable))
     try harness.expectNothingWritten()
@@ -248,24 +204,25 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async
     #expect(harness.liveActivity.noSets == [.noCurrentSession])
 }
 
-/// The stage's card and the Lock Screen disagree, which only the athlete can settle.
+/// The stage's card holds another weight than the Lock Screen showed, which only the athlete can
+/// settle, since the Lock Screen cannot choose one.
 @MainActor
-@Test func aChipOverACardThatChangedWritesNothingAndSaysSo() async throws {
+@Test func aChipOverACardWhoseWeightChangedWritesNothingAndSaysSo() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
-    harness.focus.cardShows(SetLogDraft(weight: .pounds(240), reps: 5, rpe: nil), for: firstSet)
+    harness.focus.cardShows(SetLogDraft(weight: .pounds(240), reps: nil, rpe: nil), for: firstSet)
 
     let outcome = await harness.press(harness.identity())
 
     #expect(outcome == .notLogged(.cardChanged))
-    #expect(harness.liveActivity.readbacks == [.notLogged("The card changed. Open to log")])
+    #expect(harness.liveActivity.readbacks == [.notLogged("The weight changed. Open to log")])
     try harness.expectNothingWritten()
 }
 
-/// The card reports no RPE until the athlete picks one, and the tapped chip is the report.
+/// The card's Reps and RPE are a pre-fill, and the tapped chips are the athlete's report.
 @MainActor
-@Test func aChipOverACardShowingTheSameValuesLogsTheTappedRPE() async throws {
+@Test func aChipOverACardShowingTheSameWeightLogsTheTappedRepsAndRPE() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
-    harness.focus.cardShows(SetLogDraft(weight: .pounds(235), reps: 5, rpe: .nine), for: firstSet)
+    harness.focus.cardShows(SetLogDraft(weight: .pounds(235), reps: 3, rpe: .nine), for: firstSet)
 
     let outcome = await harness.press(harness.identity())
 
@@ -297,20 +254,23 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async
     await waitUntil({ harness.dictation.state.pressSetID != nil }, orRecord: "The mic never opened")
     // A press that logged past the open mic holds its readback, and the mic it overtook never stops,
     // so the press runs on a clock that moves and the outcome must hold before the mic is closed.
-    let chips = RPEChipPress(
+    let chips = LockScreenPress(
         app: harness.app,
         dictation: harness.dictation,
         focus: harness.focus,
         restTimer: harness.restTimer,
         liveActivity: harness.liveActivity,
+        rows: LockScreenRows(),
         signIn: harness.signIn,
         clock: ContinuousListeningClock()
     )
 
-    let outcome = await chips.run(setIdentity: harness.identity(), rpe: "7")
+    let outcome = await chips.logSet(setIdentity: harness.identity(), reps: 5, rpe: "7")
 
     try #require(outcome == .micBusy)
+    #expect(await chips.chooseReps(setIdentity: harness.identity(), reps: 6) == .micBusy)
     #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.refreshes.isEmpty)
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
     await harness.dictation.cancel()
     _ = await listening.value
@@ -328,7 +288,7 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, rpe: String) async
     }
     harness.focus.reset(to: session)
 
-    let outcome = await harness.chips.run(setIdentity: harness.identity(of: last.setID), rpe: "7")
+    let outcome = await harness.chips.logSet(setIdentity: harness.identity(of: last.setID), reps: 5, rpe: "7")
 
     #expect(outcome == .logged(logged235, at: last.setID))
     #expect(harness.liveActivity.replacements.isEmpty)

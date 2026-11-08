@@ -96,10 +96,10 @@ private func json(_ value: some Encodable) throws -> [String: Any] {
     let offered = try json(app.lockScreenOffer())
     #expect(offered["set"] as? String == "w1d1.e0.s0")
     let offer = try #require(offered["offer"] as? [String: Any])
-    #expect(Set(offer.keys) == ["weight", "reps", "rpeChoices", "prescribedRPE", "setIdentity"])
+    #expect(Set(offer.keys) == ["repChoices", "prescribedReps", "rpeChoices", "prescribedRPE", "setIdentity"])
 
     let identity = try #require(offer["setIdentity"] as? String)
-    let press = try json(try app.pressRPEChip(setIdentity: identity, rpe: "7"))
+    let press = try json(try app.pressRPEChip(setIdentity: identity, reps: 5, rpe: "7"))
     #expect(press["outcome"] as? String == "logged")
     #expect(press["set"] as? String == "w1d1.e0.s0")
     #expect(press["pendingWriteCount"] as? Int == 1)

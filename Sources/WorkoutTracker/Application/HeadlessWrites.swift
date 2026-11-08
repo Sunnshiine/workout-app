@@ -32,9 +32,15 @@ final class HeadlessWrites {
         self.clock = clock
     }
 
+    /// Set Logs the Sheet does not have yet. A readback counts them, so a Set still queued never
+    /// reads as saved to the Sheet.
+    var pendingWriteCount: Int {
+        (try? app.sync.fetchPendingWriteRecords().count) ?? 0
+    }
+
     /// Starts the rest the stage would after this Set, on the stage's own timer, and reads it back
     /// toward the Set the card focuses next. With no rest to start, the logged Set's Exercise as it
-    /// now stands.
+    /// now stands. Either counts the queue the write joined.
     func restSubject(
         afterLogging position: SessionSetPosition,
         in session: Session,
@@ -48,14 +54,19 @@ final class HeadlessWrites {
                 wasSupersetMember: wasSupersetMember,
                 durations: app.settings
             ),
-            let content = focus.liveActivityRestContent(
+            var content = focus.liveActivityRestContent(
                 afterLogging: set,
                 in: session,
                 history: app.lastPerformed.snapshot,
                 restStartDate: interval.start,
                 restEndDate: interval.end
             )
-        else { return .set(LiveActivitySetContent(position)) }
+        else {
+            var written = LiveActivitySetContent(position)
+            written.pendingWrites = pendingWriteCount
+            return .set(written)
+        }
+        content.pendingWrites = pendingWriteCount
         return .rest(content)
     }
 

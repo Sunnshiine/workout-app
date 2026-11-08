@@ -260,7 +260,9 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     /// A rest an earlier process started may still count down on the Lock Screen. It is read back
     /// off the activity so a readback rides it and its lifecycle runs here; once its post-rest
     /// cap has passed it is nobody's, and the readback takes the activity.
-    private func takeOverRestLeftRunning() {
+    /// Adopts the rest a running activity shows when this process started none, as after the
+    /// system ended the app and a press launched it again.
+    func takeOverRestLeftRunning() {
         guard
             owner == .nobody, controller.isActive,
             let state = controller.currentState,

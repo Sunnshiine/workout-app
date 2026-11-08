@@ -72,22 +72,26 @@ struct WorkoutLiveActivity: Widget {
         }
     }
 
-    /// The chips' line and tick state the prescription, so this keeps only what they leave out.
+    /// The set line under the countdown names the Set, so the corner holds the queue, which wraps
+    /// before it cuts off.
     @ViewBuilder
     private func restLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch state.loggablePress {
-        case .ready(let offer):
-            if let prescription = state.prescription(beyond: offer) {
-                Text(prescription)
-                    .liveActivityFont(.label)
-                    .foregroundStyle(state.liveActivityColors.islandSecondaryText)
-                    .lineLimit(2)
-            }
-        case .needsApp:
-            // A long load shrinks to fit, since a prescription cut off mid-value reads wrong.
-            PrescriptionStack(state: state)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+        if let queue = state.pendingWritesText {
+            Text(queue)
+                .liveActivityFont(.label)
+                .foregroundStyle(state.liveActivityColors.islandSecondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The Start in the mic's place for a Set that opens on a timed effort.
+    @ViewBuilder
+    private func restTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
+        if let start = state.start {
+            LockScreenStartButton(start: start, colors: state.liveActivityColors, diameter: 44)
+        } else {
+            SaySetButton(state: state, diameter: 44)
         }
     }
 
@@ -104,7 +108,7 @@ struct WorkoutLiveActivity: Widget {
             case .setProgress, .nowLifting:
                 PrescribedLoadBadge(state: state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                SaySetButton(state: state, diameter: 44)
+                restTrailing(for: state)
             }
         }
     }
@@ -122,13 +126,9 @@ struct WorkoutLiveActivity: Widget {
             case .nowLifting:
                 WeightForwardStack(state: context.state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount:
-                // The chips' Exercise and values read under it, so the digits need no label, and
-                // the chips take the room the digits would.
-                if context.state.loggablePress == .needsApp {
-                    IslandRestCountdown(state: context.state)
-                } else {
-                    RestCountdownStack(state: context.state, showsLabel: false, digits: .figure)
-                }
+                // The set line reads under it, so the digits need no label, and the chips take the
+                // room the digits would.
+                RestCountdownStack(state: context.state, showsLabel: false, digits: .figure)
             case .restTimerClean:
                 RestCountdownStack(state: context.state, showsLabel: false, digits: .largeFigure)
             }
@@ -144,8 +144,6 @@ struct WorkoutLiveActivity: Widget {
                 DictationProgress(state: context.state, dictation: dictation, style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-        } else if context.state.variant.isRestTimer, case .ready(let offer) = context.state.loggablePress {
-            IslandRPEChips(state: context.state, offer: offer)
         } else {
             switch context.state.variant {
             case .setProgress:
@@ -158,12 +156,8 @@ struct WorkoutLiveActivity: Widget {
             case .nowLifting:
                 ExerciseNameStack(state: context.state)
                     .frame(maxWidth: .infinity, alignment: .leading)
-            case .restTimer, .restTimerClean:
-                RestProgressBar(state: context.state, fill: context.state.liveActivityColors.islandSecondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            case .restTimerSetsLeft, .restTimerSetCount:
-                RestProgressWithContext(state: context.state, style: .island)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                IslandSetOffer(state: context.state)
             }
         }
     }
@@ -288,40 +282,46 @@ private struct LockScreenWorkoutView: View {
     }
 }
 
-/// The rest with no chips under it. The system gives the expanded island's center the height it asks
-/// for and takes it from the row under it, so space cannot decide what gives way here: at the
-/// largest type the label goes, and the count of Sets left under it stays whole.
-private struct IslandRestCountdown: View {
+/// The Set under the countdown, over how to log it, since nothing else on the island names the
+/// Exercise a press logs to. The target gives way before the name and the weight.
+private struct IslandSetOffer: View {
     let state: WorkoutActivityAttributes.ContentState
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        RestCountdownStack(state: state, showsLabel: dynamicTypeSize < WorkoutLiveActivity.largestType, digits: .largeFigure)
-    }
-}
-
-/// The Exercise and what a chip logs, over the chips, since nothing else on the island names the
-/// Exercise a press logs to. The island's own lines name the prescription.
-private struct IslandRPEChips: View {
-    let state: WorkoutActivityAttributes.ContentState
-    let offer: LoggablePress.Offer
 
     var body: some View {
         let colors = state.liveActivityColors
 
         VStack(alignment: .leading, spacing: 6) {
             ViewThatFits(in: .horizontal) {
-                setLine(beside: state.pendingWritesText ?? state.restContextText)
-                setLine(beside: nil)
+                setLine(withTheTarget: true)
+                setLine(withTheTarget: false)
             }
             .accessibilityElement(children: .combine)
 
-            RPEChipRow(offer: offer, labelColor: colors.islandPrimaryText, colors: colors, spacing: 4, chipHeight: 44)
+            switch state.loggablePress {
+            case .ready(let offer):
+                LockScreenChipRow(
+                    offer: offer,
+                    weight: state.weightText,
+                    labelColor: colors.islandPrimaryText,
+                    colors: colors,
+                    spacing: 4,
+                    chipHeight: 44
+                )
+            case .needsApp:
+                Link(destination: LockScreenChipRow.appURL) {
+                    Text("Open to log")
+                        .liveActivityFont(.control)
+                        .foregroundStyle(colors.islandPrimaryText)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(colors.track, in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
+                        .contentShape(.rect)
+                }
+            }
         }
     }
 
-    /// The count gives way before the name, which says what a press logs to.
-    private func setLine(beside count: String?) -> some View {
+    private func setLine(withTheTarget: Bool) -> some View {
         let colors = state.liveActivityColors
 
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -329,21 +329,22 @@ private struct IslandRPEChips: View {
                 .liveActivityFont(.exerciseName)
                 .foregroundStyle(colors.islandPrimaryText)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .truncationMode(.middle)
 
-            LoggableValuesText(offer: offer, color: colors.islandPrimaryText)
+            SelectedWeightText(state: state, color: colors.islandPrimaryText)
                 .liveActivityFont(.figure)
-                .fixedSize(horizontal: true, vertical: false)
+                .fixedSize()
 
-            Spacer(minLength: 0)
-
-            if let count {
-                Text(count)
+            if withTheTarget {
+                Text(state.prescriptionText)
                     .liveActivityFont(.label)
                     .foregroundStyle(colors.islandSecondaryText)
                     .lineLimit(1)
-                    .layoutPriority(1)
+                    .fixedSize()
             }
+
+            Spacer(minLength: 0)
         }
     }
 }

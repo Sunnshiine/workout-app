@@ -433,7 +433,9 @@ extension ActiveSetCard {
             timedEffort: coordinator.cardCountdown(for: slot).map { countdown in
                 SetCardTimedEffort(
                     countdown: countdown,
+                    startsOnArrival: coordinator.startsCountdownOnArrival(slot),
                     start: { coordinator.startCountdown(for: slot) },
+                    startRequested: { coordinator.startRequestedCountdown(for: slot) },
                     cancel: { coordinator.cancelCountdown() }
                 )
             },

@@ -3,7 +3,10 @@ import SwiftUI
 /// The card's timed effort, present only on a Pending Set it logs whose Exercise has one.
 struct SetCardTimedEffort {
     let countdown: SetCardCountdown
+    /// True while the Lock Screen's Start waits for this card, which counts the effort on arrival.
+    let startsOnArrival: Bool
     let start: () -> Void
+    let startRequested: () -> Void
     let cancel: () -> Void
 }
 

@@ -188,7 +188,8 @@ struct LiveActivityLabView: View {
             restEndDate: restEndDate,
             dictation: nil,
             loggablePress: labPress,
-            lastPerformed: labLastPerformed,
+            guidance: labGuidance,
+            start: nil,
             pendingWrites: 0
         )
     }
@@ -198,17 +199,18 @@ struct LiveActivityLabView: View {
     private var labPress: LoggablePress {
         .ready(
             LoggablePress.Offer(
-                weight: "\(weight)",
-                reps: 5,
+                repChoices: [3, 4, 5, 6, 7],
+                prescribedReps: [5],
                 rpeChoices: ["6", "6.5", "7", "7.5", "8"],
                 prescribedRPE: "7",
-                setIdentity: "Lab"
+                setIdentity: "Lab",
+                chosenReps: nil
             )
         )
     }
 
-    private var labLastPerformed: [String] {
-        ["Block 26 · W4 D3 — \(weight)x5@6", "\(weight)x5@6"]
+    private var labGuidance: String {
+        "3:1:1 · Brace hard off the floor, controlled descent."
     }
 
     private var restDurationLabel: String {
@@ -280,7 +282,8 @@ struct LiveActivityLabView: View {
             restEndDate: restEndDate,
             dictation: nil,
             loggablePress: labPress,
-            lastPerformed: labLastPerformed,
+            guidance: labGuidance,
+            start: nil,
             pendingWrites: 0
         )
     }

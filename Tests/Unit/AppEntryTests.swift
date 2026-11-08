@@ -26,6 +26,35 @@ func noOtherURLAsksTheAppForAnything(url: String) {
     #expect(AppEntryRequest(url: URL(string: url)!) == nil)
 }
 
+/// The Lock Screen's Start names the Set by its place in its Session, as the stage's countdown does.
+@Test func aStartURLReadsBackTheSetItNames() throws {
+    let owner = CountdownRun.Owner(
+        session: SessionCoordinate(blockTab: "Block 27 · Peaking", address: SessionAddress(week: 2, day: 3)),
+        set: ActiveSetID(exerciseOrder: 1, setIndex: 0)
+    )
+    let start = AppEntryRequest.startTimedEffort(owner)
+
+    #expect(AppEntryRequest(url: start.url) == start)
+    #expect(AppEntryRequest(url: AppEntryRequest.dictateCurrentSet.url) == .dictateCurrentSet)
+    #expect(start.kind == .start)
+    #expect(AppEntryRequest.dictateCurrentSet.kind == .dictation)
+}
+
+@Test(
+    "A Start URL missing any part of its Set asks for nothing",
+    arguments: [
+        "workouttracker://start",
+        "workouttracker://start?exercise=1&set=0",
+        "workouttracker://start?session=no%20session&exercise=1&set=0",
+        "workouttracker://start?session=Block%2027%20%C2%B7%20W1%20D1&set=0",
+        "workouttracker://start?session=Block%2027%20%C2%B7%20W1%20D1&exercise=one&set=0",
+        "workouttracker://start?session=Block%2027%20%C2%B7%20W1%20D1&exercise=1"
+    ]
+)
+func aStartURLMissingItsSetAsksForNothing(url: String) {
+    #expect(AppEntryRequest(url: URL(string: url)!) == nil)
+}
+
 @Test func theAppRegistersItsURLSchemeBesideGoogleSignIns() throws {
     let data = try Data(contentsOf: RepositoryFiles.existingURL(of: "App/Info.plist"))
     let plist = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])

@@ -9,9 +9,10 @@ enum LockScreenCardMetrics {
 
 /// What a card keeps, tried in order until one fits the height the system gives it at the reader's
 /// type size, so the room decides what goes and the type itself never stops growing. The spare line
-/// goes first: Last Performed, or the second line of a readback's reason. The bottom row keeps the
-/// chips' height for as long as it can, because the system can keep a card's last height until the
-/// screen wakes, and a readback shorter than the next Set's card would draw its chips cut off.
+/// goes first: the Cadence and Coach Note, or the second line of a readback's reason. The queue on the
+/// offer's spare line then moves up beside the target, which gives way to it. The bottom row keeps
+/// the chips' height for as long as it can, because the system can keep a card's last height until
+/// the screen wakes, and a readback shorter than the next Set's card would draw its chips cut off.
 enum LockScreenCardFit: CaseIterable {
     case whole
     case withoutTheSpareLine
@@ -93,21 +94,28 @@ struct LockScreenCardLayout<Lines: View, Mic: View, BottomRow: View>: View {
     }
 }
 
-/// The Lock Screen during a rest: the Set the card is on, its Exercise's Last Performed, and how to
-/// log it. One tap on an RPE Chip logs a complete pre-fill. Anything else is left to the mic or the
-/// app, because a chip must never log a value the athlete has not read.
+/// The Lock Screen during a rest: the Set the card is on, as the stage shows it, and how to log it.
+/// The weight is the one the stage holds, which the card cannot change. The Reps and the RPE are two
+/// taps, and the second logs. Anything else is left to the mic or the app.
 struct SetOfferLockScreenView: View {
+    /// DESIGN.md's Shrink-Then-Truncate Rule: the 13pt target shrinks to 12pt before it cuts off.
+    private static let targetFloorScale: CGFloat = 12 / 13
+
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
         LockScreenCardLayout(state: state, exerciseName: state.exerciseName) { keepsTheSpareLine in
-            if keepsTheSpareLine, !state.lastPerformed.isEmpty {
-                lastPerformedLine
-            }
+            valuesLine(withTheQueue: !keepsTheSpareLine)
 
-            valuesLines(holdingTheSpareLine: keepsTheSpareLine && state.lastPerformed.isEmpty)
+            if keepsTheSpareLine {
+                spareLine
+            }
         } mic: {
-            SaySetButton(state: state, diameter: LockScreenCardMetrics.controlSize)
+            if let start = state.start {
+                LockScreenStartButton(start: start, colors: state.liveActivityColors, diameter: LockScreenCardMetrics.controlSize)
+            } else {
+                SaySetButton(state: state, diameter: LockScreenCardMetrics.controlSize)
+            }
         } bottomRow: {
             howToLog
         }
@@ -119,8 +127,9 @@ struct SetOfferLockScreenView: View {
 
         switch state.loggablePress {
         case .ready(let offer):
-            RPEChipRow(
+            LockScreenChipRow(
                 offer: offer,
+                weight: state.weightText,
                 labelColor: colors.primaryText,
                 colors: colors,
                 spacing: 6,
@@ -128,7 +137,7 @@ struct SetOfferLockScreenView: View {
             )
         case .needsApp:
             // The mic beside it says the other half: this Set can still be said.
-            Link(destination: RPEChipRow.appURL) {
+            Link(destination: LockScreenChipRow.appURL) {
                 Text("Open to log")
                     .liveActivityFont(.control)
                     .foregroundStyle(colors.primaryText)
@@ -140,115 +149,63 @@ struct SetOfferLockScreenView: View {
         }
     }
 
-    /// What a chip logs sits on the line over the chips, and with no chips the prescription does. The
-    /// line drops whole parts, since a count cut off mid-word reads worse than no count. The queue
-    /// goes last among them, since no other surface says it with the app closed: where it fits beside
-    /// nothing, it takes a line of its own, the spare line when the card holds that one empty.
-    private func valuesLines(holdingTheSpareLine: Bool) -> some View {
-        ViewThatFits(in: .horizontal) {
-            ForEach(Array(besideTheValues.enumerated()), id: \.offset) { _, text in
-                VStack(alignment: .leading, spacing: 1) {
-                    if holdingTheSpareLine {
-                        spareLine
-                    }
+    /// The weight a chip logs, then the coach's target as the Sheet holds it. The target shrinks to the
+    /// floor, then cuts off, and gives way to the queue, which no line drops.
+    private func valuesLine(withTheQueue: Bool) -> some View {
+        let colors = state.liveActivityColors
 
-                    valuesLine(beside: text)
-                }
-            }
-
-            if let queue = state.pendingWritesText {
-                VStack(alignment: .leading, spacing: 1) {
-                    valuesLine(beside: "")
-
-                    ViewThatFits(in: .horizontal) {
-                        if let setsLeft = state.restContextText {
-                            Text("\(queue) · \(setsLeft)")
-                        }
-
-                        Text(queue)
-                    }
-                    .lineLimit(1)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 1) {
-                if holdingTheSpareLine {
-                    spareLine
-                }
-
-                valuesLine(beside: "")
-            }
-        }
-        .liveActivityFont(.reference)
-        .foregroundStyle(state.liveActivityColors.secondaryText)
-    }
-
-    /// Keeps a card with no Last Performed as tall as one with it.
-    private var spareLine: some View {
-        Text(" ")
-            .liveActivityFont(.lastPerformed)
-            .hidden()
-    }
-
-    private func valuesLine(beside text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // A long cell shrinks to fit only on its own, so a count never costs it size, and the
-            // hidden line keeps the card from losing height to it.
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            // The hidden line keeps a card with no weight as tall as one with it.
             ZStack(alignment: .leading) {
                 Text(" ").hidden()
 
-                switch state.loggablePress {
-                case .ready(let offer):
-                    LoggableValuesText(offer: offer, color: state.liveActivityColors.primaryText)
-                case .needsApp:
-                    Text(state.prescriptionText)
-                        .foregroundStyle(state.liveActivityColors.primaryText)
-                        .lineLimit(1)
-                }
+                SelectedWeightText(state: state, color: colors.primaryText)
             }
             .liveActivityFont(.figure)
-            .minimumScaleFactor(text.isEmpty ? 0.75 : 1)
+            .fixedSize()
 
-            if !text.isEmpty {
-                Text(text)
+            Text(state.prescriptionText)
+                .lineLimit(1)
+                .minimumScaleFactor(Self.targetFloorScale)
+
+            if withTheQueue, let queue = state.pendingWritesText {
+                Text("· \(queue)")
                     .lineLimit(1)
+                    .fixedSize()
+                    .layoutPriority(1)
             }
         }
+        .liveActivityFont(.reference)
+        .foregroundStyle(colors.secondaryText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
-    /// Longest first, ending on the queue alone.
-    private var besideTheValues: [String] {
-        let prescription: String? =
-            switch state.loggablePress {
-            case .ready(let offer): state.prescription(beyond: offer)
-            case .needsApp: nil
+    /// The queue, then the Cadence and Coach Note cut off at the end. A card with neither keeps the
+    /// line's height, so the next Set's card holds still.
+    private var spareLine: some View {
+        HStack(spacing: 0) {
+            if let queue = state.pendingWritesText {
+                Text(queue)
+                    .liveActivityFont(.reference)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-        let queue = state.pendingWritesText
-        let setsLeft = state.restContextText
-        return [[prescription, queue, setsLeft], [prescription, queue], [queue, setsLeft], [queue]]
-            .map { $0.compactMap { $0 }.joined(separator: " · ") }
-    }
 
-    private var lastPerformedLine: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "clock.arrow.circlepath")
-                .accessibilityHidden(true)
-
-            ViewThatFits(in: .horizontal) {
-                ForEach(state.lastPerformed, id: \.self) { line in
-                    // A line shrinks to the floor before it gives up a Set Log.
-                    Text(line)
-                        .lineLimit(1)
-                    Text(line)
-                        .liveActivityFont(.lastPerformedFloor)
-                        .lineLimit(1)
-                }
+            if let guidance = state.guidance {
+                Text(state.pendingWritesText == nil ? guidance : " · \(guidance)")
+                    .liveActivityFont(.guidance)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } else if state.pendingWritesText == nil {
+                Text(" ")
+                    .liveActivityFont(.guidance)
+                    .hidden()
             }
         }
-        .liveActivityFont(.lastPerformed)
         .foregroundStyle(state.liveActivityColors.secondaryText)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Last Performed \(state.lastPerformed.first ?? "")")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -271,88 +228,19 @@ private struct RestCountdownTrailing: View {
     }
 }
 
-/// What a chip logs, as the stage's Log capsule writes it.
-struct LoggableValuesText: View {
-    let offer: LoggablePress.Offer
+/// The weight the stage's card holds, which every chip logs.
+struct SelectedWeightText: View {
+    let state: WorkoutActivityAttributes.ContentState
     let color: Color
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Text(offer.valuesText)
+        Text(state.weightText)
             .foregroundStyle(color)
             .lineLimit(1)
             .contentTransition(reduceMotion ? .opacity : .numericText())
             .invalidatableContent()
     }
-}
-
-/// One tap logs the Set at that RPE, and the last chip opens the app for an RPE not offered. Nothing
-/// is preselected, since the tap is the athlete's report of the Set. The coach's RPE takes the rail's
-/// tick and no fill of its own.
-struct RPEChipRow: View {
-    private enum Metrics {
-        static let tickWidth: CGFloat = 18
-        static let tickHeight: CGFloat = 3
-        static let tickInset: CGFloat = 5
-    }
-
-    let offer: LoggablePress.Offer
-    let labelColor: Color
-    let colors: LiveActivityColors
-    let spacing: CGFloat
-    let chipHeight: CGFloat
-
-    var body: some View {
-        HStack(spacing: spacing) {
-            ForEach(offer.rpeChoices, id: \.self) { rpe in
-                chip(rpe)
-            }
-            openApp
-        }
-    }
-
-    private func chip(_ rpe: String) -> some View {
-        Button(intent: LogSetAtRPEIntent(setIdentity: offer.setIdentity, rpe: rpe)) {
-            Text(rpe)
-                .liveActivityFont(.figure)
-                .foregroundStyle(labelColor)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .invalidatableContent()
-                .frame(maxWidth: .infinity)
-                .frame(height: chipHeight)
-                .background(colors.action.opacity(0.22), in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
-                .overlay(alignment: .bottom) {
-                    if rpe == offer.prescribedRPE {
-                        Capsule()
-                            .fill(colors.action)
-                            .frame(width: Metrics.tickWidth, height: Metrics.tickHeight)
-                            .padding(.bottom, Metrics.tickInset)
-                    }
-                }
-                .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Log \(offer.valuesText) at RPE \(rpe)")
-        .accessibilityValue(rpe == offer.prescribedRPE ? "Prescribed" : "")
-    }
-
-    private var openApp: some View {
-        Link(destination: Self.appURL) {
-            Image(systemName: "ellipsis")
-                .font(.body.weight(.bold))
-                .foregroundStyle(labelColor.opacity(0.68))
-                .frame(maxWidth: .infinity)
-                .frame(height: chipHeight)
-                .background(colors.track, in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
-                .contentShape(.rect)
-        }
-        .accessibilityLabel("Another RPE, in the app")
-    }
-
-    // Opens the app where it was. No request is attached, so nothing starts listening.
-    // swiftlint:disable:next force_unwrapping
-    static let appURL = URL(string: "workouttracker://")!
 }
 
 /// Presses Log a Set, which listens without bringing the app forward when it is behind.

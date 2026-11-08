@@ -59,7 +59,7 @@ struct WorkoutTrackerApp: App {
             liveActivity: liveActivityAdapter,
             entry: entry
         )
-        LogSetAtRPEIntent.performer = LogSetAtRPEPerformer(
+        LockScreenPresses.performer = LogSetAtRPEPerformer(
             app: app,
             dictation: dictation,
             focus: focus,

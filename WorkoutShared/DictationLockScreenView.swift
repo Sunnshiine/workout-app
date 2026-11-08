@@ -155,6 +155,10 @@ struct DictationProgress: View {
     let dictation: LiveActivityDictation
     let style: Style
 
+    private var colors: LiveActivityColors {
+        state.liveActivityColors
+    }
+
     var body: some View {
         if state.restEndDate != nil {
             switch style {
@@ -173,12 +177,15 @@ struct DictationProgress: View {
                 RestProgressWithContext(state: state, style: .lockScreen, context: nextSetText)
             }
         } else {
-            SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: state.liveActivityColors)
+            HStack(spacing: 8) {
+                SegmentedSets(done: state.setsDone, total: state.setsTotal, colors: state.liveActivityColors)
+
+                PendingWritesLabel(state: state, color: style == .island ? colors.islandSecondaryText : colors.secondaryText)
+            }
         }
     }
 
-    /// The rest after a write can lead to another Exercise, which it names. Within the Exercise the
-    /// card already names, it counts Sets as any rest does.
+    /// The rest after a write can lead to another Exercise, which it names.
     private var nextSetText: String? {
         guard let written = dictation.writtenSet, written.exerciseName != state.exerciseName else { return nil }
         return "Next: \(state.exerciseName)"

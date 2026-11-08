@@ -15,10 +15,8 @@ enum LiveActivityType {
     case control
     /// `runline`.
     case reference
-    /// `lastPerformed`.
-    case lastPerformed
-    /// `lastPerformed` at the 12pt floor of DESIGN.md's Shrink-Then-Truncate Rule.
-    case lastPerformedFloor
+    /// `lastPerformed`'s face, which the Lock Screen card's line of Cadence and Coach Note takes.
+    case guidance
     /// `fieldLabel`.
     case label
 
@@ -27,8 +25,7 @@ enum LiveActivityType {
         case .exerciseName: 20
         case .largeFigure: 28
         case .figure, .control: 17
-        case .reference, .lastPerformed, .label: 13
-        case .lastPerformedFloor: 12
+        case .reference, .guidance, .label: 13
         }
     }
 
@@ -38,7 +35,7 @@ enum LiveActivityType {
         case .largeFigure: .title1
         case .figure: .body
         case .control: .headline
-        case .reference, .lastPerformed, .lastPerformedFloor: .footnote
+        case .reference, .guidance: .footnote
         case .label: .caption1
         }
     }
@@ -50,7 +47,7 @@ enum LiveActivityType {
         case .exerciseName:
             axes = [Self.tag("wght"): weight, Self.tag("opsz"): Double(size), Self.tag("SOFT"): 100, Self.tag("WONK"): 0]
             attributes = [.family: "Fraunces"]
-        case .largeFigure, .figure, .control, .reference, .lastPerformed, .lastPerformedFloor, .label:
+        case .largeFigure, .figure, .control, .reference, .guidance, .label:
             axes = [Self.tag("wght"): weight]
             attributes = [
                 .family: "Source Sans 3",
@@ -70,7 +67,7 @@ enum LiveActivityType {
         switch self {
         case .exerciseName: 490
         case .largeFigure, .figure: 700
-        case .lastPerformed, .lastPerformedFloor: 400
+        case .guidance: 400
         case .control, .reference, .label: 600
         }
     }

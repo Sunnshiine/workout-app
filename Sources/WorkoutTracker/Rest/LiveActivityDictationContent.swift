@@ -85,6 +85,8 @@ struct LiveActivitySetContent: Equatable, Sendable {
     let prescribedLoad: String
     let setsDone: Int
     let setsTotal: Int
+    /// The queue, where a readback over this Set counts it.
+    var pendingWrites = 0
 
     @MainActor
     init(_ position: SessionSetPosition) {

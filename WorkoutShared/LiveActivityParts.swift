@@ -190,6 +190,8 @@ struct RestProgressBar: View {
     }
 }
 
+/// The rest's bar, then the Exercise it leads to when that is not the one named above, then the
+/// queue, which gives up no width to either.
 struct RestProgressWithContext: View {
     enum Style {
         case island
@@ -198,7 +200,6 @@ struct RestProgressWithContext: View {
 
     let state: WorkoutActivityAttributes.ContentState
     let style: Style
-    /// In place of the variant's own context.
     var context: String?
 
     var body: some View {
@@ -207,14 +208,16 @@ struct RestProgressWithContext: View {
             RestProgressBar(state: state, fill: textColor)
                 .frame(minWidth: 60)
 
-            if let restContextText = context ?? state.restContextText {
-                Text(restContextText)
+            if let context {
+                Text(context)
                     .liveActivityFont(.label)
                     .foregroundStyle(textColor)
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .layoutPriority(1)
             }
+
+            PendingWritesLabel(state: state, color: textColor)
         }
         .accessibilityElement(children: .combine)
     }
@@ -225,6 +228,24 @@ struct RestProgressWithContext: View {
             state.liveActivityColors.islandSecondaryText
         case .lockScreen:
             state.liveActivityColors.secondaryText
+        }
+    }
+}
+
+/// The Set Logs the Sheet does not have yet, in the header's words. It never cuts off, so an unsynced
+/// Set never reads as saved.
+struct PendingWritesLabel: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let color: Color
+
+    var body: some View {
+        if let queue = state.pendingWritesText {
+            Text(queue)
+                .liveActivityFont(.label)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .fixedSize()
+                .layoutPriority(2)
         }
     }
 }

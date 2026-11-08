@@ -28,6 +28,7 @@ private struct CountdownCoordinatorHarness {
     let restTimer: RestTimer
     let liveActivity = SpySessionLiveActivityAdapter()
     let navigation = SpySessionNavigationAdapter()
+    let entry = AppEntryInbox(clock: ManualListeningClock())
     let coordinator: SessionCoordinator
 
     init() {
@@ -43,7 +44,8 @@ private struct CountdownCoordinatorHarness {
                 navigation: navigation,
                 restTimer: restTimer,
                 countdown: EffortCountdown(clock: clock, scheduler: time, cues: cues),
-                liveActivity: liveActivity
+                liveActivity: liveActivity,
+                entry: entry
             )
         )
     }
@@ -302,4 +304,68 @@ func leavingTheSetEndsTheCountdown(action: String) throws {
 
     #expect(countdown.run == nil)
     #expect(cues.spoken == ["5"])
+}
+
+/// The Lock Screen's Start opens the app on the stage, where the card counts the effort as a tap on
+/// its own control does: one countdown, with its lead-in, voice, and haptics.
+@MainActor
+@Test func theLockScreensStartCountsTheEffortOnItsSetsCard() throws {
+    let harness = CountdownCoordinatorHarness()
+    harness.navigation.currentSession = harness.session
+    harness.restTimer.start(duration: 120, origin: nil)
+    harness.coordinator.focus(on: try harness.rdlSet(0))
+    let slot = try card(harness.coordinator, in: harness.session)
+    let session = try #require(harness.session.placement.coordinate)
+    let owner = CountdownRun.Owner(session: session, set: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    harness.entry.deliver(.startTimedEffort(owner))
+
+    #expect(harness.coordinator.startsCountdownOnArrival(slot))
+    harness.coordinator.startRequestedCountdown(for: slot)
+
+    #expect(harness.entry.pending == nil)
+    #expect(harness.restTimer.interval == nil)
+    #expect(harness.coordinator.cardCountdown(for: slot)?.run?.phase(at: harness.time.clock.now) == .leadIn(secondsLeft: 5))
+    #expect(harness.cues.spoken == ["5"])
+}
+
+/// A card the Lock Screen drew before the stage moved on names another Set, or another Session,
+/// and starts nothing.
+@MainActor
+@Test func aStartForAnotherSetOrSessionStartsNothing() throws {
+    let harness = CountdownCoordinatorHarness()
+    harness.navigation.currentSession = harness.session
+    harness.coordinator.focus(on: try harness.rdlSet(0))
+    let slot = try card(harness.coordinator, in: harness.session)
+    let session = try #require(harness.session.placement.coordinate)
+    let owner = CountdownRun.Owner(session: session, set: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+    let otherSet = CountdownRun.Owner(session: owner.session, set: ActiveSetID(exerciseOrder: 1, setIndex: 1))
+    let otherSession = CountdownRun.Owner(
+        session: SessionCoordinate(blockTab: "Block 26", address: owner.session.address),
+        set: owner.set
+    )
+
+    for start in [otherSet, otherSession] {
+        harness.entry.deliver(.startTimedEffort(start))
+        #expect(!harness.coordinator.startsCountdownOnArrival(slot))
+        harness.coordinator.startRequestedCountdown(for: slot)
+        #expect(harness.coordinator.cardCountdown(for: slot)?.run == nil)
+    }
+    #expect(harness.cues.spoken.isEmpty)
+}
+
+/// A Start is not a Dictation, so the card never opens the mic for it.
+@MainActor
+@Test func aStartNeverOpensTheMicAndADictationNeverStartsTheCount() throws {
+    let harness = CountdownCoordinatorHarness()
+    harness.navigation.currentSession = harness.session
+    harness.coordinator.focus(on: try harness.rdlSet(0))
+    let slot = try card(harness.coordinator, in: harness.session)
+    let session = try #require(harness.session.placement.coordinate)
+    let owner = CountdownRun.Owner(session: session, set: ActiveSetID(exerciseOrder: 1, setIndex: 0))
+
+    harness.entry.deliver(.startTimedEffort(owner))
+    #expect(!harness.coordinator.startsHandsFree(slot))
+
+    harness.entry.deliver(.dictateCurrentSet)
+    #expect(!harness.coordinator.startsCountdownOnArrival(slot))
 }

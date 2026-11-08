@@ -5,13 +5,15 @@ import Testing
 @testable import WorkoutTracker
 
 #if os(iOS)
+    /// The card reads the Exercise's Cadence and Coach Note from the content, and the weight the
+    /// stage holds in the header's unit.
     @MainActor
-    @Test func productionContentStateSaysHowManySetsAreLeft() {
+    @Test func productionContentStateCarriesTheGuidanceAndTheWeight() {
         let restContent = LiveActivityRestContent(
             exerciseName: "Bench Press",
             prescribedReps: "5",
             prescribedLoad: "RPE 8",
-            weightValue: "",
+            weightValue: "235",
             weightUnit: "lbs",
             setsDone: 1,
             setsTotal: 3,
@@ -19,12 +21,14 @@ import Testing
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
             press: .needsApp,
-            lastPerformed: []
+            guidance: "3:1:1 · Pause on the chest."
         )
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
 
-        #expect(state.restContextText == "2 Sets left")
+        #expect(state.guidance == "3:1:1 · Pause on the chest.")
+        #expect(state.weightText == "235 lbs")
+        #expect(state.start == nil)
     }
 
     @MainActor
@@ -66,8 +70,7 @@ import Testing
                 variant: .restTimerSetsLeft,
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
-                press: .needsApp,
-                lastPerformed: []
+                press: .needsApp
             ),
             dictation: nil
         )
@@ -113,8 +116,7 @@ import Testing
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
-        press: .needsApp,
-        lastPerformed: []
+        press: .needsApp
     )
 
     #expect(!LiveActivityInvalidationPolicy.isReady(content, at: restEndDate.addingTimeInterval(-1)))
@@ -135,8 +137,7 @@ import Testing
         variant: .restTimerSetsLeft,
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
-        press: .needsApp,
-        lastPerformed: []
+        press: .needsApp
     )
     let capDate = restEndDate.addingTimeInterval(30 * 60)
 

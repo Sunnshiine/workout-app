@@ -17,45 +17,17 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
         let dictation: LiveActivityDictation?
-        /// What one tap on the Lock Screen can log for the Set this content shows.
+        /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
-        /// The Exercise's Last Performed, longest first, for the card to fit to its line. Empty
-        /// when it has none.
-        let lastPerformed: [String]
+        /// The Exercise's Cadence and Coach Note on one line; nil with neither.
+        let guidance: String?
+        /// The Start in the mic's place for a Set that opens on a timed effort; nil with none.
+        let start: LockScreenStartOffer?
         /// Set Logs the Sheet does not have yet, counted when the content was drawn.
         let pendingWrites: Int
     }
 
     let sessionLabel: String
-}
-
-/// What the Lock Screen card offers for the Set it shows.
-enum LoggablePress: Codable, Hashable, Sendable {
-    case ready(Offer)
-    /// No RPE Chips, only the mic and the app.
-    case needsApp
-
-    /// One tap on an RPE Chip logs `weight` for `reps` at that RPE. `setIdentity` goes back to the
-    /// app with the press, which finds the Set by it and refuses when the card has moved on.
-    struct Offer: Codable, Hashable, Sendable {
-        let weight: String
-        let reps: Int
-        let rpeChoices: [String]
-        let prescribedRPE: String?
-        let setIdentity: String
-
-        var valuesText: String {
-            "\(weight) × \(reps)"
-        }
-
-        /// True for a load the row already says: the weight a chip logs, or the RPE its tick marks.
-        func states(load: String) -> Bool {
-            let load = load.filter { !$0.isWhitespace }
-            if load == weight { return true }
-            guard let prescribedRPE, rpeChoices.contains(prescribedRPE) else { return false }
-            return load.caseInsensitiveCompare("RPE\(prescribedRPE)") == .orderedSame
-        }
-    }
 }
 
 /// What the Lock Screen and the Dynamic Island read back of a Dictation the athlete ran from the
@@ -365,8 +337,9 @@ extension WorkoutActivityAttributes.ContentState {
         }
     }
 
+    /// `185 lbs`, and `BW` alone.
     var weightText: String {
-        "\(weightValue) \(weightUnit)"
+        [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// In the header's words; nil with the queue empty.
@@ -384,15 +357,6 @@ extension WorkoutActivityAttributes.ContentState {
 
     var prescriptionText: String {
         Self.prescriptionText([prescribedRepsText, prescribedLoad])
-    }
-
-    /// The prescription less what the chips and their values already state. Nil when they state all
-    /// of it.
-    func prescription(beyond offer: LoggablePress.Offer) -> String? {
-        let reps = prescribedReps.trimmingCharacters(in: .whitespacesAndNewlines) == "\(offer.reps)" ? "" : prescribedRepsText
-        let load = offer.states(load: prescribedLoad) ? "" : prescribedLoad
-        let text = Self.prescriptionText([reps, load])
-        return text.isEmpty ? nil : text
     }
 
     private static func prescriptionText(_ parts: [String]) -> String {
