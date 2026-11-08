@@ -220,6 +220,24 @@ private func anExercise(_ name: String, in session: Session) throws -> Exercise 
 }
 
 @MainActor
+@Test func aFlagTheStoreRefusesKeepsTheSetsDraft() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, logging, _, _) = viewedFixture(of: session)
+    let set = try card(coordinator, in: session).set
+    var draft = SetFlagDraft()
+    draft.kind = .pain
+    draft.words = "left hip"
+    logging.error = .failed
+
+    coordinator.beginFlagging(set)
+    let id = try #require(coordinator.setFlagSheet?.id)
+    coordinator.keepSetFlagDraft(draft, for: id)
+    coordinator.raise(try #require(draft.flag))
+
+    #expect(coordinator.setFlagDraft(for: id) == draft)
+}
+
+@MainActor
 @Test func aNewSessionOnStageDropsEveryDraft() throws {
     let session = makeCoordinatorSession()
     let (coordinator, _, _, navigation) = viewedFixture(of: session)

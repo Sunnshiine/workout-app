@@ -39,8 +39,9 @@ final class SessionCoordinator {
     /// The Set whose Set Flag sheet is open, by the coordinates a sync's re-parse keeps.
     private(set) var flaggingSetID: SetCoordinates.ID?
     /// What the athlete has typed into a Set's flag so far. A sheet closed by a drag or a tap outside
-    /// keeps it for the next opening; a raise or a change of Session drops it.
-    private var setFlagDrafts: [SetCoordinates.ID: SetFlagDraft] = [:]
+    /// keeps it for the next opening; a raise the store takes, or a change of Session, drops it. The
+    /// sheet reads it once as it opens, so no view observes it.
+    @ObservationIgnored private var setFlagDrafts: [SetCoordinates.ID: SetFlagDraft] = [:]
 
     init(
         session: Session? = nil,
@@ -471,9 +472,9 @@ extension SessionCoordinator {
     func raise(_ flag: SetFlag) {
         defer { endFlagging() }
         guard let flaggingSetID, let set = setBeingFlagged(flaggingSetID) else { return }
-        setFlagDrafts[flaggingSetID] = nil
         do {
             try wiring.logging.flag(set, as: flag)
+            setFlagDrafts[flaggingSetID] = nil
             wiring.sync.requestPendingWriteFlush()
         } catch {
             wiring.sync.reportLocalWriteFailure(error)
