@@ -72,16 +72,16 @@ struct WorkoutLiveActivity: Widget {
         }
     }
 
-    /// The set line under the countdown names the Set, so the corner holds the queue, which wraps
-    /// before it cuts off.
+    /// The set line under the countdown names the Set, so the corner holds the queue. It shrinks
+    /// rather than wrap, because a wrap at the largest type set the count above its word.
     @ViewBuilder
     private func restLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
         if let queue = state.pendingWritesText {
             Text(queue)
                 .liveActivityFont(.label)
                 .foregroundStyle(state.liveActivityColors.islandSecondaryText)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 
@@ -290,7 +290,8 @@ private struct IslandSetOffer: View {
     var body: some View {
         let colors = state.liveActivityColors
 
-        VStack(alignment: .leading, spacing: 6) {
+        // The island's bottom region does not grow, so the chips' 46pt comes out of this gap.
+        VStack(alignment: .leading, spacing: 2) {
             // The island drew a truncating name short of the room beside it, so the first two lines
             // hold the name at its own width, and only the last lets it cut off.
             ViewThatFits(in: .horizontal) {
@@ -307,8 +308,8 @@ private struct IslandSetOffer: View {
                     weight: state.weightText,
                     labelColor: colors.islandPrimaryText,
                     colors: colors,
-                    spacing: 4,
-                    chipHeight: 44
+                    spacing: 6,
+                    chipHeight: LockScreenCardMetrics.controlSize
                 )
             case .needsApp:
                 Link(destination: LockScreenChipRow.appURL) {
@@ -316,7 +317,7 @@ private struct IslandSetOffer: View {
                         .liveActivityFont(.control)
                         .foregroundStyle(colors.islandPrimaryText)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                        .frame(height: LockScreenCardMetrics.controlSize)
                         .background(colors.track, in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
                         .contentShape(.rect)
                 }
