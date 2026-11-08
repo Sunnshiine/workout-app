@@ -173,19 +173,24 @@ struct SetFlagSheet: View {
         }
     }
 
+    /// Until a kind is chosen it wears the Log capsule's not-ready tone, so its label keeps full
+    /// contrast and the green stays for an action that is there (#1180).
     private var raiseButton: some View {
-        Button {
+        let isReady = draft.flag != nil
+        return Button {
             if let flag = draft.flag { onRaise(flag) }
         } label: {
             Text(presentation.raiseTitle)
                 .logCapsuleMetrics()
-                .foregroundStyle(palette.actionText)
-                .background(palette.actionFill, in: .capsule)
+                .foregroundStyle(isReady ? palette.actionText : palette.textPrimary)
+                .background(isReady ? palette.actionFill : palette.pillFill, in: .capsule)
+                .overlay {
+                    if !isReady { Capsule().strokeBorder(palette.pillStroke, lineWidth: 1) }
+                }
         }
         .buttonStyle(.pressScale)
-        .disabled(draft.flag == nil)
-        .opacity(draft.flag == nil ? Theme.sheetHiddenRowOpacity : 1)
-        .animation(Theme.pressAnimation, value: draft.flag == nil)
+        .disabled(!isReady)
+        .animation(Theme.pressAnimation, value: isReady)
         .accessibilityIdentifier("set-flag-raise-button")
     }
 }
