@@ -267,9 +267,12 @@ extension WorkoutStore {
     }
 
     /// Queues `flag` for the Set's Cell Note. It moves no Set State and touches no Set Log, so a Set
-    /// keeps its flag through a Clear and a coach's edit to its value never refuses it.
+    /// keeps its flag through a Clear and a coach's edit to its value never refuses it. A flag that
+    /// already landed is in the note, so raising it again queues nothing a later refusal could
+    /// mark `Flag not written`.
     func flag(_ set: ExerciseSet, as flag: SetFlag) throws {
         guard let block, block.holds(set) else { throw WorkoutLoggingError.detachedSession }
+        guard !set.setFlags.contains(where: { $0.flag == flag && $0.standing == .landed }) else { return }
         set.record(flag, standing: .unsynced)
         try enqueue(
             for: set,

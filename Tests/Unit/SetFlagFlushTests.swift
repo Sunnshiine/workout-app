@@ -129,6 +129,30 @@ extension WorkoutApplication {
 }
 
 @MainActor
+@Test func aLandedFlagRaisedAgainStaysInTheSheetWhenTheSheetWouldNowRefuseIt() async throws {
+    let file = FileManager.default.temporaryDirectory.appendingPathComponent("set-flag-\(UUID().uuidString).json")
+    defer { try? FileManager.default.removeItem(at: file) }
+    try WorkbookScenario.freshBlock.workbook().write(to: file)
+    let app = try await makeApp(over: try LocalWorkbookSheetsClient(file: file))
+    let swapped = try #require(SetFlag(kind: .swapped, text: "front squat instead"))
+    _ = try app.skip(address("w1d1.e0.s0"))
+    _ = try app.flag(address("w1d1.e0.s0"), as: swapped)
+    _ = try await app.flush()
+
+    let again = try app.flag(address("w1d1.e0.s0"), as: swapped)
+    var coachEdit = try LocalWorkbook.load(from: file)
+    coachEdit.tabs[tab]?.cells["K15"] = "coach prose: see me"
+    for row in 16...18 { hideRow(row, in: &coachEdit) }
+    try coachEdit.write(to: file)
+    let flush = try await app.flush()
+
+    #expect(again.pendingWriteCount == 0)
+    #expect(flush.syncOutcome.status == .clear)
+    #expect(try standing(of: "w1d1.e0.s0", in: app) == [.landed])
+    #expect(try LocalWorkbook.load(from: file).tabs[tab]?.cellNotes["K15"] == "Set 1 · Swapped: front squat instead")
+}
+
+@MainActor
 @Test func aSetLogWrittenAfterAFlagKeepsTheCellNote() async throws {
     let (app, _) = try await makeApp()
     _ = try app.flag(address("w1d1.e0.s0"), as: pain())
