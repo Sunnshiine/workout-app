@@ -1,92 +1,94 @@
 import SwiftUI
+import Synchronization
 
 // MARK: - Value rail (Reps / RPE)
 
+/// The Reps or RPE rail. Under VoiceOver it reads as one adjustable element; otherwise its cells
+/// stay buttons, for Voice Control, the Large Content Viewer, and the tests that tap them.
 struct ValueRail: View {
     let chips: [ValueRailChip]
     let selectedIndex: Int
     let label: String
     var isInvalid = false
     let onSelect: (String) -> Void
-    @State private var dragAnchorIndex: Int?
-    /// A drag is in flight (or just ended this event turn). It gates the cell buttons: as the strip
-    /// re-centers on the dragged value, the lifted finger sits over a *different* cell, and that
-    /// cell's button firing on release would override the drag — snapping the value back to where the
-    /// finger landed (the reported "release jumps back to the original number"). The flag clears one
-    /// runloop turn after the drag ends, after the synchronous release has been suppressed.
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverRuns
+
+    var body: some View {
+        ValueRailControl(
+            chips: chips,
+            selectedIndex: selectedIndex,
+            label: label,
+            isInvalid: isInvalid,
+            readsAsOneElement: voiceOverRuns,
+            onSelect: onSelect
+        )
+    }
+}
+
+/// The rail with its accessibility shape decided, so a hosted test can read it as VoiceOver does.
+struct ValueRailControl: View {
+    let chips: [ValueRailChip]
+    let selectedIndex: Int
+    let label: String
+    let isInvalid: Bool
+    let readsAsOneElement: Bool
+    let onSelect: (String) -> Void
+    /// A drag is in flight, or ended this event turn. It gates the cell buttons: the lifted finger
+    /// sits over a cell other than the one the drag chose, and that cell's button firing on release
+    /// would override the drag. The flag clears one runloop turn after the drag ends, after the
+    /// synchronous release has been suppressed.
     @State private var isDragging = false
     @Environment(\.themePalette) private var palette
 
     var body: some View {
-        VStack(spacing: 8) {
-            GeometryReader { geo in
-                let offset = ValueRailLayout.contentOffset(
-                    trackWidth: geo.size.width,
-                    cellWidth: Theme.railCellWidth,
-                    spacing: 0,
-                    selectedIndex: selectedIndex
-                )
+        if readsAsOneElement {
+            rail
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(label)
+                .accessibilityValue(chips.first(where: \.isSelected)?.label ?? "")
+                .accessibilityAdjustableAction { direction in
+                    select(index: selectedIndex + (direction == .increment ? 1 : -1))
+                }
+                .accessibilityIdentifier("\(label.lowercased())-rail")
+        } else {
+            rail
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel(label)
+        }
+    }
 
-                HStack(spacing: 0) {
-                    ForEach(chips) { chip in
-                        cell(chip)
+    private var rail: some View {
+        VStack(spacing: 8) {
+            RailTrack(
+                count: chips.count,
+                selectedIndex: selectedIndex,
+                isInvalid: isInvalid,
+                onDragStart: { isDragging = true },
+                onDragEnd: { DispatchQueue.main.async { isDragging = false } },
+                onCommit: select(index:),
+                strip: {
+                    HStack(spacing: 0) {
+                        ForEach(chips) { chip in
+                            cell(chip)
+                        }
                     }
                 }
-                .frame(height: geo.size.height)
-                .offset(x: offset)
-                .animation(.snappy(duration: 0.22), value: selectedIndex)
-            }
-            .frame(height: Theme.railTrackHeight)
-            .mask { edgeFadeMask }
-            .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
-            .clipShape(.rect(cornerRadius: Theme.Radius.rail))
-            .contentShape(.rect(cornerRadius: Theme.Radius.rail))
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.rail)
-                    .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
-            }
-            .simultaneousGesture(dragToSelect)
+            )
 
             Text(label)
                 .themeFont(.fieldLabel)
                 .foregroundStyle(palette.textSecondary)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(label)
     }
 
-    /// Sliding the rail follows the finger detent by detent: each cell-width of horizontal travel
-    /// moves the selection one value from where the drag began, with the detent tick on each move.
-    /// Simultaneous with the cell buttons so taps keep working unchanged.
-    private var dragToSelect: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                isDragging = true
-                let anchor = dragAnchorIndex ?? selectedIndex
-                dragAnchorIndex = anchor
-                let target = ValueRailLayout.draggedIndex(
-                    anchorIndex: anchor,
-                    translation: value.translation.width,
-                    cellWidth: Theme.railCellWidth,
-                    spacing: 0,
-                    count: chips.count
-                )
-                guard target != selectedIndex, chips.indices.contains(target) else { return }
-                onSelect(chips[target].label)
-                HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
-            }
-            .onEnded { _ in
-                dragAnchorIndex = nil
-                // Clear on the next runloop turn so the release's cell-button tap — dispatched in
-                // this same event turn — still sees `isDragging` and is suppressed.
-                DispatchQueue.main.async { isDragging = false }
-            }
+    private func select(index: Int) {
+        guard chips.indices.contains(index) else { return }
+        onSelect(chips[index].label)
+        HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
     }
 
     private func cell(_ chip: ValueRailChip) -> some View {
         Button {
-            // A tap that was actually the tail of a drag must not re-select the cell under the
-            // lifted finger — the drag's selection is authoritative (see `isDragging`).
             guard !isDragging else { return }
             onSelect(chip.label)
             HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
@@ -125,6 +127,106 @@ struct ValueRail: View {
         .accessibilityLabel("\(label) \(chip.label)")
         .accessibilityAddTraits(chip.isSelected ? [.isButton, .isSelected] : .isButton)
     }
+}
+
+/// The track and the strip of cells sliding in it. The finger's state lives here, below the cells,
+/// so a drag redraws the strip's offset each frame and nothing else.
+private struct RailTrack<Strip: View>: View {
+    let count: Int
+    let selectedIndex: Int
+    let isInvalid: Bool
+    let onDragStart: () -> Void
+    let onDragEnd: () -> Void
+    let onCommit: (Int) -> Void
+    @ViewBuilder let strip: Strip
+    @State private var drag: RailDrag?
+    @State private var yieldsToVertical = false
+    @State private var drawn = DrawnOffset()
+    @GestureState private var isTouching = false
+    @Environment(\.themePalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reducesMotion
+
+    var body: some View {
+        GeometryReader { geo in
+            let layout = ValueRailLayout(trackWidth: geo.size.width, cellWidth: Theme.railCellWidth, spacing: 0, count: count)
+            let offset =
+                drag.map { layout.draggedOffset(anchor: $0.anchor, translation: $0.translation) }
+                ?? layout.offset(centering: selectedIndex)
+
+            strip
+                .frame(height: geo.size.height)
+                .background { Color.clear.modifier(DrawnOffsetProbe(x: offset, drawn: drawn)) }
+                .offset(x: offset)
+                .transaction { transaction in
+                    if drag != nil || transaction.disablesAnimations {
+                        transaction.animation = nil
+                    } else if transaction.animation == nil {
+                        transaction.animation = Theme.Gesture.release.animation(initialVelocity: 0)
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
+                .contentShape(.rect)
+                .simultaneousGesture(slide(in: layout))
+        }
+        .frame(height: Theme.railTrackHeight)
+        .mask { edgeFadeMask }
+        .background(palette.railFill, in: .rect(cornerRadius: Theme.Radius.rail))
+        .clipShape(.rect(cornerRadius: Theme.Radius.rail))
+        .contentShape(.rect(cornerRadius: Theme.Radius.rail))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.rail)
+                .strokeBorder(isInvalid ? palette.danger : .clear, lineWidth: 2)
+        }
+        // A gesture the system cancels never reaches `onEnded`; the gesture state's reset does.
+        .onChange(of: isTouching) { _, touching in
+            guard !touching else { return }
+            yieldsToVertical = false
+            if let drag { release(drag, velocity: 0) }
+        }
+    }
+
+    /// Past the hysteresis the first move decides the axis. A horizontal drag takes the strip from
+    /// where it is drawn, so a grab mid-settle starts there, and commits each detent that crosses
+    /// the centre. A vertical one is left to the surface beneath.
+    private func slide(in layout: ValueRailLayout) -> some Gesture {
+        DragGesture(minimumDistance: Theme.Gesture.hysteresis)
+            .updating($isTouching) { _, touching, _ in touching = true }
+            .onChanged { value in
+                let translation = value.translation.width
+                if drag == nil {
+                    guard !yieldsToVertical else { return }
+                    guard ValueRailLayout.claimsAxis(value.translation) else {
+                        yieldsToVertical = true
+                        return
+                    }
+                    let anchor = layout.dragAnchor(grabbedAt: drawn.value.withLock { $0 }, translation: translation)
+                    drag = RailDrag(layout: layout, anchor: anchor, translation: translation, committedIndex: selectedIndex)
+                    onDragStart()
+                }
+                guard var moved = drag else { return }
+                moved.translation = translation
+                let centred = layout.centredIndex(at: layout.draggedOffset(anchor: moved.anchor, translation: translation))
+                if centred != moved.committedIndex {
+                    moved.committedIndex = centred
+                    onCommit(centred)
+                }
+                drag = moved
+            }
+            .onEnded { value in
+                guard let drag else { return }
+                release(drag, velocity: value.velocity.width)
+            }
+    }
+
+    private func release(_ drag: RailDrag, velocity: CGFloat) {
+        let offset = drag.layout.draggedOffset(anchor: drag.anchor, translation: drag.translation)
+        let landing = drag.layout.landing(liftedAt: offset, velocity: velocity, reducesMotion: reducesMotion)
+        withAnimation(landing.spring.animation(initialVelocity: landing.initialVelocity)) {
+            self.drag = nil
+            if landing.index != drag.committedIndex { onCommit(landing.index) }
+        }
+        onDragEnd()
+    }
 
     /// Fades the chips out at both ends without painting over the rail's rounded fill.
     private var edgeFadeMask: some View {
@@ -135,5 +237,36 @@ struct ValueRail: View {
             LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
                 .frame(width: Theme.railEdgeFadeWidth)
         }
+    }
+}
+
+private struct RailDrag {
+    let layout: ValueRailLayout
+    let anchor: CGFloat
+    var translation: CGFloat
+    var committedIndex: Int
+}
+
+/// The strip's offset as last drawn, written from inside the animation so a finger that lands
+/// mid-settle grabs the strip where it is, not where it was going.
+private final class DrawnOffset: Sendable {
+    let value = Mutex<CGFloat>(0)
+}
+
+/// Rides the same animation as the `.offset` beside it and records each frame's value. It sits on
+/// a clear background rather than on the strip: a geometry effect around text resamples the glyphs
+/// at a sub-pixel position, where `.offset` alone keeps them on the pixel grid.
+private struct DrawnOffsetProbe: GeometryEffect {
+    var x: CGFloat
+    let drawn: DrawnOffset
+
+    var animatableData: CGFloat {
+        get { x }
+        set { x = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        drawn.value.withLock { $0 = x }
+        return ProjectionTransform()
     }
 }

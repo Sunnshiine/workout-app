@@ -37,7 +37,14 @@ private func dragRail(
     XCTAssertTrue(selected.appears(within: 3))
     XCTAssertTrue(start.appears(within: 3))
 
+    // The strip follows the finger 1:1 and a release throws it by its speed, so the drag is slow and
+    // the finger rests before it lifts, landing the target cell under the centre.
     let travel = selected.frame.midX - target.frame.midX
     let from = start.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-    from.press(forDuration: 0.1, thenDragTo: from.withOffset(CGVector(dx: travel, dy: 0)))
+    from.press(
+        forDuration: 0.1,
+        thenDragTo: from.withOffset(CGVector(dx: travel, dy: 0)),
+        withVelocity: .slow,
+        thenHoldForDuration: 0.3
+    )
 }

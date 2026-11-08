@@ -13,39 +13,6 @@ struct ValueRailChip: Equatable, Hashable, Identifiable, Sendable {
     var id: String { accessibilityIdentifier }
 }
 
-/// The deterministic offset that centers a rail's selected cell. The rails are
-/// offset-driven, never `scrollTo`/`scrollPosition`: offscreen snapshot renders
-/// never apply async scrolling (they leave the content offset at 0), so the
-/// centered value is computed from layout instead.
-enum ValueRailLayout {
-    static func contentOffset(
-        trackWidth: CGFloat,
-        cellWidth: CGFloat,
-        spacing: CGFloat,
-        selectedIndex: Int
-    ) -> CGFloat {
-        let stride = cellWidth + spacing
-        let selectedCenter = stride * CGFloat(selectedIndex) + cellWidth / 2
-        return trackWidth / 2 - selectedCenter
-    }
-
-    /// The cell index a horizontal drag lands on: the strip follows the finger,
-    /// so dragging left (negative translation) advances to higher values, one
-    /// detent per cell stride from the index where the drag began.
-    static func draggedIndex(
-        anchorIndex: Int,
-        translation: CGFloat,
-        cellWidth: CGFloat,
-        spacing: CGFloat,
-        count: Int
-    ) -> Int {
-        let stride = cellWidth + spacing
-        guard stride > 0, count > 0 else { return anchorIndex }
-        let delta = Int((-translation / stride).rounded())
-        return min(max(anchorIndex + delta, 0), count - 1)
-    }
-}
-
 /// Drives the RPE one-tap scroll rail. The card never changes height, so the
 /// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {

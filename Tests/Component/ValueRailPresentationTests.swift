@@ -1,4 +1,3 @@
-import CoreGraphics
 import Testing
 
 @testable import WorkoutTracker
@@ -78,28 +77,4 @@ func repsRailTicksNothingForRepsTextItDoesNotInterpret(prescribedReps: String) {
     #expect(rail.chips.filter(\.isPrescribed).map(\.label) == ["8"])
     // 8.5 is the seventh value [5, 6, 6.5, 7, 7.5, 8, 8.5, …] → index 6.
     #expect(rail.selectedIndex == 6)
-}
-
-@Test func valueRailContentOffsetCentersTheSelectedCell() {
-    // A 150pt track, 48pt cells, no spacing: the first cell's centre is 24pt in,
-    // so centring it shifts the strip right by 150/2 − 24 = 51pt.
-    #expect(ValueRailLayout.contentOffset(trackWidth: 150, cellWidth: 48, spacing: 0, selectedIndex: 0) == 51)
-    // Index 4 (reps=5) sits 4 strides in: centre = 48*4 + 24 = 216, offset = 75 − 216 = −141.
-    #expect(ValueRailLayout.contentOffset(trackWidth: 150, cellWidth: 48, spacing: 0, selectedIndex: 4) == -141)
-    // Spacing widens the stride: stride 44, centre = 44*2 + 20 = 108, offset = 50 − 108 = −58.
-    #expect(ValueRailLayout.contentOffset(trackWidth: 100, cellWidth: 40, spacing: 4, selectedIndex: 2) == -58)
-}
-
-@Test func valueRailDragMovesOneDetentPerCellStride() {
-    // Dragging left (negative translation) advances to higher values; each 48pt
-    // of travel is one detent, rounding at the half-stride boundary.
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 4, translation: -48, cellWidth: 48, spacing: 0, count: 100) == 5)
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 4, translation: -120, cellWidth: 48, spacing: 0, count: 100) == 7)
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 4, translation: 96, cellWidth: 48, spacing: 0, count: 100) == 2)
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 4, translation: -20, cellWidth: 48, spacing: 0, count: 100) == 4)
-}
-
-@Test func valueRailDragClampsToTheRailsEnds() {
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 1, translation: 480, cellWidth: 48, spacing: 0, count: 10) == 0)
-    #expect(ValueRailLayout.draggedIndex(anchorIndex: 8, translation: -480, cellWidth: 48, spacing: 0, count: 10) == 9)
 }
