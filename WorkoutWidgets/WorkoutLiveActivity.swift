@@ -72,26 +72,25 @@ struct WorkoutLiveActivity: Widget {
         }
     }
 
-    /// The set line under the countdown names the Set, so the corner holds the queue. It shrinks
-    /// rather than wrap, because a wrap at the largest type set the count above its word.
-    @ViewBuilder
+    /// The countdown and the queue sit in the corners beside the camera, and the centre stays empty,
+    /// so the island's bottom has the room for the set line, the guidance, and the chips.
     private func restLeading(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        if let queue = state.pendingWritesText {
-            Text(queue)
-                .liveActivityFont(.label)
-                .foregroundStyle(state.liveActivityColors.islandSecondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+        IslandRestCorner {
+            RestCountdownStack(state: state, showsLabel: false, digits: .figure)
         }
     }
 
-    /// The Start in the mic's place for a Set that opens on a timed effort.
-    @ViewBuilder
+    /// The queue shrinks rather than wrap, because a wrap at the largest type set the count above
+    /// its word.
     private func restTrailing(for state: WorkoutActivityAttributes.ContentState) -> some View {
-        if let start = state.start {
-            LockScreenStartButton(start: start, colors: state.liveActivityColors, diameter: 44)
-        } else {
-            SaySetButton(state: state, diameter: 44)
+        IslandRestCorner {
+            if let queue = state.pendingWritesText {
+                Text(queue)
+                    .liveActivityFont(.label)
+                    .foregroundStyle(state.liveActivityColors.islandSecondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
     }
 
@@ -125,12 +124,8 @@ struct WorkoutLiveActivity: Widget {
                 ExerciseNameStack(state: context.state)
             case .nowLifting:
                 WeightForwardStack(state: context.state)
-            case .restTimer, .restTimerSetsLeft, .restTimerSetCount:
-                // The set line reads under it, so the digits need no label, and the chips take the
-                // room the digits would.
-                RestCountdownStack(state: context.state, showsLabel: false, digits: .figure)
-            case .restTimerClean:
-                RestCountdownStack(state: context.state, showsLabel: false, digits: .largeFigure)
+            case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
+                EmptyView()
             }
         }
     }
@@ -282,24 +277,56 @@ private struct LockScreenWorkoutView: View {
     }
 }
 
+extension DynamicTypeSize {
+    /// From here the island has no height for the corners as well as the Set's two lines and the
+    /// chips, so the corners give way: the countdown, which the compact island and the Lock Screen
+    /// still count, and the queue, which moves down beside the target.
+    fileprivate var islandShedsTheCorners: Bool { self >= .xxLarge }
+}
+
+/// A corner of the expanded island during a rest, empty where the type leaves it no room.
+private struct IslandRestCorner<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        if !typeSize.islandShedsTheCorners {
+            content
+        }
+    }
+}
+
 /// The Set under the countdown, over how to log it, since nothing else on the island names the
-/// Exercise a press logs to. The target gives way before the name and the weight.
+/// Exercise a press logs to. Under the set line, the Cadence and Coach Note cut off with "…". A
+/// target the set line has no room for moves down ahead of them, so the guidance gives way first and
+/// the target never does.
 private struct IslandSetOffer: View {
     let state: WorkoutActivityAttributes.ContentState
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// The narrowest cut of the guidance worth drawing, about a word and its "…".
+    @ScaledMetric(relativeTo: .footnote) private var guidanceStub: CGFloat = 56
 
     var body: some View {
         let colors = state.liveActivityColors
 
-        // The island's bottom region does not grow, so the chips' 46pt comes out of this gap.
         VStack(alignment: .leading, spacing: 2) {
-            // The island drew a truncating name short of the room beside it, so the first two lines
-            // hold the name at its own width, and only the last lets it cut off.
-            ViewThatFits(in: .horizontal) {
-                setLine(withTheTarget: true, nameFits: true)
-                setLine(withTheTarget: false, nameFits: true)
-                setLine(withTheTarget: false, nameFits: false)
+            HStack(alignment: .center, spacing: 8) {
+                // The island drew a truncating name short of the room beside it, so the first two
+                // candidates hold the name at its own width, and only the last lets it cut off.
+                ViewThatFits(in: .horizontal) {
+                    lines(targetOnTheSetLine: true, nameFits: true)
+                    lines(targetOnTheSetLine: false, nameFits: true)
+                    lines(targetOnTheSetLine: false, nameFits: false)
+                }
+                .accessibilityElement(children: .combine)
+
+                // The Start in the mic's place for a Set that opens on a timed effort.
+                if let start = state.start {
+                    LockScreenStartButton(start: start, colors: colors, diameter: 44)
+                } else {
+                    SaySetButton(state: state, diameter: 44)
+                }
             }
-            .accessibilityElement(children: .combine)
 
             switch state.loggablePress {
             case .ready(let offer):
@@ -322,6 +349,51 @@ private struct IslandSetOffer: View {
                         .contentShape(.rect)
                 }
             }
+        }
+    }
+
+    private func lines(targetOnTheSetLine: Bool, nameFits: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            setLine(withTheTarget: targetOnTheSetLine, nameFits: nameFits)
+            guidanceLine(withTheTarget: !targetOnTheSetLine)
+        }
+    }
+
+    /// The target when the set line had no room for it, the queue when the corners gave way, then
+    /// the guidance. Only the guidance cuts off.
+    @ViewBuilder
+    private func guidanceLine(withTheTarget: Bool) -> some View {
+        let whole = [
+            withTheTarget ? state.prescriptionText : nil,
+            typeSize.islandShedsTheCorners ? state.pendingWritesText : nil
+        ]
+        .compactMap { $0 }
+        .joined(separator: " · ")
+        if !whole.isEmpty || state.guidance != nil {
+            HStack(alignment: .firstTextBaseline, spacing: 0) {
+                if !whole.isEmpty {
+                    Text(whole)
+                        .liveActivityFont(.label)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+
+                if let guidance = state.guidance {
+                    let text = Text(whole.isEmpty ? guidance : " · \(guidance)")
+                        .liveActivityFont(.guidance)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    // A stub too short to read draws nothing, and the guidance's width never decides
+                    // which of the set line's candidates fits.
+                    ViewThatFits(in: .horizontal) {
+                        text.fixedSize()
+                        text.frame(minWidth: guidanceStub, idealWidth: guidanceStub, maxWidth: .infinity, alignment: .leading)
+                        Color.clear.frame(width: 0, height: 0)
+                    }
+                    .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .foregroundStyle(state.liveActivityColors.islandSecondaryText)
         }
     }
 

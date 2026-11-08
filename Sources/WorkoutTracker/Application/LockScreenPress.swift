@@ -14,12 +14,7 @@ final class LockScreenPress {
         case sameSetLog(at: ActiveSetID)
         /// The row now offers RPE for these Reps, or Reps again for nil. Nothing was written.
         case choseReps(Int?)
-        /// An RPE tap as the row turned to RPE, which the second tap of a double tap on a Reps Chip
-        /// makes. Nothing was written, and the row stays as it is.
-        case tooSoonAfterReps
         case notLogged(NotLogged)
-        /// The card's mic is listening, and its readback says so.
-        case micBusy
     }
 
     /// Wrote nothing, and the Live Activity says why.
@@ -35,6 +30,12 @@ final class LockScreenPress {
         /// The stage's card holds another weight than the one the Lock Screen showed.
         case cardChanged
         case writeFailed
+        /// An RPE tap as the row turned to RPE, which the second tap of a double tap on a Reps Chip
+        /// makes. The card that follows the readback still offers RPE for the same Reps.
+        case tooSoonAfterReps
+        /// A mic press is in flight, so the Set is the mic's: the Lock Screen's, or the card's in
+        /// the app.
+        case micBusy(SetDictation.Surface)
     }
 
     /// Which Set a press names, read off the store and the focus before anything changes.
@@ -88,7 +89,7 @@ final class LockScreenPress {
     /// each RPE Chip carries them, so a row drawn again from scratch can never log other Reps.
     @discardableResult
     func chooseReps(setIdentity: String, reps: Int?) async -> Outcome {
-        guard dictation?.state.pressSetID == nil else { return .micBusy }
+        if let surface = micInFlight { return await refuse(.micBusy(surface), pressing: setIdentity) }
         focus.endHoldAfterSpokenWrite()
         let current = app.workout.currentSession
         switch LockScreenOffer.admits(reps) ? Self.target(of: setIdentity, session: current, focus: focus) : .refuse(.unreadable) {
@@ -96,28 +97,38 @@ final class LockScreenPress {
             await showRow(choosing: reps)
             return .choseReps(reps)
         case .settled(let position, let session, _):
-            return await refuse(.setSettled(setLog: position.set.setLog?.readback, set: .init(position, in: session)), in: current)
+            return await refuse(
+                .setSettled(setLog: position.set.setLog?.readback, set: .init(position, in: session)),
+                pressing: setIdentity
+            )
         case .refuse(let why):
-            return await refuse(why, in: current)
+            return await refuse(why, pressing: setIdentity)
         }
     }
 
     @discardableResult
     func logSet(setIdentity: String, reps: Int, rpe: String) async -> Outcome {
-        guard dictation?.state.pressSetID == nil else { return .micBusy }
-        guard rows.admitsRPEPress(at: clock.now) else { return .tooSoonAfterReps }
+        if let surface = micInFlight { return await refuse(.micBusy(surface), pressing: setIdentity) }
+        guard rows.admitsRPEPress(at: clock.now) else {
+            return await refuse(.tooSoonAfterReps, pressing: setIdentity, offeringRPEFor: reps)
+        }
         // The card keeps a Set its mic wrote for the athlete to glance at and undo. A press with
         // the phone locked says they have moved on, as a press of the mic does.
         focus.endHoldAfterSpokenWrite()
-        let current = app.workout.currentSession
-        switch Self.decision(setIdentity: setIdentity, reps: reps, rpe: rpe, session: current, focus: focus) {
+        switch Self.decision(setIdentity: setIdentity, reps: reps, rpe: rpe, session: app.workout.currentSession, focus: focus) {
         case .write(let setLog, let position, let session):
             return await write(setLog, to: position, in: session)
         case .sameSetLog(let setID):
             return .sameSetLog(at: setID)
         case .refuse(let why):
-            return await refuse(why, in: current)
+            return await refuse(why, pressing: setIdentity)
         }
+    }
+
+    /// Where a mic press in flight began; nil with none.
+    private var micInFlight: SetDictation.Surface? {
+        guard let dictation, dictation.state.pressSetID != nil else { return nil }
+        return dictation.pressSurface ?? .card
     }
 
     static func decision(setIdentity: String, reps: Int, rpe: String, session: Session?, focus: ActiveSetFocusManager) -> Decision {
@@ -142,13 +153,15 @@ final class LockScreenPress {
     }
 
     private static func target(pressing identity: LoggableSetIdentity, in session: Session, focus: ActiveSetFocusManager) -> Target {
-        guard let pressed = SessionSetOrder.orderedSets(in: session).first(where: { $0.setID == identity.setID }) else {
-            return .refuse(.cardMovedOn)
-        }
+        guard let pressed = set(identity.setID, in: session) else { return .refuse(.cardMovedOn) }
         guard pressed.set.isPending else { return .settled(pressed, in: session, identity) }
         guard focus.activeSet(in: session)?.setID == identity.setID else { return .refuse(.cardMovedOn) }
         guard focus.cardDraft(for: identity.setID).map({ $0.weight == identity.weight }) ?? true else { return .refuse(.cardChanged) }
         return .pending(pressed, in: session, identity)
+    }
+
+    private static func set(_ setID: ActiveSetID, in session: Session) -> SessionSetPosition? {
+        SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
     }
 
     private static func settled(_ pressed: SessionSetPosition, in session: Session, pressing setLog: SetLog) -> Decision {
@@ -174,7 +187,7 @@ final class LockScreenPress {
         do {
             try app.workout.log(position.set, as: setLog)
         } catch {
-            return await refuse(.writeFailed, in: session)
+            return await refuse(.writeFailed, pressing: nil)
         }
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
         focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
@@ -187,32 +200,65 @@ final class LockScreenPress {
         return .logged(setLog, at: position.setID)
     }
 
-    private func refuse(_ why: NotLogged, in session: Session?) async -> Outcome {
-        guard let session else {
+    /// Says why nothing was written, over the Set the card is on, else over the Set the press
+    /// named, as a stale press on the Session's last Set does.
+    private func refuse(_ why: NotLogged, pressing setIdentity: String?, offeringRPEFor reps: Int? = nil) async -> Outcome {
+        // With no rest running, a recording has the Live Activity to itself, and a readback would
+        // end the activity the system records under.
+        if case .micBusy = why, liveActivity.restContent == nil { return .notLogged(why) }
+        guard let session = app.workout.currentSession else {
             await liveActivity.show(.noCurrentSession)
             return .notLogged(why)
         }
-        guard let active = focus.activeSet(in: session) else {
-            await liveActivity.show(.noSetLeft(session: session.liveActivityLabel))
+        let pressed = setIdentity.flatMap(LoggableSetIdentity.init(storageValue:)).flatMap { identity in
+            identity.session == session.placement.coordinate ? Self.set(identity.setID, in: session) : nil
+        }
+        guard let shown = focus.activeSet(in: session) ?? pressed else {
+            await liveActivity.show(.noSetLeft)
             return .notLogged(why)
         }
         let readback = why.readback
-        var set = LiveActivitySetContent(active)
+        var set = LiveActivitySetContent(shown)
         set.pendingWrites = writes.pendingWriteCount
-        let content = LiveActivityDictationContent(readback: readback, subject: .set(set))
-        await liveActivity.show(content, sessionLabel: session.liveActivityLabel)
-        await showCard(after: readback)
+        await liveActivity.show(
+            LiveActivityDictationContent(readback: readback, subject: .set(set)),
+            sessionLabel: session.liveActivityLabel
+        )
+        if case .micBusy(.headless) = why {
+            await showListening(after: readback, in: session)
+        } else {
+            await showCard(after: readback, offeringRPEFor: reps)
+        }
         return .notLogged(why)
     }
 
-    /// The readback holds, with no chips to tap, then the Lock Screen offers the Set the card is on.
-    /// The system suspends the app once the intent returns, so nothing could do this later. With
-    /// no rest running, the activity has ended on the readback, which stays to be read.
-    private func showCard(after readback: LiveActivityDictationContent.Readback) async {
+    /// The readback holds, with no chips to tap, then the Lock Screen offers the Set the card is on,
+    /// still on RPE for `reps` when the press carried them. The system suspends the app once the
+    /// intent returns, so nothing could do this later. With no rest running, the activity has
+    /// ended on the readback, which stays to be read.
+    private func showCard(after readback: LiveActivityDictationContent.Readback, offeringRPEFor reps: Int? = nil) async {
         guard liveActivity.restContent != nil else { return }
         await clock.sleep(until: clock.now + Self.readbackHold)
-        guard let card = currentCard() else { return }
+        guard var card = currentCard() else { return }
+        if let reps, case .ready(var offer) = card.press {
+            offer.chosenReps = reps
+            card.press = .ready(offer)
+        }
         await liveActivity.replace(readback, with: card)
+    }
+
+    /// The Lock Screen's mic keeps listening under the readback, so "Listening…" comes back once it
+    /// has been read. A mic that stopped in the meantime shows its own result, which the card
+    /// follows.
+    private func showListening(after readback: LiveActivityDictationContent.Readback, in session: Session) async {
+        await clock.sleep(until: clock.now + Self.readbackHold)
+        guard let setID = dictation?.state.pressSetID, let listenedFor = Self.set(setID, in: session) else {
+            guard let card = currentCard() else { return }
+            await liveActivity.replace(readback, with: card)
+            return
+        }
+        let listening = LiveActivityDictationContent(readback: .listening, subject: .set(LiveActivitySetContent(listenedFor)))
+        await liveActivity.show(listening, sessionLabel: session.liveActivityLabel)
     }
 
     /// A flush that outlasted the readback can empty the queue the card counted.
@@ -272,6 +318,9 @@ extension LockScreenPress.NotLogged {
         case .cardMovedOn: "The card moved to another Set"
         case .cardChanged: "The weight changed. Open to log"
         case .writeFailed: "Couldn’t save. Open to log"
+        case .tooSoonAfterReps: "Too soon after the Reps. Tap the RPE again"
+        case .micBusy(.headless): "The mic is listening. Say the Set"
+        case .micBusy(.card): "The app’s mic is listening. Open to log"
         }
     }
 
@@ -281,135 +330,5 @@ extension LockScreenPress.NotLogged {
     fileprivate var readback: LiveActivityDictationContent.Readback {
         if case .setSettled(let setLog, let set) = self { return .settled(setLog: setLog, set) }
         return .notLogged(caption)
-    }
-}
-
-/// What the Lock Screen offers for the Current Session's active Set, for a client with no Live Activity.
-public struct LockScreenOfferReport: Encodable, Equatable, Sendable {
-    public struct Offer: Encodable, Equatable, Sendable {
-        public let repChoices: [Int]
-        public let prescribedReps: [Int]
-        public let rpeChoices: [String]
-        public let prescribedRPE: String?
-        public let setIdentity: String
-    }
-
-    /// Nil with no Pending Set left in the Current Session.
-    public let set: SetAddress?
-    public let exercise: String?
-    /// The weight the card holds, as the Set Log writes it; nil when it holds none.
-    public let weight: String?
-    public let prescribedReps: String?
-    public let prescribedLoad: String?
-    /// The Cadence and the Coach Note on the card's one line.
-    public let guidance: String?
-    /// The timed effort the card's Start opens the app to count, as `10 s hold`.
-    public let start: String?
-    /// Nil when the card shows no chips.
-    public let offer: Offer?
-}
-
-/// What one press did. `reason` says why when it logged nothing.
-public struct RPEChipPressReport: Encodable, Equatable, Sendable {
-    public enum Outcome: String, Encodable, Sendable {
-        case logged, sameSetLog, notLogged
-    }
-
-    public let outcome: Outcome
-    public let set: SetAddress?
-    public let setLog: String?
-    public let reason: String?
-    public let pendingWriteCount: Int
-}
-
-extension WorkoutApplication {
-    /// The card the Lock Screen draws, from a card fresh in this process: what no client has edited.
-    public func lockScreenOffer() -> LockScreenOfferReport {
-        let session = workout.currentSession
-        let focus = ActiveSetFocusManager(session: session)
-        guard let session, let active = focus.activeSet(in: session) else {
-            return LockScreenOfferReport(
-                set: nil,
-                exercise: nil,
-                weight: nil,
-                prescribedReps: nil,
-                prescribedLoad: nil,
-                guidance: nil,
-                start: nil,
-                offer: nil
-            )
-        }
-        let card = LiveActivityRestContentBuilder.content(
-            showing: active,
-            in: session,
-            reading: LoggablePressSource(focus: focus, history: lastPerformed.snapshot),
-            restStartDate: .distantPast,
-            restEndDate: .distantPast
-        )
-        return LockScreenOfferReport(
-            set: SetAddress(active.setID, in: session),
-            exercise: card.exerciseName,
-            weight: card.weightValue.isEmpty ? nil : card.weightValue,
-            prescribedReps: card.prescribedReps,
-            prescribedLoad: card.prescribedLoad,
-            guidance: card.guidance,
-            start: card.start?.effort.controlLabel,
-            offer: LockScreenOfferReport.Offer(card.press)
-        )
-    }
-
-    /// `LockScreenPress`'s decision and write for an RPE Chip pressed after a Reps Chip. The rest,
-    /// the focus, and the Live Activity it goes on to move live in the app's process, so a client
-    /// with no stage has none to move.
-    public func pressRPEChip(setIdentity: String, reps: Int, rpe: String) throws -> RPEChipPressReport {
-        let session = workout.currentSession
-        let focus = ActiveSetFocusManager(session: session)
-        switch LockScreenPress.decision(setIdentity: setIdentity, reps: reps, rpe: rpe, session: session, focus: focus) {
-        case .write(let setLog, let position, let session):
-            try workout.log(position.set, as: setLog)
-            return RPEChipPressReport(
-                outcome: .logged,
-                set: SetAddress(position.setID, in: session),
-                setLog: setLog.formatted,
-                reason: nil,
-                pendingWriteCount: try sync.fetchPendingWriteRecords().count
-            )
-        case .sameSetLog(let setID):
-            return RPEChipPressReport(
-                outcome: .sameSetLog,
-                set: session.flatMap { SetAddress(setID, in: $0) },
-                setLog: nil,
-                reason: nil,
-                pendingWriteCount: try sync.fetchPendingWriteRecords().count
-            )
-        case .refuse(let why):
-            return RPEChipPressReport(
-                outcome: .notLogged,
-                set: nil,
-                setLog: nil,
-                reason: why.caption,
-                pendingWriteCount: try sync.fetchPendingWriteRecords().count
-            )
-        }
-    }
-}
-
-extension LockScreenOfferReport.Offer {
-    fileprivate init?(_ press: LoggablePressContent) {
-        guard case .ready(let offer) = press else { return nil }
-        self.init(
-            repChoices: offer.repChoices,
-            prescribedReps: offer.prescribedReps,
-            rpeChoices: offer.rpeChoices,
-            prescribedRPE: offer.prescribedRPE,
-            setIdentity: offer.setIdentity
-        )
-    }
-}
-
-extension SetAddress {
-    fileprivate init?(_ setID: ActiveSetID, in session: Session) {
-        guard let address = session.placement.coordinate?.address else { return nil }
-        self.init(exercise: ExerciseAddress(session: address, order: setID.exerciseOrder), index: setID.setIndex)
     }
 }

@@ -177,10 +177,7 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     func show(_ noSet: LiveActivityNoSetReadback) async -> Bool {
         let readback = LiveActivityDictation(noSet)
         let alone = WorkoutActivityAttributes.ContentState(noSetToLog: readback)
-        switch noSet {
-        case .noSetLeft(let session): return await show(readback, else: alone, sessionLabel: session, ridingRestIf: { _ in true })
-        case .noCurrentSession: return await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
-        }
+        return await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
     }
 
     func withdrawReadback() async {

@@ -3,8 +3,9 @@ import SwiftUI
 
 /// The card's bottom row while it offers a Set: Reps Chips, then RPE Chips for the Reps tapped. A
 /// Reps tap turns the row and writes nothing, so a Set half chosen never logs, and the RPE tap logs.
-/// Nothing is preselected, since each tap is the athlete's report of the Set. The coach's values
-/// take the rail's tick and no fill of their own. Each chip carries the Set Log's own mark, `×5`
+/// Nothing is preselected, since each tap is the athlete's report of the Set. Each chip is an
+/// `actionFill` under `actionText`, as the Log capsule is, and the coach's values take a tick of
+/// that cream, since an `action` mark vanishes on the Day fill. Each chip carries the Set Log's own mark, `×5`
 /// for Reps and `@7` for an RPE, so the two rows never read as one.
 struct LockScreenChipRow: View {
     private enum Metrics {
@@ -48,17 +49,17 @@ struct LockScreenChipRow: View {
         Button(intent: intent()) {
             Text(label)
                 .liveActivityFont(.figure)
-                .foregroundStyle(labelColor)
+                .foregroundStyle(colors.actionText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .invalidatableContent()
                 .frame(maxWidth: .infinity)
                 .frame(height: chipHeight)
-                .background(colors.action.opacity(0.22), in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
+                .background(colors.actionFill, in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
                 .overlay(alignment: .bottom) {
                     if ticked {
                         Capsule()
-                            .fill(colors.action)
+                            .fill(colors.actionText)
                             .frame(width: Metrics.tickWidth, height: Metrics.tickHeight)
                             .padding(.bottom, Metrics.tickInset)
                     }
@@ -121,9 +122,9 @@ struct LockScreenStartButton: View {
         Link(destination: start.url) {
             Image(systemName: "timer")
                 .font(.system(size: diameter * 0.45, weight: .semibold))
-                .foregroundStyle(colors.action)
+                .foregroundStyle(colors.actionText)
                 .frame(width: diameter, height: diameter)
-                .background(colors.action.opacity(0.22), in: Circle())
+                .background(colors.actionFill, in: Circle())
         }
         .accessibilityLabel("Start the \(start.spokenLabel)")
         .accessibilityHint("Opens WorkoutTracker and counts down 5 seconds")

@@ -59,6 +59,9 @@ final class SetDictation {
     /// Nil means no press is in flight; `finish` and `cancel` take it.
     @ObservationIgnored private var press: Press?
 
+    /// Where the press in flight began; nil with none.
+    var pressSurface: Surface? { press?.surface }
+
     /// Instruments shows a press's phases as intervals beside the main thread's hangs.
     static let signposter = OSSignposter(subsystem: "WorkoutTracker", category: "Dictation")
 

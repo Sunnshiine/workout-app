@@ -149,7 +149,7 @@ final class BackgroundDictation {
         // and no card stays held while another Set is written.
         focus.endHoldAfterSpokenWrite()
         guard let position = focus.activeSet(in: session) else {
-            return await noSet(.everythingLogged, .noSetLeft(session: session.liveActivityLabel))
+            return await noSet(.everythingLogged, .noSetLeft)
         }
         guard dictation.state.pressSetID == nil else { return .noSet(.noSetToLog(.micBusy)) }
         return .set(position, in: session)

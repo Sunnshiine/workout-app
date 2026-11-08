@@ -43,8 +43,8 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     /// A press that changed nothing, because the Set it names had settled: what it holds, nil for
     /// a skip.
     case settled(setLog: String?, LiveActivityWrittenSet)
-    /// The named Session has no Pending Set, so nothing listened.
-    case noSetLeft(session: String)
+    /// The Current Session has no Pending Set, so nothing listened.
+    case noSetLeft
     /// No Session to log into, so nothing listened.
     case noCurrentSession
 
@@ -82,12 +82,6 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         case .logged(_, let set), .skipped(let set), .settled(_, let set): set
         case .listening, .notLogged, .noSetLeft, .noCurrentSession: nil
         }
-    }
-
-    /// The Session a readback about it names.
-    var sessionName: String? {
-        guard case .noSetLeft(let session) = self else { return nil }
-        return session
     }
 
     var symbolName: String {

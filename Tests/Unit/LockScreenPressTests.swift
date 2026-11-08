@@ -240,8 +240,10 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, reps: Int, rpe: St
     #expect(outcome == .logged(SetLog(weight: .pounds(999), reps: 5, rpe: .seven), at: firstSet))
 }
 
+/// With no rest running, the recording has the Live Activity to itself, and a readback would end
+/// the activity the system records under. No chip shows over it, so only a stale tap gets here.
 @MainActor
-@Test func aChipWhileTheMicListensLeavesTheSetToTheMic() async throws {
+@Test func aChipWhileTheMicListensOverNoRestLeavesTheMicItsActivity() async throws {
     let harness = try await BackgroundDictationHarness(
         transcriber: OpenMicTranscriber(holdingStart: false, failingToStart: nil),
         reading: .heard("", segments: [])
@@ -267,13 +269,118 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, reps: Int, rpe: St
 
     let outcome = await chips.logSet(setIdentity: harness.identity(), reps: 5, rpe: "7")
 
-    try #require(outcome == .micBusy)
-    #expect(await chips.chooseReps(setIdentity: harness.identity(), reps: 6) == .micBusy)
+    try #require(outcome == .notLogged(.micBusy(.headless)))
+    #expect(await chips.chooseReps(setIdentity: harness.identity(), reps: 6) == .notLogged(.micBusy(.headless)))
     #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(harness.liveActivity.refreshes.isEmpty)
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
     await harness.dictation.cancel()
     _ = await listening.value
+}
+
+/// A tap as the Lock Screen's mic opens over the rest, before "Listening…" drew, says why it logged
+/// nothing. The mic still listens, so "Listening…" comes back once the readback has been read.
+@MainActor
+@Test func aChipWhileTheLockScreensMicListensSaysSoAndListeningComesBack() async throws {
+    let harness = try await BackgroundDictationHarness(
+        transcriber: OpenMicTranscriber(holdingStart: false, failingToStart: nil),
+        reading: .heard("", segments: [])
+    )
+    try harness.restRunning()
+    let run = Task { await harness.background.run() }
+    await waitUntil({ harness.dictation.state.pressSetID != nil }, orRecord: "The mic never opened")
+    // The mic waits on the harness's clock, so the press holds its readback on a clock of its own.
+    let clock = ManualListeningClock()
+    let chips = LockScreenPress(
+        app: harness.app,
+        dictation: harness.dictation,
+        focus: harness.focus,
+        restTimer: harness.restTimer,
+        liveActivity: harness.liveActivity,
+        rows: LockScreenRows(),
+        signIn: harness.signIn,
+        clock: clock
+    )
+    let refusal = LiveActivityDictationContent.Readback.notLogged("The mic is listening. Say the Set")
+
+    let press = Task { await chips.logSet(setIdentity: harness.identity(), reps: 5, rpe: "7") }
+    await clock.waitUntilSleeping(until: clock.now + LockScreenPress.readbackHold, orRecord: "The readback never held")
+    #expect(harness.liveActivity.readbacks == [.listening, refusal])
+    clock.advance(by: LockScreenPress.readbackHold)
+
+    #expect(await press.value == .notLogged(.micBusy(.headless)))
+    #expect(harness.liveActivity.readbacks == [.listening, refusal, .listening])
+    #expect(harness.liveActivity.replacements.isEmpty)
+    try harness.expectNothingWritten()
+    await harness.dictation.cancel()
+    harness.clock.advance(by: SetDictation.silenceWindow)
+    #expect(await run.value == .noSetToLog(.micBusy))
+}
+
+/// The card's mic in the app can still hold its press once the phone locks. The chip says why it
+/// logged nothing, and the card comes back, since the Lock Screen never showed "Listening…".
+@MainActor
+@Test func aChipWhileTheAppsMicListensSaysSoAndTheCardComesBack() async throws {
+    let harness = try await BackgroundDictationHarness(
+        transcriber: OpenMicTranscriber(holdingStart: false, failingToStart: nil),
+        reading: .heard("", segments: [])
+    )
+    try harness.restRunning()
+    let session = try #require(harness.app.workout.currentSession)
+    try #require(harness.dictation.start(for: try #require(harness.focus.activeSet(in: session)).setID))
+
+    let outcome = await harness.press(harness.identity())
+
+    #expect(outcome == .notLogged(.micBusy(.card)))
+    #expect(harness.liveActivity.readbacks == [.notLogged("The app’s mic is listening. Open to log")])
+    #expect(harness.liveActivity.replacements.count == 1)
+    try harness.expectNothingWritten()
+    await harness.dictation.cancel()
+}
+
+/// Two chips pressed at once on the Session's last Set: the first logs it, and the second finds no
+/// Set left. It reads back what the Set holds, over that Set, as on any other Set.
+@MainActor
+@Test(arguments: [true, false])
+func aStalePressOnTheSessionsLastSetSaysWhatTheSetHolds(onAnRPEChip: Bool) async throws {
+    let harness = try await BackgroundDictationHarness(hearing: [])
+    let session = try #require(harness.app.workout.currentSession)
+    let sets = SessionSetOrder.orderedSets(in: session)
+    let last = try #require(sets.last)
+    for position in sets {
+        try harness.app.workout.log(position.set, as: logged235)
+    }
+    harness.focus.reset(to: session)
+    let identity = harness.identity(of: last.setID)
+
+    let outcome = onAnRPEChip ? await harness.press(identity, rpe: "8") : await harness.chooseReps(identity, reps: 6)
+
+    let written = LiveActivityDictationContent.WrittenSet(last, in: session)
+    #expect(outcome == .notLogged(.setSettled(setLog: "235×5 @7", set: written)))
+    #expect(harness.liveActivity.noSets.isEmpty)
+    #expect(harness.liveActivity.readbacks == [.settled(setLog: "235×5 @7", written)])
+    guard case .set(let shown) = harness.liveActivity.subjects.last else {
+        Issue.record("The readback showed \(String(describing: harness.liveActivity.subjects.last))")
+        return
+    }
+    #expect(shown.exerciseName == last.exercise.exerciseName.base)
+}
+
+/// A press that names no Set of the Session, once every Set is logged, has only that to say.
+@MainActor
+@Test func aPressNamingNoSetOfAFinishedSessionSaysNoSetIsLeft() async throws {
+    let harness = try await BackgroundDictationHarness(hearing: [])
+    let session = try #require(harness.app.workout.currentSession)
+    for position in SessionSetOrder.orderedSets(in: session) {
+        try harness.app.workout.log(position.set, as: logged235)
+    }
+    harness.focus.reset(to: session)
+
+    let outcome = await harness.press(harness.identity(of: ActiveSetID(exerciseOrder: 99, setIndex: 0)))
+
+    #expect(outcome == .notLogged(.cardMovedOn))
+    #expect(harness.liveActivity.noSets == [.noSetLeft])
+    #expect(harness.liveActivity.readbacks.isEmpty)
 }
 
 /// With no rest to start the activity ends on the readback, which stays to be read, so nothing

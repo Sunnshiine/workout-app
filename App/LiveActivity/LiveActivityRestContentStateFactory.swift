@@ -124,7 +124,7 @@ extension LockScreenStartOffer {
 extension LiveActivityDictation {
     init(_ noSet: LiveActivityNoSetReadback) {
         switch noSet {
-        case .noSetLeft(let session): self = .noSetLeft(session: session)
+        case .noSetLeft: self = .noSetLeft
         case .noCurrentSession: self = .noCurrentSession
         }
     }

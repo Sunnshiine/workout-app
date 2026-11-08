@@ -271,7 +271,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let outcome = await harness.background.run()
 
     #expect(outcome == .noSetToLog(.everythingLogged))
-    #expect(harness.liveActivity.noSets == [.noSetLeft(session: "Week 1 - Day 1")])
+    #expect(harness.liveActivity.noSets == [.noSetLeft])
     #expect(harness.liveActivity.readbacks.isEmpty, "nothing listened")
     #expect(harness.dictation.state == .idle)
     #expect(try harness.app.sync.fetchPendingWriteRecords().count == queued, "nothing written")

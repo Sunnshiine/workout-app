@@ -29,8 +29,8 @@ struct DictationLockScreenView: View {
     }
 }
 
-/// The Lock Screen when a press found no Set to listen for: the Session it looked in, if any, over
-/// why, and the rest countdown when one is running. A long reason wraps where the card has room.
+/// The Lock Screen when a press found no Set to listen for: why, over the rest countdown when one
+/// is running. A long reason wraps where the card has room.
 struct NoSetLockScreenView: View {
     let state: WorkoutActivityAttributes.ContentState
     let dictation: LiveActivityDictation
@@ -46,20 +46,11 @@ struct NoSetLockScreenView: View {
         let colors = state.liveActivityColors
 
         return VStack(alignment: .leading, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
-                if let session = dictation.sessionName {
-                    Text(session)
-                        .liveActivityFont(.control)
-                        .foregroundStyle(colors.primaryText)
-                        .lineLimit(1)
-                }
-
-                DictationReadback(
-                    dictation: dictation,
-                    colors: colors,
-                    style: .lockScreen(prescription: nil, wrapsTheDetail: wrapsTheReason)
-                )
-            }
+            DictationReadback(
+                dictation: dictation,
+                colors: colors,
+                style: .lockScreen(prescription: nil, wrapsTheDetail: wrapsTheReason)
+            )
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if state.restEndDate != nil {

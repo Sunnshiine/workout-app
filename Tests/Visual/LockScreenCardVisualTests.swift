@@ -392,7 +392,7 @@ extension LockScreenCardVisualTests {
             .map { height(of: $0, at: size) }
             let readbacks = [Self.logged, Self.refused, .listening, Self.longReason]
                 .map { height(of: state(.dark, dictation: $0), at: size) }
-            let noSet = [LiveActivityDictation.noSetLeft(session: "Block 27 · W1 D1"), .noCurrentSession]
+            let noSet = [LiveActivityDictation.noSetLeft, .noCurrentSession]
                 .map { height(of: state(.dark, dictation: $0), at: size) }
             for height in offers + readbacks + noSet {
                 #expect(height <= Self.systemHeight(at: size), "At \(size) a card drew \(height)pt")

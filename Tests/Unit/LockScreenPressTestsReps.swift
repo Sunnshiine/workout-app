@@ -37,7 +37,8 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 }
 
 /// The second tap of a double tap on a Reps Chip lands on the RPE Chip that took its place, and
-/// must not log Reps the athlete tapped and an RPE they never chose.
+/// must not log Reps the athlete tapped and an RPE they never chose. It says so, and the card that
+/// follows still offers RPE for those Reps.
 @MainActor
 @Test func anRPEChipAsTheRowTurnsWritesNothingAndOneAfterItLogs() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
@@ -46,14 +47,15 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     _ = await harness.chooseReps(harness.identity(), reps: 6, on: chips)
     harness.clock.advance(by: .milliseconds(400))
 
-    let early = await chips.logSet(setIdentity: harness.identity(), reps: 6, rpe: "7")
+    let early = await harness.press(harness.identity(), reps: 6, rpe: "7", on: chips)
 
-    #expect(early == .tooSoonAfterReps)
-    #expect(harness.liveActivity.readbacks.isEmpty)
-    #expect(harness.chosenReps == .some(6), "the row stays on RPE")
+    // A logged press goes on to a second press that changes nothing and so never reads back.
+    try #require(early == .notLogged(.tooSoonAfterReps))
+    #expect(harness.liveActivity.readbacks == [.notLogged("Too soon after the Reps. Tap the RPE again")])
+    #expect(harness.liveActivity.replacements.count == 1)
+    #expect(harness.chosenReps == .some(6), "the card that follows the readback stays on RPE")
     try harness.expectNothingWritten()
 
-    harness.clock.advance(by: LockScreenRows.rpeRowSettle)
     let outcome = await harness.press(harness.identity(), reps: 6, rpe: "7", on: chips)
 
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 6, rpe: .seven), at: firstSet))
