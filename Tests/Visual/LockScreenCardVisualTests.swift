@@ -56,7 +56,7 @@ struct LockScreenCardVisualTests {
                 Prescription(exerciseName: "Pull-Up", reps: "12", load: "BW"),
                 .dark,
                 press: Self.bodyweightPress,
-                lastPerformed: ["Block 26 · W4 D3 — BWx12@7", "BWx12@7"]
+                lastPerformed: ["Block 26 · W4 D3 — BW×12 @7", "BW×12 @7"]
             )
         )
     }
