@@ -15,9 +15,21 @@ struct Workout: AsyncParsableCommand {
             speech-to-text.
             """,
         subcommands: [
-            InitCommand.self, StatusCommand.self, SessionCommand.self, LogCommand.self,
-            SkipCommand.self, FlagCommand.self, MoveOnCommand.self, MakeCurrentCommand.self, DeleteLogCommand.self, SayCommand.self,
-            HearCommand.self, FlushCommand.self, SheetCommand.self, SyncCommand.self, DictationsCommand.self
+            InitCommand.self,
+            StatusCommand.self,
+            SessionCommand.self,
+            LogCommand.self,
+            SkipCommand.self,
+            FlagCommand.self,
+            MoveOnCommand.self,
+            MakeCurrentCommand.self,
+            DeleteLogCommand.self,
+            SayCommand.self,
+            HearCommand.self,
+            FlushCommand.self,
+            SheetCommand.self,
+            SyncCommand.self,
+            DictationsCommand.self
         ]
     )
 }
