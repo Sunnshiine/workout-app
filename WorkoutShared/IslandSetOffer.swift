@@ -19,10 +19,21 @@ struct IslandRestCorner<Content: View>: View {
     }
 }
 
+/// What the island's Set lines try, in order, until one fits the island's width at the reader's type
+/// size. The guidance gives way first, then the target moves down under the name, and last the name
+/// cuts off in the middle and the target shrinks, then cuts off, so a long cell never pushes the
+/// queue, the mic, or a chip off the island.
+enum IslandOfferFit: CaseIterable {
+    case targetBesideTheName
+    case targetUnderTheName
+    case nameAndTargetGiveWay
+
+    var targetOnTheSetLine: Bool { self == .targetBesideTheName }
+    var nameAndTargetGiveWay: Bool { self == .nameAndTargetGiveWay }
+}
+
 /// The Set under the countdown, over how to log it, since nothing else on the island names the
-/// Exercise a press logs to. Under the set line, the Cadence and Coach Note cut off with "…". A
-/// target the set line has no room for moves down ahead of them, so the guidance gives way first and
-/// the target never does.
+/// Exercise a press logs to. Under the set line, the Cadence and Coach Note cut off with "…".
 struct IslandSetOffer: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -37,9 +48,9 @@ struct IslandSetOffer: View {
                 // The island drew a truncating name short of the room beside it, so the first two
                 // candidates hold the name at its own width, and only the last lets it cut off.
                 ViewThatFits(in: .horizontal) {
-                    lines(targetOnTheSetLine: true, nameFits: true)
-                    lines(targetOnTheSetLine: false, nameFits: true)
-                    lines(targetOnTheSetLine: false, nameFits: false)
+                    ForEach(IslandOfferFit.allCases, id: \.self) { fit in
+                        lines(fit)
+                    }
                 }
                 .accessibilityElement(children: .combine)
 
@@ -75,34 +86,40 @@ struct IslandSetOffer: View {
         }
     }
 
-    private func lines(targetOnTheSetLine: Bool, nameFits: Bool) -> some View {
+    private func lines(_ fit: IslandOfferFit) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            setLine(withTheTarget: targetOnTheSetLine, nameFits: nameFits)
-            guidanceLine(withTheTarget: !targetOnTheSetLine)
+            setLine(withTheTarget: fit.targetOnTheSetLine, nameFits: !fit.nameAndTargetGiveWay)
+            guidanceLine(withTheTarget: !fit.targetOnTheSetLine, targetGivesWay: fit.nameAndTargetGiveWay)
         }
     }
 
     /// The target when the set line had no room for it, the queue when the corners gave way, then
-    /// the guidance. Only the guidance cuts off.
+    /// the guidance. The guidance cuts off first, then a target that gives way, and the queue never.
     @ViewBuilder
-    private func guidanceLine(withTheTarget: Bool) -> some View {
-        let whole = [
-            withTheTarget ? state.prescriptionText : nil,
-            typeSize.islandShedsTheCorners ? state.pendingWritesText : nil
-        ]
-        .compactMap { $0 }
-        .joined(separator: " · ")
-        if !whole.isEmpty || state.guidance != nil {
+    private func guidanceLine(withTheTarget: Bool, targetGivesWay: Bool) -> some View {
+        let target = withTheTarget ? state.prescriptionText : nil
+        let queue = typeSize.islandShedsTheCorners ? state.pendingWritesText : nil
+        if target != nil || queue != nil || state.guidance != nil {
             HStack(alignment: .firstTextBaseline, spacing: 0) {
-                if !whole.isEmpty {
-                    Text(whole)
+                if let target {
+                    Text(target)
+                        .liveActivityFont(.label)
+                        .lineLimit(1)
+                        .minimumScaleFactor(targetGivesWay ? LockScreenCardMetrics.targetFloorScale : 1)
+                        .fixedSize(horizontal: !targetGivesWay, vertical: false)
+                        .layoutPriority(1)
+                }
+
+                if let queue {
+                    Text(target == nil ? queue : " · \(queue)")
                         .liveActivityFont(.label)
                         .lineLimit(1)
                         .fixedSize()
+                        .layoutPriority(2)
                 }
 
                 if let guidance = state.guidance {
-                    let text = Text(whole.isEmpty ? guidance : " · \(guidance)")
+                    let text = Text(target == nil && queue == nil ? guidance : " · \(guidance)")
                         .liveActivityFont(.guidance)
                         .lineLimit(1)
                         .truncationMode(.tail)

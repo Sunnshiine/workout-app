@@ -5,6 +5,8 @@ enum LockScreenCardMetrics {
     /// A Lock Screen card draws at 97% of the width it lays out at, so this draws about 44.6pt.
     static let controlSize: CGFloat = 46
     static let controlCornerRadius: CGFloat = 12
+    /// DESIGN.md's Shrink-Then-Truncate Rule: the 13pt target shrinks to 12pt before it cuts off.
+    static let targetFloorScale: CGFloat = 12 / 13
 }
 
 /// What a card keeps, tried in order until one fits the height the system gives it at the reader's
@@ -98,9 +100,6 @@ struct LockScreenCardLayout<Lines: View, Mic: View, BottomRow: View>: View {
 /// The weight is the one the stage holds, which the card cannot change. The Reps and the RPE are two
 /// taps, and the second logs. Anything else is left to the mic or the app.
 struct SetOfferLockScreenView: View {
-    /// DESIGN.md's Shrink-Then-Truncate Rule: the 13pt target shrinks to 12pt before it cuts off.
-    private static let targetFloorScale: CGFloat = 12 / 13
-
     let state: WorkoutActivityAttributes.ContentState
 
     var body: some View {
@@ -178,7 +177,7 @@ struct SetOfferLockScreenView: View {
 
             Text(state.prescriptionText)
                 .lineLimit(1)
-                .minimumScaleFactor(Self.targetFloorScale)
+                .minimumScaleFactor(LockScreenCardMetrics.targetFloorScale)
 
             if withTheQueue, let queue = state.pendingWritesText {
                 Text("· \(queue)")
