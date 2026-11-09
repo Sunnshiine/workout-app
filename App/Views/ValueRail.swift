@@ -66,10 +66,10 @@ struct ValueRailControl: View {
                 onDragStart: { isDragging = true },
                 onDragEnd: { DispatchQueue.main.async { isDragging = false } },
                 onCommit: select(index:),
-                strip: {
+                strip: { recentre in
                     HStack(spacing: 0) {
                         ForEach(chips) { chip in
-                            cell(chip)
+                            cell(chip, recentre: recentre)
                         }
                     }
                 }
@@ -87,7 +87,7 @@ struct ValueRailControl: View {
         HapticPlayer.shared.play(.input(Theme.Haptics.railDetentTick))
     }
 
-    private func cell(_ chip: ValueRailChip) -> some View {
+    private func cell(_ chip: ValueRailChip, recentre: Animation?) -> some View {
         Button {
             guard !isDragging else { return }
             onSelect(chip.label)
@@ -96,6 +96,9 @@ struct ValueRailControl: View {
             Text(chip.label)
                 .themeFont(.railChipValue)
                 .foregroundStyle(chip.isSelected ? palette.textPrimary : palette.textSecondary)
+                // Inside an animation a recoloured Text also moves its glyphs toward where they
+                // will land, so the two labels a selection recolours would run ahead of the strip.
+                .contentTransition(.identity)
                 .frame(width: Theme.railCellWidth, height: Theme.railCellHeight)
                 .contentShape(.rect)
                 .background {
@@ -118,6 +121,9 @@ struct ValueRailControl: View {
                             .accessibilityHidden(true)
                     }
                 }
+                // A plain button releases its label on a curve of its own, which would carry the
+                // tapped label alone, so the recentre is set again inside it.
+                .animation(recentre, value: selectedIndex)
         }
         .buttonStyle(.plain)
         .accessibilityShowsLargeContentViewer {
@@ -138,7 +144,7 @@ private struct RailTrack<Strip: View>: View {
     let onDragStart: () -> Void
     let onDragEnd: () -> Void
     let onCommit: (Int) -> Void
-    @ViewBuilder let strip: Strip
+    @ViewBuilder let strip: (Animation?) -> Strip
     @State private var drag: RailDrag?
     @State private var yieldsToVertical = false
     @State private var drawn = DrawnOffset()
@@ -153,13 +159,13 @@ private struct RailTrack<Strip: View>: View {
                 drag.map { layout.draggedOffset(anchor: $0.anchor, translation: $0.translation) }
                 ?? layout.offset(centering: selectedIndex)
 
-            strip
+            strip(recentre)
                 .frame(height: geo.size.height)
-                .transaction(slideTransaction) { content in
-                    content
-                        .background { Color.clear.modifier(DrawnOffsetProbe(x: offset, drawn: drawn)) }
-                        .offset(x: offset)
-                }
+                .background { Color.clear.modifier(DrawnOffsetProbe(x: offset, drawn: drawn)) }
+                .offset(x: offset)
+                // Over the cells as well as the offset: SwiftUI animates a moved view where it is
+                // drawn, so an animation the cells never see leaves the strip jumping.
+                .animation(recentre, value: selectedIndex)
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .leading)
                 .contentShape(.rect)
                 .simultaneousGesture(slide(in: layout))
@@ -186,14 +192,11 @@ private struct RailTrack<Strip: View>: View {
         }
     }
 
-    /// The slide's own transaction, scoped to the offset and its probe so the cells keep the ambient
-    /// one: no animation while the finger is down, and a tap's recentre on the settle spring.
-    private func slideTransaction(_ transaction: inout Transaction) {
-        if drag != nil || transaction.disablesAnimations {
-            transaction.animation = nil
-        } else if transaction.animation == nil {
-            transaction.animation = ValueRailLayout.settle(reducesMotion: reducesMotion).animation(initialVelocity: 0)
-        }
+    /// The animation a selection change takes with no finger down, as on a tap or a VoiceOver step.
+    /// With the finger down it takes none, so a drag's commit changes the cell fill in the next
+    /// frame (§5.2) and the release spring alone carries the landing.
+    private var recentre: Animation? {
+        drag == nil ? ValueRailLayout.settle(reducesMotion: reducesMotion).animation(initialVelocity: 0) : nil
     }
 
     /// Past the hysteresis the first move is a drag on either axis, so the cell under the finger
