@@ -1,0 +1,128 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+scripts/rerecord-snapshots [<snapshot>...]
+
+Re-records Visual Baselines from the CI runner's renders, the canonical recorder (ADR-0007). It
+dispatches ci.yml on the current branch, waits for that run's visual-tests job, and copies the
+runner's render over each baseline that failed, through scripts/ci-visual-diffs.sh. Nothing renders
+on this machine. HEAD must be committed and pushed, because the runner renders the pushed commit.
+
+A <snapshot> is a baseline's path, with or without its Tests/Visual/__Snapshots__/ prefix. With
+names, it writes only those, and a named baseline the runner rendered identically stays as it is.
+With none, it writes every baseline that failed. It prints each path it wrote. Commit them, and the
+next visual-tests run is the proof.
+
+After a rebase that conflicted only in baselines, take trunk's side, push, and run this on the
+conflicted paths.
+
+Exits 0 when it wrote every failing baseline or none failed; 1 when gh failed, the run failed for
+another reason, or visual-tests failed a test that is not a baseline mismatch (after writing the
+baselines); 2 on a usage error, a dirty tree, an unpushed HEAD, or a name that is neither a
+baseline nor a failing snapshot.
+EOF
+}
+
+die() {
+    echo "$2" >&2
+    exit "$1"
+}
+
+case "${1:-}" in -h | --help)
+    usage
+    exit 0
+    ;;
+esac
+
+baselines=Tests/Visual/__Snapshots__
+names=()
+for name in "$@"; do
+    case "$name" in -*)
+        usage >&2
+        exit 2
+        ;;
+    esac
+    names+=("${name#"$baselines"/}")
+done
+
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$repo"
+poll=${RERECORD_POLL_SECONDS:-30}
+
+[ -z "$(git status --porcelain)" ] || die 2 "commit and push first: the runner renders the pushed commit"
+branch=$(git symbolic-ref --quiet --short HEAD) || die 2 "check out a branch: ci.yml is dispatched on one"
+sha=$(git rev-parse HEAD)
+git fetch --quiet origin "$branch" || die 2 "origin has no branch $branch: push it first"
+[ "$(git rev-parse FETCH_HEAD)" = "$sha" ] || die 2 "origin/$branch is not HEAD: push HEAD first"
+
+runs_on_head() {
+    gh run list --workflow ci.yml --branch "$branch" --event workflow_dispatch --commit "$sha" \
+        --limit 20 --json databaseId --jq 'map(.databaseId) | max // 0'
+}
+
+before=$(runs_on_head)
+gh workflow run ci.yml --ref "$branch" >/dev/null
+run=0
+for _ in $(seq 1 20); do
+    run=$(runs_on_head)
+    [ "$run" -gt "$before" ] && break
+    sleep "$poll"
+done
+[ "$run" -gt "$before" ] || die 1 "the ci.yml dispatch on $branch never started a run"
+echo "ci.yml run $run on ${sha:0:8}: waiting for visual-tests" >&2
+
+job=""
+for _ in $(seq 1 120); do
+    sleep "$poll"
+    job=$(gh run view "$run" --json jobs \
+        --jq '.jobs[] | select(.name == "visual-tests") | "\(.status) \(.conclusion)"')
+    [ "${job%% *}" != completed ] || break
+done
+[ "${job%% *}" = completed ] || die 1 "visual-tests on run $run did not finish in $((120 * poll)) s"
+case "${job#* }" in
+    success)
+        echo "visual-tests passed on run $run: every baseline matches the runner" >&2
+        exit 0
+        ;;
+    failure) ;;
+    *) die 1 "visual-tests ended ${job#* } on run $run" ;;
+esac
+
+listing=$("$repo/scripts/ci-visual-diffs.sh" "$run") && status=0 || status=$?
+case "$status" in
+    0) ;;
+    3) die 1 "visual-tests failed on run $run before comparing baselines: gh run view $run --log-failed" ;;
+    *) exit "$status" ;;
+esac
+
+render_of() {
+    awk -F'\t' -v snapshot="$1" '$1 == snapshot { print $2 }' <<<"$listing"
+}
+
+selected=()
+if [ "${#names[@]}" -eq 0 ]; then
+    while IFS=$'\t' read -r snapshot _; do
+        [ -n "$snapshot" ] && selected+=("$snapshot")
+    done <<<"$listing"
+else
+    for name in "${names[@]}"; do
+        if [ -n "$(render_of "$name")" ]; then
+            selected+=("$name")
+        elif [ -f "$baselines/$name" ]; then
+            echo "$baselines/$name already matches the runner" >&2
+        else
+            die 2 "$name is neither a baseline under $baselines nor a failing snapshot on run $run"
+        fi
+    done
+fi
+
+for snapshot in ${selected[@]+"${selected[@]}"}; do
+    mkdir -p "$baselines/${snapshot%/*}"
+    cp "$(render_of "$snapshot")" "$baselines/$snapshot"
+    echo "$baselines/$snapshot"
+done
+
+others=.build/ci-visual-diffs/$run/other-failures.txt
+[ ! -s "$others" ] || die 1 "visual-tests also failed tests that are not baseline mismatches: $others"

@@ -134,7 +134,8 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.
 - Visual Baselines are recorded on the CI runner, not locally, because renders differ across
-  machines (ADR-0007; the recipe is in `docs/TESTING.md`).
+  machines (ADR-0007; the recipe is in `docs/TESTING.md`). After a rebase that conflicted only in
+  baselines, take trunk's side, push, and run `scripts/rerecord-snapshots <paths>`.
 
 ## Worktrees and landing
 
