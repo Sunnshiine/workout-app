@@ -6,7 +6,8 @@ import UIKit
 @testable import WorkoutTracker
 
 /// Whatever the coach wrote, the target gives way, and the mic, the queue, and every chip draw whole
-/// inside the island, at every type size up to where DESIGN.md's Product Scale Rule stops it.
+/// inside the island, at every type size up to where DESIGN.md's Product Scale Rule stops it. From
+/// `.xxLarge` the queue leaves the corners for the lines.
 @MainActor
 @Suite
 struct IslandSetOfferLayoutTests {
@@ -20,7 +21,7 @@ struct IslandSetOfferLayoutTests {
                     == IslandDrawing(
                         pastTheEdges: [],
                         controls: offer.controls,
-                        queueOnTheLines: size.islandShedsTheCorners
+                        queueOnTheLines: size >= .xxLarge
                     ),
                 "\(offer) at \(size)"
             )
