@@ -134,6 +134,12 @@ enum Theme {
     struct SpringTuning: Equatable {
         let response: Double
         let bounce: Double
+
+        /// This spring seeded with a gesture's release velocity, given as a share of the distance
+        /// left to travel, so the surface leaves the finger at the speed the finger left it.
+        func animation(initialVelocity: Double) -> Animation {
+            .interpolatingSpring(duration: response, bounce: bounce, initialVelocity: initialVelocity)
+        }
     }
 
     /// What a dragged surface does once the finger lifts (DESIGN.md §9). Tracking takes no token,

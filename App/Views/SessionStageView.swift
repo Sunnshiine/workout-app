@@ -90,7 +90,12 @@ struct SessionStageView: View {
                 set: { if $0 == nil { coordinator.endFlagging() } }
             )
         ) { presentation in
-            SetFlagSheet(presentation: presentation, draft: SetFlagDraft(), onRaise: coordinator.raise)
+            SetFlagSheet(
+                presentation: presentation,
+                draft: coordinator.setFlagDraft(for: presentation.id),
+                onKeep: { coordinator.keepSetFlagDraft($0, for: presentation.id) },
+                onRaise: coordinator.raise
+            )
         }
         .onChange(of: entry.coverClosings) {
             isQueuePresented = false

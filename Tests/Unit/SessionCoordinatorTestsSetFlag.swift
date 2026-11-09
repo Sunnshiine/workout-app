@@ -166,3 +166,92 @@ private func anExercise(_ name: String, in session: Session) throws -> Exercise 
     coordinator.raise(try #require(SetFlag(kind: .pain, text: nil)))
     #expect(logging.flaggedSets.isEmpty)
 }
+
+@MainActor
+@Test func aDraftOutlivesTheSheetThatClosedWithoutARaise() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _, _) = viewedFixture(of: session)
+    let set = try card(coordinator, in: session).set
+    var draft = SetFlagDraft()
+    draft.kind = .pain
+    draft.words = "left hip"
+
+    coordinator.beginFlagging(set)
+    let id = try #require(coordinator.setFlagSheet?.id)
+    coordinator.keepSetFlagDraft(draft, for: id)
+    coordinator.endFlagging()
+    coordinator.beginFlagging(set)
+
+    #expect(coordinator.setFlagDraft(for: id) == draft)
+}
+
+@MainActor
+@Test func eachSetKeepsItsOwnDraft() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _, _) = viewedFixture(of: session)
+    let bench = try anExercise("Bench Press", in: session).sets.sorted { $0.index < $1.index }
+    let first = try #require(bench.first)
+    let second = try #require(bench.dropFirst().first)
+    var draft = SetFlagDraft()
+    draft.words = "left hip"
+
+    coordinator.beginFlagging(first)
+    coordinator.keepSetFlagDraft(draft, for: try #require(coordinator.setFlagSheet?.id))
+    coordinator.endFlagging()
+    coordinator.beginFlagging(second)
+
+    #expect(coordinator.setFlagDraft(for: try #require(coordinator.setFlagSheet?.id)) == SetFlagDraft())
+}
+
+@MainActor
+@Test func aRaiseDropsTheSetsDraft() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _, _) = viewedFixture(of: session)
+    let set = try card(coordinator, in: session).set
+    var draft = SetFlagDraft()
+    draft.kind = .pain
+
+    coordinator.beginFlagging(set)
+    let id = try #require(coordinator.setFlagSheet?.id)
+    coordinator.keepSetFlagDraft(draft, for: id)
+    coordinator.raise(try #require(draft.flag))
+
+    #expect(coordinator.setFlagDraft(for: id) == SetFlagDraft())
+}
+
+@MainActor
+@Test func aFlagTheStoreRefusesKeepsTheSetsDraft() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, logging, _, _) = viewedFixture(of: session)
+    let set = try card(coordinator, in: session).set
+    var draft = SetFlagDraft()
+    draft.kind = .pain
+    draft.words = "left hip"
+    logging.error = .failed
+
+    coordinator.beginFlagging(set)
+    let id = try #require(coordinator.setFlagSheet?.id)
+    coordinator.keepSetFlagDraft(draft, for: id)
+    coordinator.raise(try #require(draft.flag))
+
+    #expect(coordinator.setFlagDraft(for: id) == draft)
+}
+
+@MainActor
+@Test func aNewSessionOnStageDropsEveryDraft() throws {
+    let session = makeCoordinatorSession()
+    let (coordinator, _, _, navigation) = viewedFixture(of: session)
+    let set = try card(coordinator, in: session).set
+    var draft = SetFlagDraft()
+    draft.words = "left hip"
+    coordinator.beginFlagging(set)
+    let id = try #require(coordinator.setFlagSheet?.id)
+    coordinator.keepSetFlagDraft(draft, for: id)
+    coordinator.endFlagging()
+
+    let (next, _) = makeSingleSetSession(dayNumber: 2)
+    navigation.viewedSession = next
+    coordinator.view(next)
+
+    #expect(coordinator.setFlagDraft(for: id) == SetFlagDraft())
+}

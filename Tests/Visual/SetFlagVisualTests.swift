@@ -39,7 +39,7 @@ struct SetFlagVisualTests {
     ) throws {
         let presentation = SetFlagSheetPresentation(id: try SetCoordinates(of: scene.set).id, set: scene.set)
         assertScene(appearance: appearance, colorScheme: colorScheme, testName: testName) {
-            SetFlagSheet(presentation: presentation, draft: draft, onRaise: { _ in })
+            SetFlagSheet(presentation: presentation, draft: draft, onKeep: { _ in }, onRaise: { _ in })
                 .background(Theme.palette(for: appearance).paperBackground)
         }
         withExtendedLifetime(scene.block) {}

@@ -8,8 +8,6 @@ Read the existing DESIGN.md and add a Gestures section covering which surfaces a
 swipeable, dismiss thresholds, velocity and spring rules, rubber-banding, haptic moments, and
 reduced-motion behavior."
 
-<!-- doc-symbols: not-in-tree interpolatingSpring initialVelocity accessibilityAdjustableAction -->
-
 ## Named Rules
 
 A gesture is direct manipulation. While the finger is down the surface is the finger; when it
@@ -102,7 +100,7 @@ What answers a finger today, read from the code on 2026-11-08. Where today's cod
 
 | Surface | Where | Gesture today | Alternative | Haptic | Against §9 |
 | --- | --- | --- | --- | --- | --- |
-| Reps and RPE rails | `App/Views/ValueRail.swift` | A horizontal drag of 10 pt or more moves the selection one detent per 48 pt cell from where the drag began. Between detents the strip holds still, and each detent recentres it on a 0.22 s snappy spring, which bounces 0.15. A drag's release does not fire the cell under the lifted finger. | Each cell is a button labelled with its value. No adjustable action yet. | The detent tick on each detent moved, and on a tap. | Steps detent by detent instead of tracking 1:1. The recentre bounces 0.15 and takes no release velocity, and a drag begun during it anchors on the selected value, not the strip on screen. No projection, and a hard stop past the ends. No adjustable action. Opportunities 1 and 3. |
+| Reps and RPE rails | `App/Views/ValueRail.swift`, `Sources/WorkoutTracker/Session/ValueRailLayout.swift` | A horizontal drag past 10 pt takes the strip 1:1 from where it is drawn, so a grab mid-settle starts there, and each detent that crosses the centre commits. The release lands on the detent nearest the projected rest (`Theme.Gesture.railDecelerationRate`) on `Theme.Gesture.release`, seeded with the release speed over the distance left. Past an end the strip follows the rubber-band (`Theme.Gesture.rubberBandConstant`) and springs back on `Theme.Gesture.snapBack` with no seed. A drag's release, on either axis, does not fire the cell under the lifted finger, and the landing's value changes in the next frame while only the strip rides the spring. A tap or a VoiceOver step changes the value in the next frame and recentres the whole strip on `Theme.Gesture.release`, under a selection box that stays at the centre. | Each cell is a button labelled with its value. Under VoiceOver the rail is one adjustable element, labelled Reps or RPE with the selection as its value, and each step moves one detent. | The detent tick on each detent crossed, on a landing that differs from the last crossed, on a tap, and on a VoiceOver step. | Holds. Reduce Motion keeps the tracking, drops the projection, and lands on the detent nearest the lift on `Theme.Gesture.snapBack`, the spring a tap's or a VoiceOver step's recentre takes under it too. |
 | Log capsule | `App/Views/SmartValuePills.swift`, `Sources/WorkoutTracker/Session/HoldToSkipGesture.swift` | The §7 press sinks it to 0.97. Hold-to-skip fills linearly from the 250 ms reveal to the 850 ms commit (900 ms on a logged Set) and retreats over 0.2 s on release. A finger that travels past 44 pt cancels the press. A release before the reveal logs. | A tap logs. VoiceOver's Skip action skips. | The log haptic on a log, the skip dud on the commit. | Holds. The fill shows time passing, so linear is right. |
 | Mic | `App/Views/ActiveSetCard.swift` | Press and hold to speak, and the release finishes. | VoiceOver's activation starts listening and the next one finishes. | Dictation's start and outcome haptics. | Holds. |
 | Weight steppers | `App/Views/WeightStepperButton.swift` | A tap, with the §7 press. | They are buttons. | The stepper tick, the dud at the floor. | Holds. |
@@ -119,7 +117,7 @@ Every sheet keeps `presentationDetents` and the system drag.
 | --- | --- | --- | --- |
 | This Session | `App/Views/SessionQueueSheet.swift` | `.medium` | Yes |
 | Exercise History | `App/Views/ExerciseHistorySheet.swift` | `.medium`, `.large` | Yes |
-| Set Flag | `App/Views/SetFlagSheet.swift` | `.medium`, `.large`, with the selection bound | Yes, and it drops the typed words (Opportunity 2) |
+| Set Flag | `App/Views/SetFlagSheet.swift` | `.medium`, `.large`, with the selection bound | Yes. The Set's draft stays with `SessionCoordinator` while the Session is open, so the reopened sheet shows the kind and the words. A raise the store takes drops it; a refused one keeps it. |
 | Sheet tab | `App/Views/BlockOverviewView.swift` | `.large` | Yes |
 | Settings | `App/Views/SessionView.swift`, `App/Views/BlockOverviewView.swift` | The system default | Yes, except while the Destructive Confirmation card shows |
 | Destructive Confirmation card | `App/Views/DestructiveConfirmation.swift` | Drawn in place over its sheet | Refused while the card shows (`interactiveDismissDisabled`) |
@@ -141,6 +139,8 @@ that added this section.
 | 1 | Reps and RPE rails | `App/Views/ValueRail.swift:61`, `:37` | Steps one detent per 48 pt of drag and holds still between detents. Each step recentres on a 0.22 s snappy spring with bounce 0.15. A release adds nothing, a drag during a settle starts from the selected value, and the ends are hard stops. | The Finger Owns the Track, The Release Carries the Speed, Detents Land Still, Edges Resist, Catch It Mid-Flight. | Track 1:1. The strip's offset is its settled offset plus the drag's translation in gesture state, with no animation while the finger is down. The value commits, and the detent tick plays, as each detent crosses the centre. On lift, land on the detent nearest `position + v / 1000 * 0.99 / 0.01` (`Theme.Gesture.railDecelerationRate`), on `Theme.Gesture.release` (0.3 s, bounce 0) seeded with v over the distance left. Past an end, follow the rubber-band with c `Theme.Gesture.rubberBandConstant` (0.55) and d the track's width, and spring back on `Theme.Gesture.snapBack` (0.2 s, bounce 0). A drag during the settle starts from the on-screen offset. The axis is claimed after `Theme.Gesture.hysteresis` (10 pt). The math goes in `ValueRailLayout`, where `swift test` reaches it. | Each cell stays a button. Rank 3 adds the adjustable action. | Tracking stays 1:1. A release lands on the detent nearest the lift, on `Theme.Gesture.snapBack`, with no projection. | `rail-slow`: the strip hops a whole cell, then sits still while the finger keeps moving. `rail-flick`: a fast flick throws exactly one detent, where the projection at 0.99 adds 99 pt for each 1000 pt/s of release, two detents. `rail-past-end`: the strip stops dead for the last 128 pt of a 320 pt drag. |
 | 2 | Set Flag sheet | `App/Views/SessionStageView.swift:93` | One downward drag, or a tap above the sheet, closes it and drops the typed words. Reopened, the field shows its placeholder. | System Surfaces Keep System Gestures keeps the drag, but the drag costs the athlete's words. | No new gesture. Keep the system drag, and keep each Set's `SetFlagDraft` while the Session is open, cleared on Raise. Refusing interactive dismiss instead would leave a sheet with no close button and no way out. | The tap above the sheet, which also closes it. With the draft kept, neither way loses anything. | Unchanged. It is a system sheet. | `flag-dismiss`: "left hip pinch" with Pain, one drag down, and the reopened sheet reads "What should your coach know?". A tap above the medium sheet did the same, driven once by hand. |
 | 3 | Rails under VoiceOver | `App/Views/ValueRail.swift:54` | Each cell is its own button, so reaching a value means swiping through every cell, including those drawn off screen. | Every Gesture Has a Button names the adjustable action for the rails, and none ships. | One element per rail, labelled Reps or RPE, with the selection as its value. `accessibilityAdjustableAction` steps one detent and plays the detent tick. | This row is the alternative. | Not applicable. | The accessibility tree lists Reps 3 through Reps 10 as separate buttons, the first at x −6. |
+
+The build pass (#1201) built ranks 1 to 3. The Surfaces table reads the code after it; the rows above record what it replaced.
 
 **Rejected.** Each candidate is listed with the gate that killed it.
 
@@ -169,7 +169,7 @@ Lens wheel's flick (`wheel-flick`) behave as the Surfaces table says. They need 
 
 **Verdict.** The rails are the single highest-leverage item. The athlete drags the reps and RPE
 rails whenever a Set departs from its prescription, with chalk on their hands and the bar waiting.
-Today the strip answers in 48 pt jumps, ignores the throw, and stops dead at the ends, which breaks
-five of §9's rules on the surface the athlete drags most. The fix needs no new token, because every
-value it uses is in `Theme.Gesture`. Its math lands in `ValueRailLayout`, where `swift test` pins
-it.
+Before the build pass the strip answered in 48 pt jumps, ignored the throw, and stopped dead at the
+ends, which broke five of §9's rules on the surface the athlete drags most. The fix needed no new
+token, because every value it uses is in `Theme.Gesture`. Its math sits in `ValueRailLayout`, where
+`swift test` pins it.
