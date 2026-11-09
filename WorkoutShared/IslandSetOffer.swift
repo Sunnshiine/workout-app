@@ -37,8 +37,6 @@ enum IslandOfferFit: CaseIterable {
 struct IslandSetOffer: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.dynamicTypeSize) private var typeSize
-    /// The narrowest cut of the guidance worth drawing, about a word and its "…".
-    @ScaledMetric(relativeTo: .footnote) private var guidanceStub: CGFloat = 56
 
     var body: some View {
         let colors = state.liveActivityColors
@@ -89,51 +87,16 @@ struct IslandSetOffer: View {
     private func lines(_ fit: IslandOfferFit) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             setLine(withTheTarget: fit.targetOnTheSetLine, nameFits: !fit.nameAndTargetGiveWay)
-            guidanceLine(withTheTarget: !fit.targetOnTheSetLine, targetGivesWay: fit.nameAndTargetGiveWay)
-        }
-    }
 
-    /// The target when the set line had no room for it, the queue when the corners gave way, then
-    /// the guidance. The guidance cuts off first, then a target that gives way, and the queue never.
-    @ViewBuilder
-    private func guidanceLine(withTheTarget: Bool, targetGivesWay: Bool) -> some View {
-        let target = withTheTarget ? state.prescriptionText : nil
-        let queue = typeSize.islandShedsTheCorners ? state.pendingWritesText : nil
-        if target != nil || queue != nil || state.guidance != nil {
-            HStack(alignment: .firstTextBaseline, spacing: 0) {
-                if let target {
-                    Text(target)
-                        .liveActivityFont(.label)
-                        .lineLimit(1)
-                        .minimumScaleFactor(targetGivesWay ? LockScreenCardMetrics.targetFloorScale : 1)
-                        .fixedSize(horizontal: !targetGivesWay, vertical: false)
-                        .layoutPriority(1)
-                }
-
-                if let queue {
-                    Text(target == nil ? queue : " · \(queue)")
-                        .liveActivityFont(.label)
-                        .lineLimit(1)
-                        .fixedSize()
-                        .layoutPriority(2)
-                }
-
-                if let guidance = state.guidance {
-                    let text = Text(target == nil && queue == nil ? guidance : " · \(guidance)")
-                        .liveActivityFont(.guidance)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    // A stub too short to read draws nothing, and the guidance's width never decides
-                    // which of the set line's candidates fits.
-                    ViewThatFits(in: .horizontal) {
-                        text.fixedSize()
-                        text.frame(minWidth: guidanceStub, idealWidth: guidanceStub, maxWidth: .infinity, alignment: .leading)
-                        Color.clear.frame(width: 0, height: 0)
-                    }
-                    .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
-                }
+            let line = IslandGuidanceLine(
+                target: fit.targetOnTheSetLine ? nil : state.prescriptionText,
+                queue: typeSize.islandShedsTheCorners ? state.pendingWritesText : nil,
+                guidance: state.guidance,
+                targetGivesWay: fit.nameAndTargetGiveWay
+            )
+            if !line.isEmpty {
+                line.foregroundStyle(state.liveActivityColors.islandSecondaryText)
             }
-            .foregroundStyle(state.liveActivityColors.islandSecondaryText)
         }
     }
 
@@ -165,6 +128,56 @@ struct IslandSetOffer: View {
             }
 
             Spacer(minLength: 0)
+        }
+    }
+}
+
+/// The line under the Set's name: the target when the set line had no room for it, the queue when
+/// the corners gave way, then the guidance. The guidance cuts off first, then a target that gives
+/// way, and the queue never.
+struct IslandGuidanceLine: View {
+    let target: String?
+    let queue: String?
+    let guidance: String?
+    let targetGivesWay: Bool
+    /// The narrowest cut of the guidance worth drawing, about a word and its "…".
+    @ScaledMetric(relativeTo: .footnote) private var guidanceStub: CGFloat = 56
+
+    var isEmpty: Bool { target == nil && queue == nil && guidance == nil }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            if let target {
+                Text(target)
+                    .liveActivityFont(.label)
+                    .lineLimit(1)
+                    .minimumScaleFactor(targetGivesWay ? LockScreenCardMetrics.targetFloorScale : 1)
+                    .fixedSize(horizontal: !targetGivesWay, vertical: false)
+                    .layoutPriority(1)
+            }
+
+            if let queue {
+                Text(target == nil ? queue : " · \(queue)")
+                    .liveActivityFont(.label)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .layoutPriority(2)
+            }
+
+            if let guidance {
+                let text = Text(target == nil && queue == nil ? guidance : " · \(guidance)")
+                    .liveActivityFont(.guidance)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                // A stub too short to read draws nothing, and the guidance's width never decides
+                // which of the set line's candidates fits.
+                ViewThatFits(in: .horizontal) {
+                    text.fixedSize()
+                    text.frame(minWidth: guidanceStub, idealWidth: guidanceStub, maxWidth: .infinity, alignment: .leading)
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .frame(minWidth: 0, idealWidth: 0, maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 }
