@@ -208,10 +208,11 @@ final class LockScreenPress {
         return .logged(setLog, at: position.setID)
     }
 
-    /// With no rest running, a recording has the Live Activity to itself, and a readback would end
-    /// the activity the system records under.
+    /// With no rest running, the Lock Screen's recording has the Live Activity to itself, and a
+    /// readback would end the activity the system records under. The app's mic records in the app,
+    /// so a press over it always says why.
     private func refuseWhileTheMicListens(_ surface: SetDictation.Surface, pressing setIdentity: String) async -> Outcome {
-        guard liveActivity.restContent != nil else { return .notLogged(.micBusy(surface)) }
+        guard surface == .card || liveActivity.restContent != nil else { return .notLogged(.micBusy(surface)) }
         return await refuse(.micBusy(surface), pressing: setIdentity)
     }
 
