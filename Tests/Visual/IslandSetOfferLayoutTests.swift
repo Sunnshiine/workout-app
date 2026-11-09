@@ -26,6 +26,27 @@ struct IslandSetOfferLayoutTests {
             )
         }
     }
+
+    /// The queue never gives way: beside the longest target it draws as wide, at the island's width
+    /// and at half of it, as with room to spare, while the target gives way to it.
+    @Test func theQueueDrawsWholeWhileTheLongestTargetGivesWay() throws {
+        for size in DynamicTypeSize.allCases where size <= .xxxLarge {
+            let widths = try IslandOffer.guidanceLine(at: size, in: [2_000, IslandOffer.regionWidth, IslandOffer.regionWidth / 2])
+            let roomy = widths[0]
+
+            for squeezed in widths.dropFirst() {
+                #expect(abs(squeezed.queue - roomy.queue) < 0.5, "the queue at \(size), \(squeezed.window)pt")
+                #expect(squeezed.target < roomy.target, "the target at \(size), \(squeezed.window)pt")
+            }
+        }
+    }
+}
+
+/// How wide the target and the queue draw on the line under the name, in a window of one width.
+struct GuidanceLineWidths {
+    var window: CGFloat
+    var target: CGFloat
+    var queue: CGFloat
 }
 
 struct IslandDrawing: Equatable {
@@ -102,6 +123,33 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
                 queueOnTheLines: lines?.label.contains(queue) ?? false
             )
         }[0]
+    }
+
+    /// The line under the name with the longest cells' target, queue, and guidance, the target
+    /// giving way as in the island's last layout, in a window of each width.
+    @MainActor
+    static func guidanceLine(at size: DynamicTypeSize, in windows: [CGFloat]) throws -> [GuidanceLineWidths] {
+        let state = longestCells.state
+        let view = VStack(spacing: 0) {
+            IslandGuidanceLine(
+                target: state.prescriptionText,
+                queue: state.pendingWritesText,
+                guidance: state.guidance,
+                targetGivesWay: true
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .environment(\.dynamicTypeSize, size)
+            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+            Spacer(minLength: 0)
+        }
+        return try AccessibilityHost.read(view, in: windows.map { CGSize(width: $0, height: 200) }) { window in
+            let named = window.accessibilityTree.compactMap { element in
+                element.accessibilityLabel.map { (label: $0, width: element.drawnFrame.width) }
+            }
+            let target = try #require(named.first { $0.label.hasPrefix(state.prescriptionText) })
+            let drawnQueue = try #require(named.first { $0.label.contains(Self.queue) })
+            return GuidanceLineWidths(window: window.frame.width, target: target.width, queue: drawnQueue.width)
+        }
     }
 
     private static func longest(press: LoggablePress) -> WorkoutActivityAttributes.ContentState {
