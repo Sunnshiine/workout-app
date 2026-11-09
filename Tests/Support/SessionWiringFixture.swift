@@ -85,6 +85,7 @@ final class BrowsedAwaySessionNavigation: SessionNavigationAdapter {
 struct InertSessionSync: SessionSyncAdapter {
     func reportLocalWriteFailure(_ error: any Error) {}
     func requestPendingWriteFlush() {}
+    var pendingWriteCount: Int { 0 }
 }
 
 @MainActor

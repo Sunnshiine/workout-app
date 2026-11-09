@@ -33,6 +33,7 @@ extension SessionCoordinator {
             let content = focusManager.liveActivityRestContent(
                 afterLogging: set,
                 in: session,
+                history: wiring.history(),
                 restStartDate: restInterval.start,
                 restEndDate: restInterval.end
             )
@@ -44,18 +45,30 @@ extension SessionCoordinator {
     /// The rest Live Activity follows the Set on the card, so an Exercise picked out of order
     /// takes it over, during the rest and after it ends. The rest keeps its dates.
     func retargetLiveActivityAtActiveSet() {
+        retargetLiveActivity(pendingWrites: wiring.liveActivity.restContent?.pendingWrites ?? 0)
+    }
+
+    /// Leaving the app leaves its header behind, so the card takes the count. Only here: a
+    /// retarget in the turn that logged a Set would replace the start that is bringing the card up.
+    func retargetLiveActivityOnLeavingTheApp() {
+        retargetLiveActivity(pendingWrites: wiring.sync.pendingWriteCount)
+    }
+
+    private func retargetLiveActivity(pendingWrites: Int) {
         guard
             let running = wiring.liveActivity.restContent,
             let coordinate = sessionCoordinate,
             let session = currentSession(at: coordinate),
             let activeSet = focusManager.activeSet(in: session)
         else { return }
-        let content = LiveActivityRestContentBuilder.content(
+        var content = LiveActivityRestContentBuilder.content(
             showing: activeSet,
             in: session,
+            reading: LoggablePressSource(focus: focusManager, history: wiring.history()),
             restStartDate: running.restStartDate,
             restEndDate: running.restEndDate
         )
+        content.pendingWrites = pendingWrites
         guard content != running else { return }
         wiring.liveActivity.retarget(restContent: content)
     }

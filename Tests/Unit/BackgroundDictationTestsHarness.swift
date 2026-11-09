@@ -130,6 +130,7 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
 
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         shown.append((content, sessionLabel))
+        if case .rest(let rest) = content.subject { restContent = rest }
         whileShowing(content.readback)
         return isUp
     }
@@ -137,6 +138,21 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     func show(_ noSet: LiveActivityNoSetReadback) async -> Bool {
         noSets.append(noSet)
         return isUp
+    }
+
+    var restContent: LiveActivityRestContent?
+    private(set) var replacements: [(readback: LiveActivityDictationContent.Readback, card: LiveActivityRestContent)] = []
+
+    func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
+        replacements.append((readback, card))
+        restContent = card
+    }
+
+    private(set) var refreshes: [LiveActivityRestContent] = []
+
+    func refresh(card: LiveActivityRestContent) async {
+        refreshes.append(card)
+        restContent = card
     }
 
     func withdrawReadback() async {

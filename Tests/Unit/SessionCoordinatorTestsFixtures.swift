@@ -51,6 +51,7 @@ final class SpySessionLoggingAdapter: SessionLoggingAdapter {
 final class SpySessionSyncAdapter: SessionSyncAdapter {
     private(set) var reportedErrors: [String] = []
     private(set) var flushRequestCount = 0
+    var pendingWriteCount = 0
 
     func reportLocalWriteFailure(_ error: any Error) {
         reportedErrors.append(String(describing: error))

@@ -186,8 +186,31 @@ struct LiveActivityLabView: View {
             appearance: appearance,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            dictation: nil
+            dictation: nil,
+            loggablePress: labPress,
+            guidance: labGuidance,
+            start: nil,
+            pendingWrites: 0
         )
+    }
+
+    /// The sample's chips draw as a real Set's do. No Set answers to its identity, so a press of one
+    /// reads back why nothing logged.
+    private var labPress: LoggablePress {
+        .ready(
+            LoggablePress.Offer(
+                repChoices: [3, 4, 5, 6, 7],
+                prescribedReps: [5],
+                rpeChoices: ["6", "6.5", "7", "7.5", "8"],
+                prescribedRPE: "7",
+                setIdentity: "Lab",
+                chosenReps: nil
+            )
+        )
+    }
+
+    private var labGuidance: String {
+        "3:1:1 · Brace hard off the floor, controlled descent."
     }
 
     private var restDurationLabel: String {
@@ -257,7 +280,11 @@ struct LiveActivityLabView: View {
             appearance: appearance,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            dictation: nil
+            dictation: nil,
+            loggablePress: labPress,
+            guidance: labGuidance,
+            start: nil,
+            pendingWrites: 0
         )
     }
 }

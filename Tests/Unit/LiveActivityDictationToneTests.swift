@@ -16,7 +16,7 @@ struct LiveActivityDictationToneTests {
         #expect(LiveActivityDictation.logged("235×5 @7", to: set).tone == .action)
         #expect(LiveActivityDictation.skipped(set).tone == .quiet)
         #expect(LiveActivityDictation.notLogged("Nothing heard").tone == .quiet)
-        #expect(LiveActivityDictation.noSetLeft(session: "Week 1 - Day 1").tone == .quiet)
+        #expect(LiveActivityDictation.noSetLeft.tone == .quiet)
         #expect(LiveActivityDictation.noCurrentSession.tone == .quiet)
     }
 }

@@ -86,6 +86,9 @@ struct ActiveSetCard: View {
         .onChange(of: mic?.startsHandsFree ?? false, initial: true) { _, starts in
             if starts { listenHandsFree() }
         }
+        .onChange(of: timedEffort?.startsOnArrival ?? false, initial: true) { _, starts in
+            if starts { timedEffort?.startRequested() }
+        }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Theme.cardContentPadding)
         .background(palette.surface, in: .rect(cornerRadius: Theme.Radius.activeSetCard))

@@ -55,6 +55,8 @@ avoid-list lives and binds as the rest of this glossary does. A new Logging term
 - **Estimated Single**
 - **Load Basis**
 - **Last Set RPE**
+- **Reps Chips**
+- **RPE Chips**
 - **Coach Note**
 - **Set Flag**
 - **Cell Note**

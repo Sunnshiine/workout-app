@@ -11,6 +11,8 @@ struct LiveActivityDictationContent: Equatable, Sendable {
         case skipped(WrittenSet)
         /// Why nothing was written, in the card's words.
         case notLogged(String)
+        /// A press that changed nothing, because the Set had settled: what it holds, nil for a skip.
+        case settled(setLog: String?, WrittenSet)
     }
 
     /// The Set a write went to, named apart from the rest it began, which leads to another.
@@ -48,7 +50,7 @@ extension LiveActivityDictationContent.Readback {
     var writtenSet: LiveActivityDictationContent.WrittenSet? {
         switch self {
         case .logged(_, let set), .skipped(let set): set
-        case .listening, .notLogged: nil
+        case .listening, .notLogged, .settled: nil
         }
     }
 }
@@ -69,8 +71,8 @@ extension LiveActivityDictationContent.WrittenSet {
 /// What the Live Activity says when the athlete asked to log a Set and there was none to listen
 /// for, so the press never reads as doing nothing.
 enum LiveActivityNoSetReadback: Equatable, Sendable {
-    /// The Current Session, by its Live Activity label, has no Pending Set: each is logged or skipped.
-    case noSetLeft(session: String)
+    /// The Current Session has no Pending Set: each is logged or skipped.
+    case noSetLeft
     /// No Sheet is chosen, or the Block it loaded has no Session to log into.
     case noCurrentSession
 }
@@ -83,6 +85,8 @@ struct LiveActivitySetContent: Equatable, Sendable {
     let prescribedLoad: String
     let setsDone: Int
     let setsTotal: Int
+    /// The queue, where a readback over this Set counts it.
+    var pendingWrites = 0
 
     @MainActor
     init(_ position: SessionSetPosition) {

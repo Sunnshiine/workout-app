@@ -44,4 +44,5 @@ Keep implementation details out of the map. Name only user paths, stable handles
 - [Settings](./settings.md) covers appearance, rest timers, switching the training sheet, sync, sign out with pending writes, the build footer, and Developer Tools.
 - [Onboarding](./onboarding.md) covers the signed-out wall, choosing a training sheet or pasting its URL, and landing on its freshly synced session.
 - [Live Activity](./live-activity.md) covers the rest timer in the Dynamic Island after a logged set, its Say Set mic on the Lock Screen card and the expanded island, the readback of a Set logged by voice with the phone locked, and the Live Activity Lab that raises one from a sample state.
+- [Lock Screen Logging](./lock-screen-logging.md) covers the Lock Screen card's prescription, Last Performed, and RPE Chips, a chip press that logs without unlocking, the readback and the next Set, a press the Set no longer matches, and the card with no chips.
 - [Headless CLI](./cli-headless.md) covers the `workout` verbs: init, status, session, log, skip, flush, sheet, sync.

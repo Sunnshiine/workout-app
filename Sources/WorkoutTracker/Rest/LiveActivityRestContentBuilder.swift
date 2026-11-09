@@ -57,7 +57,14 @@ struct LiveActivityRestContent: Equatable, Sendable {
     let variant: LiveActivityRestContentVariant
     let restStartDate: Date
     let restEndDate: Date
+    var press: LoggablePressContent
+    /// The Cadence and the Coach Note on one line; nil with neither.
+    let guidance: String?
+    /// The Set's timed effort, which the card's Start opens the app to count. Nil with none.
+    let start: LockScreenStart?
     var target: LiveActivityRestTarget?
+    /// The queue as it stood when the content was read from a surface with no header to say so.
+    var pendingWrites = 0
 
     init(
         exerciseName: String,
@@ -70,6 +77,9 @@ struct LiveActivityRestContent: Equatable, Sendable {
         variant: LiveActivityRestContentVariant,
         restStartDate: Date,
         restEndDate: Date,
+        press: LoggablePressContent,
+        guidance: String?,
+        start: LockScreenStart?,
         target: LiveActivityRestTarget? = nil
     ) {
         self.exerciseName = exerciseName
@@ -82,6 +92,9 @@ struct LiveActivityRestContent: Equatable, Sendable {
         self.variant = variant
         self.restStartDate = restStartDate
         self.restEndDate = restEndDate
+        self.press = press
+        self.guidance = guidance
+        self.start = start
         self.target = target
     }
 
@@ -130,6 +143,14 @@ enum LiveActivityInvalidationPolicy {
     }
 }
 
+/// What an offer reads for a Set: what its card shows, and the Exercise's Last Performed, where
+/// the RPE Chips centre with no RPE on the card.
+@MainActor
+struct LoggablePressSource {
+    let focus: ActiveSetFocusManager
+    let history: LastPerformedLookupSnapshot
+}
+
 @MainActor
 enum LiveActivityRestContentBuilder {
     private struct RestTargetSet {
@@ -142,24 +163,28 @@ enum LiveActivityRestContentBuilder {
         afterLogging loggedSet: ExerciseSet,
         in session: Session,
         supersetState: SupersetState? = nil,
+        reading source: LoggablePressSource,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent? {
         guard let target = targetSet(afterLogging: loggedSet, in: session, supersetState: supersetState) else {
             return nil
         }
-        return content(for: target, restStartDate: restStartDate, restEndDate: restEndDate)
+        return content(for: target, following: session, reading: source, restStartDate: restStartDate, restEndDate: restEndDate)
     }
 
     /// The rest's content pointed at `position`, the Set the athlete has on the card.
     static func content(
         showing position: SessionSetPosition,
         in session: Session,
+        reading source: LoggablePressSource,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent {
         content(
             for: RestTargetSet(session: session, exercise: position.exercise, set: position.set),
+            following: session,
+            reading: source,
             restStartDate: restStartDate,
             restEndDate: restEndDate
         )
@@ -167,22 +192,29 @@ enum LiveActivityRestContentBuilder {
 
     private static func content(
         for target: RestTargetSet,
+        following session: Session,
+        reading source: LoggablePressSource,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent {
         let pendingCount = target.exercise.pendingSetCount
         let totalCount = target.exercise.sets.count
+        let position = SessionSetPosition(exercise: target.exercise, set: target.set)
+        let draft = SpokenSetContext(for: target.set, shownBy: source.focus, history: source.history).draft
         return LiveActivityRestContent(
             exerciseName: target.exercise.exerciseName.base,
             prescribedReps: target.set.prescribedReps,
             prescribedLoad: target.set.prescribedLoad,
-            weightValue: "",
-            weightUnit: "lbs",
+            weightValue: draft.weight?.label ?? "",
+            weightUnit: draft.weight.map(\.unitLabel) ?? "",
             setsDone: max(totalCount - pendingCount, 0),
             setsTotal: totalCount,
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
+            press: LoggablePressContent(for: position, following: session, showing: draft, history: source.history),
+            guidance: target.exercise.lockScreenGuidance,
+            start: target.exercise.session === session ? LockScreenStart(position) : nil,
             target: target.session.placement.coordinate.map {
                 LiveActivityRestTarget(
                     session: $0,

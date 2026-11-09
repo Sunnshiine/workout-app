@@ -16,6 +16,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: startDate,
             restEndDate: endDate
         )
@@ -45,6 +46,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -70,6 +72,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -95,6 +98,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -118,6 +122,7 @@ import Testing
             afterLogging: loggedSet,
             in: session,
             supersetState: supersetState,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -139,6 +144,7 @@ import Testing
     let content = LiveActivityRestContentBuilder.content(
         afterLogging: loggedSet,
         in: session,
+        reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
     )
@@ -155,6 +161,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -173,6 +180,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: session,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -195,6 +203,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: viewed,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -229,6 +238,7 @@ import Testing
         LiveActivityRestContentBuilder.content(
             afterLogging: loggedSet,
             in: viewed,
+            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )

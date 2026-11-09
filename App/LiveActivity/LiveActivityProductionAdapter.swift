@@ -177,10 +177,7 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     func show(_ noSet: LiveActivityNoSetReadback) async -> Bool {
         let readback = LiveActivityDictation(noSet)
         let alone = WorkoutActivityAttributes.ContentState(noSetToLog: readback)
-        switch noSet {
-        case .noSetLeft(let session): return await show(readback, else: alone, sessionLabel: session, ridingRestIf: { _ in true })
-        case .noCurrentSession: return await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
-        }
+        return await show(readback, else: alone, sessionLabel: "", ridingRestIf: { _ in true })
     }
 
     func withdrawReadback() async {
@@ -197,6 +194,18 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         case .nothing:
             break
         }
+    }
+
+    func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
+        guard controller.currentState?.dictation == LiveActivityDictation(readback) else { return }
+        retarget(restContent: card)
+        await startUpdateTask?.value
+    }
+
+    func refresh(card: LiveActivityRestContent) async {
+        guard controller.currentState?.dictation == nil else { return }
+        retarget(restContent: card)
+        await startUpdateTask?.value
     }
 
     /// True when a Live Activity shows the readback once the steps are done, an ended one
@@ -248,7 +257,9 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     /// A rest an earlier process started may still count down on the Lock Screen. It is read back
     /// off the activity so a readback rides it and its lifecycle runs here; once its post-rest
     /// cap has passed it is nobody's, and the readback takes the activity.
-    private func takeOverRestLeftRunning() {
+    /// Adopts the rest a running activity shows when this process started none, as after the
+    /// system ended the app and a press launched it again.
+    func takeOverRestLeftRunning() {
         guard
             owner == .nobody, controller.isActive,
             let state = controller.currentState,

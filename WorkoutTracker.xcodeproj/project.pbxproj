@@ -331,6 +331,7 @@
 			buildConfigurationList = 88BC778C56D4F0D05FDA64DA /* Build configuration list for PBXNativeTarget "WorkoutWidgets" */;
 			buildPhases = (
 				6CD1A4EEB3B698F281F1B562 /* Sources */,
+				A9F5000000000000000000E1 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -397,6 +398,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A9F5000000000000000000E1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		6FF63F10AE8DA894E8CF70F0 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;

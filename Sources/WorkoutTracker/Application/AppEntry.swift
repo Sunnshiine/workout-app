@@ -2,21 +2,70 @@ import Foundation
 import Observation
 
 /// What the athlete asked for from outside the app, for the card to answer: Log a Set pressed
-/// with the app in front, or the `workouttracker://dictate` URL that tests and `simctl` open.
+/// with the app in front, the Lock Screen's Start, or the `workouttracker://dictate` URL that tests
+/// and `simctl` open.
 enum AppEntryRequest: Equatable, Sendable {
     /// Open the Current Session's active Set and listen for its Spoken Set.
     case dictateCurrentSet
+    /// Open the stage on this Set and start its Effort Countdown, as a tap on its card's control does.
+    case startTimedEffort(CountdownRun.Owner)
 }
 
 extension AppEntryRequest {
+    enum Kind: Equatable, Sendable {
+        case dictation
+        case start
+    }
+
+    var kind: Kind {
+        switch self {
+        case .dictateCurrentSet: .dictation
+        case .startTimedEffort: .start
+        }
+    }
+
     static let urlScheme = "workouttracker"
 
     /// Nil for any URL that is not the app's own, such as Google sign-in's redirect.
     init?(url: URL) {
-        guard url.scheme?.lowercased() == Self.urlScheme, url.host()?.lowercased() == "dictate", url.path().isEmpty else {
+        guard url.scheme?.lowercased() == Self.urlScheme, url.path().isEmpty else { return nil }
+        switch url.host()?.lowercased() {
+        case "dictate":
+            self = .dictateCurrentSet
+        case "start":
+            guard let owner = Self.owner(in: url) else { return nil }
+            self = .startTimedEffort(owner)
+        default:
             return nil
         }
-        self = .dictateCurrentSet
+    }
+
+    var url: URL {
+        var components = URLComponents()
+        components.scheme = Self.urlScheme
+        switch self {
+        case .dictateCurrentSet:
+            components.host = "dictate"
+        case .startTimedEffort(let owner):
+            components.host = "start"
+            components.queryItems = [
+                URLQueryItem(name: "session", value: owner.session.storageValue),
+                URLQueryItem(name: "exercise", value: "\(owner.set.exerciseOrder)"),
+                URLQueryItem(name: "set", value: "\(owner.set.setIndex)")
+            ]
+        }
+        // swiftlint:disable:next force_unwrapping
+        return components.url!
+    }
+
+    private static func owner(in url: URL) -> CountdownRun.Owner? {
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        func value(_ name: String) -> String? { items.first { $0.name == name }?.value }
+        guard let session = value("session").flatMap(SessionCoordinate.init(storageValue:)),
+            let exerciseOrder = value("exercise").flatMap({ Int($0) }),
+            let setIndex = value("set").flatMap({ Int($0) })
+        else { return nil }
+        return CountdownRun.Owner(session: session, set: ActiveSetID(exerciseOrder: exerciseOrder, setIndex: setIndex))
     }
 }
 

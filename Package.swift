@@ -32,7 +32,7 @@ let package = Package(
             path: "Tests",
             exclude: [
                 "UI", "Visual", "Unit/GoogleAuthTests.swift", "Unit/LiveActivityDictationToneTests.swift",
-                "Unit/LogSetByVoiceIntentTests.swift"
+                "Unit/LogSetAtRPEIntentTests.swift", "Unit/LogSetByVoiceIntentTests.swift"
             ]
         )
     ]

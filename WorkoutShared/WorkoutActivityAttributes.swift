@@ -17,6 +17,14 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
         let dictation: LiveActivityDictation?
+        /// How the Lock Screen logs the Set this content shows.
+        let loggablePress: LoggablePress
+        /// The Exercise's Cadence and Coach Note on one line; nil with neither.
+        let guidance: String?
+        /// The Start in the mic's place for a Set that opens on a timed effort; nil with none.
+        let start: LockScreenStartOffer?
+        /// Set Logs the Sheet does not have yet, counted when the content was drawn.
+        let pendingWrites: Int
     }
 
     let sessionLabel: String
@@ -32,8 +40,11 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     case skipped(LiveActivityWrittenSet)
     /// Why nothing was written.
     case notLogged(String)
-    /// The named Session has no Pending Set, so nothing listened.
-    case noSetLeft(session: String)
+    /// A press that changed nothing, because the Set it names had settled: what it holds, nil for
+    /// a skip.
+    case settled(setLog: String?, LiveActivityWrittenSet)
+    /// The Current Session has no Pending Set, so nothing listened.
+    case noSetLeft
     /// No Session to log into, so nothing listened.
     case noCurrentSession
 
@@ -52,7 +63,7 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     var tone: Tone {
         switch self {
         case .listening, .logged: .action
-        case .skipped, .notLogged, .noSetLeft, .noCurrentSession: .quiet
+        case .skipped, .notLogged, .settled, .noSetLeft, .noCurrentSession: .quiet
         }
     }
 
@@ -60,29 +71,23 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
     /// content names no Exercise and no prescription.
     var isAboutASet: Bool {
         switch self {
-        case .listening, .logged, .skipped, .notLogged: true
+        case .listening, .logged, .skipped, .notLogged, .settled: true
         case .noSetLeft, .noCurrentSession: false
         }
     }
 
-    /// The Set a write went to, which the readback names in place of the content's Exercise.
+    /// The Set the readback names in place of the content's Exercise.
     var writtenSet: LiveActivityWrittenSet? {
         switch self {
-        case .logged(_, let set), .skipped(let set): set
+        case .logged(_, let set), .skipped(let set), .settled(_, let set): set
         case .listening, .notLogged, .noSetLeft, .noCurrentSession: nil
         }
-    }
-
-    /// The Session a readback about it names.
-    var sessionName: String? {
-        guard case .noSetLeft(let session) = self else { return nil }
-        return session
     }
 
     var symbolName: String {
         switch self {
         case .listening: "mic.fill"
-        case .logged, .skipped, .noSetLeft: "checkmark.circle.fill"
+        case .logged, .skipped, .settled, .noSetLeft: "checkmark.circle.fill"
         case .notLogged: "mic.slash.fill"
         case .noCurrentSession: "exclamationmark.circle.fill"
         }
@@ -93,6 +98,7 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         case .listening: "Listening…"
         case .logged(let setLog, _): "Logged \(setLog)"
         case .skipped: "Skipped"
+        case .settled: "That tap changed nothing"
         case .notLogged: "Not logged"
         case .noSetLeft: "No Set left to log"
         case .noCurrentSession: "No Session"
@@ -104,10 +110,20 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         switch self {
         case .listening: "Listening"
         case .logged(let setLog, _): setLog
-        case .skipped: "Skipped"
+        case .skipped, .settled(setLog: nil, _): "Skipped"
+        case .settled(let setLog?, _): setLog
         case .notLogged: "Not logged"
         case .noSetLeft: "No Set left"
         case .noCurrentSession: "No Session"
+        }
+    }
+
+    /// Under the headline on the island, which has no line naming the Exercise.
+    var islandDetail: String? {
+        switch self {
+        case .logged(_, let set), .skipped(let set): set.fullText
+        case .settled(let setLog, let set): Self.settledText(setLog, on: set.fullText)
+        case .listening, .notLogged, .noSetLeft, .noCurrentSession: detail
         }
     }
 
@@ -116,9 +132,14 @@ enum LiveActivityDictation: Codable, Hashable, Sendable {
         switch self {
         case .logged(_, let set), .skipped(let set): set.setText
         case .notLogged(let reason): reason
+        case .settled(let setLog, let set): Self.settledText(setLog, on: set.setText)
         case .noCurrentSession: "Open WorkoutTracker to choose a Sheet"
         case .listening, .noSetLeft: nil
         }
+    }
+
+    private static func settledText(_ setLog: String?, on set: String) -> String {
+        setLog.map { "\(set) holds \($0)" } ?? "\(set) was skipped"
     }
 }
 
@@ -192,9 +213,13 @@ enum LiveActivityAppearance: String, Codable, Hashable, CaseIterable, Identifiab
     }
 }
 
+/// The token sheet's roles (docs/design/greenhouse-theme-tokens.md), which the widget cannot reach
+/// through `Theme`: a word takes `actionInk`, a mark `action`, and a fill `actionFill` under `actionText`.
 struct LiveActivityColors {
-    let accent: Color
-    let accentText: Color
+    let actionInk: Color
+    let action: Color
+    let actionFill: Color
+    let actionText: Color
     let background: Color
     let panelFill: Color
     let track: Color
@@ -214,36 +239,52 @@ enum LiveActivityPalette {
         }
     }
 
+    private static let cream = Color(hex: 0xF2F7E8)
+
     private static let dark = LiveActivityColors(
-        accent: Color(red: 0.45, green: 1.0, blue: 0.72),
-        accentText: Color(red: 0.02, green: 0.12, blue: 0.07),
-        background: Color(red: 0.02, green: 0.03, blue: 0.025),
-        panelFill: Color(red: 0.06, green: 0.10, blue: 0.08),
-        track: Color.white.opacity(0.16),
-        primaryText: .white,
-        secondaryText: Color.white.opacity(0.68),
-        islandPrimaryText: .white,
-        islandSecondaryText: Color.white.opacity(0.68)
+        actionInk: Color(hex: 0x94D6AC),
+        action: Color(hex: 0x79BF93),
+        actionFill: Color(hex: 0x3B7754),
+        actionText: cream,
+        background: Color(hex: 0x121D14),
+        panelFill: cream.opacity(0.07),
+        track: cream.opacity(0.14),
+        primaryText: Color(hex: 0xEBFAEC),
+        secondaryText: Color(hex: 0xBAC9BC),
+        islandPrimaryText: Color(hex: 0xEBFAEC),
+        islandSecondaryText: Color(hex: 0xBAC9BC)
     )
 
     private static let light = LiveActivityColors(
-        accent: Color(red: 0.0, green: 0.48, blue: 0.30),
-        accentText: .white,
-        background: Color(red: 0.92, green: 0.98, blue: 0.94),
-        panelFill: Color(red: 0.80, green: 0.93, blue: 0.85),
-        track: Color.black.opacity(0.12),
-        primaryText: Color(red: 0.04, green: 0.11, blue: 0.07),
-        secondaryText: Color.black.opacity(0.58),
-        islandPrimaryText: .white,
-        islandSecondaryText: Color.white.opacity(0.68)
+        actionInk: Color(hex: 0x084D2C),
+        action: Color(hex: 0x0D643B),
+        actionFill: Color(hex: 0x0D643B),
+        actionText: cream,
+        background: Color(hex: 0xE9EEDC),
+        panelFill: cream.opacity(0.52),
+        track: Color(hex: 0x131E14).opacity(0.1),
+        primaryText: Color(hex: 0x131E14),
+        secondaryText: Color(hex: 0x374339),
+        islandPrimaryText: Color(hex: 0xEBFAEC),
+        islandSecondaryText: Color(hex: 0xBAC9BC)
     )
+}
+
+extension Color {
+    fileprivate init(hex: UInt32) {
+        self.init(
+            red: Double(hex >> 16 & 0xFF) / 255,
+            green: Double(hex >> 8 & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
+    }
 }
 
 extension LiveActivityColors {
     /// The readback's text in its tone, on the Lock Screen card or the island.
     func readbackText(_ tone: LiveActivityDictation.Tone, onIsland: Bool) -> Color {
         switch tone {
-        case .action: accent
+        case .action: actionInk
         case .quiet: onIsland ? islandPrimaryText : primaryText
         }
     }
@@ -251,7 +292,7 @@ extension LiveActivityColors {
     /// The readback's symbol in its tone: the glyph's colour over its circle's fill.
     func readbackSymbol(_ tone: LiveActivityDictation.Tone) -> (glyph: Color, circle: Color) {
         switch tone {
-        case .action: (accentText, accent)
+        case .action: (actionText, actionFill)
         case .quiet: (primaryText, track)
         }
     }
@@ -290,8 +331,14 @@ extension WorkoutActivityAttributes.ContentState {
         }
     }
 
+    /// `185 lbs`, and `BW` alone.
     var weightText: String {
-        "\(weightValue) \(weightUnit)"
+        [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// In the header's words; nil with the queue empty.
+    var pendingWritesText: String? {
+        pendingWrites > 0 ? "\(pendingWrites) unsynced" : nil
     }
 
     var prescribedRepsText: String {
@@ -303,7 +350,11 @@ extension WorkoutActivityAttributes.ContentState {
     }
 
     var prescriptionText: String {
-        [prescribedRepsText, prescribedLoad]
+        Self.prescriptionText([prescribedRepsText, prescribedLoad])
+    }
+
+    private static func prescriptionText(_ parts: [String]) -> String {
+        parts
             .filter { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false }
             .joined(separator: " / ")
     }

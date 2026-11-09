@@ -18,7 +18,11 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: restContent.restStartDate,
             restEndDate: restContent.restEndDate,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: LoggablePress(restContent.press),
+            guidance: restContent.guidance,
+            start: restContent.start.map(LockScreenStartOffer.init),
+            pendingWrites: restContent.pendingWrites
         )
     }
 
@@ -40,7 +44,11 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: nil,
             restEndDate: nil,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: .needsApp,
+            guidance: nil,
+            start: nil,
+            pendingWrites: setContent.pendingWrites
         )
     }
 
@@ -58,15 +66,65 @@ extension WorkoutActivityAttributes.ContentState {
             appearance: appearance,
             restStartDate: nil,
             restEndDate: nil,
-            dictation: dictation
+            dictation: dictation,
+            loggablePress: .needsApp,
+            guidance: nil,
+            start: nil,
+            pendingWrites: 0
         )
+    }
+}
+
+extension LoggablePress {
+    init(_ press: LoggablePressContent) {
+        switch press {
+        case .ready(let offer):
+            self = .ready(
+                Offer(
+                    repChoices: offer.repChoices,
+                    prescribedReps: offer.prescribedReps,
+                    rpeChoices: offer.rpeChoices,
+                    prescribedRPE: offer.prescribedRPE,
+                    setIdentity: offer.setIdentity,
+                    chosenReps: offer.chosenReps
+                )
+            )
+        case .needsApp:
+            self = .needsApp
+        }
+    }
+}
+
+extension LoggablePressContent {
+    init(_ press: LoggablePress) {
+        switch press {
+        case .ready(let offer):
+            self = .ready(
+                LockScreenOffer(
+                    repChoices: offer.repChoices,
+                    prescribedReps: offer.prescribedReps,
+                    rpeChoices: offer.rpeChoices,
+                    prescribedRPE: offer.prescribedRPE,
+                    setIdentity: offer.setIdentity,
+                    chosenReps: offer.chosenReps
+                )
+            )
+        case .needsApp:
+            self = .needsApp
+        }
+    }
+}
+
+extension LockScreenStartOffer {
+    init(_ start: LockScreenStart) {
+        self.init(label: start.effort.controlLabel, spokenLabel: start.effort.spokenLabel, url: start.request.url)
     }
 }
 
 extension LiveActivityDictation {
     init(_ noSet: LiveActivityNoSetReadback) {
         switch noSet {
-        case .noSetLeft(let session): self = .noSetLeft(session: session)
+        case .noSetLeft: self = .noSetLeft
         case .noCurrentSession: self = .noCurrentSession
         }
     }
@@ -77,6 +135,7 @@ extension LiveActivityDictation {
         case .logged(let setLog, let set): self = .logged(setLog, to: LiveActivityWrittenSet(set))
         case .skipped(let set): self = .skipped(LiveActivityWrittenSet(set))
         case .notLogged(let reason): self = .notLogged(reason)
+        case .settled(let setLog, let set): self = .settled(setLog: setLog, LiveActivityWrittenSet(set))
         }
     }
 }
@@ -96,8 +155,12 @@ extension LiveActivityRestContent {
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
+            press: LoggablePressContent(state.loggablePress),
+            guidance: state.guidance,
+            start: nil,
             target: nil
         )
+        pendingWrites = state.pendingWrites
     }
 }
 

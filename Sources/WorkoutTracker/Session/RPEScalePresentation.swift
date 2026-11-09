@@ -23,7 +23,7 @@ extension [ValueRailChip] {
 /// Drives the RPE one-tap scroll rail. The card never changes height, so the
 /// Log capsule keeps a fixed Y — the rail is the whole RPE control.
 struct RPEScalePresentation: Equatable, Sendable {
-    private static let defaultCenter: RPE = .eight
+    static let defaultCenter: RPE = .eight
 
     let chips: [ValueRailChip]
     let selectedIndex: Int

@@ -154,7 +154,14 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(outcome == .logged(logged235, at: last.setID))
     #expect(harness.restTimer.interval == nil)
     #expect(harness.restNotifications.scheduledDeadlines.isEmpty)
-    #expect(harness.liveActivity.subjects.last == .set(LiveActivitySetContent(last)))
+    guard case .set(let shown) = harness.liveActivity.subjects.last else {
+        Issue.record("The readback showed \(String(describing: harness.liveActivity.subjects.last)), not the Set")
+        return
+    }
+    var expected = LiveActivitySetContent(last)
+    expected.pendingWrites = shown.pendingWrites
+    #expect(shown == expected)
+    #expect(shown.pendingWrites > 0, "the readback draws before the flush, so it counts the Set Log it wrote")
 }
 
 /// The rest a locked log starts is the stage's own: the pill shows it when the app comes forward,
@@ -264,7 +271,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let outcome = await harness.background.run()
 
     #expect(outcome == .noSetToLog(.everythingLogged))
-    #expect(harness.liveActivity.noSets == [.noSetLeft(session: "Week 1 - Day 1")])
+    #expect(harness.liveActivity.noSets == [.noSetLeft])
     #expect(harness.liveActivity.readbacks.isEmpty, "nothing listened")
     #expect(harness.dictation.state == .idle)
     #expect(try harness.app.sync.fetchPendingWriteRecords().count == queued, "nothing written")
@@ -283,6 +290,9 @@ private func restContent(toward target: LiveActivityRestTarget) -> LiveActivityR
         variant: .restTimerSetsLeft,
         restStartDate: frozenNow,
         restEndDate: frozenNow.addingTimeInterval(120),
+        press: .needsApp,
+        guidance: nil,
+        start: nil,
         target: target
     )
 }
