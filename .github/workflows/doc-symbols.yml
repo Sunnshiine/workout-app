@@ -25,3 +25,5 @@ jobs:
         run: scripts/tests/lint-doc-symbols.test.sh
       - name: Every doc span and fenced path names something in the tree
         run: python3 scripts/lint-doc-symbols.py
+      - name: Each CODING_STANDARDS.md bullet names its enforcer, and AGENTS.md holds the rule table
+        run: scripts/rule-table.sh --check

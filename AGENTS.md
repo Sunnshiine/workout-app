@@ -60,6 +60,53 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
   (`Models/PendingWrite.swift`), `Stores/SyncCoordinator.swift` flushes the queue, and
   `Sheets/SheetWriter.swift` plans each write to a cell. All sit under `Sources/WorkoutTracker/`.
 
+## Rules and what enforces them
+
+`scripts/rule-table.sh --write` writes this table from the last line of each `CODING_STANDARDS.md`
+bullet, then adds each check no bullet names under its own name. `scripts/lint.sh` fails when the
+table drifts. Each enforcer shows where it runs, and judgment means review owns what no check
+catches.
+
+<!-- rule-table:start -->
+| Rule | Enforced by |
+|---|---|
+| A write that reaches the Sheet or the cache outside `SyncCoordinator` and its pending-write queue | judgment |
+| A Sheet write addressed by a weaker identity than the parser read | `exercise_references_are_parsed` (lint.sh), `Tests/Unit/SheetRoundTripTests.swift` (swift test), judgment |
+| Logic in a View that needs a test | judgment |
+| A type that only forwards | judgment |
+| A derived fact with more than one owner | `DifferentialStateTests` (swift test), judgment |
+| A control signal that does not read what it claims to measure | judgment |
+| An outcome that is not an enum with one case per outcome | judgment |
+| A dropped or detached `Task` that assigns a store field after its owning method returned | `unstructured_task_is_held` (lint.sh), judgment |
+| A `@Model` object held across a reload | `model_held_across_reload` (lint.sh), judgment |
+| A defaulted parameter or optional callback that lets a caller omit a decision | `scripts/lint-defaults.py` (lint.sh), `optional_bool_needs_a_nil_answer` (lint.sh), judgment |
+| A name `CONTEXT.md` does not use | `scripts/lint-vocabulary.py` (lint.sh), judgment |
+| A doc that still describes what the diff removed, renamed, split, or changed | `scripts/lint-doc-symbols.py` (lint.sh, doc-symbols.yml), `scripts/doc-drift.py` (lint.sh, advisory), judgment |
+| A comment that narrates the next line | judgment |
+| A deleted comment that carried what the code cannot show | judgment |
+| A CRAP score lowered by weakening a pin, calling internals, or splitting a function into pieces no reader would look for | `scripts/crap.sh` (ci.yml), judgment |
+| A fake of anything but the boundary | judgment |
+| A fixture value that is not a literal or an offset from the fixture's reference date | `fixture_dates_are_literal` (lint.sh), judgment |
+| A wait that ends on a count or a clock | `tests_wait_on_events_not_clocks` (lint.sh), `tests_never_park_on_a_bare_continuation` (lint.sh), `polling_loops_are_bounded` (lint.sh), `scripts/flake-guard.sh` (ci.yml), judgment |
+| A platform `#if` inside a `@Test` body | `platform_guard_on_test_declaration` (lint.sh), judgment |
+| A test that mirrors a one-line mapping | judgment |
+| A test that passes whatever the code under test does | `scripts/mutate.sh` (by hand), `scripts/mutate-advisory.sh` (ci.yml, advisory), judgment |
+| Font construction via the Theme seam | `font_construction_via_theme` (lint.sh) |
+| No uppercase microlabels | `no_uppercase_microlabels` (lint.sh) |
+| System ink outside the palette | `system_ink_outside_the_palette` (lint.sh) |
+| WhisperKit is imported only by the recording engine | `whisperkit_import_is_confined` (lint.sh) |
+| Each CODING_STANDARDS.md bullet names its enforcer, and AGENTS.md holds the rule table | `scripts/rule-table.sh` (lint.sh, doc-symbols.yml) |
+| Every skill linked from .claude/skills | `scripts/lint-skill-links.sh` (lint.sh, skill-links.yml) |
+| Every workflow's if guards | `scripts/lint-workflow-ifs.sh` (lint.sh, workflow-lint.yml) |
+| Every .build dir is one scripts/build-dirs.sh classes | `scripts/lint-build-dirs.sh` (lint.sh) |
+| Lint exemptions cite a live issue | `scripts/lint-exemptions.py` (lint.sh) |
+| The Swift this branch changes is swift-formatted | `scripts/swift-format-changed.sh` (lint.sh) |
+| Refuse a landing that undoes a commit on the base | `scripts/landing-reverts-main.py` (ci.yml) |
+| Refuse committed record mode (gate must stay armed) | `scripts/refuse-record-mode.sh` (ci.yml) |
+| Run the keyboard tests animated (KeyboardLaneUITests) | `scripts/ci-keyboard-lane.sh` (ci.yml) |
+| Check the body's receipts against the head and the commits' closing keywords | `scripts/check-receipts.py` (receipts.yml) |
+<!-- rule-table:end -->
+
 ## Commands
 
 ```bash
