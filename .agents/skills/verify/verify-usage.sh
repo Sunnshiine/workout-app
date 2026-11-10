@@ -40,7 +40,7 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               that shares it; when more than one is left, exit 1 listing each
                               with the point a tap takes. -x -y taps the point and reports whatever it hits.
                               Every tap is a physical touch down and up (--tap-style simulator for AXe's
-                              own, which reaches no control here). --changes ID exits 1 when that element
+                              own, which can miss; prefer the touch). --changes ID exits 1 when that element
                               reads the same about 2 s after the tap
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field, then reset the keyboard preference AXe

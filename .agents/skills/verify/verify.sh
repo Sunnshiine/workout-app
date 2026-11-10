@@ -137,7 +137,7 @@ case $cmd in
         ''|*[!0-9]*) echo "--wait-timeout with --id or --label is whole seconds: $timeout" >&2; exit 2 ;;
       esac
     fi
-    # AXe's default simulator-style tap reports success and reaches no control in the app (PR 1220).
+    # AXe's default simulator-style tap reports success and can miss; prefer touch down and up (PR 1220).
     [[ " ${rest[*]-} " == *" --tap-style "* ]] || rest+=(--tap-style physical)
     resolve_sim; require_own_app; ensure_axe
     [ -z "$changes" ] || before=$(reading "$changes")

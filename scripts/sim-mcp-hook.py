@@ -4,7 +4,9 @@ A Claude Code hook, for .claude/settings.json, on the XcodeBuildMCP tools that b
 install or launch. Agents need a simulator to see what they build, and every simulator here
 comes from a Simlock lease (ADR-0024), so these tools run only on a simulator the caller's lease
 holds. The target is the call's simulatorId, else the UDID this session last gave
-session_set_defaults, which the PostToolUse half records. A refusal names the lease command and the
+session_set_defaults, which the PostToolUse half records. A session default that names a simulator
+by name, switches profile or persists would let the server build somewhere other than that record,
+so those calls are refused, naming session_set_defaults {simulatorId} alone. A refusal names the lease command and the
 shell path; the settings hook turns exit 3 into Claude Code's blocking exit 2. When Simlock cannot
 answer (missing, slower than SIM_HOOK_TIMEOUT seconds (default 8), unreadable output) the call is allowed with a
 warning. Each allowed build appends a line to $XDG_STATE_HOME/sim-hook/workout-app.log, because an
@@ -34,8 +36,8 @@ BUILDS = {"build_sim", "build_run_sim", "test_sim"}
 REFUSED = {
     "erase_sims": "Simulators here are never erased. simlock release <lease-id> gives yours back, and Simlock resets it.",
     "clean": "Clean in the shell: xcodebuild clean -project WorkoutTracker.xcodeproj -scheme WorkoutTracker",
-    "build_device": "The app reaches a phone through TestFlight: add the testflight label to the PR (docs/agents/prototyping.md). On a simulator, use build_run_sim with the simulatorId of your Simlock lease.",
-    "build_run_device": "The app reaches a phone through TestFlight: add the testflight label to the PR (docs/agents/prototyping.md). On a simulator, use build_run_sim with the simulatorId of your Simlock lease.",
+    "build_device": "The app reaches a phone through TestFlight: add the testflight label to the PR (docs/agents/prototyping.md). On a simulator, set session_set_defaults {simulatorId: <your leased UDID>}, then build_run_sim.",
+    "build_run_device": "The app reaches a phone through TestFlight: add the testflight label to the PR (docs/agents/prototyping.md). On a simulator, set session_set_defaults {simulatorId: <your leased UDID>}, then build_run_sim.",
     "test_device": "Tests run on a leased simulator: scripts/test-sim.sh unit (see its --help).",
     "build_macos": "The app has no macOS target. The macOS build is the workout CLI: scripts/build-slot.sh swift build --product workout",
     "build_run_macos": "The app has no macOS target. The macOS build is the workout CLI: scripts/build-slot.sh swift build --product workout",
@@ -43,9 +45,12 @@ REFUSED = {
     "swift_package_build": "Build in a host build slot: scripts/build-slot.sh swift build",
     "swift_package_run": "Run in a host build slot: scripts/build-slot.sh swift run workout <args>",
     "swift_package_test": "Test in a host build slot: scripts/build-slot.sh swift test",
-    "xcode_ide_call_tool": "It drives Xcode.app, which takes no build slot and no lease. Use build_run_sim with the simulatorId of your Simlock lease, or the verify skill.",
+    "xcode_ide_call_tool": "It drives Xcode.app, which takes no build slot and no lease. Set session_set_defaults {simulatorId: <your leased UDID>}, then build_run_sim, or use the verify skill.",
+    "session_use_defaults_profile": "A profile can name a simulator no lease holds. Call session_set_defaults {simulatorId: <your leased UDID>} alone.",
 }
 DROPS_RECORD = {"simulatorId", "simulatorName"}
+UNTRACKED = ("simulatorName", "profile", "persist")
+AGENT_ID = re.compile(r"[A-Za-z][\w.-]*:\S+")
 SESSION_TOOLS = {"session_set_defaults", "session_clear_defaults", "session_use_defaults_profile"}
 
 
@@ -72,6 +77,8 @@ def record(tool, tool_input, session):
     """PostToolUse on the session tools: keep the simulatorId this session set, forget it otherwise."""
     path = record_path(session)
     udid = tool_input.get("simulatorId") if tool == "session_set_defaults" else None
+    if tool == "session_set_defaults" and any(k in tool_input for k in UNTRACKED):
+        udid = None
     if udid:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(udid.upper() + "\n")
@@ -79,7 +86,7 @@ def record(tool, tool_input, session):
     keys = set(tool_input.get("keys") or [])
     clears = tool == "session_use_defaults_profile" or (
         tool == "session_clear_defaults" and (tool_input.get("all") or not keys or keys & DROPS_RECORD)
-    ) or (tool == "session_set_defaults" and "simulatorName" in tool_input)
+    ) or (tool == "session_set_defaults" and any(k in tool_input for k in UNTRACKED))
     if clears:
         path.unlink(missing_ok=True)
 
@@ -121,14 +128,14 @@ def callers(session):
 
 
 def mine(requester, me):
-    """True when the lease is the caller's, or when Simlock's requester cannot say whose it is."""
-    return not me or not requester.startswith("claude-code:") or requester in me
+    """True when the lease is the caller's, or when its requester is not an <agent>:<id> that says whose it is."""
+    return not me or not AGENT_ID.fullmatch(requester) or requester in me
 
 
 def refusal(tool, target, own, me, other):
     lines = [f"Refused: {tool} runs only on a simulator your Simlock lease holds (ADR-0024),"]
     if target is None:
-        lines.append("and this call names none: pass simulatorId, or set it with session_set_defaults.")
+        lines.append("and this session has none: set it with session_set_defaults {simulatorId}.")
     elif other:
         lines.append(f"and {target} is leased by {other}, another agent (you are {' or '.join(sorted(me))}).")
     else:
@@ -136,19 +143,19 @@ def refusal(tool, target, own, me, other):
     if own:
         udid, lease = own
         lines += [
-            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults with simulatorId: \"{udid}\",",
+            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone,",
             f"then {tool} again.",
         ]
     else:
         lines += [
             "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
             f"   {LEASE}",
-            f"2. Call session_set_defaults with simulatorId: \"<UDID>\", then {tool} again.",
+            f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone, then {tool} again.",
             "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
         ]
     lines += [
         "Or take the shell path, which leases, builds in a host build slot, installs and launches, and prints the UDID",
-        "that screenshot, snapshot_ui and touch (down and up; tap reaches no control here) take:",
+        "to set with session_set_defaults {simulatorId} for screenshot, snapshot_ui and touch (prefer touch with down and up; tap can miss):",
         f"   {VERIFY} build && {VERIFY} launch session",
     ]
     return "\n".join(lines)
@@ -166,6 +173,15 @@ def gate(tool, tool_input, session):
     """(exit status, stderr text, stdout JSON or None) for a PreToolUse call."""
     if tool in REFUSED:
         return 3, f"Refused: {tool} is off in this repo. {REFUSED[tool]}", None
+    if tool == "session_set_defaults":
+        named = [k for k in UNTRACKED if k in tool_input]
+        if not named:
+            return 0, "", None
+        return 3, (
+            f"Refused: session_set_defaults with {', '.join(named)} is off in this repo. A simulator name or a defaults profile"
+            " can resolve to a simulator no Simlock lease holds (ADR-0024), and persist rewrites the tracked .xcodebuildmcp/config.yaml."
+            " Call session_set_defaults {simulatorId: <your leased UDID>} alone."
+        ), None
     if tool not in ON_LEASE:
         return 0, "", None
     target = tool_input.get("simulatorId")

@@ -14,10 +14,10 @@ check() { if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 
 LEASED=(boot_sim open_sim build_sim build_run_sim test_sim install_app_sim launch_app_sim)
 REFUSED=(erase_sims clean build_device build_run_device test_device build_macos build_run_macos test_macos
-    swift_package_build swift_package_run swift_package_test xcode_ide_call_tool)
+    swift_package_build swift_package_run swift_package_test xcode_ide_call_tool session_use_defaults_profile)
 
 FREE=(screenshot snapshot_ui tap swipe type_text long_press gesture button key_press record_sim_video list_sims
-    stop_app_sim session_show_defaults session_set_defaults session_clear_defaults get_sim_app_path list_schemes)
+    stop_app_sim session_show_defaults session_clear_defaults get_sim_app_path list_schemes)
 RECORDERS=(session_set_defaults session_clear_defaults session_use_defaults_profile)
 
 # The hook command and matcher of settings.json's $1 entry that runs scripts/sim-mcp-hook.py.
@@ -56,7 +56,7 @@ for entry in json.load(open(sys.argv[1]))["hooks"]["PreToolUse"]:
             print(h.get("timeout", 60))' "$settings")
 check "the PreToolUse timeout (${hook_timeout:-none} s) leaves 5 s past the Simlock deadline (${deadline:-none} s)" \
     'python3 -c "import sys; sys.exit(not float(sys.argv[1]) >= float(sys.argv[2]) + 5)" "$hook_timeout" "$deadline"'
-for tool in "${LEASED[@]}" "${REFUSED[@]}"; do check "PreToolUse hooks $tool" 'selects "$pre_matcher" "$tool"'; done
+for tool in "${LEASED[@]}" "${REFUSED[@]}" session_set_defaults; do check "PreToolUse hooks $tool" 'selects "$pre_matcher" "$tool"'; done
 for tool in "${FREE[@]}"; do check "PreToolUse leaves $tool alone" '! selects "$pre_matcher" "$tool"'; done
 for tool in "${RECORDERS[@]}"; do check "PostToolUse records $tool" 'selects "$post_matcher" "$tool"'; done
 check "PostToolUse leaves build_run_sim alone" '! selects "$post_matcher" build_run_sim'
@@ -89,6 +89,7 @@ cat >"$tmp/devices" <<'JSON'
 [{"id": "dev_mine", "driverDeviceId": "AAAAAAAA-0000-0000-0000-000000000001"},
  {"id": "dev_other", "driverDeviceId": "BBBBBBBB-0000-0000-0000-000000000002"},
  {"id": "dev_anon", "driverDeviceId": "CCCCCCCC-0000-0000-0000-000000000003"},
+ {"id": "dev_codex", "driverDeviceId": "FFFFFFFF-0000-0000-0000-000000000006"},
  {"id": "dev_expired", "driverDeviceId": "DDDDDDDD-0000-0000-0000-000000000004"},
  {"id": "dev_free", "driverDeviceId": "EEEEEEEE-0000-0000-0000-000000000005"}]
 JSON
@@ -96,11 +97,13 @@ cat >"$tmp/leases" <<JSON
 [{"id": "lse_mine", "deviceId": "dev_mine", "requesterId": "claude-code:me", "ttlDeadline": $future},
  {"id": "lse_other", "deviceId": "dev_other", "requesterId": "claude-code:someone-else", "ttlDeadline": $future},
  {"id": "lse_anon", "deviceId": "dev_anon", "requesterId": "ci-runner", "ttlDeadline": $future},
+ {"id": "lse_codex", "deviceId": "dev_codex", "requesterId": "codex:019a-other-agent", "ttlDeadline": $future},
  {"id": "lse_expired", "deviceId": "dev_expired", "requesterId": "claude-code:me", "ttlDeadline": 1000}]
 JSON
 MINE=AAAAAAAA-0000-0000-0000-000000000001
 OTHER=BBBBBBBB-0000-0000-0000-000000000002
 ANON=CCCCCCCC-0000-0000-0000-000000000003
+CODEX=FFFFFFFF-0000-0000-0000-000000000006
 EXPIRED=DDDDDDDD-0000-0000-0000-000000000004
 FREE_UDID=EEEEEEEE-0000-0000-0000-000000000005
 log=$tmp/state/sim-hook/workout-app.log
@@ -129,14 +132,19 @@ done
 gate build_run_sim "{\"simulatorId\": \"$(tr '[:upper:]' '[:lower:]' <<<"$MINE")\"}"
 check "a lowercase UDID of the caller's lease runs" '[ $status = 0 ]'
 gate build_run_sim "{\"simulatorId\": \"$ANON\"}"
-check "a lease Simlock cannot attribute to anyone runs" '[ $status = 0 ]'
+check "a lease whose requester is no <agent>:<id> runs" '[ $status = 0 ]'
+gate build_run_sim "{\"simulatorId\": \"$CODEX\"}"
+check "another agent's lease under another agent's name is refused, naming it" \
+    '[ $status = 2 ] && err_has "$CODEX is leased by codex:019a-other-agent, another agent"'
 
 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}" nobody
 check "an unleased simulator is refused" '[ $status = 2 ]'
 check "the refusal names the UDID" 'err_has "no live Simlock lease holds $FREE_UDID"'
 check "the refusal names the lease command" "err_has \"simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m\""
-check "the refusal says to set the leased UDID as the session default" 'err_has "2. Call session_set_defaults with simulatorId: \"<UDID>\", then build_run_sim again."'
+check "the refusal says to set the leased UDID as the session default" 'err_has "2. Call session_set_defaults {simulatorId: \"<UDID>\"} alone, then build_run_sim again."'
 check "the refusal names the shell path" 'err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
+check "the refusal prefers touch and says tap can miss" 'err_has "prefer touch with down and up; tap can miss" && ! err_has "reaches no control"'
+check "the refusal never says to pass simulatorId to a tool, which takes none here" '! grep -qiE "pass simulatorId|as simulatorId|simulatorId to" "$tmp/err"'
 lease_line=$(grep -F 'simlock lease --platform' "$tmp/err" | sed 's/^ *//')
 check "the printed lease command parses as shell" 'bash -n -c "$lease_line"'
 grant='{"device": {"driverDeviceId": "U"}, "lease": {"id": "L"}}'
@@ -152,17 +160,17 @@ check "another agent's leased simulator is refused, naming its holder" \
 gate build_run_sim "{\"simulatorId\": \"$EXPIRED\"}"
 check "a lease past its deadline is refused" '[ $status = 2 ]'
 gate build_run_sim '{"simulatorName": "iPhone 17 Pro"}'
-check "a simulator named by model is refused" '[ $status = 2 ] && err_has "this call names none"'
+check "a simulator named by model is refused" '[ $status = 2 ] && err_has "this session has none: set it with session_set_defaults {simulatorId}"'
 
 echo "a call without simulatorId uses the UDID the session gave session_set_defaults"
 gate build_run_sim '{}'
-check "nothing recorded: refused" '[ $status = 2 ] && err_has "this call names none"'
+check "nothing recorded: refused" '[ $status = 2 ] && err_has "this session has none: set it with session_set_defaults {simulatorId}"'
 recorded session_set_defaults "{\"simulatorId\": \"$MINE\", \"scheme\": \"WorkoutTracker\"}"
 check "the recorder exits 0" '[ $status = 0 ]'
 gate build_run_sim '{}'
 check "the recorded leased UDID runs" '[ $status = 0 ]'
 gate build_run_sim '{}' someone-else
-check "another session's record does not carry over" '[ $status = 2 ] && err_has "this call names none"'
+check "another session's record does not carry over" '[ $status = 2 ] && err_has "this session has none: set it with session_set_defaults {simulatorId}"'
 recorded session_clear_defaults '{"keys": ["scheme"]}'
 gate build_run_sim '{}'
 check "clearing another key keeps the record" '[ $status = 0 ]'
@@ -173,9 +181,39 @@ recorded session_set_defaults "{\"simulatorId\": \"$MINE\"}"
 recorded session_set_defaults '{"simulatorName": "iPhone 17 Pro"}'
 gate build_run_sim '{}'
 check "setting simulatorName drops the record" '[ $status = 2 ]'
+recorded session_set_defaults "{\"simulatorId\": \"$MINE\", \"simulatorName\": \"iPhone 17 Pro\"}"
+gate build_run_sim '{}'
+check "an id with a name records nothing, since the server re-resolves the name" '[ $status = 2 ]'
+recorded session_set_defaults "{\"simulatorId\": \"$MINE\"}"
+recorded session_set_defaults '{"profile": "other"}'
+gate build_run_sim '{}'
+check "switching profile drops the record" '[ $status = 2 ]'
 recorded session_set_defaults "{\"simulatorId\": \"$FREE_UDID\"}"
 gate build_run_sim '{}'
 check "a recorded unleased UDID is refused" '[ $status = 2 ] && err_has "no live Simlock lease holds $FREE_UDID"'
+
+echo "session defaults name a simulator only by the UDID of a lease"
+gate session_set_defaults "{\"simulatorId\": \"$MINE\", \"scheme\": \"WorkoutTracker\"}"
+check "session_set_defaults with simulatorId runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+for call in "{\"simulatorId\": \"$MINE\", \"simulatorName\": \"iPhone 17 Pro\"}" '{"simulatorName": "iPhone 17 Pro"}' \
+    '{"profile": "wa1220-p4"}' '{"profile": "p", "createIfNotExists": true, "simulatorId": "x"}' \
+    "{\"simulatorId\": \"$MINE\", \"persist\": true}"; do
+    PATH_BIN=$tmp/nosimlock gate session_set_defaults "$call"
+    check "session_set_defaults $call is refused, naming the call that works" \
+        '[ $status = 2 ] && err_has "Call session_set_defaults {simulatorId: <your leased UDID>} alone."'
+done
+
+echo "the docs point at session_set_defaults and touch"
+check "no doc says MCP tap reaches no control" \
+    '! grep -rqF "reaches no control here" "$repo/AGENTS.md" "$repo/.agents/skills/verify" "$repo/.agents/skills/simlock"'
+check "no doc says to pass the UDID as simulatorId to a tool" \
+    '! grep -rqE "take(s)? that UDID as .?simulatorId|as .simulatorId. to" "$repo/AGENTS.md" "$repo/.agents/skills/verify/SKILL.md" "$repo/.agents/skills/simlock/SKILL.md"'
+check "the verify skill says tap after session_set_defaults needs a fresh snapshot_ui" \
+    'grep -qF SNAPSHOT_EXPIRED "$repo/.agents/skills/verify/SKILL.md"'
+
+dd=$(sed -n 's/^ *derivedDataPath: *//p' "$repo/.xcodebuildmcp/config.yaml")
+check "MCP builds keep DerivedData in the worktree, git-ignored, off the internal disk" \
+    '[ -n "$dd" ] && [ "${dd#/}" = "$dd" ] && git -C "$repo" check-ignore -q "$dd/x"'
 
 echo "every allowed build is logged; nothing else is"
 : >"$log"
@@ -190,7 +228,7 @@ check "a line holds time, session, tool, UDID and lease" \
 echo "the tools that need no simulator from this server stay refused, each naming a command"
 for tool in "${REFUSED[@]}"; do
     gate "$tool" "{\"simulatorId\": \"$MINE\"}"
-    check "$tool is refused with a reason" '[ $status = 2 ] && err_has "Refused: $tool is off in this repo." && grep -qE "scripts/|xcodebuild|simlock|testflight|verify skill" "$tmp/err"'
+    check "$tool is refused with a reason" '[ $status = 2 ] && err_has "Refused: $tool is off in this repo." && grep -qE "scripts/|xcodebuild|simlock|testflight|verify skill|session_set_defaults \{simulatorId" "$tmp/err"'
 done
 
 echo "when Simlock cannot answer, the call runs with a warning"
