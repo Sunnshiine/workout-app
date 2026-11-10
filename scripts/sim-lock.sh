@@ -230,7 +230,6 @@ settle_run() {
   [ -z "$abandoned" ] || rm -f "$dir/pid" "$dir/args"
 }
 
-# For the claimer's EXIT trap.
 end_claim() { end_lease; }
 
 host_knob() {
