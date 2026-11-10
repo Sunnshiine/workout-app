@@ -47,6 +47,15 @@ if [ -z "${pre_hook:-}" ] || [ -z "${post_hook:-}" ]; then
     printf '%d passed, %d failed\n' "$pass" "$fail"
     exit 1
 fi
+deadline=$(sed -n 's/.*SIM_HOOK_TIMEOUT", "\([0-9.]*\)".*/\1/p' "$repo/scripts/sim-mcp-hook.py")
+hook_timeout=$(python3 -c '
+import json, sys
+for entry in json.load(open(sys.argv[1]))["hooks"]["PreToolUse"]:
+    for h in entry["hooks"]:
+        if "sim-mcp-hook.py" in h.get("command", ""):
+            print(h.get("timeout", 60))' "$settings")
+check "the PreToolUse timeout (${hook_timeout:-none} s) leaves 5 s past the Simlock deadline (${deadline:-none} s)" \
+    'python3 -c "import sys; sys.exit(not float(sys.argv[1]) >= float(sys.argv[2]) + 5)" "$hook_timeout" "$deadline"'
 for tool in "${LEASED[@]}" "${REFUSED[@]}"; do check "PreToolUse hooks $tool" 'selects "$pre_matcher" "$tool"'; done
 for tool in "${FREE[@]}"; do check "PreToolUse leaves $tool alone" '! selects "$pre_matcher" "$tool"'; done
 for tool in "${RECORDERS[@]}"; do check "PostToolUse records $tool" 'selects "$post_matcher" "$tool"'; done
@@ -60,6 +69,11 @@ cat >"$stub/simlock" <<'STUB'
 #!/bin/bash
 case ${SIMLOCK_MODE:-} in
     slow) sleep 5 ;;
+    together)
+        touch "$SIMLOCK_FIXTURE/started$2"
+        other=--devices; [ "$2" = --devices ] && other=--leases
+        for _ in $(seq 40); do [ -e "$SIMLOCK_FIXTURE/started$other" ] && break; sleep 0.1; done
+        [ -e "$SIMLOCK_FIXTURE/started$other" ] || exit 71 ;;
     garbage) echo 'not json'; exit 0 ;;
     broken) exit 70 ;;
 esac
@@ -188,6 +202,9 @@ check "simlock missing: the warning reaches Claude Code as a systemMessage" \
 check "simlock missing: the build is logged as unchecked" 'grep -q "build_run_sim	$FREE_UDID	unchecked$" "$log"'
 SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
 check "simlock slower than the bound: allowed" '[ $status = 0 ] && err_has "took longer than 0.3 s"'
+rm -f "$tmp"/started--*
+SIMLOCK_MODE=together SIM_HOOK_TIMEOUT=6 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+check "the device and lease lookups run at once, so neither waits out the other" '[ $status = 2 ] && ! err_has unchecked'
 SIMLOCK_MODE=garbage gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
 check "simlock output unreadable: allowed" '[ $status = 0 ] && err_has "cannot read"'
 SIMLOCK_MODE=broken gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"

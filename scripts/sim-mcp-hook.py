@@ -6,7 +6,7 @@ comes from a Simlock lease (ADR-0024), so these tools run only on a simulator th
 holds. The target is the call's simulatorId, else the UDID this session last gave
 session_set_defaults, which the PostToolUse half records. A refusal names the lease command and the
 shell path; the settings hook turns exit 3 into Claude Code's blocking exit 2. When Simlock cannot
-answer (missing, slower than SIM_HOOK_TIMEOUT seconds, unreadable output) the call is allowed with a
+answer (missing, slower than SIM_HOOK_TIMEOUT seconds (default 8), unreadable output) the call is allowed with a
 warning. Each allowed build appends a line to $XDG_STATE_HOME/sim-hook/workout-app.log, because an
 MCP build takes no host-wide build slot. Tools that never need a simulator from this server stay
 refused, each naming this repo's command. Any argument prints this and exits 2.
@@ -171,7 +171,7 @@ def gate(tool, tool_input, session):
     target = tool_input.get("simulatorId")
     target = target.upper() if target else None if "simulatorName" in tool_input else recorded_udid(session)
     try:
-        held_by = leases(float(os.environ.get("SIM_HOOK_TIMEOUT", "3")))
+        held_by = leases(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")))
     except Unchecked as why:
         warning = f"sim-mcp-hook: allowed {tool} on {target or 'the session default'} unchecked, because {why}. Lease your simulator with simlock lease all the same."
         if tool in BUILDS:
