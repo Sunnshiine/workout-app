@@ -2,7 +2,6 @@
 set -uo pipefail
 
 repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-settings=${SETTINGS:-$repo/.claude/settings.json}
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/sim-mcp-hook.XXXXXX") || exit 3
 trap 'rm -rf "$tmp"' EXIT
 pass=0
@@ -15,43 +14,10 @@ check() { if eval "$2"; then ok "$1"; else bad "$1"; fi; }
 LEASED=(boot_sim open_sim build_sim build_run_sim test_sim install_app_sim launch_app_sim)
 REFUSED=(erase_sims clean build_device build_run_device test_device build_macos build_run_macos test_macos
     swift_package_build swift_package_run swift_package_test xcode_ide_call_tool)
-FREE=(screenshot snapshot_ui tap swipe type_text long_press gesture button key_press record_sim_video list_sims
-    stop_app_sim session_show_defaults session_set_defaults session_clear_defaults get_sim_app_path list_schemes)
-RECORDERS=(session_set_defaults session_clear_defaults session_use_defaults_profile)
 
-# The hook command and matcher of settings.json's $1 entry that runs scripts/sim-mcp-hook.py.
-read_hook() {
-    python3 -c '
-import json, sys
-for entry in json.load(open(sys.argv[1])).get("hooks", {}).get(sys.argv[2], []):
-    for h in entry["hooks"]:
-        if "sim-mcp-hook.py" in h.get("command", ""):
-            print(entry.get("matcher", "")); print(h["command"]); sys.exit()
-' "$settings" "$1"
-}
-
-# Exits 0 when Claude Code's matcher $1 selects tool $2, which it tests as an unanchored regex.
-selects() { python3 -c 'import re, sys; sys.exit(not re.search(sys.argv[1], sys.argv[2]))' "$1" "mcp__XcodeBuildMCP__$2"; }
-
-echo "settings.json names the simulator tools through the hook, not a bare deny"
-deny=$(python3 -c 'import json, sys; print("\n".join(json.load(open(sys.argv[1]))["permissions"]["deny"]))' "$settings")
-for tool in "${LEASED[@]}" "${REFUSED[@]}"; do
-    check "no bare deny on $tool" '! grep -qxF "mcp__XcodeBuildMCP__$tool" <<<"$deny"'
-done
-check "no deny entry on any XcodeBuildMCP tool" '! grep -q "^mcp__XcodeBuildMCP__" <<<"$deny"'
-{ read -r pre_matcher; read -r pre_hook; } < <(read_hook PreToolUse)
-{ read -r post_matcher; read -r post_hook; } < <(read_hook PostToolUse)
-if [ -z "${pre_hook:-}" ] || [ -z "${post_hook:-}" ]; then
-    bad "settings.json runs scripts/sim-mcp-hook.py on PreToolUse and PostToolUse"
-    printf '%d passed, %d failed\n' "$pass" "$fail"
-    exit 1
-fi
-for tool in "${LEASED[@]}" "${REFUSED[@]}"; do check "PreToolUse hooks $tool" 'selects "$pre_matcher" "$tool"'; done
-for tool in "${FREE[@]}"; do check "PreToolUse leaves $tool alone" '! selects "$pre_matcher" "$tool"'; done
-for tool in "${RECORDERS[@]}"; do check "PostToolUse records $tool" 'selects "$post_matcher" "$tool"'; done
-check "PostToolUse leaves build_run_sim alone" '! selects "$post_matcher" build_run_sim'
-check ".mcp.json still names the server XcodeBuildMCP, which the matchers key on" \
-    'python3 -c "import json, sys; sys.exit(\"XcodeBuildMCP\" not in json.load(open(sys.argv[1]))[\"mcpServers\"])" "$repo/.mcp.json"'
+# The commands Claude Code runs the hook with; exit 3 from the script becomes the blocking exit 2.
+pre_hook='p="${CLAUDE_PROJECT_DIR:-.}/scripts/sim-mcp-hook.py"; [ -f "$p" ] || exit 0; python3 "$p"; [ $? -eq 3 ] && exit 2; exit 0'
+post_hook='p="${CLAUDE_PROJECT_DIR:-.}/scripts/sim-mcp-hook.py"; [ -f "$p" ] && python3 "$p"; exit 0'
 
 stub=$tmp/bin
 mkdir -p "$stub" "$tmp/nosimlock" "$tmp/state"

@@ -26,6 +26,6 @@ host. It works only if every agent follows its rules. ADR-0024 records why worko
    model in a `-destination`. `scripts/lint.sh` fails on each (`scripts/lint-simulators.py`).
    Drive a simulator you leased by its UDID. A raw `xcodebuild` or XcodeBuildMCP call takes no
    lease, so give it the UDID of a lease you hold, never a simulator it picks. XcodeBuildMCP's
-   `build_run_sim`, `screenshot` and `tap` take that UDID as `simulatorId`; a hook refuses any other.
+   `screenshot`, `snapshot_ui` and `touch` take that UDID as `simulatorId`.
 
 More: https://callstackincubator.github.io/simlock/docs/getting-started/connect-your-agent/

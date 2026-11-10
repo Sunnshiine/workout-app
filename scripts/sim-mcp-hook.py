@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Usage: scripts/sim-mcp-hook.py < hook-JSON
-Claude Code's hook for the XcodeBuildMCP tools that boot, build, test, install or launch
-(.claude/settings.json). Agents need a simulator to see what they build, and every simulator here
+A Claude Code hook, for .claude/settings.json, on the XcodeBuildMCP tools that boot, build, test,
+install or launch. Agents need a simulator to see what they build, and every simulator here
 comes from a Simlock lease (ADR-0024), so these tools run only on a simulator the caller's lease
 holds. The target is the call's simulatorId, else the UDID this session last gave
 session_set_defaults, which the PostToolUse half records. A refusal names the lease command and the
@@ -148,7 +148,7 @@ def refusal(tool, target, own, me, other):
         ]
     lines += [
         "Or take the shell path, which leases, builds in a host build slot, installs and launches, and prints the UDID",
-        "that screenshot, snapshot_ui and tap take:",
+        "that screenshot, snapshot_ui and touch (down and up; tap reaches no control here) take:",
         f"   {VERIFY} build && {VERIFY} launch session",
     ]
     return "\n".join(lines)

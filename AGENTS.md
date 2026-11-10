@@ -89,7 +89,9 @@ uv run python3 <script.py>                          # with Pillow and numpy from
 ```
 
 Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-slot.sh <command>`.
-A hook refuses the raw form, and XcodeBuildMCP's build and simulator tools are denied.
+A hook refuses the raw form, and XcodeBuildMCP's build and simulator tools are denied. To see the app,
+`verify.sh launch session` leases a simulator and prints its UDID, and XcodeBuildMCP's `screenshot`,
+`snapshot_ui` and `touch` (down and up) drive it by that UDID.
 
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
 with no simulator and no Google credentials:
