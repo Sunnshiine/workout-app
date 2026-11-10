@@ -30,7 +30,7 @@ read_key() {
 
 [ $# = 2 ] && [ "$1" = ensure ] || usage
 sim=$(printf %s "$2" | tr '[:lower:]' '[:upper:]')
-xcrun simctl bootstatus "$sim" -b > /dev/null || { echo "keyboard: cannot boot $sim" >&2; exit 69; }
+simlock simctl bootstatus "$sim" -b > /dev/null || { echo "keyboard: cannot boot $sim" >&2; exit 69; }
 before=$(read_key "$sim")
 if [ "$before" != 1 ]; then
   echo "keyboard: $sim has $key=$before"
