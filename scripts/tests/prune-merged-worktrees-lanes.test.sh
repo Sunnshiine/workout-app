@@ -8,18 +8,18 @@ say
 say "=== lanes: detached worktrees under .claude/worktrees ==="
 lane_repo="$root/lane repo"
 lanes="$lane_repo/.claude/worktrees"
-P=PRUNE$$
 mkdir -p "$root/lanebin" "$root/home" "$lane_repo/scripts" "$lane_repo/.githooks" "$lane_repo/.claude"
 echo '{}' >"$lane_repo/.claude/settings.json"
-cp "$script_dir/fake-xcrun" "$root/lanebin/xcrun"
+for tool in xcrun simlock; do
+    printf '#!/bin/sh\necho "%s $*" >>"%s/sim-calls"\nexit 1\n' "$tool" "$root" >"$root/lanebin/$tool"
+    chmod +x "$root/lanebin/$tool"
+done
 printf '#!/usr/bin/env bash\necho "[]"\n' >"$root/lanebin/gh"
 chmod +x "$root/lanebin/gh"
-export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/sims.json" FAKE_SIM_CALLS="$root/sim-calls"
 export WORKOUT_HOST_LOCK_DIR="$root/locks" HOME="$root/home"
 export WORKOUT_MEM_FLOOR=0 WORKOUT_DISK_FLOOR=0
-unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
+unset WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
-trap 'rm -rf "$root" /tmp/workout-verify-"$P"-* /private/var/tmp/com.apple.CoreSimulator.SimDevice."$P"-*' EXIT
 lane_path="$root/lanebin:$PATH"
 git -C "$root" init --bare --quiet lane-origin.git
 git -C "$lane_repo" init -q -b main
@@ -142,7 +142,6 @@ REAL_GIT=$(command -v git) RACE_TARGET="$lanes/zzz-raced" RACE_FLAG="$root/lane-
 lane_apply_status=$?
 rm -f "$root/lanebin/git"
 cat "$root/lane-apply.txt"
-devices=$(PATH="$lane_path" "$lane_repo/scripts/sim-pool.sh" list | awk -F '\t' '$3 == "lane" { print $4 }' | tr '\n' ' ')
 if [ ! -e "$lanes/aaa-idle" ] && [ -f "$lane_repo/.claude/work/evidence/detached-aaa-idle"/down-*/head.txt ]; then
     ok "--apply removed the idle lane after saving its head"
 else
@@ -153,10 +152,10 @@ if [ "$(tar -tf "$lane_repo/.claude/work/evidence/detached-work"/down-*/untracke
 else
     bad "--apply did not save the ignored note of lane work"
 fi
-if [ "$devices" = "workout-lane-dirty workout-lane-oldsha workout-lane-recent workout-lane-reup workout-lane-unref workout-lane-zzz-raced " ]; then
-    ok "--apply deleted the idle lanes' simulators and no other"
+if [ ! -e "$root/sim-calls" ]; then
+    ok "the scan and --apply ask neither simctl nor Simlock anything, so they delete no simulator"
 else
-    bad "lane simulators after --apply: $devices"
+    bad "the scan or --apply called a simulator tool: $(tr '\n' ';' <"$root/sim-calls")"
 fi
 if grep -qxF "  SKIPPED: commits no branch or tag holds (1)" "$root/lane-apply.txt" && [ -f "$lanes/zzz-raced/raced.txt" ]; then
     ok "a lane whose HEAD moved after the scan is SKIPPED and survives"
