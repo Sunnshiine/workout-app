@@ -9,8 +9,8 @@ enum LoggablePressContent: Equatable, Sendable {
     case needsApp
 }
 
-/// The chips one Set offers on the Lock Screen, and how far the athlete has got through them. No
-/// value is chosen ahead of the athlete, because a Set Log's Reps and RPE are theirs to report.
+/// The chips one Set offers on the Lock Screen. No value is chosen ahead of the athlete, because a
+/// Set Log's Reps and RPE are theirs to report.
 struct LockScreenOffer: Equatable, Sendable {
     /// Every value a Reps Chip can log, as the card's Reps rail offers them.
     static let repsRange = 1...100
@@ -24,8 +24,6 @@ struct LockScreenOffer: Equatable, Sendable {
     let prescribedRPE: String?
     /// A `LoggableSetIdentity.storageValue`, which each press hands back.
     let setIdentity: String
-    /// The Reps the athlete tapped, which turn the row to RPE. Nil until they tap one.
-    var chosenReps: Int?  // default: a fresh offer has no Reps tapped, so none is chosen ahead of the athlete
 
     /// Consecutive values around `center`, held inside `repsRange` at its ends.
     static func repChoices(around center: Int) -> [Int] {
@@ -55,11 +53,6 @@ extension LoggablePressContent {
 }
 
 extension LockScreenOffer {
-    /// True for a Reps Chip's value, or nil for the chip that turns the row back.
-    static func admits(_ reps: Int?) -> Bool {
-        reps.map(repsRange.contains) ?? true
-    }
-
     @MainActor
     fileprivate init(
         _ position: SessionSetPosition,

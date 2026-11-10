@@ -17,9 +17,16 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
         let dictation: LiveActivityDictation?
+        /// True for a readback only the island reads, while the Lock Screen card keeps its face.
+        /// Nil for any other, and in content an earlier build wrote.
+        let readbackStaysOffTheCard: Bool?
         /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
-        /// The Exercise's Cadence; nil with none.
+        /// Nil in content an earlier build wrote, which an activity left running across an update
+        /// still holds. Read `face` and `stats`.
+        let cardFace: LockScreenCardFace?
+        let cardStats: [LockScreenCardStat]?
+        /// As the Sheet writes it: `3:1:1`, or `2-3:1:0` for a range. Nil with none.
         let cadence: String?
         /// The Exercise's Coach Note on one line; nil with none.
         let coachNote: String?
@@ -298,6 +305,20 @@ extension LiveActivityColors {
 }
 
 extension WorkoutActivityAttributes.ContentState {
+    var face: LockScreenCardFace {
+        cardFace ?? .rest
+    }
+
+    /// The rest face's weight, Reps and RPE. Empty with no rest, or from an earlier build.
+    var stats: [LockScreenCardStat] {
+        cardStats ?? []
+    }
+
+    /// The readback the card draws over its face; nil if only the island reads it.
+    var cardReadback: LiveActivityDictation? {
+        readbackStaysOffTheCard == true ? nil : dictation
+    }
+
     var liveActivityColors: LiveActivityColors {
         LiveActivityPalette.colors(for: appearance)
     }
@@ -333,6 +354,11 @@ extension WorkoutActivityAttributes.ContentState {
     /// `185 lbs`, and `BW` alone.
     var weightText: String {
         [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone.
+    var weightOnTheCard: String? {
+        stats.first.map { [$0.value, $0.label].filter { !$0.isEmpty }.joined(separator: " ") }
     }
 
     var cadenceAndCoachNote: String? {

@@ -12,210 +12,170 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct LockScreenCardVisualTests {
     private static let cardWidth: CGFloat = 374
-    private static let cadence = "3:1:1"
-    private static let coachNote = "Brace hard off the floor, controlled descent."
+    private static let narrowestPhone: CGFloat = 347
 
-    @Test func aSetOffersItsRepsDay() {
-        assertCardBaseline(state(.light, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote))
+    @Test func theCardAtRestDay() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.light))
     }
 
-    @Test func aSetOffersItsRepsNight() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote))
+    @Test func theCardAtRestNight() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark))
+    }
+
+    @Test func theCoachNoteOpensWhereTheNumbersWereDay() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.light, face: .coachNote))
+    }
+
+    @Test func theCoachNoteOpensWhereTheNumbersWereNight() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark, face: .coachNote))
+    }
+
+    @Test func logOffersTheRepsDay() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.light, face: .reps))
+    }
+
+    @Test func logOffersTheRepsNight() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark, face: .reps))
     }
 
     @Test func aRepsTapOffersTheRPEDay() {
-        assertCardBaseline(state(.light, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote))
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.light, face: .rpe(reps: 6)))
     }
 
     @Test func aRepsTapOffersTheRPENight() {
-        assertCardBaseline(state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote))
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark, face: .rpe(reps: 6)))
     }
 
-    @Test func noGuidanceHoldsTheCardsHeightNight() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress))
+    @Test func noCoachNoteLeavesNoNoteButtonNight() {
+        assertCardBaseline(LockScreenCardSet.noCoachNote.state(.dark))
     }
 
-    @Test func noLoggablePressLeavesTheMicAndTheAppDay() {
-        assertCardBaseline(state(.light, press: .needsApp, weight: nil))
+    @Test func noCadenceMovesTheNumbersUpDay() {
+        assertCardBaseline(LockScreenCardSet.noCadence.state(.light))
     }
 
-    @Test func noLoggablePressLeavesTheMicAndTheAppNight() {
-        assertCardBaseline(state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote))
+    @Test func noCadenceMovesTheNumbersUpNight() {
+        assertCardBaseline(LockScreenCardSet.noCadence.state(.dark))
+    }
+
+    @Test func theWorstCaseStaysReadableDay() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.light))
+    }
+
+    @Test func theWorstCaseStaysReadableNight() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark))
+    }
+
+    @Test func aLongCoachNoteKeepsToTwoLinesNight() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark, face: .coachNote))
+    }
+
+    @Test func aSetTheCardCannotLogOpensTheAppDay() {
+        assertCardBaseline(LockScreenCardSet.noWeight.state(.light))
+    }
+
+    @Test func aSetTheCardCannotLogOpensTheAppNight() {
+        assertCardBaseline(LockScreenCardSet.noWeight.state(.dark))
     }
 
     @Test func anExerciseThatOpensOnAHoldOffersItsStartDay() {
-        assertCardBaseline(Self.openingHold(.light))
+        assertCardBaseline(LockScreenCardSet.openingHold.state(.light))
     }
 
     @Test func anExerciseThatOpensOnAHoldOffersItsStartNight() {
-        assertCardBaseline(Self.openingHold(.dark))
-    }
-
-    @Test func theLongestCellsStayOnTheCardDay() {
-        assertCardBaseline(Self.longestCells(.light, press: Self.heaviestPress))
-    }
-
-    @Test func theLongestCellsStayOnTheCardNight() {
-        assertCardBaseline(Self.longestCells(.dark, press: Self.heaviestPress))
-    }
-
-    @Test func theLongestCellsWithNoChipsStayOnTheCardNight() {
-        assertCardBaseline(Self.longestCells(.dark, press: .needsApp))
+        assertCardBaseline(LockScreenCardSet.openingHold.state(.dark))
     }
 
     @Test func aBodyweightSetWithNoPrescribedRPENight() {
-        assertCardBaseline(
-            Self.makeState(
-                Prescription(exerciseName: "Pull-Up", reps: "12", load: "BW"),
-                .dark,
-                press: Self.bodyweightPress,
-                weight: ("BW", "")
-            )
-        )
+        assertCardBaseline(LockScreenCardSet.bodyweight.state(.dark))
     }
 
-    @Test func aQueueTheSheetDoesNotHaveYetLeadsTheGuidanceDay() {
-        assertCardBaseline(state(.light, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3))
+    @Test func theLargestTypeKeepsTheCardAtRest() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func aQueueTheSheetDoesNotHaveYetLeadsTheGuidanceNight() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3))
+    @Test func theLargestTypeKeepsTheCardAtRestDay() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.light), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func theLargestTypeKeepsTheTargetAndEveryChip() {
-        assertCardBaseline(
-            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote),
-            dynamicTypeSize: .xxxLarge
-        )
+    @Test func theLargestTypeKeepsTheWorstCase() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func theLargestTypeKeepsTheQueueAndEveryRPEChip() {
-        assertCardBaseline(
-            state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
-            dynamicTypeSize: .xxxLarge
-        )
+    @Test func theLargestTypeKeepsTheCoachNote() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark, face: .coachNote), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func theLargestTypeKeepsTheTargetWithNoChips() {
-        assertCardBaseline(
-            state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote),
-            dynamicTypeSize: .xxxLarge
-        )
+    @Test func theLargestTypeKeepsEveryRepsChoice() {
+        assertCardBaseline(LockScreenCardSet.backSquat.state(.dark, face: .reps), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func theQueueStaysWhereNoChipIsOffered() {
-        assertCardBaseline(Self.dropSet(.dark), dynamicTypeSize: .xxxLarge)
+    @Test func theLargestTypeKeepsEveryRPEChoice() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark, face: .rpe(reps: 12)), dynamicTypeSize: .xxxLarge)
     }
 
-    @Test func aCardShortOfRoomGivesUpTheGuidanceBeforeAChip() {
-        assertCardBaseline(
-            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
-            dynamicTypeSize: .xxxLarge,
-            height: Self.systemHeight(at: .large)
-        )
+    @Test func theNarrowestPhoneKeepsTheWorstCase() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark), width: Self.narrowestPhone)
     }
 
-    @Test func theNarrowestPhoneKeepsEveryChipOnTheCard() {
-        assertCardBaseline(
-            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
-            width: 347
-        )
-    }
-
-    @Test func theNarrowestPhoneKeepsEveryRPEChipAndTheWayBack() {
-        assertCardBaseline(state(.dark, press: Self.chose(12), cadence: Self.cadence, coachNote: Self.coachNote), width: 347)
+    @Test func theNarrowestPhoneKeepsEveryRPEChoiceAndTheWayBack() {
+        assertCardBaseline(LockScreenCardSet.worstCase.state(.dark, face: .rpe(reps: 12)), width: Self.narrowestPhone)
     }
 
     @Test func theSessionsLastSetReadsBackOverItsSets() {
         assertCardBaseline(
-            Self.makeState(
-                Prescription(exerciseName: "Back Squat", reps: "5", load: "RPE7"),
-                .dark,
-                press: .needsApp,
-                dictation: .logged(
-                    "252.5×5 @7",
-                    to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 3, setsTotal: 3)
-                ),
-                setsDone: 3,
-                restEnd: nil
-            )
+            LockScreenCardSet(press: .needsApp, setsDone: 3, restEnd: nil)
+                .state(
+                    .dark,
+                    dictation: .logged(
+                        "252.5×5 @7",
+                        to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 3, setsTotal: 3)
+                    )
+                )
         )
     }
 
     @Test func aReadbackNamesALongNextExerciseBesideItsBar() {
         assertCardBaseline(
-            Self.makeState(
-                Prescription(exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar", reps: "5", load: "RPE7"),
-                .dark,
+            LockScreenCardSet(
+                exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
                 press: .needsApp,
-                pendingWrites: 1,
-                dictation: Self.logged
+                pendingWrites: 1
             )
+            .state(.dark, dictation: Self.logged)
         )
     }
 
     @Test func aLongReasonStaysOnItsLineAtTheLargestType() {
-        assertCardBaseline(
-            state(.dark, dictation: Self.longReason),
-            dynamicTypeSize: .xxxLarge
-        )
+        assertCardBaseline(readback(.dark, Self.longReason), dynamicTypeSize: .xxxLarge)
     }
 
     @Test func aPressReadsBackInTheCardsShapeDay() {
-        assertCardBaseline(state(.light, dictation: Self.logged))
+        assertCardBaseline(readback(.light, Self.logged))
     }
 
     @Test func aPressReadsBackInTheCardsShapeNight() {
-        assertCardBaseline(state(.dark, dictation: Self.logged))
+        assertCardBaseline(readback(.dark, Self.logged))
     }
 
     @Test func aPressReadsBackAtTheLargestType() {
-        assertCardBaseline(state(.dark, dictation: Self.logged), dynamicTypeSize: .xxxLarge)
+        assertCardBaseline(readback(.dark, Self.logged), dynamicTypeSize: .xxxLarge)
     }
 
     @Test func aRefusalNamesTheSetItFoundDay() {
-        assertCardBaseline(state(.light, dictation: Self.refused))
+        assertCardBaseline(readback(.light, Self.refused))
     }
 
     @Test func aRefusalNamesTheSetItFoundNight() {
-        assertCardBaseline(state(.dark, dictation: Self.refused))
+        assertCardBaseline(readback(.dark, Self.refused))
     }
 
     @Test func aRefusalReadsBackAtTheLargestType() {
-        assertCardBaseline(state(.dark, dictation: Self.refused), dynamicTypeSize: .xxxLarge)
+        assertCardBaseline(readback(.dark, Self.refused), dynamicTypeSize: .xxxLarge)
     }
 
     @Test func listeningKeepsTheCardsShapeNight() {
-        assertCardBaseline(state(.dark, dictation: .listening))
-    }
-
-    private static let backSquatPress = LoggablePress.ready(offer(reps: [3, 4, 5, 6, 7], prescribed: [5], rpe: "7"))
-    private static let heaviestPress = LoggablePress.ready(
-        LoggablePress.Offer(
-            repChoices: [1, 2, 3, 4, 5],
-            prescribedReps: [],
-            rpeChoices: ["8", "8.5", "9", "9.5", "10"],
-            prescribedRPE: nil,
-            setIdentity: "visual",
-            chosenReps: nil
-        )
-    )
-    private static let bodyweightPress = LoggablePress.ready(offer(reps: [10, 11, 12, 13, 14], prescribed: [12], rpe: nil))
-
-    /// The row turned to RPE for the Reps tapped.
-    private static func chose(_ reps: Int) -> LoggablePress {
-        .ready(offer(reps: [3, 4, 5, 6, 7], prescribed: [5], rpe: "7", chosen: reps))
-    }
-
-    private static func offer(reps: [Int], prescribed: [Int], rpe: String?, chosen: Int? = nil) -> LoggablePress.Offer {
-        LoggablePress.Offer(
-            repChoices: reps,
-            prescribedReps: prescribed,
-            rpeChoices: ["6", "6.5", "7", "7.5", "8"],
-            prescribedRPE: rpe,
-            setIdentity: "visual",
-            chosenReps: chosen
-        )
+        assertCardBaseline(readback(.dark, .listening))
     }
 
     private static let backSquatSet = LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 2, setsTotal: 3)
@@ -223,77 +183,21 @@ struct LockScreenCardVisualTests {
     private static let refused = LiveActivityDictation.settled(setLog: "252.5×5 @8", backSquatSet)
     private static let longReason = LiveActivityDictation.notLogged("Couldn’t read that tap. Open to log")
 
-    private struct Prescription {
-        let exerciseName: String
-        let reps: String
-        let load: String
-    }
-
-    private func state(
+    private func readback(
         _ appearance: LiveActivityAppearance,
-        press: LoggablePress = .needsApp,
-        weight: (value: String, unit: String)? = ("252.5", "lbs"),
-        cadence: String? = nil,
-        coachNote: String? = nil,
-        pendingWrites: Int = 0,
-        dictation: LiveActivityDictation? = nil
+        _ dictation: LiveActivityDictation
     ) -> WorkoutActivityAttributes.ContentState {
-        Self.makeState(
-            Prescription(exerciseName: "Back Squat", reps: "5", load: "RPE7"),
-            appearance,
-            press: press,
-            weight: weight,
-            cadence: cadence,
-            coachNote: coachNote,
-            pendingWrites: pendingWrites,
-            dictation: dictation,
-            setsDone: dictation == nil ? 1 : 2
-        )
-    }
-
-    private static func makeState(
-        _ prescription: Prescription,
-        _ appearance: LiveActivityAppearance,
-        press: LoggablePress,
-        weight: (value: String, unit: String)? = ("252.5", "lbs"),
-        cadence: String? = nil,
-        coachNote: String? = nil,
-        start: LockScreenStartOffer? = nil,
-        pendingWrites: Int = 0,
-        dictation: LiveActivityDictation? = nil,
-        setsDone: Int = 1,
-        restEnd: Date? = Date(timeIntervalSinceReferenceDate: 1_000)
-    ) -> WorkoutActivityAttributes.ContentState {
-        WorkoutActivityAttributes.ContentState(
-            exerciseName: prescription.exerciseName,
-            prescribedReps: prescription.reps,
-            prescribedLoad: prescription.load,
-            weightValue: weight?.value ?? "",
-            weightUnit: weight?.unit ?? "",
-            setsDone: setsDone,
-            setsTotal: 3,
-            variant: .restTimerSetsLeft,
-            appearance: appearance,
-            restStartDate: restEnd?.addingTimeInterval(-120),
-            restEndDate: restEnd,
-            dictation: dictation,
-            loggablePress: press,
-            cadence: cadence,
-            coachNote: coachNote,
-            start: start,
-            pendingWrites: pendingWrites
-        )
+        LockScreenCardSet(cadence: nil, coachNote: nil, press: .needsApp, setsDone: 2).state(appearance, dictation: dictation)
     }
 
     private func assertCardBaseline(
         _ state: WorkoutActivityAttributes.ContentState,
         dynamicTypeSize: DynamicTypeSize = WorkoutVisualBaseline.dynamicTypeSize,
         width: CGFloat = cardWidth,
-        height: CGFloat? = nil,
         testName: String = #function
     ) {
-        let height = height ?? Self.systemHeight(at: dynamicTypeSize)
-        let view = Self.card(state)
+        let height = Self.systemHeight(at: dynamicTypeSize)
+        let view = LockScreenCard(state: state)
             .frame(width: width, height: height, alignment: .top)
             .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
             .environment(\.dynamicTypeSize, dynamicTypeSize)
@@ -327,104 +231,53 @@ extension LockScreenCardVisualTests {
         }
     }
 
-    @ViewBuilder
-    fileprivate static func card(_ state: WorkoutActivityAttributes.ContentState) -> some View {
-        if let dictation = state.dictation {
-            if dictation.isAboutASet {
-                DictationLockScreenView(state: state, dictation: dictation)
-            } else {
-                NoSetLockScreenView(state: state, dictation: dictation)
-            }
-        } else {
-            SetOfferLockScreenView(state: state)
-        }
+    private static var everyFace: [WorkoutActivityAttributes.ContentState] {
+        [
+            LockScreenCardSet.backSquat.state(.dark),
+            LockScreenCardSet.backSquat.state(.dark, face: .coachNote),
+            LockScreenCardSet.backSquat.state(.dark, face: .reps),
+            LockScreenCardSet.backSquat.state(.dark, face: .rpe(reps: 6)),
+            LockScreenCardSet.neitherCadenceNorCoachNote.state(.dark),
+            LockScreenCardSet.worstCase.state(.dark),
+            LockScreenCardSet.worstCase.state(.dark, face: .coachNote),
+            LockScreenCardSet.worstCase.state(.dark, face: .rpe(reps: 12)),
+            LockScreenCardSet.noWeight.state(.dark),
+            LockScreenCardSet.openingHold.state(.dark),
+            LockScreenCardSet.bodyweight.state(.dark)
+        ]
     }
-}
 
-/// At every type size up to where DESIGN.md's Product Scale Rule stops it, each state keeps every
-/// line in the height the system gives it. The system can keep a card's last height until the screen
-/// wakes, so a readback is never shorter than the card of the Set it moves on to.
-extension LockScreenCardVisualTests {
-    @Test func everyStateKeepsEveryLineAtEveryTypeSize() throws {
+    /// The system can keep a card's last height until the screen wakes, so every state draws at the
+    /// one height the system gives the type size, and none is left cut off by the one before it.
+    @Test func everyStateFillsTheHeightTheSystemGives() {
+        let readbacks = [Self.logged, Self.refused, .listening, Self.longReason, .noSetLeft, .noCurrentSession]
+            .map { readback(.dark, $0) }
         for size in DynamicTypeSize.allCases where size <= .xxxLarge {
-            let offers = [
-                state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote),
-                state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
-                state(.dark, press: Self.backSquatPress),
-                state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote),
-                Self.longestCells(.dark, press: Self.heaviestPress),
-                Self.longestCells(.dark, press: .needsApp),
-                Self.dropSet(.dark),
-                Self.openingHold(.dark)
-            ]
-            .map { height(of: $0, at: size) }
-            let readbacks = [Self.logged, Self.refused, .listening, Self.longReason]
-                .map { height(of: state(.dark, dictation: $0), at: size) }
-            let noSet = [LiveActivityDictation.noSetLeft, .noCurrentSession]
-                .map { height(of: state(.dark, dictation: $0), at: size) }
-            for height in offers + readbacks + noSet {
-                #expect(height <= Self.systemHeight(at: size), "At \(size) a card drew \(height)pt")
+            for state in Self.everyFace + readbacks {
+                let card = LockScreenCard(state: state).environment(\.dynamicTypeSize, size)
+                #expect(height(of: card) == Self.systemHeight(at: size), "At \(size), \(state.face) of \(state.exerciseName)")
             }
-            let shortestReadback = try #require(readbacks.min())
-            let tallestOffer = try #require(offers.max())
-            #expect(shortestReadback >= tallestOffer, "At \(size) a readback drew \(readbacks) over cards of \(offers)")
         }
     }
 
-    private func height(of state: WorkoutActivityAttributes.ContentState, at size: DynamicTypeSize) -> CGFloat {
-        let card = Self.card(state)
-            .environment(\.dynamicTypeSize, size)
-            .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
-        let unbounded = CGSize(width: Self.cardWidth, height: .greatestFiniteMagnitude)
-        return UIHostingController(rootView: card).sizeThatFits(in: unbounded).height
-    }
-}
-
-extension LockScreenCardVisualTests {
-    private static func longestCells(_ appearance: LiveActivityAppearance, press: LoggablePress) -> WorkoutActivityAttributes.ContentState {
-        makeState(
-            Prescription(
-                exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
-                reps: "AMRAP",
-                load: "Start conservative and work up to a heavy single"
-            ),
-            appearance,
-            press: press,
-            weight: ("1025.5", "lbs"),
-            cadence: "2-0-X-1",
-            coachNote: "Belt off, knee wraps on. Stop the Set the moment the bar speed drops off at all, and note how far it slowed"
-        )
+    /// At every type size up to where DESIGN.md's Product Scale Rule stops it, each face keeps every
+    /// line inside the card's padding, so nothing on it is cut off or drawn over.
+    @Test func everyFaceKeepsEveryLineAtEveryTypeSize() {
+        for size in DynamicTypeSize.allCases where size <= .xxxLarge {
+            let room = Self.systemHeight(at: size) - 2 * LockScreenCardMetrics.padding
+            for state in Self.everyFace {
+                let face = LockScreenCardFaceView(state: state)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .environment(\.dynamicTypeSize, size)
+                let width = Self.narrowestPhone - 2 * LockScreenCardMetrics.padding
+                #expect(height(of: face, width: width) <= room, "At \(size), \(state.face) of \(state.exerciseName)")
+            }
+        }
     }
 
-    /// A drop Set with writes still queued, which the chips cannot log and nothing was performed of.
-    private static func dropSet(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
-        makeState(
-            Prescription(exerciseName: "BB RDL", reps: "8", load: "Drop 17.5%"),
-            appearance,
-            press: .needsApp,
-            weight: nil,
-            pendingWrites: 4
-        )
-    }
-
-    /// The Exercise's Coach Note opens each Set on a hold, so the Start takes the mic's place.
-    private static func openingHold(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
-        let owner = CountdownRun.Owner(
-            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-            set: ActiveSetID(exerciseOrder: 2, setIndex: 0)
-        )
-        return makeState(
-            Prescription(exerciseName: "BB RDL", reps: "8-10", load: "RPE 8-9"),
-            appearance,
-            press: .ready(offer(reps: [6, 7, 8, 9, 10], prescribed: [8, 9, 10], rpe: nil)),
-            weight: ("185", "lbs"),
-            cadence: "2-3:1:0",
-            coachNote: "Start w/ 10 sec hold, proceed to rep range.",
-            start: LockScreenStartOffer(
-                label: "10 s hold",
-                spokenLabel: "10 second hold",
-                url: AppEntryRequest.startTimedEffort(owner).url
-            )
-        )
+    private func height(of view: some View, width: CGFloat = cardWidth) -> CGFloat {
+        let localized = view.environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
+        let unbounded = CGSize(width: width, height: .greatestFiniteMagnitude)
+        return UIHostingController(rootView: localized).sizeThatFits(in: unbounded).height
     }
 }

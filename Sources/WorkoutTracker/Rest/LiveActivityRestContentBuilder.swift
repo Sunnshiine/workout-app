@@ -58,6 +58,11 @@ struct LiveActivityRestContent: Equatable, Sendable {
     let restStartDate: Date
     let restEndDate: Date
     var press: LoggablePressContent
+    /// The Set's weight, Reps and RPE, as the Lock Screen card's rest face draws them.
+    let stats: [LockScreenStat]
+    /// The Card Face the Lock Screen card shows. Only `turned(to:)` changes it, so a card never
+    /// shows a face its Set has not got.
+    private(set) var face = LockScreenFace.rest
     /// The Exercise's Cadence, as `3:1:1` or `2-3:1:0`. Nil with none.
     let cadence: String?
     /// The Exercise's Coach Note on one line. Nil with none.
@@ -80,6 +85,7 @@ struct LiveActivityRestContent: Equatable, Sendable {
         restStartDate: Date,
         restEndDate: Date,
         press: LoggablePressContent,
+        stats: [LockScreenStat],
         cadence: String?,
         coachNote: String?,
         start: LockScreenStart?,
@@ -96,6 +102,7 @@ struct LiveActivityRestContent: Equatable, Sendable {
         self.restStartDate = restStartDate
         self.restEndDate = restEndDate
         self.press = press
+        self.stats = stats
         self.cadence = cadence
         self.coachNote = coachNote
         self.start = start
@@ -111,11 +118,44 @@ struct LiveActivityRestContent: Equatable, Sendable {
     }
 }
 
+extension LiveActivityRestContent {
+    /// This card turned to `face`, or as it is when the Set's card has no such face.
+    func turned(to face: LockScreenFace) -> LiveActivityRestContent {
+        guard has(face) else { return self }
+        var card = self
+        card.face = face
+        return card
+    }
+
+    private func has(_ face: LockScreenFace) -> Bool {
+        switch face {
+        case .rest: true
+        case .coachNote: coachNote != nil
+        case .reps: press != .needsApp
+        case .rpe(let reps): press != .needsApp && LockScreenOffer.repsRange.contains(reps)
+        }
+    }
+
+    /// This card on the face `running` shows, when both are on one Set and this card has that
+    /// face. A card redrawn under the athlete, as a flush that lands does, must not turn it back.
+    func keepingTheFace(of running: LiveActivityRestContent) -> LiveActivityRestContent {
+        guard target == running.target else { return self }
+        return turned(to: running.face)
+    }
+}
+
 enum LiveActivityInvalidationPolicy {
     static let postRestReadyDuration: TimeInterval = 30 * 60
 
     static func isReady(_ content: LiveActivityRestContent, at date: Date) -> Bool {
         date >= content.restEndDate
+    }
+
+    /// When a rest's card redraws to read ready. Nil for a rest already over: the update that
+    /// shows it draws it ready, and a redraw on top of that one would take the island's readback
+    /// off a Set logged after its rest ran out.
+    static func readyRedrawDate(for content: LiveActivityRestContent, at date: Date) -> Date? {
+        isReady(content, at: date) ? nil : content.restEndDate
     }
 
     static func postRestCapEndDate(for content: LiveActivityRestContent) -> Date {
@@ -217,6 +257,7 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(for: position, following: session, showing: draft, history: source.history),
+            stats: LockScreenStat.row(weight: draft.weight, prescription: target.set.prescription, repsCell: target.set.prescribedReps),
             cadence: target.exercise.exerciseName.cadence,
             coachNote: target.exercise.lockScreenCoachNote,
             start: target.exercise.session === session ? LockScreenStart(position) : nil,
