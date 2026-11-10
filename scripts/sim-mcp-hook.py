@@ -267,6 +267,12 @@ def gate(tool, tool_input, session):
                 " can resolve to a simulator no Simlock lease holds (ADR-0024), and persist rewrites the tracked .xcodebuildmcp/config.yaml."
                 " Call session_set_defaults {simulatorId: <your leased UDID>} alone."
             ), None
+        stray = stray_destination(tool_input.get("extraArgs"), None)
+        if stray is not None:
+            return 3, (
+                f"Refused: session_set_defaults would store -destination {stray} in extraArgs, so every later build would also"
+                " run there, whatever simulator the default names. Drop -destination from extraArgs."
+            ), None
         if not tool_input.get("simulatorId"):
             return 0, "", None
         target = str(tool_input["simulatorId"]).upper()

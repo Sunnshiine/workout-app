@@ -144,6 +144,14 @@ for call in "{\"simulatorId\": \"$MINE\", \"simulatorName\": \"iPhone 17 Pro\"}"
     check "session_set_defaults $call is refused, naming the call that works" \
         '[ $status = 2 ] && err_has "Call session_set_defaults {simulatorId: <your leased UDID>} alone."'
 done
+for call in "{\"extraArgs\": [\"-destination\", \"id=$MINE\"]}" \
+    "{\"simulatorId\": \"$MINE\", \"extraArgs\": [\"-quiet\", \"-destination\", \"id=$FREE_UDID\"]}"; do
+    PATH_BIN=$tmp/nosimlock gate session_set_defaults "$call"
+    check "session_set_defaults $call is refused, since a stored -destination outlives the default" \
+        '[ $status = 2 ] && err_has "Drop -destination from extraArgs"'
+done
+gate session_set_defaults '{"extraArgs": ["-skipPackagePluginValidation", "-skipMacroValidation"]}'
+check "session_set_defaults with extraArgs and no -destination runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 
 echo "the docs point at session_set_defaults and touch"
 check "no doc says MCP tap reaches no control" \
