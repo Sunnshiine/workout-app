@@ -131,11 +131,11 @@ hold_lease() {
 }
 
 release_lease() {
-  local held id
+  local held udid id
   held=$(own_lease "$1") || exit 2
   [ -n "$held" ] || { echo "you hold no Simlock lease"; return 0; }
-  read -r _ id _ <<< "$held"
-  simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $1"
+  read -r udid id _ <<< "$held"
+  simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $udid"
 }
 
 # The simulator a run drives: the named one, which must be the caller's own lease, else a lease of its own.
