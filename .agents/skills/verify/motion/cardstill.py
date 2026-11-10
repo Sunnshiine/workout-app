@@ -5,7 +5,9 @@
 # ///
 """The Active Set Card stillness lane, with its positive control.
 
-  SIM=<udid> [VERIFY_RUN=<lane>] uv run .agents/skills/verify/motion/cardstill.py --control COMMIT
+  [VERIFY_RUN=<lane>] uv run .agents/skills/verify/motion/cardstill.py --control COMMIT
+
+Its first launch leases a simulator from Simlock when you hold none, as `verify.sh launch` does.
 
 Films eight takes through `verify.sh record` twice in one session: first on COMMIT's cached build as run
 <lane>-control (stop, launch --at COMMIT --animated session), then on this worktree's build as run
@@ -418,9 +420,6 @@ def main(argv: Sequence[str]) -> int:
         prog="cardstill.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--control", required=True, help="a commit whose build moves the card")
     args = parser.parse_args(argv)
-    if not os.environ.get("SIM"):
-        print("SIM is not set; name your lane simulator: SIM=<udid> cardstill.py --control COMMIT", file=sys.stderr)
-        return 2
     lane = os.environ.get("VERIFY_RUN") or time.strftime("cardstill-%Y%m%d-%H%M%S")
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]*", lane):
         print(f"VERIFY_RUN is letters, digits and dashes, starting with a letter or digit: {lane}", file=sys.stderr)

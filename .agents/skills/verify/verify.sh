@@ -33,7 +33,6 @@ relaunch="launch <fixture>"
 case $cmd in
   build)
     resolve_sim
-    sim_available "$sim" || exit
     commit=$(git -C "$repo" rev-parse HEAD)
     changes=$(git -C "$repo" status --porcelain -- "${inputs[@]}")
     xcodebuild_build "$project" "" "$work/$(date +%Y%m%d-%H%M%S)-build.log" || exit
@@ -75,7 +74,8 @@ case $cmd in
 
   online)
     # Brings an -UITEST_OFFLINE launch back online in place, so its queue flushes as a phone's does.
-    xcrun simctl spawn "$SIM" notifyutil -p app.workouttracker.uitest.reconnect
+    resolve_sim
+    xcrun simctl spawn "$sim" notifyutil -p app.workouttracker.uitest.reconnect
     echo "fixture Sheet back online"
     ;;
 
@@ -337,49 +337,17 @@ case $cmd in
 
   stop)
     resolve_sim; require_lease "$sim"
-    if [ -f "$state_dir/pid" ]; then
-      pid=$(cat "$state_dir/pid")
-      alive=
-      uninstall=
-      # A pid alone can name another process once the app is gone, since pids wrap fast on a build
-      # machine. Terminating by bundle id then exits 3, or ends a copy of the app a UI test owns (#728).
-      if is_fixture_launch "$pid"; then alive=1; fi
-      # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
-      # springboard over every later shot. Uninstalling is the only lever on one from outside the
-      # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
-      # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
-      if launched_with_live_activities "$state_dir"; then uninstall=1; fi
-      owner=
-      [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
-      if [ -n "$alive$uninstall" ] && [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
-        echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 stop" >&2
-        exit 75
-      fi
-      [ -z "$uninstall" ] || require_sim_free "$sim"
-      if [ -n "$alive" ]; then
-        xcrun simctl terminate "$sim" "$bundle"
-        echo "terminated pid $pid"
-      fi
-      if [ -n "$uninstall" ]; then
-        if xcrun simctl uninstall "$sim" "$bundle"; then
-          echo "uninstalled the app, ending any Live Activity this run started"
-        else
-          echo "could not uninstall on $sim, so a Live Activity this run started may still be on it; end it with: xcrun simctl uninstall $sim $bundle" >&2
-        fi
-      fi
-      rm -f "$state_dir/pid" "$state_dir/args"
-    else
-      echo "nothing launched by this tool on $sim"
+    stop_app
+    ;;
+
+  release)
+    [ $# -eq 0 ] || usage
+    held=$(own_lease "${SIM:-}") || exit
+    if [ -n "$held" ]; then
+      resolve_sim; require_lease "$sim"
+      stop_app
     fi
-    dir=$(recorded_run_dir 2>/dev/null) || exit 0
-    sheet=$dir/_sheet.png
-    # bash 3.2, the stock macOS shell, compares [ -nt ] in whole seconds. find -newer compares nanoseconds.
-    if [ -f "$sheet" ]; then
-      pending=$(find "$dir" -maxdepth 1 -name '*.tree.txt' -newer "$sheet" | wc -l | tr -d ' ')
-    else
-      pending=$(shot_names "$dir" | wc -l | tr -d ' ')
-    fi
-    [ "$pending" -eq 0 ] || echo "shots in $(basename "$dir") not on a contact sheet yet: $pending; run: $0 sheet, then Read every image it prints"
+    release_lease "${SIM:-}"
     ;;
 
   axe)

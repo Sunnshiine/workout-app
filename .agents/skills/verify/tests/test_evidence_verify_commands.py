@@ -94,6 +94,7 @@ class VerifyTap(unittest.TestCase):
         axe.chmod(0o755)
         self.verify = skill / "verify.sh"
         self.sim = "TAP-TEST-%d" % os.getpid()
+        self.path = leased_path(self.root / "bin", self.sim)
 
     def tearDown(self):
         shutil.rmtree(self.root, ignore_errors=True)
@@ -102,7 +103,7 @@ class VerifyTap(unittest.TestCase):
         (self.root / "describe-ui.json").write_text(tree)
         if point is not None:
             (self.root / "point.json").write_text(point)
-        env = dict(os.environ, SIM=self.sim)
+        env = dict(os.environ, PATH=self.path, SIM=self.sim)
         env.pop("VERIFY_RUN", None)
         done = subprocess.run(
             [str(self.verify), "tap"] + list(args), cwd=str(self.root), env=env,
@@ -214,13 +215,14 @@ class VerifyStop(unittest.TestCase):
         (self.state / "run").write_text("%s\n" % self.owner)
         (self.state / "pid").write_text("99999999\n")
         self.evidence = Path(tempfile.mkdtemp())
+        self.path = leased_path(self.evidence / "bin", self.sim)
 
     def tearDown(self):
         shutil.rmtree(self.state, ignore_errors=True)
         shutil.rmtree(self.evidence, ignore_errors=True)
 
     def stop(self, run):
-        return verify_sh("stop", run=run, sim=self.sim, evidence=self.evidence)
+        return verify_sh("stop", run=run, sim=self.sim, path=self.path, evidence=self.evidence)
 
     def launched_with_live_activities(self):
         (self.state / "args").write_text("-UITEST_FIXTURE -UITEST_SESSION -UITEST_DISABLE_ANIMATIONS\n")
@@ -283,13 +285,13 @@ class VerifyStop(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertEqual(out, "nothing launched by this tool on %s\n" % self.sim)
 
-    def test_an_unnamed_diff_after_stop_still_reads_the_runs_shots(self):
+    def test_an_unnamed_diff_after_stop_still_reads_the_run_on_your_leases_simulator(self):
         evidence = self.evidence / self.owner
         evidence.mkdir(parents=True, exist_ok=True)
         for name in ["01-before", "02-after-log"]:
             shutil.copy(FIXTURES / ("%s.tree.txt" % name), evidence / ("%s.tree.txt" % name))
         self.stop(self.owner)
-        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=None, sim=self.sim, evidence=self.evidence)
+        code, out, err = verify_sh("diff", "01-before", "02-after-log", run=None, path=self.path, evidence=self.evidence)
         self.assertEqual(code, 0, err)
         self.assertEqual(out, (FIXTURES / "01-before--02-after-log.diff.txt").read_text())
 
