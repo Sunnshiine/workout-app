@@ -41,6 +41,14 @@ private let rest = LiveActivityRestContent(
     #expect(LiveActivityReadbackPlan.Canvas.alone.staleDate == nil)
 }
 
+/// The Session's last Set is logged from a card whose rest ran out, and the island reads it back
+/// over that card. A ready redraw then would replace the readback as it arrived.
+@Test func aRestAlreadyOverIsNotRedrawnReadyUnderAReadback() {
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate.addingTimeInterval(-1)) == rest.restEndDate)
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate) == nil)
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate.addingTimeInterval(240)) == nil)
+}
+
 /// A write used up the rest that led to its Set, so its readback takes the activity and ends it.
 @Test func aReadbackThatMayNotRideTheRestTakesTheActivityAsItsOwn() {
     let listening = LiveActivityReadbackPlan.plan(isFinal: false, owner: .rest(rest), activityIsUp: true) { _ in false }

@@ -121,13 +121,15 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
 
     private func scheduleLifecycleTasks(for content: LiveActivityRestContent) {
         clearLifecycleTasks()
-        readyUpdateTask = Task { @MainActor [weak self] in
-            await Self.sleep(until: content.restEndDate)
-            guard !Task.isCancelled, self?.restContent == content else { return }
-            await self?.controller.update(
-                state: WorkoutActivityAttributes.ContentState(restContent: content, dictation: nil),
-                staleDate: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content)
-            )
+        if let readyDate = LiveActivityInvalidationPolicy.readyRedrawDate(for: content, at: Date()) {
+            readyUpdateTask = Task { @MainActor [weak self] in
+                await Self.sleep(until: readyDate)
+                guard !Task.isCancelled, self?.restContent == content else { return }
+                await self?.controller.update(
+                    state: WorkoutActivityAttributes.ContentState(restContent: content, dictation: nil),
+                    staleDate: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content)
+                )
+            }
         }
         capEndTask = Task { @MainActor [weak self] in
             await Self.sleep(until: LiveActivityInvalidationPolicy.postRestCapEndDate(for: content))

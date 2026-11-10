@@ -151,6 +151,13 @@ enum LiveActivityInvalidationPolicy {
         date >= content.restEndDate
     }
 
+    /// When a rest's card redraws to read ready. Nil for a rest already over: the update that
+    /// shows it draws it ready, and a redraw on top of that one would take the island's readback
+    /// off a Set logged after its rest ran out.
+    static func readyRedrawDate(for content: LiveActivityRestContent, at date: Date) -> Date? {
+        isReady(content, at: date) ? nil : content.restEndDate
+    }
+
     static func postRestCapEndDate(for content: LiveActivityRestContent) -> Date {
         content.restEndDate.addingTimeInterval(postRestReadyDuration)
     }
