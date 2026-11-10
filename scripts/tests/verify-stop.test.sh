@@ -32,7 +32,12 @@ case "\$*" in
     exit 3 ;;
 esac
 STUB
-chmod +x "$root/bin/xcrun"
+cp "$(dirname "${BASH_SOURCE[0]}")/fake-simlock" "$root/bin/simlock"
+chmod +x "$root/bin/xcrun" "$root/bin/simlock"
+# $sim is the caller's own Simlock lease, as SIM names it.
+export FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES=$sim
+unset FAKE_SIMLOCK_WHO
+PATH="$root/bin:$PATH" simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --detach --ttl 60m >/dev/null
 
 record() {
     rm -rf "$state" "$root/calls"
