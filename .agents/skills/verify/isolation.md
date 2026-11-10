@@ -9,9 +9,10 @@ exits 2. Your runs, your `scripts/test-sim.sh --sim` runs, and your XcodeBuildMC
 your one simulator, and the rules below keep them apart.
 
 `launch`, `install`, and `scripts/test-sim.sh`
-refuse (exit 75) while another run's app is alive on the same simulator and that run's lease is live:
-some command for the run came in the last `WORKOUT_LEASE_MINUTES` (60). Every command but `build`,
-`install`, `diff`, `sheet`, and `crop` renews the lease. A command with no `VERIFY_RUN` keeps a live lease
+refuse (exit 75) while another run's app is alive on the same simulator and that run's run lease is
+live: some command for the run came in the last `WORKOUT_LEASE_MINUTES` (60). A run lease is verify's
+own, not the Simlock lease. Every command but `build`, `install`, `diff`, `sheet`, and `crop` renews
+it. A command with no `VERIFY_RUN` keeps a live run lease
 going but cannot revive an expired one. A run quiet for longer counts as abandoned. The next claim
 reclaims the simulator, stops the run's app, and says so. From then on every command for the
 reclaimed run but `build`, `install`, `diff`, `sheet`, and `crop`, `stop` included, exits 75 naming who
@@ -32,7 +33,7 @@ relaunch left behind. The refusal prints the way out, which is `stop` and then `
 `launch` of the same run was refused, until a `launch` of it succeeds. So a driver that missed its
 own launch's refusal cannot drive or film the app that refusal left behind. Set `VERIFY_RUN` on
 every call whenever you drive more than one run. `launch`, `shot`, and `burst` refuse (exit 75) while a `scripts/test-sim.sh` run holds the
-simulator. `test-sim.sh` refuses while a run whose lease is live has its app on it. Each refusal names
+simulator. `test-sim.sh` refuses while a run whose run lease is live has its app on it. Each refusal names
 the holder and its pid. The lock sees only `scripts/test-sim.sh`, so an XcodeBuildMCP `test_sim` on
 the same UDID is invisible to it. Two CLI drives never collide if each has its own
 `WORKOUT_HOME`.
