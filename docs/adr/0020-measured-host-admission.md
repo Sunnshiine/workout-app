@@ -141,3 +141,5 @@ What the numbers say:
 
 **Superseded in part (2026-11-10).** ADR-0024 moves simulators to Simlock. `WORKOUT_SIM_CAP`, idle-lane
 reclaim, and `scripts/measure-host.sh` are gone. Build slots and the memory and disk floors stand.
+
+<!-- doc-symbols: not-in-tree sim-pool.sh scripts/measure-host.sh -->

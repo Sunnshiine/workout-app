@@ -74,3 +74,5 @@ fix that load.
   thing to measure.
 
 Supersedes ADR-0020's simulator cap and idle-lane reclaim, and ADR-0022 for lanes on this Mac.
+
+<!-- doc-symbols: not-in-tree sim-pool.sh scripts/sim-pool.sh scripts/measure-host.sh capacity.config.limits.ios.maxRunning lease.maxPerRequester -->
