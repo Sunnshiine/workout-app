@@ -98,6 +98,19 @@ struct LiveActivitySetContent: Equatable, Sendable {
     }
 }
 
+/// A Set the Lock Screen card logged with no rest to follow. The card holds it, with nothing to
+/// press, while the island reads the Set Log back.
+struct LiveActivityLoggedSetContent: Equatable, Sendable {
+    let set: LiveActivitySetContent
+    /// The Set Log's weight, Reps and RPE, where the rest face draws a Set's numbers.
+    let stats: [LockScreenStat]
+
+    init(_ set: LiveActivitySetContent, holding setLog: SetLog) {
+        self.set = set
+        stats = LockScreenStat.row(setLog)
+    }
+}
+
 extension SetLog {
     /// The Set Log as the Lock Screen reads it back.
     var readback: String {

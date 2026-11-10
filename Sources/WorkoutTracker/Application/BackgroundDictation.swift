@@ -25,6 +25,9 @@ protocol DictationLiveActivityAdapter: AnyObject {
     /// Shows the rest a Set logged from the Lock Screen card began: the card on its face, and
     /// `readback` on the island alone.
     func show(_ rest: LiveActivityRestContent, islandReading readback: LiveActivityDictationContent.Readback, sessionLabel: String) async
+    /// Shows the Set a Lock Screen press logged with no rest after it, over the card that offered
+    /// it: its Set Log's numbers with nothing to press, and `readback` on the island alone.
+    func show(_ loggedSet: LiveActivityLoggedSetContent, islandReading readback: LiveActivityDictationContent.Readback) async
     /// Ends the rest's Live Activity, whose Set is logged with no rest after it.
     func endRest() async
 }

@@ -122,6 +122,20 @@ struct LockScreenCardVisualTests {
         assertCardBaseline(LockScreenCardSet.worstCase.state(.dark, face: .rpe(reps: 12)), width: Self.narrowestPhone)
     }
 
+    /// No rest follows the Session's last Set, so the card holds what was logged over a whole
+    /// fill, with no countdown and nothing to press, until the Live Activity ends.
+    @Test func aSetLoggedWithNoRestToFollowHoldsItsNumbersDay() {
+        assertCardBaseline(LockScreenCardSet.logged(Self.lastSetLog, .light))
+    }
+
+    @Test func aSetLoggedWithNoRestToFollowHoldsItsNumbersNight() {
+        assertCardBaseline(LockScreenCardSet.logged(Self.lastSetLog, .dark))
+    }
+
+    @Test func theLargestTypeKeepsTheSetLoggedWithNoRestToFollow() {
+        assertCardBaseline(LockScreenCardSet.logged(Self.heaviestSetLog, .dark), dynamicTypeSize: .xxxLarge)
+    }
+
     @Test func theSessionsLastSetReadsBackOverItsSets() {
         assertCardBaseline(
             LockScreenCardSet(press: .needsApp, setsDone: 3, restEnd: nil)
@@ -178,6 +192,8 @@ struct LockScreenCardVisualTests {
         assertCardBaseline(readback(.dark, .listening))
     }
 
+    private static let lastSetLog = SetLog(weight: .pounds(252.5), reps: 5, rpe: .seven)
+    private static let heaviestSetLog = SetLog(weight: .pounds(1002.5), reps: 12, rpe: .ninePointFive)
     private static let backSquatSet = LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 2, setsTotal: 3)
     private static let logged = LiveActivityDictation.logged("252.5×5 @7", to: backSquatSet)
     private static let refused = LiveActivityDictation.settled(setLog: "252.5×5 @8", backSquatSet)
@@ -199,7 +215,7 @@ struct LockScreenCardVisualTests {
         let height = Self.systemHeight(at: dynamicTypeSize)
         let view = LockScreenCard(state: state)
             .frame(width: width, height: height, alignment: .top)
-            .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
+            .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, fill: state.lockScreenFill) }
             .environment(\.dynamicTypeSize, dynamicTypeSize)
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
 
@@ -243,7 +259,8 @@ extension LockScreenCardVisualTests {
             LockScreenCardSet.worstCase.state(.dark, face: .rpe(reps: 12)),
             LockScreenCardSet.noWeight.state(.dark),
             LockScreenCardSet.openingHold.state(.dark),
-            LockScreenCardSet.bodyweight.state(.dark)
+            LockScreenCardSet.bodyweight.state(.dark),
+            LockScreenCardSet.logged(heaviestSetLog, .dark)
         ]
     }
 

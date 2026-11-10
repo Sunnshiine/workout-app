@@ -23,7 +23,26 @@ import Testing
             #expect(state(restStart: Self.restEnd, restEnd: Self.restStart).wholeRestInterval == nil)
         }
 
-        private func state(restStart: Date?, restEnd: Date?) -> WorkoutActivityAttributes.ContentState {
+        @Test func aRestDrainsTheFillOverItsWholeLength() {
+            #expect(
+                state(restStart: Self.restStart, restEnd: Self.restEnd).lockScreenFill == .draining(over: Self.restStart...Self.restEnd)
+            )
+        }
+
+        /// A Set logged with no rest to follow holds a whole fill, which no clock drains.
+        @Test func aSettledSetHoldsAWholeFill() {
+            #expect(state(restStart: nil, restEnd: nil, press: .settled).lockScreenFill == .whole)
+        }
+
+        @Test func aCardWithNoRestAndASetToLogDrawsNoFill() {
+            #expect(state(restStart: nil, restEnd: nil).lockScreenFill == nil)
+        }
+
+        private func state(
+            restStart: Date?,
+            restEnd: Date?,
+            press: LoggablePress = .needsApp
+        ) -> WorkoutActivityAttributes.ContentState {
             WorkoutActivityAttributes.ContentState(
                 exerciseName: "Back Squat",
                 prescribedReps: "5",
@@ -38,8 +57,9 @@ import Testing
                 restEndDate: restEnd,
                 dictation: nil,
                 readbackStaysOffTheCard: nil,
-                loggablePress: .needsApp,
+                loggablePress: press,
                 cardFace: .rest,
+                cardTurn: nil,
                 cardStats: [],
                 cadence: nil,
                 coachNote: nil,

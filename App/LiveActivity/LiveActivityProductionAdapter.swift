@@ -212,6 +212,17 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         await startUpdateTask?.value
     }
 
+    func show(_ loggedSet: LiveActivityLoggedSetContent, islandReading readback: LiveActivityDictationContent.Readback) async {
+        await startUpdateTask?.value
+        // The rest is used up, and its ready redraw would put the chips back under the readback.
+        clearLifecycleTasks()
+        guard controller.isActive else { return }
+        await controller.update(
+            state: WorkoutActivityAttributes.ContentState(loggedSet: loggedSet, islandReading: LiveActivityDictation(readback)),
+            staleDate: nil
+        )
+    }
+
     func endRest() async {
         end()
     }

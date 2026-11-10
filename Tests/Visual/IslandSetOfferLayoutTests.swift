@@ -220,6 +220,7 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             readbackStaysOffTheCard: nil,
             loggablePress: press,
             cardFace: face,
+            cardTurn: nil,
             cardStats: [],
             cadence: cadence,
             coachNote: coachNote,

@@ -77,6 +77,24 @@ struct LockScreenCardSet: Sendable {
         LoggablePress.Offer(repChoices: reps, prescribedReps: prescribed, rpeChoices: choices, prescribedRPE: rpe, setIdentity: "visual")
     }
 
+    /// The Session's last Set as the card holds it once logged at `setLog`, while the island reads
+    /// it back.
+    @MainActor
+    static func logged(_ setLog: SetLog, _ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
+        let session = Session(dayNumber: 1, date: nil)
+        let exercise = Exercise(name: "Back Squat", coachNote: coachNote)
+        exercise.sets = (0..<3).map {
+            ExerciseSet(index: $0, prescribedReps: "5", prescribedLoad: "RPE7", percentOneRM: nil, state: .logged)
+        }
+        session.exercises = [exercise]
+        guard let last = SessionSetOrder.orderedSets(in: session).last else { preconditionFailure("The Session has three Sets") }
+        return WorkoutActivityAttributes.ContentState(
+            loggedSet: LiveActivityLoggedSetContent(LiveActivitySetContent(last), holding: setLog),
+            islandReading: .logged(setLog.readback, to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 3, setsTotal: 3)),
+            appearance: appearance
+        )
+    }
+
     /// The numbers are the ones the app words for these cells, so a baseline never shows a row the
     /// library would not send.
     func state(
@@ -100,6 +118,7 @@ struct LockScreenCardSet: Sendable {
             readbackStaysOffTheCard: nil,
             loggablePress: press,
             cardFace: face,
+            cardTurn: nil,
             cardStats: LockScreenStat.row(
                 weight: weight,
                 prescription: Prescription(reps: reps, load: load, percentOneRM: nil),

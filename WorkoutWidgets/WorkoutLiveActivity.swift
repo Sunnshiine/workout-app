@@ -237,7 +237,7 @@ private struct LockScreenWorkoutView: View {
                 progress
             }
         }
-        .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
+        .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, fill: state.lockScreenFill) }
         .animation(.smooth(duration: 0.35), value: state.dictation)
         .dynamicTypeSize(...WorkoutLiveActivity.largestType)
     }

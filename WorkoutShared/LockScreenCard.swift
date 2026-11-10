@@ -29,16 +29,34 @@ enum LockScreenCardMetrics {
     }
 }
 
-/// How a Card Face comes and goes. The system times a Live Activity's transitions, so only the
-/// direction is the card's to choose.
+/// How the card moves. A Live Activity runs a transition on the animation of the nearest view
+/// that stays put around it, so each of these sits on a container, never on the view that comes or
+/// goes.
 enum LockScreenCardMotion {
     /// What the numbers and the Coach Note drift by as one takes the other's place.
     static let swapDrift: CGFloat = 4
-    /// What a face travels: up to go forward, down to come back.
+    /// What a face travels as it arrives: up to go forward, down to come back.
     static let turnDrift: CGFloat = 10
+
+    /// The ink ease (DESIGN.md §7), for a turn and for the Coach Note.
+    static let turn = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.24)
+    /// The fill running back to full as a rest begins.
+    static let refill = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28)
+    /// The flash giving way to the fill. It starts inside the refill's tail and ends inside the
+    /// 0.42 s that §7 gives what the athlete sees every Set.
+    static let flashFade = Animation.easeOut(duration: 0.3).delay(0.12)
 
     static func drifting(by drift: CGFloat, reduceMotion: Bool) -> AnyTransition {
         reduceMotion ? .opacity : .offset(y: drift).combined(with: .opacity)
+    }
+
+    /// Only the face that arrives moves. The one that leaves fades, since which way the card
+    /// turns next is not known when it is drawn.
+    static func arriving(_ turn: LockScreenCardTurn, reduceMotion: Bool) -> AnyTransition {
+        .asymmetric(
+            insertion: drifting(by: turn == .forward ? turnDrift : -turnDrift, reduceMotion: reduceMotion),
+            removal: .opacity
+        )
     }
 }
 
@@ -64,24 +82,29 @@ struct LockScreenCard: View {
 }
 
 /// The Card Face the card is on. A choosing face needs the offer's chips.
-/// `LiveActivityRestContent.turned(to:)` turns no card to one without them, so no `.needsApp` pair
-/// arrives.
+/// `LiveActivityRestContent.turned(to:)` turns no card to one without them, so no pair without
+/// them arrives.
 struct LockScreenCardFaceView: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        switch (state.face, state.loggablePress) {
-        case (.reps, .ready(let offer)):
-            LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
-                .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
-        case (.rpe(let reps), .ready(let offer)):
-            LockScreenChoicesFace(state: state, offer: offer, chosenReps: reps)
-                .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
-        case (.rest, _), (.coachNote, _), (.reps, .needsApp), (.rpe, .needsApp):
-            LockScreenRestFace(state: state)
-                .transition(LockScreenCardMotion.drifting(by: -LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
+        let arriving = LockScreenCardMotion.arriving(state.turn, reduceMotion: reduceMotion)
+
+        ZStack {
+            switch (state.face, state.loggablePress) {
+            case (.reps, .ready(let offer)):
+                LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
+                    .transition(arriving)
+            case (.rpe(let reps), .ready(let offer)):
+                LockScreenChoicesFace(state: state, offer: offer, chosenReps: reps)
+                    .transition(arriving)
+            case (.rest, _), (.coachNote, _), (.reps, .needsApp), (.rpe, .needsApp), (.reps, .settled), (.rpe, .settled):
+                LockScreenRestFace(state: state)
+                    .transition(arriving)
+            }
         }
+        .animation(LockScreenCardMotion.turn, value: state.face)
     }
 }
 
@@ -95,32 +118,43 @@ struct LockScreenRestFace: View {
         state.face == .coachNote ? state.coachNote : nil
     }
 
+    /// A Set logged with no rest after it: its numbers stand alone, with no rest to count and
+    /// nothing to press.
+    private var isSettled: Bool {
+        state.loggablePress == .settled
+    }
+
     var body: some View {
         let colors = state.liveActivityColors
 
         HStack(alignment: .bottom, spacing: LockScreenCardMetrics.padding) {
             VStack(alignment: .leading, spacing: 0) {
-                // No scale factor: the system draws a timer at the smallest scale it is allowed.
-                RestCountdownText(state: state)
-                    .liveActivityFont(.countdown)
-                    .foregroundStyle(colors.primaryText)
-                    .lineLimit(1)
-                    .contentTransition(.identity)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let cadence = state.cadence {
-                    Text(cadence)
-                        .liveActivityFont(.caption)
-                        .foregroundStyle(colors.secondaryText)
-                        .lineLimit(1)
-                        .padding(.top, LockScreenCardMetrics.underCountdown)
-                        .accessibilityLabel("Cadence \(cadence)")
-
-                    Spacer(minLength: 8)
+                if isSettled {
+                    Spacer(minLength: 0)
                     numbersOrNote
                 } else {
-                    numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
-                    Spacer(minLength: 0)
+                    // No scale factor: the system draws a timer at the smallest scale it is allowed.
+                    RestCountdownText(state: state)
+                        .liveActivityFont(.countdown)
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
+                        .contentTransition(.identity)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let cadence = state.cadence {
+                        Text(cadence)
+                            .liveActivityFont(.caption)
+                            .foregroundStyle(colors.secondaryText)
+                            .lineLimit(1)
+                            .padding(.top, LockScreenCardMetrics.underCountdown)
+                            .accessibilityLabel("Cadence \(cadence)")
+
+                        Spacer(minLength: 8)
+                        numbersOrNote
+                    } else {
+                        numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
+                        Spacer(minLength: 0)
+                    }
                 }
             }
 
@@ -128,7 +162,7 @@ struct LockScreenRestFace: View {
         }
         .frame(maxHeight: .infinity)
         .overlay(alignment: .topTrailing) {
-            if openNote == nil {
+            if openNote == nil, !isSettled {
                 quietControls
                     .transition(.opacity)
             }
@@ -177,6 +211,8 @@ struct LockScreenRestFace: View {
                     LockScreenRoundControl(symbol: "arrow.up.forward", glyph: colors.primaryText, fill: colors.track)
                 }
                 .accessibilityLabel("Open WorkoutTracker to log this Set")
+            case .settled:
+                EmptyView()
             }
         }
     }

@@ -25,6 +25,8 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         /// Nil in content an earlier build wrote, which an activity left running across an update
         /// still holds. Read `face` and `stats`.
         let cardFace: LockScreenCardFace?
+        /// Which way the card turned to reach `cardFace`. Nil reads as forward. Read `turn`.
+        let cardTurn: LockScreenCardTurn?
         let cardStats: [LockScreenCardStat]?
         /// As the Sheet writes it: `3:1:1`, or `2-3:1:0` for a range. Nil with none.
         let cadence: String?
@@ -307,6 +309,10 @@ extension LiveActivityColors {
 extension WorkoutActivityAttributes.ContentState {
     var face: LockScreenCardFace {
         cardFace ?? .rest
+    }
+
+    var turn: LockScreenCardTurn {
+        cardTurn ?? .forward
     }
 
     /// The rest face's weight, Reps and RPE. Empty with no rest, or from an earlier build.

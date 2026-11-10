@@ -133,6 +133,53 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         #expect(withoutTheNote.keepingTheFace(of: running).face == .rest)
     }
 
+    @Test func aRestALogBeganArrivesForward() throws {
+        #expect(try content(after: exercise("Bench Press")).turn == .forward)
+        #expect(try content(after: exercise("BB RDL", next: ("8", "Drop 17.5%"), loggedAt: 300)).turn == .forward)
+    }
+
+    @Test func theCardTurnsForwardTowardTheSetLogAndBackTowardTheRest() throws {
+        let reps = try content(after: exercise("Bench Press")).turned(to: .reps)
+        let rpe = reps.turned(to: .rpe(reps: 6))
+
+        #expect(reps.turn == .forward)
+        #expect(rpe.turn == .forward)
+        #expect(rpe.turned(to: .reps).turn == .back)
+        #expect(reps.turned(to: .rest).turn == .back)
+    }
+
+    /// The Coach Note opens in place, so the way the card came to its rest face stands.
+    @Test func theCoachNoteOpensAndClosesWithoutATurn() throws {
+        let cameBack = try content(after: exercise("Bench Press", coachNote: "Pause on the chest.")).turned(to: .reps).turned(to: .rest)
+
+        #expect(cameBack.turned(to: .coachNote).turn == .back)
+        #expect(cameBack.turned(to: .coachNote).turned(to: .rest).turn == .back)
+    }
+
+    /// A card drawn afresh is on its rest face, so the way to a face is read from the card it
+    /// replaces, the one the athlete sees leave.
+    @Test func aCardDrawnAfreshTurnsFromTheFaceTheAthleteSeesLeave() throws {
+        let fresh = try content(after: exercise("Bench Press"))
+        let onRPE = fresh.turned(to: .rpe(reps: 6))
+        let backOnReps = onRPE.turned(to: .reps)
+        var leftRunning = onRPE
+        leftRunning.target = nil
+
+        #expect(fresh.turned(to: .reps, from: onRPE).turn == .back)
+        #expect(fresh.turned(to: .rest, from: backOnReps).turn == .back)
+        #expect(fresh.turned(to: .reps, from: leftRunning).turn == .back, "a rest read back off the activity names no Set")
+        #expect(fresh.keepingTheFace(of: backOnReps) == backOnReps, "a redraw keeps the way the card came")
+    }
+
+    @Test func aSetLogsNumbersReadAsTheRestFaceDrawsASets() {
+        let stats = LockScreenStat.row(SetLog(weight: .pounds(1002.5), reps: 12, rpe: .eight))
+
+        #expect(stats.map(\.label) == ["lbs", "reps", "RPE"])
+        #expect(stats.map(\.value) == ["1,002.5", "12", "8"])
+        #expect(stats.map(\.spoken) == ["1002.5 pounds", "12 Reps", "RPE 8"])
+        #expect(stats.allSatisfy { !$0.isMissing })
+    }
+
     private func exercise(
         _ name: ExerciseName,
         coachNote: String? = nil,

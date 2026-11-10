@@ -34,11 +34,12 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.face == .reps)
 }
 
-/// No rest follows the Session's last Set, so the card has no next Set to draw. The island reads
-/// the Set Log back over the card as it was, and the card goes once the hold is over. Nothing
-/// reads back on the card.
+/// The next Set is in the next Session, which the card does not lead to, so no rest follows the
+/// Session's last Set and the card has no next Set to draw. It holds the
+/// Set Log's numbers with nothing to press while the island reads it back, and goes once the hold
+/// is over. Nothing reads back on the card.
 @MainActor
-@Test func theSessionsLastSetReadsBackOnTheIslandThenTakesTheCardDown() async throws {
+@Test func theSessionsLastSetHoldsItsSetLogUnderTheIslandThenTakesTheCardDown() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
     let session = try #require(harness.app.workout.currentSession)
     let last = try #require(try harness.onItsLastSet(of: session))
@@ -53,10 +54,13 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
         until: harness.clock.now + LockScreenPress.readbackHold,
         orRecord: "The island's readback never held"
     )
-    let islandReadback = try #require(harness.liveActivity.islandReadbacks.last)
-    #expect(islandReadback.readback == .logged("235×5 @7", to: .init(last, in: session)))
-    #expect(islandReadback.card.face == .rpe(reps: 5), "the card stays on the face it was on")
-    #expect(islandReadback.card.target?.setID == last.setID)
+    let held = try #require(harness.liveActivity.heldSets.last)
+    #expect(held.readback == .logged("235×5 @7", to: .init(last, in: session)))
+    #expect(held.loggedSet.stats.map(\.label) == ["lbs", "reps", "RPE"])
+    #expect(held.loggedSet.stats.map(\.value) == ["235", "5", "7"])
+    #expect(held.loggedSet.set.exerciseName == last.exercise.exerciseName.base)
+    #expect(harness.liveActivity.islandReadbacks.isEmpty, "no card with chips goes up under the readback")
+    #expect(harness.liveActivity.heldSets.count == 1)
     #expect(harness.liveActivity.endedRests == 0)
 
     harness.clock.advance(by: LockScreenPress.readbackHold)
@@ -77,18 +81,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     #expect(outcome == .logged(logged235, at: last.setID))
     #expect(harness.liveActivity.islandReadbacks.isEmpty)
+    #expect(harness.liveActivity.heldSets.isEmpty)
     #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
-}
-
-extension BackgroundDictationHarness {
-    /// Logs every Set of `session` but the last, which the card then offers.
-    fileprivate func onItsLastSet(of session: Session) throws -> SessionSetPosition? {
-        let sets = SessionSetOrder.orderedSets(in: session)
-        for position in sets.dropLast() {
-            try app.workout.log(position.set, as: logged235)
-        }
-        focus.reset(to: session)
-        return sets.last
-    }
 }

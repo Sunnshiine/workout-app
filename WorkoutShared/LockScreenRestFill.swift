@@ -3,18 +3,22 @@ import SwiftUI
 struct LockScreenLeaf {
     let card: Color
     let fill: Color
+    /// The fill one step toward the action green, which it flashes as a rest begins.
+    let flash: Color
 
     static func colors(for appearance: LiveActivityAppearance) -> LockScreenLeaf {
         switch appearance {
         case .dark:
             LockScreenLeaf(
                 card: Color(oklchLightness: 0.2, chroma: 0.03, hue: 156),
-                fill: Color(oklchLightness: 0.29, chroma: 0.055, hue: 156)
+                fill: Color(oklchLightness: 0.29, chroma: 0.055, hue: 156),
+                flash: Color(oklchLightness: 0.43, chroma: 0.095, hue: 156)
             )
         case .light:
             LockScreenLeaf(
                 card: Color(oklchLightness: 0.95, chroma: 0.025, hue: 156),
-                fill: Color(oklchLightness: 0.88, chroma: 0.06, hue: 156)
+                fill: Color(oklchLightness: 0.88, chroma: 0.06, hue: 156),
+                flash: Color(oklchLightness: 0.78, chroma: 0.11, hue: 156)
             )
         }
     }
@@ -29,27 +33,70 @@ extension WorkoutActivityAttributes.ContentState {
         guard let restStartDate, let restEndDate, restEndDate > restStartDate else { return nil }
         return restStartDate...restEndDate
     }
+
+    /// Nil with no rest and a Set still to log, which leaves the card its plain green.
+    var lockScreenFill: LockScreenFill? {
+        if let interval = wholeRestInterval { return .draining(over: interval) }
+        return loggablePress == .settled ? .whole : nil
+    }
+}
+
+/// The lighter green the card's background fills with.
+enum LockScreenFill: Hashable {
+    /// Drains from the right as the rest runs out.
+    case draining(over: ClosedRange<Date>)
+    /// Stays whole: the Set is logged and no rest follows it.
+    case whole
 }
 
 /// The card's green is drawn here as well as in the background tint, because the system draws the
 /// tint darker than it draws the fill.
+///
+/// A fill that takes another's place says a Set was logged: it runs back to full in the flash
+/// green, and the plain fill fades in over it. Both layers are keyed on the fill, so one update
+/// draws all of it and the card needs no logged state to clear.
 struct LockScreenCardBackground: View {
     let leaf: LockScreenLeaf
-    let restFill: ClosedRange<Date>?
+    let fill: LockScreenFill?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         leaf.card
             .overlay {
-                if let interval = restFill {
-                    // The bar's track lets about a quarter of the fill through, and each pass cuts
-                    // that again, so three leave the drained side at the card's green.
-                    leaf.fill
-                        .mask { SystemClockDrain(interval: interval) }
-                        .mask { SystemClockDrain(interval: interval) }
-                        .mask { SystemClockDrain(interval: interval) }
+                if let fill {
+                    ZStack {
+                        ZStack {
+                            layer(leaf.flash, fill)
+                                .id(fill)
+                                .transition(.asymmetric(insertion: reduceMotion ? .identity : .move(edge: .leading), removal: .opacity))
+                        }
+                        .animation(LockScreenCardMotion.refill, value: fill)
+
+                        ZStack {
+                            layer(leaf.fill, fill)
+                                .id(fill)
+                                .transition(.asymmetric(insertion: .opacity, removal: .identity))
+                        }
+                        .animation(LockScreenCardMotion.flashFade, value: fill)
+                    }
                 }
             }
             .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func layer(_ color: Color, _ fill: LockScreenFill) -> some View {
+        switch fill {
+        case .draining(let interval):
+            // The bar's track lets about a quarter of the fill through, and each pass cuts that
+            // again, so three leave the drained side at the card's green.
+            color
+                .mask { SystemClockDrain(interval: interval) }
+                .mask { SystemClockDrain(interval: interval) }
+                .mask { SystemClockDrain(interval: interval) }
+        case .whole:
+            color
+        }
     }
 }
 
