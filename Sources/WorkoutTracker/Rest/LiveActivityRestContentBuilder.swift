@@ -119,10 +119,9 @@ struct LiveActivityRestContent: Equatable, Sendable {
 }
 
 extension LiveActivityRestContent {
-    /// This card turned to `face`. Nil when the Set's card has no such face: no Coach Note to open,
-    /// no choices to offer, or Reps no choice could have carried.
-    func turned(to face: LockScreenFace) -> LiveActivityRestContent? {
-        guard has(face) else { return nil }
+    /// This card turned to `face`, or as it is when the Set's card has no such face.
+    func turned(to face: LockScreenFace) -> LiveActivityRestContent {
+        guard has(face) else { return self }
         var card = self
         card.face = face
         return card
@@ -141,7 +140,7 @@ extension LiveActivityRestContent {
     /// face. A card redrawn under the athlete, as a flush that lands does, must not turn it back.
     func keepingTheFace(of running: LiveActivityRestContent) -> LiveActivityRestContent {
         guard target == running.target else { return self }
-        return turned(to: running.face) ?? self
+        return turned(to: running.face)
     }
 }
 

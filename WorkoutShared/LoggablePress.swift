@@ -10,9 +10,8 @@ enum LoggablePress: Codable, Hashable, Sendable {
     // swiftlint:disable:next force_unwrapping
     static let appURL = URL(string: "workouttracker://")!
 
-    /// The Reps and the RPE the card offers. A Reps tap turns the card and writes nothing, and an
-    /// RPE tap logs the weight the card shows at the Reps and the RPE tapped. `setIdentity` goes back
-    /// to the app with each press, which finds the Set by it and refuses when the card has moved on.
+    /// The Reps and the RPE the card offers. `setIdentity` goes back to the app with each press,
+    /// which finds the Set by it and refuses when the card has moved on.
     struct Offer: Codable, Hashable, Sendable {
         let repChoices: [Int]
         /// The choices inside the Prescribed Reps, which carry the tick.

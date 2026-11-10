@@ -2,8 +2,7 @@ import AppIntents
 import SwiftUI
 
 /// What a readback keeps, tried in order until one fits the card's height at the reader's type size,
-/// so the room decides what goes and the type itself never stops growing. The second line of its
-/// reason goes first, then the bottom row gives up the height of a control.
+/// so the room decides what goes and the type itself never stops growing.
 enum LockScreenReadbackFit: CaseIterable {
     case whole
     case withoutTheSpareLine
@@ -54,7 +53,7 @@ struct LockScreenReadbackLayout<Lines: View, Mic: View, BottomRow: View>: View {
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        // A long name shrinks to fit, and the hidden line keeps the card from losing height to it.
+                        // The hidden line holds the row's height when a long name shrinks.
                         ZStack(alignment: .leading) {
                             Text(" ").hidden()
 

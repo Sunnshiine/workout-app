@@ -24,7 +24,6 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         #expect(card.stats.map(\.value) == ["247.5", "8", LockScreenStat.missingValue])
     }
 
-    /// The card's worst case: a weight in the thousands, Reps the coach left open, and no RPE.
     @Test func extremeValuesGroupTheWeightKeepTheRepsTextAndDashTheMissingRPE() throws {
         let exercise = exercise("2-3:1:0 BB RDL", next: ("AMRAP", "Start conservative and work up to a heavy single"))
 
@@ -82,15 +81,15 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         let card = try content(after: exercise("Bench Press", coachNote: "Pause on the chest."))
 
         for face in [LockScreenFace.rest, .coachNote, .reps, .rpe(reps: 1), .rpe(reps: 100)] {
-            #expect(card.turned(to: face)?.face == face)
+            #expect(card.turned(to: face).face == face)
         }
     }
 
     @Test func aSetWithNoCoachNoteHasNoCoachNoteFace() throws {
         let card = try content(after: exercise("Bench Press", coachNote: "  "))
 
-        #expect(card.turned(to: .coachNote) == nil)
-        #expect(card.turned(to: .reps)?.face == .reps)
+        #expect(card.turned(to: .coachNote).face == .rest)
+        #expect(card.turned(to: .reps).face == .reps)
     }
 
     /// A Timed Set offers no chips, so it has no face to choose a Set Log on.
@@ -98,27 +97,26 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         let card = try content(after: exercise("Plank", coachNote: "Brace.", next: ("40 sec", "BW")))
 
         try #require(card.press == .needsApp)
-        #expect(card.turned(to: .reps) == nil)
-        #expect(card.turned(to: .rpe(reps: 5)) == nil)
-        #expect(card.turned(to: .coachNote)?.face == .coachNote)
+        #expect(card.turned(to: .reps).face == .rest)
+        #expect(card.turned(to: .rpe(reps: 5)).face == .rest)
+        #expect(card.turned(to: .coachNote).face == .coachNote)
     }
 
     @Test(arguments: [0, 101, -3])
     func repsNoChipCarriesTurnNoCardToRPE(reps: Int) throws {
-        #expect(try content(after: exercise("Bench Press")).turned(to: .rpe(reps: reps)) == nil)
+        #expect(try content(after: exercise("Bench Press")).turned(to: .rpe(reps: reps)).face == .rest)
     }
 
-    /// A card redrawn under the athlete, as a flush that lands redraws it, stays where they turned it.
     @Test func aCardRedrawnForTheSameSetKeepsItsFace() throws {
         let fresh = try content(after: exercise("Bench Press", coachNote: "Pause on the chest."))
-        let running = try #require(fresh.turned(to: .rpe(reps: 6)))
+        let running = fresh.turned(to: .rpe(reps: 6))
 
         #expect(fresh.keepingTheFace(of: running).face == .rpe(reps: 6))
     }
 
     @Test func aCardThatMovedToAnotherSetStartsOnItsRestFace() throws {
         let bench = exercise("Bench Press", coachNote: "Pause on the chest.")
-        let running = try #require(try content(after: bench).turned(to: .coachNote))
+        let running = try content(after: bench).turned(to: .coachNote)
         var moved = try content(after: bench)
         moved.target = LiveActivityRestTarget(
             session: try #require(running.target).session,
@@ -129,7 +127,7 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
     }
 
     @Test func aCardWhoseSetLostTheFaceGoesBackToItsRestFace() throws {
-        let running = try #require(try content(after: exercise("Bench Press", coachNote: "Pause on the chest.")).turned(to: .coachNote))
+        let running = try content(after: exercise("Bench Press", coachNote: "Pause on the chest.")).turned(to: .coachNote)
         let withoutTheNote = try content(after: exercise("Bench Press", coachNote: nil))
 
         #expect(withoutTheNote.keepingTheFace(of: running).face == .rest)

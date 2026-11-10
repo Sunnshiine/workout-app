@@ -23,13 +23,13 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     }
 
     func startOrUpdate(restContent: LiveActivityRestContent, sessionLabel: String) {
-        startOrUpdate(restContent: restContent, dictation: nil, sessionLabel: sessionLabel)
+        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
+        startOrUpdate(restContent: restContent, showing: state, sessionLabel: sessionLabel)
     }
 
     private func startOrUpdate(
         restContent: LiveActivityRestContent,
-        dictation: LiveActivityDictation?,
-        readbackStaysOffTheCard: Bool = false,
+        showing state: WorkoutActivityAttributes.ContentState,
         sessionLabel: String
     ) {
         owner = .rest(restContent)
@@ -37,11 +37,6 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         let operationID = UUID()
         startUpdateID = operationID
         scheduleLifecycleTasks(for: restContent)
-        let state = WorkoutActivityAttributes.ContentState(
-            restContent: restContent,
-            dictation: dictation,
-            readbackStaysOffTheCard: readbackStaysOffTheCard
-        )
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
         startUpdateTask = Task { @MainActor [weak self, controller] in
@@ -169,12 +164,8 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         let readback = LiveActivityDictation(content.readback)
         switch content.subject {
         case .rest(let rest):
-            startOrUpdate(
-                restContent: rest,
-                dictation: readback,
-                readbackStaysOffTheCard: content.staysOffTheCard,
-                sessionLabel: sessionLabel
-            )
+            let state = WorkoutActivityAttributes.ContentState(restContent: rest, dictation: readback)
+            startOrUpdate(restContent: rest, showing: state, sessionLabel: sessionLabel)
             await startUpdateTask?.value
             return controller.isActive
         case .set(let set):
@@ -208,6 +199,12 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         case .nothing:
             break
         }
+    }
+
+    func show(_ rest: LiveActivityRestContent, islandReading readback: LiveActivityDictationContent.Readback, sessionLabel: String) async {
+        let state = WorkoutActivityAttributes.ContentState(restContent: rest, islandReading: LiveActivityDictation(readback))
+        startOrUpdate(restContent: rest, showing: state, sessionLabel: sessionLabel)
+        await startUpdateTask?.value
     }
 
     func endRest() async {

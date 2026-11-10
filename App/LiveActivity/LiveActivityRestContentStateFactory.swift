@@ -4,8 +4,22 @@ extension WorkoutActivityAttributes.ContentState {
     init(
         restContent: LiveActivityRestContent,
         dictation: LiveActivityDictation?,
-        readbackStaysOffTheCard: Bool = false,
         appearance: LiveActivityAppearance = .dark
+    ) {
+        self.init(restContent: restContent, dictation: dictation, readbackStaysOffTheCard: nil, appearance: appearance)
+    }
+
+    /// The rest a Set logged from the Lock Screen card began: the card on its face, and `readback`
+    /// on the island alone.
+    init(restContent: LiveActivityRestContent, islandReading readback: LiveActivityDictation) {
+        self.init(restContent: restContent, dictation: readback, readbackStaysOffTheCard: true, appearance: .dark)
+    }
+
+    private init(
+        restContent: LiveActivityRestContent,
+        dictation: LiveActivityDictation?,
+        readbackStaysOffTheCard: Bool?,
+        appearance: LiveActivityAppearance
     ) {
         self.init(
             exerciseName: restContent.exerciseName,
@@ -20,7 +34,7 @@ extension WorkoutActivityAttributes.ContentState {
             restStartDate: restContent.restStartDate,
             restEndDate: restContent.restEndDate,
             dictation: dictation,
-            readbackStaysOffTheCard: readbackStaysOffTheCard ? true : nil,
+            readbackStaysOffTheCard: readbackStaysOffTheCard,
             loggablePress: LoggablePress(restContent.press),
             cardFace: LockScreenCardFace(restContent.face),
             cardStats: restContent.stats.map(LockScreenCardStat.init),
@@ -50,6 +64,7 @@ extension WorkoutActivityAttributes.ContentState {
             restStartDate: nil,
             restEndDate: nil,
             dictation: dictation,
+            readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
             cardStats: [],
@@ -75,6 +90,7 @@ extension WorkoutActivityAttributes.ContentState {
             restStartDate: nil,
             restEndDate: nil,
             dictation: dictation,
+            readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
             cardStats: [],
@@ -205,7 +221,7 @@ extension LiveActivityRestContent {
             start: nil,
             target: nil
         )
-        self = rest.turned(to: LockScreenFace(state.face)) ?? rest
+        self = rest.turned(to: LockScreenFace(state.face))
         pendingWrites = state.pendingWrites
     }
 }

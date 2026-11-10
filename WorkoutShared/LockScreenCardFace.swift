@@ -6,7 +6,7 @@ enum LockScreenCardFace: Codable, Hashable, Sendable {
     case rest
     case coachNote
     case reps
-    /// The RPE choices for the Reps the athlete tapped.
+    /// The RPE Chips for the Reps the athlete tapped.
     case rpe(reps: Int)
 
     /// As an intent's parameter carries the face, since App Intents take no enum with a payload.
@@ -33,7 +33,7 @@ enum LockScreenCardFace: Codable, Hashable, Sendable {
 
 /// One of the three numbers on the card's rest face, as the app worded it.
 struct LockScreenCardStat: Codable, Hashable, Sendable {
-    /// The unit over the value, as `LBS`. Empty over a value that names itself, as `BW` does.
+    /// The value's unit, as `lbs`, which the card draws in capitals. Empty over `BW`.
     let label: String
     let value: String
     /// As VoiceOver reads the pair.

@@ -17,8 +17,9 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
         let dictation: LiveActivityDictation?
-        /// True for a readback the island alone reads, while the Lock Screen card keeps its face.
-        var readbackStaysOffTheCard: Bool?
+        /// True for a readback only the island reads, while the Lock Screen card keeps its face.
+        /// Nil for any other, and in content an earlier build wrote.
+        let readbackStaysOffTheCard: Bool?
         /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
         /// Nil in content an earlier build wrote, which an activity left running across an update
@@ -304,17 +305,16 @@ extension LiveActivityColors {
 }
 
 extension WorkoutActivityAttributes.ContentState {
-    /// Which Card Face the Lock Screen card draws.
     var face: LockScreenCardFace {
         cardFace ?? .rest
     }
 
-    /// The weight, the Reps and the RPE on the card's rest face. Empty with no rest running.
+    /// The rest face's weight, Reps and RPE. Empty with no rest, or from an earlier build.
     var stats: [LockScreenCardStat] {
         cardStats ?? []
     }
 
-    /// The readback the Lock Screen card draws in place of its face; nil with none.
+    /// The readback the card draws over its face; nil if only the island reads it.
     var cardReadback: LiveActivityDictation? {
         readbackStaysOffTheCard == true ? nil : dictation
     }
@@ -356,7 +356,8 @@ extension WorkoutActivityAttributes.ContentState {
         [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
-    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone.
+    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone. Content an
+    /// earlier build wrote has no numbers to read it off, and prints it ungrouped.
     var weightOnTheCard: String {
         guard let weight = stats.first, !weight.isMissing else { return weightText }
         return [weight.value, weight.label].filter { !$0.isEmpty }.joined(separator: " ")

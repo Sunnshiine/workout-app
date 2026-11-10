@@ -43,7 +43,6 @@ struct LockScreenChoicesFace: View {
         }
     }
 
-    /// The way back, what the chips choose, and what is chosen so far.
     private var header: some View {
         let colors = state.liveActivityColors
 
@@ -70,7 +69,8 @@ struct LockScreenChoicesFace: View {
     }
 
     private var back: TurnLockScreenCardIntent {
-        chosenReps == nil ? TurnLockScreenCardIntent(to: .rest) : TurnLockScreenCardIntent(to: .reps, pressing: offer.setIdentity)
+        guard chosenReps != nil else { return TurnLockScreenCardIntent(to: .rest, pressing: nil) }
+        return TurnLockScreenCardIntent(to: .reps, pressing: offer.setIdentity)
     }
 
     /// `267.5 lbs`, then `267.5 lbs · 3 reps` once the Reps are tapped.

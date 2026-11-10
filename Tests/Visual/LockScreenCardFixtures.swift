@@ -25,7 +25,7 @@ struct LockScreenCardSet: Sendable {
     static let noCadence = LockScreenCardSet(cadence: nil)
     static let neitherCadenceNorCoachNote = LockScreenCardSet(cadence: nil, coachNote: nil)
 
-    /// The issue's worst case: a weight in the thousands, AMRAP, no RPE, a range Cadence, a long note.
+    /// #1205's worst case.
     static let worstCase = LockScreenCardSet(
         exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
         reps: "AMRAP",
@@ -44,7 +44,7 @@ struct LockScreenCardSet: Sendable {
         press: .ready(offer(reps: [10, 11, 12, 13, 14], prescribed: [12], rpe: nil))
     )
 
-    /// A Drop Set with nothing performed before it, which has no weight for the card to log.
+    /// A Drop off a Set with no Set Log yet, which leaves the card no weight to log.
     static let noWeight = LockScreenCardSet(exerciseName: "BB RDL", reps: "8", load: "Drop 17.5%", weight: nil, press: .needsApp)
 
     /// The Exercise's Coach Note opens each Set on a hold, so the Start takes the mic's place.
@@ -97,6 +97,7 @@ struct LockScreenCardSet: Sendable {
             restStartDate: restEnd?.addingTimeInterval(-120),
             restEndDate: restEnd,
             dictation: dictation,
+            readbackStaysOffTheCard: nil,
             loggablePress: press,
             cardFace: face,
             cardStats: LockScreenStat.row(

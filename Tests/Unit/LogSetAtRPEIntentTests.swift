@@ -44,6 +44,7 @@ struct LogSetAtRPEIntentTests {
                 "1237.5×100 @9.5",
                 to: LiveActivityWrittenSet(exerciseName: longName, setOrdinal: 99, setsTotal: 100)
             ),
+            readbackStaysOffTheCard: true,
             loggablePress: .ready(
                 LoggablePress.Offer(
                     repChoices: [96, 97, 98, 99, 100],
@@ -94,6 +95,7 @@ struct LogSetAtRPEIntentTests {
             restStartDate: nil,
             restEndDate: nil,
             dictation: nil,
+            readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
             cardStats: [],
@@ -106,16 +108,14 @@ struct LogSetAtRPEIntentTests {
         #expect(state.weightText == expected)
     }
 
-    /// Each control's tap reaches the app's performer as the athlete made it: the face it turns to
-    /// with the Set it is about, then the Reps with the RPE.
     @Test func eachControlHandsItsTapToTheApp() async throws {
         let spy = PressSpy()
         let registered = LockScreenPresses.performer
         LockScreenPresses.performer = spy
         defer { LockScreenPresses.performer = registered }
 
-        _ = try await TurnLockScreenCardIntent(to: .coachNote).perform()
-        _ = try await TurnLockScreenCardIntent(to: .rest).perform()
+        _ = try await TurnLockScreenCardIntent(to: .coachNote, pressing: nil).perform()
+        _ = try await TurnLockScreenCardIntent(to: .rest, pressing: nil).perform()
         _ = try await TurnLockScreenCardIntent(to: .reps, pressing: "Set").perform()
         _ = try await TurnLockScreenCardIntent(to: .rpe(reps: 6), pressing: "Set").perform()
         _ = try await LogSetAtRPEIntent(setIdentity: "Set", reps: 6, rpe: "7.5").perform()
@@ -123,7 +123,7 @@ struct LogSetAtRPEIntentTests {
         #expect(spy.presses == ["turn coachNote", "turn rest", "turn reps Set", "turn rpe 6 Set", "log Set 6 7.5"])
     }
 
-    /// A press whose face the card has not got fails rather than turning the card somewhere else.
+    /// A face this build cannot read fails rather than turning the card to its rest face.
     @Test func aTurnToNoFaceFailsLoudly() async {
         let spy = PressSpy()
         let registered = LockScreenPresses.performer
@@ -153,10 +153,10 @@ struct LogSetAtRPEIntentTests {
         }
     }
 
-    /// The Lock Screen draws what the app chose, so the face and the numbers cross to the activity
-    /// whole, and a rest read back off a running activity is still on the face it showed.
+    /// A press that relaunched the app reads the rest back off the running activity, which must
+    /// still be on the face it showed.
     @Test func theActivityCarriesTheFaceAndTheNumbersBothWays() throws {
-        let turned = try #require(Self.squatRest.turned(to: .rpe(reps: 6)))
+        let turned = Self.squatRest.turned(to: .rpe(reps: 6))
 
         let state = WorkoutActivityAttributes.ContentState(restContent: turned, dictation: nil)
 
@@ -174,12 +174,8 @@ struct LogSetAtRPEIntentTests {
             to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 1, setsTotal: 3)
         )
 
-        let islandOnly = WorkoutActivityAttributes.ContentState(
-            restContent: Self.squatRest,
-            dictation: logged,
-            readbackStaysOffTheCard: true
-        )
         let spoken = WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, dictation: logged)
+        let islandOnly = WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, islandReading: logged)
 
         #expect(islandOnly.dictation == logged)
         #expect(islandOnly.cardReadback == nil)
@@ -189,7 +185,7 @@ struct LogSetAtRPEIntentTests {
     /// An activity left running across an update holds content the build before wrote, with no
     /// Card Face and no numbers. Content that fails to decode freezes the card on what it drew.
     @Test func contentTheBuildBeforeWroteDecodesOntoTheRestFace() throws {
-        let trunk = """
+        let earlierBuild = """
             {
               "exerciseName": "Back Squat",
               "prescribedReps": "5",
@@ -220,7 +216,7 @@ struct LogSetAtRPEIntentTests {
             }
             """
 
-        let state = try JSONDecoder().decode(WorkoutActivityAttributes.ContentState.self, from: Data(trunk.utf8))
+        let state = try JSONDecoder().decode(WorkoutActivityAttributes.ContentState.self, from: Data(earlierBuild.utf8))
 
         #expect(state.face == .rest)
         #expect(state.stats.isEmpty)

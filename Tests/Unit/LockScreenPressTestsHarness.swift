@@ -15,7 +15,7 @@ extension BackgroundDictationHarness {
             focus: focus,
             restTimer: restTimer,
             liveActivity: liveActivity,
-            rows: LockScreenRows(),
+            settle: RPEFaceSettle(),
             signIn: signIn,
             clock: clock
         )
@@ -45,7 +45,6 @@ extension BackgroundDictationHarness {
         return await settled { await chips.logSet(setIdentity: identity, reps: reps, rpe: rpe) }
     }
 
-    /// Presses a control that turns the card to `face`.
     func turn(to face: LockScreenFace, pressing identity: String?, on chips: LockScreenPress? = nil) async -> LockScreenPress.Outcome {
         let chips = chips ?? self.chips
         return await settled { await chips.turn(to: face, pressing: identity) }
@@ -53,17 +52,23 @@ extension BackgroundDictationHarness {
 
     /// Runs a press to its end, letting the hold of a readback over the rest run out.
     private func settled(_ press: @escaping @MainActor () async -> LockScreenPress.Outcome) async -> LockScreenPress.Outcome {
-        let readbacks = liveActivity.shown.count
-        var outcome: LockScreenPress.Outcome?
-        let run = Task { outcome = await press() }
-        await waitUntil({ outcome != nil || liveActivity.shown.count > readbacks }, orRecord: "The press neither ended nor read back")
-        if outcome == nil, liveActivity.restContent != nil {
+        let readbacks = liveActivity.shown.count + liveActivity.islandReadbacks.count
+        var ended = false
+        let run = Task {
+            let outcome = await press()
+            ended = true
+            return outcome
+        }
+        await waitUntil(
+            { ended || liveActivity.shown.count + liveActivity.islandReadbacks.count > readbacks },
+            orRecord: "The press neither ended nor read back"
+        )
+        if !ended, liveActivity.restContent != nil {
             let hold = LockScreenPress.readbackHold
             await clock.waitUntilSleeping(until: clock.now + hold, orRecord: "The readback never held")
             clock.advance(by: hold)
         }
-        await run.value
-        return outcome ?? .notLogged(.unreadable)
+        return await run.value
     }
 
     /// The rest the Lock Screen card rides, as the stage starts it once the previous Set logs.

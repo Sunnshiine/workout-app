@@ -37,6 +37,7 @@ import Testing
                 restStartDate: restStart,
                 restEndDate: restEnd,
                 dictation: nil,
+                readbackStaysOffTheCard: nil,
                 loggablePress: .needsApp,
                 cardFace: .rest,
                 cardStats: [],

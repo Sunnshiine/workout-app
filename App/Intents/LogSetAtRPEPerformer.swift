@@ -1,6 +1,6 @@
 /// Runs the Lock Screen's presses in the app, on the same focus, rest, and Live Activity the stage
-/// reads, whether or not a scene is on screen. One clock and one row record serve every press, so
-/// an RPE press can tell how long ago the row turned.
+/// reads, whether or not a scene is on screen. One clock and one settle serve every press, so an
+/// RPE press can tell how long ago the card turned.
 @MainActor
 final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     private let app: WorkoutApplication
@@ -8,7 +8,7 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     private let focus: ActiveSetFocusManager
     private let restTimer: RestTimer
     private let liveActivity: LiveActivityProductionAdapter
-    private let rows = LockScreenRows()
+    private let settle = RPEFaceSettle()
     private let clock = ContinuousListeningClock()
 
     init(
@@ -42,7 +42,7 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
             focus: focus,
             restTimer: restTimer,
             liveActivity: liveActivity,
-            rows: rows,
+            settle: settle,
             signIn: GoogleSignInRestorer(),
             clock: clock
         )

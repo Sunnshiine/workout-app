@@ -115,13 +115,6 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
 
     var readbacks: [LiveActivityDictationContent.Readback] { shown.map(\.content.readback) }
     var subjects: [LiveActivityDictationContent.Subject] { shown.map(\.content.subject) }
-    /// The rest each readback over a rest carried, which is the card the Lock Screen draws under it.
-    var restsShown: [LiveActivityRestContent] {
-        subjects.compactMap {
-            guard case .rest(let rest) = $0 else { return nil }
-            return rest
-        }
-    }
     var sessionLabels: [String] { shown.map(\.sessionLabel) }
     private(set) var noSets: [LiveActivityNoSetReadback] = []
     private(set) var withdrawals = 0
@@ -135,12 +128,20 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         withdrawals > 0 ? nil : readbacks.last
     }
 
-    /// The readback that is up, as the activity's state holds it; nil once a card replaced it.
-    private var up: LiveActivityDictationContent?
+    /// The readback that is up, and whether the Lock Screen card draws it; nil once a card replaced it.
+    private var up: (readback: LiveActivityDictationContent.Readback, onTheCard: Bool)?
+    /// Each readback the island alone read, with the card the Lock Screen drew under it.
+    private(set) var islandReadbacks: [(readback: LiveActivityDictationContent.Readback, card: LiveActivityRestContent)] = []
+
+    func show(_ rest: LiveActivityRestContent, islandReading readback: LiveActivityDictationContent.Readback, sessionLabel: String) async {
+        islandReadbacks.append((readback, rest))
+        up = (readback, onTheCard: false)
+        restContent = rest
+    }
 
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         shown.append((content, sessionLabel))
-        up = content
+        up = (content.readback, onTheCard: true)
         if case .rest(let rest) = content.subject { restContent = rest }
         whileShowing(content.readback)
         return isUp
@@ -164,7 +165,7 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var refreshes: [LiveActivityRestContent] = []
 
     func refresh(card: LiveActivityRestContent) async {
-        guard up?.staysOffTheCard ?? true else { return }
+        guard up?.onTheCard != true else { return }
         up = nil
         refreshes.append(card)
         restContent = card

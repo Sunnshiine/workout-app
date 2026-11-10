@@ -12,12 +12,12 @@ struct TurnLockScreenCardIntent: LiveActivityIntent {
     static let isDiscoverable = false
 
     @Parameter(title: "Face") var face: String
-    /// The Set a turn toward its Reps or its RPE is about. Nil from a control that names no Set.
+    /// The Set whose Reps or RPE the turn offers. Nil toward the rest face or the Coach Note.
     @Parameter(title: "Set") var setIdentity: String?
 
     init() {}
 
-    init(to face: LockScreenCardFace, pressing setIdentity: String? = nil) {
+    init(to face: LockScreenCardFace, pressing setIdentity: String?) {
         self.face = face.token
         self.setIdentity = setIdentity
     }

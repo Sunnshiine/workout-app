@@ -15,7 +15,7 @@ struct IslandChipRow: View {
     }
 
     let offer: LoggablePress.Offer
-    /// The row shows the RPE Chips on the face that names the Reps tapped, and the Reps Chips on any other.
+    /// The card's face, since the island has none of its own: RPE Chips on the RPE face, Reps Chips on any other.
     let face: LockScreenCardFace
     /// The weight the RPE tap logs, as VoiceOver reads it.
     let weight: String
@@ -74,7 +74,7 @@ struct IslandChipRow: View {
 
     /// The Reps already tapped, which a tap turns back into Reps Chips.
     private func back(from reps: Int) -> some View {
-        Button(intent: TurnLockScreenCardIntent(to: .rest)) {
+        Button(intent: TurnLockScreenCardIntent(to: .rest, pressing: nil)) {
             HStack(spacing: 1) {
                 Image(systemName: "chevron.backward")
                     .font(.caption.weight(.bold))

@@ -7,7 +7,6 @@ private let firstSet = ActiveSetID(exerciseOrder: 0, setIndex: 0)
 private let secondSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
 private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
-/// Log, a Reps Chip, and back only turn the card, so a Set half chosen writes nothing.
 @MainActor
 @Test func logThenARepsChipTurnTheCardToRepsThenRPEAndWriteNothing() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
@@ -107,8 +106,6 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 6, rpe: .seven), at: firstSet))
 }
 
-/// Log, Reps, then RPE logs the Set the card showed, and the next Set's card comes up on its rest
-/// face under a readback only the island reads.
 @MainActor
 @Test func logThenRepsThenRPELogsTheSetAndShowsTheNextSetsRest() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
@@ -116,14 +113,14 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let chips = harness.chips
     _ = await harness.turn(to: .reps, pressing: harness.identity(), on: chips)
     _ = await harness.turn(to: .rpe(reps: 6), pressing: harness.identity(), on: chips)
-    harness.clock.advance(by: LockScreenRows.rpeFaceSettle)
+    harness.clock.advance(by: RPEFaceSettle.duration)
 
     let outcome = await harness.press(harness.identity(), reps: 6, rpe: "8", on: chips)
 
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 6, rpe: .eight), at: firstSet))
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x6@8")
-    #expect(harness.liveActivity.shown.map(\.content.staysOffTheCard) == [true])
-    #expect(harness.liveActivity.restsShown.first?.face == .rest, "the card left its RPE face as the Set logged")
+    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.islandReadbacks.first?.card.face == .rest, "the card left its RPE face as the Set logged")
     let card = try #require(harness.liveActivity.restContent)
     #expect(card.target?.setID == secondSet)
     #expect(card.face == .rest)

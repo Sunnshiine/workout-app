@@ -8,10 +8,9 @@ enum LockScreenFace: Equatable, Sendable {
     /// The Coach Note where the numbers were.
     case coachNote
     case reps
-    /// The RPE choices for the Reps the athlete tapped, which each choice carries to its log.
+    /// The RPE Chips for the Reps the athlete tapped, which each chip carries to its log.
     case rpe(reps: Int)
 
-    /// True for the faces that choose a Set Log's values, which a press mid-Dictation may not turn to.
     var choosesTheSetLog: Bool {
         switch self {
         case .reps, .rpe: true
@@ -34,21 +33,17 @@ struct LockScreenStat: Equatable, Sendable {
     let isMissing: Bool
 
     static let missingValue = "—"
+}
 
-    init(label: String, value: String, spoken: String, isMissing: Bool = false) {
-        self.label = label
-        self.value = value
-        self.spoken = spoken
-        self.isMissing = isMissing
+extension LockScreenStat {
+    fileprivate init(label: String, value: String, spoken: String) {
+        self.init(label: label, value: value, spoken: spoken, isMissing: false)
     }
 
     fileprivate init(missing label: String, spoken: String) {
         self.init(label: label, value: Self.missingValue, spoken: spoken, isMissing: true)
     }
-}
 
-extension LockScreenStat {
-    /// The row for a Set whose card holds `weight`.
     static func row(weight: Weight?, prescription: Prescription, repsCell: String) -> [LockScreenStat] {
         [Self.weight(weight), reps(prescription.reps, cell: repsCell), rpe(prescription.load.rpeTarget)]
     }

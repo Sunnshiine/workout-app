@@ -2,13 +2,13 @@ import AppIntents
 import SwiftUI
 
 enum LockScreenCardMetrics {
-    /// A Lock Screen card draws at 97% of the width it lays out at, so this draws about 44.6pt.
+    /// A Lock Screen card draws at 97% of the size it lays out at, so this draws about 44.6pt.
     static let controlSize: CGFloat = 46
     static let controlCornerRadius: CGFloat = 12
     /// DESIGN.md's Shrink-Then-Truncate Rule: the 13pt target shrinks to 12pt before it cuts off.
     static let targetFloorScale: CGFloat = 12 / 13
     static let padding: CGFloat = 16
-    /// Draws at about 48pt.
+    /// Draws at 48.5pt.
     static let logSize: CGFloat = 50
     static let glyphSize: CGFloat = 20
     /// How far a quiet control's tap target reaches into the card's padding, so its glyph sits on the edge.
@@ -28,7 +28,7 @@ enum LockScreenCardMetrics {
 }
 
 /// How a Card Face comes and goes. The system times a Live Activity's transitions, so only the
-/// direction is the card's to choose, and under Reduce Motion a face only fades.
+/// direction is the card's to choose.
 enum LockScreenCardMotion {
     /// What the numbers and the Coach Note drift by as one takes the other's place.
     static let swapDrift: CGFloat = 4
@@ -61,8 +61,8 @@ struct LockScreenCard: View {
         .frame(height: LockScreenCardMetrics.height(at: typeSize))
     }
 
-    /// A face that chooses the Set Log's values needs the offer's choices. The app sends neither
-    /// without them, and a card that got one anyway shows its rest.
+    /// A choosing face needs the offer's chips. `LiveActivityRestContent.turned(to:)` turns no card
+    /// to one without them, so no `.needsApp` pair arrives.
     @ViewBuilder
     private var face: some View {
         switch (state.face, state.loggablePress) {
@@ -113,7 +113,6 @@ struct LockScreenRestFace: View {
                     Spacer(minLength: 8)
                     numbersOrNote
                 } else {
-                    // With no Cadence the numbers move up under the countdown.
                     numbersOrNote.padding(.top, 16)
                     Spacer(minLength: 0)
                 }
@@ -148,14 +147,12 @@ struct LockScreenRestFace: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Log, which becomes the way back while the Coach Note is open. A Set the card cannot log
-    /// opens the app instead.
     @ViewBuilder
     private var bottomControl: some View {
         let colors = state.liveActivityColors
 
         if openNote != nil {
-            Button(intent: TurnLockScreenCardIntent(to: .rest)) {
+            Button(intent: TurnLockScreenCardIntent(to: .rest, pressing: nil)) {
                 LockScreenRoundControl(symbol: "xmark", glyph: colors.primaryText, fill: colors.track)
             }
             .buttonStyle(.plain)
@@ -178,8 +175,6 @@ struct LockScreenRestFace: View {
         }
     }
 
-    /// The mic, or the Start in its place for a Set that opens on a timed effort, then the note
-    /// button for an Exercise with a Coach Note.
     private var quietControls: some View {
         let colors = state.liveActivityColors
 
@@ -199,7 +194,7 @@ struct LockScreenRestFace: View {
             }
 
             if state.coachNote != nil {
-                Button(intent: TurnLockScreenCardIntent(to: .coachNote)) {
+                Button(intent: TurnLockScreenCardIntent(to: .coachNote, pressing: nil)) {
                     LockScreenQuietGlyph(symbol: "text.bubble", color: colors.secondaryText)
                 }
                 .buttonStyle(.plain)
@@ -228,8 +223,7 @@ private struct LockScreenStatsRow: View {
         HStack(alignment: .bottom, spacing: spacing) {
             ForEach(stats, id: \.self) { stat in
                 VStack(alignment: .leading, spacing: 0) {
-                    // A value with no unit keeps the unit's line, so the row's values share a baseline.
-                    Text(stat.label.isEmpty ? " " : stat.label)
+                    Text(stat.label)
                         .liveActivityFont(.caption)
                         .textCase(.uppercase)
                         .foregroundStyle(colors.secondaryText)
@@ -247,7 +241,7 @@ private struct LockScreenStatsRow: View {
     }
 }
 
-/// The card's one filled control, in the bottom corner.
+/// The card's one filled control.
 private struct LockScreenRoundControl: View {
     let symbol: String
     let glyph: Color

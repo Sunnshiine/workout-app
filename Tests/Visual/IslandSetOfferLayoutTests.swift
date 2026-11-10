@@ -217,6 +217,7 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             restStartDate: restEnd.addingTimeInterval(-120),
             restEndDate: restEnd,
             dictation: nil,
+            readbackStaysOffTheCard: nil,
             loggablePress: press,
             cardFace: face,
             cardStats: [],
