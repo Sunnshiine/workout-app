@@ -318,3 +318,30 @@ final class LockScreenPress {
         return card
     }
 }
+
+extension LockScreenPress.NotLogged {
+    /// Why, as a client with no Live Activity reports it and the Live Activity reads it back.
+    var caption: String {
+        switch self {
+        case .unreadable: "Couldn’t read that tap. Open to log"
+        case .noCurrentSession: "No Current Session"
+        case .sessionChanged: "The Session changed. Open to log"
+        case .setSettled(let setLog, let set):
+            "Set \(set.setOrdinal) of \(set.setsTotal) " + (setLog.map { "holds \($0)" } ?? "was skipped")
+        case .cardMovedOn: "The card moved to another Set"
+        case .cardChanged: "The weight changed. Open to log"
+        case .writeFailed: "Couldn’t save. Open to log"
+        case .tooSoonAfterReps: "Too soon after the Reps. Tap the RPE again"
+        case .micBusy(.headless): "The mic is listening. Say the Set"
+        case .micBusy(.card): "The app’s mic is listening. Open to log"
+        }
+    }
+
+    /// A settled Set may not be the one the card has moved on to, so its readback names it. It leads
+    /// with what the Set holds: two chips pressed at once log the first, and the second press must
+    /// not read as losing the Set.
+    var readback: LiveActivityDictationContent.Readback {
+        if case .setSettled(let setLog, let set) = self { return .settled(setLog: setLog, set) }
+        return .notLogged(caption)
+    }
+}
