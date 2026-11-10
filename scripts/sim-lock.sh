@@ -105,6 +105,39 @@ end_lease() {
   lease_pid=
 }
 
+# A verify run spans many calls, so its lease is detached, with a TTL of WORKOUT_LEASE_MINUTES that each
+# call renews once half of it has passed. Sets sim to the lease's UDID, or to $1's, which must be the
+# caller's own lease. With take, a caller holding no lease gets one; without, it is refused.
+hold_lease() {
+  local named=$1 take=${2:-} held id ttl left grant
+  held=$(own_lease "$named") || exit 2
+  if [ -n "$held" ]; then
+    read -r sim id ttl left <<< "$held"
+    [ $((left * 2000)) -ge "$ttl" ] || simlock lease renew "$id" >/dev/null 7>&- 8>&- 9>&- \
+      || { echo "could not renew Simlock lease $id on $sim; lease again" >&6; exit 75; }
+    return 0
+  fi
+  [ -n "$take" ] || { echo "you hold no Simlock lease; verify.sh launch <fixture> takes one" >&6; exit 2; }
+  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock for $WORKOUT_LEASE_MINUTES min, renewed by each verify call" >&6
+  lease_dir=$(mktemp -d "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
+  simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --timeout "${WORKOUT_ADMIT_WAIT}s" \
+    --detach --ttl "${WORKOUT_LEASE_MINUTES}m" >"$lease_dir/grant" 2>"$lease_dir/err" 7>&- 8>&- 9>&- \
+    || simlock_refusal $? "$(tail -n 1 "$lease_dir/err")"
+  grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
+    "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
+  read -r sim id <<< "$grant"
+  forget_runs "$sim"
+  echo "simulator $sim (Simlock lease $id); verify.sh release gives it back" >&6
+}
+
+release_lease() {
+  local held id
+  held=$(own_lease "$1") || exit 2
+  [ -n "$held" ] || { echo "you hold no Simlock lease"; return 0; }
+  read -r _ id _ <<< "$held"
+  simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $1"
+}
+
 # The simulator a run drives: the named one, which must be the caller's own lease, else a lease of its own.
 claim_sim() {
   local named=$1 who=$2 build=${3:-0} dir
