@@ -23,8 +23,8 @@ simlock whoami                                     # once: Simlock knows who you
 Every simulator comes from Simlock (the `simlock` skill), one lease per agent. `build`, `install`,
 or `launch` leases an iPhone 17 Pro on iOS 27.0 when you hold none, and prints its UDID and lease.
 Every later call finds that lease, and every call but `diff`, `sheet`, and `crop` renews it, so you
-never pass the simulator. Any other command
-exits 2 without a lease, naming `verify.sh launch`. `verify.sh release` stops the app and gives the
+never pass the simulator. Without a lease, `stop` and `release` have nothing to do and exit 0,
+and any other command exits 2, naming `verify.sh launch`. `verify.sh release` stops the app and gives the
 simulator back. Otherwise Simlock reclaims it `WORKOUT_LEASE_MINUTES` (60) after the last call.
 `SIM=<udid>` names only the simulator of a lease you hold, and any other UDID exits 2. To run tests
 on it, pass the same UDID: `scripts/test-sim.sh --sim <udid> unit`. Without `--sim`, `test-sim.sh`

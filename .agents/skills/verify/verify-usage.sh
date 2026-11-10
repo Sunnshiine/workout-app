@@ -71,17 +71,19 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               NAME.end.txt shows what it did
   stop                        terminate the app this run launched; the simulator and its lease stay,
                               and it says when the run has shots that are not on a sheet yet. A run
-                              launched with Live Activities on is uninstalled, which ends them
+                              launched with Live Activities on is uninstalled, which ends them;
+                              exit 0 when you hold no lease, since nothing runs
   release                     stop, then give your simulator's Simlock lease back; exit 0 when you
                               hold none
   axe ARG...                  raw axe call with --udid filled in; after a keyboard verb, the same
                               keyboard preference reset as type
 Simulator: the one your Simlock lease holds (simlock whoami names you). build, install and launch
              lease an iPhone 17 Pro on iOS 27.0 when you hold none, waiting up to WORKOUT_ADMIT_WAIT;
-             install and launch boot it. Every other command that touches a simulator exits 2
-             without a lease. Each of them renews it once half its WORKOUT_LEASE_MINUTES TTL has
-             passed; release, or the TTL running out, gives it back. You hold one lease, so pass
-             its UDID to scripts/test-sim.sh --sim. Exit 78: simlock is not on PATH.
+             install and launch boot it. Without a lease, stop and release have nothing to do and
+             exit 0, and every other command that touches a simulator exits 2. Each command that
+             touches it renews the lease once half its WORKOUT_LEASE_MINUTES TTL has passed;
+             release, or the TTL running out, gives it back. You hold one lease, so pass its UDID
+             to scripts/test-sim.sh --sim. Exit 78: simlock is not on PATH.
 Environment: SIM (names your lease's simulator; any other UDID exits 2),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it.
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is

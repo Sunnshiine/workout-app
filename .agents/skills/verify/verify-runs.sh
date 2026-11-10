@@ -2,7 +2,7 @@
 # Sourced by verify.sh.
 
 # The simulator is your Simlock lease's, and SIM may name only that one. build, install and launch lease one
-# when you hold none; every other command refuses.
+# when you hold none; stop and release exit 0 before this, and every other command refuses.
 resolve_sim() {
   local take=
   [ -n "$sim" ] && return 0
