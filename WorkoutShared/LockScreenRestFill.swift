@@ -42,7 +42,7 @@ extension WorkoutActivityAttributes.ContentState {
 }
 
 /// The lighter green the card's background fills with.
-enum LockScreenFill: Hashable {
+enum LockScreenFill: Equatable {
     /// Drains from the right as the rest runs out.
     case draining(over: ClosedRange<Date>)
     /// Stays whole: the Set is logged and no rest follows it.
