@@ -125,8 +125,9 @@ check "the refusal says to set the leased UDID as the session default" 'err_has 
 check "the refusal names the shell path" 'err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
 lease_line=$(grep -F 'simlock lease --platform' "$tmp/err" | sed 's/^ *//')
 check "the printed lease command parses as shell" 'bash -n -c "$lease_line"'
+grant='{"device": {"driverDeviceId": "U"}, "lease": {"id": "L"}}'
 check "the printed lease command reads the UDID and the lease id from a grant" \
-    '[ "$(echo "{\"device\": {\"driverDeviceId\": \"U\"}, \"lease\": {\"id\": \"L\"}}" | bash -c "${lease_line#*| }")" = "U L" ]'
+    '[ "$(printf "%s\n" "$grant" | bash -c "${lease_line#*| }")" = "U L" ]'
 
 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
 check "a caller holding a lease is pointed at its own simulator" \
