@@ -67,8 +67,8 @@ of the bundle, add a membership exception in the project, as each `Info.plist` h
 ## Commands
 
 ```bash
-swift test                                        # unit + component; no Secrets.xcconfig needed
-swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a second
+scripts/build-slot.sh swift test                  # unit + component; no Secrets.xcconfig needed
+scripts/build-slot.sh swift test --filter ActiveSetFocusManagerTests  # one file's tests, about a second
 scripts/lint.sh [file.swift ...]                  # what CI runs, the line below included (the whole-tree run needs `gh auth login`); or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
@@ -88,18 +88,21 @@ scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every comm
 uv run python3 <script.py>                          # with Pillow and numpy from pyproject.toml; in Claude Code a bare python3 is already this .venv
 ```
 
+Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-slot.sh <command>`.
+A hook refuses the raw form, and XcodeBuildMCP's build and simulator tools are denied.
+
 The headless CLI drives the real stores against a local workbook and prints JSON, in milliseconds,
 with no simulator and no Google credentials:
 
 ```bash
-swift build --product workout && export PATH="$PWD/.build/debug:$PATH"
+scripts/build-slot.sh swift build --product workout && export PATH="$PWD/.build/debug:$PATH"
 export WORKOUT_HOME=$(mktemp -d) && workout init --scenario fresh-block
 workout log w1d1.e0.s0 185x5@8 && workout flush && workout sheet --cell K15   # "185x5@8" landed
 ```
 
 ## Verification
 
-Run `scripts/lint.sh` and `swift test` before finishing. On every PR, CI runs those, the CRAP
+Run `scripts/lint.sh` and `scripts/build-slot.sh swift test` before finishing. On every PR, CI runs those, the CRAP
 gate, a flake guard that repeats the tests the PR changed under load, the simulator-hosted unit
 and component suite, the visual gate, and swift-format on the Swift files the PR changes. A PR
 titled `fix(`, `fix:`, or `fix!:` also gets the advisory `mutants` job, which comments the mutants

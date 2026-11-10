@@ -9,8 +9,8 @@ coding agent can inspect and change application state on the desktop in millisec
 ## Build
 
 ```console
-$ swift build --product workout        # .build/debug/workout
-$ swift test                           # includes the binary test in Tests/Component/WorkoutCLIBinaryTests.swift
+$ scripts/build-slot.sh swift build --product workout   # .build/debug/workout
+$ scripts/build-slot.sh swift test                      # includes the binary test in Tests/Component/WorkoutCLIBinaryTests.swift
 ```
 
 ## Home
