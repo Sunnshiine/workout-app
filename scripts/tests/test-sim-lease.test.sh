@@ -10,7 +10,9 @@ expect() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"; printf '    got:\n%s
 passing="✔ Test run with 1 test in 1 suite passed after 1.000 seconds.
 ** TEST EXECUTE SUCCEEDED **"
 printf '%s\n' "$passing" >"$root/xcodebuild.log"
-export STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home
+export STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home TMPDIR=$root/tmp
+mkdir -p "$TMPDIR"
+leftovers() { find "$TMPDIR" -maxdepth 1 -name 'workout-lease.*' | wc -l | tr -d ' '; }
 test_sim() {
     rm -f "$root/seen" "$root/release" "$root/load-read"
     STUB_RC=${rc:-0} PATH="${path:-$root/bin:$PATH}" "$repo/scripts/test-sim.sh" --no-build "$@" unit >"$root/out" 2>"$root/err"
@@ -33,6 +35,7 @@ expect "with no --sim it leases a simulator from Simlock, runs on it, and releas
     "$? $(destination) | $(sed 's/lse_[0-9]*/lse_N/' "$root/err") | $(released) | $(held)" \
     "0 platform=iOS Simulator,id=$spare_sim | leasing an iPhone 17 Pro simulator on iOS 27.0 from Simlock
 simulator $spare_sim (Simlock lease lse_N) | release lse_N: stopped by SIGTERM | "
+expect "and leaves no scratch dir behind" "$(leftovers)" "0"
 
 printf '%s\n' "✘ Test run with 1 test in 1 suite failed after 1.000 seconds with 1 issue." "** TEST EXECUTE FAILED **" >"$root/xcodebuild.log"
 rc=65 test_sim
@@ -75,9 +78,12 @@ test_sim --sim "$spare_sim"
 expect "--sim when you hold no lease exits 2" "$? $(cat "$root/err")" \
     "2 $spare_sim is not the simulator of a Simlock lease you hold (yours: none); lease one first, see .agents/skills/simlock/SKILL.md"
 
+# The SIGKILLed run above had no chance to clean up.
+rm -rf "$TMPDIR"/workout-lease.*
 FAKE_SIMLOCK_REFUSE=10 test_sim
 expect "Simlock's queue timing out exits 75" "$? $(tail -1 "$root/err")" \
     "75 Simlock had no free iPhone 17 Pro simulator within WORKOUT_ADMIT_WAIT (540 s); the host is full, so retry later"
+expect "a refused lease leaves no scratch dir behind either" "$(leftovers)" "0"
 FAKE_SIMLOCK_DEVICES="$sim $other_sim" WORKOUT_ADMIT_WAIT=0 test_sim
 expect "with WORKOUT_ADMIT_WAIT=0 and no free simulator it does not queue, and exits 75" "$? $(tail -1 "$root/err") | $(tail -1 "$FAKE_SIMLOCK_STATE/log")" \
     "75 Simlock had no free iPhone 17 Pro simulator within WORKOUT_ADMIT_WAIT (0 s); the host is full, so retry later | refused runner (11): no free device"
