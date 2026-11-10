@@ -21,6 +21,7 @@ class VerifyShot(unittest.TestCase):
         axe.chmod(0o755)
         self.verify = skill / "verify.sh"
         self.sim = "SHOT-TEST-%d" % os.getpid()
+        self.path = leased_path(self.root / "bin", self.sim)
         self.evidence = self.root / "evidence" / "issue-674"
         self.home, self.stage = self.root / "home.png", self.root / "stage.png"
         write_png(self.home, 4, 4, (32, 96, 160))
@@ -32,7 +33,7 @@ class VerifyShot(unittest.TestCase):
     def shot(self, name, frame, tree):
         described = self.root / ("%s.describe-ui.json" % name)
         described.write_text(tree)
-        env = dict(os.environ, SIM=self.sim, VERIFY_RUN="issue-674", STUB_FRAME=str(frame), STUB_TREE=str(described),
+        env = dict(os.environ, PATH=self.path, SIM=self.sim, VERIFY_RUN="issue-674", STUB_FRAME=str(frame), STUB_TREE=str(described),
                    VERIFY_EVIDENCE=str(self.evidence.parent))
         done = subprocess.run(
             [str(self.verify), "shot", name], cwd=str(self.root), env=env,
@@ -56,8 +57,8 @@ class VerifyShot(unittest.TestCase):
             "lines are the evidence\n"
             "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot "
             "pipeline is wedged, as the axe button lock in issue 674 left it, and 01-before.png may be frozen too "
-            "(run: xcrun simctl shutdown %s, then SIM=%s VERIFY_RUN=issue-674 %s launch <fixture>, "
-            "and shoot 01-before again)\n" % (self.sim, self.sim, self.verify)
+            "(run: simlock simctl shutdown %s, then VERIFY_RUN=issue-674 %s launch <fixture>, "
+            "and shoot 01-before again)\n" % (self.sim, self.verify)
         ))
         self.assertEqual(sorted(p.name for p in self.evidence.iterdir() if not p.name.startswith(".")),
                          ["01-before.png", "01-before.tree.txt"], "the frozen frame is not filed as evidence")

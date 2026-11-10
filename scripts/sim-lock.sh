@@ -26,7 +26,7 @@ need_simlock() {
 }
 
 # Prints "UDID LEASE-ID TTL-MS SECONDS-LEFT" for the lease the caller's Simlock identity holds, or
-# nothing. With a UDID, fails unless that lease is on that device.
+# nothing. With a UDID, exits 2 unless that lease is on that device; 78 without simlock, 70 when it fails.
 own_lease() {
   local who status
   need_simlock
@@ -45,7 +45,8 @@ for udid, lease in mine:
         sys.exit(0)
 if want:
     held = mine[0][0] if mine else "none"
-    sys.exit(f"{want} is not the simulator of a Simlock lease you hold (yours: {held}); lease one first, see .agents/skills/simlock/SKILL.md")'
+    print(f"{want} is not the simulator of a Simlock lease you hold (yours: {held}); lease one first, see .agents/skills/simlock/SKILL.md", file=sys.stderr)
+    sys.exit(2)'
 }
 
 # A device a lease hands over may have served another agent, so its run state is not ours.
@@ -111,7 +112,7 @@ end_lease() {
 # caller's own lease. With take, a caller holding no lease gets one; without, it is refused.
 hold_lease() {
   local named=$1 take=${2:-} held id ttl left grant
-  held=$(own_lease "$named") || exit 2
+  held=$(own_lease "$named") || exit
   if [ -n "$held" ]; then
     read -r sim id ttl left <<< "$held"
     [ $((left * 2000)) -ge "$ttl" ] || simlock lease renew "$id" >/dev/null 7>&- 8>&- 9>&- \
@@ -134,7 +135,7 @@ hold_lease() {
 
 release_lease() {
   local held udid id
-  held=$(own_lease "$1") || exit 2
+  held=$(own_lease "$1") || exit
   [ -n "$held" ] || { echo "you hold no Simlock lease"; return 0; }
   read -r udid id _ <<< "$held"
   simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $udid"
@@ -144,7 +145,7 @@ release_lease() {
 claim_sim() {
   local named=$1 who=$2 build=${3:-0} dir
   if [ -n "$named" ]; then
-    sim=$(own_lease "$named" | awk '{print $1}') || exit 2
+    sim=$(own_lease "$named" | awk '{print $1}') || exit
   else
     lease_sim
   fi

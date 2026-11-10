@@ -8,6 +8,7 @@ that drives one convenient entry point is incomplete when the feature file lists
 ## Driving conventions
 
 - A recipe runs top to bottom from the fixture its preconditions name. Any later bullet that launches means `verify.sh stop` first, then `verify.sh launch <fixture>`, with the same `VERIFY_RUN`. That covers another fixture, the same fixture with different flags, and a plain relaunch, because `launch` refuses while any pid it started is alive.
+- `$SIM` in a raw `xcrun simctl` line is the UDID of your Simlock lease, which `launch` prints (`launched <fixture> as pid N on <udid>`). Set it from that line. The verify.sh commands find the lease without it.
 - The trimmed tree cannot prove absence, because a scrolled-out element is missing from it too. Prove an element is gone with `verify.sh find <id>` exiting 1, and a label with `verify.sh tree --all | grep` printing nothing.
 - Treat every identifier and label as literal, including the `×` and `·` characters.
 - To find where an identifier is set, run `git grep -n '"<prefix>-' -- App Sources`. The identifiers

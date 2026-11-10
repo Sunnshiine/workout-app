@@ -36,19 +36,11 @@ relaunches_the_run_that_owns_sim() { [ -n "${VERIFY_RUN:-}" ] && [ "$VERIFY_RUN"
 claim_for_install() {
   resolve_sim
   [ -z "$at" ] || at=$(resolve_commit "$at")
-  sim_available "$sim" || exit
   wanted_line="${at:0:8} from the app cache"
   trap report_unchanged EXIT
   target_app
   if [ "$cmd" = launch ] && [ -z "$at" ] && relaunches_the_run_that_owns_sim; then refuse_replacing_cache; fi
   claim_sim "$sim" "verify.sh $cmd"
-  wait_for_boot
-}
-
-wait_for_boot() {
-  # bootstatus exits 0 when a shutdown ends the boot.
-  without_sim_lock xcrun simctl bootstatus "$sim" -b >/dev/null && booted \
-    || { echo "simulator $sim did not boot" >&2; exit 70; }
 }
 
 refuse_replacing_cache() {
@@ -170,6 +162,50 @@ require_own_app() {
   again="SIM=$sim${VERIFY_RUN:+ VERIFY_RUN=$run} $0"
   echo "the last launch of run $run on $sim was refused, so this would drive whatever that refusal left running ($(cat "$state_dir/refused.$run")); stop it, then launch again: $again stop, then $again $relaunch" >&2
   exit 75
+}
+
+stop_app() {
+  local pid alive= uninstall= owner= dir sheet pending
+  if [ -f "$state_dir/pid" ]; then
+    pid=$(cat "$state_dir/pid")
+    # A pid alone can name another process once the app is gone, since pids wrap fast on a build
+    # machine. Terminating by bundle id then exits 3, or ends a copy of the app a UI test owns (#728).
+    if is_fixture_launch "$pid"; then alive=1; fi
+    # A Live Activity belongs to the app, not to its process, so terminating leaves it on the
+    # springboard over every later shot. Uninstalling is the only lever on one from outside the
+    # app, and the next launch reinstalls anyway. A state dir with no args file cannot say which
+    # run this was, and uninstalling is the destructive guess, so it keeps the old behaviour.
+    if launched_with_live_activities "$state_dir"; then uninstall=1; fi
+    [ -f "$state_dir/run" ] && owner=$(cat "$state_dir/run")
+    if [ -n "$alive$uninstall" ] && [ -n "$owner" ] && [ -n "${VERIFY_RUN:-}" ] && [ "$owner" != "$VERIFY_RUN" ]; then
+      echo "the app on $sim belongs to run $owner, not to $VERIFY_RUN; to stop it anyway, run: VERIFY_RUN=$owner $0 $cmd" >&2
+      exit 75
+    fi
+    [ -z "$uninstall" ] || require_sim_free "$sim"
+    if [ -n "$alive" ]; then
+      xcrun simctl terminate "$sim" "$bundle"
+      echo "terminated pid $pid"
+    fi
+    if [ -n "$uninstall" ]; then
+      if xcrun simctl uninstall "$sim" "$bundle"; then
+        echo "uninstalled the app, ending any Live Activity this run started"
+      else
+        echo "could not uninstall on $sim, so a Live Activity this run started may still be on it; end it with: xcrun simctl uninstall $sim $bundle" >&2
+      fi
+    fi
+    rm -f "$state_dir/pid" "$state_dir/args"
+  else
+    echo "nothing launched by this tool on $sim"
+  fi
+  dir=$(recorded_run_dir 2>/dev/null) || return 0
+  sheet=$dir/_sheet.png
+  # bash 3.2, the stock macOS shell, compares [ -nt ] in whole seconds. find -newer compares nanoseconds.
+  if [ -f "$sheet" ]; then
+    pending=$(find "$dir" -maxdepth 1 -name '*.tree.txt' -newer "$sheet" | wc -l | tr -d ' ')
+  else
+    pending=$(shot_names "$dir" | wc -l | tr -d ' ')
+  fi
+  [ "$pending" -eq 0 ] || echo "shots in $(basename "$dir") not on a contact sheet yet: $pending; run: $0 sheet, then Read every image it prints"
 }
 
 keyboard_minimized() {

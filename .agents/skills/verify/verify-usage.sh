@@ -4,8 +4,8 @@
 usage() {
   cat >&2 <<'EOF'
 Usage: .agents/skills/verify/verify.sh <command> [args]
-  build                       build this worktree's app for SIM and stamp it with its commit (rerun after
-                              any source change)
+  build                       build this worktree's app for your simulator and stamp it with its commit
+                              (rerun after any source change)
   install [COMMIT]            install this worktree's build, or COMMIT's build from the app cache every
                               worktree of this repo shares (built once, on first use); prints the app now
                               installed, and the one it replaced
@@ -69,18 +69,26 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               after COMMAND began is INVALID, but any change counts, the rest pill's
                               countdown included, so VALID does not say COMMAND did anything;
                               NAME.end.txt shows what it did
-  stop                        terminate the app this run launched; the simulator stays up, and it
-                              says when the run has shots that are not on a sheet yet. A run
+  stop                        terminate the app this run launched; the simulator and its lease stay,
+                              and it says when the run has shots that are not on a sheet yet. A run
                               launched with Live Activities on is uninstalled, which ends them
+  release                     stop, then give your simulator's Simlock lease back; exit 0 when you
+                              hold none
   axe ARG...                  raw axe call with --udid filled in; after a keyboard verb, the same
                               keyboard preference reset as type
-Environment: SIM (the UDID of your own simulator, required by every command that touches one; launch
-                  boots it and waits for the boot to finish),
+Simulator: the one your Simlock lease holds (simlock whoami names you). build, install and launch
+             lease an iPhone 17 Pro on iOS 27.0 when you hold none, waiting up to WORKOUT_ADMIT_WAIT;
+             install and launch boot it. Every other command that touches a simulator exits 2
+             without a lease. Each of them renews it once half its WORKOUT_LEASE_MINUTES TTL has
+             passed; release, or the TTL running out, gives it back. You hold one lease, so pass
+             its UDID to scripts/test-sim.sh --sim. Exit 78: simlock is not on PATH.
+Environment: SIM (names your lease's simulator; any other UDID exits 2),
              VERIFY_RUN (names the run; give it to launch and every later command remembers it.
                   tap, hold, type, swipe, shot, burst and axe refuse while another run's app is
-                  alive on SIM, and after this run's launch was refused until one succeeds. Unset,
-                  the run is the one the last launch on SIM started, and unless that run was named
-                  a refused launch with VERIFY_RUN unset counts as a refused launch of it. After
+                  alive on the simulator, and after this run's launch was refused until one
+                  succeeds. Unset, the run is the one the last launch on the simulator started, and
+                  unless that run was named a refused launch with VERIFY_RUN unset counts as a
+                  refused launch of it. After
                   another launch reclaims your run, a command without it drives that run's app:
                   name your run on every command),
              VERIFY_EVIDENCE (the parent of the run directories; default
@@ -88,26 +96,22 @@ Environment: SIM (the UDID of your own simulator, required by every command that
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay),
              VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing),
-             WORKOUT_LEASE_MINUTES (60; a run's lease on its app. Every command but build, install,
-                  diff, sheet and crop renews it, one with no VERIFY_RUN only before it runs out.
-                  Once it has, the next launch, install or scripts/test-sim.sh run on SIM reclaims
-                  the simulator and stops the app, and every later command for that run but build,
-                  install, diff, sheet and crop exits 75 naming who took it, until it launches again),
-             WORKOUT_MEM_FLOOR (25), WORKOUT_SIM_CAP (10), WORKOUT_BUILD_SLOTS (2) and
-             WORKOUT_ADMIT_WAIT (540): launch and install wait while free memory
-                  (kern.memorystatus_level, percent) is under the floor, and before a boot while
-                  WORKOUT_SIM_CAP others are booted; build, and a build into the app cache, wait for
-                  the floor, for free disk of WORKOUT_DISK_FLOOR (5120 MB), and for one of the
-                  host's build slots. A floor of 0 turns it off.
-                  At the cap, a boot first shuts down one idle workout-lane-* simulator, as
-                  scripts/test-sim.sh --help says, unused for WORKOUT_IDLE_MINUTES (2). Under
-                  the cap, a boot shuts down one lane unused for WORKOUT_SLEEP_MINUTES (30).
-                  A wait says why once a minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds,
-                  restarted each time a build slot changes hands.
+             WORKOUT_LEASE_MINUTES (60; the Simlock lease's TTL, and a run's lease on its app. Every
+                  command but build, install, diff, sheet and crop renews the run's, one with no
+                  VERIFY_RUN only before it runs out. Once it has, the next launch, install or
+                  scripts/test-sim.sh run on the simulator reclaims it and stops the app, and
+                  every later command for that run but build, install, diff, sheet and crop exits
+                  75 naming who took it, until it launches again),
+             WORKOUT_MEM_FLOOR (25), WORKOUT_BUILD_SLOTS (2) and WORKOUT_ADMIT_WAIT (540):
+                  launch and install wait while free memory (kern.memorystatus_level, percent) is
+                  under the floor; build, and a build into the app cache, wait for the floor, for
+                  free disk of WORKOUT_DISK_FLOOR (5120 MB), and for one of the host's build slots.
+                  A floor of 0 turns it off. A wait says why once a minute, and exits 75 after
+                  WORKOUT_ADMIT_WAIT seconds, restarted each time a build slot changes hands.
              WORKOUT_LOAD_LIMIT (50): record waits while the 1-minute load is over it, and a take
                   whose load ends over it is INVALID, since a loaded host films a move as a cut.
-Exit 75: another run holds SIM or owns its app, this run was reclaimed or its last launch was
-         refused, or a wait for the host ran out.
+Exit 75: another run holds the simulator or owns its app, this run was reclaimed or its last launch
+         was refused, Simlock had no simulator free, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the
           app each launch ran.
 EOF
