@@ -34,6 +34,23 @@ import Testing
             #expect(state(restStart: nil, restEnd: nil, press: .settled).lockScreenFill == .whole)
         }
 
+        /// The fill flashes when its identity changes, so a redraw of the same rest, which reaches the
+        /// widget encoded as every update does, must keep it, and only a new rest or a settled Set
+        /// may change it.
+        @Test func onlyALogGivesTheFillANewIdentity() throws {
+            let rest = state(restStart: Self.restStart, restEnd: Self.restEnd)
+            let redrawn = try JSONDecoder().decode(
+                WorkoutActivityAttributes.ContentState.self,
+                from: JSONEncoder().encode(rest)
+            )
+            let nextRest = state(restStart: Self.restEnd, restEnd: Self.restEnd.addingTimeInterval(120))
+            let settled = state(restStart: nil, restEnd: nil, press: .settled)
+
+            #expect(redrawn.lockScreenFill?.identity == rest.lockScreenFill?.identity)
+            #expect(nextRest.lockScreenFill?.identity != rest.lockScreenFill?.identity)
+            #expect(settled.lockScreenFill?.identity != rest.lockScreenFill?.identity)
+        }
+
         @Test func aCardWithNoRestAndASetToLogDrawsNoFill() {
             #expect(state(restStart: nil, restEnd: nil).lockScreenFill == nil)
         }

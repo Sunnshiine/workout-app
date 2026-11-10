@@ -46,6 +46,11 @@ enum LockScreenCardMotion {
     /// 0.42 s that §7 gives what the athlete sees every Set.
     static let flashFade = Animation.easeOut(duration: 0.3).delay(0.12)
 
+    /// A stat's value rolling to the next Set's, each a beat after the one before it.
+    static func roll(at index: Int) -> Animation {
+        turn.delay(Double(index) * 0.05)
+    }
+
     static func drifting(by drift: CGFloat, reduceMotion: Bool) -> AnyTransition {
         reduceMotion ? .opacity : .offset(y: drift).combined(with: .opacity)
     }
@@ -82,29 +87,42 @@ struct LockScreenCard: View {
 }
 
 /// The Card Face the card is on. A choosing face needs the offer's chips.
-/// `LiveActivityRestContent.turned(to:)` turns no card to one without them, so no pair without
-/// them arrives.
+///
+/// The rest face stays drawn, hidden, under a choosing face, so a log changes its numbers in place
+/// and they roll to the next Set's.
 struct LockScreenCardFaceView: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let arriving = LockScreenCardMotion.arriving(state.turn, reduceMotion: reduceMotion)
+        let choosing = choices
 
         ZStack {
-            switch (state.face, state.loggablePress) {
-            case (.reps, .ready(let offer)):
-                LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
-                    .transition(arriving)
-            case (.rpe(let reps), .ready(let offer)):
-                LockScreenChoicesFace(state: state, offer: offer, chosenReps: reps)
-                    .transition(arriving)
-            case (.rest, _), (.coachNote, _), (.reps, .needsApp), (.rpe, .needsApp), (.reps, .settled), (.rpe, .settled):
-                LockScreenRestFace(state: state)
-                    .transition(arriving)
+            LockScreenRestFace(state: state, isShown: choosing == nil)
+                .opacity(choosing == nil ? 1 : 0)
+                .offset(y: choosing == nil || reduceMotion ? 0 : hiddenRestFaceOffset)
+                .accessibilityHidden(choosing != nil)
+
+            if let choosing {
+                LockScreenChoicesFace(state: state, offer: choosing.offer, chosenReps: choosing.reps)
+                    .transition(LockScreenCardMotion.arriving(state.turn, reduceMotion: reduceMotion))
             }
         }
         .animation(LockScreenCardMotion.turn, value: state.face)
+    }
+
+    private var choices: (offer: LoggablePress.Offer, reps: Int?)? {
+        switch (state.face, state.loggablePress) {
+        case (.reps, .ready(let offer)): (offer, nil)
+        case (.rpe(let reps), .ready(let offer)): (offer, reps)
+        default: nil
+        }
+    }
+
+    /// Where the hidden rest face waits, so it arrives the way the card turns: from above as the
+    /// Reps go back to it, from below as the RPE logs the Set.
+    private var hiddenRestFaceOffset: CGFloat {
+        state.face == .reps ? -LockScreenCardMotion.turnDrift : LockScreenCardMotion.turnDrift
     }
 }
 
@@ -112,6 +130,8 @@ struct LockScreenCardFaceView: View {
 /// The Coach Note opens where the numbers were, and nothing above them moves.
 struct LockScreenRestFace: View {
     let state: WorkoutActivityAttributes.ContentState
+    /// False under a choosing face, where the rest face draws no control to press.
+    let isShown: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var openNote: String? {
@@ -158,11 +178,15 @@ struct LockScreenRestFace: View {
                 }
             }
 
-            bottomControl
+            if isShown {
+                bottomControl
+            } else {
+                Color.clear.frame(width: LockScreenCardMetrics.logSize)
+            }
         }
         .frame(maxHeight: .infinity)
         .overlay(alignment: .topTrailing) {
-            if openNote == nil, !isSettled {
+            if openNote == nil, !isSettled, isShown {
                 quietControls
                     .transition(.opacity)
             }
@@ -180,7 +204,7 @@ struct LockScreenRestFace: View {
                     .truncationMode(.tail)
                     .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.swapDrift, reduceMotion: reduceMotion))
             } else {
-                LockScreenStatsRow(stats: state.stats, colors: state.liveActivityColors)
+                LockScreenStatsRow(stats: state.stats, colors: state.liveActivityColors, reduceMotion: reduceMotion)
                     .transition(LockScreenCardMotion.drifting(by: -LockScreenCardMotion.swapDrift, reduceMotion: reduceMotion))
             }
         }
@@ -252,6 +276,7 @@ struct LockScreenRestFace: View {
 private struct LockScreenStatsRow: View {
     let stats: [LockScreenCardStat]
     let colors: LiveActivityColors
+    let reduceMotion: Bool
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -263,7 +288,7 @@ private struct LockScreenStatsRow: View {
 
     private func row(values: LiveActivityType, spacing: CGFloat) -> some View {
         HStack(alignment: .bottom, spacing: spacing) {
-            ForEach(stats, id: \.self) { stat in
+            ForEach(Array(stats.enumerated()), id: \.offset) { index, stat in
                 VStack(alignment: .leading, spacing: 0) {
                     Text(stat.label)
                         .liveActivityFont(.caption)
@@ -274,6 +299,8 @@ private struct LockScreenStatsRow: View {
                         .liveActivityFont(values)
                         .foregroundStyle(stat.isMissing ? colors.secondaryText : colors.primaryText)
                         .minimumScaleFactor(0.7)
+                        .contentTransition(reduceMotion ? .opacity : .numericText())
+                        .animation(LockScreenCardMotion.roll(at: index), value: stat.value)
                 }
                 .lineLimit(1)
                 .accessibilityElement(children: .ignore)

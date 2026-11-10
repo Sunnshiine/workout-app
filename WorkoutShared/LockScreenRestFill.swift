@@ -47,6 +47,16 @@ enum LockScreenFill: Hashable {
     case draining(over: ClosedRange<Date>)
     /// Stays whole: the Set is logged and no rest follows it.
     case whole
+
+    /// What the fill's layers are keyed on. A Live Activity keeps a `String` identity from one
+    /// update to the next, but inserts a view keyed on the dates afresh at every update, which
+    /// flashed the fill at every turn of the card.
+    var identity: String {
+        switch self {
+        case .draining(let interval): "\(interval.lowerBound.timeIntervalSinceReferenceDate)"
+        case .whole: "whole"
+        }
+    }
 }
 
 /// The card's green is drawn here as well as in the background tint, because the system draws the
@@ -67,17 +77,17 @@ struct LockScreenCardBackground: View {
                     ZStack {
                         ZStack {
                             layer(leaf.flash, fill)
-                                .id(fill)
-                                .transition(.asymmetric(insertion: reduceMotion ? .identity : .move(edge: .leading), removal: .opacity))
+                                .id(fill.identity)
+                                .transition(.asymmetric(insertion: reduceMotion ? .opacity : .move(edge: .leading), removal: .opacity))
                         }
-                        .animation(LockScreenCardMotion.refill, value: fill)
+                        .animation(LockScreenCardMotion.refill, value: fill.identity)
 
                         ZStack {
                             layer(leaf.fill, fill)
-                                .id(fill)
+                                .id(fill.identity)
                                 .transition(.asymmetric(insertion: .opacity, removal: .identity))
                         }
-                        .animation(LockScreenCardMotion.flashFade, value: fill)
+                        .animation(LockScreenCardMotion.flashFade, value: fill.identity)
                     }
                 }
             }
