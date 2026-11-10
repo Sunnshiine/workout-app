@@ -43,10 +43,15 @@ enum LockScreenCardMotion {
     static let refill = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28)
     /// The flash giving way to the fill. It starts inside the refill's tail and ends inside the
     /// 0.42 s that §7 gives what the athlete sees every Set.
-    static let flashFade = Animation.easeOut(duration: 0.3).delay(0.12)
+    static let flashFade = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28).delay(0.12)
+    /// A choosing face leaving for the rest face. Exits are quieter (DESIGN.md §7), so the chips
+    /// are gone before the numbers roll.
+    static let backToRest = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.1)
 
+    /// Each number starts once the chips have cleared, a beat after the one before it, and the
+    /// last ends inside the 0.42 s.
     static func roll(at index: Int) -> Animation {
-        turn.delay(Double(index) * 0.05)
+        turn.delay(0.08 + Double(index) * 0.05)
     }
 
     static func drifting(by drift: CGFloat, reduceMotion: Bool) -> AnyTransition {
@@ -106,7 +111,7 @@ struct LockScreenCardFaceView: View {
                     .transition(LockScreenCardMotion.arriving(state.turn, reduceMotion: reduceMotion))
             }
         }
-        .animation(LockScreenCardMotion.turn, value: state.face)
+        .animation(choosing == nil ? LockScreenCardMotion.backToRest : LockScreenCardMotion.turn, value: state.face)
     }
 
     private var choices: (offer: LoggablePress.Offer, reps: Int?)? {
