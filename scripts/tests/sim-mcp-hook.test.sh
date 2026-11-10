@@ -124,24 +124,30 @@ gate() { run "$pre_hook" PreToolUse "$@"; }
 recorded() { run "$post_hook" PostToolUse "$@"; }
 err_has() { grep -qF -- "$1" "$tmp/err"; }
 
-echo "a simulator the caller's lease holds runs; any other is refused with the fix"
-for tool in "${LEASED[@]}"; do
-    gate "$tool" "{\"simulatorId\": \"$MINE\"}"
-    check "$tool on the caller's leased simulator runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
-done
-gate build_run_sim "{\"simulatorId\": \"$(tr '[:upper:]' '[:lower:]' <<<"$MINE")\"}"
-check "a lowercase UDID of the caller's lease runs" '[ $status = 0 ]'
-gate build_run_sim "{\"simulatorId\": \"$ANON\"}"
-check "a lease whose requester is no <agent>:<id> runs" '[ $status = 0 ]'
-gate build_run_sim "{\"simulatorId\": \"$CODEX\"}"
+# Sets the session record to UDID $1 for session ${2-me}, as the PostToolUse half does after session_set_defaults.
+recorded_as() { recorded session_set_defaults "{\"simulatorId\": \"$1\"}" "${2-me}"; }
+
+echo "session_set_defaults takes only a UDID this session's lease holds"
+setting() { gate session_set_defaults "{\"simulatorId\": \"$1\"}" "${2-me}"; }
+setting "$MINE"
+check "the caller's leased simulator becomes the default" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+setting "$(tr '[:upper:]' '[:lower:]' <<<"$MINE")"
+check "a lowercase UDID of the caller's lease does too" '[ $status = 0 ]'
+setting "$ANON"
+check "a lease whose requester is no <agent>:<id> does too" '[ $status = 0 ]'
+setting "$CODEX"
 check "another agent's lease under another agent's name is refused, naming it" \
     '[ $status = 2 ] && err_has "$CODEX is leased by codex:019a-other-agent, another agent"'
-
-gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}" nobody
-check "an unleased simulator is refused" '[ $status = 2 ]'
+setting "$OTHER"
+check "another Claude session's leased simulator is refused, naming its holder" \
+    '[ $status = 2 ] && err_has "$OTHER is leased by claude-code:someone-else, another agent"'
+setting "$EXPIRED"
+check "a lease past its deadline is refused" '[ $status = 2 ] && err_has "no live Simlock lease holds $EXPIRED"'
+setting "$FREE_UDID" nobody
+check "an unleased simulator is refused" '[ $status = 2 ] && err_has "Refused: session_set_defaults sets as the default only a simulator your Simlock lease holds"'
 check "the refusal names the UDID" 'err_has "no live Simlock lease holds $FREE_UDID"'
 check "the refusal names the lease command" "err_has \"simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m\""
-check "the refusal says to set the leased UDID as the session default" 'err_has "2. Call session_set_defaults {simulatorId: \"<UDID>\"} alone, then build_run_sim again."'
+check "the refusal names the call that works" 'err_has "2. Call session_set_defaults {simulatorId: \"<UDID>\"} alone."'
 check "the refusal names the shell path" 'err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
 check "the refusal prefers touch and says tap can miss" 'err_has "prefer touch with down and up; tap can miss" && ! err_has "reaches no control"'
 check "the refusal never says to pass simulatorId to a tool, which takes none here" '! grep -qiE "pass simulatorId|as simulatorId|simulatorId to" "$tmp/err"'
@@ -150,17 +156,35 @@ check "the printed lease command parses as shell" 'bash -n -c "$lease_line"'
 grant='{"device": {"driverDeviceId": "U"}, "lease": {"id": "L"}}'
 check "the printed lease command reads the UDID and the lease id from a grant" \
     '[ "$(printf "%s\n" "$grant" | bash -c "${lease_line#*| }")" = "U L" ]'
-
-gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+setting "$FREE_UDID"
 check "a caller holding a lease is pointed at its own simulator" \
-    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE" && err_has "simulatorId: \"$MINE\"" && ! err_has "1. Lease one"'
-gate build_run_sim "{\"simulatorId\": \"$OTHER\"}"
-check "another agent's leased simulator is refused, naming its holder" \
+    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE. Call session_set_defaults {simulatorId: \"$MINE\"} alone." && ! err_has "1. Lease one"'
+gate session_set_defaults '{"scheme": "WorkoutTracker"}'
+check "session_set_defaults without a simulator runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+
+echo "the leased tools take no simulator here: they run on the session default, which the record names"
+for tool in "${LEASED[@]}"; do
+    recorded_as "$MINE"
+    gate "$tool" '{}'
+    check "$tool on the caller's recorded leased simulator runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+    for key in simulatorId simulatorName; do
+        gate "$tool" "{\"$key\": \"$MINE\"}"
+        check "$tool with $key is refused, naming session_set_defaults" \
+            '[ $status = 2 ] && err_has "$tool takes no $key on this server" && err_has "Call session_set_defaults {simulatorId: <your leased UDID>} alone"'
+    done
+done
+recorded_as "$FREE_UDID"
+gate build_run_sim "{\"simulatorId\": \"$MINE\"}"
+check "a default on an unleased simulator is not cleared by naming the caller's lease in the call" '[ $status = 2 ]'
+recorded_as "$FREE_UDID" nobody
+gate build_run_sim '{}' nobody
+check "a build on a recorded unleased simulator is refused with the lease command" \
+    '[ $status = 2 ] && err_has "no live Simlock lease holds" && err_has "2. Call session_set_defaults {simulatorId: \"<UDID>\"} alone, then build_run_sim again."'
+recorded_as "$OTHER"
+gate build_run_sim '{}'
+check "a build on another agent's recorded simulator is refused, naming its holder" \
     '[ $status = 2 ] && err_has "$OTHER is leased by claude-code:someone-else, another agent"'
-gate build_run_sim "{\"simulatorId\": \"$EXPIRED\"}"
-check "a lease past its deadline is refused" '[ $status = 2 ]'
-gate build_run_sim '{"simulatorName": "iPhone 17 Pro"}'
-check "a simulator named by model is refused" '[ $status = 2 ] && err_has "this session has none: set it with session_set_defaults {simulatorId}"'
+recorded session_clear_defaults '{}'
 
 echo "a call without simulatorId uses the UDID the session gave session_set_defaults"
 gate build_run_sim '{}'
@@ -217,10 +241,13 @@ check "MCP builds keep DerivedData in the worktree, git-ignored, off the interna
 
 echo "every allowed build is logged; nothing else is"
 : >"$log"
-gate build_run_sim "{\"simulatorId\": \"$MINE\"}"
-gate test_sim "{\"simulatorId\": \"$MINE\"}"
-gate launch_app_sim "{\"simulatorId\": \"$MINE\"}"
-gate build_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+recorded_as "$MINE"
+gate build_run_sim '{}'
+gate test_sim '{}'
+gate launch_app_sim '{}'
+recorded_as "$FREE_UDID"
+gate build_sim '{}'
+
 check "two allowed builds, two lines" '[ "$(wc -l <"$log" | tr -d " ")" = 2 ]'
 check "a line holds time, session, tool, UDID and lease" \
     'head -1 "$log" | grep -qE "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z	me	build_run_sim	$MINE	lse_mine$"'
@@ -233,19 +260,20 @@ done
 
 echo "when Simlock cannot answer, the call runs with a warning"
 : >"$log"
-PATH_BIN=$tmp/nosimlock gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+recorded_as "$FREE_UDID"
+PATH_BIN=$tmp/nosimlock gate build_run_sim '{}'
 check "simlock missing: allowed" '[ $status = 0 ] && err_has "unchecked, because simlock did not start"'
 check "simlock missing: the warning reaches Claude Code as a systemMessage" \
     'python3 -c "import json, sys; sys.exit(\"unchecked\" not in json.load(open(sys.argv[1]))[\"systemMessage\"])" "$tmp/out"'
 check "simlock missing: the build is logged as unchecked" 'grep -q "build_run_sim	$FREE_UDID	unchecked$" "$log"'
-SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate build_run_sim '{}'
 check "simlock slower than the bound: allowed" '[ $status = 0 ] && err_has "took longer than 0.3 s"'
 rm -f "$tmp"/started--*
-SIMLOCK_MODE=together SIM_HOOK_TIMEOUT=6 gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+SIMLOCK_MODE=together SIM_HOOK_TIMEOUT=6 gate build_run_sim '{}'
 check "the device and lease lookups run at once, so neither waits out the other" '[ $status = 2 ] && ! err_has unchecked'
-SIMLOCK_MODE=garbage gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+SIMLOCK_MODE=garbage gate build_run_sim '{}'
 check "simlock output unreadable: allowed" '[ $status = 0 ] && err_has "cannot read"'
-SIMLOCK_MODE=broken gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}"
+SIMLOCK_MODE=broken gate build_run_sim '{}'
 check "simlock failing: allowed" '[ $status = 0 ] && err_has "exited 70"'
 
 echo "the wrapper never blocks on a broken guard"

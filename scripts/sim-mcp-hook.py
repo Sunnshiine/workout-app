@@ -3,10 +3,12 @@
 A Claude Code hook, for .claude/settings.json, on the XcodeBuildMCP tools that boot, build, test,
 install or launch. Agents need a simulator to see what they build, and every simulator here
 comes from a Simlock lease (ADR-0024), so these tools run only on a simulator the caller's lease
-holds. The target is the call's simulatorId, else the UDID this session last gave
-session_set_defaults, which the PostToolUse half records. A session default that names a simulator
-by name, switches profile or persists would let the server build somewhere other than that record,
-so those calls are refused, naming session_set_defaults {simulatorId} alone. A refusal names the lease command and the
+holds. None of them takes a simulator on this server: each runs on the session default, so a call
+naming simulatorId or simulatorName is refused, and the target is the UDID this session last gave
+session_set_defaults, which the PostToolUse half records. session_set_defaults is lease-checked
+when it sets that UDID, so the default can only become a simulator this session's lease holds. A
+call that names a simulator by name, switches profile or persists would let the server's default
+drift from that record, so it is refused, naming session_set_defaults {simulatorId} alone. A refusal names the lease command and the
 shell path; the settings hook turns exit 3 into Claude Code's blocking exit 2. When Simlock cannot
 answer (missing, slower than SIM_HOOK_TIMEOUT seconds (default 8), unreadable output) the call is allowed with a
 warning. Each allowed build appends a line to $XDG_STATE_HOME/sim-hook/workout-app.log, because an
@@ -133,7 +135,9 @@ def mine(requester, me):
 
 
 def refusal(tool, target, own, me, other):
-    lines = [f"Refused: {tool} runs only on a simulator your Simlock lease holds (ADR-0024),"]
+    setting = tool == "session_set_defaults"
+    then = "" if setting else f", then {tool} again"
+    lines = [f"Refused: {tool} {'sets as the default only' if setting else 'runs only on'} a simulator your Simlock lease holds (ADR-0024),"]
     if target is None:
         lines.append("and this session has none: set it with session_set_defaults {simulatorId}.")
     elif other:
@@ -143,14 +147,13 @@ def refusal(tool, target, own, me, other):
     if own:
         udid, lease = own
         lines += [
-            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone,",
-            f"then {tool} again.",
+            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone{then}.",
         ]
     else:
         lines += [
             "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
             f"   {LEASE}",
-            f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone, then {tool} again.",
+            f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone{then}.",
             "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
         ]
     lines += [
@@ -175,17 +178,26 @@ def gate(tool, tool_input, session):
         return 3, f"Refused: {tool} is off in this repo. {REFUSED[tool]}", None
     if tool == "session_set_defaults":
         named = [k for k in UNTRACKED if k in tool_input]
-        if not named:
+        if named:
+            return 3, (
+                f"Refused: session_set_defaults with {', '.join(named)} is off in this repo. A simulator name or a defaults profile"
+                " can resolve to a simulator no Simlock lease holds (ADR-0024), and persist rewrites the tracked .xcodebuildmcp/config.yaml."
+                " Call session_set_defaults {simulatorId: <your leased UDID>} alone."
+            ), None
+        if not tool_input.get("simulatorId"):
             return 0, "", None
-        return 3, (
-            f"Refused: session_set_defaults with {', '.join(named)} is off in this repo. A simulator name or a defaults profile"
-            " can resolve to a simulator no Simlock lease holds (ADR-0024), and persist rewrites the tracked .xcodebuildmcp/config.yaml."
-            " Call session_set_defaults {simulatorId: <your leased UDID>} alone."
-        ), None
-    if tool not in ON_LEASE:
+        target = str(tool_input["simulatorId"]).upper()
+    elif tool in ON_LEASE:
+        named = [k for k in ("simulatorId", "simulatorName") if k in tool_input]
+        if named:
+            return 3, (
+                f"Refused: {tool} takes no {' or '.join(named)} on this server. It runs on the session default, so the simulator"
+                f" named here is not the one it would use. Call session_set_defaults {{simulatorId: <your leased UDID>}} alone,"
+                f" then {tool} without {' or '.join(named)}."
+            ), None
+        target = recorded_udid(session)
+    else:
         return 0, "", None
-    target = tool_input.get("simulatorId")
-    target = target.upper() if target else None if "simulatorName" in tool_input else recorded_udid(session)
     try:
         held_by = leases(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")))
     except Unchecked as why:
