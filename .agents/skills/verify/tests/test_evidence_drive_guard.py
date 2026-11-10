@@ -144,7 +144,7 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6"), (0, "", ""))
         (Path("/tmp/workout-verify-%s" % self.sim) / "pid").write_text("99999999\n")
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="lane-1"), (0, "", ""))
-        self.assertEqual(self.calls(), ["axe tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim])
+        self.assertEqual(self.calls(), ["axe tap --udid %s --wait-timeout 3 -x 5 -y 6 --tap-style physical" % self.sim])
 
 
 class KeyboardReset(Lane):

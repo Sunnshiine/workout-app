@@ -122,10 +122,11 @@ case $cmd in
     ;;
 
   tap)
-    target=(); timeout=3; rest=()
+    target=(); timeout=3; rest=(); changes=
     while [ $# -gt 0 ]; do
       case $1 in
         --id) [ -n "${2:-}" ] && [ ${#target[@]} -eq 0 ] || usage; target=("$2"); shift 2 ;;
+        --changes) [ -n "${2:-}" ] || usage; changes=$2; shift 2 ;;
         --label) [ -n "${2:-}" ] && [ ${#target[@]} -eq 0 ] || usage; target=(--label "$2"); shift 2 ;;
         --wait-timeout) timeout=${2:-}; [ -n "$timeout" ] || usage; shift 2 ;;
         *) rest+=("$1"); shift ;;
@@ -136,9 +137,13 @@ case $cmd in
         ''|*[!0-9]*) echo "--wait-timeout with --id or --label is whole seconds: $timeout" >&2; exit 2 ;;
       esac
     fi
+    # AXe's default simulator-style tap reports success and reaches no control in the app (PR 1220).
+    [[ " ${rest[*]-} " == *" --tap-style "* ]] || rest+=(--tap-style physical)
     resolve_sim; require_own_app; ensure_axe
+    [ -z "$changes" ] || before=$(reading "$changes")
     if [ ${#target[@]} -eq 0 ]; then
-      "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"}
+      "$axe" tap --udid "$sim" --wait-timeout "$timeout" ${rest[@]+"${rest[@]}"} || exit
+      [ -z "$changes" ] || changed "$changes" "$before"
       exit
     fi
     app_pid=$(cat "$state_dir/pid" 2>/dev/null || true)
@@ -164,7 +169,8 @@ case $cmd in
       sleep 0.2
     done
     [ -z "$unchecked" ] || echo "$unchecked" >&2
-    "$axe" tap --udid "$sim" -x "$x" -y "$y" ${rest[@]+"${rest[@]}"}
+    "$axe" tap --udid "$sim" -x "$x" -y "$y" ${rest[@]+"${rest[@]}"} || exit
+    [ -z "$changes" ] || changed "$changes" "$before"
     ;;
 
   hold)
