@@ -5,7 +5,7 @@ import Testing
 @testable import WorkoutTracker
 
 /// The Lock Screen card in each palette the Live Activity Lab can choose, on a rest long over so the
-/// countdown reads a stable `Ready`. The production activity always takes the dark palette. Each draws
+/// countdown reads a stable `Ready`. The production activity takes the look the app draws in. Each draws
 /// at the width a card lays out at, in the height the system gives it at its type size, so a state
 /// that outgrew the card would show cut off.
 @MainActor

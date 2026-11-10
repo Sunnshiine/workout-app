@@ -14,6 +14,7 @@ During a rest the Lock Screen card is the rest timer for the Set the stage's car
 - `lock-screen-needs-app` draws an arrow that opens the app where Log would be, for a Set whose card holds no weight (a `Drop` load, a Timed Set).
 - `lock-screen-start` draws a timer glyph in the mic's place for an Exercise that opens on a hold. It opens the app, which counts down `Starts in 2`, then `Hold, N seconds left`.
 - `lock-screen-rest-fill` drains a fill across the whole card over the rest, from the right, while the app is not running.
+- `lock-screen-appearance` draws the card Day under Light, Night under Night, and under System in the phone's appearance as the app sent the update. The island stays Night under all three. Under System a change of the phone's appearance reaches the card at its next update. Choosing a look in Settings sends the card again at once.
 - `lock-screen-island` offers the name, weight, target, guidance, and the Reps Chips then the RPE Chips on the expanded Dynamic Island with no Log tap, and gives way as type grows. A target too long for the line shrinks, then cuts off with `…`, so the name, the weight, the mic, the queue, and every chip stay whole.
 
 ## How to get to it (user POV)
@@ -55,20 +56,12 @@ The drive:
 
 ## Gotchas
 
-- In the system's render a `Text(timerInterval:)` with a `minimumScaleFactor` draws at the smallest scale it allows, whatever room it has, and no hosted test shows it (measured 2026-11-10). The countdown takes no scale factor.
-- A transition runs on the animation of the nearest view that stays put around it, so a turn takes the card's 0.24 s, and with no animation there the system's own, about 0.55 s (measured 2026-11-10).
-- A view keyed with `.id` on a value holding dates is inserted afresh at every update, so its transition plays at every turn of the card. Keyed on a `String` it plays only when the key changes. The fill is keyed on its rest's start for this reason: keyed on the dates, it flashed at Log, at each chip, and when the hold ended (measured 2026-11-10, `LockScreenRestFillVisualTests` cannot show it).
-- One update draws the whole logged look. The flash settles inside that update's own animation, so no second update clears it.
-- A dimmed Lock Screen draws the countdown as `1:--`, and after an update it can draw a fixed stale value such as `0:37` until the screen wakes. It reads correctly about seven seconds after a touch, and it matches the stage's `rest-pill`. Trust the pill.
+- How the system draws the card, and what a simulator shot of it can and cannot show, is in [the Lock Screen card's rendering](./lock-screen-rendering.md). Read it before judging motion, the fill, a countdown, or a colour off the simulator.
 - Wait for a touch's intent, not for a delay. `xcrun simctl spawn "$SIM" log stream --style compact --process WorkoutTracker | grep 'perform()'` prints one `Invoking` line for each touch that reached the app. A touch that prints none landed off every button, which opens the app. A Log touch sent before the turn before it drew opened the app once (measured 2026-11-10).
 - The same stream with `--process chronod | grep 'Received payload'` prints each update's size: about 760 bytes for a face, and about 900 while the island reads a Set Log back.
-- Over Notification Center the countdown reads `0:00` until the card's first update, while the fill draws the true time.
-- The system's render cuts a wrapped Text set at an exact line height with no `…`, and no hosted or visual test shows it. One line at an exact line height keeps its `…` (measured 2026-11-10). So read a long Coach Note off the simulator.
-- A dimmed Lock Screen draws no animation, so the recorder holds the card, the readback, and the next Set as cuts. Pull Notification Center over the app to see the crossfade and a ticking countdown.
 - `simctl io` cannot write under `~/Projects`, which fails with `Operation not permitted` for a screenshot and `OSStatus error -12204` for a take. Set `VERIFY_EVIDENCE` to a directory under `/tmp` for the drive, then move what you keep.
 - Until `Allow` is answered the card is taller and `Don't Allow` sits near the chips' row, so a blind touch there refuses Live Activities for that install. Read `Allow` off the tree first. The prompt can arrive a few seconds after the first wake.
 - Answering `Allow` after `simctl terminate` launches the app again in the background, so a take that has to show the card with no app running answers it before the terminate.
-- With the Live Activity Lab's Light card on it, the Lock Screen draws the whole screen at about 0.72 of its value, wallpaper included, and at full value again with the Dark card. Read the Day greens off the Visual Baselines, not a Lock Screen shot.
 - `verify.sh launch` installs the app again, which brings the `Allow` prompt back. To bring a running app forward from the Lock Screen and keep the answer, run `xcrun simctl launch "$SIM" com.sunnypatel.WorkoutTracker`.
 - Over Notification Center the tree also holds a `ListCell @14,0 374x219` that is not the card. Take the cell whose `y` is near the bottom, since the card's own can take seconds to list.
 - The stage learns a weight changed on the app's card only through that card's mic (`mic?.shows` in `ActiveSetCard`), and the Simulator gives the card a mic only under `-UITEST_DICTATION "<transcript>"`. Without it the Lock Screen draws and logs the prefilled weight however the app's card was changed. With it, as on a phone, leaving the app redraws the card, so a change then a lock shows and logs the changed weight: `262.5 lbs` over the prefilled 252.5, then `Logged 262.5×6 @7` on the island (measured 2026-11-08). `LockScreenPress` refuses a press only while the Lock Screen still shows a weight the app's card has since changed.

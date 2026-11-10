@@ -3,7 +3,7 @@ import SwiftUI
 
 struct LiveActivityLabView: View {
     @Environment(\.themePalette) private var palette
-    @State private var controller = LiveActivityController()
+    @State private var controller = LiveActivityController(appearance: nil)
     @State private var variant = LiveActivityLabDefaults.defaultVariant
     @State private var appearance = LiveActivityAppearance.dark
     @State private var setsDone = 3

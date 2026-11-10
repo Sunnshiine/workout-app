@@ -1,0 +1,14 @@
+# How the system draws the Lock Screen card
+
+These traps belong to [Lock Screen logging](./lock-screen-logging.md). The system renders the card, so a hosted or visual test cannot show any of them, and a simulator shot shows them only under the conditions each one names.
+
+- In the system's render a `Text(timerInterval:)` with a `minimumScaleFactor` draws at the smallest scale it allows, whatever room it has, and no hosted test shows it (measured 2026-11-10). The countdown takes no scale factor.
+- A transition runs on the animation of the nearest view that stays put around it, so a turn takes the card's 0.24 s, and with no animation there the system's own, about 0.55 s (measured 2026-11-10).
+- A view keyed with `.id` on a value holding dates is inserted afresh at every update, so its transition plays at every turn of the card. Keyed on a `String` it plays only when the key changes. The fill is keyed on its rest's start for this reason: keyed on the dates, it flashed at Log, at each chip, and when the hold ended (measured 2026-11-10, `LockScreenRestFillVisualTests` cannot show it).
+- One update draws the whole logged look. The flash settles inside that update's own animation, so no second update clears it.
+- A dimmed Lock Screen draws the countdown as `1:--`, and after an update it can draw a fixed stale value such as `0:37` until the screen wakes. It reads correctly about seven seconds after a touch, and it matches the stage's `rest-pill`. Trust the pill. Awake and locked, the first update after a log can also draw the old fill and countdown under the next Set's numbers until the next update, 3.5 s on, though that update carries the restarted rest. A probe printing `restEndDate` showed the new end beside the old `0:38` (measured 2026-11-10).
+- Over Notification Center the countdown reads `0:00` until the card's first update, while the fill draws the true time.
+- The system's render cuts a wrapped Text set at an exact line height with no `…`, and no hosted or visual test shows it. One line at an exact line height keeps its `…` (measured 2026-11-10). So read a long Coach Note off the simulator.
+- A dimmed Lock Screen draws no animation, so the recorder holds the card, the readback, and the next Set as cuts. Pull Notification Center over the app to see the crossfade and a ticking countdown.
+- Choose the look with `-UITEST_APPEARANCE system`, `light`, or `dark`. The fixture refuses `night` and opens onboarding. Set the phone with `xcrun simctl ui "$SIM" appearance light` or `dark`. The widget's `colorScheme` reads `dark` on a light simulator, so the card cannot follow the phone as it draws. It takes the app's look when each update is sent (measured 2026-11-10).
+- With the Live Activity Lab's Light card on it, the Lock Screen draws the whole screen at about 0.72 of its value, wallpaper included, and at full value again with the Dark card. Read the Day greens off the Visual Baselines, not a Lock Screen shot.
