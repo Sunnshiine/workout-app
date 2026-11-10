@@ -131,8 +131,15 @@ gate() { run "$pre_hook" PreToolUse "$@"; }
 recorded() { run "$post_hook" PostToolUse "$@"; }
 err_has() { grep -qF -- "$1" "$tmp/err"; }
 loud() { python3 -c 'import json, sys; sys.exit(sys.argv[2] not in json.loads(sys.argv[1])["systemMessage"])' "$1" "$2" 2>/dev/null; }
-# Exits 0 when no pid listed in file $1 is alive, after a moment for SIGKILL to land.
-none_alive() { sleep 0.2; while read -r pid; do kill -0 "$pid" 2>/dev/null && return 1; done <"$1"; return 0; }
+# Exits 0 once no pid listed in file $1 runs, within 2 s; a zombie awaiting its reaper counts as ended.
+none_alive() {
+    local pid tries=20
+    while read -r pid; do
+        while case $(ps -o stat= -p "$pid" 2>/dev/null | tr -d ' ') in '' | Z*) false ;; esac; do
+            tries=$((tries - 1)); [ "$tries" -gt 0 ] || return 1; sleep 0.1
+        done
+    done <"$1"
+}
 
 # Sets the session record to UDID $1 for session ${2-me}, as the PostToolUse half does after session_set_defaults.
 recorded_as() { recorded session_set_defaults "{\"simulatorId\": \"$1\"}" "${2-me}"; }

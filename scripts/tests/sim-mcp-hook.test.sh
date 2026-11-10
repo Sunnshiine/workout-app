@@ -151,6 +151,10 @@ for call in '{}' '{"all": true}'; do
 done
 recorded session_clear_defaults '{"keys": ["scheme", "simulatorId"]}'
 check "a clear of some config keys restores only those" 'restores "{\"scheme\": \"WorkoutTracker\"}"'
+recorded session_clear_defaults '{}'
+suggested=$(python3 -c 'import json, sys; t = json.load(open(sys.argv[1]))["hookSpecificOutput"]["additionalContext"]; print(t[t.index("session_set_defaults {") + 21:])' "$tmp/out")
+gate session_set_defaults "$suggested"
+check "the restore call it names passes the gate" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 recorded session_clear_defaults '{"keys": ["simulatorId"]}'
 check "a clear of no config key says nothing" '[ $status = 0 ] && [ ! -s "$tmp/out" ]'
 
