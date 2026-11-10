@@ -1,8 +1,9 @@
 {
   "mcpServers": {
     "XcodeBuildMCP": {
-      "command": "npx",
-      "args": ["-y", "xcodebuildmcp@2.7.0", "mcp"]
+      "command": "sh",
+      "args": ["-c", "mkdir -p \"$TMPDIR\" && exec npx -y xcodebuildmcp@2.7.0 mcp"],
+      "env": { "TMPDIR": "${HOME}/Library/Caches/workout-app-xcodebuildmcp" }
     },
     "context7": {
       "type": "http",
