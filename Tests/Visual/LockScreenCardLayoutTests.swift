@@ -25,6 +25,22 @@ struct LockScreenCardLayoutTests {
         }
     }
 
+    /// The system's render of a Live Activity cuts a wrapped Text set at an exact line height with
+    /// no "…", which no render in this process shows. The Coach Note is the card's one wrapped text.
+    @Test func theCoachNoteTakesItsLeadingBetweenItsLines() {
+        #expect(LiveActivityType.coachNote.leading == .wrapped(1.5))
+    }
+
+    @Test func aRoleSetInALineBoxStaysOnOneLine() {
+        let cadence = Text(String(repeating: "2-3:1:0 ", count: 20))
+            .liveActivityFont(.caption)
+            .environment(\.dynamicTypeSize, .large)
+
+        let height = UIHostingController(rootView: cadence).sizeThatFits(in: CGSize(width: 120, height: 400)).height
+
+        #expect(abs(height - 1.3 * 12) < 0.5)
+    }
+
     struct Drawing {
         var width: CGFloat
         /// Every element's label, in the order VoiceOver reads them.

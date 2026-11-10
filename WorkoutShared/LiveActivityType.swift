@@ -42,14 +42,25 @@ enum LiveActivityType {
         }
     }
 
-    /// The line's height as a multiple of the type size. Nil keeps the face's own.
-    fileprivate var leading: CGFloat? {
+    /// How a role sets its lines, in multiples of the type size.
+    enum Leading: Equatable {
+        /// The face's own line height.
+        case face
+        /// One line, in a box this high.
+        case line(CGFloat)
+        /// Lines that wrap, this far apart. The system's render of a Live Activity cuts a wrapped
+        /// Text set at an exact line height with no "…", and one line of it keeps its "…" (measured
+        /// 2026-11-10), so this leading goes between the lines.
+        case wrapped(CGFloat)
+    }
+
+    var leading: Leading {
         switch self {
-        case .countdown: 1
-        case .statValue: 1.15
-        case .caption: 1.3
-        case .coachNote: 1.5
-        case .exerciseName, .largeFigure, .figure, .control, .reference, .guidance, .label, .pill: nil
+        case .countdown: .line(1)
+        case .statValue: .line(1.15)
+        case .caption: .line(1.3)
+        case .coachNote: .wrapped(1.5)
+        case .exerciseName, .largeFigure, .figure, .control, .reference, .guidance, .label, .pill: .face
         }
     }
 
@@ -127,10 +138,13 @@ private struct LiveActivityTypeModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         let size = role.size * pointSize(at: dynamicTypeSize) / pointSize(at: .large)
-        content
-            .font(Font(role.font(size: size)))
-            .tracking(role.tracking(at: size))
-            .lineHeight(role.leading.map { .exact(points: $0 * size) })
+        let font = role.font(size: size)
+        let set = content.font(Font(font)).tracking(role.tracking(at: size))
+        switch role.leading {
+        case .face: set
+        case .line(let height): set.lineHeight(.exact(points: height * size)).lineLimit(1)
+        case .wrapped(let height): set.lineSpacing(height * size - font.lineHeight)
+        }
     }
 
     private func pointSize(at size: DynamicTypeSize) -> CGFloat {
