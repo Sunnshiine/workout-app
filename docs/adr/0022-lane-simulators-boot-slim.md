@@ -92,3 +92,6 @@ Shutdown. The next `create` writes it again.
   lane stock as above.
 
 <!-- doc-symbols: not-in-tree disabled.plist -->
+
+**Superseded for lanes (2026-11-10).** ADR-0024 moves local simulators to Simlock, which leases full
+boots, and removes `scripts/sim-pool.sh`. CI keeps its slim boot through `scripts/ci/sim-slim.sh`.
