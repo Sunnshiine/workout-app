@@ -81,6 +81,8 @@ struct IslandSetOffer: View {
                         .background(colors.track, in: .rect(cornerRadius: LockScreenCardMetrics.controlCornerRadius))
                         .contentShape(.rect)
                 }
+            case .settled:
+                EmptyView()
             }
         }
     }

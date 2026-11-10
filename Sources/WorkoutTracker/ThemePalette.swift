@@ -200,6 +200,11 @@ extension Theme {
         }
     }
 
+    /// The scheme the app draws in, which System leaves to the phone's.
+    static func colorScheme(for preference: AppearancePreference, system: ColorScheme) -> ColorScheme {
+        colorSchemeOverride(for: preference) ?? system
+    }
+
     static func palette(for appearance: Appearance) -> Palette {
         switch appearance {
         case .day:

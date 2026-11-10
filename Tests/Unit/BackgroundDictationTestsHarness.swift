@@ -170,6 +170,16 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         restContent = card
     }
 
+    /// Each Set the card held once logged with no rest to follow, under the island's readback.
+    private(set) var heldSets: [(readback: LiveActivityDictationContent.Readback, loggedSet: LiveActivityLoggedSetContent)] = []
+
+    func show(_ loggedSet: LiveActivityLoggedSetContent, islandReading readback: LiveActivityDictationContent.Readback) async {
+        heldSets.append((readback, loggedSet))
+        up = (readback, onTheCard: false)
+    }
+
+    var readbackCount: Int { shown.count + islandReadbacks.count + heldSets.count }
+
     private(set) var endedRests = 0
 
     func endRest() async {

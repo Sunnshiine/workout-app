@@ -63,6 +63,8 @@ struct LiveActivityRestContent: Equatable, Sendable {
     /// The Card Face the Lock Screen card shows. Only `turned(to:)` changes it, so a card never
     /// shows a face its Set has not got.
     private(set) var face = LockScreenFace.rest
+    /// Which way the card turned to reach `face`. A rest a log began arrives forward.
+    private(set) var turn = LockScreenTurn.forward
     /// The Exercise's Cadence, as `3:1:1` or `2-3:1:0`. Nil with none.
     let cadence: String?
     /// The Exercise's Coach Note on one line. Nil with none.
@@ -123,6 +125,7 @@ extension LiveActivityRestContent {
     func turned(to face: LockScreenFace) -> LiveActivityRestContent {
         guard has(face) else { return self }
         var card = self
+        card.turn = self.face.turn(to: face) ?? turn
         card.face = face
         return card
     }
@@ -140,7 +143,15 @@ extension LiveActivityRestContent {
     /// face. A card redrawn under the athlete, as a flush that lands does, must not turn it back.
     func keepingTheFace(of running: LiveActivityRestContent) -> LiveActivityRestContent {
         guard target == running.target else { return self }
-        return turned(to: running.face)
+        return turned(to: running.face, from: running)
+    }
+
+    /// This card turned to `face` in place of `running`. The way there is read from the face
+    /// `running` shows, the one the athlete sees leave, since a card drawn afresh is on its rest face.
+    func turned(to face: LockScreenFace, from running: LiveActivityRestContent) -> LiveActivityRestContent {
+        var card = turned(to: face)
+        card.turn = running.face.turn(to: card.face) ?? running.turn
+        return card
     }
 }
 

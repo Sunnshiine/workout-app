@@ -12,7 +12,7 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let setsDone: Int
         let setsTotal: Int
         let variant: DesignVariant
-        let appearance: LiveActivityAppearance
+        var appearance: LiveActivityAppearance
         let restStartDate: Date?
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
@@ -25,6 +25,8 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         /// Nil in content an earlier build wrote, which an activity left running across an update
         /// still holds. Read `face` and `stats`.
         let cardFace: LockScreenCardFace?
+        /// Which way the card turned to reach `cardFace`. Nil reads as forward. Read `turn`.
+        let cardTurn: LockScreenCardTurn?
         let cardStats: [LockScreenCardStat]?
         /// As the Sheet writes it: `3:1:1`, or `2-3:1:0` for a range. Nil with none.
         let cadence: String?
@@ -210,6 +212,10 @@ enum LiveActivityAppearance: String, Codable, Hashable, CaseIterable, Identifiab
     case dark
     case light
 
+    init(_ scheme: ColorScheme) {
+        self = scheme == .light ? .light : .dark
+    }
+
     var id: Self { self }
 
     var title: String {
@@ -309,6 +315,10 @@ extension WorkoutActivityAttributes.ContentState {
         cardFace ?? .rest
     }
 
+    var turn: LockScreenCardTurn {
+        cardTurn ?? .forward
+    }
+
     /// The rest face's weight, Reps and RPE. Empty with no rest, or from an earlier build.
     var stats: [LockScreenCardStat] {
         cardStats ?? []
@@ -321,6 +331,13 @@ extension WorkoutActivityAttributes.ContentState {
 
     var liveActivityColors: LiveActivityColors {
         LiveActivityPalette.colors(for: appearance)
+    }
+
+    /// The island is always black, so it always draws Night.
+    var onTheIsland: Self {
+        var island = self
+        island.appearance = .dark
+        return island
     }
 
     var normalizedProgress: Double {

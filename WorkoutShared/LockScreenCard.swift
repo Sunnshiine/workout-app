@@ -29,16 +29,42 @@ enum LockScreenCardMetrics {
     }
 }
 
-/// How a Card Face comes and goes. The system times a Live Activity's transitions, so only the
-/// direction is the card's to choose.
+/// How the card moves. A Live Activity runs a transition on the animation of the nearest view
+/// that stays put around it, so each of these sits on a container, never on the view that comes or
+/// goes.
 enum LockScreenCardMotion {
     /// What the numbers and the Coach Note drift by as one takes the other's place.
     static let swapDrift: CGFloat = 4
-    /// What a face travels: up to go forward, down to come back.
+    /// What a face travels as it arrives: up to go forward, down to come back.
     static let turnDrift: CGFloat = 10
+
+    /// The ink ease (DESIGN.md §7), for a turn and for the Coach Note.
+    static let turn = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.24)
+    static let refill = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28)
+    /// The flash giving way to the fill. It starts inside the refill's tail and ends inside the
+    /// 0.42 s that §7 gives what the athlete sees every Set.
+    static let flashFade = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28).delay(0.12)
+    /// A choosing face leaving for the rest face. Exits are quieter (DESIGN.md §7), so the chips
+    /// are gone before the numbers roll.
+    static let backToRest = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.1)
+
+    /// Each number starts once the chips have cleared, a beat after the one before it, and the
+    /// last ends inside the 0.42 s.
+    static func roll(at index: Int) -> Animation {
+        turn.delay(0.08 + Double(index) * 0.05)
+    }
 
     static func drifting(by drift: CGFloat, reduceMotion: Bool) -> AnyTransition {
         reduceMotion ? .opacity : .offset(y: drift).combined(with: .opacity)
+    }
+
+    /// Only the face that arrives moves. The one that leaves fades, since which way the card
+    /// turns next is not known when it is drawn.
+    static func arriving(_ turn: LockScreenCardTurn, reduceMotion: Bool) -> AnyTransition {
+        .asymmetric(
+            insertion: drifting(by: turn == .forward ? turnDrift : -turnDrift, reduceMotion: reduceMotion),
+            removal: .opacity
+        )
     }
 }
 
@@ -64,24 +90,42 @@ struct LockScreenCard: View {
 }
 
 /// The Card Face the card is on. A choosing face needs the offer's chips.
-/// `LiveActivityRestContent.turned(to:)` turns no card to one without them, so no `.needsApp` pair
-/// arrives.
+///
+/// The rest face stays drawn, hidden, under a choosing face, so a log changes its numbers in place
+/// and they roll to the next Set's.
 struct LockScreenCardFaceView: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        switch (state.face, state.loggablePress) {
-        case (.reps, .ready(let offer)):
-            LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
-                .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
-        case (.rpe(let reps), .ready(let offer)):
-            LockScreenChoicesFace(state: state, offer: offer, chosenReps: reps)
-                .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
-        case (.rest, _), (.coachNote, _), (.reps, .needsApp), (.rpe, .needsApp):
-            LockScreenRestFace(state: state)
-                .transition(LockScreenCardMotion.drifting(by: -LockScreenCardMotion.turnDrift, reduceMotion: reduceMotion))
+        let choosing = choices
+
+        ZStack {
+            LockScreenRestFace(state: state, isShown: choosing == nil)
+                .opacity(choosing == nil ? 1 : 0)
+                .offset(y: choosing == nil || reduceMotion ? 0 : hiddenRestFaceOffset)
+                .accessibilityHidden(choosing != nil)
+
+            if let choosing {
+                LockScreenChoicesFace(state: state, offer: choosing.offer, chosenReps: choosing.reps)
+                    .transition(LockScreenCardMotion.arriving(state.turn, reduceMotion: reduceMotion))
+            }
         }
+        .animation(choosing == nil ? LockScreenCardMotion.backToRest : LockScreenCardMotion.turn, value: state.face)
+    }
+
+    private var choices: (offer: LoggablePress.Offer, reps: Int?)? {
+        switch (state.face, state.loggablePress) {
+        case (.reps, .ready(let offer)): (offer, nil)
+        case (.rpe(let reps), .ready(let offer)): (offer, reps)
+        default: nil
+        }
+    }
+
+    /// Where the hidden rest face waits, so it arrives the way the card turns: from above as the
+    /// Reps go back to it, from below as the RPE logs the Set.
+    private var hiddenRestFaceOffset: CGFloat {
+        state.face == .reps ? -LockScreenCardMotion.turnDrift : LockScreenCardMotion.turnDrift
     }
 }
 
@@ -89,10 +133,16 @@ struct LockScreenCardFaceView: View {
 /// The Coach Note opens where the numbers were, and nothing above them moves.
 struct LockScreenRestFace: View {
     let state: WorkoutActivityAttributes.ContentState
+    /// False under a choosing face, where the rest face draws no control to press.
+    let isShown: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var openNote: String? {
         state.face == .coachNote ? state.coachNote : nil
+    }
+
+    private var isSettled: Bool {
+        state.loggablePress == .settled
     }
 
     var body: some View {
@@ -100,35 +150,44 @@ struct LockScreenRestFace: View {
 
         HStack(alignment: .bottom, spacing: LockScreenCardMetrics.padding) {
             VStack(alignment: .leading, spacing: 0) {
-                // No scale factor: the system draws a timer at the smallest scale it is allowed.
-                RestCountdownText(state: state)
-                    .liveActivityFont(.countdown)
-                    .foregroundStyle(colors.primaryText)
-                    .lineLimit(1)
-                    .contentTransition(.identity)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let cadence = state.cadence {
-                    Text(cadence)
-                        .liveActivityFont(.caption)
-                        .foregroundStyle(colors.secondaryText)
-                        .lineLimit(1)
-                        .padding(.top, LockScreenCardMetrics.underCountdown)
-                        .accessibilityLabel("Cadence \(cadence)")
-
-                    Spacer(minLength: 8)
+                if isSettled {
+                    Spacer(minLength: 0)
                     numbersOrNote
                 } else {
-                    numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
-                    Spacer(minLength: 0)
+                    // No scale factor: the system draws a timer at the smallest scale it is allowed.
+                    RestCountdownText(state: state)
+                        .liveActivityFont(.countdown)
+                        .foregroundStyle(colors.primaryText)
+                        .lineLimit(1)
+                        .contentTransition(.identity)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let cadence = state.cadence {
+                        Text(cadence)
+                            .liveActivityFont(.caption)
+                            .foregroundStyle(colors.secondaryText)
+                            .lineLimit(1)
+                            .padding(.top, LockScreenCardMetrics.underCountdown)
+                            .accessibilityLabel("Cadence \(cadence)")
+
+                        Spacer(minLength: 8)
+                        numbersOrNote
+                    } else {
+                        numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
+                        Spacer(minLength: 0)
+                    }
                 }
             }
 
-            bottomControl
+            if isShown {
+                bottomControl
+            } else {
+                Color.clear.frame(width: LockScreenCardMetrics.logSize)
+            }
         }
         .frame(maxHeight: .infinity)
         .overlay(alignment: .topTrailing) {
-            if openNote == nil {
+            if openNote == nil, !isSettled, isShown {
                 quietControls
                     .transition(.opacity)
             }
@@ -146,7 +205,7 @@ struct LockScreenRestFace: View {
                     .truncationMode(.tail)
                     .transition(LockScreenCardMotion.drifting(by: LockScreenCardMotion.swapDrift, reduceMotion: reduceMotion))
             } else {
-                LockScreenStatsRow(stats: state.stats, colors: state.liveActivityColors)
+                LockScreenStatsRow(stats: state.stats, colors: state.liveActivityColors, reduceMotion: reduceMotion)
                     .transition(LockScreenCardMotion.drifting(by: -LockScreenCardMotion.swapDrift, reduceMotion: reduceMotion))
             }
         }
@@ -177,6 +236,8 @@ struct LockScreenRestFace: View {
                     LockScreenRoundControl(symbol: "arrow.up.forward", glyph: colors.primaryText, fill: colors.track)
                 }
                 .accessibilityLabel("Open WorkoutTracker to log this Set")
+            case .settled:
+                EmptyView()
             }
         }
     }
@@ -216,6 +277,7 @@ struct LockScreenRestFace: View {
 private struct LockScreenStatsRow: View {
     let stats: [LockScreenCardStat]
     let colors: LiveActivityColors
+    let reduceMotion: Bool
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -227,7 +289,7 @@ private struct LockScreenStatsRow: View {
 
     private func row(values: LiveActivityType, spacing: CGFloat) -> some View {
         HStack(alignment: .bottom, spacing: spacing) {
-            ForEach(stats, id: \.self) { stat in
+            ForEach(Array(stats.enumerated()), id: \.offset) { index, stat in
                 VStack(alignment: .leading, spacing: 0) {
                     Text(stat.label)
                         .liveActivityFont(.caption)
@@ -238,6 +300,8 @@ private struct LockScreenStatsRow: View {
                         .liveActivityFont(values)
                         .foregroundStyle(stat.isMissing ? colors.secondaryText : colors.primaryText)
                         .minimumScaleFactor(0.7)
+                        .contentTransition(reduceMotion ? .opacity : .numericText())
+                        .animation(LockScreenCardMotion.roll(at: index), value: stat.value)
                 }
                 .lineLimit(1)
                 .accessibilityElement(children: .ignore)

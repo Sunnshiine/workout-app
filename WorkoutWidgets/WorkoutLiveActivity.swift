@@ -13,16 +13,17 @@ struct WorkoutLiveActivity: Widget {
                 .activityBackgroundTint(context.state.lockScreenLeaf.card)
                 .activitySystemActionForegroundColor(context.state.liveActivityColors.action)
         } dynamicIsland: { context in
-            DynamicIsland {
-                expandedContent(for: context)
+            let state = context.state.onTheIsland
+            return DynamicIsland {
+                expandedContent(for: state)
             } compactLeading: {
-                compactLeading(for: context.state)
+                compactLeading(for: state)
             } compactTrailing: {
-                compactTrailing(for: context.state)
+                compactTrailing(for: state)
             } minimal: {
-                minimalContent(for: context.state)
+                minimalContent(for: state)
             }
-            .keylineTint(context.state.liveActivityColors.action)
+            .keylineTint(state.liveActivityColors.action)
             // At the default margin, about 18pt, the expanded island's rounded corners cut glyphs.
             .contentMargins(.horizontal, 34, for: .expanded)
         }
@@ -30,22 +31,22 @@ struct WorkoutLiveActivity: Widget {
 
     @DynamicIslandExpandedContentBuilder
     private func expandedContent(
-        for context: ActivityViewContext<WorkoutActivityAttributes>
+        for state: WorkoutActivityAttributes.ContentState
     ) -> DynamicIslandExpandedContent<some View> {
         DynamicIslandExpandedRegion(.leading) {
-            expandedLeading(for: context.state)
+            expandedLeading(for: state)
                 .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.trailing) {
-            expandedTrailing(for: context.state)
+            expandedTrailing(for: state)
                 .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.center) {
-            expandedCenter(for: context)
+            expandedCenter(for: state)
                 .dynamicTypeSize(...Self.largestType)
         }
         DynamicIslandExpandedRegion(.bottom) {
-            expandedBottom(for: context)
+            expandedBottom(for: state)
                 .dynamicTypeSize(...Self.largestType)
         }
     }
@@ -114,16 +115,16 @@ struct WorkoutLiveActivity: Widget {
 
     @ViewBuilder
     private func expandedCenter(
-        for context: ActivityViewContext<WorkoutActivityAttributes>
+        for state: WorkoutActivityAttributes.ContentState
     ) -> some View {
-        if let dictation = context.state.dictation {
-            DictationReadback(dictation: dictation, colors: context.state.liveActivityColors, style: .island)
+        if let dictation = state.dictation {
+            DictationReadback(dictation: dictation, colors: state.liveActivityColors, style: .island)
         } else {
-            switch context.state.variant {
+            switch state.variant {
             case .setProgress:
-                ExerciseNameStack(state: context.state)
+                ExerciseNameStack(state: state)
             case .nowLifting:
-                WeightForwardStack(state: context.state)
+                WeightForwardStack(state: state)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
                 EmptyView()
             }
@@ -132,27 +133,27 @@ struct WorkoutLiveActivity: Widget {
 
     @ViewBuilder
     private func expandedBottom(
-        for context: ActivityViewContext<WorkoutActivityAttributes>
+        for state: WorkoutActivityAttributes.ContentState
     ) -> some View {
-        if let dictation = context.state.dictation {
-            if dictation.isAboutASet || context.state.restEndDate != nil {
-                DictationProgress(state: context.state, dictation: dictation, style: .island)
+        if let dictation = state.dictation {
+            if dictation.isAboutASet || state.restEndDate != nil {
+                DictationProgress(state: state, dictation: dictation, style: .island)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         } else {
-            switch context.state.variant {
+            switch state.variant {
             case .setProgress:
                 SegmentedSets(
-                    done: context.state.setsDone,
-                    total: context.state.setsTotal,
-                    colors: context.state.liveActivityColors
+                    done: state.setsDone,
+                    total: state.setsTotal,
+                    colors: state.liveActivityColors
                 )
                 .padding(.top, 2)
             case .nowLifting:
-                ExerciseNameStack(state: context.state)
+                ExerciseNameStack(state: state)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .restTimer, .restTimerSetsLeft, .restTimerSetCount, .restTimerClean:
-                IslandSetOffer(state: context.state)
+                IslandSetOffer(state: state)
             }
         }
     }
@@ -237,7 +238,7 @@ private struct LockScreenWorkoutView: View {
                 progress
             }
         }
-        .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
+        .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, fill: state.lockScreenFill) }
         .animation(.smooth(duration: 0.35), value: state.dictation)
         .dynamicTypeSize(...WorkoutLiveActivity.largestType)
     }

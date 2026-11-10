@@ -13,23 +13,23 @@ struct LockScreenRestFillVisualTests {
     private static let farAhead = Date(timeIntervalSinceReferenceDate: tooLongForTheClockToMoveTheEdge)
 
     @Test func aRestHalfRunFillsTheLeftHalfOfTheCardDay() {
-        assertFillBaseline(.light, restFill: Self.longAgo...Self.farAhead)
+        assertFillBaseline(.light, fill: .draining(over: Self.longAgo...Self.farAhead))
     }
 
     @Test func aRestHalfRunFillsTheLeftHalfOfTheCardNight() {
-        assertFillBaseline(.dark, restFill: Self.longAgo...Self.farAhead)
+        assertFillBaseline(.dark, fill: .draining(over: Self.longAgo...Self.farAhead))
     }
 
     @Test func noRestLeavesTheCardEmptyNight() {
-        assertFillBaseline(.dark, restFill: nil)
+        assertFillBaseline(.dark, fill: nil)
     }
 
     private func assertFillBaseline(
         _ appearance: LiveActivityAppearance,
-        restFill: ClosedRange<Date>?,
+        fill: LockScreenFill?,
         testName: String = #function
     ) {
-        let view = LockScreenCardBackground(leaf: .colors(for: appearance), restFill: restFill)
+        let view = LockScreenCardBackground(leaf: .colors(for: appearance), fill: fill)
             .frame(width: Self.size.width, height: Self.size.height)
 
         assertSnapshot(

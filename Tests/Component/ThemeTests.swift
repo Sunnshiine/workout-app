@@ -80,6 +80,19 @@ import Testing
     #expect(Theme.colorSchemeOverride(for: AppearancePreference.night) == .dark)
 }
 
+/// The Live Activity draws in the scheme the app does, so System takes the phone's.
+@Test(arguments: [
+    (AppearancePreference.system, ColorScheme.light, ColorScheme.light),
+    (.system, .dark, .dark),
+    (.light, .light, .light),
+    (.light, .dark, .light),
+    (.night, .light, .dark),
+    (.night, .dark, .dark)
+])
+func themeColorSchemeTakesThePhonesOnlyForSystem(preference: AppearancePreference, phone: ColorScheme, drawn: ColorScheme) {
+    #expect(Theme.colorScheme(for: preference, system: phone) == drawn)
+}
+
 // MARK: - Semantic roles (token sheet §3)
 
 #if canImport(AppKit)

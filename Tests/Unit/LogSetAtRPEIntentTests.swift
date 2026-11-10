@@ -55,6 +55,7 @@ struct LogSetAtRPEIntentTests {
                 )
             ),
             cardFace: .rpe(reps: 100),
+            cardTurn: nil,
             cardStats: [
                 LockScreenCardStat(label: "lbs", value: "1,237.5", spoken: "1237.5 pounds", isMissing: false),
                 LockScreenCardStat(
@@ -98,6 +99,7 @@ struct LogSetAtRPEIntentTests {
             readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
+            cardTurn: nil,
             cardStats: [],
             cadence: nil,
             coachNote: nil,
@@ -200,6 +202,49 @@ struct LogSetAtRPEIntentTests {
         #expect(withNoReadback == WorkoutActivityAttributes.ContentState(restContent: onReps, dictation: nil))
     }
 
+    /// The widget draws a face arriving from the side the card turned, so the way rides the content.
+    @Test func theActivityCarriesTheWayTheCardTurned() {
+        let onRPE = Self.squatRest.turned(to: .reps).turned(to: .rpe(reps: 6))
+        let backOnReps = onRPE.turned(to: .reps)
+
+        #expect(WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, dictation: nil).turn == .forward)
+        #expect(WorkoutActivityAttributes.ContentState(restContent: onRPE, dictation: nil).turn == .forward)
+        #expect(WorkoutActivityAttributes.ContentState(restContent: backOnReps, dictation: nil).turn == .back)
+        #expect(WorkoutActivityAttributes.ContentState(restContent: backOnReps, islandReading: Self.loggedSquat).turn == .back)
+    }
+
+    @Test func aSetLoggedWithNoRestToFollowHoldsItsNumbersWithNothingToPress() throws {
+        let session = makeSingleSession(exercises: [Exercise(name: "Back Squat", coachNote: "Brace hard")])
+        let exercise = try #require(session.exercises.first)
+        let last = ExerciseSet(index: 0, prescribedReps: "5", prescribedLoad: "RPE7", percentOneRM: nil, state: .logged)
+        exercise.sets = [last]
+        let position = try #require(SessionSetOrder.orderedSets(in: session).last)
+        let loggedSet = LiveActivityLoggedSetContent(
+            LiveActivitySetContent(position),
+            holding: SetLog(weight: .pounds(1002.5), reps: 5, rpe: .seven)
+        )
+
+        let state = WorkoutActivityAttributes.ContentState(loggedSet: loggedSet, islandReading: Self.loggedSquat)
+
+        #expect(state.exerciseName == "Back Squat")
+        #expect(state.loggablePress == .settled)
+        #expect(state.face == .rest)
+        #expect(state.stats.map(\.value) == ["1,002.5", "5", "7"])
+        #expect(state.restStartDate == nil)
+        #expect(state.restEndDate == nil)
+        #expect(state.lockScreenFill == .whole)
+        #expect(state.coachNote == nil)
+        #expect(state.start == nil)
+        #expect(state.dictation == Self.loggedSquat)
+        #expect(state.cardReadback == nil, "nothing on the card reads Logged")
+        #expect(LiveActivityRestContent(leftRunning: state) == nil, "a press that relaunched the app finds no rest to ride")
+    }
+
+    private static let loggedSquat = LiveActivityDictation.logged(
+        "1002.5×5 @7",
+        to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 1, setsTotal: 3)
+    )
+
     /// An activity left running across an update holds content the build before wrote, with no
     /// Card Face and no numbers. Content that fails to decode freezes the card on what it drew.
     @Test func contentTheBuildBeforeWroteDecodesOntoTheRestFace() throws {
@@ -237,6 +282,7 @@ struct LogSetAtRPEIntentTests {
         let state = try JSONDecoder().decode(WorkoutActivityAttributes.ContentState.self, from: Data(earlierBuild.utf8))
 
         #expect(state.face == .rest)
+        #expect(state.turn == .forward)
         #expect(state.stats.isEmpty)
         #expect(state.cardReadback == nil)
         #expect(state.loggablePress == LoggablePress(.ready(Self.squatOffer)))

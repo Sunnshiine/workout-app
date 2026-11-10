@@ -31,6 +31,12 @@ enum LockScreenCardFace: Codable, Hashable, Sendable {
     }
 }
 
+/// Which way the card turned to reach its face, so the face that arrives can move that way.
+enum LockScreenCardTurn: String, Codable, Hashable, Sendable {
+    case forward
+    case back
+}
+
 /// One of the three numbers on the card's rest face, as the app worded it.
 struct LockScreenCardStat: Codable, Hashable, Sendable {
     /// The value's unit, as `lbs`, which the card draws in capitals. Empty over `BW`.

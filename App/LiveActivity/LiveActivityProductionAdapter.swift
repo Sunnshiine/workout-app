@@ -13,7 +13,7 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
     private var readyUpdateTask: Task<Void, Never>?
     private var capEndTask: Task<Void, Never>?
 
-    init(controller: LiveActivityController = LiveActivityController()) {
+    init(controller: LiveActivityController = LiveActivityController(appearance: nil)) {
         self.controller = controller
     }
 
@@ -98,6 +98,12 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         Task { @MainActor [controller] in
             await controller.end()
         }
+    }
+
+    /// Redraws the running card in the look the athlete just chose, after any send in flight.
+    func restyle() async {
+        await startUpdateTask?.value
+        await controller.restyle()
     }
 
     func endIfInvalidated(at liveEdge: LiveEdge) {
@@ -210,6 +216,17 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         let state = WorkoutActivityAttributes.ContentState(restContent: rest, islandReading: LiveActivityDictation(readback))
         startOrUpdate(restContent: rest, showing: state, sessionLabel: sessionLabel)
         await startUpdateTask?.value
+    }
+
+    func show(_ loggedSet: LiveActivityLoggedSetContent, islandReading readback: LiveActivityDictationContent.Readback) async {
+        await startUpdateTask?.value
+        // The rest is used up, and its ready redraw would put the chips back under the readback.
+        clearLifecycleTasks()
+        guard controller.isActive else { return }
+        await controller.update(
+            state: WorkoutActivityAttributes.ContentState(loggedSet: loggedSet, islandReading: LiveActivityDictation(readback)),
+            staleDate: nil
+        )
     }
 
     func endRest() async {

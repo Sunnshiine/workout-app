@@ -7,10 +7,18 @@ import Observation
 final class LiveActivityController {
     @ObservationIgnored
     private var activityID: String?
+    /// The look the app draws in as each content is sent, which the content takes. Nil sends each
+    /// content's own, as the Lab chooses it.
+    @ObservationIgnored
+    private let appearance: (@MainActor () -> LiveActivityAppearance)?
 
     private(set) var isActive = false
     private(set) var areActivitiesEnabled = LiveActivityController.activitiesEnabled
     var lastError: String?
+
+    init(appearance: (@MainActor () -> LiveActivityAppearance)?) {
+        self.appearance = appearance
+    }
 
     func refreshAuthorizationStatus() {
         areActivitiesEnabled = Self.activitiesEnabled
@@ -47,7 +55,7 @@ final class LiveActivityController {
         do {
             let activity = try Activity.request(
                 attributes: WorkoutActivityAttributes(sessionLabel: sessionLabel),
-                content: ActivityContent(state: state, staleDate: staleDate),
+                content: content(state, staleDate: staleDate),
                 pushType: nil
             )
             activityID = activity.id
@@ -69,7 +77,7 @@ final class LiveActivityController {
         }
 
         activityID = activity.id
-        await activity.update(ActivityContent(state: state, staleDate: staleDate))
+        await activity.update(content(state, staleDate: staleDate))
         isActive = true
         lastError = nil
     }
@@ -97,9 +105,26 @@ final class LiveActivityController {
             isActive = false
             return
         }
-        await activity.end(ActivityContent(state: state, staleDate: date), dismissalPolicy: .after(date))
+        await activity.end(content(state, staleDate: date), dismissalPolicy: .after(date))
         activityID = nil
         isActive = false
+    }
+
+    /// Sends the running activity's content again in the look the app now draws in.
+    func restyle() async {
+        guard let activity = currentActivity else { return }
+        await activity.update(content(activity.content.state, staleDate: activity.content.staleDate))
+    }
+
+    private func content(
+        _ state: WorkoutActivityAttributes.ContentState,
+        staleDate: Date?
+    ) -> ActivityContent<WorkoutActivityAttributes.ContentState> {
+        var state = state
+        if let appearance {
+            state.appearance = appearance()
+        }
+        return ActivityContent(state: state, staleDate: staleDate)
     }
 
     /// An activity that has ended but is still on the Lock Screen cannot be updated, so only a

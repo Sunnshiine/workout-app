@@ -17,6 +17,28 @@ enum LockScreenFace: Equatable, Sendable {
         case .rest, .coachNote: false
         }
     }
+
+    /// How far into logging the Set this face is. The Coach Note opens in place on the rest face.
+    fileprivate var step: Int {
+        switch self {
+        case .rest, .coachNote: 0
+        case .reps: 1
+        case .rpe: 2
+        }
+    }
+
+    /// Which way a card on this face turns to reach `face`. Nil when it stays on the same step.
+    func turn(to face: LockScreenFace) -> LockScreenTurn? {
+        guard face.step != step else { return nil }
+        return face.step > step ? .forward : .back
+    }
+}
+
+/// Which way the Lock Screen card last turned: forward toward the Set Log, or back toward the rest.
+/// A face that arrives forward rises into place, and one that arrives back falls into it.
+enum LockScreenTurn: Equatable, Sendable {
+    case forward
+    case back
 }
 
 /// One of the three numbers the card's rest face shows: the weight the Set's card holds, then the
@@ -46,6 +68,11 @@ extension LockScreenStat {
 
     static func row(weight: Weight?, prescription: Prescription, repsCell: String) -> [LockScreenStat] {
         [Self.weight(weight), reps(prescription.reps, cell: repsCell), rpe(prescription.load.rpeTarget)]
+    }
+
+    /// The numbers of a Set Log, where the rest face draws the Set's.
+    static func row(_ setLog: SetLog) -> [LockScreenStat] {
+        [weight(setLog.weight), counted(setLog.reps...setLog.reps), rpe(setLog.rpe)]
     }
 
     private static func weight(_ weight: Weight?) -> LockScreenStat {

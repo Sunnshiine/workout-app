@@ -45,6 +45,7 @@ extension WorkoutActivityAttributes.ContentState {
             readbackStaysOffTheCard: readbackStaysOffTheCard,
             loggablePress: LoggablePress(restContent.press),
             cardFace: LockScreenCardFace(restContent.face),
+            cardTurn: LockScreenCardTurn(restContent.turn),
             cardStats: restContent.stats.map(LockScreenCardStat.init),
             cadence: restContent.cadence,
             coachNote: restContent.coachNote,
@@ -75,11 +76,42 @@ extension WorkoutActivityAttributes.ContentState {
             readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
+            cardTurn: nil,
             cardStats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
             pendingWrites: setContent.pendingWrites
+        )
+    }
+
+    init(
+        loggedSet: LiveActivityLoggedSetContent,
+        islandReading readback: LiveActivityDictation,
+        appearance: LiveActivityAppearance = .dark
+    ) {
+        self.init(
+            exerciseName: loggedSet.set.exerciseName,
+            prescribedReps: loggedSet.set.prescribedReps,
+            prescribedLoad: loggedSet.set.prescribedLoad,
+            weightValue: "",
+            weightUnit: "lbs",
+            setsDone: loggedSet.set.setsDone,
+            setsTotal: loggedSet.set.setsTotal,
+            variant: .restTimerSetsLeft,
+            appearance: appearance,
+            restStartDate: nil,
+            restEndDate: nil,
+            dictation: readback,
+            readbackStaysOffTheCard: true,
+            loggablePress: .settled,
+            cardFace: .rest,
+            cardTurn: nil,
+            cardStats: loggedSet.stats.map(LockScreenCardStat.init),
+            cadence: nil,
+            coachNote: nil,
+            start: nil,
+            pendingWrites: loggedSet.set.pendingWrites
         )
     }
 
@@ -101,6 +133,7 @@ extension WorkoutActivityAttributes.ContentState {
             readbackStaysOffTheCard: nil,
             loggablePress: .needsApp,
             cardFace: .rest,
+            cardTurn: nil,
             cardStats: [],
             cadence: nil,
             coachNote: nil,
@@ -130,7 +163,8 @@ extension LoggablePress {
 }
 
 extension LoggablePressContent {
-    init(_ press: LoggablePress) {
+    /// Nil for a settled Set, whose card runs no rest and offers nothing.
+    init?(_ press: LoggablePress) {
         switch press {
         case .ready(let offer):
             self = .ready(
@@ -144,6 +178,17 @@ extension LoggablePressContent {
             )
         case .needsApp:
             self = .needsApp
+        case .settled:
+            return nil
+        }
+    }
+}
+
+extension LockScreenCardTurn {
+    init(_ turn: LockScreenTurn) {
+        switch turn {
+        case .forward: self = .forward
+        case .back: self = .back
         }
     }
 }
@@ -210,7 +255,9 @@ extension LiveActivityDictation {
 extension LiveActivityRestContent {
     /// The rest a running activity shows, read back off it, leading to no Set this process knows.
     init?(leftRunning state: WorkoutActivityAttributes.ContentState) {
-        guard let restStartDate = state.restStartDate, let restEndDate = state.restEndDate else { return nil }
+        guard let restStartDate = state.restStartDate, let restEndDate = state.restEndDate,
+            let press = LoggablePressContent(state.loggablePress)
+        else { return nil }
         let rest = LiveActivityRestContent(
             exerciseName: state.exerciseName,
             prescribedReps: state.prescribedReps,
@@ -222,7 +269,7 @@ extension LiveActivityRestContent {
             variant: .restTimerSetsLeft,
             restStartDate: restStartDate,
             restEndDate: restEndDate,
-            press: LoggablePressContent(state.loggablePress),
+            press: press,
             stats: state.stats.map(LockScreenStat.init),
             cadence: state.cadence,
             coachNote: state.coachNote,

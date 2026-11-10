@@ -45,7 +45,12 @@ struct WorkoutTrackerApp: App {
         _countdown = State(
             initialValue: EffortCountdown(clock: SystemRestClock(), scheduler: RestExpiryTimerScheduler(), cues: SpokenCountdownCues())
         )
-        let liveActivityAdapter = LiveActivityProductionAdapter()
+        let liveActivityAdapter = LiveActivityProductionAdapter(
+            controller: LiveActivityController(appearance: {
+                let phone = ColorScheme(UITraitCollection.current.userInterfaceStyle) ?? .dark
+                return LiveActivityAppearance(Theme.colorScheme(for: app.settings.appearance, system: phone))
+            })
+        )
         _liveActivityAdapter = State(initialValue: liveActivityAdapter)
         let entry = AppEntryInbox()
         _entry = State(initialValue: entry)
@@ -188,6 +193,9 @@ struct WorkoutTrackerApp: App {
                         transaction.disablesAnimations = true
                     }
                 #endif
+                .task(id: app.settings.appearance) {
+                    await liveActivityAdapter.restyle()
+                }
                 .onOpenURL { url in
                     guard !entry.receive(url) else { return }
                     GIDSignIn.sharedInstance.handle(url)

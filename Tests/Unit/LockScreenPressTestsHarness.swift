@@ -34,6 +34,21 @@ extension BackgroundDictationHarness {
         ).storageValue
     }
 
+    /// What a chip drawn for `position` hands back, in whichever Session holds it.
+    func identity(of position: SessionSetPosition, in session: Session, weight: Weight = .pounds(235)) throws -> String {
+        LoggableSetIdentity(session: try #require(session.placement.coordinate), setID: position.setID, weight: weight).storageValue
+    }
+
+    /// Logs every Set of `session` but the last, which the card then offers.
+    func onItsLastSet(of session: Session) throws -> SessionSetPosition? {
+        let sets = SessionSetOrder.orderedSets(in: session)
+        for position in sets.dropLast() {
+            try app.workout.log(position.set, as: SetLog(weight: .pounds(235), reps: 5, rpe: .seven))
+        }
+        focus.reset(to: session)
+        return sets.last
+    }
+
     /// Presses an RPE Chip after `reps`.
     func press(
         _ identity: String,
@@ -52,7 +67,7 @@ extension BackgroundDictationHarness {
 
     /// Runs a press to its end, letting the hold of a readback over the rest run out.
     private func settled(_ press: @escaping @MainActor () async -> LockScreenPress.Outcome) async -> LockScreenPress.Outcome {
-        let readbacks = liveActivity.shown.count + liveActivity.islandReadbacks.count
+        let readbacks = liveActivity.readbackCount
         var ended = false
         let run = Task {
             let outcome = await press()
@@ -60,7 +75,7 @@ extension BackgroundDictationHarness {
             return outcome
         }
         await waitUntil(
-            { ended || liveActivity.shown.count + liveActivity.islandReadbacks.count > readbacks },
+            { ended || liveActivity.readbackCount > readbacks },
             orRecord: "The press neither ended nor read back"
         )
         if !ended, liveActivity.restContent != nil {

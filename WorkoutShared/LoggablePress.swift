@@ -5,6 +5,8 @@ enum LoggablePress: Codable, Hashable, Sendable {
     case ready(Offer)
     /// Nothing to tap but the mic and the app.
     case needsApp
+    /// The Set holds its Set Log and no rest follows, so the card has nothing to tap.
+    case settled
 
     // Opens the app where it was. No request is attached, so nothing starts listening.
     // swiftlint:disable:next force_unwrapping
