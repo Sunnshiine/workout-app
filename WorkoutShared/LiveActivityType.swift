@@ -46,7 +46,8 @@ enum LiveActivityType {
     enum Leading: Equatable {
         /// The face's own line height.
         case face
-        /// One line, in a box this high.
+        /// One line, centred in a box this high. The system sets an exact line height from the ascent
+        /// down, so the line moves up by half of what the box cut off (measured 2026-11-10).
         case line(CGFloat)
         /// Lines that wrap, this far apart. The system's render of a Live Activity cuts a wrapped
         /// Text set at an exact line height with no "…", and one line of it keeps its "…" (measured
@@ -142,7 +143,8 @@ private struct LiveActivityTypeModifier: ViewModifier {
         let set = content.font(Font(font)).tracking(role.tracking(at: size))
         switch role.leading {
         case .face: set
-        case .line(let height): set.lineHeight(.exact(points: height * size)).lineLimit(1)
+        case .line(let height):
+            set.lineHeight(.exact(points: height * size)).lineLimit(1).offset(y: (height * size - font.lineHeight) / 2)
         case .wrapped(let height): set.lineSpacing(height * size - font.lineHeight)
         }
     }

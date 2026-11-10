@@ -13,6 +13,8 @@ enum LockScreenCardMetrics {
     static let glyphSize: CGFloat = 20
     /// How far a quiet control's tap target reaches into the card's padding, so its glyph sits on the edge.
     static let controlOverhang: CGFloat = 10
+    /// Between the countdown's line and the row under it, the Cadence or the numbers.
+    static let underCountdown: CGFloat = 8
 
     /// The height the system gives a Lock Screen card at the reader's type size. Every state of the
     /// card fills it, because the system can keep a card's last height until the screen wakes, and
@@ -111,13 +113,13 @@ struct LockScreenRestFace: View {
                         .liveActivityFont(.caption)
                         .foregroundStyle(colors.secondaryText)
                         .lineLimit(1)
-                        .padding(.top, 2)
+                        .padding(.top, LockScreenCardMetrics.underCountdown)
                         .accessibilityLabel("Cadence \(cadence)")
 
                     Spacer(minLength: 8)
                     numbersOrNote
                 } else {
-                    numbersOrNote.padding(.top, 16)
+                    numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
                     Spacer(minLength: 0)
                 }
             }
