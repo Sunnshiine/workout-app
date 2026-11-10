@@ -91,6 +91,19 @@ def recorded_udid(session):
         return None
 
 
+def stray_destination(extra_args, udid):
+    """The first -destination in a build's extraArgs that names a simulator other than udid ("" when it has no value)."""
+    args = extra_args if isinstance(extra_args, list) else []
+    for i, arg in enumerate(args):
+        if arg != "-destination":
+            continue
+        spec = str(args[i + 1]) if i + 1 < len(args) else ""
+        fields = dict(f.split("=", 1) for f in spec.split(",") if "=" in f)
+        if not udid or fields.get("id", "").strip().upper() != udid:
+            return spec
+    return None
+
+
 def record(tool, tool_input, session):
     """PostToolUse on the session tools: keep the simulatorId this session set, forget it otherwise."""
     path = record_path(session)
@@ -266,6 +279,13 @@ def gate(tool, tool_input, session):
                 f" then {tool} without {' or '.join(named)}."
             ), None
         target = recorded_udid(session)
+        stray = stray_destination(tool_input.get("extraArgs"), target)
+        if stray is not None:
+            return 3, (
+                f"Refused: {tool} would also run on -destination {stray} from extraArgs, and only the session default"
+                f" ({target or 'none recorded'}) is checked against your Simlock lease (ADR-0024)."
+                f" Drop -destination from extraArgs, then {tool} again. It runs on the session default."
+            ), None
     else:
         return 0, "", None
     held_by, stuck = lookups(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")),

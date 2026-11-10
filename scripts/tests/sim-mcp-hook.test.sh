@@ -82,7 +82,27 @@ recorded_as "$OTHER"
 gate build_run_sim '{}'
 check "a build on another agent's recorded simulator is refused, naming its holder" \
     '[ $status = 2 ] && err_has "$OTHER is leased by claude-code:someone-else, another agent"'
+
+echo "a build's extraArgs name no simulator but the session default"
+recorded_as "$MINE"
+for tool in build_sim build_run_sim test_sim; do
+    gate "$tool" "{\"extraArgs\": [\"-quiet\", \"-destination\", \"platform=iOS Simulator,id=$FREE_UDID\"]}"
+    check "$tool with an extraArgs -destination on another simulator is refused, naming it" \
+        '[ $status = 2 ] && err_has "-destination platform=iOS Simulator,id=$FREE_UDID" && err_has "Drop -destination from extraArgs"'
+done
+for destination in "platform=iOS Simulator,name=iPhone 17 Pro" "generic/platform=iOS Simulator"; do
+    gate build_run_sim "{\"extraArgs\": [\"-destination\", \"$destination\"]}"
+    check "an extraArgs -destination of $destination is refused" '[ $status = 2 ] && err_has "Drop -destination from extraArgs"'
+done
+gate build_run_sim '{"extraArgs": ["-destination"]}'
+check "an extraArgs -destination with no value is refused" '[ $status = 2 ] && err_has "Drop -destination from extraArgs"'
+gate build_run_sim "{\"extraArgs\": [\"-destination\", \"id=$(tr '[:upper:]' '[:lower:]' <<<"$MINE")\"]}"
+check "an extraArgs -destination on the recorded leased UDID runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+gate build_run_sim '{"extraArgs": ["-destination-timeout", "30"]}'
+check "extraArgs without -destination run" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 recorded session_clear_defaults '{}'
+gate build_run_sim "{\"extraArgs\": [\"-destination\", \"id=$MINE\"]}"
+check "with no default recorded, an extraArgs -destination is refused" '[ $status = 2 ] && err_has "Drop -destination from extraArgs"'
 
 echo "a call without simulatorId uses the UDID the session gave session_set_defaults"
 gate build_run_sim '{}'
