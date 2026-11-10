@@ -102,6 +102,8 @@ struct LockScreenChoicesFace: View {
         }
     }
 
+    /// No `invalidatableContent()` on the label: at this size the system's render leaves a spot on
+    /// a decimal point that opens the app in place of running the intent (measured 2026-11-10).
     private func chip<Intent: AppIntent>(_ label: String, ticked: Bool, intent: () -> Intent) -> some View {
         let colors = state.liveActivityColors
 
@@ -111,7 +113,6 @@ struct LockScreenChoicesFace: View {
                 .foregroundStyle(colors.actionText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .invalidatableContent()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(colors.actionFill, in: .rect(cornerRadius: Metrics.chipCornerRadius))
                 .overlay(alignment: .bottom) {
