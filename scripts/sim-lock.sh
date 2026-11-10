@@ -28,16 +28,17 @@ need_simlock() {
 # Prints "UDID LEASE-ID TTL-MS SECONDS-LEFT" for the lease the caller's Simlock identity holds, or
 # nothing. With a UDID, exits 2 unless that lease is on that device; 78 without simlock, 70 when it fails.
 own_lease() {
-  local who status
+  local who leases devices
   need_simlock
-  who=$(simlock whoami 7>&- 8>&- 9>&-) && status=$(simlock status --json 7>&- 8>&- 9>&-) \
-    || { echo "simlock whoami or status failed; run simlock doctor" >&6; exit 70; }
-  printf '%s' "$status" | WHO="$who" UDID=$(printf %s "${1:-}" | tr '[:lower:]' '[:upper:]') python3 -c '
+  # status --json names no device's UDID; list --devices does.
+  who=$(simlock whoami 7>&- 8>&- 9>&-) && leases=$(simlock list --leases 7>&- 8>&- 9>&-) \
+    && devices=$(simlock list --devices 7>&- 8>&- 9>&-) \
+    || { echo "simlock whoami or list failed; run simlock doctor" >&6; exit 70; }
+  printf '%s' "$devices" | WHO="$who" LEASES="$leases" UDID=$(printf %s "${1:-}" | tr '[:lower:]' '[:upper:]') python3 -c '
 import json, os, sys, time
 who = next(line.split(":", 1)[1].strip() for line in os.environ["WHO"].splitlines() if line.startswith("Principal:"))
-status = json.load(sys.stdin)
-udids = {d["id"]: d.get("driverDeviceId", "").upper() for d in status["devices"]}
-mine = [(udids.get(l["deviceId"], "?"), l) for l in status["leases"] if l["requesterId"] == who]
+udids = {d["id"]: d["driverDeviceId"].upper() for d in json.load(sys.stdin) if d.get("driverDeviceId")}
+mine = [(udids.get(l["deviceId"], "?"), l) for l in json.loads(os.environ["LEASES"]) if l["requesterId"] == who]
 want = os.environ["UDID"]
 for udid, lease in mine:
     if not want or udid == want:

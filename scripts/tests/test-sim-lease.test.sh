@@ -23,9 +23,8 @@ start() {
     pid=$!
     for _ in $(seq 100); do [ -e "$root/seen" ] && break; sleep 0.05; done
 }
-held() { simlock status --json | python3 -c 'import json, os, sys
-s = json.load(sys.stdin)
-print(" ".join(l["deviceId"][4:] for l in s["leases"] if l["requesterId"] == os.environ["FAKE_SIMLOCK_WHO"]))'; }
+held() { simlock list --leases | python3 -c 'import json, os, sys
+print(" ".join(l["deviceId"][4:] for l in json.load(sys.stdin) if l["requesterId"] == os.environ["FAKE_SIMLOCK_WHO"]))'; }
 released() { grep '^release' "$FAKE_SIMLOCK_STATE/log" | tail -1 | sed 's/lse_[0-9]*/lse_N/'; }
 destination() { grep -m1 '^platform=' "$STUB_ARGS"; }
 PATH="$root/bin:$PATH"
@@ -72,8 +71,8 @@ expect "SIM naming your own lease does the same" "$? $(held)" "0 $spare_sim"
 test_sim --sim "$other_sim"
 expect "--sim naming another agent's lease exits 2 before xcodebuild" "$? $(cat "$root/err") $([ -e "$root/seen" ] || echo no-xcodebuild)" \
     "2 $other_sim is not the simulator of a Simlock lease you hold (yours: $spare_sim); lease one first, see .agents/skills/simlock/SKILL.md no-xcodebuild"
-simlock release "$(simlock status --json | python3 -c 'import json, sys
-print(next(l["id"] for l in json.load(sys.stdin)["leases"] if l["requesterId"] == "runner"))')" >/dev/null
+simlock release "$(simlock list --leases | python3 -c 'import json, sys
+print(next(l["id"] for l in json.load(sys.stdin) if l["requesterId"] == "runner"))')" >/dev/null
 test_sim --sim "$spare_sim"
 expect "--sim when you hold no lease exits 2" "$? $(cat "$root/err")" \
     "2 $spare_sim is not the simulator of a Simlock lease you hold (yours: none); lease one first, see .agents/skills/simlock/SKILL.md"

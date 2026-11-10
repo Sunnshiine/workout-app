@@ -130,12 +130,15 @@ def hold(lease, bound):
     drop(lease["id"], stop[0])
 
 
-def status():
+# Shaped as simlock 0.6.0 prints them: list --devices carries each UDID, list --leases does not.
+def listing(what):
+    if what == "--devices":
+        print(json.dumps([{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid, "state": "ready"}
+                          for udid in DEVICES]))
+        return
     leases = update(lambda leases, _: list(leases))
-    devices = [{"id": "dev_" + udid, "driverDeviceId": udid, "state": "ready"} for udid in DEVICES]
-    print(json.dumps({"devices": devices, "leases": [
-        {"id": lease["id"], "deviceId": "dev_" + lease["udid"], "requesterId": lease["requesterId"],
-         "ttlMs": lease["ttlMs"], "ttlDeadline": lease["ttlDeadline"]} for lease in leases]}))
+    print(json.dumps([{"id": lease["id"], "deviceId": "dev_" + lease["udid"], "requesterId": lease["requesterId"],
+                       "ttlMs": lease["ttlMs"], "ttlDeadline": lease["ttlDeadline"]} for lease in leases]))
 
 
 def renew(lease_id):
@@ -158,8 +161,8 @@ def main():
     verb, args = (sys.argv[1:2] or [""])[0], sys.argv[2:]
     if verb == "whoami":
         print("Principal: {}\nName:      {}\nRole:      agent\nVia:       socket".format(WHO, WHO))
-    elif verb == "status" and args == ["--json"]:
-        status()
+    elif verb == "list" and args in (["--devices"], ["--leases"]):
+        listing(args[0])
     elif verb == "lease" and args[:1] == ["renew"]:
         renew(args[1])
     elif verb == "lease":

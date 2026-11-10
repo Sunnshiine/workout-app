@@ -141,10 +141,12 @@ with open(STATE, "r+") as file:
     mine = [l for l in state["leases"] if l["requesterId"] == principal]
     if args == ["whoami"]:
         print("Principal: %s\nName:      %s\nRole:      agent\nVia:       socket" % (principal, principal))
-    elif args == ["status", "--json"]:
+    elif args == ["list", "--devices"]:
         udids = state["free"] + [l["udid"] for l in state["leases"]]
-        print(json.dumps({{"devices": [{{"id": "dev_" + u, "driverDeviceId": u, "state": "ready"}} for u in udids],
-                          "leases": [dict(l, deviceId="dev_" + l["udid"]) for l in state["leases"]]}}))
+        print(json.dumps([{{"id": "dev_" + u, "driverDeviceId": u, "address": u, "state": "ready"}} for u in udids]))
+    elif args == ["list", "--leases"]:
+        print(json.dumps([{{k: v for k, v in dict(l, deviceId="dev_" + l["udid"]).items() if k != "udid"}}
+                          for l in state["leases"]]))
     elif args[:2] == ["lease", "renew"]:
         lease = next((l for l in state["leases"] if l["id"] == args[2]), None) or fail(14, "LEASE_NOT_FOUND")
         lease["ttlDeadline"] = now_ms + lease["ttlMs"]

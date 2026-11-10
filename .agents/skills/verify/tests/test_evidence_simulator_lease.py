@@ -86,9 +86,9 @@ class SimulatorLease(unittest.TestCase):
             "leasing an iPhone 17 Pro simulator on iOS 27.0 from Simlock for 60 min, renewed by each verify call\n"
             "simulator %s (Simlock lease lse_%s); verify.sh release gives it back\n") % (self.udid, self.udid)))
         self.assertEqual(self.simlock.calls(), [
-            "simlock whoami", "simlock status --json",
+            "simlock whoami", "simlock list --leases", "simlock list --devices",
             "simlock lease --platform ios --device iPhone 17 Pro --os 27.0 --timeout 540s --detach --ttl 60m",
-            "simlock whoami", "simlock status --json", "simlock simctl bootstatus %s -b" % self.udid,
+            "simlock whoami", "simlock list --leases", "simlock list --devices", "simlock simctl bootstatus %s -b" % self.udid,
         ], "a detached lease with a TTL, checked again by the claim, and booted through Simlock")
         self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)])
         steps = [call.split() for call in calls if call.split()[:3] in [["xcrun", "simctl", step] for step in
@@ -108,14 +108,14 @@ class SimulatorLease(unittest.TestCase):
         self.simlock.hold(self.udid, minutes_left=31)
         code, out, err, calls = self.verify("tree")
         self.assertEqual(code, 0, err)
-        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock status --json"], "found, not renewed")
+        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock list --leases", "simlock list --devices"], "found, not renewed")
         self.assertEqual(calls, ["axe describe-ui --udid %s" % self.udid])
         self.simlock.edit(lambda state: state.update(leases=[]))
         self.simlock.hold(self.udid, minutes_left=29)
         self.assertEqual(self.verify("tree")[0], 0)
-        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock status --json", "simlock lease renew lse_%s" % self.udid])
+        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock list --leases", "simlock list --devices", "simlock lease renew lse_%s" % self.udid])
         self.assertEqual(self.verify("tree")[0], 0)
-        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock status --json"], "the renewal reset its TTL")
+        self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock list --leases", "simlock list --devices"], "the renewal reset its TTL")
 
     def test_a_sim_that_is_not_your_lease_is_refused_and_leases_nothing(self):
         self.simlock.hold(self.other, requester="another-agent")
@@ -131,7 +131,7 @@ class SimulatorLease(unittest.TestCase):
         for argv in DRIVES:
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv, VERIFY_RUN="issue-1"), (2, "", NO_LEASE, []))
-                self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock status --json"], "and leases nothing")
+                self.assertEqual(self.simlock.calls(), ["simlock whoami", "simlock list --leases", "simlock list --devices"], "and leases nothing")
         self.assertFalse(self.evidence.exists(), "nothing was shot")
 
     def test_with_no_lease_diff_sheet_and_crop_read_only_the_run_verify_run_names(self):
