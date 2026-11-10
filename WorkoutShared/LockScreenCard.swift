@@ -40,13 +40,11 @@ enum LockScreenCardMotion {
 
     /// The ink ease (DESIGN.md §7), for a turn and for the Coach Note.
     static let turn = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.24)
-    /// The fill running back to full as a rest begins.
     static let refill = Animation.timingCurve(0.23, 1, 0.32, 1, duration: 0.28)
     /// The flash giving way to the fill. It starts inside the refill's tail and ends inside the
     /// 0.42 s that §7 gives what the athlete sees every Set.
     static let flashFade = Animation.easeOut(duration: 0.3).delay(0.12)
 
-    /// A stat's value rolling to the next Set's, each a beat after the one before it.
     static func roll(at index: Int) -> Animation {
         turn.delay(Double(index) * 0.05)
     }
@@ -138,8 +136,6 @@ struct LockScreenRestFace: View {
         state.face == .coachNote ? state.coachNote : nil
     }
 
-    /// A Set logged with no rest after it: its numbers stand alone, with no rest to count and
-    /// nothing to press.
     private var isSettled: Bool {
         state.loggablePress == .settled
     }

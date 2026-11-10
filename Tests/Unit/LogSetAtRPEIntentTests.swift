@@ -213,8 +213,6 @@ struct LogSetAtRPEIntentTests {
         #expect(WorkoutActivityAttributes.ContentState(restContent: backOnReps, islandReading: Self.loggedSquat).turn == .back)
     }
 
-    /// No rest follows the Set, so the card holds what was logged over a whole fill, with no
-    /// countdown and nothing to press, and the island alone reads it back.
     @Test func aSetLoggedWithNoRestToFollowHoldsItsNumbersWithNothingToPress() throws {
         let session = makeSingleSession(exercises: [Exercise(name: "Back Squat", coachNote: "Brace hard")])
         let exercise = try #require(session.exercises.first)

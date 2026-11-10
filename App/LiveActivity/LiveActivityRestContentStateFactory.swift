@@ -85,8 +85,6 @@ extension WorkoutActivityAttributes.ContentState {
         )
     }
 
-    /// The Set a Lock Screen press logged with no rest to follow: its Set Log's numbers on the
-    /// card with nothing to press, and `readback` on the island alone.
     init(
         loggedSet: LiveActivityLoggedSetContent,
         islandReading readback: LiveActivityDictation,

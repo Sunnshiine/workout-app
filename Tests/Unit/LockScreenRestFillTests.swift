@@ -29,7 +29,6 @@ import Testing
             )
         }
 
-        /// A Set logged with no rest to follow holds a whole fill, which no clock drains.
         @Test func aSettledSetHoldsAWholeFill() {
             #expect(state(restStart: nil, restEnd: nil, press: .settled).lockScreenFill == .whole)
         }

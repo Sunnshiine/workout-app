@@ -51,7 +51,6 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(card.face == .rest)
 }
 
-/// A way back is the only turn that falls. It writes nothing.
 @MainActor
 @Test func aTurnBackSaysSoAndATurnOnSaysForward() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])

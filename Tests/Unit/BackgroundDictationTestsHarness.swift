@@ -178,7 +178,6 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         up = (readback, onTheCard: false)
     }
 
-    /// Every readback shown, wherever it was read.
     var readbackCount: Int { shown.count + islandReadbacks.count + heldSets.count }
 
     private(set) var endedRests = 0

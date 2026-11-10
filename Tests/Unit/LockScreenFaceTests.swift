@@ -156,8 +156,6 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         #expect(cameBack.turned(to: .coachNote).turned(to: .rest).turn == .back)
     }
 
-    /// A card drawn afresh is on its rest face, so the way to a face is read from the card it
-    /// replaces, the one the athlete sees leave.
     @Test func aCardDrawnAfreshTurnsFromTheFaceTheAthleteSeesLeave() throws {
         let fresh = try content(after: exercise("Bench Press"))
         let onRPE = fresh.turned(to: .rpe(reps: 6))

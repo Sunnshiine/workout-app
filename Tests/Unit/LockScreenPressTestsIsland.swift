@@ -34,10 +34,9 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.face == .reps)
 }
 
-/// The next Set is in the next Session, which the card does not lead to, so no rest follows the
-/// Session's last Set and the card has no next Set to draw. It holds the
-/// Set Log's numbers with nothing to press while the island reads it back, and goes once the hold
-/// is over. Nothing reads back on the card.
+/// The next Set is in the next Session, which the card does not lead to, so no rest follows. The
+/// card holds the Set Log's numbers with nothing to press while the island reads it back, and goes
+/// once the hold is over. Nothing reads back on the card.
 @MainActor
 @Test func theSessionsLastSetHoldsItsSetLogUnderTheIslandThenTakesTheCardDown() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
