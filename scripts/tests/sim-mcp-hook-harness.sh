@@ -46,7 +46,7 @@ mkdir -p "$stub" "$tmp/nosimlock" "$tmp/state/sim-hook"
 cat >"$stub/simlock" <<'STUB'
 #!/bin/bash
 case ${SIMLOCK_MODE:-} in
-    slow) sleep 5 & echo $! >>"$SIMLOCK_FIXTURE/children"; wait; exit 0 ;;
+    slow) sleep 30 & echo $! >>"$SIMLOCK_FIXTURE/children"; wait; exit 0 ;;
     rendezvous) meet "${2#--}" ;;
     together)
         touch "$SIMLOCK_FIXTURE/started$2"
