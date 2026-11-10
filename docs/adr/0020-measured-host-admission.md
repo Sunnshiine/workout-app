@@ -138,3 +138,8 @@ What the numbers say:
 - This ADR does not cover telling a CoreSimulator fault from a test failure (#908).
 
 <!-- doc-symbols: not-in-tree scripts/wait-load.sh -->
+
+**Superseded in part (2026-11-10).** ADR-0024 moves simulators to Simlock. `WORKOUT_SIM_CAP`, idle-lane
+reclaim, and `scripts/measure-host.sh` are gone. Build slots and the memory and disk floors stand.
+
+<!-- doc-symbols: not-in-tree sim-pool.sh scripts/measure-host.sh -->

@@ -15,22 +15,18 @@ Prints the test log path before the run starts. The summary at the end holds the
 first three issues each test recorded with the values each one compared, every failing test, the
 open issue whose title names each failing test, and any error or crash that stopped xcodebuild
 before the run finished.
-The simulator is the booted iPhone 17 Pro, else the newest available one, which the script boots.
-With no available iPhone 17 Pro it creates one on iOS 27.0 (scripts/ensure-simulator.sh) and boots that.
-Refuses (exit 75) while another test-sim.sh run holds that simulator, or a verify run whose app
-on it was used in the last WORKOUT_LEASE_MINUTES (60); a verify run idle for longer is reclaimed
-and its app stopped. Refuses (exit 2) a --sim UDID that simctl lists no available simulator for.
-Waits while the host is busy, saying why once a minute: while free memory (kern.memorystatus_level,
-percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), to boot while WORKOUT_SIM_CAP (10) other
-simulators are booted, and to build while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are
-taken or free disk on the checkout's or HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns
-it off). Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540), a budget that restarts each time
-a build slot changes hands. At the cap, a boot first shuts
-down the least recently used booted workout-lane-* simulator that no run holds, that runs no app
-but a verify app past its lease, and whose last claim ended WORKOUT_IDLE_MINUTES (2) or more ago,
-and says so on stderr. Under the cap, a boot shuts down one such lane whose last claim ended
-WORKOUT_SLEEP_MINUTES (30; 0 turns it off) or more ago, since an idle simulator burns more CPU in
-that time than its next boot does.
+The simulator comes from Simlock (.agents/skills/simlock/SKILL.md): an iPhone 17 Pro on iOS 27.0,
+leased for this run alone and released when the script exits, even under SIGKILL. --sim UDID (or
+SIM=UDID) runs on the simulator of a lease you already hold instead, and refuses (exit 2) any other
+UDID. Exits 78 when simlock is not on PATH. Refuses (exit 75) while another test-sim.sh run holds
+the simulator, or a verify run whose app on it was used in the last WORKOUT_LEASE_MINUTES (60), or
+when your Simlock identity already holds a lease and no --sim names it. Waits while the host is busy,
+saying why once a minute: in Simlock's queue for a simulator, while free memory
+(kern.memorystatus_level, percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), and to build
+while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are taken or free disk on the checkout's or
+HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it off). Gives up with exit 75 after
+WORKOUT_ADMIT_WAIT seconds (540) in either wait; the build-slot budget restarts each time a slot
+changes hands.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
@@ -44,8 +40,8 @@ Exits 65 when the build fails, after printing up to 20 of its error lines, then 
 on stderr.
 Exits 69 when xcodebuild failed and its log shows a simulator fault rather than a test result, such as
 a launch that returned no process handle, a CoreSimulator SimError, or a test the simulator's
-shutdown killed with SIGTERM. It shuts the simulator down
-first, so rerunning the same command boots it fresh.
+shutdown killed with SIGTERM, or when Simlock took the lease back mid-run. It shuts the simulator
+down first, so a rerun gets a fresh one.
 When a snapshot does not match its reference, scripts/snapshot-diffs.sh <bundle> lists the
 reference, failure, and difference images.
 The last line, on every exit after this usage text, is
@@ -78,7 +74,7 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
     } 2>/dev/null >>"$logs/$stamp-test.log" || true
   fi
   echo "$result"
-  [ -z "${claimed_sim:-}" ] || end_claim
+  end_lease
   exit "$rc"
 }
 
@@ -116,9 +112,6 @@ while [ $# -gt 0 ]; do
 done
 [ ${#targets[@]} -gt 0 ] || usage
 
-picked=$(pick_sim "$sim" create)
-read -r sim state <<< "$picked"
-[ "$state" != named ] || sim_available "$sim" || exit
 claim_sim "$sim" "test-sim.sh run" "$build"
 [ $ui = 0 ] || "$repo/scripts/sim-keyboard.sh" ensure "$sim"
 destination="platform=iOS Simulator,id=$sim"
@@ -169,10 +162,11 @@ ls -t "$logs" | sed -nE 's/^([0-9]{8}-[0-9]{6}(-[0-9]+)?)(-build\.log|-test\.log
   done
 set -e
 if [ -n "$fault" ]; then
-  xcrun simctl shutdown "$sim" >/dev/null 2>&1 || true
-  echo "simulator fault, not a test result: xcodebuild reported \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first" >&2
+  simlock simctl shutdown "$sim" >/dev/null 2>&1 || true
+  echo "simulator fault, not a test result: xcodebuild reported \"$fault\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, release its Simlock lease and lease another" >&2
   rc=69
 fi
+lease_kept
 if ! "$repo/scripts/test-log-summary.sh" "$log"; then
   [ $rc = 0 ] || { echo "xcodebuild exited $rc before the test run finished; the lines above and the log say why" >&2; exit $rc; }
   echo "no tests ran; check the selection (${targets[*]})" >&2

@@ -38,10 +38,15 @@ case "$1 $4" in
 esac
 STUB
 chmod +x "$root/bin/xcrun"
+cp "$(dirname "${BASH_SOURCE[0]}")/fake-simlock" "$root/bin/simlock"
+export FAKE_SIMLOCK_STATE=$root/simlock
+mkdir -p "$root/ci-bin"
+cp "$root/bin/xcrun" "$root/ci-bin/xcrun"
+path_without_simlock=$(printf %s "$PATH" | tr ':' '\n' | while IFS= read -r dir; do [ -x "$dir/simlock" ] || printf '%s:' "$dir"; done)
 
 keyboard() {
-    rm -f "$root/calls"
-    STUB_DEFAULTS=$root/defaults STUB_CALLS=$root/calls PATH="$root/bin:$PATH" "$script" "$@" >"$root/out" 2>"$root/err"
+    rm -rf "$root/calls" "$FAKE_SIMLOCK_STATE"
+    STUB_DEFAULTS=$root/defaults STUB_CALLS=$root/calls PATH="${path:-$root/bin:$PATH}" "$script" "$@" >"$root/out" 2>"$root/err"
     status=$?
 }
 expect() {
@@ -60,6 +65,14 @@ expect "a simulator that hides the keyboard gets the key written inside it, afte
     "$status $(cat "$root/out") | $(calls) | $(cat "$root/defaults")" \
     "0 keyboard: $sim had AutomaticMinimizationEnabled=1, set it to 0 | bootstatus $sim -b
 spawn $sim defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false | 0"
+expect "the boot goes through simlock simctl" "$(cat "$FAKE_SIMLOCK_STATE/log")" "simctl bootstatus $sim -b"
+
+echo 1 >"$root/defaults"
+path="$root/ci-bin:$path_without_simlock" keyboard ensure "$sim"
+expect "on a host without simlock, as CI's runner is, the boot goes through xcrun simctl" \
+    "$status $(cat "$root/out") | $(calls) | $(cat "$FAKE_SIMLOCK_STATE/log" 2>/dev/null)" \
+    "0 keyboard: $sim had AutomaticMinimizationEnabled=1, set it to 0 | bootstatus $sim -b
+spawn $sim defaults write com.apple.keyboard.preferences AutomaticMinimizationEnabled -bool false | "
 
 keyboard ensure "$sim"
 expect "a second ensure finds it at 0 and writes nothing" "$status $(cat "$root/out") | $(calls)" \

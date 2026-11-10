@@ -8,7 +8,7 @@ Examples:
   scripts/mutate.sh --diff origin/main                 mutants on the lines your branch changed
   scripts/mutate.sh --filter RPETableTests Sources/WorkoutTracker/RPETable.swift '6s/6...10/7...10/'
                                                        one hand-written mutant: a sed command on line 6
-  scripts/mutate.sh --sim "$(scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0)" --diff origin/main App
+  scripts/mutate.sh --sim <UDID of your Simlock lease> --diff origin/main App
                                                        App/ is compiled only by the simulator suite
 
 Each mutant prints a row  OUTCOME  FILE:LINE  OP  CHANGE  FIRST-KILLER:
@@ -58,6 +58,9 @@ primary checkout's .build/scratch/.
                  SEL (default the whole suite). With --sim: unit, visual, ui, or a test-sim.sh
                  TEST-ID; a bare suite name means WorkoutTrackerTests/SUITE (default unit).
   --sim UDID     runs every check through the scratch tree's scripts/test-sim.sh --sim UDID.
+                 UDID must be the simulator of a Simlock lease you hold, as from simlock lease
+                 --detach (.agents/skills/simlock/SKILL.md); any other makes the baseline exit 2.
+                 Release the lease when the run ends.
                  swift test compiles only Sources/, so App/, WorkoutShared/, and WorkoutWidgets/
                  need --sim. Run Sources/ without --sim (seconds) and those with --sim PATH.
   --clean-scratch  removes every scratch tree no run holds, with the DerivedData its --sim builds

@@ -1,47 +1,6 @@
 # shellcheck shell=bash
 exec 6>&2
 
-pick_sim() {
-  local named=$1 mode=${2:-lookup} device='iPhone 17 Pro' visual_baseline_runtime=27.0 simctl_udid picked
-  if [ -n "$named" ]; then
-    simctl_udid=$(printf %s "$named" | tr '[:lower:]' '[:upper:]')
-    echo "$simctl_udid named"
-    return
-  fi
-  picked=$(available_sim "$device") || return
-  if [ -z "$picked" ] && [ "$mode" = create ]; then
-    "$(dirname "${BASH_SOURCE[0]}")/ensure-simulator.sh" "$device" "$visual_baseline_runtime" >/dev/null || return
-    picked=$(available_sim "$device") || return
-  fi
-  if [ -z "$picked" ]; then
-    echo "no available $device simulator; verify.sh launch or scripts/test-sim.sh creates one" >&2
-    return 1
-  fi
-  echo "$picked"
-}
-
-available_sim() {
-  xcrun simctl list devices available -j | NAME="$1" python3 -c '
-import json, os, sys
-def version(runtime): return tuple(int(n) for n in runtime.rsplit("iOS-", 1)[-1].split("-"))
-devices = [(version(runtime), d) for runtime, ds in json.load(sys.stdin)["devices"].items()
-           for d in ds if d["name"] == os.environ["NAME"]]
-booted = [d for d in devices if d[1]["state"] == "Booted"]
-if devices:
-    pick = max(booted or devices, key=lambda pair: pair[0])[1]
-    print(pick["udid"], pick["state"])'
-}
-
-sim_available() {
-  local listing
-  listing=$(xcrun simctl list devices available -j) || return
-  printf %s "$listing" | UDID="$1" python3 -c '
-import json, os, sys
-sys.exit(all(d["udid"] != os.environ["UDID"] for ds in json.load(sys.stdin)["devices"].values() for d in ds))' && return
-  echo "no available simulator $1; xcrun simctl list devices available lists them" >&2
-  return 2
-}
-
 try_flock() {
   python3 -c 'import fcntl, sys, time
 for attempt in range(int(sys.argv[3])):
@@ -57,6 +16,153 @@ sim_flock() {
   [ $rc -ne 75 ] || echo "$1 is held by a $(cat "$lock"); wait for it to finish, or use another simulator (lsof $lock lists every process holding it)" >&2
   [ $rc -eq 0 ] || exit $rc
 }
+
+# Simulators come only from a Simlock lease (ADR-0024). The grant's empty environment puts the device in
+# Xcode's own set, so xcodebuild and xcrun simctl reach it by UDID.
+need_simlock() {
+  command -v simlock >/dev/null && return
+  echo "simlock is not on PATH, and every simulator here comes from a Simlock lease; see .agents/skills/simlock/SKILL.md" >&6
+  exit 78
+}
+
+# Prints "UDID LEASE-ID TTL-MS SECONDS-LEFT" for the lease the caller's Simlock identity holds, or
+# nothing. With a UDID, exits 2 unless that lease is on that device; 78 without simlock, 70 when it fails.
+own_lease() {
+  local who leases devices
+  need_simlock
+  # status --json names no device's UDID; list --devices does.
+  who=$(simlock whoami 7>&- 8>&- 9>&-) && leases=$(simlock list --leases 7>&- 8>&- 9>&-) \
+    && devices=$(simlock list --devices 7>&- 8>&- 9>&-) \
+    || { echo "simlock whoami or list failed; run simlock doctor" >&6; exit 70; }
+  printf '%s' "$devices" | WHO="$who" LEASES="$leases" UDID=$(printf %s "${1:-}" | tr '[:lower:]' '[:upper:]') python3 -c '
+import json, os, sys, time
+who = next(line.split(":", 1)[1].strip() for line in os.environ["WHO"].splitlines() if line.startswith("Principal:"))
+udids = {d["id"]: d["driverDeviceId"].upper() for d in json.load(sys.stdin) if d.get("driverDeviceId")}
+mine = [(udids.get(l["deviceId"], "?"), l) for l in json.loads(os.environ["LEASES"]) if l["requesterId"] == who]
+want = os.environ["UDID"]
+for udid, lease in mine:
+    if not want or udid == want:
+        print(udid, lease["id"], lease["ttlMs"], int(lease["ttlDeadline"] / 1000 - time.time()))
+        sys.exit(0)
+if want:
+    held = mine[0][0] if mine else "none"
+    print(f"{want} is not the simulator of a Simlock lease you hold (yours: {held}); lease one first, see .agents/skills/simlock/SKILL.md", file=sys.stderr)
+    sys.exit(2)'
+}
+
+# A device a lease hands over may have served another agent, so its run state is not ours.
+forget_runs() {
+  rm -f "/tmp/workout-verify-$1"/{pid,args,run,unnamed} "/tmp/workout-verify-$1"/refused.* "/tmp/workout-verify-$1"/reclaimed.*
+}
+
+simlock_refusal() {
+  local code=$1 said=$2
+  case $code in
+    10|11) echo "Simlock had no free $sim_device simulator within WORKOUT_ADMIT_WAIT ($WORKOUT_ADMIT_WAIT s); the host is full, so retry later" >&6; exit 75 ;;
+    13) echo "your Simlock identity already holds a lease ($(own_lease | awk '{print "simulator " $1 ", lease " $2}')); pass that simulator with --sim or SIM=, or simlock release its lease first" >&6; exit 75 ;;
+    14) echo "Simlock took the lease back, so the simulator is gone; rerun to lease another" >&6; exit 69 ;;
+    *) echo "simlock lease exited $code: ${said:-no message}" >&6; exit 70 ;;
+  esac
+}
+
+# Takes a lease of its own, tied to this script's pid, so it ends with the script even under SIGKILL.
+lease_sim() {
+  local grant wait=(--timeout "${WORKOUT_ADMIT_WAIT}s") code
+  need_simlock
+  [ "$WORKOUT_ADMIT_WAIT" -gt 0 ] || wait=(--no-wait)
+  lease_dir=$(mktemp -d "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
+  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock" >&6
+  (exec 7>&- 8>&- 9>&-; exec simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" \
+    "${wait[@]}" --bind-pid $$ >"$lease_dir/grant" 2>"$lease_dir/err") &
+  lease_pid=$!
+  until [ "$(wc -l < "$lease_dir/grant")" -ge 1 ]; do
+    if ! kill -0 "$lease_pid" 2>/dev/null; then
+      code=0
+      wait "$lease_pid" || code=$?
+      lease_pid=
+      simlock_refusal "$code" "$(tail -n 1 "$lease_dir/err")"
+    fi
+    sleep 0.2
+  done
+  grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
+    "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
+  read -r sim lease_id <<< "$grant"
+  forget_runs "$sim"
+  echo "simulator $sim (Simlock lease $lease_id)" >&6
+}
+
+# Exits 69 when Simlock took the lease back while the script ran.
+lease_kept() {
+  local code=0
+  [ -n "${lease_pid:-}" ] && ! kill -0 "$lease_pid" 2>/dev/null || return 0
+  wait "$lease_pid" || code=$?
+  lease_pid=
+  simlock_refusal "$code" "$(tail -n 1 "$lease_dir/err")"
+}
+
+end_lease() {
+  [ -z "${lease_dir:-}" ] || rm -rf "$lease_dir"
+  [ -n "${lease_pid:-}" ] || return 0
+  kill "$lease_pid" 2>/dev/null || true
+  wait "$lease_pid" 2>/dev/null || true
+  lease_pid=
+}
+
+# A verify run spans many calls, so its lease is detached, with a TTL of WORKOUT_LEASE_MINUTES that each
+# call renews once half of it has passed. Sets sim to the lease's UDID, or to $1's, which must be the
+# caller's own lease. With take, a caller holding no lease gets one; without, it is refused.
+hold_lease() {
+  local named=$1 take=${2:-} held id ttl left grant
+  held=$(own_lease "$named") || exit
+  if [ -n "$held" ]; then
+    read -r sim id ttl left <<< "$held"
+    [ $((left * 2000)) -ge "$ttl" ] || simlock lease renew "$id" >/dev/null 7>&- 8>&- 9>&- \
+      || { echo "could not renew Simlock lease $id on $sim; lease again" >&6; exit 75; }
+    return 0
+  fi
+  [ -n "$take" ] || { echo "you hold no Simlock lease; verify.sh launch <fixture> takes one" >&6; exit 2; }
+  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock for $WORKOUT_LEASE_MINUTES min, renewed by each verify call" >&6
+  lease_dir=$(mktemp -d "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
+  simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --timeout "${WORKOUT_ADMIT_WAIT}s" \
+    --detach --ttl "${WORKOUT_LEASE_MINUTES}m" >"$lease_dir/grant" 2>"$lease_dir/err" 7>&- 8>&- 9>&- \
+    || simlock_refusal $? "$(tail -n 1 "$lease_dir/err")"
+  grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
+    "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
+  read -r sim id <<< "$grant"
+  rm -rf "$lease_dir"
+  forget_runs "$sim"
+  echo "simulator $sim (Simlock lease $id); verify.sh release gives it back" >&6
+}
+
+release_lease() {
+  local held udid id
+  held=$(own_lease "$1") || exit
+  [ -n "$held" ] || { echo "you hold no Simlock lease"; return 0; }
+  read -r udid id _ <<< "$held"
+  simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $udid"
+}
+
+# The simulator a run drives: the named one, which must be the caller's own lease, else a lease of its own.
+claim_sim() {
+  local named=$1 who=$2 build=${3:-0} dir
+  if [ -n "$named" ]; then
+    sim=$(own_lease "$named" | awk '{print $1}') || exit
+  else
+    lease_sim
+  fi
+  dir=/tmp/workout-verify-$sim
+  mkdir -p "$dir"
+  exec 9>>"$dir/lock"
+  sim_flock "$sim" LOCK_EX
+  claimed_sim=$sim
+  printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
+  settle_run "$sim"
+  wait_until_clear "the host before running on $sim" admit_claim "$build"
+  settle_run "$sim" "$who"
+  simlock simctl bootstatus "$sim" -b >/dev/null 7>&- 8>&- 9>&- || { echo "simulator $sim did not boot" >&6; exit 69; }
+}
+
+admit_claim() { mem_clear && { [ "$1" = 0 ] || admit_build; }; }
 
 # A Live Activity outlives its app's process, so only an uninstall ends one from outside the app.
 launched_with_live_activities() {
@@ -124,22 +230,7 @@ settle_run() {
   [ -z "$abandoned" ] || rm -f "$dir/pid" "$dir/args"
 }
 
-claim_sim() {
-  local udid=$1 who=$2 build=${3:-0} dir=/tmp/workout-verify-$1
-  mkdir -p "$dir"
-  exec 9>>"$dir/lock"
-  sim_flock "$udid" LOCK_EX
-  claimed_sim=$udid
-  printf '%s (pid %s)\n' "$who" "$$" > "$dir/lock"
-  settle_run "$udid"
-  wait_until_clear "the host before taking $udid" admit_claim "$udid" "$build"
-  settle_run "$udid" "$who"
-}
-
-# For the claimer's EXIT trap: an idle lane's clock counts from when its last claim ended.
-end_claim() {
-  [ -z "${claimed_sim:-}" ] || touch -c "/tmp/workout-verify-$claimed_sim/lock"
-}
+end_claim() { end_lease; }
 
 host_knob() {
   local name=$1 default=$2 min=$3 value
@@ -227,147 +318,6 @@ load_clear() {
   return 1
 }
 
-sim_states() {
-  local counts
-  if ! counts=$(exec 7>&- 8>&- 9>&-; UDID="$1" exec python3 -c '
-import json, os, subprocess, sys
-def fail(reason):
-    print(reason)
-    sys.exit(1)
-listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
-if listing.returncode:
-    fail("xcrun simctl list devices failed: " + listing.stderr.strip())
-try:
-    devices = [d for ds in json.loads(listing.stdout)["devices"].values() for d in ds]
-except Exception as error:
-    fail("xcrun simctl list devices printed no device list: %r" % error)
-mine = [d.get("state") for d in devices if d["udid"] == os.environ["UDID"]]
-print(sum(d.get("state") in ("Booted", "Booting") and d["udid"] != os.environ["UDID"] for d in devices), *mine[:1])' \
-    2>/dev/null); then
-    busy_reason=${counts:-python3 could not count the booted simulators}
-    return 1
-  fi
-  read -r others own <<< "$counts"
-}
-
-admit_claim() {
-  local udid=$1 build=$2 others own rc=1
-  mem_clear || return 1
-  [ "$build" = 0 ] || { disk_clear && build_slot_free; } || return 1
-  host_room "$udid" || return 1
-  if [ "$own" != Shutdown ]; then
-    [ "$build" = 0 ] || take_build_slot
-    return
-  fi
-  sleep_idle_lane
-  exec 7>>"$host_lock_dir/admit"
-  if ! try_flock 7 LOCK_EX 1; then
-    busy_reason="another claim is booting a simulator (lsof $host_lock_dir/admit lists it)"
-  elif { [ "$build" = 0 ] || take_build_slot; } && host_room "$udid"; then
-    [ "$own" != Shutdown ] || boot_sim "$udid"
-    rc=0
-  fi
-  exec 7>&-
-  [ $rc = 0 ] || drop_build_slot
-  return $rc
-}
-
-host_room() {
-  sim_states "$1" || return 1
-  case ${own:-} in
-    "Shutting Down") busy_reason="$1 is shutting down" ;;
-    Shutdown) [ "$others" -ge "$WORKOUT_SIM_CAP" ] || return 0
-      busy_reason="$others other simulators are booted, at the cap of $WORKOUT_SIM_CAP (WORKOUT_SIM_CAP)"
-      idle_lane "$WORKOUT_IDLE_MINUTES" && free_seat "to free a seat: $busy_reason, and it held no run or app for $idle_for min (WORKOUT_IDLE_MINUTES is $WORKOUT_IDLE_MINUTES)" \
-        && return 0 ;;
-    *) return 0 ;;
-  esac
-  return 1
-}
-
-# Booted workout-lane-* devices whose lock was last written $1 or more minutes ago, as
-# "UDID MINUTES NAME", least recently used first. A lane with no lock file has no idle clock.
-stale_lanes() {
-  (exec 3>&- 7>&- 8>&- 9>&-; IDLE=$1 exec python3 -c '
-import json, os, subprocess, time
-listing = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "-j"], capture_output=True, text=True)
-lanes = []
-for d in (d for ds in json.loads(listing.stdout)["devices"].values() for d in ds):
-    if d.get("state") != "Booted" or not d["name"].startswith("workout-lane-"):
-        continue
-    try:
-        idle = int((time.time() - os.stat("/tmp/workout-verify-%s/lock" % d["udid"]).st_mtime) // 60)
-    except FileNotFoundError:
-        continue
-    if idle >= int(os.environ["IDLE"]):
-        lanes.append((idle, d["udid"], d["name"]))
-for idle, udid, name in sorted(lanes, reverse=True):
-    print(udid, idle, name)' 2>/dev/null)
-}
-
-# A booted lane idles at about 0.12 core, so past WORKOUT_SLEEP_MINUTES unused it has cost more than the
-# boot that brings it back. Each boot shuts one such lane down; 0 turns this off.
-sleep_idle_lane() {
-  [ "$WORKOUT_SLEEP_MINUTES" -gt 0 ] && idle_lane "$WORKOUT_SLEEP_MINUTES" || return 0
-  free_seat "to save its idle CPU: it held no run or app for $idle_for min (WORKOUT_SLEEP_MINUTES is $WORKOUT_SLEEP_MINUTES)" || true
-}
-
-# Leaves fd 3 holding the chosen lane's lock, so no run claims it before free_seat shuts it down.
-idle_lane() {
-  local udid minutes name dir pid
-  while read -r udid minutes name; do
-    dir=/tmp/workout-verify-$udid
-    exec 3>>"$dir/lock"
-    if try_flock 3 LOCK_EX 1; then
-      pid=$(cat "$dir/pid" 2>/dev/null) && is_fixture_launch "$pid" || pid=
-      if { [ -z "$pid" ] || [ "$(idle_minutes "$dir/pid")" -ge "$WORKOUT_LEASE_MINUTES" ] 2>/dev/null; } \
-        && ! app_on "$udid" "$pid"; then
-        idle_udid=$udid idle_for=$minutes idle_name=$name
-        return 0
-      fi
-    fi
-    exec 3>&-
-  done < <(stale_lanes "$1")
-  return 1
-}
-
-# Any app's main executable on the device but the verify app whose lease ran out; a pgrep that fails
-# counts as one. An app extension, such as the widget, outlives its app for minutes, so it is no app.
-app_on() {
-  local pids rc=0
-  pids=$(pgrep -f "^[^ ]*/Devices/$1/data/Containers/Bundle/Application/[^/]+/[^/]+\.app/[^/ ]+( |\$)" \
-    3>&- 7>&- 8>&- 9>&-) || rc=$?
-  [ $rc -le 1 ] || return 0
-  [ -n "$pids" ] && printf '%s\n' "$pids" | grep -qvx -- "${2:-}"
-}
-
-free_seat() {
-  local who="${0##*/}, shutting down an idle lane" err=
-  printf '%s (pid %s)\n' "$who" "$$" > "/tmp/workout-verify-$idle_udid/lock"
-  if (exec 3>&- 7>&-; VERIFY_RUN='' settle_run "$idle_udid" "$who") \
-    && err=$(exec 3>&- 7>&- 8>&- 9>&-; exec xcrun simctl shutdown "$idle_udid" 2>&1 >/dev/null); then
-    exec 3>&-
-    echo "shut down idle lane $idle_name ($idle_udid) $1" >&6
-    return 0
-  fi
-  exec 3>&-
-  busy_reason="could not shut down idle lane $idle_name ($idle_udid)${err:+: $err}"
-  return 1
-}
-
-# A flock is held by every process sharing its fd, so simctl gets no lock fd and a killed claimer frees
-# them all at once. simctl boot fails on a device another claim already started, so a failed boot
-# rereads the state.
-boot_sim() {
-  local err
-  err=$(exec 7>&- 8>&- 9>&-; exec xcrun simctl boot "$1" 2>&1 >/dev/null) && return
-  if sim_states "$1"; then
-    case ${own:-} in Booted|Booting) return ;; esac
-  fi
-  echo "could not boot $1: $err" >&6
-  exit 70
-}
-
 take_build_slot() {
   local slot i=0 tries_past_a_probe=3
   while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
@@ -378,16 +328,6 @@ take_build_slot() {
       build_slot=$slot
       return 0
     fi
-    exec 8>&-
-  done
-  slots_taken
-}
-
-build_slot_free() {
-  local i=0
-  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
-    exec 8>>"$host_lock_dir/build-$i"
-    try_flock 8 LOCK_SH 1 && { exec 8>&-; return 0; }
     exec 8>&-
   done
   slots_taken
@@ -418,21 +358,18 @@ with_build_slot() {
   return $rc
 }
 
-without_sim_lock() { "$@" 9>&-; }
-
 require_sim_free() {
   [ -f "/tmp/workout-verify-$1/lock" ] || return 0
   sim_flock "$1" LOCK_SH 9<"/tmp/workout-verify-$1/lock"
 }
 
-host_knob WORKOUT_SIM_CAP 10 1
 host_knob WORKOUT_MEM_FLOOR 25 0
 host_knob WORKOUT_DISK_FLOOR 5120 0
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
-host_knob WORKOUT_IDLE_MINUTES 2 0
-host_knob WORKOUT_SLEEP_MINUTES 30 0
+sim_device='iPhone 17 Pro'
+sim_runtime=27.0
 sim_lock_checkout=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 host_lock_dir=${WORKOUT_HOST_LOCK_DIR:-/tmp/workout-host-locks}
 mkdir -p "$host_lock_dir"

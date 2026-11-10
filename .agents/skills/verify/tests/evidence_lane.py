@@ -48,13 +48,8 @@ case "$tool $1 $2" in
   "xcrun simctl get_app_container")
     [ -d "{dir}/containers/$3/WorkoutTracker.app" ] || exit 1
     echo "{dir}/containers/$3/WorkoutTracker.app" ;;
-  "xcrun simctl bootstatus")
-    [ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"
-    exit "${STUB_BOOTSTATUS:-0}" ;;
-  "xcrun simctl list")
-    if [ "$4" = available ]; then echo "{\\"devices\\": {\\"iOS-27-0\\": [{\\"udid\\": \\"${STUB_AVAILABLE:-$SIM}\\"}]}}"
-    else echo "    lane ($SIM) (Booted)"
-    fi ;;
+  "xcrun simctl bootstatus") exit "${STUB_BOOTSTATUS:-0}" ;;
+  "xcrun simctl list") echo "    lane ({sim}) (Booted)" ;;
   "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: 4121" ;;
   "xcrun simctl spawn")
     case "$4 $5" in
@@ -126,7 +121,10 @@ class Lane(unittest.TestCase):
         (derived / "info.plist").touch()
         self.built = derived / "Build" / "Products" / "Debug-iphonesimulator" / "WorkoutTracker.app"
         self.cache = self.checkout / ".claude" / "work" / "app-cache"
+        self.sim = "LANE-%d" % os.getpid()
+        self.other_sim = "LANE-%d-B" % os.getpid()
         stub = LANE_STUB.replace("{dir}", str(self.tmp)).replace("{project}", str(self.checkout / "WorkoutTracker.xcodeproj"))
+        stub = stub.replace("{sim}", self.sim)
         axe = self.checkout / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
         axe.parent.mkdir(parents=True)
         (self.tmp / "bin").mkdir()
@@ -137,8 +135,9 @@ class Lane(unittest.TestCase):
         (self.tmp / "bin" / "sysctl").write_text(SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS)
         (self.tmp / "bin" / "sysctl").chmod(0o755)
         (self.tmp / "describe-ui.json").write_text(MINI)
-        self.sim = "LANE-%d" % os.getpid()
-        self.other_sim = "LANE-%d-B" % os.getpid()
+        self.simlock = FakeSimlock(self.tmp / "bin")
+        self.simlock.hold(self.sim)
+        self.simlock.hold(self.other_sim, requester="other-agent")
         for udid in [self.sim, self.other_sim]:
             shutil.rmtree("/tmp/workout-verify-%s" % udid, ignore_errors=True)
             self.addCleanup(shutil.rmtree, "/tmp/workout-verify-%s" % udid, True)

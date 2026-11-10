@@ -173,7 +173,7 @@ printf '%s\n' "◇ Test run started." "✔ Test run with 1 test in 1 suite passe
     >"$root/xcodebuild.log"
 STUB_RELEASE=$root/release STUB_STAMP=20991231-100000 STUB_SUMMARY='{"passedTests":1,"failedTests":0,"expectedFailures":0}' \
     STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/in-progress.out STUB_SEEN=$root/in-progress.seen \
-    HOME=$root/home PATH="$root/bin:$PATH" \
+    HOME=$root/home PATH="$root/bin:$PATH" FAKE_SIMLOCK_WHO=neighbour \
     "$repo/scripts/test-sim.sh" --no-build --sim "$other_sim" unit >"$root/in-progress.out" 2>"$root/in-progress.err" &
 pid=$!
 for _ in $(seq 50); do [ -e "$root/in-progress.seen" ] && break; sleep 0.1; done
@@ -193,10 +193,10 @@ $own.xcresult"
 rm -f "$root/release"
 pids=()
 for n in 1 2; do
-    [ $n = 1 ] && udid=$sim || udid=$other_sim
+    [ $n = 1 ] && udid=$sim who=agent-test || udid=$other_sim who=neighbour
     STUB_RELEASE=$root/release STUB_STAMP=20991231-200000 STUB_SUMMARY="{\"passedTests\":$n,\"failedTests\":0,\"expectedFailures\":0}" \
         STUB_LOG=$root/xcodebuild.log STUB_RC=0 STUB_OUT=$root/same-second-$n.out STUB_SEEN=$root/same-second-$n.seen \
-        HOME=$root/home PATH="$root/bin:$PATH" \
+        HOME=$root/home PATH="$root/bin:$PATH" FAKE_SIMLOCK_WHO=$who \
         "$repo/scripts/test-sim.sh" --no-build --sim "$udid" unit >"$root/same-second-$n.out" 2>"$root/same-second-$n.err" &
     pids+=($!)
 done
@@ -253,10 +253,6 @@ status=$?
 expect "a keyboard step that fails stops the run before xcodebuild with its status" \
     "$status $([ -e "$root/seen" ] && echo xcodebuild-ran || echo xcodebuild-skipped) $(tail -1 "$root/out")" \
     "70 xcodebuild-skipped $(result ui 70)"
-
-STUB_BACKDATE=/tmp/workout-verify-$sim/lock run --no-build --sim "$sim" unit
-expect "a run's end restarts its simulator's idle clock, however long ago it took the lock" \
-    "$(python3 -c 'import os, sys, time; print(int((time.time() - os.stat(sys.argv[1]).st_mtime) // 60))' "/tmp/workout-verify-$sim/lock")" 0
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

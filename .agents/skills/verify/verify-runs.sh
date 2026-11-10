@@ -1,19 +1,13 @@
 # shellcheck shell=bash
 # Sourced by verify.sh.
 
+# The simulator is your Simlock lease's, and SIM may name only that one. build, install and launch lease one
+# when you hold none; stop and release exit 0 before this, and every other command refuses.
 resolve_sim() {
+  local take=
   [ -n "$sim" ] && return 0
-  if [ -z "${SIM:-}" ]; then
-    cat >&2 <<'EOF'
-SIM is not set. verify.sh drives only the simulator you name, because the stock iPhone 17 Pro is shared and another agent's app may be on it (issue 660).
-Make a lane simulator once and pass it on every call:
-  export SIM=$(xcrun simctl create LANE_NAME "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)
-EOF
-    exit 2
-  fi
-  local picked
-  picked=$(pick_sim "$SIM") || exit
-  read -r sim _ <<< "$picked"
+  case $cmd in build|install|launch) take=take ;; esac
+  hold_lease "${SIM:-}" $take
   state_dir=/tmp/workout-verify-$sim
 }
 
@@ -47,8 +41,11 @@ evidence_base() {
 
 current_run() {
   if [ -n "${VERIFY_RUN:-}" ]; then printf '%s\n' "$VERIFY_RUN"; return 0; fi
-  [ -n "$sim" ] || [ -n "${SIM:-}" ] || return 0
-  resolve_sim
+  if [ -z "$sim" ]; then
+    sim=$(own_lease "${SIM:-}" | awk '{print $1}') || exit
+    [ -n "$sim" ] || return 0
+    state_dir=/tmp/workout-verify-$sim
+  fi
   [ -f "$state_dir/run" ] && cat "$state_dir/run"
   return 0
 }
@@ -119,7 +116,7 @@ refuse_unmoved_frame() {
     echo "refused $name: its frame is byte-identical to $newest.png but its tree changed, so the pixels did not move while the tree did"
     printf '%s\n' "$changes"
     echo "if those lines are text the app does not draw, $newest.png already shows this screen and the lines are the evidence"
-    echo "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it, and $newest.png may be frozen too (run: xcrun simctl shutdown $sim, then SIM=$sim VERIFY_RUN=${dir##*/} $0 launch <fixture>, and shoot $newest again)"
+    echo "if not, the shot fired before a transition drew (wait a second and shoot again) or the screenshot pipeline is wedged, as the axe button lock in issue 674 left it, and $newest.png may be frozen too (run: simlock simctl shutdown $sim, then VERIFY_RUN=${dir##*/} $0 launch <fixture>, and shoot $newest again)"
   } >&2
   exit 70
 }

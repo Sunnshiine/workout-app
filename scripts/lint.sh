@@ -272,6 +272,9 @@ python3 "$ROOT/scripts/lint-doc-symbols.py" "$ROOT"
 echo "==> Skill links"
 "$ROOT/scripts/lint-skill-links.sh" "$ROOT"
 
+echo "==> Simulators through Simlock"
+python3 "$ROOT/scripts/lint-simulators.py" "$ROOT"
+
 echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"
 

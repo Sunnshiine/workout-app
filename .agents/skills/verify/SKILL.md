@@ -15,10 +15,22 @@ and the matching feature file before driving; the map lists every entry point a 
 ## Launch
 
 ```bash
-export SIM=$(xcrun simctl create LANE_NAME "iPhone 17 Pro" com.apple.CoreSimulator.SimRuntime.iOS-27-0)   # once
-.agents/skills/verify/verify.sh build              # xcodebuild build, about 10 s warm, 2 min cold
+simlock whoami                                     # once: Simlock knows who you are
+.agents/skills/verify/verify.sh build              # leases your simulator; xcodebuild build, about 10 s warm, 2 min cold
 .agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
+
+Every simulator comes from Simlock (the `simlock` skill), one lease per agent. `build`, `install`,
+or `launch` leases an iPhone 17 Pro on iOS 27.0 when you hold none, and prints its UDID and lease.
+Every later call finds that lease, and every call but `diff`, `sheet`, and `crop` renews it, so you
+never pass the simulator. Without a lease, `stop` and `release` have nothing to do and exit 0,
+and any other command exits 2, naming `verify.sh launch`. `verify.sh release` stops the app and gives the
+simulator back. Otherwise Simlock reclaims it `WORKOUT_LEASE_MINUTES` (60) after the last call.
+`SIM=<udid>` names only the simulator of a lease you hold, and any other UDID exits 2. To run tests
+on it, pass the same UDID: `scripts/test-sim.sh --sim <udid> unit`. Without `--sim`, `test-sim.sh`
+asks for a second lease, Simlock refuses it (exit 13), and `test-sim.sh` exits 75 naming the
+simulator you hold. Without `simlock` on PATH every command that touches a simulator exits 78.
+Never create, erase, or delete a simulator, and boot or shut one down only through `simlock simctl`.
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
@@ -34,12 +46,8 @@ sits over the top of every later shot on the shared simulator.
 `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` drops that one flag, so the rest timer and the
 Live Activity Lab work and every shot of that run may carry the activity overlay. `stop` uninstalls
 such a run, which is what ends the activity. Drive it from `features/live-activity.md`. A
-relaunch is `stop` then `launch`, and it resets all state. Every command that touches a simulator
-needs `SIM`, the UDID of your own simulator. Without it, the command exits 2 and prints the
-`simctl create` line above. There is no default, because the stock iPhone 17 Pro is shared (issue
-660). `launch` boots the simulator when it is shut down and waits for the boot to finish before it
-installs the app. When the lane is done, `xcrun simctl shutdown "$SIM" && xcrun simctl delete "$SIM"`
-removes its simulator.
+relaunch is `stop` then `launch`, and it resets all state. `launch` boots the simulator through
+Simlock when it is shut down, and installs nothing when the boot fails (exit 69).
 
 `launch` prints the app it installed:
 
@@ -88,7 +96,7 @@ change this line can still FAIL until the next `install`. For this worktree's bu
 sources newer than the app, which means build before trusting anything. A last line reading
 `FAIL AutomaticMinimizationEnabled is 1` means a focused field shows no software keyboard (issue
 700); the next `launch` resets it. An empty tree on a healthy pid means the simulator's accessibility bridge is wedged;
-`xcrun simctl shutdown <udid>` then relaunch.
+`simlock simctl shutdown <udid>`, then `launch` again.
 
 ## Drive
 
@@ -195,9 +203,12 @@ it holds the commands, the exit codes, and how to read `still=`, `box=`, `look=`
 ## Cleanup
 
 ```bash
-.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator stays up
+.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator and its lease stay. With no lease it does nothing and exits 0
+.agents/skills/verify/verify.sh release  # stop, then give the simulator back to Simlock, which resets it
 rm -rf "$WORKOUT_HOME"
 ```
+
+Run `release` when your task is done with the simulator. Another agent may get the same UDID next.
 
 `stop` kills only the pid recorded in `/tmp/workout-verify-<udid>/`. Set `VERIFY_RUN` and it also
 refuses (exit 75) to act on a different run's app, printing the owning run and the
@@ -209,8 +220,8 @@ reason to name every run on a machine someone else is driving. A run launched un
 `VERIFY_LIVE_ACTIVITIES=1` is uninstalled as well as terminated, because a Live Activity belongs to
 the app rather than to its process and uninstalling is the only lever on one from outside the app.
 `stop` refuses (exit 75) to uninstall while a `scripts/test-sim.sh` run holds the simulator, because
-the uninstall would remove the app under test. `stop` never shuts down or erases the simulator, which
-other agents and `scripts/test-sim.sh` share. Evidence is
+the uninstall would remove the app under test. `stop` never shuts down or erases the simulator.
+Evidence is
 never removed, and it keeps the run name, so `diff` still answers after the app is gone. A `burst`
 keeps its twelve full-size frames, about 47 MB under the git-ignored `.claude/work/`. Delete a run's
 directory yourself once its proof is filed.

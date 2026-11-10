@@ -23,6 +23,8 @@ Each of these wins over anything written here. Read the one that governs the wor
 - `Sources/WorkoutCLI/README.md` owns the `workout` CLI. ADR-0015 records the boundary it runs on.
 - `.agents/skills/verify/SKILL.md` drives the app on the simulator and captures proof. Read the
   matching file under `.agents/skills/verify/features/` before driving.
+- `.agents/skills/simlock/SKILL.md` governs every simulator. Read it before your first simulator run
+  in a session. ADR-0024 records why.
 - Edit project skills under `.agents/skills/`. Each `.claude/skills/<name>` is a tracked symlink
   to `.agents/skills/<name>/`, not a copy.
 
@@ -70,12 +72,12 @@ swift test --filter ActiveSetFocusManagerTests    # one file's tests, about a se
 scripts/lint.sh [file.swift ...]                  # what CI runs, the line below included (the whole-tree run needs `gh auth login`); or SwiftLint on just those files; --fix autocorrects SwiftLint first
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
-scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all
+scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all; leases its simulator from Simlock
+scripts/test-sim.sh --sim <UDID> unit              # run on the simulator of a Simlock lease you already hold, such as verify's
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 scripts/tests-for.py App/Views/ActiveSetCard.swift  # test-sim.sh IDs of the suites covering a file, or a test function's full ID; no argument: this branch's files
-scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0   # prints a UDID for the stock simulator, creating it if missing
 scripts/build-slot.sh xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
-  -destination 'platform=iOS Simulator,id=<UDID>' \
+  -destination 'generic/platform=iOS Simulator' \
   -skipPackagePluginValidation -skipMacroValidation   # the app and every test bundle; boots and runs nothing
 scripts/flake-hunt.sh --repetitions 1000 SyncCoordinatorTests   # repeat a concurrent test under load
 scripts/changed-tests.sh                           # the tests this branch changed; what CI's flake guard repeats under load
@@ -125,13 +127,19 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
   `swift test` never compiles. Before pushing one, run the `build-for-testing` line above.
 - Run simulator suites through `scripts/test-sim.sh`. A bare `xcodebuild test` fails plug-in
   validation on a fresh machine and can hang collecting diagnostics after a failure.
-- Name the simulator by `id=<UDID>` in every `-destination`. A name can match several devices
-  across runtimes and clones, and xcodebuild picks one of them, not necessarily the one you meant.
-- Concurrent simulator runs each need their own worktree and their own simulator.
-  `scripts/lane.sh up <name> <commit>` makes both (`docs/TESTING.md`). Pass the UDID
-  as `scripts/test-sim.sh --sim <UDID> ...`.
-  It exits 69 when the simulator broke rather than a test, as when a launch returns no process
-  handle (#537). It shuts that simulator down first, so rerun the same command; do not debug the app.
+- Every simulator comes from a Simlock lease (`.agents/skills/simlock/SKILL.md`). `test-sim.sh`
+  and `verify.sh launch` take one for you. Never create, boot, shut down, erase, or delete a
+  simulator yourself, and never name one by model in a `-destination`; `scripts/lint.sh` fails on
+  each. A raw `xcodebuild` or XcodeBuildMCP call takes no lease, so give it `id=<UDID>` of a lease
+  you hold.
+- You hold one lease at a time. When you already hold one, `test-sim.sh` exits 75 and names it;
+  pass it as `scripts/test-sim.sh --sim <UDID> ...`. While Simlock has no free simulator it waits
+  up to `WORKOUT_ADMIT_WAIT` (540 s), then exits 75. It exits 78 without `simlock` on PATH.
+- Concurrent simulator runs each need their own worktree. `scripts/lane.sh up <name> <commit>`
+  makes one (`docs/TESTING.md`); Simlock gives each run its own simulator.
+- `test-sim.sh` exits 69 when the simulator broke rather than a test, as when a launch returns no
+  process handle (#537), or when Simlock took its lease back. Rerun the same command; do not debug
+  the app.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

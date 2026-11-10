@@ -1,5 +1,5 @@
-# The launchd jobs a lane simulator boots without (ADR-0022). scripts/sim-pool.sh create writes them
-# into the lane's launchd disable list, one label per line; text after # is ignored. The app, its
+# The launchd jobs CI's simulator boots without (ADR-0022). scripts/ci/sim-slim.sh writes them into
+# the device's launchd disable list, one label per line; text after # is ignored. The app, its
 # tests, and the verify skill use none of them. Kept on purpose: SpringBoard, backboardd,
 # runningboardd, installd, the keyboard (kbd) and accessibility jobs, logd and diagnosticd (verify
 # reads the log), chronod and liveactivitiesd (the widget and the Live Activity), navd (chronod's

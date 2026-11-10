@@ -109,11 +109,118 @@ DEFAULT_EVIDENCE = default_evidence()
 EVIDENCE_BEFORE = []
 
 
+def without_simlock(path):
+    """PATH minus every directory that holds a simlock, so no test can lease a real simulator."""
+    return os.pathsep.join(d for d in path.split(os.pathsep) if not os.access(os.path.join(d, "simlock"), os.X_OK))
+
+
+FAKE_SIMLOCK = r'''#!/usr/bin/env python3
+import fcntl, json, os, sys, time
+STATE = {state!r}
+args = sys.argv[1:]
+with open(STATE + ".calls", "a") as log:
+    log.write(" ".join(["simlock"] + args) + "\n")
+if args[:1] == ["simctl"]:
+    os.execvp("xcrun", ["xcrun"] + args)
+
+
+def fail(code, error):
+    print(json.dumps({{"error": {{"code": error, "message": error}}}}), file=sys.stderr)
+    sys.exit(code)
+
+
+def flag(name):
+    return args[args.index(name) + 1] if name in args else None
+
+
+now_ms = int(time.time() * 1000)
+with open(STATE, "r+") as file:
+    fcntl.flock(file, fcntl.LOCK_EX)
+    state = json.load(file)
+    principal = os.environ.get("SIMLOCK_AGENT_ID") or state["principal"]
+    mine = [l for l in state["leases"] if l["requesterId"] == principal]
+    if args == ["whoami"]:
+        print("Principal: %s\nName:      %s\nRole:      agent\nVia:       socket" % (principal, principal))
+    elif args == ["list", "--devices"]:
+        udids = state["free"] + [l["udid"] for l in state["leases"]]
+        print(json.dumps([{{"id": "dev_" + u, "driverDeviceId": u, "address": u, "state": "ready"}} for u in udids]))
+    elif args == ["list", "--leases"]:
+        print(json.dumps([{{k: v for k, v in dict(l, deviceId="dev_" + l["udid"]).items() if k != "udid"}}
+                          for l in state["leases"]]))
+    elif args[:2] == ["lease", "renew"]:
+        lease = next((l for l in state["leases"] if l["id"] == args[2]), None) or fail(14, "LEASE_NOT_FOUND")
+        lease["ttlDeadline"] = now_ms + lease["ttlMs"]
+    elif args[:1] == ["lease"]:
+        if mine:
+            fail(13, "REQUESTER_ALREADY_LEASED")
+        if not state["free"]:
+            fail(10, "TIMEOUT")
+        if "--detach" not in args:
+            fail(64, "the fake simlock leases only with --detach")
+        udid = state["free"].pop(0)
+        ttl = int(flag("--ttl").rstrip("m")) * 60000
+        lease = {{"id": "lse_" + udid, "udid": udid, "requesterId": principal, "ttlMs": ttl,
+                  "ttlDeadline": now_ms + ttl}}
+        state["leases"].append(lease)
+        print(json.dumps({{"lease": {{"id": lease["id"], "ttlDeadline": lease["ttlDeadline"]}},
+                          "device": {{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid}}, "environment": {{}}}}))
+    elif args[:1] == ["release"] and len(args) == 2:
+        lease = next((l for l in mine if l["id"] == args[1]), None) or fail(14, "LEASE_NOT_FOUND")
+        state["leases"].remove(lease)
+        state["free"].append(lease["udid"])
+    else:
+        fail(64, "the fake simlock does not answer this")
+    file.seek(0)
+    file.truncate()
+    json.dump(state, file)
+'''
+
+
+class FakeSimlock:
+    """A simlock on bin_dir that leases the free UDIDs, records each call, and runs `simlock simctl` as xcrun simctl.
+    Its caller is PRINCIPAL, or SIMLOCK_AGENT_ID when set, as Simlock reads it."""
+
+    PRINCIPAL = "claude-code:verify-tests"
+
+    def __init__(self, bin_dir, free=()):
+        self.state = Path(bin_dir) / "simlock-state.json"
+        self.state.write_text(json.dumps({"principal": self.PRINCIPAL, "free": list(free), "leases": []}))
+        script = Path(bin_dir) / "simlock"
+        script.write_text(FAKE_SIMLOCK.format(state=str(self.state)))
+        script.chmod(0o755)
+
+    def edit(self, change):
+        state = json.loads(self.state.read_text())
+        change(state)
+        self.state.write_text(json.dumps(state))
+
+    def hold(self, udid, minutes_left=60, minutes=60, requester=PRINCIPAL):
+        """Gives requester, by default the caller, a lease on udid with minutes_left of its TTL to run."""
+        lease = {"id": "lse_" + udid, "udid": udid, "requesterId": requester, "ttlMs": minutes * 60000,
+                 "ttlDeadline": int((time.time() + minutes_left * 60) * 1000)}
+        self.edit(lambda state: state["leases"].append(lease))
+        return lease["id"]
+
+    def leases(self):
+        return [(l["udid"], l["requesterId"]) for l in json.loads(self.state.read_text())["leases"]]
+
+    def calls(self):
+        log = Path(str(self.state) + ".calls")
+        return log.read_text().splitlines() if log.exists() else []
+
+
+def leased_path(bin_dir, sim):
+    """A PATH whose fake simlock, in bin_dir, holds sim for the caller."""
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    FakeSimlock(bin_dir).hold(sim)
+    return "%s%s%s" % (bin_dir, os.pathsep, os.environ["PATH"])
+
+
 def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0", WORKOUT_SIM_CAP="1000",
-                      WORKOUT_BUILD_SLOTS="100", WORKOUT_HOST_LOCK_DIR=locks)
+    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0",
+                      WORKOUT_BUILD_SLOTS="100", WORKOUT_HOST_LOCK_DIR=locks, PATH=without_simlock(os.environ["PATH"]))
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
 

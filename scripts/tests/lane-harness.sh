@@ -2,18 +2,21 @@
 scripts=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 root=$(mktemp -d) || exit 3
 root=$(cd "$root" && pwd -P)
-P=LANE$$
 holder=
 cleanup() {
     [ -z "$holder" ] || kill "$holder" 2>/dev/null
-    rm -rf "$root" /tmp/workout-verify-"$P"-* /private/var/tmp/com.apple.CoreSimulator.SimDevice."$P"-*
+    rm -rf "$root"
 }
 trap cleanup EXIT
 primary="$root/primary repo"
 lanes="$primary/.claude/worktrees"
 evidence="$primary/.claude/work/evidence"
 mkdir -p "$root/bin" "$root/home" "$primary"
-cp "$scripts/tests/fake-xcrun" "$root/bin/xcrun"
+# A lane has no simulator, so any call to either tool is a failure the tests see in sim-calls.
+for tool in xcrun simlock; do
+    printf '#!/bin/sh\necho "%s $*" >>"%s/sim-calls"\nexit 1\n' "$tool" "$root" >"$root/bin/$tool"
+    chmod +x "$root/bin/$tool"
+done
 real_git=$(type -P git)
 cat >"$root/bin/git" <<STUB
 #!/bin/bash
@@ -25,8 +28,7 @@ STUB
 chmod +x "$root/bin/git"
 export PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" WORKOUT_HOST_LOCK_DIR="$root/locks"
 export WORKOUT_MEM_FLOOR=0 WORKOUT_DISK_FLOOR=0
-unset WORKOUT_SIM_CAP WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
-export FAKE_SIM_PREFIX=$P FAKE_SIM_STORE="$root/store.json" FAKE_SIM_CALLS="$root/calls"
+unset SIM WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 pass=0
 fail=0
@@ -36,11 +38,11 @@ bad() { fail=$((fail + 1)); printf '  FAIL %s\n' "$1"; }
 
 g() { git -C "$primary" "$@" >/dev/null 2>&1; }
 lane() {
-    rm -f "$root/calls"
+    rm -f "$root/sim-calls"
     "$primary/scripts/lane.sh" "$@" >"$root/out" 2>"$root/err"
     status=$?
 }
-calls() { cat "$root/calls" 2>/dev/null; }
+sim_calls() { cat "$root/sim-calls" 2>/dev/null; }
 expect() {
     if [ "$2" = "$3" ]; then
         ok "$1"
@@ -50,9 +52,8 @@ expect() {
     fi
 }
 env_lines() {
-    printf "export SIM='%s'\nexport LANE_WORKTREE='%s'\nexport VERIFY_EVIDENCE='%s'" "$1" "$lanes/$2" "$evidence/detached-$2"
+    printf "export LANE_WORKTREE='%s'\nexport VERIFY_EVIDENCE='%s'" "$lanes/$1" "$evidence/detached-$1"
 }
-lane_rows() { "$primary/scripts/sim-pool.sh" list | awk -F '\t' '$3 == "lane" { print $1, $4 }'; }
 hold() {
     mkdir -p "$(dirname "$1")"
     python3 -c 'import fcntl, sys, time

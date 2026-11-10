@@ -20,14 +20,6 @@ class InstalledIdentity(Lane):
                              re.escape(self.worktree_build(b"v2\n", self.b)), self.sim, re.escape(str(self.checkout))),
                          "the evidence names its binary after the worktree and the simulator are gone")
 
-    def test_a_claims_end_restarts_the_simulators_idle_clock_however_the_command_ends(self):
-        self.verify("build")
-        lock = Path("/tmp/workout-verify-%s/lock" % self.sim)
-        for ending, env, code in [("a launch", {}, 0), ("a refused install", {"STUB_INSTALL_FAIL": "1"}, 70),
-                                  ("a failed boot wait", {"STUB_BOOTSTATUS": "1"}, 70)]:
-            self.assertEqual(self.verify("launch", "session", VERIFY_RUN="lane-1", STUB_BACKDATE=str(lock), **env)[0], code)
-            self.assertLess(time.time() - lock.stat().st_mtime, 60, "%s restarts the idle clock its claim began" % ending)
-
     def test_only_an_edit_to_what_the_app_compiles_marks_the_build_dirty(self):
         (self.checkout / "decisions.tsv").write_text("an untracked file at the root\n")
         self.assertEqual(self.verify("build")[1].splitlines()[1], self.worktree_build(b"v2\n", self.b))
@@ -115,10 +107,11 @@ class InstalledIdentity(Lane):
                          (2, "", "--at goes before the fixture: launch --at COMMIT session\n"))
         self.assertEqual(self.calls(), [])
 
-    def test_a_sim_no_simulator_answers_to_is_refused_before_any_build(self):
-        self.assertEqual(self.verify("build", STUB_AVAILABLE="SOMEONE-ELSE"), (2, "", (
-            "no available simulator %s; xcrun simctl list devices available lists them\n") % self.sim))
-        self.assertEqual(self.calls(), ["xcrun simctl list devices available -j"])
+    def test_a_sim_that_is_not_your_lease_is_refused_before_any_build(self):
+        self.assertEqual(self.verify("build", SIM=self.other_sim), (2, "", (
+            "%s is not the simulator of a Simlock lease you hold (yours: %s); lease one first, "
+            "see .agents/skills/simlock/SKILL.md\n") % (self.other_sim, self.sim)))
+        self.assertEqual(self.calls(), [])
 
     def test_a_bare_launch_over_a_cached_build_refuses_and_launch_at_runs_it(self):
         self.verify("build")

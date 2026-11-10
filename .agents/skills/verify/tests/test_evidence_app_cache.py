@@ -40,7 +40,8 @@ class AppCache(Lane):
         waited = self.tmp / "second.err"
         with open(str(waited), "w") as err:
             second = subprocess.Popen([str(self.verify_path), "install", self.a], cwd=str(self.checkout),
-                                      env=self.environment({"SIM": self.other_sim, "STUB_BUILD_HOLD": "1"}),
+                                      env=self.environment({"SIM": self.other_sim, "SIMLOCK_AGENT_ID": "other-agent",
+                                                            "STUB_BUILD_HOLD": "1"}),
                                       start_new_session=True, stdout=subprocess.PIPE, stderr=err, universal_newlines=True)
         wait_line = "waiting for another build of %s into the app cache (lsof %s/%s.lock lists it)\n" % (
             self.a[:8], self.cache, self.a)

@@ -65,17 +65,18 @@ each failing test's name and prints the issue it finds.
 
 ## Parallel Agents
 
-Each concurrent simulator run takes its own worktree and simulator. `scripts/lane.sh up` makes
-both, cloning the simulator through `scripts/sim-pool.sh` (Running beside other agents, below).
-A lane's simulator boots without the launchd jobs in `scripts/sim-pool-disabled-jobs.txt`, such as
-Spotlight, iCloud, and wallpaper posters, which no test uses (ADR-0022). CI's simulator boots the
-same way, through `scripts/sim-slim.sh`, and also without chronod and navd
-(`scripts/sim-ci-disabled-jobs.txt`). A test that needs one of them fails only on a lane or in CI.
-`scripts/test-sim.sh --help` names the simulator lock it shares with `verify.sh launch` and the
-host admission both wait on. Admission does not read the load, which one build drives past 250
-(ADR-0020). `scripts/build-slot.sh` runs anything else heavy
-under a build slot, as in `scripts/build-slot.sh swift test`. Before trusting `WORKOUT_SIM_CAP` on
-a new Mac or Xcode, run `scripts/measure-host.sh 10 unit` and compare its line with ADR-0020. A
+Each concurrent simulator run takes its own worktree, which `scripts/lane.sh up` makes (Running
+beside other agents, below), and its own simulator, which Simlock leases (ADR-0024,
+`.agents/skills/simlock/SKILL.md`). `scripts/test-sim.sh` leases an iPhone 17 Pro on iOS 27.0 for
+one run and releases it on exit. `verify.sh launch` leases one for a verify run, which later calls
+renew and `verify.sh release` ends. An agent holds one lease at a time, so with a verify lease
+open, run `scripts/test-sim.sh --sim <UDID>`. Simlock runs at most six simulators across every app
+on the Mac and queues the rest; `test-sim.sh --help` names the waits and exit codes. Simlock
+does not gate builds. The build slots and the memory and disk floors do (ADR-0020):
+`scripts/build-slot.sh` runs anything else heavy under a build slot, as in
+`scripts/build-slot.sh swift test`. Admission does not read the load, which one build drives past
+250. CI's simulator is the runner's own: `scripts/ci/sim-slim.sh` boots it without the launchd jobs
+no CI suite uses (ADR-0022). A
 timing or motion measurement taken under load still describes the host, not the app, so record the
 1-minute load beside it
 (`test-sim.sh` prints `load1=`) and rerun when it is high. `verify.sh launch` and most UI tests
@@ -155,7 +156,7 @@ Recording recipe (issue #471): the recording switch is the suite trait, not an e
 variable — `SNAPSHOT_TESTING_RECORD` is overridden by the explicit trait and does nothing here.
 To record: flip the affected suite's `@Suite(.snapshots(record: .never))` to
 `.snapshots(record: .all)` in `Tests/Visual/*.swift`, run the Visual suite on the pinned
-simulator (`scripts/test-sim.sh --sim "$(scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0)" visual`), then
+simulator (`scripts/test-sim.sh visual`, which leases it), then
 revert the trait to `.never` before committing. Two caveats: a record run that crashes leaves
 the stale PNG silently in place, and the CI runner is the canonical recorder — baselines
 recorded on other machines differ at exact precision (issue #479). To take the runner's render,
@@ -210,15 +211,14 @@ scripts/test-sim.sh ui
 `scripts/test-sim.sh --help` explains how to read a run: its result line, the files it keeps, and
 the snapshot diffs.
 
-Running beside other agents (`scripts/lane.sh --help` and `scripts/sim-pool.sh --help` hold the details):
+Running beside other agents (`scripts/lane.sh --help` holds the details):
 
-- `scripts/lane.sh up <name> <commit>` makes a lane and prints its `export` lines. The shell
-  forgets them between calls, so start each call with
+- `scripts/lane.sh up <name> <commit>` makes a lane, a worktree and an evidence directory, and
+  prints its `export` lines. The shell forgets them between calls, so start each call with
   `env=$(scripts/lane.sh env <name>) && eval "$env" && ...`.
-- The lane's simulator stays Shutdown until something boots it. `scripts/test-sim.sh` and
-  `verify.sh` boot it themselves. Before a raw `xcodebuild` or XcodeBuildMCP call on a lane, run
-  `scripts/sim-pool.sh boot <name>`. Stop an app you launched through XcodeBuildMCP when you are
-  done, or its lane never counts as idle.
+- A lane has no simulator of its own. `scripts/test-sim.sh` and `verify.sh` lease one from Simlock.
+  Before a raw `xcodebuild` or XcodeBuildMCP call, hold a lease (`verify.sh launch`, or
+  `simlock lease` per `simlock instructions`) and pass its UDID.
 
 Shared fixture policy:
 
