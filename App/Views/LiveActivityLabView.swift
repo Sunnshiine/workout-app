@@ -188,7 +188,8 @@ struct LiveActivityLabView: View {
             restEndDate: restEndDate,
             dictation: nil,
             loggablePress: labPress,
-            guidance: labGuidance,
+            cadence: "3:1:1",
+            coachNote: "Brace hard off the floor, controlled descent.",
             start: nil,
             pendingWrites: 0
         )
@@ -207,10 +208,6 @@ struct LiveActivityLabView: View {
                 chosenReps: nil
             )
         )
-    }
-
-    private var labGuidance: String {
-        "3:1:1 · Brace hard off the floor, controlled descent."
     }
 
     private var restDurationLabel: String {
@@ -282,7 +279,8 @@ struct LiveActivityLabView: View {
             restEndDate: restEndDate,
             dictation: nil,
             loggablePress: labPress,
-            guidance: labGuidance,
+            cadence: "3:1:1",
+            coachNote: "Brace hard off the floor, controlled descent.",
             start: nil,
             pendingWrites: 0
         )

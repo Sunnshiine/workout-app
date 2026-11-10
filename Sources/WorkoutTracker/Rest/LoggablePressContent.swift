@@ -92,15 +92,14 @@ extension ExerciseSet {
 }
 
 extension Exercise {
-    private static let guidanceLimit = 120
+    private static let coachNoteLimit = 120
 
-    /// The Exercise's Cadence and Coach Note on the Lock Screen card's one line, nil with neither. The
-    /// card cuts the line to its width, and a long note must not take the Live Activity's 4 KB.
-    var lockScreenGuidance: String? {
-        let note = coachNote?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-        let parts = [exerciseName.cadence, note].compactMap { $0 }.filter { !$0.isEmpty }
-        guard !parts.isEmpty else { return nil }
-        return String(parts.joined(separator: " · ").prefix(Self.guidanceLimit))
+    /// The Coach Note as the Lock Screen card shows it: one line of words, cut so a long note cannot
+    /// take the Live Activity's 4 KB. Nil with no words in the note.
+    var lockScreenCoachNote: String? {
+        let words = coachNote?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard let words, !words.isEmpty else { return nil }
+        return String(words.prefix(Self.coachNoteLimit))
     }
 
     /// Where the RPE rail centres: the card's RPE, else what the athlete last reported.

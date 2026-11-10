@@ -84,7 +84,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             reps: "5",
             load: "RPE7",
             weight: "252.5",
-            guidance: "3:1:1 · Brace hard off the floor, controlled descent.",
+            cadence: "3:1:1",
+            coachNote: "Brace hard off the floor, controlled descent.",
             press: .ready(offer(reps: [3, 4, 5, 6, 7], rpe: ["6", "6.5", "7", "7.5", "8"]))
         ),
         controls: ["Say Set", "3 reps", "4 reps", "5 reps", "6 reps", "7 reps", otherReps]
@@ -134,7 +135,7 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             IslandGuidanceLine(
                 target: state.prescriptionText,
                 queue: state.pendingWritesText,
-                guidance: state.guidance,
+                guidance: state.cadenceAndCoachNote,
                 targetGivesWay: true
             )
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,8 +159,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             reps: "AMRAP",
             load: "Start conservative and work up to a heavy single",
             weight: "1025.5",
-            guidance: "2-0-X-1 · Belt off, knee wraps on. Stop the Set the moment the bar speed drops off at all, "
-                + "and note how far it slowed",
+            cadence: "2-0-X-1",
+            coachNote: "Belt off, knee wraps on. Stop the Set the moment the bar speed drops off at all, and note how far it slowed",
             press: press
         )
     }
@@ -181,7 +182,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
         reps: String,
         load: String,
         weight: String,
-        guidance: String,
+        cadence: String,
+        coachNote: String,
         press: LoggablePress
     ) -> WorkoutActivityAttributes.ContentState {
         let restEnd = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -199,7 +201,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             restEndDate: restEnd,
             dictation: nil,
             loggablePress: press,
-            guidance: guidance,
+            cadence: cadence,
+            coachNote: coachNote,
             start: nil,
             pendingWrites: 1
         )

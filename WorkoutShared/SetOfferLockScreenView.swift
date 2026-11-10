@@ -199,7 +199,7 @@ struct SetOfferLockScreenView: View {
                     .fixedSize()
             }
 
-            if let guidance = state.guidance {
+            if let guidance = state.cadenceAndCoachNote {
                 Text(state.pendingWritesText == nil ? guidance : " · \(guidance)")
                     .liveActivityFont(.guidance)
                     .lineLimit(1)

@@ -58,8 +58,10 @@ struct LiveActivityRestContent: Equatable, Sendable {
     let restStartDate: Date
     let restEndDate: Date
     var press: LoggablePressContent
-    /// The Cadence and the Coach Note on one line; nil with neither.
-    let guidance: String?
+    /// The Exercise's Cadence, as `3:1:1` or `2-3:1:0`. Nil with none.
+    let cadence: String?
+    /// The Exercise's Coach Note on one line. Nil with none.
+    let coachNote: String?
     /// The Set's timed effort, which the card's Start opens the app to count. Nil with none.
     let start: LockScreenStart?
     var target: LiveActivityRestTarget?
@@ -78,7 +80,8 @@ struct LiveActivityRestContent: Equatable, Sendable {
         restStartDate: Date,
         restEndDate: Date,
         press: LoggablePressContent,
-        guidance: String?,
+        cadence: String?,
+        coachNote: String?,
         start: LockScreenStart?,
         target: LiveActivityRestTarget? = nil
     ) {
@@ -93,7 +96,8 @@ struct LiveActivityRestContent: Equatable, Sendable {
         self.restStartDate = restStartDate
         self.restEndDate = restEndDate
         self.press = press
-        self.guidance = guidance
+        self.cadence = cadence
+        self.coachNote = coachNote
         self.start = start
         self.target = target
     }
@@ -213,7 +217,8 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(for: position, following: session, showing: draft, history: source.history),
-            guidance: target.exercise.lockScreenGuidance,
+            cadence: target.exercise.exerciseName.cadence,
+            coachNote: target.exercise.lockScreenCoachNote,
             start: target.exercise.session === session ? LockScreenStart(position) : nil,
             target: target.session.placement.coordinate.map {
                 LiveActivityRestTarget(
