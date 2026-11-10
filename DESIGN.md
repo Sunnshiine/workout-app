@@ -159,51 +159,8 @@ by day, and a single ring of light by night. The Sunbird colophon's disc is the 
 Editorial scaffolding stays off every surface: no ruled lines, uppercase microlabels, or hairline
 grids. Hierarchy comes from fill and type first; elevation says what is raised, never decorates.
 
-### Elevation scale
-
-Five levels, lowest first. Each is a `Theme.BoxShadow` recipe in the token sheet, drawn through
-`themeElevation`. A surface takes the level of what it is, never a one-off shadow.
-
-| Level | Who sits there | Day | Night |
-| --- | --- | --- | --- |
-| Carved | History chips, the pressed volume control | inset shade + light lip | same recipe, night values |
-| Flat | Rails, tiles, chips at rest | fill only | fill only |
-| Raised control | Steppers, queue pill, the queue sheet's header button, the countdown pill, the volume control | 1px ink edge @ 8% + `cardLow` | 1px cream ring @ 14% |
-| Card in shade | Collapsed week cards, Sheet tab Day cards | 1px ink edge @ 6% + `cardLow` | 1px cream ring @ 10% |
-| Lifted card | Active Set Card, ceremony stats, Settings confirmation card | 1px ink edge @ 5% + crisp and wide drops | 1px cream ring @ 10% |
-
-Three named lights sit outside the scale: the Log capsule's light, the focus card's sun halo (at
-Night, a cream ring @ 14%, brighter than the week cards' edge), and the current tile's glow. A
-halo's reach is part of its card's footprint, so neighbours keep their spacing from the light.
-
-### Radius family
-
-Every corner comes from the named family in token sheet §6, plus `hairline 2–3`. Sheets take the
-system's own corners.
-
-### Named Rules
-
-**The Edge Is Light Rule.** A raised surface (a card, a container, a control you press) shows its
-edge with a translucent 1px ring from its elevation level, never a solid stroke. Day rings are ink
-at low opacity, so one token sits right on every wash; Night collapses every drop to one cream ring,
-because a drop shadow vanishes on deep sage. Real strokes stay where they separate or state: text
-field edges, the selected rail chip's ring, tile state outlines, the dashed empty bed, and the
-logged-Set and dictation capsules. (Supersedes "at rest, pills, rails, tiles, and chips are quiet
-cream fills with 1px strokes" for raised controls. Operator brief 2026-10-31: "Where Emil's
-recommendation conflicts with an existing rule in DESIGN.md … Emil wins.")
-
-**The Concentric Corner Rule.** A container whose corner holds a rounded child takes that child's
-radius plus the inset between them, so the two curves run parallel. The container grows to meet the
-child; the child keeps its shape. The Active Set Card is 43 (the Log capsule's ≈29 half-height plus
-the 14 bottom inset) and the focus card is 31 (tile 15 plus 16). A container with no child in its
-corner picks its radius on its own merits. (Supersedes the One Soft Container Rule's claim on the
-Active Set Card and sheet shoulders. Operator brief 2026-10-31, as above.)
-
-**The No Nested Cards Rule.** No cards inside cards; each layer has a distinct job.
-
-**The History Is Carved Rule.** Below-flat elevation exists only in the Exercise History sheet's
-chips and in the pressed volume control, which borrows the chips' recipe. Everything else sits on or
-above the paper.
+The elevation scale, the radius family, and the surface Named Rules:
+[docs/design/surfaces.md](docs/design/surfaces.md).
 
 ## 5. Components
 
@@ -264,9 +221,6 @@ The timings, the haptics, hold-to-skip timing, and Reduce Motion in full:
 
 - Reach the next logging action with one hand, and take a chalky thumb as the benchmark.
   Affordances stay visible, never chrome-on-demand.
-- Prefer a self-describing glyph (X, back arrow, play, a pairing stem) to an action spelled out in
-  words, give each icon-only control an accessibility label, and keep on-screen text to a minimum
-  (operator ruling 2026-10-11).
 - Every tappable control has a hit area of at least 44×44pt that overlaps no neighbour's. Grow a
   short control's frame inside its Button and give the space back outside, so the layout does not
   move; where neighbours sit closer than 44pt, each takes its non-colliding share, as the branch
@@ -283,6 +237,20 @@ Exercise name sits. The Move On ceremony centers its content between the same tw
 control that survives a screen change keeps its frame: Move On becomes Continue in place. Every
 full-width green capsule takes `logCapsuleMetrics()`, one height.
 
+**The No Descriptor Rule.** A value or an action carries no word that names what it is. It stands
+bare (`+10`, `2:14`), or takes a self-describing glyph (X, back arrow, play, a pairing stem, an SF
+Symbol such as a timer) or the Set Log's own mark (`×5`, `@7`). A word appears only where the athlete
+cannot tell what they are looking at without it, and the change that adds one says why no glyph or
+bare value works. Every icon-only element keeps an accessibility label, so VoiceOver still speaks
+the word the screen drops. Words that are the content stay: an Exercise name, a Coach Note, a Set
+Flag's text, and the copy of the ceremony, connect, and empty-state screens. System-owned surfaces
+keep their native labels. The Bare Count Rule below is this rule for counts. The operator ruled for
+glyphs and minimal text on 2026-10-11. On 2026-11-09, on the Live Activity: "prefer icons please -
+avoid text unless absolutely necessary (user cannot infer)", and on a card that labelled the Cadence
+in words, "why the hell is cadence in text there. Please stop doing that." The same day, for every
+screen: "please avoid text labels for most things (unless absolutely required). Generally prefer no
+text or an icon when appropriate."
+
 **The Bare Count Rule.** A count is a bare number unless the screen can't be read without a word
 beside it. A week card reads `2 of 4`, because the tiles beside it already show what is counted.
 When a count does need a word, it is the `CONTEXT.md` term, capitalized, and the same on every
@@ -296,7 +264,7 @@ think we need to show count."
 say what is missing and what happens next, and the one action that recovers. It carries no
 illustration: a stock glyph like a dumbbell is the generic-fitness clip art `PRODUCT.md` turns away.
 
-These three rules came from the layout and hierarchy pass, under the operator's brief of
+The One Edge, Bare Count, and Empty State Speaks Plainly rules came from the layout and hierarchy pass, under the operator's brief of
 2026-10-31: "Where Emil's recommendation conflicts with an existing rule in DESIGN.md, PRODUCT.md,
 or a past operator decision, Emil wins. Update DESIGN.md (through the product-design skill's
 feedback loop) so the new rule is written down".
