@@ -49,7 +49,10 @@ fix that load.
 - **A lint keeps it so.** `scripts/lint-simulators.py`, run by `scripts/lint.sh`, fails on a
   simulator created, booted, shut down, erased, deleted or cloned outside `simlock simctl`, on a
   destination that names a simulator by model, and on `xcodebuild test` outside `test-sim.sh`, under
-  `scripts/` and `.agents/skills/`. Each exception names its reason in the script.
+  `scripts/` and `.agents/skills/`. `simctl bootstatus -b` counts as a boot. Each exception names its
+  reason in the script. `scripts/sim-keyboard.sh` boots through `simlock simctl` and falls back to
+  `xcrun simctl` only when simlock is not on PATH, as on a GitHub runner. Locally, `test-sim.sh`
+  exits 78 before it gets there.
 
 ## Considered alternatives
 

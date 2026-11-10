@@ -336,6 +336,8 @@ case $cmd in
     ;;
 
   stop)
+    held=$(own_lease "${SIM:-}") || exit
+    [ -n "$held" ] || { echo "you hold no Simlock lease, so nothing runs"; exit 0; }
     resolve_sim; require_lease "$sim"
     stop_app
     ;;

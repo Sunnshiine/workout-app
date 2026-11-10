@@ -37,6 +37,7 @@ simlock lease --platform ios --device 'iPhone 17 Pro' --bind-pid $$
 simlock simctl bootstatus "$sim" -b
 simlock simctl shutdown "$sim"
 xcrun simctl install "$sim" "$app"
+xcrun simctl bootstatus "$sim"
 xcodebuild build-for-testing -destination "platform=iOS Simulator,id=$sim"
 SH
 check "$root"
@@ -49,14 +50,15 @@ xcrun simctl boot "$udid"
 xcrun simctl create lane "iPhone 17 Pro" "$runtime"
 simctl shutdown "$udid"
 simctl clone template lane
+xcrun simctl bootstatus "$udid" -b
 xcodebuild build -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 xcodebuild test -destination "platform=iOS Simulator,id=$udid"
 SH
 printf 'Run `xcrun simctl erase <udid>` to reset it.\n' > "$root/.agents/skills/verify/SKILL.md"
 check "$root"
 expect_exit "bypass" 1
-expect_errors "bypass" 7
-printf '%s\n' "$out" | grep -q '^error: scripts/run.sh:5: names a simulator by model' \
+expect_errors "bypass" 8
+printf '%s\n' "$out" | grep -q '^error: scripts/run.sh:6: names a simulator by model' \
     && ok "a named destination cites its line" || bad "a named destination cites its line: $out"
 
 echo "an exception waives only the rule it names"

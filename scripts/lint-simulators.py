@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 
 RULES = {
-    "lifecycle": (re.compile(r"(?<!simlock )\bsimctl\s+(create|boot|erase|delete|clone|shutdown)\b"),
+    # bootstatus -b boots a simulator that is down; without -b it only waits.
+    "lifecycle": (re.compile(r"(?<!simlock )\bsimctl\s+((create|boot|erase|delete|clone|shutdown)\b|bootstatus\b.*\s-b\b)"),
      "makes, boots, or destroys a simulator outside Simlock; lease one, or run it as simlock simctl"),
     "named": (re.compile(r"(-destination\s*['\"]?|Simulator,)[^'\"\n]*\bname="),
      "names a simulator by model; pass the UDID of a leased one"),

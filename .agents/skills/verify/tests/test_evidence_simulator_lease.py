@@ -18,7 +18,7 @@ esac
 """
 NO_LEASE = "you hold no Simlock lease; verify.sh launch <fixture> takes one\n"
 NO_SIMLOCK = "simlock is not on PATH, and every simulator here comes from a Simlock lease; see .agents/skills/simlock/SKILL.md\n"
-DRIVES = [["doctor"], ["stop"], ["online"], ["tree"], ["find", "weight-pill"], ["tap", "-x", "1", "-y", "2"],
+DRIVES = [["doctor"], ["online"], ["tree"], ["find", "weight-pill"], ["tap", "-x", "1", "-y", "2"],
           ["hold", "weight-pill"], ["type", "245"], ["swipe", "up"], ["shot", "01-before"], ["burst", "log-transition"],
           ["record", "take-1"], ["axe", "key", "40"]]
 
@@ -166,6 +166,10 @@ class SimulatorLease(unittest.TestCase):
         self.assertEqual(self.verify("release"), (0, "you hold no Simlock lease\n", "", []), "a second release is a no-op")
         self.assertEqual(self.verify("tree"), (2, "", NO_LEASE, []))
 
+    def test_stop_with_no_lease_has_nothing_to_stop_and_leases_nothing(self):
+        self.assertEqual(self.verify("stop", VERIFY_RUN="issue-1"), (0, "you hold no Simlock lease, so nothing runs\n", "", []))
+        self.assertEqual(self.simlock.leases(), [])
+
     def test_stop_keeps_the_lease(self):
         self.simlock.hold(self.udid)
         self.assertEqual(self.verify("stop"), (0, "nothing launched by this tool on %s\n" % self.udid, "", []))
@@ -173,7 +177,7 @@ class SimulatorLease(unittest.TestCase):
 
     def test_without_simlock_every_command_that_touches_a_simulator_exits_78(self):
         (self.stubs / "simlock").unlink()
-        for argv in [["build"], ["launch", "session"], ["install"], ["release"]] + DRIVES:
+        for argv in [["build"], ["launch", "session"], ["install"], ["release"], ["stop"]] + DRIVES:
             with self.subTest(argv=argv):
                 self.assertEqual(self.verify(*argv, VERIFY_RUN="issue-1"), (78, "", NO_SIMLOCK, []))
         code, out, err, calls = self.run_test_sim("--sim", self.udid, "unit")

@@ -203,7 +203,7 @@ it holds the commands, the exit codes, and how to read `still=`, `box=`, `look=`
 ## Cleanup
 
 ```bash
-.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator and its lease stay
+.agents/skills/verify/verify.sh stop     # terminates the pid this run launched; the simulator and its lease stay. With no lease it does nothing and exits 0
 .agents/skills/verify/verify.sh release  # stop, then give the simulator back to Simlock, which resets it
 rm -rf "$WORKOUT_HOME"
 ```
