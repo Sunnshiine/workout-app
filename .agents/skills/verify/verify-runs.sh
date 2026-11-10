@@ -131,4 +131,19 @@ app_path() {
 }
 
 describe() { "$axe" describe-ui --udid "$sim"; }
+
+# The role, id, label and value find prints for an element, or "absent"; its position is left out.
+reading() { describe | python3 "$tree" find "$1" 2>/dev/null | cut -f1-4 || true; }
+
+# Exits 1 when element $1 still reads $2 about two seconds after a tap that reported success.
+changed() {
+  local now polls
+  for polls in 1 2 3 4 5 6 7; do
+    now=$(reading "$1")
+    [ "$now" = "$2" ] || return 0
+    [ "$polls" = 7 ] || sleep 0.3
+  done
+  echo "the tap reported success, and $1 still reads: ${now:-absent}" | tr '\t' ' ' >&2
+  exit 1
+}
 front_pid() { describe 2>/dev/null | python3 "$tree" pid 2>/dev/null || echo none; }

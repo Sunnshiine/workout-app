@@ -38,7 +38,10 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               elements show; exit 1 and say which it was not (off-screen, clipped,
                               disabled, covered). --label is the exact label, a control over a text
                               that shares it; when more than one is left, exit 1 listing each
-                              with the point a tap takes. -x -y taps the point and reports whatever it hits
+                              with the point a tap takes. -x -y taps the point and reports whatever it hits.
+                              Every tap is a physical touch down and up (--tap-style simulator for AXe's
+                              own, which can miss; prefer the touch). --changes ID exits 1 when that element
+                              reads the same about 2 s after the tap
   hold <id> [seconds]         long press an element by identifier (default 1.2 s)
   type TEXT                   type into the focused field, then reset the keyboard preference AXe
                               input sets (issue 700)

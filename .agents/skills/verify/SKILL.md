@@ -31,6 +31,10 @@ on it, pass the same UDID: `scripts/test-sim.sh --sim <udid> unit`. Without `--s
 asks for a second lease, Simlock refuses it (exit 13), and `test-sim.sh` exits 75 naming the
 simulator you hold. Without `simlock` on PATH every command that touches a simulator exits 78.
 Never create, erase, or delete a simulator, and boot or shut one down only through `simlock simctl`.
+XcodeBuildMCP drives the same lease. Set the UDID `launch` printed with `session_set_defaults
+{simulatorId}` alone; its `screenshot`, `snapshot_ui`, `touch` and `tap` take no `simulatorId` and read
+that default. Prefer `touch` with `down` and `up`; `tap` can miss ([tap.md](tap.md)). After any
+`session_set_defaults` call, `tap` fails with `SNAPSHOT_EXPIRED` until a fresh `snapshot_ui`.
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
@@ -105,6 +109,7 @@ sources newer than the app, which means build before trusting anything. A last l
 .agents/skills/verify/verify.sh tree --all                 # plus what is scrolled out of view, and unnamed layout groups
 .agents/skills/verify/verify.sh find log-active-set-button # one line, on screen or off; exit 1 if absent; stderr says off-screen, clipped, or disabled
 .agents/skills/verify/verify.sh tap --id rpe-6             # or --label "Sign Out", or -x 201 -y 740
+.agents/skills/verify/verify.sh tap --id weight-increment --changes weight-pill   # exit 1 if weight-pill reads the same after
 .agents/skills/verify/verify.sh hold log-active-set-button # long press, 1.2 s default
 .agents/skills/verify/verify.sh type 245                   # into the focused field
 .agents/skills/verify/verify.sh swipe up                   # scroll half a screen

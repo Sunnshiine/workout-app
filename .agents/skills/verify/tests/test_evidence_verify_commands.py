@@ -74,7 +74,9 @@ case $1 in
       *--point*) cat "{dir}/point.json" ;;
       *) cat "{dir}/describe-ui.json" ;;
     esac ;;
-  tap) echo "Tap completed" ;;
+  tap)
+    echo "Tap completed"
+    if [ -f "{dir}/after.json" ]; then mv "{dir}/after.json" "{dir}/describe-ui.json"; fi ;;
   *) exit 64 ;;
 esac
 """
@@ -122,14 +124,14 @@ class VerifyTap(unittest.TestCase):
         self.assertEqual(self.tap(SETTINGS, "--label", "Developer Tools", "--wait-timeout", "0", point=json.dumps(row)),
                          (0, "Tap completed\n", "", ["describe-ui --udid %s" % self.sim,
                                                       "describe-ui --udid %s --point 201,596" % self.sim,
-                                                      "tap --udid %s -x 201 -y 596" % self.sim]))
+                                                      "tap --udid %s -x 201 -y 596 --tap-style physical" % self.sim]))
 
     def test_a_target_on_top_at_its_centre_is_tapped_after_the_point_read(self):
         self.assertEqual(self.tap(WITH_GEAR, "--id", "session-controls-settings-button", "--wait-timeout", "0",
                                   point=GEAR_UP),
                          (0, "Tap completed\n", "", ["describe-ui --udid %s" % self.sim,
                                                       "describe-ui --udid %s --point 356,87" % self.sim,
-                                                      "tap --udid %s -x 356 -y 87" % self.sim]))
+                                                      "tap --udid %s -x 356 -y 87 --tap-style physical" % self.sim]))
 
     def test_a_covered_target_is_never_tapped(self):
         self.assertEqual(self.tap(WITH_GEAR, "--id", "session-controls-settings-button", "--wait-timeout", "0",
@@ -143,7 +145,7 @@ class VerifyTap(unittest.TestCase):
         self.assertEqual(self.tap(tree, "--id", "half-row", "--wait-timeout", "0", point=json.dumps(dict(HALF_ROW, pid=1))),
                          (0, "Tap completed\n", "", ["describe-ui --udid %s" % self.sim,
                                                       "describe-ui --udid %s --point 179,862" % self.sim,
-                                                      "tap --udid %s -x 179 -y 862" % self.sim]))
+                                                      "tap --udid %s -x 179 -y 862 --tap-style physical" % self.sim]))
         self.assertEqual(self.tap(tree, "--id", "half-row", "--wait-timeout", "0", point="[]")[:3],
                          (1, "", "covered: at 179,862 the screen has nothing, not AXButton half-row" + COVERED),
                          "the note names the point read, not the frame centre at y 876")
@@ -170,7 +172,7 @@ class VerifyTap(unittest.TestCase):
                          (0, "Tap completed\n",
                           "not checked for cover: pid 90129 is in front, not pid 7427 that launch started, "
                           "so this tap goes by the tree alone\n",
-                          ["describe-ui --udid %s" % self.sim, "tap --udid %s -x 62 -y 336" % self.sim]),
+                          ["describe-ui --udid %s" % self.sim, "tap --udid %s -x 62 -y 336 --tap-style physical" % self.sim]),
                          "live-activity.md reopens the app this way; the springboard's point read is not its tree")
 
     def test_with_no_launch_pid_the_check_holds_on_the_home_screen_too(self):
@@ -188,9 +190,31 @@ class VerifyTap(unittest.TestCase):
                          (1, "", GEAR_COVERED, ["describe-ui --udid %s" % self.sim,
                                                 "describe-ui --udid %s --point 356,87" % self.sim]))
 
+    def test_a_tap_that_leaves_the_changes_element_as_it_was_fails(self):
+        code, out, err, calls = self.tap(WITH_GEAR, "--id", "session-controls-settings-button", "--wait-timeout", "0",
+                                         "--changes", "weight-pill", point=GEAR_UP)
+        self.assertEqual((code, out), (1, "Tap completed\n"), "axe reported success and the weight stayed")
+        self.assertIn("the tap reported success, and weight-pill still reads: AXButton weight-pill Weight, 237.5", err)
+        self.assertIn("tap --udid %s -x 356 -y 87 --tap-style physical" % self.sim, calls, "the tap itself went out once")
+
+    def test_a_tap_that_changes_the_changes_element_passes(self):
+        (self.root / "after.json").write_text(WITH_GEAR.replace("Weight, 237.5", "Weight, 242.5"))
+        code, out, err, _ = self.tap(WITH_GEAR, "--id", "session-controls-settings-button", "--wait-timeout", "0",
+                                     "--changes", "weight-pill", point=GEAR_UP)
+        self.assertEqual((code, out, err), (0, "Tap completed\n", ""))
+
+    def test_a_coordinate_tap_checks_its_changes_element_too(self):
+        code, _, err, _ = self.tap(WITH_GEAR, "-x", "343", "-y", "566", "--changes", "weight-pill")
+        self.assertEqual(code, 1, err)
+        self.assertIn("weight-pill still reads", err)
+
+    def test_a_tap_style_the_caller_names_replaces_the_physical_default(self):
+        _, _, _, calls = self.tap(MINI, "-x", "5", "-y", "6", "--tap-style", "simulator")
+        self.assertEqual(calls, ["tap --udid %s --wait-timeout 3 -x 5 -y 6 --tap-style simulator" % self.sim])
+
     def test_a_coordinate_tap_still_goes_straight_to_axe(self):
         self.assertEqual(self.tap(MINI, "-x", "5", "-y", "6"),
-                         (0, "Tap completed\n", "", ["tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim]),
+                         (0, "Tap completed\n", "", ["tap --udid %s --wait-timeout 3 -x 5 -y 6 --tap-style physical" % self.sim]),
                          "no element is resolved, so it reports success whatever is under 5,6")
 
     def test_a_label_without_its_text_or_beside_an_id_is_usage(self):

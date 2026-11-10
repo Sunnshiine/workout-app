@@ -84,7 +84,7 @@ class Record(Lane):
         self.assertEqual(self.calls()[:3], [
             "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4"),
             "Recording started",
-            "axe tap --udid %s --wait-timeout 3 -x 5 -y 6" % self.sim,
+            "axe tap --udid %s --wait-timeout 3 -x 5 -y 6 --tap-style physical" % self.sim,
         ], "the drive ran only after the recorder said it was capturing")
         self.assertEqual((self.run / "appear.end.txt").read_text(), (
             "AXApplication\t\tWorkoutTracker\t\t@0,0 402x874\n"

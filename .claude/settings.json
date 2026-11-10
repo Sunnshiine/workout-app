@@ -15,26 +15,7 @@
       "PushNotification",
       "RemoteTrigger",
       "ReportFindings",
-      "AskUserQuestion",
-      "mcp__XcodeBuildMCP__boot_sim",
-      "mcp__XcodeBuildMCP__open_sim",
-      "mcp__XcodeBuildMCP__build_sim",
-      "mcp__XcodeBuildMCP__build_run_sim",
-      "mcp__XcodeBuildMCP__test_sim",
-      "mcp__XcodeBuildMCP__install_app_sim",
-      "mcp__XcodeBuildMCP__launch_app_sim",
-      "mcp__XcodeBuildMCP__erase_sims",
-      "mcp__XcodeBuildMCP__clean",
-      "mcp__XcodeBuildMCP__build_device",
-      "mcp__XcodeBuildMCP__build_run_device",
-      "mcp__XcodeBuildMCP__test_device",
-      "mcp__XcodeBuildMCP__build_macos",
-      "mcp__XcodeBuildMCP__build_run_macos",
-      "mcp__XcodeBuildMCP__test_macos",
-      "mcp__XcodeBuildMCP__swift_package_build",
-      "mcp__XcodeBuildMCP__swift_package_run",
-      "mcp__XcodeBuildMCP__swift_package_test",
-      "mcp__XcodeBuildMCP__xcode_ide_call_tool"
+      "AskUserQuestion"
     ]
   },
   "hooks": {
@@ -45,6 +26,28 @@
           {
             "type": "command",
             "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/refuse-raw-builds.py\"; [ -x \"$p\" ] || exit 0; \"$p\"; [ $? -eq 3 ] && exit 2; exit 0",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "^mcp__XcodeBuildMCP__(boot_sim|open_sim|build_sim|build_run_sim|test_sim|install_app_sim|launch_app_sim|erase_sims|clean|build_device|build_run_device|test_device|build_macos|build_run_macos|test_macos|swift_package_build|swift_package_run|swift_package_test|xcode_ide_call_tool|session_set_defaults|session_use_defaults_profile)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/sim-mcp-hook.py\"; [ -f \"$p\" ] || { echo '{\"systemMessage\": \"sim-mcp-hook: scripts/sim-mcp-hook.py is missing, so this XcodeBuildMCP call runs without its Simlock lease check\"}'; exit 0; }; python3 \"$p\"; s=$?; [ $s -eq 3 ] && exit 2; [ $s -eq 0 ] || echo \"{\\\"systemMessage\\\": \\\"sim-mcp-hook: the lease check exited $s, so this XcodeBuildMCP call runs unchecked\\\"}\"; exit 0",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "^mcp__XcodeBuildMCP__session_(set_defaults|clear_defaults|use_defaults_profile)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/sim-mcp-hook.py\"; [ -f \"$p\" ] && python3 \"$p\"; exit 0",
             "timeout": 5
           }
         ]

@@ -8,5 +8,12 @@ schemaVersion: 1
 sessionDefaults:
   projectPath: WorkoutTracker.xcodeproj
   scheme: WorkoutTracker
-  simulatorName: iPhone 17 Pro
+  # Without these, Xcode stops the build at "Validate plug-in SwiftLintBuildToolPlugin".
+  extraArgs: [-skipPackagePluginValidation, -skipMacroValidation]
+  # In this worktree (git-ignored, on the Projects volume), not the internal disk's
+  # ~/Library/Developer/XcodeBuildMCP/workspaces, where each worktree kept about 1.3 GB.
+  derivedDataPath: .xcodebuildmcp/DerivedData
+# No simulator default: XcodeBuildMCP would resolve a name to a simulator no lease holds.
+# Set the UDID of your Simlock lease with session_set_defaults {simulatorId} (scripts/sim-mcp-hook.py).
+enabledWorkflows: [simulator, ui-automation, doctor, workflow-discovery]
 sentryDisabled: true

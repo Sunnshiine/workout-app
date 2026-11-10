@@ -41,3 +41,17 @@ carry the label, it taps the control. When more than one is left, it exits 1 and
 its centre. With the sign-out confirmation up, `tap --label "Sign Out"` lists the Settings row and the
 confirmation's own button, so tap that button by its id, `sign-out-confirm-button`. `tap -x -y` resolves no
 element, so it still reports success whatever is under the point.
+
+## Tap style
+
+Every `tap` sends a physical touch down and up (`--tap-style physical`). AXe's own default, the
+simulator tap, prints `Tap … completed successfully` and can miss. Measured on
+an iPhone 17 Pro on iOS 27.0 (PR 1220): the weight steppers, a reps chip, an RPE chip, the weight field and
+`session-location-button` stayed as they were under it, and each moved under a physical tap.
+`--tap-style simulator` still asks for it, and a bare `verify.sh axe tap` uses it for a button.
+XcodeBuildMCP's `tap` changed the screen on 4 of 5 taps on visible controls in a fresh session, and
+missed a reps chip that its `touch` then reached. Prefer `touch` with `down` and `up`; `tap` can miss.
+
+`--changes ID` reads that element before the tap and exits 1 when it reads the same about 2 s after,
+naming what it still reads. Its position does not count. Give it the element the step is meant to
+change, as `tap --id weight-increment --changes weight-pill`.
