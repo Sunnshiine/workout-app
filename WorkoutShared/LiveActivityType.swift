@@ -7,8 +7,12 @@ import UIKit
 enum LiveActivityType {
     /// `queueName`: the Fraunces voice.
     case exerciseName
+    /// `weightEntry`, set solid: the Lock Screen card's countdown, with the Cadence right under it.
+    case countdown
     /// `statsValue`.
     case largeFigure
+    /// `statsValue` on the leading the Lock Screen card stacks under a caption.
+    case statValue
     /// `railChipValue`: a load, reps, an RPE, and a countdown.
     case figure
     /// `logCapsule`.
@@ -19,24 +23,46 @@ enum LiveActivityType {
     case guidance
     /// `fieldLabel`.
     case label
+    /// `coachNote`.
+    case coachNote
+    /// `queuePill`.
+    case pill
+    /// `historyChip`'s face, which the Lock Screen card's stat labels and its Cadence take.
+    case caption
 
     fileprivate var size: CGFloat {
         switch self {
+        case .countdown: 46
+        case .largeFigure, .statValue: 28
         case .exerciseName: 20
-        case .largeFigure: 28
         case .figure, .control: 17
+        case .coachNote, .pill: 15
         case .reference, .guidance, .label: 13
+        case .caption: 12
+        }
+    }
+
+    /// The line's height as a multiple of the type size. Nil keeps the face's own.
+    fileprivate var leading: CGFloat? {
+        switch self {
+        case .countdown: 1
+        case .statValue: 1.15
+        case .caption: 1.3
+        case .coachNote: 1.5
+        case .exerciseName, .largeFigure, .figure, .control, .reference, .guidance, .label, .pill: nil
         }
     }
 
     fileprivate var curve: UIFont.TextStyle {
         switch self {
+        case .countdown: .largeTitle
         case .exerciseName: .title3
-        case .largeFigure: .title1
+        case .largeFigure, .statValue: .title1
         case .figure: .body
         case .control: .headline
-        case .reference, .guidance: .footnote
-        case .label: .caption1
+        case .coachNote: .subheadline
+        case .reference, .guidance, .pill: .footnote
+        case .label, .caption: .caption1
         }
     }
 
@@ -47,7 +73,7 @@ enum LiveActivityType {
         case .exerciseName:
             axes = [Self.tag("wght"): weight, Self.tag("opsz"): Double(size), Self.tag("SOFT"): 100, Self.tag("WONK"): 0]
             attributes = [.family: "Fraunces"]
-        case .largeFigure, .figure, .control, .reference, .guidance, .label:
+        case .countdown, .largeFigure, .statValue, .figure, .control, .reference, .guidance, .label, .coachNote, .pill, .caption:
             axes = [Self.tag("wght"): weight]
             attributes = [
                 .family: "Source Sans 3",
@@ -66,9 +92,9 @@ enum LiveActivityType {
     private var weight: Double {
         switch self {
         case .exerciseName: 490
-        case .largeFigure, .figure: 700
-        case .guidance: 400
-        case .control, .reference, .label: 600
+        case .countdown, .largeFigure, .statValue, .figure: 700
+        case .guidance, .coachNote: 400
+        case .control, .reference, .label, .pill, .caption: 600
         }
     }
 
@@ -78,7 +104,8 @@ enum LiveActivityType {
         switch size {
         case ..<13: return 0.01 * size
         case ..<28: return 0
-        default: return -0.01 * size
+        case ..<46: return -0.01 * size
+        default: return -0.015 * size
         }
     }
 
@@ -103,6 +130,7 @@ private struct LiveActivityTypeModifier: ViewModifier {
         content
             .font(Font(role.font(size: size)))
             .tracking(role.tracking(at: size))
+            .lineHeight(role.leading.map { .exact(points: $0 * size) })
     }
 
     private func pointSize(at size: DynamicTypeSize) -> CGFloat {

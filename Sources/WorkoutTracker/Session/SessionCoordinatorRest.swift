@@ -68,6 +68,7 @@ extension SessionCoordinator {
             restStartDate: running.restStartDate,
             restEndDate: running.restEndDate
         )
+        .keepingTheFace(of: running)
         content.pendingWrites = pendingWrites
         guard content != running else { return }
         wiring.liveActivity.retarget(restContent: content)

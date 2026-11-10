@@ -196,6 +196,15 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
+    func showRest(_ rest: LiveActivityRestContent, sessionLabel: String) async {
+        startOrUpdate(restContent: rest, sessionLabel: sessionLabel)
+        await startUpdateTask?.value
+    }
+
+    func endRest() async {
+        end()
+    }
+
     func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
         guard controller.currentState?.dictation == LiveActivityDictation(readback) else { return }
         retarget(restContent: card)

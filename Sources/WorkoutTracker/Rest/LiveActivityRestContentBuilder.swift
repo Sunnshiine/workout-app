@@ -58,6 +58,11 @@ struct LiveActivityRestContent: Equatable, Sendable {
     let restStartDate: Date
     let restEndDate: Date
     var press: LoggablePressContent
+    /// The Set's weight, Reps and RPE, as the Lock Screen card's rest face draws them.
+    let stats: [LockScreenStat]
+    /// The Card Face the Lock Screen card shows. Only `turned(to:)` changes it, so a card never
+    /// shows a face its Set has not got.
+    private(set) var face = LockScreenFace.rest
     /// The Exercise's Cadence, as `3:1:1` or `2-3:1:0`. Nil with none.
     let cadence: String?
     /// The Exercise's Coach Note on one line. Nil with none.
@@ -80,6 +85,7 @@ struct LiveActivityRestContent: Equatable, Sendable {
         restStartDate: Date,
         restEndDate: Date,
         press: LoggablePressContent,
+        stats: [LockScreenStat],
         cadence: String?,
         coachNote: String?,
         start: LockScreenStart?,
@@ -96,6 +102,7 @@ struct LiveActivityRestContent: Equatable, Sendable {
         self.restStartDate = restStartDate
         self.restEndDate = restEndDate
         self.press = press
+        self.stats = stats
         self.cadence = cadence
         self.coachNote = coachNote
         self.start = start
@@ -108,6 +115,33 @@ struct LiveActivityRestContent: Equatable, Sendable {
 
     var setsLeftText: String {
         setsLeft == 1 ? "1 Set left" : "\(setsLeft) Sets left"
+    }
+}
+
+extension LiveActivityRestContent {
+    /// This card turned to `face`. Nil when the Set's card has no such face: no Coach Note to open,
+    /// no choices to offer, or Reps no choice could have carried.
+    func turned(to face: LockScreenFace) -> LiveActivityRestContent? {
+        switch face {
+        case .rest:
+            break
+        case .coachNote:
+            guard coachNote != nil else { return nil }
+        case .reps:
+            guard case .ready = press else { return nil }
+        case .rpe(let reps):
+            guard case .ready = press, LockScreenOffer.repsRange.contains(reps) else { return nil }
+        }
+        var card = self
+        card.face = face
+        return card
+    }
+
+    /// This card on the face `running` shows, when both are on one Set and this card has that
+    /// face. A card redrawn under the athlete, as a flush that lands does, must not turn it back.
+    func keepingTheFace(of running: LiveActivityRestContent) -> LiveActivityRestContent {
+        guard target == running.target else { return self }
+        return turned(to: running.face) ?? self
     }
 }
 
@@ -217,6 +251,7 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(for: position, following: session, showing: draft, history: source.history),
+            stats: LockScreenStat.row(weight: draft.weight, prescription: target.set.prescription, repsCell: target.set.prescribedReps),
             cadence: target.exercise.exerciseName.cadence,
             coachNote: target.exercise.lockScreenCoachNote,
             start: target.exercise.session === session ? LockScreenStart(position) : nil,

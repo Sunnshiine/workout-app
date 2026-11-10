@@ -1,30 +1,32 @@
 import AppIntents
 
-/// Turns the Lock Screen card's row to RPE Chips for the Reps the athlete tapped, or back to Reps
-/// for nil, without opening the app. It writes nothing. A `LiveActivityIntent` runs in the app's
-/// process even from the widget extension's button.
-struct ChooseRepsIntent: LiveActivityIntent {
-    static let title: LocalizedStringResource = "Choose the Reps of a Set"
+/// Turns the Lock Screen card to the Card Face its control names, without opening the app. It
+/// writes nothing. A `LiveActivityIntent` runs in the app's process even from the widget
+/// extension's button.
+struct TurnLockScreenCardIntent: LiveActivityIntent {
+    static let title: LocalizedStringResource = "Turn the Lock Screen card"
     static let description = IntentDescription(
-        "Chooses the Reps of the Set your Lock Screen card shows, then offers its RPE, without opening WorkoutTracker."
+        "Turns your Lock Screen card to the Coach Note, the Reps or the RPE of the Set it shows, and back, without opening WorkoutTracker."
     )
     static let supportedModes: IntentModes = .background
     static let isDiscoverable = false
 
-    @Parameter(title: "Set") var setIdentity: String
-    @Parameter(title: "Reps") var reps: Int?
+    @Parameter(title: "Face") var face: String
+    /// The Set a turn toward its Reps or its RPE is about. Nil from a control that names no Set.
+    @Parameter(title: "Set") var setIdentity: String?
 
     init() {}
 
-    init(setIdentity: String, reps: Int?) {
+    init(to face: LockScreenCardFace, pressing setIdentity: String? = nil) {
+        self.face = face.token
         self.setIdentity = setIdentity
-        self.reps = reps
     }
 
     @MainActor
     func perform() async throws -> some IntentResult {
         guard let performer = LockScreenPresses.performer else { throw LockScreenPresses.PerformedOutsideTheApp() }
-        await performer.chooseReps(setIdentity: setIdentity, reps: reps)
+        guard let face = LockScreenCardFace(token: face) else { throw LockScreenPresses.UnreadableFace(token: face) }
+        await performer.turnCard(to: face, pressing: setIdentity)
         return .result()
     }
 }
@@ -68,10 +70,16 @@ enum LockScreenPresses {
     struct PerformedOutsideTheApp: Error, CustomStringConvertible {
         var description: String { "A Lock Screen press ran in a process that registered no performer; only the app performs it." }
     }
+
+    struct UnreadableFace: Error, CustomStringConvertible {
+        let token: String
+
+        var description: String { "A Lock Screen press named the Card Face \"\(token)\", which the card has not got." }
+    }
 }
 
 @MainActor
 protocol LockScreenPressPerforming: AnyObject {
-    func chooseReps(setIdentity: String, reps: Int?) async
+    func turnCard(to face: LockScreenCardFace, pressing setIdentity: String?) async
     func logSet(setIdentity: String, reps: Int, rpe: String) async
 }

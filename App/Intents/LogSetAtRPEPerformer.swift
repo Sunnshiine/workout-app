@@ -25,10 +25,10 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
         self.liveActivity = liveActivity
     }
 
-    func chooseReps(setIdentity: String, reps: Int?) async {
+    func turnCard(to face: LockScreenCardFace, pressing setIdentity: String?) async {
         // A press that relaunched the app finds the rest this process did not start.
         liveActivity.takeOverRestLeftRunning()
-        await press.chooseReps(setIdentity: setIdentity, reps: reps)
+        await press.turn(to: LockScreenFace(face), pressing: setIdentity)
     }
 
     func logSet(setIdentity: String, reps: Int, rpe: String) async {

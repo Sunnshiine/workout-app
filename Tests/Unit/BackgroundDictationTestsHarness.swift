@@ -155,6 +155,20 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         restContent = card
     }
 
+    private(set) var rests: [LiveActivityRestContent] = []
+
+    func showRest(_ rest: LiveActivityRestContent, sessionLabel: String) async {
+        rests.append(rest)
+        restContent = rest
+    }
+
+    private(set) var endedRests = 0
+
+    func endRest() async {
+        endedRests += 1
+        restContent = nil
+    }
+
     func withdrawReadback() async {
         withdrawals += 1
     }

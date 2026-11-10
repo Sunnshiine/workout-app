@@ -62,8 +62,9 @@ struct IslandSetOffer: View {
 
             switch state.loggablePress {
             case .ready(let offer):
-                LockScreenChipRow(
+                IslandChipRow(
                     offer: offer,
+                    face: state.face,
                     weight: state.weightText,
                     labelColor: colors.islandPrimaryText,
                     colors: colors,
@@ -71,7 +72,7 @@ struct IslandSetOffer: View {
                     chipHeight: LockScreenCardMetrics.controlSize
                 )
             case .needsApp:
-                Link(destination: LockScreenChipRow.appURL) {
+                Link(destination: LoggablePress.appURL) {
                     Text("Open to log")
                         .liveActivityFont(.control)
                         .foregroundStyle(colors.islandPrimaryText)
@@ -129,6 +130,21 @@ struct IslandSetOffer: View {
 
             Spacer(minLength: 0)
         }
+    }
+}
+
+/// The weight the stage's card holds, which every chip logs.
+struct SelectedWeightText: View {
+    let state: WorkoutActivityAttributes.ContentState
+    let color: Color
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Text(state.weightText)
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .contentTransition(reduceMotion ? .opacity : .numericText())
+            .invalidatableContent()
     }
 }
 

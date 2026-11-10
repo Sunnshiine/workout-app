@@ -19,7 +19,11 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let dictation: LiveActivityDictation?
         /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
-        /// The Exercise's Cadence; nil with none.
+        /// Which Card Face the Lock Screen card draws.
+        let face: LockScreenCardFace
+        /// The weight, the Reps and the RPE on the card's rest face. Empty with no rest running.
+        let stats: [LockScreenCardStat]
+        /// As the Sheet writes it: `3:1:1`, or `2-3:1:0` for a range. Nil with none.
         let cadence: String?
         /// The Exercise's Coach Note on one line; nil with none.
         let coachNote: String?
@@ -333,6 +337,12 @@ extension WorkoutActivityAttributes.ContentState {
     /// `185 lbs`, and `BW` alone.
     var weightText: String {
         [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone.
+    var weightOnTheCard: String {
+        guard let weight = stats.first, !weight.isMissing else { return weightText }
+        return [weight.value, weight.label].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     var cadenceAndCoachNote: String? {

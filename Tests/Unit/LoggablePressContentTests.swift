@@ -70,16 +70,15 @@ func theRepsChipsAreConsecutiveValuesHeldInsideTheRail(center: Int, values: [Int
 }
 
 /// The card's Reps rail centres on a range's low end, the value it pre-fills, and ticks every
-/// value of the range. Nothing is chosen ahead of the athlete.
+/// value of the range.
 @MainActor
-@Test func aSetWithAWeightOffersRepsChipsAroundThePrescriptionWithNothingChosen() throws {
+@Test func aSetWithAWeightOffersRepsChipsAroundThePrescription() throws {
     let fixture = set(reps: "11-12", load: "RPE 8")
 
     let offered = try offer(press(fixture, showing: SetLogDraft(weight: .pounds(185), reps: nil, rpe: nil)))
 
     #expect(offered.repChoices == [9, 10, 11, 12, 13])
     #expect(offered.prescribedReps == [11, 12])
-    #expect(offered.chosenReps == nil)
     #expect(offered.rpeChoices == ["7", "7.5", "8", "8.5", "9"])
     #expect(offered.prescribedRPE == "8")
     let identity = try #require(LoggableSetIdentity(storageValue: offered.setIdentity))

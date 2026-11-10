@@ -69,7 +69,7 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
 
     var testDescription: String { name }
 
-    static let all = [longestCells, backSquat, longestCellsTheChipsCannotLog]
+    static let all = [longestCells, backSquat, backSquatAfterARepsTap, longestCellsTheChipsCannotLog]
 
     static let longestCells = IslandOffer(
         name: "the longest cells",
@@ -89,6 +89,23 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             press: .ready(offer(reps: [3, 4, 5, 6, 7], rpe: ["6", "6.5", "7", "7.5", "8"]))
         ),
         controls: ["Say Set", "3 reps", "4 reps", "5 reps", "6 reps", "7 reps", otherReps]
+    )
+
+    /// The island needs no Log tap first: its Reps Chips are up on any face but the one a Reps tap
+    /// turns to, which shows the RPE Chips.
+    static let backSquatAfterARepsTap = IslandOffer(
+        name: "an ordinary Set after a Reps tap",
+        state: state(
+            exerciseName: "Back Squat",
+            reps: "5",
+            load: "RPE7",
+            weight: "252.5",
+            cadence: "3:1:1",
+            coachNote: "Brace hard off the floor, controlled descent.",
+            press: .ready(offer(reps: [3, 4, 5, 6, 7], rpe: ["6", "6.5", "7", "7.5", "8"])),
+            face: .rpe(reps: 6)
+        ),
+        controls: ["Say Set", "6 reps"] + ["6", "6.5", "7", "7.5", "8"].map { "Log 252.5 lbs for 6 at RPE \($0)" }
     )
 
     static let longestCellsTheChipsCannotLog = IslandOffer(
@@ -171,8 +188,7 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             prescribedReps: [],
             rpeChoices: rpe,
             prescribedRPE: nil,
-            setIdentity: "visual",
-            chosenReps: nil
+            setIdentity: "visual"
         )
     }
 
@@ -184,7 +200,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
         weight: String,
         cadence: String,
         coachNote: String,
-        press: LoggablePress
+        press: LoggablePress,
+        face: LockScreenCardFace = .rest
     ) -> WorkoutActivityAttributes.ContentState {
         let restEnd = Date(timeIntervalSinceReferenceDate: 1_000)
         return WorkoutActivityAttributes.ContentState(
@@ -201,6 +218,8 @@ struct IslandOffer: CustomTestStringConvertible, Sendable {
             restEndDate: restEnd,
             dictation: nil,
             loggablePress: press,
+            face: face,
+            stats: [],
             cadence: cadence,
             coachNote: coachNote,
             start: nil,

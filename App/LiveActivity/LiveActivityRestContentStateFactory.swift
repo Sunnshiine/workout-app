@@ -20,6 +20,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: restContent.restEndDate,
             dictation: dictation,
             loggablePress: LoggablePress(restContent.press),
+            face: LockScreenCardFace(restContent.face),
+            stats: restContent.stats.map(LockScreenCardStat.init),
             cadence: restContent.cadence,
             coachNote: restContent.coachNote,
             start: restContent.start.map(LockScreenStartOffer.init),
@@ -47,6 +49,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
+            face: .rest,
+            stats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
@@ -70,6 +74,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
+            face: .rest,
+            stats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
@@ -88,8 +94,7 @@ extension LoggablePress {
                     prescribedReps: offer.prescribedReps,
                     rpeChoices: offer.rpeChoices,
                     prescribedRPE: offer.prescribedRPE,
-                    setIdentity: offer.setIdentity,
-                    chosenReps: offer.chosenReps
+                    setIdentity: offer.setIdentity
                 )
             )
         case .needsApp:
@@ -108,13 +113,46 @@ extension LoggablePressContent {
                     prescribedReps: offer.prescribedReps,
                     rpeChoices: offer.rpeChoices,
                     prescribedRPE: offer.prescribedRPE,
-                    setIdentity: offer.setIdentity,
-                    chosenReps: offer.chosenReps
+                    setIdentity: offer.setIdentity
                 )
             )
         case .needsApp:
             self = .needsApp
         }
+    }
+}
+
+extension LockScreenCardFace {
+    init(_ face: LockScreenFace) {
+        switch face {
+        case .rest: self = .rest
+        case .coachNote: self = .coachNote
+        case .reps: self = .reps
+        case .rpe(let reps): self = .rpe(reps: reps)
+        }
+    }
+}
+
+extension LockScreenFace {
+    init(_ face: LockScreenCardFace) {
+        switch face {
+        case .rest: self = .rest
+        case .coachNote: self = .coachNote
+        case .reps: self = .reps
+        case .rpe(let reps): self = .rpe(reps: reps)
+        }
+    }
+}
+
+extension LockScreenCardStat {
+    init(_ stat: LockScreenStat) {
+        self.init(label: stat.label, value: stat.value, spoken: stat.spoken, isMissing: stat.isMissing)
+    }
+}
+
+extension LockScreenStat {
+    init(_ stat: LockScreenCardStat) {
+        self.init(label: stat.label, value: stat.value, spoken: stat.spoken, isMissing: stat.isMissing)
     }
 }
 
@@ -147,7 +185,7 @@ extension LiveActivityRestContent {
     /// The rest a running activity shows, read back off it, leading to no Set this process knows.
     init?(leftRunning state: WorkoutActivityAttributes.ContentState) {
         guard let restStartDate = state.restStartDate, let restEndDate = state.restEndDate else { return nil }
-        self.init(
+        let rest = LiveActivityRestContent(
             exerciseName: state.exerciseName,
             prescribedReps: state.prescribedReps,
             prescribedLoad: state.prescribedLoad,
@@ -159,11 +197,13 @@ extension LiveActivityRestContent {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(state.loggablePress),
+            stats: state.stats.map(LockScreenStat.init),
             cadence: state.cadence,
             coachNote: state.coachNote,
             start: nil,
             target: nil
         )
+        self = rest.turned(to: LockScreenFace(state.face)) ?? rest
         pendingWrites = state.pendingWrites
     }
 }

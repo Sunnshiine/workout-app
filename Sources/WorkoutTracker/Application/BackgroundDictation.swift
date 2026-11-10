@@ -22,6 +22,10 @@ protocol DictationLiveActivityAdapter: AnyObject {
     func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async
     /// Shows `card` over the one it follows, unless a readback is up.
     func refresh(card: LiveActivityRestContent) async
+    /// Shows the rest a Set logged from the Lock Screen card began, with no readback before it.
+    func showRest(_ rest: LiveActivityRestContent, sessionLabel: String) async
+    /// Ends the rest's Live Activity, whose Set is logged with no rest after it.
+    func endRest() async
 }
 
 /// Restores the Google sign-in that a launch with no scene never did.

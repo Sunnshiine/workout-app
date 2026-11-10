@@ -14,7 +14,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let outcome = await harness.press(harness.identity())
 
     #expect(outcome == .logged(logged235, at: firstSet))
-    #expect(harness.liveActivity.readbacks == [.logged("235×5 @7", to: try harness.squat(set: 1))])
+    #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x5@7")
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7")
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
@@ -22,45 +22,12 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.signIn.restores == 1)
     let session = try #require(harness.app.workout.currentSession)
     #expect(harness.focus.activeSet(in: session)?.setID == secondSet)
-    guard case .rest(let rest) = harness.liveActivity.subjects.last else {
-        Issue.record("Logged showed \(String(describing: harness.liveActivity.subjects.last)), not the rest")
-        return
-    }
+    let rest = try #require(harness.liveActivity.rests.last)
     #expect(rest.target?.setID == secondSet)
     #expect(rest.restStartDate == harness.restTimer.interval?.start)
 }
 
-/// The readback holds with no chip under the thumb, so the second tap of a double tap cannot log
-/// the next Set. Then the Lock Screen offers the Set the card moved to.
-@MainActor
-@Test func theNextSetsCardWaitsOutTheReadback() async throws {
-    let harness = try await BackgroundDictationHarness(hearing: [])
-    let chips = harness.chips
-    let identity = harness.identity()
-
-    let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
-    await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + LockScreenPress.readbackHold,
-        orRecord: "The readback never held"
-    )
-    #expect(harness.liveActivity.replacements.isEmpty)
-    await waitUntil(
-        { (try? harness.app.sync.fetchPendingWriteRecords().isEmpty) == true },
-        orRecord: "The flush never landed"
-    )
-
-    harness.clock.advance(by: LockScreenPress.readbackHold)
-    #expect(await run.value == .logged(logged235, at: firstSet))
-
-    let replacement = try #require(harness.liveActivity.replacements.first)
-    #expect(replacement.readback == .logged("235×5 @7", to: try harness.squat(set: 1)))
-    #expect(replacement.card.target?.setID == secondSet)
-    #expect(replacement.card.restEndDate == harness.restTimer.interval?.end)
-    #expect(replacement.card.pendingWrites == 0, "the flush landed during the hold")
-    #expect(harness.liveActivity.refreshes.isEmpty)
-}
-
-/// A slow flush must not keep the readback on screen past its hold.
+/// A slow flush must not keep the next Set's card off the Lock Screen.
 @MainActor
 @Test func theNextSetsCardShowsWhileTheFlushIsStillGoing() async throws {
     let sheet = HeldWriteSheetsClient()
@@ -70,12 +37,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + LockScreenPress.readbackHold,
-        orRecord: "The readback never held"
-    )
-    harness.clock.advance(by: LockScreenPress.readbackHold)
-    await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The card waited for the flush")
+    #expect(harness.liveActivity.rests.first?.target?.setID == secondSet)
 
     sheet.release()
     #expect(await run.value == .logged(logged235, at: firstSet))
@@ -93,13 +55,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    await harness.clock.waitUntilSleeping(
-        until: harness.clock.now + LockScreenPress.readbackHold,
-        orRecord: "The readback never held"
-    )
-    harness.clock.advance(by: LockScreenPress.readbackHold)
-    await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The card waited for the flush")
-    #expect(harness.liveActivity.replacements.first?.card.pendingWrites == 1)
+    #expect(harness.liveActivity.rests.first?.pendingWrites == 1)
 
     sheet.release()
     #expect(await run.value == .logged(logged235, at: firstSet))
@@ -107,16 +63,18 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 }
 
 @MainActor
-@Test func theSameChipTwiceWritesOnceAndKeepsTheReadback() async throws {
+@Test func theSameChipTwiceWritesOnceAndLeavesTheNextSetsCard() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
     let identity = harness.identity()
     _ = await harness.press(identity)
-    let shown = harness.liveActivity.readbacks
+    let card = harness.liveActivity.restContent
 
     let outcome = await harness.chips.logSet(setIdentity: identity, reps: 5, rpe: "7")
 
     #expect(outcome == .sameSetLog(at: firstSet))
-    #expect(harness.liveActivity.readbacks == shown)
+    #expect(harness.liveActivity.restContent == card)
+    #expect(harness.liveActivity.rests.count == 1)
+    #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(harness.signIn.restores == 1)
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x5@7")
 }
@@ -270,7 +228,8 @@ func aPressThisBuildCannotReadWritesNothing(identity: String, reps: Int, rpe: St
     let outcome = await chips.logSet(setIdentity: harness.identity(), reps: 5, rpe: "7")
 
     try #require(outcome == .notLogged(.micBusy(.headless)))
-    #expect(await chips.chooseReps(setIdentity: harness.identity(), reps: 6) == .notLogged(.micBusy(.headless)))
+    #expect(await chips.turn(to: .rpe(reps: 6), pressing: harness.identity()) == .notLogged(.micBusy(.headless)))
+    #expect(await chips.turn(to: .coachNote, pressing: nil) == .turned(to: .rest))
     #expect(harness.liveActivity.readbacks.isEmpty)
     #expect(harness.liveActivity.refreshes.isEmpty)
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
@@ -353,7 +312,8 @@ func aStalePressOnTheSessionsLastSetSaysWhatTheSetHolds(onAnRPEChip: Bool) async
     harness.focus.reset(to: session)
     let identity = harness.identity(of: last.setID)
 
-    let outcome = onAnRPEChip ? await harness.press(identity, rpe: "8") : await harness.chooseReps(identity, reps: 6)
+    let outcome =
+        onAnRPEChip ? await harness.press(identity, rpe: "8") : await harness.turn(to: .rpe(reps: 6), pressing: identity)
 
     let written = LiveActivityDictationContent.WrittenSet(last, in: session)
     #expect(outcome == .notLogged(.setSettled(setLog: "235×5 @7", set: written)))
@@ -383,10 +343,9 @@ func aStalePressOnTheSessionsLastSetSaysWhatTheSetHolds(onAnRPEChip: Bool) async
     #expect(harness.liveActivity.readbacks.isEmpty)
 }
 
-/// With no rest to start the activity ends on the readback, which stays to be read, so nothing
-/// holds the intent and no card replaces it.
+/// No rest follows the Session's last Set, so its card goes and nothing reads back in its place.
 @MainActor
-@Test func theSessionsLastSetEndsOnTheReadback() async throws {
+@Test func theSessionsLastSetTakesTheCardDown() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
     let session = try #require(harness.app.workout.currentSession)
     let last = try #require(SessionSetOrder.orderedSets(in: session).last)
@@ -394,13 +353,12 @@ func aStalePressOnTheSessionsLastSetSaysWhatTheSetHolds(onAnRPEChip: Bool) async
         try harness.app.workout.log(position.set, as: logged235)
     }
     harness.focus.reset(to: session)
+    try harness.restRunning()
 
     let outcome = await harness.chips.logSet(setIdentity: harness.identity(of: last.setID), reps: 5, rpe: "7")
 
     #expect(outcome == .logged(logged235, at: last.setID))
-    #expect(harness.liveActivity.replacements.isEmpty)
-    guard case .set = harness.liveActivity.subjects.last else {
-        Issue.record("The Session's last Set showed \(String(describing: harness.liveActivity.subjects.last))")
-        return
-    }
+    #expect(harness.liveActivity.endedRests == 1)
+    #expect(harness.liveActivity.restContent == nil)
+    #expect(harness.liveActivity.readbacks.isEmpty)
 }

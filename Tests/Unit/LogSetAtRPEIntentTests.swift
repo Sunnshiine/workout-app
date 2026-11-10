@@ -9,11 +9,11 @@ import Testing
 @Suite(.serialized)
 @MainActor
 struct LogSetAtRPEIntentTests {
-    /// Background mode is what lets a chip run on a locked phone with the app staying behind, and
+    /// Background mode is what lets a press run on a locked phone with the app staying behind, and
     /// the default authentication policy is what lets it run without an unlock.
-    @Test func bothChipsRunInTheBackgroundWithoutAuthentication() {
-        #expect(ChooseRepsIntent.supportedModes == .background)
-        #expect(ChooseRepsIntent.authenticationPolicy == .alwaysAllowed)
+    @Test func bothPressesRunInTheBackgroundWithoutAuthentication() {
+        #expect(TurnLockScreenCardIntent.supportedModes == .background)
+        #expect(TurnLockScreenCardIntent.authenticationPolicy == .alwaysAllowed)
         #expect(LogSetAtRPEIntent.supportedModes == .background)
         #expect(LogSetAtRPEIntent.authenticationPolicy == .alwaysAllowed)
     }
@@ -50,10 +50,20 @@ struct LogSetAtRPEIntentTests {
                     prescribedReps: [96, 97, 98, 99, 100],
                     rpeChoices: ["8", "8.5", "9", "9.5", "10"],
                     prescribedRPE: "9.5",
-                    setIdentity: setIdentity,
-                    chosenReps: 100
+                    setIdentity: setIdentity
                 )
             ),
+            face: .rpe(reps: 100),
+            stats: [
+                LockScreenCardStat(label: "lbs", value: "1,237.5", spoken: "1237.5 pounds", isMissing: false),
+                LockScreenCardStat(
+                    label: "reps",
+                    value: "AMRAP then 3 x 5 at a slow descent",
+                    spoken: "AMRAP then 3 x 5 at a slow descent Reps",
+                    isMissing: false
+                ),
+                LockScreenCardStat(label: "RPE", value: "9.5", spoken: "RPE 9.5", isMissing: false)
+            ],
             cadence: "10-20:10-20:10-20",
             coachNote: String(repeating: "x", count: 120),
             start: LockScreenStartOffer(label: "120 s hold", spokenLabel: "120 second hold", url: start.url),
@@ -85,6 +95,8 @@ struct LogSetAtRPEIntentTests {
             restEndDate: nil,
             dictation: nil,
             loggablePress: .needsApp,
+            face: .rest,
+            stats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
@@ -94,34 +106,92 @@ struct LogSetAtRPEIntentTests {
         #expect(state.weightText == expected)
     }
 
-    /// The card's two taps reach the app's performer as the athlete made them: the Reps alone, then
-    /// the Reps with the RPE, and nil from the chip that turns the row back.
-    @Test func eachChipHandsItsTapToTheApp() async throws {
+    /// Each control's tap reaches the app's performer as the athlete made it: the face it turns to
+    /// with the Set it is about, then the Reps with the RPE.
+    @Test func eachControlHandsItsTapToTheApp() async throws {
         let spy = PressSpy()
         let registered = LockScreenPresses.performer
         LockScreenPresses.performer = spy
         defer { LockScreenPresses.performer = registered }
 
-        _ = try await ChooseRepsIntent(setIdentity: "Set", reps: 6).perform()
-        _ = try await ChooseRepsIntent(setIdentity: "Set", reps: nil).perform()
+        _ = try await TurnLockScreenCardIntent(to: .coachNote).perform()
+        _ = try await TurnLockScreenCardIntent(to: .rest).perform()
+        _ = try await TurnLockScreenCardIntent(to: .reps, pressing: "Set").perform()
+        _ = try await TurnLockScreenCardIntent(to: .rpe(reps: 6), pressing: "Set").perform()
         _ = try await LogSetAtRPEIntent(setIdentity: "Set", reps: 6, rpe: "7.5").perform()
 
-        #expect(spy.presses == ["reps Set 6", "reps Set nil", "log Set 6 7.5"])
+        #expect(spy.presses == ["turn coachNote", "turn rest", "turn reps Set", "turn rpe 6 Set", "log Set 6 7.5"])
+    }
+
+    /// A press whose face the card has not got fails rather than turning the card somewhere else.
+    @Test func aTurnToNoFaceFailsLoudly() async {
+        let spy = PressSpy()
+        let registered = LockScreenPresses.performer
+        LockScreenPresses.performer = spy
+        defer { LockScreenPresses.performer = registered }
+        let intent = TurnLockScreenCardIntent()
+        intent.face = "sideways"
+
+        await #expect(throws: LockScreenPresses.UnreadableFace.self) {
+            _ = try await intent.perform()
+        }
+        #expect(spy.presses.isEmpty)
     }
 
     /// The widget extension registers no performer, so a press that runs there fails rather than
     /// writing nothing quietly.
-    @Test func aChipWithNoPerformerFailsLoudly() async {
+    @Test func aPressWithNoPerformerFailsLoudly() async {
         let registered = LockScreenPresses.performer
         LockScreenPresses.performer = nil
         defer { LockScreenPresses.performer = registered }
 
         await #expect(throws: LockScreenPresses.PerformedOutsideTheApp.self) {
-            _ = try await ChooseRepsIntent(setIdentity: "Set", reps: 6).perform()
+            _ = try await TurnLockScreenCardIntent(to: .reps, pressing: "Set").perform()
         }
         await #expect(throws: LockScreenPresses.PerformedOutsideTheApp.self) {
             _ = try await LogSetAtRPEIntent(setIdentity: "Set", reps: 6, rpe: "7").perform()
         }
+    }
+
+    /// The Lock Screen draws what the app chose, so the face and the numbers cross to the activity
+    /// whole, and a rest read back off a running activity is still on the face it showed.
+    @Test func theActivityCarriesTheFaceAndTheNumbersBothWays() throws {
+        let offer = LockScreenOffer(
+            repChoices: [3, 4, 5, 6, 7],
+            prescribedReps: [5],
+            rpeChoices: ["6", "6.5", "7", "7.5", "8"],
+            prescribedRPE: "7",
+            setIdentity: "Set"
+        )
+        let rest = LiveActivityRestContent(
+            exerciseName: "Back Squat",
+            prescribedReps: "5",
+            prescribedLoad: "RPE7",
+            weightValue: "1002.5",
+            weightUnit: "lbs",
+            setsDone: 1,
+            setsTotal: 3,
+            variant: .restTimerSetsLeft,
+            restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
+            restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
+            press: .ready(offer),
+            stats: LockScreenStat.row(
+                weight: .pounds(1002.5),
+                prescription: Prescription(reps: "5", load: "RPE7", percentOneRM: nil),
+                repsCell: "5"
+            ),
+            cadence: "3:1:1",
+            coachNote: "Brace hard",
+            start: nil
+        )
+        let turned = try #require(rest.turned(to: .rpe(reps: 6)))
+
+        let state = WorkoutActivityAttributes.ContentState(restContent: turned, dictation: nil)
+
+        #expect(state.face == .rpe(reps: 6))
+        #expect(state.stats.map(\.value) == ["1,002.5", "5", "7"])
+        #expect(state.weightOnTheCard == "1,002.5 lbs")
+        #expect(LiveActivityRestContent(leftRunning: state) == turned)
     }
 }
 
@@ -129,8 +199,8 @@ struct LogSetAtRPEIntentTests {
 private final class PressSpy: LockScreenPressPerforming {
     private(set) var presses: [String] = []
 
-    func chooseReps(setIdentity: String, reps: Int?) async {
-        presses.append("reps \(setIdentity) \(reps.map(String.init) ?? "nil")")
+    func turnCard(to face: LockScreenCardFace, pressing setIdentity: String?) async {
+        presses.append(["turn", face.token, setIdentity].compactMap { $0 }.joined(separator: " "))
     }
 
     func logSet(setIdentity: String, reps: Int, rpe: String) async {

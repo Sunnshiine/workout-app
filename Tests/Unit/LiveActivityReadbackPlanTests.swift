@@ -15,6 +15,7 @@ private let rest = LiveActivityRestContent(
     restStartDate: Date(timeIntervalSince1970: 1_780_000_000),
     restEndDate: Date(timeIntervalSince1970: 1_780_000_180),
     press: .needsApp,
+    stats: [],
     cadence: nil,
     coachNote: nil,
     start: nil

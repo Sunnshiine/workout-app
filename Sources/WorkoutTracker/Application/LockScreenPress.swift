@@ -1,19 +1,20 @@
 import Foundation
 
-/// A tap on one of the Lock Screen card's chips, with the phone locked or the app behind. A Reps
-/// Chip turns the row to RPE and writes nothing. An RPE Chip logs the weight the card showed at the
-/// Reps and the RPE the athlete tapped, through the card's store call, then does what a Dictation
-/// with the app behind does: starts the rest, moves the card on, reads back, and flushes. Every
-/// decision lives here; the intents only run it.
+/// A press on one of the Lock Screen card's controls, with the phone locked or the app behind. Log,
+/// a Reps Chip, the note button, back, and close each turn the card to another Card Face and write
+/// nothing. An RPE Chip logs the weight the card showed at the Reps and the RPE the athlete tapped,
+/// through the card's store call, then does what a Dictation with the app behind does: starts the
+/// rest, moves the card on to it, and flushes. Every decision lives here; the intents only run it.
 @MainActor
 final class LockScreenPress {
     enum Outcome: Equatable, Sendable {
         case logged(SetLog, at: ActiveSetID)
         /// The same chip again, as a chalky double tap presses it: the Set already holds this Set
-        /// Log, so nothing changes and the first press's readback stays.
+        /// Log, so nothing changes and the next Set's card stays.
         case sameSetLog(at: ActiveSetID)
-        /// The row now offers RPE for these Reps, or Reps again for nil. Nothing was written.
-        case choseReps(Int?)
+        /// The face the card is on after the press, which is its rest face when the Set has no
+        /// such face or no card is up. Nothing was written.
+        case turned(to: LockScreenFace)
         case notLogged(NotLogged)
     }
 
@@ -30,7 +31,7 @@ final class LockScreenPress {
         /// The stage's card holds another weight than the one the Lock Screen showed.
         case cardChanged
         case writeFailed
-        /// An RPE tap as the row turned to RPE, which the second tap of a double tap on a Reps Chip
+        /// An RPE tap as the card turned to RPE, which the second tap of a double tap on a Reps Chip
         /// makes. The card that follows the readback still offers RPE for the same Reps.
         case tooSoonAfterReps
         /// A mic press is in flight, so the Set is the mic's: the Lock Screen's, or the card's in
@@ -53,9 +54,7 @@ final class LockScreenPress {
         case refuse(NotLogged)
     }
 
-    /// Long enough to catch "Logged 235×12 @7" against the Reps and RPE meant, which only the app
-    /// can change, and to read why a press logged nothing. A second tap of a double tap finds no
-    /// chip of the next Set under the thumb.
+    /// Long enough to read why a press logged nothing.
     nonisolated static let readbackHold: Duration = .milliseconds(3500)
 
     private let app: WorkoutApplication
@@ -85,17 +84,24 @@ final class LockScreenPress {
         writes = HeadlessWrites(app: app, focus: focus, restTimer: restTimer, signIn: signIn, clock: clock)
     }
 
-    /// Turns the row to RPE for `reps`, or back to Reps for nil. The Reps live on the card alone:
-    /// each RPE Chip carries them, so a row drawn again from scratch can never log other Reps.
+    /// Turns the card to `face` and writes nothing. `setIdentity` names the Set whose Set Log the
+    /// Reps and RPE faces choose, and a press toward either refuses what a log would. The rest face
+    /// and the Coach Note belong to whichever Set the card is on, so they name none and refuse nothing.
     @discardableResult
-    func chooseReps(setIdentity: String, reps: Int?) async -> Outcome {
-        if let surface = micInFlight { return await refuseWhileTheMicListens(surface, pressing: setIdentity) }
+    func turn(to face: LockScreenFace, pressing setIdentity: String?) async -> Outcome {
+        if let surface = micInFlight {
+            guard face.choosesTheSetLog, let setIdentity else { return .turned(to: liveActivity.restContent?.face ?? .rest) }
+            return await refuseWhileTheMicListens(surface, pressing: setIdentity)
+        }
         focus.endHoldAfterSpokenWrite()
-        let current = app.workout.currentSession
-        switch LockScreenOffer.admits(reps) ? Self.target(of: setIdentity, session: current, focus: focus) : .refuse(.unreadable) {
+        guard face.choosesTheSetLog else { return .turned(to: await showCard(turnedTo: face)) }
+        switch target(of: setIdentity, choosing: face) {
         case .pending:
-            await showRow(choosing: reps)
-            return .choseReps(reps)
+            let shown = await showCard(turnedTo: face)
+            if case .rpe = shown {
+                rows.rpeFaceShown(at: clock.now)
+            }
+            return .turned(to: shown)
         case .settled(let position, let session, _):
             return await refuse(
                 .setSettled(setLog: position.set.setLog?.readback, set: .init(position, in: session)),
@@ -110,7 +116,7 @@ final class LockScreenPress {
     func logSet(setIdentity: String, reps: Int, rpe: String) async -> Outcome {
         if let surface = micInFlight { return await refuseWhileTheMicListens(surface, pressing: setIdentity) }
         guard rows.admitsRPEPress(at: clock.now) else {
-            return await refuse(.tooSoonAfterReps, pressing: setIdentity, offeringRPEFor: reps)
+            return await refuse(.tooSoonAfterReps, pressing: setIdentity, returningTo: .rpe(reps: reps))
         }
         // The card keeps a Set its mic wrote for the athlete to glance at and undo. A press with
         // the phone locked says they have moved on, as a press of the mic does.
@@ -141,6 +147,12 @@ final class LockScreenPress {
         case .refuse(let why):
             return .refuse(why)
         }
+    }
+
+    private func target(of setIdentity: String?, choosing face: LockScreenFace) -> Target {
+        if case .rpe(let reps) = face, !LockScreenOffer.repsRange.contains(reps) { return .refuse(.unreadable) }
+        guard let setIdentity else { return .refuse(.unreadable) }
+        return Self.target(of: setIdentity, session: app.workout.currentSession, focus: focus)
     }
 
     /// The Set must still be the one the card offers, showing the weight the Lock Screen showed. A
@@ -177,18 +189,19 @@ final class LockScreenPress {
         return .refuse(.setSettled(setLog: pressed.set.setLog?.readback, set: .init(pressed, in: session)))
     }
 
-    private func showRow(choosing reps: Int?) async {
-        guard var card = currentCard(), case .ready(var offer) = card.press else { return }
-        offer.chosenReps = reps
-        card.press = .ready(offer)
-        await liveActivity.refresh(card: card)
-        if reps != nil {
-            rows.rpeRowShown(at: clock.now)
+    /// Draws the Set's card on `face`, or on its rest face when the Set has no such face.
+    private func showCard(turnedTo face: LockScreenFace) async -> LockScreenFace {
+        guard let rest = currentCard() else { return .rest }
+        let card = rest.turned(to: face) ?? rest
+        if card != liveActivity.restContent {
+            await liveActivity.refresh(card: card)
         }
+        return card.face
     }
 
     /// In the stage's order (write, rest, then focus) and before anything is awaited, since a second
-    /// press can arrive while the readback draws.
+    /// press can arrive while the card draws. The next Set's card comes up on its rest face with
+    /// no readback before it. With no rest to start, as after the Session's last Set, the card goes.
     private func write(_ setLog: SetLog, to position: SessionSetPosition, in session: Session) async -> Outcome {
         // Read before the write, which dissolves a Superset when it logs a side's last Set.
         let wasSupersetMember = focus.isPaired(position.exercise)
@@ -199,11 +212,11 @@ final class LockScreenPress {
         }
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
         focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
-        let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
-        await liveActivity.show(LiveActivityDictationContent(readback: readback, subject: subject), sessionLabel: session.liveActivityLabel)
-        async let flushed: Void = writes.flush()
-        await showCard(after: readback, offeringRPEFor: nil)
-        await flushed
+        switch subject {
+        case .rest(let rest): await liveActivity.showRest(rest, sessionLabel: session.liveActivityLabel)
+        case .set: await liveActivity.endRest()
+        }
+        await writes.flush()
         await showWhatTheFlushLeft()
         return .logged(setLog, at: position.setID)
     }
@@ -221,7 +234,7 @@ final class LockScreenPress {
     private func refuse(
         _ why: NotLogged,
         pressing setIdentity: String?,
-        offeringRPEFor reps: Int? = nil  // default: only a too-soon press proved the row was on RPE for its Reps
+        returningTo face: LockScreenFace = .rest  // default: only a too-soon press proved the card was on RPE for its Reps
     ) async -> Outcome {
         guard let session = app.workout.currentSession else {
             await liveActivity.show(.noCurrentSession)
@@ -241,24 +254,20 @@ final class LockScreenPress {
         if case .micBusy(.headless) = why {
             await showListening(after: readback, in: session)
         } else {
-            await showCard(after: readback, offeringRPEFor: reps)
+            await showCard(after: readback, on: face)
         }
         return .notLogged(why)
     }
 
-    /// The readback holds, with no chips to tap, then the Lock Screen offers the Set the card is on,
-    /// still on RPE for `reps` when the press carried them. The system suspends the app once the
-    /// intent returns, so nothing could do this later. With no rest running, the activity has
-    /// ended on the readback, which stays to be read.
-    private func showCard(after readback: LiveActivityDictationContent.Readback, offeringRPEFor reps: Int?) async {
+    /// The readback holds, with nothing to tap, then the Lock Screen shows the Set the card is on,
+    /// on `face` when that Set has it. The system suspends the app once the intent returns, so
+    /// nothing could do this later. With no rest running, the activity has ended on the readback,
+    /// which stays to be read.
+    private func showCard(after readback: LiveActivityDictationContent.Readback, on face: LockScreenFace) async {
         guard liveActivity.restContent != nil else { return }
         await clock.sleep(until: clock.now + Self.readbackHold)
-        guard var card = currentCard() else { return }
-        if let reps, case .ready(var offer) = card.press {
-            offer.chosenReps = reps
-            card.press = .ready(offer)
-        }
-        await liveActivity.replace(readback, with: card)
+        guard let card = currentCard() else { return }
+        await liveActivity.replace(readback, with: card.turned(to: face) ?? card)
     }
 
     /// The Lock Screen's mic keeps listening under the readback, so "Listening…" comes back once it
@@ -275,11 +284,15 @@ final class LockScreenPress {
         await liveActivity.show(listening, sessionLabel: session.liveActivityLabel)
     }
 
-    /// A flush that outlasted the readback can empty the queue the card counted.
+    /// A flush can empty the queue the card counted. The athlete may have turned the card while it
+    /// ran, so the card keeps its face.
     private func showWhatTheFlushLeft() async {
-        guard let card = currentCard(), card != liveActivity.restContent else { return }
+        guard let running = liveActivity.restContent, let card = currentCard()?.keepingTheFace(of: running), card != running
+        else { return }
         await liveActivity.refresh(card: card)
     }
+
+    /// The Set the card is on, drawn afresh on its rest face.
 
     private func currentCard() -> LiveActivityRestContent? {
         guard
@@ -299,24 +312,24 @@ final class LockScreenPress {
     }
 }
 
-/// When the Lock Screen's row last turned from Reps to RPE, kept across presses for the app's life.
+/// When the Lock Screen card last turned to its RPE face, kept across presses for the app's life.
 @MainActor
 final class LockScreenRows {
     /// A press can land seconds after its tap, so a second tap on a Reps Chip can reach the RPE Chip
-    /// that took its place. An RPE press this soon after the row turned writes nothing.
-    nonisolated static let rpeRowSettle: Duration = .seconds(1)
+    /// that took its place. An RPE press this soon after the card turned writes nothing.
+    nonisolated static let rpeFaceSettle: Duration = .seconds(1)
 
-    private var rpeRowShownAt: Duration?
+    private var rpeFaceShownAt: Duration?
 
     init() {}
 
-    func rpeRowShown(at now: Duration) {
-        rpeRowShownAt = now
+    func rpeFaceShown(at now: Duration) {
+        rpeFaceShownAt = now
     }
 
     func admitsRPEPress(at now: Duration) -> Bool {
-        guard let shownAt = rpeRowShownAt else { return true }
-        return now - shownAt >= Self.rpeRowSettle
+        guard let shownAt = rpeFaceShownAt else { return true }
+        return now - shownAt >= Self.rpeFaceSettle
     }
 }
 

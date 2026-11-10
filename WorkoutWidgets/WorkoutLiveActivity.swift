@@ -231,14 +231,8 @@ private struct LockScreenWorkoutView: View {
 
     var body: some View {
         Group {
-            if let dictation = state.dictation {
-                if dictation.isAboutASet {
-                    DictationLockScreenView(state: state, dictation: dictation)
-                } else {
-                    NoSetLockScreenView(state: state, dictation: dictation)
-                }
-            } else if state.variant.isRestTimer {
-                SetOfferLockScreenView(state: state)
+            if state.dictation != nil || state.variant.isRestTimer {
+                LockScreenCard(state: state)
             } else {
                 progress
             }
