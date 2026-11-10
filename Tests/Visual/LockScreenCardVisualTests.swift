@@ -380,7 +380,6 @@ extension LockScreenCardVisualTests {
     }
 }
 
-/// The cells' worst cases and the Sets that draw no chips, apart from the suite's body.
 extension LockScreenCardVisualTests {
     private static func longestCells(_ appearance: LiveActivityAppearance, press: LoggablePress) -> WorkoutActivityAttributes.ContentState {
         makeState(

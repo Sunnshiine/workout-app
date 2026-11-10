@@ -4,8 +4,6 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// What the Lock Screen card holds for the next Set: the Cadence and the Coach Note apart, and the
-/// weight the stage would show for it.
 @MainActor
 @Suite struct LiveActivityRestCardContentTests {
     @Test func anOrdinarySetCarriesTheCadenceTheCoachNoteAndTheWeightTheStageHolds() throws {
@@ -24,7 +22,6 @@ import Testing
         #expect(card.prescribedLoad == "RPE 8")
     }
 
-    /// `Drop 17.5%` off a 300 lb Set is 247.5 lb, the weight the stage pre-fills, never the percentage.
     @Test func aDropSetCarriesTheWeightWorkedOutFromTheSetBefore() throws {
         let exercise = exercise("BB RDL", coachNote: nil, next: ("8", "Drop 17.5%"), loggedAt: 300)
 
@@ -57,8 +54,6 @@ import Testing
         #expect(card.coachNote == "Start w/ 10 sec hold, proceed to rep range.")
     }
 
-    /// A note written over several lines reads as one, and a long one stops at 120 characters so it
-    /// cannot take the Live Activity's 4 KB.
     @Test func aLongCoachNoteCarriesOneLineCutAt120Characters() throws {
         let sentence = "Belt off, knee wraps on.\nStop the Set the moment the bar speed drops off at all,   and note how far it slowed."
         let card = try content(after: exercise("Back Squat", coachNote: sentence + "\n\n" + sentence))
@@ -87,7 +82,6 @@ import Testing
     }
 
     #if os(iOS)
-        /// The card and the island draw the same line from the split as they drew from the joined one.
         @Test(
             arguments: [
                 ("2-3:1:0 BB RDL", "Start w/ 10 sec hold", "2-3:1:0 · Start w/ 10 sec hold"),
@@ -106,7 +100,6 @@ import Testing
         }
     #endif
 
-    /// An Exercise whose first Set is logged, and the Set the card shows after it.
     private func exercise(
         _ name: ExerciseName,
         coachNote: String?,
