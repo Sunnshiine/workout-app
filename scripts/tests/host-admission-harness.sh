@@ -39,55 +39,16 @@ cat >"$root/bin/npm" <<'STUB'
 #!/bin/sh
 exit 1
 STUB
+# bootstatus, which every claim runs through simlock simctl, goes unrecorded.
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
 [ "\$1" != xcresulttool ] || exit 0
-if [ "\$*" != "simctl list devices available -j" ]; then
-    echo "\$*" >> "$root/xcrun-calls"
-    case "\$*" in
-      "simctl boot "*)
-        if [ -n "\${STUB_BOOT_HOLD:-}" ]; then
-            touch "$root/boot-holding"
-            i=0
-            while [ ! -f "$root/release" ] && [ \$i -lt 300 ]; do sleep 0.1; i=\$((i + 1)); done
-        fi
-        [ -z "\${STUB_BOOT_FAILS:-}" ] || { case \$STUB_BOOT_FAILS in raced) echo "\$3" >> "$root/booted" ;;
-            booting) echo "\$3" >> "$root/booting" ;; esac
-            echo "Unable to boot device in current state: Booted" >&2; exit 149; }
-        echo "\$3" >> "$root/booted" ;;
-      "simctl list devices booted") sed 's/.*/    iPhone 17 Pro (&) (Booted)/' "$root/booted" 2>/dev/null ;;
-      "simctl launch "*) echo "com.sunnypatel.WorkoutTracker: 999999" ;;
-      "simctl get_app_container "*) echo "$products/Debug-iphonesimulator/WorkoutTracker.app" ;;
-    esac
-    exit 0
-fi
-[ -z "\${STUB_LIST_WARNING:-}" ] || echo "objc[4242]: Class SimDeviceSet is implemented in both CoreSimulator and CoreSimulatorUtilities" >&2
-echo call >> "$root/list-calls"
-[ "\$(wc -l < "$root/list-calls")" -lt "\${STUB_LIST_GARBAGE_FROM_CALL:-1000}" ] || { echo "not a device list"; exit 0; }
-if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_SLOW_LIST_CALL:-0}" ]; then touch "$root/listing-slowly"; sleep 3; fi
-if [ "\$(wc -l < "$root/list-calls")" -eq "\${STUB_PROBE_ON_LIST_CALL:-0}" ]; then
-    python3 -c 'import fcntl, sys, time
-slot = open(sys.argv[1], "a")
-fcntl.flock(slot, fcntl.LOCK_SH)
-open(sys.argv[2], "w").close()
-time.sleep(0.12)' "$root/locks/build-1" "$root/probing" 7>&- 8>&- 9>&- &
-    while [ ! -f "$root/probing" ]; do sleep 0.01; done
-fi
-if [ "\$(wc -l < "$root/list-calls")" -gt "\${STUB_LIST_OK_CALLS:-1000}" ]; then
-    echo "An error was encountered processing the command (domain=com.apple.CoreSimulator.SimError, code=405)" >&2
-    exit 1
-fi
-python3 -c 'import json, os, sys
-others = [{"udid": "OTHER-%d" % i, "state": "Booted", "name": "iPad Pro"} for i in range(int(sys.argv[1]))]
-shut = sys.argv[2].split()
-booted = open(sys.argv[3]).read().split() if os.path.exists(sys.argv[3]) else []
-booting = open(sys.argv[4]).read().split() if os.path.exists(sys.argv[4]) else []
-ours = ["$sim"] + [u for u in shut if u != "$sim"]
-stopping = os.environ.get("STUB_SHUTTING_DOWN", "").split()
-state = lambda u: "Shutting Down" if u in stopping else "Booting" if u in booting else "Shutdown" if u in shut and u not in booted else "Booted"
-print(json.dumps({"devices": {"iOS-27-0": others + [
-    {"udid": u, "state": state(u), "name": "iPhone 17 Pro"} for u in ours]}}))' \
-    "\${STUB_BOOTED_OTHERS:-0}" "\${STUB_SHUTDOWN:-}" "$root/booted" "$root/booting"
+[ "\$2" != bootstatus ] || exit 0
+echo "\$*" >> "$root/xcrun-calls"
+case "\$*" in
+  "simctl launch "*) echo "com.sunnypatel.WorkoutTracker: 999999" ;;
+  "simctl get_app_container "*) echo "$products/Debug-iphonesimulator/WorkoutTracker.app" ;;
+esac
 STUB
 cat >"$root/bin/sysctl" <<STUB
 #!/bin/sh
@@ -121,22 +82,28 @@ echo "** BUILD FAILED **"
 exit 65
 STUB
 printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
+cp "$script_dir/fake-simlock" "$root/bin/simlock"
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
+export FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES="$sim $sim2"
 # shellcheck disable=SC2046
-unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
+unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT FAKE_SIMLOCK_WHO $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
+# The caller holds a lease on $sim, and another agent, neighbour, one on $sim2.
+for who in agent-test neighbour; do
+    FAKE_SIMLOCK_WHO=$who simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --detach --ttl 60m >/dev/null
+done
 
 reset() {
-    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/df-calls" "$root/xcrun-calls" "$root/list-calls" \
-        "$root/booted" "$root/booting" "$root/holding" "$root/boot-holding" "$root/release" "$root/listing-slowly" "$root/probing" \
-        "$repo/.claude/work/evidence"
-}
-leftovers() {
-    local file
-    for file in "$root/locks"/*; do
-        case ${file##*/} in admit|build-[0-9]*) ;; *) printf '%s ' "${file##*/}" ;; esac
-    done
+    rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/df-calls" "$root/xcrun-calls" \
+        "$root/holding" "$root/release" "$repo/.claude/work/evidence"
 }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
 test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
+# A run of the other agent on its own simulator, holding the build slot it takes until release.
+neighbour_build() {
+    FAKE_SIMLOCK_WHO=neighbour STUB_HOLD=1 "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>&1 &
+    # shellcheck disable=SC2034 # the tests read first
+    first=$!
+    for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+}
 verify() { SIM=$sim "$repo/.agents/skills/verify/verify.sh" "$@"; }

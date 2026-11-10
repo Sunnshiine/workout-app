@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+"""A stateful stand-in for `simlock`, for the tests of scripts that lease simulators from it.
+
+Copy it to <dir>/simlock and put <dir> first on PATH. State lives in the directory FAKE_SIMLOCK_STATE:
+leases.json holds the leases, and log gets one line per lease, renew, release, refusal, and simctl call. The caller's
+identity is FAKE_SIMLOCK_WHO (default agent-test). The devices are the UDIDs in FAKE_SIMLOCK_DEVICES
+(default FAKE-SIM-1 FAKE-SIM-2), and a lease takes the first one no lease holds.
+
+A lease without --detach prints its grant, then stays up until SIGTERM or SIGINT, or until --bind-pid's
+process dies, and releases on the way out, as the real one does. It also exits once the state directory
+is gone, so a test that loses track of one leaves no process behind. A lease with --detach prints its grant
+and exits; it lasts until release.
+
+Knobs: FAKE_SIMLOCK_REFUSE=<code> makes every lease fail with that exit code. FAKE_SIMLOCK_REVOKE=<file>
+makes a running lease release and exit 14 once <file> exists. `simctl <args>` runs `xcrun simctl <args>`
+from PATH, so the harness's xcrun answers it.
+"""
+import fcntl
+import json
+import os
+import signal
+import sys
+import time
+
+STATE = os.environ.get("FAKE_SIMLOCK_STATE", "")
+WHO = os.environ.get("FAKE_SIMLOCK_WHO", "agent-test")
+DEVICES = os.environ.get("FAKE_SIMLOCK_DEVICES", "FAKE-SIM-1 FAKE-SIM-2").split()
+CODES = {10: "QUEUE_TIMEOUT", 11: "NO_CAPACITY", 13: "REQUESTER_ALREADY_LEASED", 14: "LEASE_REVOKED"}
+
+
+def now_ms():
+    return int(time.time() * 1000)
+
+
+def refuse(code, message):
+    log("refused {} ({}): {}".format(WHO, code, message))
+    print(json.dumps({"error": {"code": CODES.get(code, "ERROR"), "message": message}}), file=sys.stderr)
+    sys.exit(code)
+
+
+def log(line):
+    with open(os.path.join(STATE, "log"), "a") as out:
+        out.write(line + "\n")
+
+
+def update(change):
+    """Runs change(leases, state) under the state lock and saves what it leaves."""
+    os.makedirs(STATE, exist_ok=True)
+    path = os.path.join(STATE, "leases.json")
+    with open(path + ".lock", "a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        state = json.load(open(path)) if os.path.exists(path) else {"next": 1, "leases": []}
+        result = change(state["leases"], state)
+        with open(path, "w") as f:
+            json.dump(state, f)
+        return result
+
+
+def options(args):
+    found, flags = {}, {"--no-wait", "--detach"}
+    while args:
+        word = args.pop(0)
+        found[word] = True if word in flags or not args else args.pop(0)
+    return found
+
+
+def grant(opts):
+    def take(leases, state):
+        if any(lease["requesterId"] == WHO for lease in leases):
+            return 13
+        taken = {lease["udid"] for lease in leases}
+        free = [udid for udid in DEVICES if udid not in taken]
+        if not free:
+            return 11 if "--no-wait" in opts else 10
+        ttl = 60 * 60 * 1000 if "--detach" in opts else 60 * 1000
+        state["next"] += 1
+        lease = {"id": "lse_{}".format(state["next"] - 1), "udid": free[0],
+                 "requesterId": WHO, "ttlMs": ttl, "ttlDeadline": now_ms() + ttl}
+        leases.append(lease)
+        return lease
+
+    os.makedirs(STATE, exist_ok=True)
+    if os.environ.get("FAKE_SIMLOCK_REFUSE"):
+        refuse(int(os.environ["FAKE_SIMLOCK_REFUSE"]), "refused by FAKE_SIMLOCK_REFUSE")
+    lease = update(take)
+    if lease == 13:
+        refuse(13, "requester {} already holds a lease".format(WHO))
+    if lease in (10, 11):
+        refuse(lease, "no free device")
+    bound = opts.get("--bind-pid")
+    log("lease {} {} by {}{}".format(lease["id"], lease["udid"], WHO,
+                                     ", detached" if "--detach" in opts else ", bound to pid {}".format(bound)))
+    print(json.dumps({"lease": {"id": lease["id"], "ttlDeadline": lease["ttlDeadline"]},
+                      "device": {"id": "dev_" + lease["udid"], "driverDeviceId": lease["udid"],
+                                 "address": lease["udid"]}, "environment": {}}), flush=True)
+    return lease, bound
+
+
+def drop(lease_id, why):
+    def remove(leases, _):
+        kept = [lease for lease in leases if lease["id"] != lease_id]
+        gone = len(kept) != len(leases)
+        leases[:] = kept
+        return gone
+
+    if update(remove):
+        log("release {}: {}".format(lease_id, why))
+        return True
+    return False
+
+
+def hold(lease, bound):
+    stop = []
+    signal.signal(signal.SIGTERM, lambda *_: stop.append("stopped by SIGTERM"))
+    signal.signal(signal.SIGINT, lambda *_: stop.append("stopped by SIGINT"))
+    revoke = os.environ.get("FAKE_SIMLOCK_REVOKE")
+    while not stop:
+        if not os.path.isdir(STATE):
+            sys.exit(0)
+        if bound:
+            try:
+                os.kill(int(bound), 0)
+            except ProcessLookupError:
+                stop.append("bound pid {} exited".format(bound))
+                break
+        if revoke and os.path.exists(revoke):
+            drop(lease["id"], "revoked")
+            refuse(14, "lease {} was revoked".format(lease["id"]))
+        time.sleep(0.05)
+    drop(lease["id"], stop[0])
+
+
+def status():
+    leases = update(lambda leases, _: list(leases))
+    devices = [{"id": "dev_" + udid, "driverDeviceId": udid, "state": "ready"} for udid in DEVICES]
+    print(json.dumps({"devices": devices, "leases": [
+        {"id": lease["id"], "deviceId": "dev_" + lease["udid"], "requesterId": lease["requesterId"],
+         "ttlMs": lease["ttlMs"], "ttlDeadline": lease["ttlDeadline"]} for lease in leases]}))
+
+
+def renew(lease_id):
+    def extend(leases, _):
+        for lease in leases:
+            if lease["id"] == lease_id and lease["requesterId"] == WHO:
+                lease["ttlDeadline"] = now_ms() + lease["ttlMs"]
+                return True
+        return False
+
+    if not update(extend):
+        refuse(1, "no lease {} of yours".format(lease_id))
+    log("renew {}".format(lease_id))
+
+
+def main():
+    if not STATE:
+        print("fake simlock: FAKE_SIMLOCK_STATE is not set", file=sys.stderr)
+        sys.exit(2)
+    verb, args = (sys.argv[1:2] or [""])[0], sys.argv[2:]
+    if verb == "whoami":
+        print("Principal: {}\nName:      {}\nRole:      agent\nVia:       socket".format(WHO, WHO))
+    elif verb == "status" and args == ["--json"]:
+        status()
+    elif verb == "lease" and args[:1] == ["renew"]:
+        renew(args[1])
+    elif verb == "lease":
+        opts = options(list(args))
+        lease, bound = grant(opts)
+        if "--detach" not in opts:
+            hold(lease, bound)
+    elif verb == "release":
+        if not drop(args[0], "released by request"):
+            refuse(1, "no lease {}".format(args[0]))
+    elif verb == "simctl":
+        os.makedirs(STATE, exist_ok=True)
+        log("simctl " + " ".join(args))
+        os.execvp("xcrun", ["xcrun", "simctl"] + args)
+    else:
+        print("fake simlock: unsupported " + " ".join(sys.argv[1:]), file=sys.stderr)
+        sys.exit(2)
+
+
+main()

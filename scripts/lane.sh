@@ -15,7 +15,6 @@ die() { echo "lane.sh: $2" >&2; exit "$1"; }
 # Not `command git`: bash 3.2 hands a builtin's child its saved copy of the fd.
 git_bin=$(type -P git) || die 2 "git is not on PATH"
 git() { "$git_bin" "$@" 5>&- 6>&-; }
-sim_pool() { "$here/sim-pool.sh" "$@" 5>&-; }
 
 unset GIT_DIR GIT_WORK_TREE
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -71,12 +70,6 @@ field() { printf '%s\n' "$1" | sed -n "s|^$2||p"; }
 nested_worktree() {
   git -C "$primary" worktree list --porcelain | sed -n 's/^worktree //p' | awk -v p="$wt/" '!found && index($0, p) == 1 { print; found = 1 }'
 }
-
-lane_sims() {
-  sim_pool list | awk -F '\t' -v n="workout-lane-$name" '$3 == "lane" && $4 == n { print $1 "\t" $2 }'
-}
-
-lane_udids() { lane_sims | cut -f1; }
 
 files_to_save() {
   git -C "$wt" ls-files -z -o --exclude-standard
@@ -135,7 +128,7 @@ if found: print(int(max(found)))' "$@"
 }
 
 assess() {
-  local days=$1 reg branch porcelain work admin commits holder sims udid state lock derived d marks newest age
+  local days=$1 reg branch porcelain work admin commits holder derived d marks newest age
   verdict=keep
   reg=$(registration)
   if [ -z "$reg" ]; then reason="not a registered worktree"; return; fi
@@ -156,13 +149,6 @@ assess() {
   if [ -n "$commits" ]; then reason="commits no branch or tag holds ($(printf '%s\n' "$commits" | grep -c .))"; return; fi
   if ! holder=$(cwd_holder); then reason="could not list process working directories"; return; fi
   if [ -n "$holder" ]; then reason="in use by pid ${holder%% *} (${holder#* })"; return; fi
-  if ! sims=$(lane_sims 2>/dev/null); then reason="could not list simulators"; return; fi
-  while IFS=$'\t' read -r udid state; do
-    [ -n "$udid" ] || continue
-    lock=/tmp/workout-verify-$udid/lock
-    if ! (require_sim_free "$udid") 2>/dev/null; then reason="in use by $(cat "$lock" 2>/dev/null)"; return; fi
-    case $state in Booted | Booting) reason="simulator $udid is booted"; return ;; esac
-  done <<<"$sims"
   if ! derived=$(derived_data_of "$wt/WorkoutTracker.xcodeproj"); then reason="could not read DerivedData"; return; fi
   # The index is not an activity mark, because git status rewrites it.
   marks=("$admin/logs/HEAD:0" "$admin/HEAD:0" "$wt/.build:2" "$evidence:2")
@@ -176,13 +162,13 @@ assess() {
 }
 
 print_env() {
-  printf "export SIM='%s'\nexport LANE_WORKTREE='%s'\nexport VERIFY_EVIDENCE='%s'\n" "$1" "$wt" "$evidence"
+  printf "export LANE_WORKTREE='%s'\nexport VERIFY_EVIDENCE='%s'\n" "$wt" "$evidence"
 }
 
 resolve() { git -C "$primary" rev-parse --verify -q "$1^{commit}"; }
 
 lane_up() {
-  local commit=$2 sha reg head branch udid twin
+  local commit=$2 sha reg head branch twin
   set_lane "$1"
   lock_lane up
   if ! sha=$(resolve "$commit"); then
@@ -220,19 +206,14 @@ lane_up() {
   if [ -f "$wt/.githooks/post-checkout" ]; then
     (cd "$wt" && sh .githooks/post-checkout) >&2 5>&- 6>&- || die 70 "the post-checkout hook failed in $wt"
   fi
-  udid=$(sim_pool create "$name")
   mkdir -p "$evidence"
-  print_env "$udid"
+  print_env
 }
 
 lane_env() {
-  local udid
   set_lane "$1"
   [ -n "$(registration)" ] && [ -d "$wt" ] || die 1 "no lane $1; run lane.sh up $1 <commit>"
-  udid=$(lane_udids)
-  [ -n "$udid" ] || die 1 "no lane $1; run lane.sh up $1 <commit>"
-  [ "$(printf '%s\n' "$udid" | grep -c .)" -eq 1 ] || die 70 "two simulators are named workout-lane-$1; scripts/sim-pool.sh list shows them"
-  print_env "$udid"
+  print_env
 }
 
 # A bundle records only refs, so each tip other than HEAD gets a per-worktree ref,
@@ -333,7 +314,6 @@ lane_down() {
     [ -z "$holder" ] || die 75 "pid ${holder%% *} (${holder#* }) works in $wt; stop it or cd out"
     if crashed_add; then git -C "$primary" worktree unlock "$wt" || die 70 "could not unlock $wt"; fi
   fi
-  sim_pool delete "$name" || exit
   if [ -n "$reg" ]; then
     dir=$evidence/down-$(date +%Y%m%d-%H%M%S)
     saved=$(save_lane "$dir")

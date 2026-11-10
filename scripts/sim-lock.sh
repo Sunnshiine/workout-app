@@ -99,6 +99,7 @@ lease_kept() {
 }
 
 end_lease() {
+  [ -z "${lease_dir:-}" ] || rm -rf "$lease_dir"
   [ -n "${lease_pid:-}" ] || return 0
   kill "$lease_pid" 2>/dev/null || true
   wait "$lease_pid" 2>/dev/null || true
@@ -126,6 +127,7 @@ hold_lease() {
   grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
     "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
   read -r sim id <<< "$grant"
+  rm -rf "$lease_dir"
   forget_runs "$sim"
   echo "simulator $sim (Simlock lease $id); verify.sh release gives it back" >&6
 }
@@ -325,16 +327,6 @@ take_build_slot() {
       build_slot=$slot
       return 0
     fi
-    exec 8>&-
-  done
-  slots_taken
-}
-
-build_slot_free() {
-  local i=0
-  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
-    exec 8>>"$host_lock_dir/build-$i"
-    try_flock 8 LOCK_SH 1 && { exec 8>&-; return 0; }
     exec 8>&-
   done
   slots_taken

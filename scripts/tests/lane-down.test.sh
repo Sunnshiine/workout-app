@@ -91,8 +91,8 @@ lane down busy
 kill "$sleeper"
 wait "$sleeper" 2>/dev/null
 expect "down while another process works in the lane exits 75 and removes nothing" \
-    "$status $(cat "$root/err") | $([ -d "$lanes/busy" ] && echo worktree) $(lane_rows | grep -c workout-lane-busy)" \
-    "75 lane.sh: pid $sleeper (sleep) works in $lanes/busy; stop it or cd out | worktree 1"
+    "$status $(cat "$root/err") | $([ -d "$lanes/busy" ] && echo worktree)" \
+    "75 lane.sh: pid $sleeper (sleep) works in $lanes/busy; stop it or cd out | worktree"
 (cd "$lanes/busy" && "$primary/scripts/lane.sh" down busy >"$root/out" 2>"$root/err")
 expect "down run from a shell inside the lane removes it" "$? $([ -d "$lanes/busy" ] && echo worktree)" "0 "
 
@@ -234,7 +234,7 @@ rm "$common/info/attributes"
 g config --unset filter.slow.smudge
 expect "a second up of a lane waits out the first's slow checkout, prints the same lines, and repairs nothing" \
     "$first $second $(cat "$root/z1.out") | $(cat "$root/out") | $(git -C "$primary" worktree list --porcelain | grep -c "^worktree $lanes/z$") $(cat "$root/z1.err" "$root/err" | grep -c crashed)" \
-    "0 0 $(env_lines "$(lane_rows | awk '$2 == "workout-lane-z" { print $1 }')" z) | $(env_lines "$(lane_rows | awk '$2 == "workout-lane-z" { print $1 }')" z) | 1 0"
+    "0 0 $(env_lines z) | $(env_lines z) | 1 0"
 
 hold "$root/locks/lane-z" "lane.sh down z (pid 4245)"
 WORKOUT_ADMIT_WAIT=0 lane down z
@@ -250,14 +250,6 @@ rm "$common/hooks/post-checkout"
 WORKOUT_ADMIT_WAIT=0 lane down daemon
 kill "$(cat "$root/daemon.pid")"
 expect "a process git leaves running after up does not hold the lane's lock" "$status $([ -d "$lanes/daemon" ] && echo worktree)" "0 "
-
-lane up booted "$c1"
-booted_udid=$(lane_rows | awk '$2 == "workout-lane-booted" { print $1 }')
-xcrun simctl boot "$booted_udid"
-lane assess booted 0
-xcrun simctl shutdown "$booted_udid"
-expect "assess keeps a lane whose simulator is booted" "$(cat "$root/out")" "keep	simulator $booted_udid is booted"
-lane down booted
 
 lane up quiet "$c1"
 ten_days_ago=$(date -v-10d +%Y%m%d%H%M)

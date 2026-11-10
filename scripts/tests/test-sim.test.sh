@@ -35,7 +35,7 @@ check "a failing run fails with xcodebuild's status" 65 \
 	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.004) seconds
 ** TEST EXECUTE FAILED **"
 
-fault_advice="simulator fault, not a test result: xcodebuild reported \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, run xcrun simctl erase $sim first"
+fault_advice="simulator fault, not a test result: xcodebuild reported \"%s\". Shut $sim down so the next run boots it fresh; rerun the same command, and if it faults again, release its Simlock lease and lease another"
 rm -f "$root/shutdowns"
 check "a launch that returns no process handle is a simulator fault: exit 69, and the simulator is shut down" 69 \
 "✘ Test run with 1 test in 1 suite failed after 31.2 seconds with 1 issue.
@@ -122,23 +122,15 @@ for build in --no-build ""; do
     STUB_LOG=$root/xcodebuild.log STUB_RC=70 STUB_OUT=$root/out STUB_SEEN=$root/seen HOME=$root/home PATH="$root/bin:$PATH" \
         "$repo/scripts/test-sim.sh" ${build:+"$build"} --sim "$unknown" unit >"$root/out" 2>"$root/err"
     status=$?
-    want="no available simulator $unknown; xcrun simctl list devices available lists them"
+    want="$unknown is not the simulator of a Simlock lease you hold (yours: $sim); lease one first, see .agents/skills/simlock/SKILL.md"
     if [ $status = 2 ] && [ "$(cat "$root/out")" = "$(result unit 2)" ] && [ "$(cat "$root/err")" = "$want" ] && [ ! -e "$root/seen" ] \
         && [ ! -e "/tmp/workout-verify-$unknown" ]; then
-        ok "an unknown --sim UDID ($flags) is refused before it claims the simulator or xcodebuild starts"
+        ok "a --sim UDID ($flags) that is not your lease's is refused before it claims the simulator or xcodebuild starts"
     else
-        bad "an unknown --sim UDID ($flags) is refused before it claims the simulator or xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
+        bad "a --sim UDID ($flags) that is not your lease's is refused before it claims the simulator or xcodebuild starts: exit $status, xcodebuild ran: $([ -e "$root/seen" ] && echo yes || echo no)"
         printf '    stdout:\n%s\n    stderr:\n%s\n' "$(cat "$root/out")" "$(cat "$root/err")"
     fi
 done
-
-STUB_SIMCTL_DOWN=1 HOME=$root/home PATH="$root/bin:$PATH" "$repo/scripts/test-sim.sh" --sim "$sim" unit >"$root/out" 2>"$root/err"
-status=$?
-if [ $status = 1 ] && [ "$(cat "$root/err")" = "An error was encountered processing the command (code=405)" ]; then
-    ok "a simctl failure prints simctl's error, not a refused UDID"
-else
-    bad "a simctl failure prints simctl's error, not a refused UDID: exit $status, stderr '$(cat "$root/err")'"
-fi
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

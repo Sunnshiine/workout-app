@@ -41,7 +41,7 @@ A detached worktree directly under <primary>/.claude/worktrees/ is a lane named
 by its directory. Its verdict and reason come from
 <primary>/scripts/lane.sh assess <name> N, and --apply removes it with
 lane.sh down --if-idle N <name>, which re-checks, saves its work to the lane's
-evidence dir, and deletes its DerivedData and simulator too. A lane that stopped
+evidence dir, and deletes its DerivedData too. A lane that stopped
 being idle since the scan prints SKIPPED. A directory there whose name is not
 a lane name (lane.sh --help) is kept for removal by hand. Any other detached
 HEAD is kept. Idle counts days, not whether the work is finished, so a program

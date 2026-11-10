@@ -8,8 +8,10 @@ Sets AutomaticMinimizationEnabled in the simulator's com.apple.keyboard.preferen
 reads 1 and prints one `keyboard:` line. At 1 the simulator hides the software keyboard below the
 window and the keyboard UI tests fail; the next app launch after the write shows it again, with no
 reboot. An AXe key or type event into a focused text field sets it back to 1, so a verify session
-can leave it wrong. Boots the simulator first if it is not booted. Exits 69 when the simulator
-cannot be booted or read and 70 when the write fails or does not read back.
+can leave it wrong. Boots the simulator first if it is not booted, through simlock simctl, or
+through xcrun simctl on a host without simlock, such as CI's runner (scripts/ci-keyboard-lane.sh).
+Exits 69 when the simulator cannot be booted or read and 70 when the write fails or does not read
+back.
 scripts/test-sim.sh runs this before every selection that includes WorkoutTrackerUITests (#700).
 EOF
   exit 2
@@ -30,7 +32,8 @@ read_key() {
 
 [ $# = 2 ] && [ "$1" = ensure ] || usage
 sim=$(printf %s "$2" | tr '[:lower:]' '[:upper:]')
-simlock simctl bootstatus "$sim" -b > /dev/null || { echo "keyboard: cannot boot $sim" >&2; exit 69; }
+if command -v simlock > /dev/null; then boot=(simlock simctl); else boot=(xcrun simctl); fi
+"${boot[@]}" bootstatus "$sim" -b > /dev/null || { echo "keyboard: cannot boot $sim" >&2; exit 69; }
 before=$(read_key "$sim")
 if [ "$before" != 1 ]; then
   echo "keyboard: $sim has $key=$before"

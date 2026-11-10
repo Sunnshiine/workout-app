@@ -3,8 +3,10 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: scripts/ensure-simulator.sh <device name> <iOS version> [<simulator name>]
-  e.g. scripts/ensure-simulator.sh 'iPhone 17 Pro' 27.0
+Usage: scripts/ci/ensure-simulator.sh <device name> <iOS version> [<simulator name>]
+  e.g. scripts/ci/ensure-simulator.sh 'iPhone 17 Pro' 27.0
+For single-tenant CI runners. Agents on the shared Mac never create a simulator: they lease one
+through Simlock (.agents/skills/simlock/SKILL.md), as scripts/test-sim.sh does.
 Prints the UDID of the simulator named <simulator name> (default: the device name) on that runtime,
 creating it as that device type first when the machine has no such simulator.
 Exits 1 when the device type or the runtime is missing, listing what is there instead.
