@@ -338,7 +338,7 @@ extension WorkoutActivityAttributes.ContentState {
     /// The Cadence, then the Coach Note, on the line the card and the island cut to their width;
     /// nil with neither.
     var cadenceAndCoachNote: String? {
-        let parts = [cadence, coachNote].compactMap(\.self)
+        let parts = [cadence, coachNote].compactMap { $0 }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
