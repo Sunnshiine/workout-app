@@ -32,6 +32,7 @@ from typing import List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
 from tree import Frame
 
 STOP_GRACE = 15.0
+INT_GRACE = 1.0
 DRIVE_GRACE = 5.0
 POLL = 0.05
 
@@ -242,18 +243,21 @@ def probe(video: Path) -> Tuple[List[float], Tuple[int, int]]:
 
 
 def run_drive(argv: List[str], env: dict) -> int:
-    """bash ignores a SIGINT sent to it alone while a child it waits on survives one."""
+    """SIGINT goes to the drive's whole group, since bash ignores one sent to it alone while it waits on a child. bash
+    also outlives it when that child does, or ends normally as it arrives; SIGTERM then ends bash, EXIT trap included.
+    Each signal goes to a group whose leader is not yet reaped, so its pid cannot have been reused."""
     proc = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=sys.stderr.fileno(), stderr=sys.stderr.fileno(),
                             env=env, start_new_session=True)
     try:
         return proc.wait()
     except Interrupted:
-        os.killpg(proc.pid, signal.SIGINT)
-        try:
-            proc.wait(DRIVE_GRACE)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait()
+        for signum, grace in [(signal.SIGINT, INT_GRACE), (signal.SIGTERM, DRIVE_GRACE), (signal.SIGKILL, None)]:
+            os.killpg(proc.pid, signum)
+            try:
+                proc.wait(grace)
+                break
+            except subprocess.TimeoutExpired:
+                pass
         raise
 
 

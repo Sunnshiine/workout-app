@@ -133,6 +133,9 @@ WRAPPED_LAUNCH_STUB = """#!/bin/bash
 trap 'echo "the EXIT trap ran" > "{dir}/drive-exit"' EXIT
 [ "$1" != fail ] || exit 4
 touch "{dir}/driving"
+if [ -n "${STUB_CHILD_SURVIVES_INT:-}" ]; then
+    while :; do sh -c 'trap "" INT; sleep 0.3'; done
+fi
 while :; do sleep 0.1; done
 """
 
@@ -194,11 +197,18 @@ class Film(unittest.TestCase):
                                              "was driven", self.stuck()))
 
     def test_an_interrupted_take_gives_the_drive_sigint_so_its_exit_trap_runs(self):
+        self.interrupt_a_take()
+
+    def test_a_drive_whose_child_survives_sigint_still_runs_its_exit_trap(self):
+        """bash outlives a SIGINT when the child it waits on does, so the drive then gets SIGTERM, not SIGKILL."""
+        self.interrupt_a_take(STUB_CHILD_SURVIVES_INT="1")
+
+    def interrupt_a_take(self, **env):
         record = subprocess.Popen(
             [sys.executable, str(SKILL / "take.py"), "record", "--sim", "SIM", "--run", "lane-1", "--verify",
              str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--limit", "50",
              "--", "launch", "--animated", "session"],
-            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            env=dict(self.env, **env), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.addCleanup(record.kill)
         deadline = time.time() + 10
         while not (self.tmp / "driving").exists():
