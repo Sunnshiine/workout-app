@@ -8,7 +8,7 @@ import Testing
     /// The card reads the Exercise's Cadence and Coach Note from the content, and the weight the
     /// stage holds in the header's unit.
     @MainActor
-    @Test func productionContentStateCarriesTheGuidanceAndTheWeight() {
+    @Test func productionContentStateCarriesTheCadenceTheCoachNoteAndTheWeight() {
         let restContent = LiveActivityRestContent(
             exerciseName: "Bench Press",
             prescribedReps: "5",
@@ -21,13 +21,16 @@ import Testing
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
             press: .needsApp,
-            guidance: "3:1:1 · Pause on the chest.",
+            cadence: "3:1:1",
+            coachNote: "Pause on the chest.",
             start: nil
         )
 
         let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
 
-        #expect(state.guidance == "3:1:1 · Pause on the chest.")
+        #expect(state.cadence == "3:1:1")
+        #expect(state.coachNote == "Pause on the chest.")
+        #expect(state.cadenceAndCoachNote == "3:1:1 · Pause on the chest.")
         #expect(state.weightText == "235 lbs")
         #expect(state.start == nil)
     }
@@ -72,7 +75,8 @@ import Testing
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
                 press: .needsApp,
-                guidance: nil,
+                cadence: nil,
+                coachNote: nil,
                 start: nil
             ),
             dictation: nil
@@ -120,7 +124,8 @@ import Testing
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
         press: .needsApp,
-        guidance: nil,
+        cadence: nil,
+        coachNote: nil,
         start: nil
     )
 
@@ -143,7 +148,8 @@ import Testing
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
         press: .needsApp,
-        guidance: nil,
+        cadence: nil,
+        coachNote: nil,
         start: nil
     )
     let capDate = restEndDate.addingTimeInterval(30 * 60)

@@ -38,7 +38,8 @@ import Testing
                 restEndDate: restEnd,
                 dictation: nil,
                 loggablePress: .needsApp,
-                guidance: nil,
+                cadence: nil,
+                coachNote: nil,
                 start: nil,
                 pendingWrites: 0
             )

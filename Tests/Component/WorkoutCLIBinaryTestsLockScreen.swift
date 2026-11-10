@@ -26,7 +26,8 @@
             #expect(try offered.json["exercise"] as? String == "Back Squat")
             #expect(try offered.json["prescribedReps"] as? String == "5")
             #expect(try offered.json["prescribedLoad"] as? String == "RPE6")
-            #expect(try offered.json["guidance"] as? String == "Brace hard off the floor, controlled descent.")
+            #expect(try offered.json["cadence"] == nil)
+            #expect(try offered.json["coachNote"] as? String == "Brace hard off the floor, controlled descent.")
             let weight = try #require(try offered.json["weight"] as? String)
             let offer = try #require(try offered.json["offer"] as? [String: Any])
             #expect(offer["repChoices"] as? [Int] == [3, 4, 5, 6, 7])
@@ -106,7 +107,8 @@
 
             #expect(try offered.json["set"] as? String == "w1d1.e1.s0")
             #expect(try offered.json["exercise"] as? String == "BB RDL")
-            #expect(try offered.json["guidance"] as? String == "2-3:1:0 · Start w/ 10 sec hold, proceed to rep range.")
+            #expect(try offered.json["cadence"] as? String == "2-3:1:0")
+            #expect(try offered.json["coachNote"] as? String == "Start w/ 10 sec hold, proceed to rep range.")
             #expect(try offered.json["start"] as? String == "10 s hold")
         }
     }

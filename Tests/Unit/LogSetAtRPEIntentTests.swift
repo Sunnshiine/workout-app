@@ -54,7 +54,8 @@ struct LogSetAtRPEIntentTests {
                     chosenReps: 100
                 )
             ),
-            guidance: String(repeating: "x", count: 120),
+            cadence: "10-20:10-20:10-20",
+            coachNote: String(repeating: "x", count: 120),
             start: LockScreenStartOffer(label: "120 s hold", spokenLabel: "120 second hold", url: start.url),
             pendingWrites: 99
         )
@@ -84,7 +85,8 @@ struct LogSetAtRPEIntentTests {
             restEndDate: nil,
             dictation: nil,
             loggablePress: .needsApp,
-            guidance: nil,
+            cadence: nil,
+            coachNote: nil,
             start: nil,
             pendingWrites: 0
         )

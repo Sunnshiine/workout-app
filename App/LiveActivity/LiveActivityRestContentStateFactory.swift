@@ -20,7 +20,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: restContent.restEndDate,
             dictation: dictation,
             loggablePress: LoggablePress(restContent.press),
-            guidance: restContent.guidance,
+            cadence: restContent.cadence,
+            coachNote: restContent.coachNote,
             start: restContent.start.map(LockScreenStartOffer.init),
             pendingWrites: restContent.pendingWrites
         )
@@ -46,7 +47,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            guidance: nil,
+            cadence: nil,
+            coachNote: nil,
             start: nil,
             pendingWrites: setContent.pendingWrites
         )
@@ -68,7 +70,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            guidance: nil,
+            cadence: nil,
+            coachNote: nil,
             start: nil,
             pendingWrites: 0
         )
@@ -156,7 +159,8 @@ extension LiveActivityRestContent {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(state.loggablePress),
-            guidance: state.guidance,
+            cadence: state.cadence,
+            coachNote: state.coachNote,
             start: nil,
             target: nil
         )

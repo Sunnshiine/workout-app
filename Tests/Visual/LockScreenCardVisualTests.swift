@@ -12,22 +12,23 @@ import Testing
 @Suite(.snapshots(record: .never))
 struct LockScreenCardVisualTests {
     private static let cardWidth: CGFloat = 374
-    private static let guidance = "3:1:1 · Brace hard off the floor, controlled descent."
+    private static let cadence = "3:1:1"
+    private static let coachNote = "Brace hard off the floor, controlled descent."
 
     @Test func aSetOffersItsRepsDay() {
-        assertCardBaseline(state(.light, press: Self.backSquatPress, guidance: Self.guidance))
+        assertCardBaseline(state(.light, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote))
     }
 
     @Test func aSetOffersItsRepsNight() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, guidance: Self.guidance))
+        assertCardBaseline(state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote))
     }
 
     @Test func aRepsTapOffersTheRPEDay() {
-        assertCardBaseline(state(.light, press: Self.chose(6), guidance: Self.guidance))
+        assertCardBaseline(state(.light, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote))
     }
 
     @Test func aRepsTapOffersTheRPENight() {
-        assertCardBaseline(state(.dark, press: Self.chose(6), guidance: Self.guidance))
+        assertCardBaseline(state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote))
     }
 
     @Test func noGuidanceHoldsTheCardsHeightNight() {
@@ -39,7 +40,7 @@ struct LockScreenCardVisualTests {
     }
 
     @Test func noLoggablePressLeavesTheMicAndTheAppNight() {
-        assertCardBaseline(state(.dark, press: .needsApp, weight: nil, guidance: Self.guidance))
+        assertCardBaseline(state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote))
     }
 
     @Test func anExerciseThatOpensOnAHoldOffersItsStartDay() {
@@ -74,26 +75,32 @@ struct LockScreenCardVisualTests {
     }
 
     @Test func aQueueTheSheetDoesNotHaveYetLeadsTheGuidanceDay() {
-        assertCardBaseline(state(.light, press: Self.backSquatPress, guidance: Self.guidance, pendingWrites: 3))
+        assertCardBaseline(state(.light, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3))
     }
 
     @Test func aQueueTheSheetDoesNotHaveYetLeadsTheGuidanceNight() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, guidance: Self.guidance, pendingWrites: 3))
+        assertCardBaseline(state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3))
     }
 
     @Test func theLargestTypeKeepsTheTargetAndEveryChip() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, guidance: Self.guidance), dynamicTypeSize: .xxxLarge)
+        assertCardBaseline(
+            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote),
+            dynamicTypeSize: .xxxLarge
+        )
     }
 
     @Test func theLargestTypeKeepsTheQueueAndEveryRPEChip() {
         assertCardBaseline(
-            state(.dark, press: Self.chose(6), guidance: Self.guidance, pendingWrites: 3),
+            state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
             dynamicTypeSize: .xxxLarge
         )
     }
 
     @Test func theLargestTypeKeepsTheTargetWithNoChips() {
-        assertCardBaseline(state(.dark, press: .needsApp, weight: nil, guidance: Self.guidance), dynamicTypeSize: .xxxLarge)
+        assertCardBaseline(
+            state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote),
+            dynamicTypeSize: .xxxLarge
+        )
     }
 
     @Test func theQueueStaysWhereNoChipIsOffered() {
@@ -102,18 +109,21 @@ struct LockScreenCardVisualTests {
 
     @Test func aCardShortOfRoomGivesUpTheGuidanceBeforeAChip() {
         assertCardBaseline(
-            state(.dark, press: Self.backSquatPress, guidance: Self.guidance, pendingWrites: 3),
+            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
             dynamicTypeSize: .xxxLarge,
             height: Self.systemHeight(at: .large)
         )
     }
 
     @Test func theNarrowestPhoneKeepsEveryChipOnTheCard() {
-        assertCardBaseline(state(.dark, press: Self.backSquatPress, guidance: Self.guidance, pendingWrites: 3), width: 347)
+        assertCardBaseline(
+            state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
+            width: 347
+        )
     }
 
     @Test func theNarrowestPhoneKeepsEveryRPEChipAndTheWayBack() {
-        assertCardBaseline(state(.dark, press: Self.chose(12), guidance: Self.guidance), width: 347)
+        assertCardBaseline(state(.dark, press: Self.chose(12), cadence: Self.cadence, coachNote: Self.coachNote), width: 347)
     }
 
     @Test func theSessionsLastSetReadsBackOverItsSets() {
@@ -219,57 +229,12 @@ struct LockScreenCardVisualTests {
         let load: String
     }
 
-    private static func longestCells(_ appearance: LiveActivityAppearance, press: LoggablePress) -> WorkoutActivityAttributes.ContentState {
-        makeState(
-            Prescription(
-                exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
-                reps: "AMRAP",
-                load: "Start conservative and work up to a heavy single"
-            ),
-            appearance,
-            press: press,
-            weight: ("1025.5", "lbs"),
-            guidance: "2-0-X-1 · Belt off, knee wraps on. Stop the Set the moment the bar speed drops off at all, "
-                + "and note how far it slowed"
-        )
-    }
-
-    /// A drop Set with writes still queued, which the chips cannot log and nothing was performed of.
-    private static func dropSet(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
-        makeState(
-            Prescription(exerciseName: "BB RDL", reps: "8", load: "Drop 17.5%"),
-            appearance,
-            press: .needsApp,
-            weight: nil,
-            pendingWrites: 4
-        )
-    }
-
-    /// The Exercise's Coach Note opens each Set on a hold, so the Start takes the mic's place.
-    private static func openingHold(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
-        let owner = CountdownRun.Owner(
-            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
-            set: ActiveSetID(exerciseOrder: 2, setIndex: 0)
-        )
-        return makeState(
-            Prescription(exerciseName: "BB RDL", reps: "8-10", load: "RPE 8-9"),
-            appearance,
-            press: .ready(offer(reps: [6, 7, 8, 9, 10], prescribed: [8, 9, 10], rpe: nil)),
-            weight: ("185", "lbs"),
-            guidance: "2-3:1:0 · Start w/ 10 sec hold, proceed to rep range.",
-            start: LockScreenStartOffer(
-                label: "10 s hold",
-                spokenLabel: "10 second hold",
-                url: AppEntryRequest.startTimedEffort(owner).url
-            )
-        )
-    }
-
     private func state(
         _ appearance: LiveActivityAppearance,
         press: LoggablePress = .needsApp,
         weight: (value: String, unit: String)? = ("252.5", "lbs"),
-        guidance: String? = nil,
+        cadence: String? = nil,
+        coachNote: String? = nil,
         pendingWrites: Int = 0,
         dictation: LiveActivityDictation? = nil
     ) -> WorkoutActivityAttributes.ContentState {
@@ -278,7 +243,8 @@ struct LockScreenCardVisualTests {
             appearance,
             press: press,
             weight: weight,
-            guidance: guidance,
+            cadence: cadence,
+            coachNote: coachNote,
             pendingWrites: pendingWrites,
             dictation: dictation,
             setsDone: dictation == nil ? 1 : 2
@@ -290,7 +256,8 @@ struct LockScreenCardVisualTests {
         _ appearance: LiveActivityAppearance,
         press: LoggablePress,
         weight: (value: String, unit: String)? = ("252.5", "lbs"),
-        guidance: String? = nil,
+        cadence: String? = nil,
+        coachNote: String? = nil,
         start: LockScreenStartOffer? = nil,
         pendingWrites: Int = 0,
         dictation: LiveActivityDictation? = nil,
@@ -311,7 +278,8 @@ struct LockScreenCardVisualTests {
             restEndDate: restEnd,
             dictation: dictation,
             loggablePress: press,
-            guidance: guidance,
+            cadence: cadence,
+            coachNote: coachNote,
             start: start,
             pendingWrites: pendingWrites
         )
@@ -380,10 +348,10 @@ extension LockScreenCardVisualTests {
     @Test func everyStateKeepsEveryLineAtEveryTypeSize() throws {
         for size in DynamicTypeSize.allCases where size <= .xxxLarge {
             let offers = [
-                state(.dark, press: Self.backSquatPress, guidance: Self.guidance),
-                state(.dark, press: Self.chose(6), guidance: Self.guidance, pendingWrites: 3),
+                state(.dark, press: Self.backSquatPress, cadence: Self.cadence, coachNote: Self.coachNote),
+                state(.dark, press: Self.chose(6), cadence: Self.cadence, coachNote: Self.coachNote, pendingWrites: 3),
                 state(.dark, press: Self.backSquatPress),
-                state(.dark, press: .needsApp, weight: nil, guidance: Self.guidance),
+                state(.dark, press: .needsApp, weight: nil, cadence: Self.cadence, coachNote: Self.coachNote),
                 Self.longestCells(.dark, press: Self.heaviestPress),
                 Self.longestCells(.dark, press: .needsApp),
                 Self.dropSet(.dark),
@@ -409,5 +377,54 @@ extension LockScreenCardVisualTests {
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
         let unbounded = CGSize(width: Self.cardWidth, height: .greatestFiniteMagnitude)
         return UIHostingController(rootView: card).sizeThatFits(in: unbounded).height
+    }
+}
+
+extension LockScreenCardVisualTests {
+    private static func longestCells(_ appearance: LiveActivityAppearance, press: LoggablePress) -> WorkoutActivityAttributes.ContentState {
+        makeState(
+            Prescription(
+                exerciseName: "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar",
+                reps: "AMRAP",
+                load: "Start conservative and work up to a heavy single"
+            ),
+            appearance,
+            press: press,
+            weight: ("1025.5", "lbs"),
+            cadence: "2-0-X-1",
+            coachNote: "Belt off, knee wraps on. Stop the Set the moment the bar speed drops off at all, and note how far it slowed"
+        )
+    }
+
+    /// A drop Set with writes still queued, which the chips cannot log and nothing was performed of.
+    private static func dropSet(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
+        makeState(
+            Prescription(exerciseName: "BB RDL", reps: "8", load: "Drop 17.5%"),
+            appearance,
+            press: .needsApp,
+            weight: nil,
+            pendingWrites: 4
+        )
+    }
+
+    /// The Exercise's Coach Note opens each Set on a hold, so the Start takes the mic's place.
+    private static func openingHold(_ appearance: LiveActivityAppearance) -> WorkoutActivityAttributes.ContentState {
+        let owner = CountdownRun.Owner(
+            session: SessionCoordinate(blockTab: "Block 27", address: SessionAddress(week: 1, day: 1)),
+            set: ActiveSetID(exerciseOrder: 2, setIndex: 0)
+        )
+        return makeState(
+            Prescription(exerciseName: "BB RDL", reps: "8-10", load: "RPE 8-9"),
+            appearance,
+            press: .ready(offer(reps: [6, 7, 8, 9, 10], prescribed: [8, 9, 10], rpe: nil)),
+            weight: ("185", "lbs"),
+            cadence: "2-3:1:0",
+            coachNote: "Start w/ 10 sec hold, proceed to rep range.",
+            start: LockScreenStartOffer(
+                label: "10 s hold",
+                spokenLabel: "10 second hold",
+                url: AppEntryRequest.startTimedEffort(owner).url
+            )
+        )
     }
 }

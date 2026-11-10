@@ -19,8 +19,10 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let dictation: LiveActivityDictation?
         /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
-        /// The Exercise's Cadence and Coach Note on one line; nil with neither.
-        let guidance: String?
+        /// The Exercise's Cadence; nil with none.
+        let cadence: String?
+        /// The Exercise's Coach Note on one line; nil with none.
+        let coachNote: String?
         /// The Start in the mic's place for a Set that opens on a timed effort; nil with none.
         let start: LockScreenStartOffer?
         /// Set Logs the Sheet does not have yet, counted when the content was drawn.
@@ -331,6 +333,11 @@ extension WorkoutActivityAttributes.ContentState {
     /// `185 lbs`, and `BW` alone.
     var weightText: String {
         [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    var cadenceAndCoachNote: String? {
+        let parts = [cadence, coachNote].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// In the header's words; nil with the queue empty.

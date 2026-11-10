@@ -205,27 +205,6 @@ func aSetIdentityOfAnotherShapeReadsAsNothing(stored: String) {
     #expect(LoggableSetIdentity(storageValue: stored) == nil)
 }
 
-@MainActor
-@Test func theGuidanceLineCarriesTheCadenceThenTheCoachNote() {
-    let note = Exercise(name: ExerciseName(entered: "2-3:1:0 BB RDL"), coachNote: "Start w/ 10 sec hold", order: 0)
-    let cadenceOnly = Exercise(name: ExerciseName(entered: "3:1:1 Leg Press"), coachNote: nil, order: 0)
-    let noteOnly = Exercise(name: ExerciseName(entered: "Bench Press"), coachNote: "Pause on the chest\n\nfull lockout", order: 0)
-    let neither = Exercise(name: ExerciseName(entered: "Bench Press"), coachNote: "  ", order: 0)
-
-    #expect(note.lockScreenGuidance == "2-3:1:0 · Start w/ 10 sec hold")
-    #expect(cadenceOnly.lockScreenGuidance == "3:1:1")
-    #expect(noteOnly.lockScreenGuidance == "Pause on the chest full lockout")
-    #expect(neither.lockScreenGuidance == nil)
-}
-
-/// ActivityKit refuses content over 4 KB, and the card cuts the line to one anyway.
-@MainActor
-@Test func theGuidanceLineStaysShortForALongCoachNote() throws {
-    let exercise = Exercise(name: ExerciseName(entered: "Bench Press"), coachNote: String(repeating: "Brace hard. ", count: 100), order: 0)
-
-    #expect(try #require(exercise.lockScreenGuidance).count == 120)
-}
-
 /// The Start names the Set by its place in its Session, as the stage's countdown does.
 @MainActor
 @Test func aSetWithAnOpeningHoldOffersTheStartForItsOwnSet() throws {

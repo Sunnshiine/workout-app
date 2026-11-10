@@ -91,7 +91,7 @@ struct IslandSetOffer: View {
             let line = IslandGuidanceLine(
                 target: fit.targetOnTheSetLine ? nil : state.prescriptionText,
                 queue: typeSize.islandShedsTheCorners ? state.pendingWritesText : nil,
-                guidance: state.guidance,
+                guidance: state.cadenceAndCoachNote,
                 targetGivesWay: fit.nameAndTargetGiveWay
             )
             if !line.isEmpty {

@@ -17,8 +17,9 @@ public struct LockScreenOfferReport: Encodable, Equatable, Sendable {
     public let weight: String?
     public let prescribedReps: String?
     public let prescribedLoad: String?
-    /// The Cadence and the Coach Note on the card's one line.
-    public let guidance: String?
+    public let cadence: String?
+    /// The Coach Note on one line, as the card holds it.
+    public let coachNote: String?
     /// The timed effort the card's Start opens the app to count, as `10 s hold`.
     public let start: String?
     /// Nil when the card shows no chips.
@@ -50,7 +51,8 @@ extension WorkoutApplication {
                 weight: nil,
                 prescribedReps: nil,
                 prescribedLoad: nil,
-                guidance: nil,
+                cadence: nil,
+                coachNote: nil,
                 start: nil,
                 offer: nil
             )
@@ -68,7 +70,8 @@ extension WorkoutApplication {
             weight: card.weightValue.isEmpty ? nil : card.weightValue,
             prescribedReps: card.prescribedReps,
             prescribedLoad: card.prescribedLoad,
-            guidance: card.guidance,
+            cadence: card.cadence,
+            coachNote: card.coachNote,
             start: card.start?.effort.controlLabel,
             offer: LockScreenOfferReport.Offer(card.press)
         )
