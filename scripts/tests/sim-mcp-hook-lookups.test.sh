@@ -12,6 +12,12 @@ check "simlock missing: allowed" '[ $status = 0 ] && err_has "unchecked, because
 check "simlock missing: the warning reaches Claude Code as a systemMessage" \
     'python3 -c "import json, sys; sys.exit(\"unchecked\" not in json.load(open(sys.argv[1]))[\"systemMessage\"])" "$tmp/out"'
 check "simlock missing: the build is logged as unchecked" 'grep -q "build_run_sim	$FREE_UDID	unchecked$" "$log"'
+PATH_BIN=$tmp/nosimlock gate session_set_defaults "{\"simulatorId\": \"$FREE_UDID\"}"
+check "simlock missing: session_set_defaults with a simulatorId runs, saying so" \
+    '[ $status = 0 ] && err_has "allowed session_set_defaults on $FREE_UDID unchecked, because simlock did not start"'
+SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate session_set_defaults "{\"simulatorId\": \"$FREE_UDID\"}"
+check "simlock slower than the bound: session_set_defaults with a simulatorId runs, saying so" \
+    '[ $status = 0 ] && err_has "took longer than 0.3 s"'
 SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate build_run_sim '{}'
 check "simlock slower than the bound: allowed" '[ $status = 0 ] && err_has "took longer than 0.3 s"'
 rm -f "$tmp"/started--*
