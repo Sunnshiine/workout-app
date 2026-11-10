@@ -30,6 +30,7 @@ from pathlib import Path
 SERVER = "mcp__XcodeBuildMCP__"
 REPO = "workout-app"
 VERIFY = ".agents/skills/verify/verify.sh"
+ROOT = Path(__file__).resolve().parent.parent
 LEASE = (
     "simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m"
     " | python3 -c 'import json, sys; g = json.loads(sys.stdin.readline());"
@@ -104,6 +105,27 @@ def stray_destination(extra_args, udid):
     return None
 
 
+def config_defaults():
+    """.xcodebuildmcp/config.yaml's sessionDefaults as session_set_defaults takes them, with paths made absolute."""
+    found, inside = {}, False
+    try:
+        lines = (ROOT / ".xcodebuildmcp" / "config.yaml").read_text().splitlines()
+    except OSError:
+        return found
+    for line in lines:
+        if not line.startswith(" "):
+            inside = line.startswith("sessionDefaults:")
+            continue
+        match = re.fullmatch(r"\s+(\w+):\s*(.+?)\s*", line)
+        if inside and match:
+            key, value = match.groups()
+            if value.startswith("["):
+                found[key] = [v.strip() for v in value.strip("[]").split(",")]
+            else:
+                found[key] = str(ROOT / value) if key.endswith("Path") else value
+    return found
+
+
 def record(tool, tool_input, session):
     """PostToolUse on the session tools: keep the simulatorId this session set, forget it otherwise."""
     path = record_path(session)
@@ -120,6 +142,14 @@ def record(tool, tool_input, session):
     ) or (tool == "session_set_defaults" and any(k in tool_input for k in UNTRACKED))
     if clears:
         path.unlink(missing_ok=True)
+    if tool == "session_clear_defaults":
+        dropped = {k: v for k, v in config_defaults().items() if tool_input.get("all") or not keys or k in keys}
+        if dropped:
+            return {"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": (
+                "sim-mcp-hook: session_clear_defaults also dropped defaults .xcodebuildmcp/config.yaml sets, which skip"
+                " plug-in validation and keep DerivedData off the internal disk. Before the next build, call"
+                f" session_set_defaults {json.dumps(dropped)}")}}
+    return None
 
 
 def start(argv):
@@ -333,8 +363,9 @@ def main():
         return 0
     tool = tool[len(SERVER):]
     if event.get("hook_event_name") == "PostToolUse":
-        if tool in SESSION_TOOLS:
-            record(tool, tool_input, session)
+        out = record(tool, tool_input, session) if tool in SESSION_TOOLS else None
+        if out:
+            print(json.dumps(out))
         return 0
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         signal.signal(signum, interrupted)

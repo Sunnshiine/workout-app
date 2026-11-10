@@ -134,6 +134,26 @@ recorded session_set_defaults "{\"simulatorId\": \"$FREE_UDID\"}"
 gate build_run_sim '{}'
 check "a recorded unleased UDID is refused" '[ $status = 2 ] && err_has "no live Simlock lease holds $FREE_UDID"'
 
+echo "a clear that drops this repo's config defaults names the call that restores them"
+# Exits 0 when the recorder's additionalContext names session_set_defaults with exactly the JSON object $1.
+restores() {
+    python3 -c '
+import json, sys
+text = json.load(open(sys.argv[1]))["hookSpecificOutput"]["additionalContext"]
+call = json.JSONDecoder().raw_decode(text[text.index("session_set_defaults {") + len("session_set_defaults "):])[0]
+sys.exit(call != json.loads(sys.argv[2]) or "config.yaml" not in text)' "$tmp/out" "$1" 2>/dev/null
+}
+config="{\"projectPath\": \"$repo/WorkoutTracker.xcodeproj\", \"scheme\": \"WorkoutTracker\",
+    \"extraArgs\": [\"-skipPackagePluginValidation\", \"-skipMacroValidation\"], \"derivedDataPath\": \"$repo/.xcodebuildmcp/DerivedData\"}"
+for call in '{}' '{"all": true}'; do
+    recorded session_clear_defaults "$call"
+    check "session_clear_defaults $call names the call that restores every config default" '[ $status = 0 ] && restores "$config"'
+done
+recorded session_clear_defaults '{"keys": ["scheme", "simulatorId"]}'
+check "a clear of some config keys restores only those" 'restores "{\"scheme\": \"WorkoutTracker\"}"'
+recorded session_clear_defaults '{"keys": ["simulatorId"]}'
+check "a clear of no config key says nothing" '[ $status = 0 ] && [ ! -s "$tmp/out" ]'
+
 echo "session defaults name a simulator only by the UDID of a lease"
 gate session_set_defaults "{\"simulatorId\": \"$MINE\", \"scheme\": \"WorkoutTracker\"}"
 check "session_set_defaults with simulatorId runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
