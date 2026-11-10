@@ -130,14 +130,17 @@ assert_warns() {
 
 HOOK_EVENTS=$(python3 -c '
 import json, sys
-print(" ".join(sorted(json.load(open(sys.argv[1]))["hooks"])))
+hooks = json.load(open(sys.argv[1]))["hooks"]
+print(" ".join(sorted(event for event, entries in hooks.items()
+                      if any("warn-stale-checkout.sh" in h.get("command", "")
+                             for entry in entries for h in entry["hooks"]))))
 ' "$SETTINGS")
 
 echo "hook command under test: $HOOK_COMMAND"
 echo
 
 echo "0. the hook is registered on session start and on no per-turn event"
-check "registers exactly one hook event, SessionStart (got \"$HOOK_EVENTS\")" \
+check "runs only on SessionStart (got \"$HOOK_EVENTS\")" \
   test "$HOOK_EVENTS" = SessionStart
 echo
 
