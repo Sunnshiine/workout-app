@@ -31,7 +31,7 @@ public struct LockScreenOfferReport: Encodable, Equatable, Sendable {
     public let coachNote: String?
     /// The timed effort the card's Start opens the app to count, as `10 s hold`.
     public let start: String?
-    /// Nil when the card shows no chips.
+    /// Nil when the Set logs only in the app.
     public let offer: Offer?
 }
 

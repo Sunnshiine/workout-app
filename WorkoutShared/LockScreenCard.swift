@@ -44,7 +44,6 @@ enum LockScreenCardMotion {
 struct LockScreenCard: View {
     let state: WorkoutActivityAttributes.ContentState
     @Environment(\.dynamicTypeSize) private var typeSize
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
@@ -55,16 +54,21 @@ struct LockScreenCard: View {
                     NoSetLockScreenView(state: state, dictation: dictation)
                 }
             } else {
-                face.padding(LockScreenCardMetrics.padding)
+                LockScreenCardFaceView(state: state).padding(LockScreenCardMetrics.padding)
             }
         }
         .frame(height: LockScreenCardMetrics.height(at: typeSize))
     }
+}
 
-    /// A choosing face needs the offer's chips. `LiveActivityRestContent.turned(to:)` turns no card
-    /// to one without them, so no `.needsApp` pair arrives.
-    @ViewBuilder
-    private var face: some View {
+/// The Card Face the card is on. A choosing face needs the offer's chips.
+/// `LiveActivityRestContent.turned(to:)` turns no card to one without them, so no `.needsApp` pair
+/// arrives.
+struct LockScreenCardFaceView: View {
+    let state: WorkoutActivityAttributes.ContentState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
         switch (state.face, state.loggablePress) {
         case (.reps, .ready(let offer)):
             LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
@@ -257,7 +261,6 @@ private struct LockScreenRoundControl: View {
     }
 }
 
-/// A bare glyph in a tap target of the card's control size.
 struct LockScreenQuietGlyph: View {
     let symbol: String
     let color: Color

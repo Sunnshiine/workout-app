@@ -220,19 +220,41 @@ final class LockScreenPress {
         }
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
         focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
+        let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
         switch subject {
         case .rest(let rest):
-            let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
             await liveActivity.show(rest, islandReading: readback, sessionLabel: session.liveActivityLabel)
             async let flushed: Void = writes.flush()
-            await showCard(after: readback, on: .rest)
+            await takeOffTheIsland(readback)
             await flushed
+            await showWhatTheFlushLeft()
         case .set:
+            await endTheCard(under: readback, sessionLabel: session.liveActivityLabel)
+        }
+        return .logged(setLog, at: position.setID)
+    }
+
+    /// The island reads `readback` for its hold while the card stays the athlete's to turn, so the
+    /// readback comes off over the face the card is on by then.
+    private func takeOffTheIsland(_ readback: LiveActivityDictationContent.Readback) async {
+        await clock.sleep(until: clock.now + Self.readbackHold)
+        guard let running = liveActivity.restContent, let card = currentCard()?.keepingTheFace(of: running) else { return }
+        await liveActivity.replace(readback, with: card)
+    }
+
+    /// No rest follows the Session's last Set, so the card has no next Set to draw. It stays as it
+    /// is while the island reads `readback`, and the Live Activity ends with the hold.
+    private func endTheCard(under readback: LiveActivityDictationContent.Readback, sessionLabel: String) async {
+        guard let card = liveActivity.restContent else {
             await liveActivity.endRest()
             await writes.flush()
+            return
         }
-        await showWhatTheFlushLeft()
-        return .logged(setLog, at: position.setID)
+        await liveActivity.show(card, islandReading: readback, sessionLabel: sessionLabel)
+        async let flushed: Void = writes.flush()
+        await clock.sleep(until: clock.now + Self.readbackHold)
+        await liveActivity.endRest()
+        await flushed
     }
 
     /// With no rest running, the Lock Screen's recording has the Live Activity to itself, and a

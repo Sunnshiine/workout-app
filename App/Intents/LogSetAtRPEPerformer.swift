@@ -26,8 +26,6 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     }
 
     func turnCard(to face: LockScreenCardFace, pressing setIdentity: String?) async {
-        // A press that relaunched the app finds the rest this process did not start.
-        liveActivity.takeOverRestLeftRunning()
         await press.turn(to: LockScreenFace(face), pressing: setIdentity)
     }
 
@@ -36,7 +34,9 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     }
 
     private var press: LockScreenPress {
-        LockScreenPress(
+        // A press that relaunched the app finds the rest this process did not start.
+        liveActivity.takeOverRestLeftRunning()
+        return LockScreenPress(
             app: app,
             dictation: dictation,
             focus: focus,

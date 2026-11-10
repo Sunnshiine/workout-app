@@ -166,7 +166,6 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
 
     func refresh(card: LiveActivityRestContent) async {
         guard up?.onTheCard != true else { return }
-        up = nil
         refreshes.append(card)
         restContent = card
     }

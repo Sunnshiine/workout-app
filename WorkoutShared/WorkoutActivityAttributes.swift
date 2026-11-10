@@ -356,11 +356,9 @@ extension WorkoutActivityAttributes.ContentState {
         [weightValue, weightUnit].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
-    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone. Content an
-    /// earlier build wrote has no numbers to read it off, and prints it ungrouped.
-    var weightOnTheCard: String {
-        guard let weight = stats.first, !weight.isMissing else { return weightText }
-        return [weight.value, weight.label].filter { !$0.isEmpty }.joined(separator: " ")
+    /// The weight as the card's rest face groups it: `1,002.5 lbs`, and `BW` alone.
+    var weightOnTheCard: String? {
+        stats.first.map { [$0.value, $0.label].filter { !$0.isEmpty }.joined(separator: " ") }
     }
 
     var cadenceAndCoachNote: String? {

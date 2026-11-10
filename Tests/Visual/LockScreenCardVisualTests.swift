@@ -266,21 +266,12 @@ extension LockScreenCardVisualTests {
         for size in DynamicTypeSize.allCases where size <= .xxxLarge {
             let room = Self.systemHeight(at: size) - 2 * LockScreenCardMetrics.padding
             for state in Self.everyFace {
-                let face = Self.face(of: state)
+                let face = LockScreenCardFaceView(state: state)
                     .fixedSize(horizontal: false, vertical: true)
                     .environment(\.dynamicTypeSize, size)
                 let width = Self.narrowestPhone - 2 * LockScreenCardMetrics.padding
                 #expect(height(of: face, width: width) <= room, "At \(size), \(state.face) of \(state.exerciseName)")
             }
-        }
-    }
-
-    @ViewBuilder
-    private static func face(of state: WorkoutActivityAttributes.ContentState) -> some View {
-        switch (state.face, state.loggablePress) {
-        case (.reps, .ready(let offer)): LockScreenChoicesFace(state: state, offer: offer, chosenReps: nil)
-        case (.rpe(let reps), .ready(let offer)): LockScreenChoicesFace(state: state, offer: offer, chosenReps: reps)
-        default: LockScreenRestFace(state: state)
         }
     }
 

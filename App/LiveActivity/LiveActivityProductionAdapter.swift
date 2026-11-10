@@ -60,15 +60,18 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         }
     }
 
-    /// Waits out a start still in flight, so the activity it brings up is the one updated.
     func retarget(restContent: LiveActivityRestContent) {
+        retarget(restContent: restContent, showing: WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil))
+    }
+
+    /// Waits out a start still in flight, so the activity it brings up is the one updated.
+    private func retarget(restContent: LiveActivityRestContent, showing state: WorkoutActivityAttributes.ContentState) {
         guard self.restContent != nil else { return }
         owner = .rest(restContent)
         let pending = startUpdateTask
         let operationID = UUID()
         startUpdateID = operationID
         scheduleLifecycleTasks(for: restContent)
-        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: nil)
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
         startUpdateTask = Task { @MainActor [weak self, controller] in
@@ -218,8 +221,10 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     }
 
     func refresh(card: LiveActivityRestContent) async {
-        guard controller.currentState?.cardReadback == nil else { return }
-        retarget(restContent: card)
+        let current = controller.currentState
+        guard current?.cardReadback == nil else { return }
+        let redrawn = current?.redrawn(as: card) ?? WorkoutActivityAttributes.ContentState(restContent: card, dictation: nil)
+        retarget(restContent: card, showing: redrawn)
         await startUpdateTask?.value
     }
 

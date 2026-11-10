@@ -15,6 +15,14 @@ extension WorkoutActivityAttributes.ContentState {
         self.init(restContent: restContent, dictation: readback, readbackStaysOffTheCard: true, appearance: .dark)
     }
 
+    /// `card` in this content's place, still under a readback the island alone reads.
+    func redrawn(as card: LiveActivityRestContent) -> WorkoutActivityAttributes.ContentState {
+        guard readbackStaysOffTheCard == true, let dictation else {
+            return WorkoutActivityAttributes.ContentState(restContent: card, dictation: nil)
+        }
+        return WorkoutActivityAttributes.ContentState(restContent: card, islandReading: dictation)
+    }
+
     private init(
         restContent: LiveActivityRestContent,
         dictation: LiveActivityDictation?,

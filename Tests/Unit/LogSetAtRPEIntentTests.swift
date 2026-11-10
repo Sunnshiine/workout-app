@@ -182,6 +182,24 @@ struct LogSetAtRPEIntentTests {
         #expect(spoken.cardReadback == logged, "a Dictation's readback still takes the card")
     }
 
+    /// The athlete can turn the card while the island reads a Set Log back. The turn redraws the
+    /// card, and the island keeps its readback until the hold takes it off.
+    @Test func aCardRedrawnUnderTheIslandsReadbackKeepsIt() {
+        let logged = LiveActivityDictation.logged(
+            "1002.5×5 @7",
+            to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 1, setsTotal: 3)
+        )
+        let onReps = Self.squatRest.turned(to: .reps)
+
+        let underTheIsland = WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, islandReading: logged).redrawn(as: onReps)
+        let withNoReadback = WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, dictation: nil).redrawn(as: onReps)
+
+        #expect(underTheIsland.face == .reps)
+        #expect(underTheIsland.dictation == logged)
+        #expect(underTheIsland.cardReadback == nil)
+        #expect(withNoReadback == WorkoutActivityAttributes.ContentState(restContent: onReps, dictation: nil))
+    }
+
     /// An activity left running across an update holds content the build before wrote, with no
     /// Card Face and no numbers. Content that fails to decode freezes the card on what it drew.
     @Test func contentTheBuildBeforeWroteDecodesOntoTheRestFace() throws {

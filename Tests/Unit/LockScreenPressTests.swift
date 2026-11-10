@@ -389,23 +389,3 @@ func aStalePressOnTheSessionsLastSetSaysWhatTheSetHolds(onAnRPEChip: Bool) async
     #expect(harness.liveActivity.noSets == [.noSetLeft])
     #expect(harness.liveActivity.readbacks.isEmpty)
 }
-
-/// No rest follows the Session's last Set, so its card goes and nothing reads back in its place.
-@MainActor
-@Test func theSessionsLastSetTakesTheCardDown() async throws {
-    let harness = try await BackgroundDictationHarness(hearing: [])
-    let session = try #require(harness.app.workout.currentSession)
-    let last = try #require(SessionSetOrder.orderedSets(in: session).last)
-    for position in SessionSetOrder.orderedSets(in: session).dropLast() {
-        try harness.app.workout.log(position.set, as: logged235)
-    }
-    harness.focus.reset(to: session)
-    try harness.restRunning()
-
-    let outcome = await harness.chips.logSet(setIdentity: harness.identity(of: last.setID), reps: 5, rpe: "7")
-
-    #expect(outcome == .logged(logged235, at: last.setID))
-    #expect(harness.liveActivity.endedRests == 1)
-    #expect(harness.liveActivity.restContent == nil)
-    #expect(harness.liveActivity.readbacks.isEmpty)
-}

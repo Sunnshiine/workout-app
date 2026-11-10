@@ -75,8 +75,8 @@ struct LockScreenChoicesFace: View {
 
     /// `267.5 lbs`, then `267.5 lbs · 3 reps` once the Reps are tapped.
     private var chosenSoFar: String {
-        guard let chosenReps else { return state.weightOnTheCard }
-        return "\(state.weightOnTheCard) · \(chosenReps == 1 ? "1 rep" : "\(chosenReps) reps")"
+        let reps = chosenReps.map { $0 == 1 ? "1 rep" : "\($0) reps" }
+        return [state.weightOnTheCard, reps].compactMap { $0 }.joined(separator: " · ")
     }
 
     private var repsChips: some View {
