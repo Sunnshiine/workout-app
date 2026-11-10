@@ -48,6 +48,10 @@ The last line, on every exit after this usage text, is
   test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e> load1=<start>/<end> bundle=<path>
 where expected= counts tests whose only issues were known issues, which passed= leaves out, exit= is
 this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
+Each XCTest test gets WORKOUT_TEST_ALLOWANCE seconds (60), or up to WORKOUT_TEST_MAX_ALLOWANCE (300)
+when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the whole test run
+outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it, so a run that stops making
+progress cannot hold its simulator for good.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
@@ -74,6 +78,7 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
     } 2>/dev/null >>"$logs/$stamp-test.log" || true
   fi
   echo "$result"
+  [ -z "${run_pid:-}" ] || kill -TERM "$run_pid" 2>/dev/null
   end_lease
   exit "$rc"
 }
@@ -89,6 +94,9 @@ trap 'exit 129' HUP
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
+host_knob WORKOUT_TEST_ALLOWANCE 60 1
+host_knob WORKOUT_TEST_MAX_ALLOWANCE 300 1
+host_knob WORKOUT_TEST_RUN_LIMIT 3600 1
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -141,8 +149,24 @@ bundle=$logs/$stamp.xcresult
 echo "bundle: $bundle"
 set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
-  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
+  -test-timeouts-enabled YES -default-test-execution-time-allowance "$WORKOUT_TEST_ALLOWANCE" \
+  -maximum-test-execution-time-allowance "$WORKOUT_TEST_MAX_ALLOWANCE" \
+  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1 7>&- 8>&- 9>&- &
+run_pid=$!
+# A run that never ends holds its simulator for good, as xcodebuild idling after its last test did.
+perl -e 'sleep $ARGV[0]; exit 0 unless kill 0, $ARGV[1]; open my $f, ">", $ARGV[2]; kill "TERM", $ARGV[1]' \
+  "$WORKOUT_TEST_RUN_LIMIT" "$run_pid" "$log.overran" 7>&- 8>&- 9>&- &
+watchdog=$!
+wait "$run_pid"
 rc=$?
+run_pid=
+kill "$watchdog" 2>/dev/null
+wait "$watchdog" 2>/dev/null
+if [ -e "$log.overran" ]; then
+  rm -f "$log.overran"
+  echo "the test run outlived WORKOUT_TEST_RUN_LIMIT ($WORKOUT_TEST_RUN_LIMIT s), so it was stopped; the log's last lines show where it stood: $log" >&2
+  exit 124
+fi
 # What xcodebuild prints when CoreSimulator or the test runner breaks rather than the app (#537, #908).
 # "Early unexpected exit" only from the XCTest runner; the app crashing at launch prints it too.
 fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd|-Runner \([0-9]+\) encountered an error \(Early unexpected exit' "$log") || true
