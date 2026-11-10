@@ -18,9 +18,9 @@ manifest version, a cell's text. `swift test` still catches most slips first.
 
 ## Steps
 
-1. With `swift test` green, run `git fetch origin`. The default base is the merge base of HEAD and
-   `origin/main`, and a stale `origin/main` diffs trunk's own commits. Uncommitted edits are part
-   of the head side.
+1. With `scripts/build-slot.sh swift test` green, run `git fetch origin`. The default base is the
+   merge base of HEAD and `origin/main`, and a stale `origin/main` diffs trunk's own commits.
+   Uncommitted edits are part of the head side.
 2. From the repo root, run `parity.sh`. A warm run takes about 25 s, and building a new base adds
    10 to 30 s. Add `--keep` to keep the transcripts. The step is done when the last line reads
    `parity: N clean, 0 differ`.
@@ -44,8 +44,8 @@ manifest version, a cell's text. `swift test` still catches most slips first.
 
 ## Blind spots
 
-A clean run says nothing about these, so cover them with `swift test`, the simulator suites, or
-the `verify` skill:
+A clean run says nothing about these, so cover them with `scripts/build-slot.sh swift test`, the
+simulator suites, or the `verify` skill:
 
 - UI, SwiftUI observation, animation, haptics, and the Live Activity.
 - The Exercise History fill, which runs after the CLI process exits.

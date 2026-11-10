@@ -245,8 +245,8 @@ Per-change test selection:
 Agent gate policy:
 
 - While you work, run the narrowest tests for the layer you change.
-- Before a PR is ready, run every layer the per-change selection above names, plus `swift test`
-  and `scripts/lint.sh`. A change to navigation or real controls also runs the smoke selector, and
+- Before a PR is ready, run every layer the per-change selection above names, plus
+  `scripts/build-slot.sh swift test` and `scripts/lint.sh`. A change to navigation or real controls also runs the smoke selector, and
   one to keyboard focus, gestures, or scrolling runs `scripts/test-sim.sh ui`.
 
 # Manual Testing on the iOS Simulator
