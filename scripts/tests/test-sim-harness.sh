@@ -5,8 +5,9 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 root=$(mktemp -d) || exit 3
 sim=TEST-SIM-TEST-$$
 other_sim=TEST-SIM-OTHER-$$
+spare_sim=TEST-SIM-SPARE-$$
 unknown=DEADBEEF-0000-4000-8000-$(printf %012d $$)
-trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$other_sim" "/tmp/workout-verify-$unknown"' EXIT
+trap 'rm -rf "$root" "/tmp/workout-verify-$sim" "/tmp/workout-verify-$other_sim" "/tmp/workout-verify-$spare_sim" "/tmp/workout-verify-$unknown"' EXIT
 repo=$root/repo
 products=$root/home/Library/Developer/Xcode/DerivedData/WorkoutTracker-stub/Build/Products
 mkdir -p "$repo/scripts" "$root/bin" "$products"
@@ -39,6 +40,7 @@ while [ $# -gt 0 ]; do
 done
 cat "$STUB_LOG"
 cp "$STUB_OUT" "$STUB_SEEN"
+[ -z "${STUB_TOUCH:-}" ] || { touch "$STUB_TOUCH"; sleep 0.5; }
 [ -z "${STUB_RELEASE:-}" ] || while [ ! -e "$STUB_RELEASE" ]; do sleep 0.1; done
 [ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
 [ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"
@@ -51,9 +53,7 @@ if [ "\$1" = xcresulttool ]; then
     [ "\$4 \$5" = "summary --path" ] && cat "\$6/summary" 2>/dev/null
     exit
 fi
-[ "\$1 \$2" != "simctl shutdown" ] || { echo "\$*" >>"$root/shutdowns"; exit 0; }
-[ -z "\${STUB_SIMCTL_DOWN:-}" ] || { echo "An error was encountered processing the command (code=405)" >&2; exit 1; }
-echo '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"$sim","state":"Booted","name":"iPhone 17 Pro"},{"udid":"$other_sim","state":"Booted","name":"iPhone 17"}]}}'
+[ "\$1 \$2" != "simctl shutdown" ] || echo "\$*" >>"$root/shutdowns"
 STUB
 cat >"$root/bin/date" <<'STUB'
 #!/bin/sh
@@ -67,6 +67,13 @@ touch "$STUB_LOAD_READ"
 STUB
 printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
 chmod +x "$root/bin/plutil" "$root/bin/xcodebuild" "$root/bin/xcrun" "$root/bin/sysctl" "$root/bin/date" "$root/bin/gh"
+cp "$script_dir/fake-simlock" "$root/bin/simlock"
+export FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES="$sim $other_sim $spare_sim"
+unset FAKE_SIMLOCK_WHO SIM
+# The caller holds a lease on $sim, and another agent, neighbour, one on $other_sim.
+for who in agent-test neighbour; do
+    FAKE_SIMLOCK_WHO=$who PATH="$root/bin:$PATH" simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --detach --ttl 60m >/dev/null
+done
 export STUB_ARGS=$root/args STUB_KEYBOARD_CALLS=$root/keyboard STUB_LOAD_READ=$root/load-read
 result() { echo "test-sim: suite=$1 passed=- failed=- expected=- exit=$2 load1=1.50/2.50 bundle=-"; }
 

@@ -7,7 +7,8 @@ identity is FAKE_SIMLOCK_WHO (default agent-test). The devices are the UDIDs in 
 (default FAKE-SIM-1 FAKE-SIM-2), and a lease takes the first one no lease holds.
 
 A lease without --detach prints its grant, then stays up until SIGTERM or SIGINT, or until --bind-pid's
-process dies, and releases on the way out, as the real one does. A lease with --detach prints its grant
+process dies, and releases on the way out, as the real one does. It also exits once the state directory
+is gone, so a test that loses track of one leaves no process behind. A lease with --detach prints its grant
 and exits; it lasts until release.
 
 Knobs: FAKE_SIMLOCK_REFUSE=<code> makes every lease fail with that exit code. FAKE_SIMLOCK_REVOKE=<file>
@@ -114,6 +115,8 @@ def hold(lease, bound):
     signal.signal(signal.SIGINT, lambda *_: stop.append("stopped by SIGINT"))
     revoke = os.environ.get("FAKE_SIMLOCK_REVOKE")
     while not stop:
+        if not os.path.isdir(STATE):
+            sys.exit(0)
         if bound:
             try:
                 os.kill(int(bound), 0)
