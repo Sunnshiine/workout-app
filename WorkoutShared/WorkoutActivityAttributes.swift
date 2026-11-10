@@ -17,12 +17,14 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         let restEndDate: Date?
         /// Where a Dictation run without opening the app stands; nil when none is showing.
         let dictation: LiveActivityDictation?
+        /// True for a readback the island alone reads, while the Lock Screen card keeps its face.
+        var readbackStaysOffTheCard: Bool?
         /// How the Lock Screen logs the Set this content shows.
         let loggablePress: LoggablePress
-        /// Which Card Face the Lock Screen card draws.
-        let face: LockScreenCardFace
-        /// The weight, the Reps and the RPE on the card's rest face. Empty with no rest running.
-        let stats: [LockScreenCardStat]
+        /// Nil in content an earlier build wrote, which an activity left running across an update
+        /// still holds. Read `face` and `stats`.
+        let cardFace: LockScreenCardFace?
+        let cardStats: [LockScreenCardStat]?
         /// As the Sheet writes it: `3:1:1`, or `2-3:1:0` for a range. Nil with none.
         let cadence: String?
         /// The Exercise's Coach Note on one line; nil with none.
@@ -302,6 +304,21 @@ extension LiveActivityColors {
 }
 
 extension WorkoutActivityAttributes.ContentState {
+    /// Which Card Face the Lock Screen card draws.
+    var face: LockScreenCardFace {
+        cardFace ?? .rest
+    }
+
+    /// The weight, the Reps and the RPE on the card's rest face. Empty with no rest running.
+    var stats: [LockScreenCardStat] {
+        cardStats ?? []
+    }
+
+    /// The readback the Lock Screen card draws in place of its face; nil with none.
+    var cardReadback: LiveActivityDictation? {
+        readbackStaysOffTheCard == true ? nil : dictation
+    }
+
     var liveActivityColors: LiveActivityColors {
         LiveActivityPalette.colors(for: appearance)
     }

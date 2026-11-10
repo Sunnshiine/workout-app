@@ -26,13 +26,22 @@ final class LiveActivityProductionAdapter: SessionLiveActivityAdapter {
         startOrUpdate(restContent: restContent, dictation: nil, sessionLabel: sessionLabel)
     }
 
-    private func startOrUpdate(restContent: LiveActivityRestContent, dictation: LiveActivityDictation?, sessionLabel: String) {
+    private func startOrUpdate(
+        restContent: LiveActivityRestContent,
+        dictation: LiveActivityDictation?,
+        readbackStaysOffTheCard: Bool = false,
+        sessionLabel: String
+    ) {
         owner = .rest(restContent)
         startUpdateTask?.cancel()
         let operationID = UUID()
         startUpdateID = operationID
         scheduleLifecycleTasks(for: restContent)
-        let state = WorkoutActivityAttributes.ContentState(restContent: restContent, dictation: dictation)
+        let state = WorkoutActivityAttributes.ContentState(
+            restContent: restContent,
+            dictation: dictation,
+            readbackStaysOffTheCard: readbackStaysOffTheCard
+        )
         let staleDate = LiveActivityInvalidationPolicy.postRestCapEndDate(for: restContent)
 
         startUpdateTask = Task { @MainActor [weak self, controller] in
@@ -160,7 +169,12 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         let readback = LiveActivityDictation(content.readback)
         switch content.subject {
         case .rest(let rest):
-            startOrUpdate(restContent: rest, dictation: readback, sessionLabel: sessionLabel)
+            startOrUpdate(
+                restContent: rest,
+                dictation: readback,
+                readbackStaysOffTheCard: content.staysOffTheCard,
+                sessionLabel: sessionLabel
+            )
             await startUpdateTask?.value
             return controller.isActive
         case .set(let set):
@@ -196,11 +210,6 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
         }
     }
 
-    func showRest(_ rest: LiveActivityRestContent, sessionLabel: String) async {
-        startOrUpdate(restContent: rest, sessionLabel: sessionLabel)
-        await startUpdateTask?.value
-    }
-
     func endRest() async {
         end()
     }
@@ -212,7 +221,7 @@ extension LiveActivityProductionAdapter: DictationLiveActivityAdapter {
     }
 
     func refresh(card: LiveActivityRestContent) async {
-        guard controller.currentState?.dictation == nil else { return }
+        guard controller.currentState?.cardReadback == nil else { return }
         retarget(restContent: card)
         await startUpdateTask?.value
     }

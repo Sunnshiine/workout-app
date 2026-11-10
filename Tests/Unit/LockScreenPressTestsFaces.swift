@@ -108,7 +108,7 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 }
 
 /// Log, Reps, then RPE logs the Set the card showed, and the next Set's card comes up on its rest
-/// face with no readback before it.
+/// face under a readback only the island reads.
 @MainActor
 @Test func logThenRepsThenRPELogsTheSetAndShowsTheNextSetsRest() async throws {
     let harness = try await BackgroundDictationHarness(hearing: [])
@@ -122,8 +122,8 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     #expect(outcome == .logged(SetLog(weight: .pounds(235), reps: 6, rpe: .eight), at: firstSet))
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x6@8")
-    #expect(harness.liveActivity.readbacks.isEmpty)
-    #expect(harness.liveActivity.replacements.isEmpty)
+    #expect(harness.liveActivity.shown.map(\.content.staysOffTheCard) == [true])
+    #expect(harness.liveActivity.restsShown.first?.face == .rest, "the card left its RPE face as the Set logged")
     let card = try #require(harness.liveActivity.restContent)
     #expect(card.target?.setID == secondSet)
     #expect(card.face == .rest)
@@ -171,8 +171,8 @@ func aPressThatCannotTurnTheCardToItsChoicesWritesNothingAndSaysSo(
     try harness.expectNothingWritten()
 }
 
-/// A flush that lands redraws the card to drop its count. The athlete may have pressed Log while
-/// it ran, and the card must not turn back under their thumb.
+/// A flush that lands redraws the card to drop its count, and the island's readback ends. The
+/// athlete may have pressed Log meanwhile, and neither turns the card back under their thumb.
 @MainActor
 @Test func aFlushThatLandsKeepsTheFaceTheAthleteTurnedTo() async throws {
     let sheet = HeldWriteSheetsClient()
@@ -184,6 +184,11 @@ func aPressThatCannotTurnTheCardToItsChoicesWritesNothingAndSaysSo(
 
     _ = await chips.turn(to: .reps, pressing: harness.identity(of: secondSet))
     #expect(harness.liveActivity.restContent?.pendingWrites == 1)
+    await harness.clock.waitUntilSleeping(
+        until: harness.clock.now + LockScreenPress.readbackHold,
+        orRecord: "The readback never held"
+    )
+    harness.clock.advance(by: LockScreenPress.readbackHold)
     sheet.release()
 
     #expect(await run.value == .logged(logged235, at: firstSet))

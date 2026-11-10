@@ -4,6 +4,7 @@ extension WorkoutActivityAttributes.ContentState {
     init(
         restContent: LiveActivityRestContent,
         dictation: LiveActivityDictation?,
+        readbackStaysOffTheCard: Bool = false,
         appearance: LiveActivityAppearance = .dark
     ) {
         self.init(
@@ -19,9 +20,10 @@ extension WorkoutActivityAttributes.ContentState {
             restStartDate: restContent.restStartDate,
             restEndDate: restContent.restEndDate,
             dictation: dictation,
+            readbackStaysOffTheCard: readbackStaysOffTheCard ? true : nil,
             loggablePress: LoggablePress(restContent.press),
-            face: LockScreenCardFace(restContent.face),
-            stats: restContent.stats.map(LockScreenCardStat.init),
+            cardFace: LockScreenCardFace(restContent.face),
+            cardStats: restContent.stats.map(LockScreenCardStat.init),
             cadence: restContent.cadence,
             coachNote: restContent.coachNote,
             start: restContent.start.map(LockScreenStartOffer.init),
@@ -49,8 +51,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            face: .rest,
-            stats: [],
+            cardFace: .rest,
+            cardStats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
@@ -74,8 +76,8 @@ extension WorkoutActivityAttributes.ContentState {
             restEndDate: nil,
             dictation: dictation,
             loggablePress: .needsApp,
-            face: .rest,
-            stats: [],
+            cardFace: .rest,
+            cardStats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,

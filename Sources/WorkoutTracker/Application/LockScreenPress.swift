@@ -54,7 +54,8 @@ final class LockScreenPress {
         case refuse(NotLogged)
     }
 
-    /// Long enough to read why a press logged nothing.
+    /// Long enough to catch "Logged 235×12 @7" on the island against the Reps and RPE meant, which
+    /// only the app can change, and to read why a press logged nothing.
     nonisolated static let readbackHold: Duration = .milliseconds(3500)
 
     private let app: WorkoutApplication
@@ -89,12 +90,23 @@ final class LockScreenPress {
     /// and the Coach Note belong to whichever Set the card is on, so they name none and refuse nothing.
     @discardableResult
     func turn(to face: LockScreenFace, pressing setIdentity: String?) async -> Outcome {
-        if let surface = micInFlight {
-            guard face.choosesTheSetLog, let setIdentity else { return .turned(to: liveActivity.restContent?.face ?? .rest) }
-            return await refuseWhileTheMicListens(surface, pressing: setIdentity)
-        }
+        if let surface = micInFlight { return await turnWhileTheMicListens(surface, to: face, pressing: setIdentity) }
         focus.endHoldAfterSpokenWrite()
         guard face.choosesTheSetLog else { return .turned(to: await showCard(turnedTo: face)) }
+        return await turnToTheChoices(face, pressing: setIdentity)
+    }
+
+    /// The mic has the Set, so the card stays on its face, and a press toward the choices says why.
+    private func turnWhileTheMicListens(
+        _ surface: SetDictation.Surface,
+        to face: LockScreenFace,
+        pressing setIdentity: String?
+    ) async -> Outcome {
+        guard face.choosesTheSetLog, let setIdentity else { return .turned(to: liveActivity.restContent?.face ?? .rest) }
+        return await refuseWhileTheMicListens(surface, pressing: setIdentity)
+    }
+
+    private func turnToTheChoices(_ face: LockScreenFace, pressing setIdentity: String?) async -> Outcome {
         switch target(of: setIdentity, choosing: face) {
         case .pending:
             let shown = await showCard(turnedTo: face)
@@ -200,8 +212,9 @@ final class LockScreenPress {
     }
 
     /// In the stage's order (write, rest, then focus) and before anything is awaited, since a second
-    /// press can arrive while the card draws. The next Set's card comes up on its rest face with
-    /// no readback before it. With no rest to start, as after the Session's last Set, the card goes.
+    /// press can arrive while the card draws. The next Set's card comes up on its rest face, and
+    /// the island alone reads the Set Log back over it. With no rest to start, as after the
+    /// Session's last Set, the card goes and nothing reads back.
     private func write(_ setLog: SetLog, to position: SessionSetPosition, in session: Session) async -> Outcome {
         // Read before the write, which dissolves a Superset when it logs a side's last Set.
         let wasSupersetMember = focus.isPaired(position.exercise)
@@ -213,10 +226,19 @@ final class LockScreenPress {
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
         focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
         switch subject {
-        case .rest(let rest): await liveActivity.showRest(rest, sessionLabel: session.liveActivityLabel)
-        case .set: await liveActivity.endRest()
+        case .rest:
+            let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
+            await liveActivity.show(
+                LiveActivityDictationContent(readback: readback, subject: subject, staysOffTheCard: true),
+                sessionLabel: session.liveActivityLabel
+            )
+            async let flushed: Void = writes.flush()
+            await showCard(after: readback, on: .rest)
+            await flushed
+        case .set:
+            await liveActivity.endRest()
+            await writes.flush()
         }
-        await writes.flush()
         await showWhatTheFlushLeft()
         return .logged(setLog, at: position.setID)
     }
@@ -293,7 +315,6 @@ final class LockScreenPress {
     }
 
     /// The Set the card is on, drawn afresh on its rest face.
-
     private func currentCard() -> LiveActivityRestContent? {
         guard
             let running = liveActivity.restContent,

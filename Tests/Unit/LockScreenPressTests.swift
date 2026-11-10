@@ -14,7 +14,8 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let outcome = await harness.press(harness.identity())
 
     #expect(outcome == .logged(logged235, at: firstSet))
-    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.readbacks == [.logged("235×5 @7", to: try harness.squat(set: 1))])
+    #expect(harness.liveActivity.shown.map(\.content.staysOffTheCard) == [true], "the island alone reads it")
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x5@7")
     #expect(try await harness.app.sheet(tab: nil).cells["K15"] == "235x5@7")
     #expect(try harness.app.sync.fetchPendingWriteRecords().isEmpty)
@@ -22,12 +23,46 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     #expect(harness.signIn.restores == 1)
     let session = try #require(harness.app.workout.currentSession)
     #expect(harness.focus.activeSet(in: session)?.setID == secondSet)
-    let rest = try #require(harness.liveActivity.rests.last)
+    let rest = try #require(harness.liveActivity.restsShown.last)
     #expect(rest.target?.setID == secondSet)
+    #expect(rest.face == .rest)
     #expect(rest.restStartDate == harness.restTimer.interval?.start)
 }
 
-/// A slow flush must not keep the next Set's card off the Lock Screen.
+/// The island reads the Set Log back for its hold while the Lock Screen card is already the next
+/// Set's. Then the readback goes and the card stays.
+@MainActor
+@Test func theIslandReadsTheSetLogBackOverTheNextSetsCard() async throws {
+    let harness = try await BackgroundDictationHarness(hearing: [])
+    let chips = harness.chips
+    let identity = harness.identity()
+
+    let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
+    await harness.clock.waitUntilSleeping(
+        until: harness.clock.now + LockScreenPress.readbackHold,
+        orRecord: "The readback never held"
+    )
+    #expect(harness.liveActivity.restsShown.first?.target?.setID == secondSet)
+    #expect(harness.liveActivity.replacements.isEmpty)
+    await waitUntil(
+        { (try? harness.app.sync.fetchPendingWriteRecords().isEmpty) == true },
+        orRecord: "The flush never landed"
+    )
+
+    harness.clock.advance(by: LockScreenPress.readbackHold)
+    #expect(await run.value == .logged(logged235, at: firstSet))
+
+    let replacement = try #require(harness.liveActivity.replacements.first)
+    #expect(replacement.readback == .logged("235×5 @7", to: try harness.squat(set: 1)))
+    #expect(replacement.card.target?.setID == secondSet)
+    #expect(replacement.card.face == .rest)
+    #expect(replacement.card.restEndDate == harness.restTimer.interval?.end)
+    #expect(replacement.card.pendingWrites == 0, "the flush landed during the hold")
+    #expect(harness.liveActivity.refreshes.isEmpty)
+}
+
+/// A slow flush keeps neither the next Set's card off the Lock Screen nor the readback on the
+/// island past its hold.
 @MainActor
 @Test func theNextSetsCardShowsWhileTheFlushIsStillGoing() async throws {
     let sheet = HeldWriteSheetsClient()
@@ -37,7 +72,13 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    #expect(harness.liveActivity.rests.first?.target?.setID == secondSet)
+    #expect(harness.liveActivity.restsShown.first?.target?.setID == secondSet)
+    await harness.clock.waitUntilSleeping(
+        until: harness.clock.now + LockScreenPress.readbackHold,
+        orRecord: "The readback never held"
+    )
+    harness.clock.advance(by: LockScreenPress.readbackHold)
+    await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The readback waited for the flush")
 
     sheet.release()
     #expect(await run.value == .logged(logged235, at: firstSet))
@@ -55,7 +96,14 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
 
     let run = Task { await chips.logSet(setIdentity: identity, reps: 5, rpe: "7") }
     await sheet.waitUntilHeld(orRecord: "The flush never reached the Sheet")
-    #expect(harness.liveActivity.rests.first?.pendingWrites == 1)
+    #expect(harness.liveActivity.restsShown.first?.pendingWrites == 1)
+    await harness.clock.waitUntilSleeping(
+        until: harness.clock.now + LockScreenPress.readbackHold,
+        orRecord: "The readback never held"
+    )
+    harness.clock.advance(by: LockScreenPress.readbackHold)
+    await waitUntil({ !harness.liveActivity.replacements.isEmpty }, orRecord: "The readback waited for the flush")
+    #expect(harness.liveActivity.replacements.first?.card.pendingWrites == 1)
 
     sheet.release()
     #expect(await run.value == .logged(logged235, at: firstSet))
@@ -68,13 +116,13 @@ private let logged235 = SetLog(weight: .pounds(235), reps: 5, rpe: .seven)
     let identity = harness.identity()
     _ = await harness.press(identity)
     let card = harness.liveActivity.restContent
+    let shown = harness.liveActivity.readbacks
 
     let outcome = await harness.chips.logSet(setIdentity: identity, reps: 5, rpe: "7")
 
     #expect(outcome == .sameSetLog(at: firstSet))
     #expect(harness.liveActivity.restContent == card)
-    #expect(harness.liveActivity.rests.count == 1)
-    #expect(harness.liveActivity.readbacks.isEmpty)
+    #expect(harness.liveActivity.readbacks == shown)
     #expect(harness.signIn.restores == 1)
     #expect(try harness.app.session(nil).exercises[0].sets[0].setLog == "235x5@7")
 }

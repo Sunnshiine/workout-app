@@ -66,22 +66,25 @@ extension LockScreenStat {
 
     private static func reps(_ reps: PrescribedReps, cell: String) -> LockScreenStat {
         switch reps {
-        case .target(let target) where target.lowerBound == target.upperBound:
-            let count = target.lowerBound
-            return LockScreenStat(label: "reps", value: "\(count)", spoken: count == 1 ? "1 Rep" : "\(count) Reps")
-        case .target(let target):
-            return LockScreenStat(
-                label: "reps",
-                value: "\(target.lowerBound)-\(target.upperBound)",
-                spoken: "\(target.lowerBound) to \(target.upperBound) Reps"
-            )
-        case .timed(let duration):
-            return timed(duration)
-        case .uninterpreted:
-            let text = cell.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-            guard !text.isEmpty else { return LockScreenStat(missing: "reps", spoken: "No Reps") }
-            return LockScreenStat(label: "reps", value: text, spoken: "\(text) Reps")
+        case .target(let target): counted(target)
+        case .timed(let duration): timed(duration)
+        case .uninterpreted: written(cell)
         }
+    }
+
+    private static func counted(_ target: ClosedRange<Int>) -> LockScreenStat {
+        let (low, high) = (target.lowerBound, target.upperBound)
+        guard low != high else {
+            return LockScreenStat(label: "reps", value: "\(low)", spoken: low == 1 ? "1 Rep" : "\(low) Reps")
+        }
+        return LockScreenStat(label: "reps", value: "\(low)-\(high)", spoken: "\(low) to \(high) Reps")
+    }
+
+    /// Reps the app does not read as a count, such as `AMRAP`, in the coach's words.
+    private static func written(_ cell: String) -> LockScreenStat {
+        let text = cell.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard !text.isEmpty else { return LockScreenStat(missing: "reps", spoken: "No Reps") }
+        return LockScreenStat(label: "reps", value: text, spoken: "\(text) Reps")
     }
 
     /// A Timed Set counts time where another Set counts Reps: `40` over `sec`, `25` or `1:30` over `min`.

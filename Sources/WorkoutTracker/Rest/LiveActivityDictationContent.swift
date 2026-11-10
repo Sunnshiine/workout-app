@@ -33,6 +33,8 @@ struct LiveActivityDictationContent: Equatable, Sendable {
 
     let readback: Readback
     let subject: Subject
+    /// True for a readback the island alone reads, while the Lock Screen card keeps its face.
+    var staysOffTheCard = false
 }
 
 extension LiveActivityDictationContent {

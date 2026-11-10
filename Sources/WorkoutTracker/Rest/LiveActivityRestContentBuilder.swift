@@ -122,19 +122,19 @@ extension LiveActivityRestContent {
     /// This card turned to `face`. Nil when the Set's card has no such face: no Coach Note to open,
     /// no choices to offer, or Reps no choice could have carried.
     func turned(to face: LockScreenFace) -> LiveActivityRestContent? {
-        switch face {
-        case .rest:
-            break
-        case .coachNote:
-            guard coachNote != nil else { return nil }
-        case .reps:
-            guard case .ready = press else { return nil }
-        case .rpe(let reps):
-            guard case .ready = press, LockScreenOffer.repsRange.contains(reps) else { return nil }
-        }
+        guard has(face) else { return nil }
         var card = self
         card.face = face
         return card
+    }
+
+    private func has(_ face: LockScreenFace) -> Bool {
+        switch face {
+        case .rest: true
+        case .coachNote: coachNote != nil
+        case .reps: press != .needsApp
+        case .rpe(let reps): press != .needsApp && LockScreenOffer.repsRange.contains(reps)
+        }
     }
 
     /// This card on the face `running` shows, when both are on one Set and this card has that

@@ -115,6 +115,13 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
 
     var readbacks: [LiveActivityDictationContent.Readback] { shown.map(\.content.readback) }
     var subjects: [LiveActivityDictationContent.Subject] { shown.map(\.content.subject) }
+    /// The rest each readback over a rest carried, which is the card the Lock Screen draws under it.
+    var restsShown: [LiveActivityRestContent] {
+        subjects.compactMap {
+            guard case .rest(let rest) = $0 else { return nil }
+            return rest
+        }
+    }
     var sessionLabels: [String] { shown.map(\.sessionLabel) }
     private(set) var noSets: [LiveActivityNoSetReadback] = []
     private(set) var withdrawals = 0
@@ -128,8 +135,12 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         withdrawals > 0 ? nil : readbacks.last
     }
 
+    /// The readback that is up, as the activity's state holds it; nil once a card replaced it.
+    private var up: LiveActivityDictationContent?
+
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         shown.append((content, sessionLabel))
+        up = content
         if case .rest(let rest) = content.subject { restContent = rest }
         whileShowing(content.readback)
         return isUp
@@ -144,6 +155,8 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var replacements: [(readback: LiveActivityDictationContent.Readback, card: LiveActivityRestContent)] = []
 
     func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
+        guard up?.readback == readback else { return }
+        up = nil
         replacements.append((readback, card))
         restContent = card
     }
@@ -151,15 +164,10 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var refreshes: [LiveActivityRestContent] = []
 
     func refresh(card: LiveActivityRestContent) async {
+        guard up?.staysOffTheCard ?? true else { return }
+        up = nil
         refreshes.append(card)
         restContent = card
-    }
-
-    private(set) var rests: [LiveActivityRestContent] = []
-
-    func showRest(_ rest: LiveActivityRestContent, sessionLabel: String) async {
-        rests.append(rest)
-        restContent = rest
     }
 
     private(set) var endedRests = 0

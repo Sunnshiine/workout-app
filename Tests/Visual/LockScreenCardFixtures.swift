@@ -98,8 +98,8 @@ struct LockScreenCardSet: Sendable {
             restEndDate: restEnd,
             dictation: dictation,
             loggablePress: press,
-            face: face,
-            stats: LockScreenStat.row(
+            cardFace: face,
+            cardStats: LockScreenStat.row(
                 weight: weight,
                 prescription: Prescription(reps: reps, load: load, percentOneRM: nil),
                 repsCell: reps

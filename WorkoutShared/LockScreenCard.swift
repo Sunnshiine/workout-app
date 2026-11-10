@@ -48,7 +48,7 @@ struct LockScreenCard: View {
 
     var body: some View {
         Group {
-            if let dictation = state.dictation {
+            if let dictation = state.cardReadback {
                 if dictation.isAboutASet {
                     DictationLockScreenView(state: state, dictation: dictation)
                 } else {

@@ -53,8 +53,8 @@ struct LogSetAtRPEIntentTests {
                     setIdentity: setIdentity
                 )
             ),
-            face: .rpe(reps: 100),
-            stats: [
+            cardFace: .rpe(reps: 100),
+            cardStats: [
                 LockScreenCardStat(label: "lbs", value: "1,237.5", spoken: "1237.5 pounds", isMissing: false),
                 LockScreenCardStat(
                     label: "reps",
@@ -95,8 +95,8 @@ struct LogSetAtRPEIntentTests {
             restEndDate: nil,
             dictation: nil,
             loggablePress: .needsApp,
-            face: .rest,
-            stats: [],
+            cardFace: .rest,
+            cardStats: [],
             cadence: nil,
             coachNote: nil,
             start: nil,
@@ -156,14 +156,89 @@ struct LogSetAtRPEIntentTests {
     /// The Lock Screen draws what the app chose, so the face and the numbers cross to the activity
     /// whole, and a rest read back off a running activity is still on the face it showed.
     @Test func theActivityCarriesTheFaceAndTheNumbersBothWays() throws {
-        let offer = LockScreenOffer(
-            repChoices: [3, 4, 5, 6, 7],
-            prescribedReps: [5],
-            rpeChoices: ["6", "6.5", "7", "7.5", "8"],
-            prescribedRPE: "7",
-            setIdentity: "Set"
+        let turned = try #require(Self.squatRest.turned(to: .rpe(reps: 6)))
+
+        let state = WorkoutActivityAttributes.ContentState(restContent: turned, dictation: nil)
+
+        #expect(state.face == .rpe(reps: 6))
+        #expect(state.stats.map(\.value) == ["1,002.5", "5", "7"])
+        #expect(state.weightOnTheCard == "1,002.5 lbs")
+        #expect(LiveActivityRestContent(leftRunning: state) == turned)
+    }
+
+    /// A Set logged from the card reads back on the island, which reads `dictation`, while the card
+    /// stays on the next Set's face.
+    @Test func aReadbackForTheIslandAloneLeavesTheCardItsFace() {
+        let logged = LiveActivityDictation.logged(
+            "1002.5×5 @7",
+            to: LiveActivityWrittenSet(exerciseName: "Back Squat", setOrdinal: 1, setsTotal: 3)
         )
-        let rest = LiveActivityRestContent(
+
+        let islandOnly = WorkoutActivityAttributes.ContentState(
+            restContent: Self.squatRest,
+            dictation: logged,
+            readbackStaysOffTheCard: true
+        )
+        let spoken = WorkoutActivityAttributes.ContentState(restContent: Self.squatRest, dictation: logged)
+
+        #expect(islandOnly.dictation == logged)
+        #expect(islandOnly.cardReadback == nil)
+        #expect(spoken.cardReadback == logged, "a Dictation's readback still takes the card")
+    }
+
+    /// An activity left running across an update holds content the build before wrote, with no
+    /// Card Face and no numbers. Content that fails to decode freezes the card on what it drew.
+    @Test func contentTheBuildBeforeWroteDecodesOntoTheRestFace() throws {
+        let trunk = """
+            {
+              "exerciseName": "Back Squat",
+              "prescribedReps": "5",
+              "prescribedLoad": "RPE7",
+              "weightValue": "235",
+              "weightUnit": "lbs",
+              "setsDone": 1,
+              "setsTotal": 3,
+              "variant": "restTimerSetsLeft",
+              "appearance": "dark",
+              "restStartDate": 800000000,
+              "restEndDate": 800000120,
+              "loggablePress": {
+                "ready": {
+                  "_0": {
+                    "repChoices": [3, 4, 5, 6, 7],
+                    "prescribedReps": [5],
+                    "rpeChoices": ["6", "6.5", "7", "7.5", "8"],
+                    "prescribedRPE": "7",
+                    "setIdentity": "Set",
+                    "chosenReps": 6
+                  }
+                }
+              },
+              "cadence": "3:1:1",
+              "coachNote": "Brace hard",
+              "pendingWrites": 0
+            }
+            """
+
+        let state = try JSONDecoder().decode(WorkoutActivityAttributes.ContentState.self, from: Data(trunk.utf8))
+
+        #expect(state.face == .rest)
+        #expect(state.stats.isEmpty)
+        #expect(state.cardReadback == nil)
+        #expect(state.loggablePress == LoggablePress(.ready(Self.squatOffer)))
+        #expect(LiveActivityRestContent(leftRunning: state)?.face == .rest)
+    }
+
+    private static let squatOffer = LockScreenOffer(
+        repChoices: [3, 4, 5, 6, 7],
+        prescribedReps: [5],
+        rpeChoices: ["6", "6.5", "7", "7.5", "8"],
+        prescribedRPE: "7",
+        setIdentity: "Set"
+    )
+
+    private static var squatRest: LiveActivityRestContent {
+        LiveActivityRestContent(
             exerciseName: "Back Squat",
             prescribedReps: "5",
             prescribedLoad: "RPE7",
@@ -174,7 +249,7 @@ struct LogSetAtRPEIntentTests {
             variant: .restTimerSetsLeft,
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
-            press: .ready(offer),
+            press: .ready(squatOffer),
             stats: LockScreenStat.row(
                 weight: .pounds(1002.5),
                 prescription: Prescription(reps: "5", load: "RPE7", percentOneRM: nil),
@@ -184,14 +259,6 @@ struct LogSetAtRPEIntentTests {
             coachNote: "Brace hard",
             start: nil
         )
-        let turned = try #require(rest.turned(to: .rpe(reps: 6)))
-
-        let state = WorkoutActivityAttributes.ContentState(restContent: turned, dictation: nil)
-
-        #expect(state.face == .rpe(reps: 6))
-        #expect(state.stats.map(\.value) == ["1,002.5", "5", "7"])
-        #expect(state.weightOnTheCard == "1,002.5 lbs")
-        #expect(LiveActivityRestContent(leftRunning: state) == turned)
     }
 }
 
