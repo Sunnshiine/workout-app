@@ -39,7 +39,10 @@ log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S).log
 mkdir -p "$(dirname "$log")"
 echo "log: $log"
 "$repo/scripts/disk-floor.sh"
-swift build --build-tests >"$log" 2>&1 || { grep -m 20 -E "error:" "$log" >&2 || true; echo "build log: $log" >&2; exit 65; }
+"$repo/scripts/build-slot.sh" --as flake-hunt.sh --log "$log" swift build --build-tests </dev/null || {
+  # Without a log the build never started: the host stayed busy (75), which is no build failure.
+  [ -e "$log" ] || exit 75
+  grep -m 20 -E "error:" "$log" >&2 || true; echo "build log: $log" >&2; exit 65; }
 
 echo "run: $run ($repo/scripts/reap.sh $run ends its processes)"
 trap '"$repo/scripts/reap.sh" "$run" >/dev/null 2>&1 || true' EXIT

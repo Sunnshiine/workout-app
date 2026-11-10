@@ -88,8 +88,10 @@ scripts/check-each-commit.sh origin/main..HEAD     # builds and tests every comm
 uv run python3 <script.py>                          # with Pillow and numpy from pyproject.toml; in Claude Code a bare python3 is already this .venv
 ```
 
-Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-slot.sh <command>`.
-A hook refuses the raw form. XcodeBuildMCP builds and runs only on a simulator your Simlock lease holds,
+Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-slot.sh <command>`,
+which holds a host-wide `hostgate` slot (pinned in `scripts/hostgate-version`); scripts do the same,
+and `scripts/lint-build-slots.py` fails one that does not. A hook refuses the raw form.
+XcodeBuildMCP builds and runs only on a simulator your Simlock lease holds,
 and `scripts/sim-mcp-hook.py` refuses any other naming the lease command. To see the app,
 `verify.sh launch session` leases a simulator and prints its UDID. Set it with XcodeBuildMCP's
 `session_set_defaults {simulatorId}` alone, and `screenshot`, `snapshot_ui` and `touch` (down and up) drive it.

@@ -23,10 +23,10 @@ the simulator, or a verify run whose app on it was used in the last WORKOUT_LEAS
 when your Simlock identity already holds a lease and no --sim names it. Waits while the host is busy,
 saying why once a minute: in Simlock's queue for a simulator, while free memory
 (kern.memorystatus_level, percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), and to build
-while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are taken or free disk on the checkout's or
-HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it off). Gives up with exit 75 after
-WORKOUT_ADMIT_WAIT seconds (540) in either wait; the build-slot budget restarts each time a slot
-changes hands.
+while free disk on the checkout's or HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it
+off). Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540) in either wait. The build alone
+runs in a host-wide hostgate slot (scripts/build-slot.sh --help), which can wait too and exit 75;
+the test run takes none.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
@@ -121,9 +121,11 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
-  with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
-    -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+  rc=0
+  with_build_slot --log "$logs/$stamp-build.log" xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker \
+    -destination "$destination" -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO || rc=$?
+  [ $rc != 75 ] || [ -e "$logs/$stamp-build.log" ] || exit 75
+  [ $rc = 0 ] || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do

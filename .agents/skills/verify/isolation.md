@@ -44,7 +44,8 @@ Every claim also waits for the host, up to the same budget, while free memory
 (`kern.memorystatus_level`, percent) is under `WORKOUT_MEM_FLOOR` (25), and exits 75 with the reason
 if it never clears. Each
 `build`, each build into the app cache (`install COMMIT`, `launch --at`), and each `test-sim.sh`
-build waits for the same floor and for `WORKOUT_DISK_FLOOR` MB of free disk (5120), and takes one
-of `WORKOUT_BUILD_SLOTS` host-wide build slots (2) the same way. `build` boots nothing. Admission
-never reads the load. Run anything else heavy as `scripts/build-slot.sh <command>` instead of a
+build waits for `WORKOUT_DISK_FLOOR` MB of free disk (5120), then runs in one of hostgate's
+host-wide slots, which waits for hostgate's memory floor and exits 75 the same way. Only the compile
+takes a slot; the lease, screenshots and taps take none. `build` boots nothing. Admission never
+reads the load. Run anything else heavy as `scripts/build-slot.sh <command>` instead of a
 hand-written `uptime` loop.

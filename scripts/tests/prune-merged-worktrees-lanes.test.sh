@@ -18,7 +18,7 @@ printf '#!/usr/bin/env bash\necho "[]"\n' >"$root/lanebin/gh"
 chmod +x "$root/lanebin/gh"
 export WORKOUT_HOST_LOCK_DIR="$root/locks" HOME="$root/home"
 export WORKOUT_MEM_FLOOR=0 WORKOUT_DISK_FLOOR=0
-unset WORKOUT_ADMIT_WAIT WORKOUT_BUILD_SLOTS WORKOUT_LEASE_MINUTES
+unset WORKOUT_ADMIT_WAIT WORKOUT_LEASE_MINUTES
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t
 lane_path="$root/lanebin:$PATH"
 git -C "$root" init --bare --quiet lane-origin.git

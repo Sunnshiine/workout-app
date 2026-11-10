@@ -27,6 +27,9 @@ fix belongs in prose.
 The receipt file is RECEIPT_FILE, or receipts.md in this worktree's git directory, which git
 status never shows.
 
+A COMMAND that is swift or xcodebuild itself runs through scripts/build-slot.sh, in a host-wide slot;
+the receipt's command line stays as written.
+
 Exits with COMMAND's status, or 2 on bad arguments or outside a git checkout.
 EOF
 }
@@ -59,7 +62,11 @@ file=${RECEIPT_FILE:-$(git rev-parse --path-format=absolute --git-path receipts.
 
 log=$(mktemp) || exit 2
 trap 'rm -f "$log"' EXIT
-"$@" 2>&1 | tee "$log"
+run=("$@")
+case " swift swift-build swift-test xcodebuild " in
+    *" ${1##*/} "*) run=("$(dirname "$0")/build-slot.sh" --as receipt.sh "$@") ;;
+esac
+"${run[@]}" 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
 [ "$(git status --porcelain)" = "$before" ] && [ "$(git rev-parse --verify HEAD 2>/dev/null)" = "$sha" ] || dirty=yes
 

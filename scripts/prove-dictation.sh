@@ -8,7 +8,7 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-swift build --product workout >/dev/null 2>&1
+scripts/build-slot.sh --as prove-dictation.sh --log /dev/null swift build --product workout
 export PATH="$PWD/.build/debug:$PATH"
 
 voices=("Samantha" "Daniel")

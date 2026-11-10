@@ -71,7 +71,7 @@ class DriveGuard(Lane):
         self.assertEqual(self.verify("launch", "session", VERIFY_RUN="r1")[0], 0)
         refusal = "app on %s unchanged: %s; this launch wanted %s from the app cache" % (
             self.sim, self.worktree_build(b"v2\n", self.b), self.a[:8])
-        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", WORKOUT_MEM_FLOOR="25")
+        code, out, err = self.verify("launch", "--at", self.a, "session", VERIFY_RUN="r1", FAKE_HOSTGATE_GIVE_UP="1")
         self.assertEqual((code, out, err.splitlines()[-1]), (75, "", refusal))
         self.assertEqual(self.verify("tap", "-x", "5", "-y", "6", VERIFY_RUN="r1")[0], 75)
 

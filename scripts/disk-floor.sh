@@ -7,9 +7,9 @@ case ${1:-} in
 Usage: scripts/disk-floor.sh [dir]
 Exits 0 once free disk on the volume holding dir (default this checkout) and on HOME's is at least
 WORKOUT_DISK_FLOOR (5120 MB; 0 turns it off). Until then it waits, saying why once a minute, and
-exits 75 after WORKOUT_ADMIT_WAIT seconds (540). The builds that take no build slot run it first:
-flake-hunt.sh, check-each-commit.sh and mutate.sh (on their scratch tree), and crap.sh. It checks
-free disk at that moment and reserves none.
+exits 75 after WORKOUT_ADMIT_WAIT seconds (540). scripts/build-slot.sh runs it before every build;
+flake-hunt.sh, check-each-commit.sh and mutate.sh (on their scratch tree), and crap.sh also run it
+first. It checks free disk at that moment and reserves none.
 EOF_HELP
     exit 0 ;;
   -*) echo "scripts/disk-floor.sh: unknown option $1; see --help" >&2; exit 2 ;;

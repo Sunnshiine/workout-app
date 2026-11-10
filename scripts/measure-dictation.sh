@@ -195,7 +195,7 @@ if [ -n "${WORKOUT_BIN:-}" ]; then
     bin_dir=$(cd "$(dirname "$WORKOUT_BIN")" && pwd)
     export PATH="$bin_dir:$PATH"
 else
-    swift build --product workout >/dev/null 2>&1
+    scripts/build-slot.sh --as measure-dictation.sh --log /dev/null swift build --product workout
     export PATH="$PWD/.build/debug:$PATH"
 fi
 command -v workout >/dev/null || { echo "no workout binary on PATH" >&2; exit 3; }

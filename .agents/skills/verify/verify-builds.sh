@@ -101,15 +101,15 @@ worktree_build_note() {
   fi
 }
 
-logged_to() { local log=$1; shift; "$@" > "$log" 2>&1; }
-
 xcodebuild_build() {
-  local derived=()
+  local derived=() rc=0
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
   mkdir -p "$(dirname "$3")"
-  with_build_slot logged_to "$3" xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
-    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO \
-    || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
+  rm -f "$3"
+  with_build_slot --log "$3" xcodebuild build -project "$1" -scheme WorkoutTracker -destination "platform=iOS Simulator,id=$sim" \
+    ${derived[@]+"${derived[@]}"} -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO || rc=$?
+  [ $rc != 75 ] || [ -e "$3" ] || exit 75
+  [ $rc = 0 ] || { grep -E "error:|BUILD FAILED" "$3" | head -20 >&2; echo "build log: $3" >&2; return 65; }
 }
 
 cache_root() { printf '%s/.claude/work/app-cache\n' "$(main_root)"; }
@@ -148,7 +148,8 @@ scratch_checkout() {
   "$repo/scripts/bootstrap-xcode-worktree.sh" "$1/src"
 }
 
-# Only xcodebuild keeps fd 4, so a killed install's build holds the cache lock until it exits. A process git
+# Only the build (hostgate run, or xcodebuild without hostgate) keeps fd 4, so a killed install's build holds
+# the cache lock until it exits. A process git
 # leaves behind, such as a core.fsmonitor daemon, would hold it for good. The subshell matters: bash 3.2 lets
 # children inherit the copy of fd 4 it saves around a function's own 4>&-.
 without_cache_lock() { (exec 4>&- && "$@"); }

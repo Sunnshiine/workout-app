@@ -15,7 +15,7 @@ The `workout` CLI runs the app's stores against a local workbook file and prints
 
 ## How to get to it (user POV)
 
-- Run `.build/debug/workout <command>` after `swift build --product workout`.
+- Run `.build/debug/workout <command>` after `scripts/build-slot.sh swift build --product workout`.
 - Every command takes `--home <dir>`, else `$WORKOUT_HOME`, else `./.workout-cli`.
 
 ## Driving it with verify.sh

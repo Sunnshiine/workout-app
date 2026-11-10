@@ -107,12 +107,12 @@ Environment: SIM (names your lease's simulator; any other UDID exits 2),
                   scripts/test-sim.sh run on the simulator reclaims it and stops the app, and
                   every later command for that run but build, install, diff, sheet and crop exits
                   75 naming who took it, until it launches again),
-             WORKOUT_MEM_FLOOR (25), WORKOUT_BUILD_SLOTS (2) and WORKOUT_ADMIT_WAIT (540):
+             WORKOUT_MEM_FLOOR (25) and WORKOUT_ADMIT_WAIT (540):
                   launch and install wait while free memory (kern.memorystatus_level, percent) is
-                  under the floor; build, and a build into the app cache, wait for the floor, for
-                  free disk of WORKOUT_DISK_FLOOR (5120 MB), and for one of the host's build slots.
-                  A floor of 0 turns it off. A wait says why once a minute, and exits 75 after
-                  WORKOUT_ADMIT_WAIT seconds, restarted each time a build slot changes hands.
+                  under the floor; build, and a build into the app cache, wait for free disk of
+                  WORKOUT_DISK_FLOOR (5120 MB), then run in a host-wide hostgate slot
+                  (scripts/build-slot.sh --help). A floor of 0 turns it off. A wait says why once a
+                  minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
              WORKOUT_LOAD_LIMIT (50): record waits while the 1-minute load is over it, and a take
                   whose load ends over it is INVALID, since a loaded host films a move as a cut.
 Exit 75: another run holds the simulator or owns its app, this run was reclaimed or its last launch

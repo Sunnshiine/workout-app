@@ -10,8 +10,13 @@ trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
 cp "$script_dir/../crap.sh" "$script_dir/../test-log-summary.sh" "$script_dir/../test-log-summary.awk" \
-    "$script_dir/../disk-floor.sh" "$script_dir/../sim-lock.sh" "$repo/scripts/"
+    "$script_dir/../disk-floor.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" "$script_dir/../dev-usage.sh" \
+    "$script_dir/../dev-usage.py" "$script_dir/../hostgate-version" "$repo/scripts/"
 export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
+# A fake hostgate first on PATH, so no test takes or waits for a real host slot.
+mkdir -p "$root/bin" && cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
+export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
+unset HOSTGATE_SLOT
 pass=0
 fail=0
 

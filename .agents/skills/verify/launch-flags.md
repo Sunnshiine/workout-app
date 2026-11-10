@@ -1,5 +1,5 @@
 <!-- Generated from LaunchFlag in Sources/WorkoutTracker/Fixtures/LaunchFlag.swift. Do not edit.
-     Regenerate: RECORD_LAUNCH_FLAGS=1 swift test --filter LaunchFlagTableTests -->
+     Regenerate: RECORD_LAUNCH_FLAGS=1 scripts/build-slot.sh swift test --filter LaunchFlagTableTests -->
 # Launch flags
 
 With no Scenario flag, the fixture seeds a Partially Uploaded Block parsed from the

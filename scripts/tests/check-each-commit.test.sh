@@ -9,6 +9,10 @@ trap 'rm -rf "$root"' EXIT
 export LC_ALL=C GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=false
 export PATH="$root/bin:$PATH" STUB_WATCH=$root/watch STUB_CALLER=$root/repo STUB_XCODE_SEEN=$root/xcode-seen
 export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
+# A fake hostgate first on PATH, so no test takes or waits for a real host slot.
+mkdir -p "$root/bin" && cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
+export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
+unset HOSTGATE_SLOT
 repo=$root/repo
 pass=0
 fail=0

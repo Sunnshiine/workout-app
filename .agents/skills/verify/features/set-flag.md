@@ -42,6 +42,6 @@ Preconditions:
 - A Set with raised flags opens the sheet tall. To close it, drag from the grabber with `verify.sh axe swipe --start-x 200 --start-y 72 --end-x 200 --end-y 600 --duration 1.0`, then tap above the sheet. A faster swipe gets dropped under load.
 - A raw `verify.sh axe tap` on a chip needs `--post-delay 1`. Without it none of 12 landed, with it all 6 did, and so did all 6 of an 80 ms `axe touch -x 112 -y 526 --down --up --delay 0.08`, so the lost tap is the driver's and not the app's. `verify.sh burst NAME axe tap -x 112 -y 526 --post-delay 1` landed 3 of 4, so check the capsule after a burst.
 - `verify.sh online` brings only a `-UITEST_OFFLINE` launch back. A flag raised online flushes as it closes, so you see `In the Sheet` without `Unsynced`.
-- `Flag not written` appears only when the Exercise has no Visible Writable Row. `swift test --filter SetFlagFlushTests` and the CLI exit 4 path prove it. The app's fixtures have no scenario that drives it.
+- `Flag not written` appears only when the Exercise has no Visible Writable Row. `scripts/build-slot.sh swift test --filter SetFlagFlushTests` and the CLI exit 4 path prove it. The app's fixtures have no scenario that drives it.
 - The fixture workbook is local, so a green flush proves the queue and the cells, not Google. The `spreadsheets:batchUpdate` request is pinned by `GoogleSheetsCellNoteTests` and was never sent to a real Sheet from here.
 - A Superset's lateral arm draws no flag mark. The card still shows the standing.
