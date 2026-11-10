@@ -121,7 +121,7 @@ gate build_run_sim "{\"simulatorId\": \"$FREE_UDID\"}" nobody
 check "an unleased simulator is refused" '[ $status = 2 ]'
 check "the refusal names the UDID" 'err_has "no live Simlock lease holds $FREE_UDID"'
 check "the refusal names the lease command" "err_has \"simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m\""
-check "the refusal says to call again with the leased simulatorId" 'err_has "Call build_run_sim again with simulatorId: \"<UDID>\""'
+check "the refusal says to set the leased UDID as the session default" 'err_has "2. Call session_set_defaults with simulatorId: \"<UDID>\", then build_run_sim again."'
 check "the refusal names the shell path" 'err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
 lease_line=$(grep -F 'simlock lease --platform' "$tmp/err" | sed 's/^ *//')
 check "the printed lease command parses as shell" 'bash -n -c "$lease_line"'

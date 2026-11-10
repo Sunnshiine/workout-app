@@ -136,14 +136,14 @@ def refusal(tool, target, own, me, other):
     if own:
         udid, lease = own
         lines += [
-            f"You hold Simlock lease {lease} on {udid}. Call {tool} again with simulatorId: \"{udid}\",",
-            f"or call session_set_defaults with simulatorId: \"{udid}\" once and then {tool}.",
+            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults with simulatorId: \"{udid}\",",
+            f"then {tool} again.",
         ]
     else:
         lines += [
             "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
             f"   {LEASE}",
-            f"2. Call {tool} again with simulatorId: \"<UDID>\", or session_set_defaults with simulatorId: \"<UDID>\" first.",
+            f"2. Call session_set_defaults with simulatorId: \"<UDID>\", then {tool} again.",
             "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
         ]
     lines += [
