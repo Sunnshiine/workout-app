@@ -3,12 +3,15 @@ import Foundation
 /// How the Lock Screen card logs the Set it shows.
 enum LoggablePress: Codable, Hashable, Sendable {
     case ready(Offer)
-    /// No chips, only the mic and the app.
+    /// Nothing to tap but the mic and the app.
     case needsApp
 
-    /// Reps Chips, then RPE Chips. A Reps tap turns the row and writes nothing, and an RPE tap logs
-    /// the weight the card shows at the Reps and the RPE tapped. `setIdentity` goes back to the app
-    /// with each press, which finds the Set by it and refuses when the card has moved on.
+    // Opens the app where it was. No request is attached, so nothing starts listening.
+    // swiftlint:disable:next force_unwrapping
+    static let appURL = URL(string: "workouttracker://")!
+
+    /// The Reps and the RPE the card offers. `setIdentity` goes back to the app with each press,
+    /// which finds the Set by it and refuses when the card has moved on.
     struct Offer: Codable, Hashable, Sendable {
         let repChoices: [Int]
         /// The choices inside the Prescribed Reps, which carry the tick.
@@ -17,8 +20,6 @@ enum LoggablePress: Codable, Hashable, Sendable {
         /// The coach's RPE, which carries the tick. Nil unless the Load cell names one point.
         let prescribedRPE: String?
         let setIdentity: String
-        /// The Reps the athlete tapped, which turned the row to RPE. Nil while it offers Reps.
-        let chosenReps: Int?
     }
 }
 

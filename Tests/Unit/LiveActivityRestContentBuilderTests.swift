@@ -21,6 +21,7 @@ import Testing
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
             press: .needsApp,
+            stats: [],
             cadence: "3:1:1",
             coachNote: "Pause on the chest.",
             start: nil
@@ -75,6 +76,7 @@ import Testing
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
                 press: .needsApp,
+                stats: [],
                 cadence: nil,
                 coachNote: nil,
                 start: nil
@@ -124,6 +126,7 @@ import Testing
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
         press: .needsApp,
+        stats: [],
         cadence: nil,
         coachNote: nil,
         start: nil
@@ -148,6 +151,7 @@ import Testing
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: restEndDate,
         press: .needsApp,
+        stats: [],
         cadence: nil,
         coachNote: nil,
         start: nil

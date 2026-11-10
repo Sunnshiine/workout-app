@@ -128,8 +128,20 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
         withdrawals > 0 ? nil : readbacks.last
     }
 
+    /// The readback that is up, and whether the Lock Screen card draws it; nil once a card replaced it.
+    private var up: (readback: LiveActivityDictationContent.Readback, onTheCard: Bool)?
+    /// Each readback the island alone read, with the card the Lock Screen drew under it.
+    private(set) var islandReadbacks: [(readback: LiveActivityDictationContent.Readback, card: LiveActivityRestContent)] = []
+
+    func show(_ rest: LiveActivityRestContent, islandReading readback: LiveActivityDictationContent.Readback, sessionLabel: String) async {
+        islandReadbacks.append((readback, rest))
+        up = (readback, onTheCard: false)
+        restContent = rest
+    }
+
     func show(_ content: LiveActivityDictationContent, sessionLabel: String) async -> Bool {
         shown.append((content, sessionLabel))
+        up = (content.readback, onTheCard: true)
         if case .rest(let rest) = content.subject { restContent = rest }
         whileShowing(content.readback)
         return isUp
@@ -144,6 +156,8 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var replacements: [(readback: LiveActivityDictationContent.Readback, card: LiveActivityRestContent)] = []
 
     func replace(_ readback: LiveActivityDictationContent.Readback, with card: LiveActivityRestContent) async {
+        guard up?.readback == readback else { return }
+        up = nil
         replacements.append((readback, card))
         restContent = card
     }
@@ -151,8 +165,16 @@ final class SpyDictationLiveActivity: DictationLiveActivityAdapter {
     private(set) var refreshes: [LiveActivityRestContent] = []
 
     func refresh(card: LiveActivityRestContent) async {
+        guard up?.onTheCard != true else { return }
         refreshes.append(card)
         restContent = card
+    }
+
+    private(set) var endedRests = 0
+
+    func endRest() async {
+        endedRests += 1
+        restContent = nil
     }
 
     func withdrawReadback() async {

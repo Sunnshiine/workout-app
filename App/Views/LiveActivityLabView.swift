@@ -187,7 +187,10 @@ struct LiveActivityLabView: View {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             dictation: nil,
+            readbackStaysOffTheCard: nil,
             loggablePress: labPress,
+            cardFace: .rest,
+            cardStats: labStats,
             cadence: labCadence,
             coachNote: labCoachNote,
             start: nil,
@@ -204,10 +207,17 @@ struct LiveActivityLabView: View {
                 prescribedReps: [5],
                 rpeChoices: ["6", "6.5", "7", "7.5", "8"],
                 prescribedRPE: "7",
-                setIdentity: "Lab",
-                chosenReps: nil
+                setIdentity: "Lab"
             )
         )
+    }
+
+    private var labStats: [LockScreenCardStat] {
+        [
+            LockScreenCardStat(label: weightUnit, value: "\(weight)", spoken: "\(weight) \(weightUnit)", isMissing: false),
+            LockScreenCardStat(label: "reps", value: prescribedReps, spoken: "\(prescribedReps) Reps", isMissing: false),
+            LockScreenCardStat(label: "RPE", value: "7", spoken: "RPE 7", isMissing: false)
+        ]
     }
 
     private var labCadence: String { "3:1:1" }
@@ -281,7 +291,10 @@ struct LiveActivityLabView: View {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             dictation: nil,
+            readbackStaysOffTheCard: nil,
             loggablePress: labPress,
+            cardFace: .rest,
+            cardStats: labStats,
             cadence: labCadence,
             coachNote: labCoachNote,
             start: nil,

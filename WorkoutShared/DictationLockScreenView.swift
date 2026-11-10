@@ -11,7 +11,9 @@ struct DictationLockScreenView: View {
     var body: some View {
         let colors = state.liveActivityColors
 
-        LockScreenCardLayout(state: state, exerciseName: dictation.writtenSet?.exerciseName ?? state.exerciseName) { keepsTheSpareLine in
+        let exerciseName = dictation.writtenSet?.exerciseName ?? state.exerciseName
+
+        LockScreenReadbackLayout(state: state, exerciseName: exerciseName) { keepsTheSpareLine in
             DictationReadback(
                 dictation: dictation,
                 colors: colors,

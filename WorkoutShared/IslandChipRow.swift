@@ -1,13 +1,13 @@
 import AppIntents
 import SwiftUI
 
-/// The card's bottom row while it offers a Set: Reps Chips, then RPE Chips for the Reps tapped. A
+/// The island's bottom row while it offers a Set: Reps Chips, then RPE Chips for the Reps tapped. A
 /// Reps tap turns the row and writes nothing, so a Set half chosen never logs, and the RPE tap logs.
 /// Nothing is preselected, since each tap is the athlete's report of the Set. Each chip is an
 /// `actionFill` under `actionText`, as the Log capsule is, and the coach's values take a tick of
 /// that cream, since an `action` mark vanishes on the Day fill. Each chip carries the Set Log's own mark, `×5`
 /// for Reps and `@7` for an RPE, so the two rows never read as one.
-struct LockScreenChipRow: View {
+struct IslandChipRow: View {
     private enum Metrics {
         static let tickWidth: CGFloat = 18
         static let tickHeight: CGFloat = 3
@@ -15,6 +15,8 @@ struct LockScreenChipRow: View {
     }
 
     let offer: LoggablePress.Offer
+    /// The card's face, since the island has none of its own: RPE Chips on the RPE face, Reps Chips on any other.
+    let face: LockScreenCardFace
     /// The weight the RPE tap logs, as VoiceOver reads it.
     let weight: String
     let labelColor: Color
@@ -24,7 +26,7 @@ struct LockScreenChipRow: View {
 
     var body: some View {
         HStack(spacing: spacing) {
-            if let reps = offer.chosenReps {
+            if case .rpe(let reps) = face {
                 back(from: reps)
                 ForEach(offer.rpeChoices, id: \.self) { rpe in
                     chip("@\(rpe)", ticked: rpe == offer.prescribedRPE) {
@@ -35,7 +37,7 @@ struct LockScreenChipRow: View {
             } else {
                 ForEach(offer.repChoices, id: \.self) { reps in
                     chip("×\(reps)", ticked: offer.prescribedReps.contains(reps)) {
-                        ChooseRepsIntent(setIdentity: offer.setIdentity, reps: reps)
+                        TurnLockScreenCardIntent(to: .rpe(reps: reps), pressing: offer.setIdentity)
                     }
                     .accessibilityLabel(reps == 1 ? "1 rep" : "\(reps) reps")
                     .accessibilityHint("Then choose the RPE")
@@ -72,7 +74,7 @@ struct LockScreenChipRow: View {
 
     /// The Reps already tapped, which a tap turns back into Reps Chips.
     private func back(from reps: Int) -> some View {
-        Button(intent: ChooseRepsIntent(setIdentity: offer.setIdentity, reps: nil)) {
+        Button(intent: TurnLockScreenCardIntent(to: .rest, pressing: nil)) {
             HStack(spacing: 1) {
                 Image(systemName: "chevron.backward")
                     .font(.caption.weight(.bold))
@@ -94,7 +96,7 @@ struct LockScreenChipRow: View {
     }
 
     private var openApp: some View {
-        Link(destination: Self.appURL) {
+        Link(destination: LoggablePress.appURL) {
             Image(systemName: "ellipsis")
                 .font(.body.weight(.bold))
                 .foregroundStyle(labelColor.opacity(0.68))
@@ -105,10 +107,6 @@ struct LockScreenChipRow: View {
         }
         .accessibilityLabel("Other Reps, in the app")
     }
-
-    // Opens the app where it was. No request is attached, so nothing starts listening.
-    // swiftlint:disable:next force_unwrapping
-    static let appURL = URL(string: "workouttracker://")!
 }
 
 /// The Start in the mic's place, for a Set whose Exercise opens on a timed effort. It opens the app

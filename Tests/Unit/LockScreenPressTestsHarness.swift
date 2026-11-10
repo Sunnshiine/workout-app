@@ -15,7 +15,7 @@ extension BackgroundDictationHarness {
             focus: focus,
             restTimer: restTimer,
             liveActivity: liveActivity,
-            rows: LockScreenRows(),
+            settle: RPEFaceSettle(),
             signIn: signIn,
             clock: clock
         )
@@ -34,7 +34,7 @@ extension BackgroundDictationHarness {
         ).storageValue
     }
 
-    /// Presses an RPE Chip after `reps` and lets the readback's hold run out.
+    /// Presses an RPE Chip after `reps`.
     func press(
         _ identity: String,
         reps: Int = 5,
@@ -42,28 +42,28 @@ extension BackgroundDictationHarness {
         on chips: LockScreenPress? = nil
     ) async -> LockScreenPress.Outcome {
         let chips = chips ?? self.chips
-        let run = Task { await chips.logSet(setIdentity: identity, reps: reps, rpe: rpe) }
-        let shown = liveActivity.shown.count + liveActivity.noSets.count
-        await waitUntil({ liveActivity.shown.count + liveActivity.noSets.count > shown }, orRecord: "It never read back")
-        if liveActivity.restContent != nil {
-            let hold = LockScreenPress.readbackHold
-            await clock.waitUntilSleeping(until: clock.now + hold, orRecord: "The readback never held")
-            clock.advance(by: hold)
-        }
-        return await run.value
+        return await settled { await chips.logSet(setIdentity: identity, reps: reps, rpe: rpe) }
     }
 
-    /// Presses a Reps Chip, and lets a readback's hold run out when the press refused.
-    func chooseReps(_ identity: String, reps: Int?, on chips: LockScreenPress? = nil) async -> LockScreenPress.Outcome {
+    func turn(to face: LockScreenFace, pressing identity: String?, on chips: LockScreenPress? = nil) async -> LockScreenPress.Outcome {
         let chips = chips ?? self.chips
-        let run = Task { await chips.chooseReps(setIdentity: identity, reps: reps) }
-        let shown = liveActivity.shown.count + liveActivity.noSets.count
-        let refreshed = liveActivity.refreshes.count
+        return await settled { await chips.turn(to: face, pressing: identity) }
+    }
+
+    /// Runs a press to its end, letting the hold of a readback over the rest run out.
+    private func settled(_ press: @escaping @MainActor () async -> LockScreenPress.Outcome) async -> LockScreenPress.Outcome {
+        let readbacks = liveActivity.shown.count + liveActivity.islandReadbacks.count
+        var ended = false
+        let run = Task {
+            let outcome = await press()
+            ended = true
+            return outcome
+        }
         await waitUntil(
-            { liveActivity.shown.count + liveActivity.noSets.count > shown || liveActivity.refreshes.count > refreshed },
-            orRecord: "The row never turned and nothing read back"
+            { ended || liveActivity.shown.count + liveActivity.islandReadbacks.count > readbacks },
+            orRecord: "The press neither ended nor read back"
         )
-        if liveActivity.shown.count + liveActivity.noSets.count > shown, liveActivity.restContent != nil {
+        if !ended, liveActivity.restContent != nil {
             let hold = LockScreenPress.readbackHold
             await clock.waitUntilSleeping(until: clock.now + hold, orRecord: "The readback never held")
             clock.advance(by: hold)
@@ -85,9 +85,8 @@ extension BackgroundDictationHarness {
         )
     }
 
-    /// The Reps the card's row has chosen, nil while it offers Reps.
-    var chosenReps: Int?? {
-        guard case .ready(let offer) = liveActivity.restContent?.press else { return nil }
-        return .some(offer.chosenReps)
+    /// The face the Lock Screen card is on; nil with no card up.
+    var face: LockScreenFace? {
+        liveActivity.restContent?.face
     }
 }

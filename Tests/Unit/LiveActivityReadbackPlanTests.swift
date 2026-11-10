@@ -15,6 +15,7 @@ private let rest = LiveActivityRestContent(
     restStartDate: Date(timeIntervalSince1970: 1_780_000_000),
     restEndDate: Date(timeIntervalSince1970: 1_780_000_180),
     press: .needsApp,
+    stats: [],
     cadence: nil,
     coachNote: nil,
     start: nil
@@ -38,6 +39,14 @@ private let rest = LiveActivityRestContent(
 @Test func aReadbackOverTheRestKeepsTheRestsStaleDateAndOneAloneHasNone() {
     #expect(LiveActivityReadbackPlan.Canvas.overRest(rest).staleDate == LiveActivityInvalidationPolicy.postRestCapEndDate(for: rest))
     #expect(LiveActivityReadbackPlan.Canvas.alone.staleDate == nil)
+}
+
+/// The Session's last Set is logged from a card whose rest ran out, and the island reads it back
+/// over that card. A ready redraw then would replace the readback as it arrived.
+@Test func aRestAlreadyOverIsNotRedrawnReadyUnderAReadback() {
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate.addingTimeInterval(-1)) == rest.restEndDate)
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate) == nil)
+    #expect(LiveActivityInvalidationPolicy.readyRedrawDate(for: rest, at: rest.restEndDate.addingTimeInterval(240)) == nil)
 }
 
 /// A write used up the rest that led to its Set, so its readback takes the activity and ends it.

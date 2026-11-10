@@ -291,6 +291,7 @@ private func restContent(toward target: LiveActivityRestTarget) -> LiveActivityR
         restStartDate: frozenNow,
         restEndDate: frozenNow.addingTimeInterval(120),
         press: .needsApp,
+        stats: [],
         cadence: nil,
         coachNote: nil,
         start: nil,

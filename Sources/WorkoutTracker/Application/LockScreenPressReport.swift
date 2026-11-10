@@ -13,8 +13,17 @@ public struct LockScreenOfferReport: Encodable, Equatable, Sendable {
     /// Nil with no Pending Set left in the Current Session.
     public let set: SetAddress?
     public let exercise: String?
+    public struct Stat: Encodable, Equatable, Sendable {
+        /// The value's unit, as `lbs`. Empty over `BW`.
+        public let label: String
+        /// As the card draws it: `1,002.5`, `AMRAP`, or a dash with none.
+        public let value: String
+    }
+
     /// The weight the card holds, as the Set Log writes it; nil when it holds none.
     public let weight: String?
+    /// The weight, Reps and RPE the card's rest face draws; empty with no Set.
+    public let stats: [Stat]
     public let prescribedReps: String?
     public let prescribedLoad: String?
     public let cadence: String?
@@ -22,7 +31,7 @@ public struct LockScreenOfferReport: Encodable, Equatable, Sendable {
     public let coachNote: String?
     /// The timed effort the card's Start opens the app to count, as `10 s hold`.
     public let start: String?
-    /// Nil when the card shows no chips.
+    /// Nil when the Set logs only in the app.
     public let offer: Offer?
 }
 
@@ -49,6 +58,7 @@ extension WorkoutApplication {
                 set: nil,
                 exercise: nil,
                 weight: nil,
+                stats: [],
                 prescribedReps: nil,
                 prescribedLoad: nil,
                 cadence: nil,
@@ -68,6 +78,7 @@ extension WorkoutApplication {
             set: SetAddress(active.setID, in: session),
             exercise: card.exerciseName,
             weight: card.weightValue.isEmpty ? nil : card.weightValue,
+            stats: card.stats.map { LockScreenOfferReport.Stat(label: $0.label, value: $0.value) },
             prescribedReps: card.prescribedReps,
             prescribedLoad: card.prescribedLoad,
             cadence: card.cadence,

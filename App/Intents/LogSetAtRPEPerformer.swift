@@ -1,6 +1,6 @@
 /// Runs the Lock Screen's presses in the app, on the same focus, rest, and Live Activity the stage
-/// reads, whether or not a scene is on screen. One clock and one row record serve every press, so
-/// an RPE press can tell how long ago the row turned.
+/// reads, whether or not a scene is on screen. One clock and one settle serve every press, so an
+/// RPE press can tell how long ago the card turned.
 @MainActor
 final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     private let app: WorkoutApplication
@@ -8,7 +8,7 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     private let focus: ActiveSetFocusManager
     private let restTimer: RestTimer
     private let liveActivity: LiveActivityProductionAdapter
-    private let rows = LockScreenRows()
+    private let settle = RPEFaceSettle()
     private let clock = ContinuousListeningClock()
 
     init(
@@ -25,10 +25,8 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
         self.liveActivity = liveActivity
     }
 
-    func chooseReps(setIdentity: String, reps: Int?) async {
-        // A press that relaunched the app finds the rest this process did not start.
-        liveActivity.takeOverRestLeftRunning()
-        await press.chooseReps(setIdentity: setIdentity, reps: reps)
+    func turnCard(to face: LockScreenCardFace, pressing setIdentity: String?) async {
+        await press.turn(to: LockScreenFace(face), pressing: setIdentity)
     }
 
     func logSet(setIdentity: String, reps: Int, rpe: String) async {
@@ -36,13 +34,15 @@ final class LogSetAtRPEPerformer: LockScreenPressPerforming {
     }
 
     private var press: LockScreenPress {
-        LockScreenPress(
+        // A press that relaunched the app finds the rest this process did not start.
+        liveActivity.takeOverRestLeftRunning()
+        return LockScreenPress(
             app: app,
             dictation: dictation,
             focus: focus,
             restTimer: restTimer,
             liveActivity: liveActivity,
-            rows: rows,
+            settle: settle,
             signIn: GoogleSignInRestorer(),
             clock: clock
         )
