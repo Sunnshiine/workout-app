@@ -358,8 +358,6 @@ with_build_slot() {
   return $rc
 }
 
-without_sim_lock() { "$@" 9>&-; }
-
 require_sim_free() {
   [ -f "/tmp/workout-verify-$1/lock" ] || return 0
   sim_flock "$1" LOCK_SH 9<"/tmp/workout-verify-$1/lock"
