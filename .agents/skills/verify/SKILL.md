@@ -31,6 +31,8 @@ on it, pass the same UDID: `scripts/test-sim.sh --sim <udid> unit`. Without `--s
 asks for a second lease, Simlock refuses it (exit 13), and `test-sim.sh` exits 75 naming the
 simulator you hold. Without `simlock` on PATH every command that touches a simulator exits 78.
 Never create, erase, or delete a simulator, and boot or shut one down only through `simlock simctl`.
+XcodeBuildMCP drives the same lease: pass the UDID `launch` printed as `simulatorId` to `build_run_sim`,
+`screenshot`, `snapshot_ui` or `tap`.
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),

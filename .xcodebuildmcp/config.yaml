@@ -8,5 +8,7 @@ schemaVersion: 1
 sessionDefaults:
   projectPath: WorkoutTracker.xcodeproj
   scheme: WorkoutTracker
-  simulatorName: iPhone 17 Pro
+# No simulator default: XcodeBuildMCP would resolve a name to a simulator no lease holds.
+# Pass the UDID of your Simlock lease as simulatorId (scripts/sim-mcp-hook.py).
+enabledWorkflows: [simulator, ui-automation, doctor, workflow-discovery]
 sentryDisabled: true

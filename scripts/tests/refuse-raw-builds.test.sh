@@ -310,37 +310,6 @@ if [ "$out" = exit=0 ]; then ok "malformed stdin allows silently"; else bad "mal
 out=$("$repo/scripts/refuse-raw-builds.py" --help 2>/dev/null; echo "exit=$?")
 if [ "$out" = exit=2 ]; then ok "an argument exits 2"; else bad "an argument exits 2, got: $out"; fi
 
-echo "the XcodeBuildMCP tools that boot, build or test stay denied"
-deny=$(python3 -c 'import json, sys; print("\n".join(json.load(open(sys.argv[1]))["permissions"]["deny"]))' "$repo/.claude/settings.json")
-while read -r tool; do
-    if grep -qxF "mcp__XcodeBuildMCP__$tool" <<<"$deny"; then ok "denies $tool"; else bad "denies $tool"; fi
-done <<'TOOLS'
-boot_sim
-open_sim
-build_sim
-build_run_sim
-test_sim
-install_app_sim
-launch_app_sim
-erase_sims
-clean
-build_device
-build_run_device
-test_device
-build_macos
-build_run_macos
-test_macos
-swift_package_build
-swift_package_run
-swift_package_test
-xcode_ide_call_tool
-TOOLS
-if python3 -c 'import json, sys; sys.exit("XcodeBuildMCP" not in json.load(open(sys.argv[1]))["mcpServers"])' "$repo/.mcp.json"; then
-    ok ".mcp.json still names the server XcodeBuildMCP, which the deny entries key on"
-else
-    bad ".mcp.json still names the server XcodeBuildMCP, which the deny entries key on"
-fi
-
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]
