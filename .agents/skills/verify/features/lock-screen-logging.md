@@ -2,7 +2,7 @@
 
 <!-- doc-symbols: not-in-tree ListCell ReduceMotionEnabled -->
 
-During a rest the Lock Screen card shows the Set the stage's card is on: the Exercise, the weight the stage holds, the coach's Target Reps and RPE, and the Cadence and Coach Note on one line cut off with `…`. A Set is logged in two taps, Reps then RPE, without unlocking. The weight cannot change here. The second tap runs in the app's process, through the same store call as the Log capsule, so the rest restarts, the card moves on, and the write queues. A Set whose card holds no weight (a `Drop` load, a Timed Set) shows `Open to log` beside the mic. An Exercise that opens on a timed effort shows a Start in the mic's place.
+During a rest the Lock Screen card shows the Set the stage's card is on: the Exercise, the weight the stage holds, the coach's Target Reps and RPE, and the Cadence and Coach Note on one line cut off with `…`. A Set is logged in two taps, Reps then RPE, without unlocking. The weight cannot change here. The second tap runs in the app's process, through the same store call as the Log capsule, so the rest restarts, the card moves on, and the write queues. A Set whose card holds no weight (a `Drop` load, a Timed Set) shows `Open to log` beside the mic. An Exercise that opens on a timed effort shows a Start in the mic's place. The whole card is the rest timer: a lighter green fills it when the rest starts, and the fill's right edge runs left on the system clock until the rest is over, with no update from the app.
 
 ## Sub-features
 
@@ -13,6 +13,7 @@ During a rest the Lock Screen card shows the Set the stage's card is on: the Exe
 - `lock-screen-needs-app` shows `Open to log` in place of the chips, beside the mic or the Start.
 - `lock-screen-start` opens the app on an Exercise that opens on a hold, which counts down `Starts in 2`, then `Hold, N seconds left`.
 - `lock-screen-open-app` opens the app from the row's `…`, for Reps no chip shows.
+- `lock-screen-rest-fill` drains a fill across the whole card over the rest, from the right, while the app is not running.
 - `lock-screen-island` offers the same name, weight, target, guidance, and chips on the expanded Dynamic Island, and gives way as type grows. A target too long for the line shrinks, then cuts off with `…`, so the name, the weight, the mic, the queue, and every chip stay whole.
 
 ## How to get to it (user POV)

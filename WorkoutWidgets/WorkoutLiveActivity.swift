@@ -10,7 +10,7 @@ struct WorkoutLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: WorkoutActivityAttributes.self) { context in
             LockScreenWorkoutView(state: context.state)
-                .activityBackgroundTint(context.state.liveActivityColors.background)
+                .activityBackgroundTint(context.state.lockScreenLeaf.card)
                 .activitySystemActionForegroundColor(context.state.liveActivityColors.action)
         } dynamicIsland: { context in
             DynamicIsland {
@@ -243,6 +243,7 @@ private struct LockScreenWorkoutView: View {
                 progress
             }
         }
+        .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
         .animation(.smooth(duration: 0.35), value: state.dictation)
         .dynamicTypeSize(...WorkoutLiveActivity.largestType)
     }

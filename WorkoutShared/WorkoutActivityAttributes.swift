@@ -220,7 +220,6 @@ struct LiveActivityColors {
     let action: Color
     let actionFill: Color
     let actionText: Color
-    let background: Color
     let panelFill: Color
     let track: Color
     let primaryText: Color
@@ -246,7 +245,6 @@ enum LiveActivityPalette {
         action: Color(hex: 0x79BF93),
         actionFill: Color(hex: 0x3B7754),
         actionText: cream,
-        background: Color(hex: 0x121D14),
         panelFill: cream.opacity(0.07),
         track: cream.opacity(0.14),
         primaryText: Color(hex: 0xEBFAEC),
@@ -260,7 +258,6 @@ enum LiveActivityPalette {
         action: Color(hex: 0x0D643B),
         actionFill: Color(hex: 0x0D643B),
         actionText: cream,
-        background: Color(hex: 0xE9EEDC),
         panelFill: cream.opacity(0.52),
         track: Color(hex: 0x131E14).opacity(0.1),
         primaryText: Color(hex: 0x131E14),

@@ -327,7 +327,7 @@ struct LockScreenCardVisualTests {
         let height = height ?? Self.systemHeight(at: dynamicTypeSize)
         let view = Self.card(state)
             .frame(width: width, height: height, alignment: .top)
-            .background(state.liveActivityColors.background)
+            .background { LockScreenCardBackground(leaf: state.lockScreenLeaf, restFill: state.wholeRestInterval) }
             .environment(\.dynamicTypeSize, dynamicTypeSize)
             .environment(\.locale, Locale(identifier: WorkoutVisualBaseline.localeIdentifier))
 
