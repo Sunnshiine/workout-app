@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fill Rest — colour directions</title>
+<style>
+@font-face { font-family: "Fraunces"; src: url(Fraunces.ttf) format("truetype"); font-weight: 100 900; }
+@font-face { font-family: "Source Sans 3"; src: url(SourceSans3.ttf) format("truetype"); font-weight: 200 900; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #0e0f10; }
+body { min-height: 100vh; padding: 64px 16px 96px; font-family: "Source Sans 3", sans-serif; }
+
+/* Harness chrome */
+.chrome { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 2147483646; display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(10,10,10,.82); backdrop-filter: blur(12px); font: 12px -apple-system, sans-serif; user-select: none; box-shadow: 0 0 0 1px rgba(255,255,255,.08) inset; }
+.chrome button { height: 26px; padding: 0 10px; border: 0; border-radius: 999px; background: none; color: rgba(255,255,255,.55); cursor: pointer; font: inherit; }
+.chrome button[data-on] { color: #fff; background: rgba(255,255,255,.12); }
+.screens { display: flex; flex-wrap: wrap; gap: 24px; justify-content: center; }
+.screen { width: 393px; padding: 28px 15px 32px; border-radius: 40px; }
+.screen.night { background: radial-gradient(120% 80% at 30% 0%, #2c3b4a, transparent 60%), #151a22; }
+.screen.day { background: radial-gradient(120% 80% at 30% 0%, #f4e9d8, transparent 60%), #cfd8e3; }
+.screen-label { font: 600 11px -apple-system, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.55); margin: 0 0 10px 4px; }
+.screen.day .screen-label { color: rgba(0,0,0,.5); }
+.swatches { font: 11px ui-monospace, monospace; color: rgba(255,255,255,.5); margin: 10px 4px 0; }
+.screen.day .swatches { color: rgba(0,0,0,.5); }
+
+/* ---------- Fill Rest. Every size is a pt value on the app's scale (12·13·15·17·28·46·96) ---------- */
+.card { position: relative; width: 363px; height: var(--card-h, 160px); overflow: hidden; border-radius: 24px; background: var(--bg); color: var(--text); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+.fill { position: absolute; inset: 0; transform-origin: left; background: var(--fill-paint, var(--fill)); }
+.view { position: relative; height: 100%; padding: var(--pad, 16px); display: flex; gap: 16px; }
+.col { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; }
+.grow { flex: 1; min-width: 0; }
+.row { display: flex; align-items: center; }
+.rest-num { font-size: var(--rest-size, 46px); font-weight: var(--rest-w, 700); line-height: 1; letter-spacing: var(--rest-track, -0.015em); }
+.stats { display: flex; gap: var(--stat-gap, 16px); align-items: flex-end; }
+.lbl { font-size: var(--lbl-size, 13px); font-weight: var(--lbl-w, 600); line-height: 1.3; letter-spacing: var(--lbl-track, .06em); text-transform: var(--lbl-case, uppercase); color: var(--text-2); white-space: nowrap; }
+.val { font-size: var(--stat-size, 28px); font-weight: var(--stat-w, 700); line-height: 1.15; letter-spacing: var(--stat-track, -0.01em); white-space: nowrap; }
+.val.quiet { color: var(--text-2); }
+.stats.fit .val { font-size: 17px; letter-spacing: 0; }
+.cad { display: flex; align-items: center; gap: 6px; font-size: var(--cad-size, 15px); font-weight: var(--cad-w, 600); color: var(--text-2); line-height: 1.2; }
+.note { font-size: var(--note-size, 15px); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.btn { width: var(--btn, 56px); height: var(--btn, 56px); border-radius: 50%; display: grid; place-items: center; flex: none; background: var(--action-fill); color: var(--action-text); font-size: var(--btn-icon, 17px); transition: transform 120ms ease-out; }
+.btn:active { transform: scale(0.95); }
+.btn.quiet, .card[data-note] .btn { background: var(--panel); color: var(--text); }
+.btn { position: relative; transition: transform 120ms ease-out, background-color 200ms ease, color 200ms ease; }
+.btn .glyph { position: absolute; inset: 0; display: grid; place-items: center; }
+:root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+.iconbtn.layer-rest:active { transition-duration: 120ms; transition-delay: 0ms; }
+.swap { display: grid; align-items: end; }
+.swap > * { grid-area: 1 / 1; }
+/* Shown: 220ms, starting 40ms after the leaver so the two never read as a double image. Hidden: a quicker 140ms. */
+.layer-rest, .layer-note { transition: opacity 220ms var(--ease-out) 40ms, transform 220ms var(--ease-out) 40ms; }
+.card[data-note] .layer-rest, .card:not([data-note]) .layer-note { opacity: 0; pointer-events: none; transition-duration: 140ms; transition-delay: 0ms; }
+.card[data-note] .swap > .layer-rest { transform: translateY(-4px); }
+.card:not([data-note]) .swap > .layer-note { transform: translateY(4px); }
+.card[data-note] .btn .layer-rest, .card:not([data-note]) .btn .layer-note { transform: scale(0.9); }
+.card[data-note] .iconbtn { transform: scale(0.95); }
+@media (prefers-reduced-motion: reduce) { .layer-rest, .layer-note { transform: none !important; } }
+.iconbtn { width: 44px; height: 44px; margin: -10px -10px 0 0; display: grid; place-items: center; color: var(--text-2); font-size: 20px; border-radius: 12px; transition: transform 120ms ease-out; }
+.iconbtn:active { transform: scale(0.94); }
+.ico { width: 1em; height: 1em; display: inline-block; flex: none; }
+.ico svg { width: 100%; height: 100%; display: block; }
+.selhead { display: flex; align-items: center; gap: 2px; height: 44px; margin: -6px 0 0 -10px; }
+.chips { display: flex; gap: 6px; margin-top: auto; }
+.chip { position: relative; flex: 1; height: 76px; border-radius: 16px; background: var(--action-fill); color: var(--action-text); display: grid; place-items: center; font-size: 28px; font-weight: 700; transition: transform 120ms ease-out; }
+.chip:active { transform: scale(0.96); }
+.chip i { position: absolute; bottom: 10px; left: 50%; width: 18px; height: 3px; margin-left: -9px; border-radius: 2px; background: currentColor; }
+/* ---------- Picker (PICKER.md, verbatim) ---------- */
+.proto-picker { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 2147483647; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(10, 10, 10, 0.82); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 8px 24px rgba(0, 0, 0, 0.24), 0 2px 6px rgba(0, 0, 0, 0.12); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; line-height: 1; -webkit-font-smoothing: antialiased; user-select: none; -webkit-user-select: none; }
+.proto-picker-highlight { position: absolute; top: 4px; left: 0; height: 28px; border-radius: 999px; background: rgba(255, 255, 255, 0.12); will-change: transform; }
+.proto-picker[data-ready] .proto-picker-highlight { transition: transform 250ms cubic-bezier(0.23, 1, 0.32, 1), width 250ms cubic-bezier(0.23, 1, 0.32, 1); }
+@media (prefers-reduced-motion: reduce) { .proto-picker[data-ready] .proto-picker-highlight { transition: none; } }
+.proto-picker-item { position: relative; display: flex; align-items: center; height: 28px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: rgba(255, 255, 255, 0.55); font: inherit; cursor: pointer; transition: color 150ms ease-out; }
+.proto-picker-item:hover { color: rgba(255, 255, 255, 0.85); }
+.proto-picker-item:active { transform: scale(0.97); }
+.proto-picker-item:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.4); outline-offset: 2px; }
+.proto-picker-item[data-active] { color: #fff; }
+.proto-picker-divider { width: 1px; height: 16px; margin: 0 4px; background: rgba(255, 255, 255, 0.12); }
+.proto-picker-replay { padding: 0 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+<nav class="chrome" aria-label="Scenario">
+  <button data-scn="normal" data-on>Back Squat</button>
+  <button data-scn="worst">Worst case</button>
+  <button data-endrest>End rest</button>
+</nav>
+<div class="screens" id="stage"></div>
+
+<nav class="proto-picker" aria-label="Prototype variants">
+  <span class="proto-picker-highlight" aria-hidden="true"></span>
+
+</nav>
+
+<script>
+// ---------- Colour directions, OKLCH [L, C, H]. Text, action, and panel stay on LiveActivityPalette. ----------
+const COLORS = [
+  { name: 'Moss',  night: { bg: [0.214, 0.024, 150], fill: [0.285, 0.04, 152] },  day: { bg: [0.937, 0.025, 121], fill: [0.885, 0.045, 140] } },
+  { name: 'Leaf',  night: { bg: [0.2, 0.03, 156],    fill: [0.29, 0.055, 156] },  day: { bg: [0.95, 0.025, 156],  fill: [0.88, 0.06, 156] } },
+  { name: 'Vivid', night: { bg: [0.19, 0.035, 156],  fill: [0.4, 0.09, 156] },    day: { bg: [0.96, 0.02, 156],   fill: [0.82, 0.11, 156] } },
+  { name: 'Ink',   night: { bg: [0.17, 0.006, 156],  fill: [0.27, 0.04, 156] },   day: { bg: [0.975, 0.004, 120], fill: [0.91, 0.05, 156] } },
+  { name: 'Olive', night: { bg: [0.21, 0.022, 118],  fill: [0.31, 0.05, 112] },   day: { bg: [0.95, 0.03, 100],   fill: [0.89, 0.065, 98] } },
+];
+const PALETTE = {
+  night: { text: '#EBFAEC', text2: '#BAC9BC', ink: '#94D6AC', actionFill: '#3B7754', actionText: '#F2F7E8', panel: 'rgba(242,247,232,0.1)' },
+  day:   { text: '#131E14', text2: '#374339', ink: '#084D2C', actionFill: '#0D643B', actionText: '#F2F7E8', panel: 'rgba(19,30,20,0.08)' },
+};
+// ---------- Your saved lab settings (localStorage on this origin) ----------
+const SAVED = JSON.parse(localStorage.getItem('fill-rest-lab') || 'null');
+if (SAVED) {
+  const track = (pt) => (pt < 13 ? 0.01 : pt < 28 ? 0 : pt < 46 ? -0.01 : -0.015) + 'em';
+  const v = (k, val) => document.documentElement.style.setProperty('--' + k, val);
+  v('rest-size', SAVED.restSize + 'px'); v('rest-w', SAVED.restWeight); v('rest-track', track(SAVED.restSize));
+  v('stat-size', SAVED.statSize + 'px'); v('stat-w', SAVED.statWeight); v('stat-track', track(SAVED.statSize));
+  v('lbl-size', SAVED.lblSize + 'px'); v('lbl-w', SAVED.lblWeight);
+  v('lbl-case', SAVED.lblCase === 'upper' ? 'uppercase' : 'none'); v('lbl-track', SAVED.lblCase === 'upper' ? '0.06em' : track(SAVED.lblSize));
+  v('cad-size', SAVED.cadSize + 'px'); v('cad-w', SAVED.cadWeight); v('note-size', SAVED.noteSize + 'px'); v('pad', SAVED.pad + 'px'); v('stat-gap', SAVED.statGap + 'px');
+  v('btn', SAVED.btn + 'px'); v('btn-icon', SAVED.btnIcon + 'px'); v('card-h', SAVED.cardH + 'px');
+  const tri = (o) => [o.l, o.c, o.h];
+  COLORS.unshift({ name: 'Yours', night: { bg: tri(SAVED.night.bg), fill: tri(SAVED.night.fill) }, day: { bg: tri(SAVED.day.bg), fill: tri(SAVED.day.fill) } });
+  // Put the file back that scrapping the lab deleted.
+  fetch('/save', { method: 'POST', body: JSON.stringify({ restoredFrom: 'localStorage fill-rest-lab', restoredAt: new Date().toISOString(), raw: SAVED }, null, 2) }).catch(() => {});
+}
+const ok = ([l, c, h]) => `oklch(${l} ${c} ${h})`;
+// The log's flash: the fill one step toward the action green, then back.
+const flash = (t, [l, c, h]) => ok(t === 'night' ? [Math.min(l + 0.14, 0.6), c + 0.04, h] : [Math.max(l - 0.1, 0.7), c + 0.05, h]);
+
+// ---------- Content. A drop Set shows the weight the app worked out, never the percentage. ----------
+const SCENARIOS = {
+  normal: [
+    { w: '267.5', reps: 3, rpe: 8, cadence: '3:1:1', note: 'Brace hard off the floor, controlled descent.' },
+    { w: '220', reps: 5, rpe: 7, cadence: '3:1:1', note: 'Drop 17.5% off the top Set. Same depth, same brace.' },
+    { w: '220', reps: 5, rpe: 7, cadence: '3:1:1', note: 'Drop 17.5% off the top Set. Same depth, same brace.' },
+  ],
+  worst: [
+    { w: '1,002.5', reps: null, repsText: 'AMRAP', rpe: null, cadence: '2-3:1:0', note: 'Start conservative and work up to a heavy single. 2s pause in the hole, no bounce, reset the brace between every rep.' },
+  ],
+};
+const REST_MS = 150000;
+const S = { scn: 'normal', i: 0, view: 'rest', reps: null, restEnd: Date.now() + 97000, justLogged: false, prevFrac: 0 };
+const set = () => SCENARIOS[S.scn][S.i % SCENARIOS[S.scn].length];
+const fmtRpe = (r) => (Number.isInteger(r) ? r : r.toFixed(1));
+const left = () => Math.max(0, S.restEnd - Date.now());
+const frac = () => left() / REST_MS;
+const clock = () => { const s = Math.ceil(left() / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+// ---------- Icons (SF Symbol stand-ins) ----------
+const P = {
+  'text.bubble': '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H11l-4.5 4v-4A2.5 2.5 0 0 1 4 13.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M8 8h8M8 11.5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  'checkmark': '<path d="M5 12.5 10 17.5 19.5 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  'metronome': '<path d="M9 3h6l4 18H5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 16 16.5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M6.5 15h11" stroke="currentColor" stroke-width="2"/>',
+  'xmark': '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+  'chevron.left': '<path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+};
+const I = (n) => `<span class="ico"><svg viewBox="0 0 24 24">${P[n]}</svg></span>`;
+
+// ---------- One card ----------
+function card(theme) {
+  const s = set(), col = COLORS[current_i][theme], pal = PALETTE[theme];
+  const edge = SAVED?.fillEdge || 0;
+  const vars = `--bg:${ok(col.bg)};--fill:${ok(col.fill)};${edge ? `--fill-paint:linear-gradient(to right, ${ok(col.fill)} calc(100% - ${edge}px), ${ok(col.bg)});` : ''}--text:${pal.text};--text-2:${pal.text2};--ink:${pal.ink};--action-fill:${pal.actionFill};--action-text:${pal.actionText};--panel:${pal.panel}`;
+  let view;
+  if (S.view === 'reps' || S.view === 'rpe') {
+    const reps = S.view === 'reps';
+    const t = reps ? s.reps ?? 5 : s.rpe ?? 8;
+    const values = reps ? [t - 2, t - 1, t, t + 1, t + 2] : [t - 1, t - 0.5, t, t + 0.5, t + 1];
+    const target = reps ? s.reps : s.rpe;
+    view = `<div class="view" style="flex-direction:column;gap:0">
+      <div class="selhead">
+        <button class="iconbtn" style="margin:0;font-size:18px" data-act="back" aria-label="Back">${I('chevron.left')}</button>
+        <span style="font-size:17px;font-weight:700">${reps ? 'Reps' : 'RPE'}</span>
+        <span class="grow"></span>
+        <span style="font-size:15px;font-weight:600;color:var(--text-2)">${s.w} lbs${reps ? '' : ` · ${S.reps} reps`}</span>
+      </div>
+      <div class="chips">${values.map((v) => `<button class="chip" data-act="${reps ? 'reps' : 'rpe'}:${v}" aria-label="${reps ? v + ' reps' : 'RPE ' + fmtRpe(v) + ', log the Set'}">${fmtRpe(v)}${v === target ? '<i></i>' : ''}</button>`).join('')}</div>
+    </div>`;
+  } else {
+    const stat = (label, v, quiet) => `<div><div class="lbl">${label}</div><div class="val ${quiet ? 'quiet' : ''}">${v}</div></div>`;
+    view = `<div class="view">
+      <div class="col grow">
+        <div class="rest-num" data-time>${clock()}</div>
+        <div class="cad" aria-label="Cadence ${s.cadence}">${s.cadence}</div>
+        <div class="swap">
+          <div class="stats layer-rest">${stat('lbs', s.w)}${stat('reps', s.reps ?? s.repsText)}${stat('rpe', s.rpe === null ? '—' : fmtRpe(s.rpe))}</div>
+          ${s.note ? `<div class="note layer-note">${s.note}</div>` : ''}
+        </div>
+      </div>
+      <div class="col" style="align-items:flex-end">
+        ${s.note ? `<button class="iconbtn layer-rest" data-act="note" aria-label="Show the coach’s note">${I('text.bubble')}</button>` : '<span></span>'}
+        <button class="btn" data-act="log" aria-label="Log this Set"><span class="glyph layer-rest">${I('checkmark')}</span><span class="glyph layer-note">${I('xmark')}</span></button>
+      </div>
+    </div>`;
+  }
+  return `<div class="card" data-theme="${theme}" ${S.view === 'note' ? 'data-note' : ''} style="${vars}"><i class="fill"></i>${view}</div>`;
+}
+
+// ---------- Motion ----------
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)';
+// The rest drains as one continuous linear animation over the time left, never a tick per second.
+function drain(fill) {
+  fill.getAnimations().forEach((a) => a.cancel());
+  const gone = SAVED?.fillMeans === 'elapsed';
+  fill.animate([{ transform: `scaleX(${gone ? 1 - frac() : frac()})` }, { transform: `scaleX(${gone ? 1 : 0})` }], { duration: left(), easing: 'linear', fill: 'forwards' });
+}
+// A log: the fill sweeps back to full and flashes toward the action green, the numbers roll to the next Set.
+function logged(cardEl) {
+  const fill = cardEl.querySelector('.fill'), theme = cardEl.dataset.theme, col = COLORS[current_i][theme];
+  if (reduce.matches) {
+    fill.animate([{ background: flash(theme, col.fill) }, { background: ok(col.fill) }], { duration: 900, easing: 'ease-out' });
+    drain(fill);
+  } else {
+    fill.animate([{ transform: `scaleX(${S.prevFrac})` }, { transform: 'scaleX(1)' }], { duration: 600, easing: EASE, fill: 'forwards' })
+      .finished.then(() => drain(fill)).catch(() => {});
+    fill.animate([{ background: flash(theme, col.fill) }, { background: flash(theme, col.fill), offset: 0.3 }, { background: ok(col.fill) }], { duration: 1400, easing: 'ease-out' });
+  }
+  cardEl.querySelectorAll('.val, .rest-num').forEach((el, k) => el.animate(
+    reduce.matches ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: 'translateY(40%)' }, { opacity: 1, transform: 'translateY(0)' }],
+    { duration: 320, delay: k * 30, easing: EASE, fill: 'backwards' }));
+}
+// A view change: the new view rises 10pt into place (falls, going back) as it fades in.
+function swapIn(cardEl, dir) {
+  const v = cardEl.querySelector('.view');
+  v.animate(reduce.matches ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 0, transform: `translateY(${dir * 10}px)` }, { opacity: 1, transform: 'translateY(0)' }],
+    { duration: reduce.matches ? 150 : 240, easing: EASE });
+}
+
+// The note swaps in place: the timer and cadence never move, only the row under them and the button change.
+function setNote(open) {
+  S.view = open ? 'note' : 'rest';
+  stage.querySelectorAll('.card').forEach(syncNote);
+}
+function syncNote(c) {
+  const open = S.view === 'note', btn = c.querySelector('.btn');
+  if (!c.querySelector('.swap')) return;
+  c.toggleAttribute('data-note', open);
+  c.querySelectorAll('.layer-rest').forEach((el) => (el.inert = open));
+  c.querySelectorAll('.layer-note').forEach((el) => (el.inert = !open));
+  btn.dataset.act = open ? 'close' : 'log';
+  btn.setAttribute('aria-label', open ? 'Close the note' : 'Log this Set');
+}
+
+// ---------- Render ----------
+const stage = document.getElementById('stage');
+let current_i = 0;
+function render(dir = 0) {
+  const swatch = (t) => `${t === 'night' ? 'Night' : 'Day'} · card ${ok(COLORS[current_i][t].bg)} · fill ${ok(COLORS[current_i][t].fill)}`;
+  stage.innerHTML = ['night', 'day'].map((t) => `
+    <div class="screen ${t}"><div class="screen-label">${t === 'night' ? 'Night' : 'Day'}</div>${card(t)}<div class="swatches">${swatch(t)}</div></div>`).join('');
+  stage.querySelectorAll('.stats').forEach((st) => st.classList.toggle('fit', st.scrollWidth > st.clientWidth));
+  stage.querySelectorAll('.card').forEach((c) => {
+    syncNote(c);
+    if (S.justLogged) logged(c);
+    else { drain(c.querySelector('.fill')); if (dir) swapIn(c, dir); }
+  });
+  S.justLogged = false;
+}
+setInterval(() => document.querySelectorAll('[data-time]').forEach((el) => (el.textContent = clock())), 250);
+
+stage.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const [act, arg] = b.dataset.act.split(':');
+  if (act === 'log') { S.view = 'reps'; return render(1); }
+  if (act === 'reps') { S.reps = +arg; S.view = 'rpe'; return render(1); }
+  if (act === 'back') { S.view = S.view === 'rpe' ? 'reps' : 'rest'; return render(-1); }
+  if (act === 'note') return setNote(true);
+  if (act === 'close') return setNote(false);
+  if (act === 'rpe') {
+    S.prevFrac = frac(); S.i += 1; S.view = 'rest'; S.restEnd = Date.now() + REST_MS; S.justLogged = true;
+    return render();
+  }
+});
+document.querySelectorAll('.chrome [data-scn]').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.chrome [data-scn]').forEach((x) => x.toggleAttribute('data-on', x === b));
+  S.scn = b.dataset.scn; S.i = 0; S.view = 'rest'; render();
+}));
+document.querySelector('[data-endrest]').addEventListener('click', () => { S.restEnd = Date.now() + 3000; render(); });
+
+// ---------- Picker wiring (PICKER.md reference) ----------
+const picker = document.querySelector('.proto-picker');
+const highlight = picker.querySelector('.proto-picker-highlight');
+picker.insertAdjacentHTML('beforeend', COLORS.map((c) => `<button class="proto-picker-item">${c.name}</button>`).join(''));
+const items = [...picker.querySelectorAll('.proto-picker-item')];
+function moveHighlight() { const el = items[current_i]; highlight.style.width = el.offsetWidth + 'px'; highlight.style.transform = `translateX(${el.offsetLeft}px)`; }
+function setActive(i) {
+  if (i < 0 || i >= COLORS.length) return;
+  current_i = i;
+  items.forEach((el, j) => { el.toggleAttribute('data-active', j === i); if (j === i) el.setAttribute('aria-current', 'true'); else el.removeAttribute('aria-current'); });
+  moveHighlight();
+  const url = new URL(location); url.searchParams.set('v', i + 1); history.replaceState(null, '', url);
+  render();
+}
+items.forEach((el, i) => el.addEventListener('click', () => setActive(i)));
+window.addEventListener('resize', moveHighlight);
+document.addEventListener('keydown', (e) => {
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const num = parseInt(e.key, 10);
+  if (num >= 1 && num <= COLORS.length) setActive(num - 1);
+  else if (e.key === 'ArrowRight') setActive((current_i + 1) % COLORS.length);
+  else if (e.key === 'ArrowLeft') setActive((current_i - 1 + COLORS.length) % COLORS.length);
+});
+setActive((parseInt(new URLSearchParams(location.search).get('v'), 10) || 1) - 1);
+document.fonts.ready.then(() => render());
+requestAnimationFrame(() => requestAnimationFrame(() => picker.setAttribute('data-ready', '')));
+</script>
+</body>
+</html>
