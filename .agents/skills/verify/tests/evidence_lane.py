@@ -50,7 +50,7 @@ case "$tool $1 $2" in
     echo "{dir}/containers/$3/WorkoutTracker.app" ;;
   "xcrun simctl bootstatus") exit "${STUB_BOOTSTATUS:-0}" ;;
   "xcrun simctl list") echo "    lane ({sim}) (Booted)" ;;
-  "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: 4121" ;;
+  "xcrun simctl launch") echo "com.sunnypatel.WorkoutTracker: {pid}" ;;
   "xcrun simctl spawn")
     case "$4 $5" in
       "defaults read")
@@ -82,7 +82,7 @@ case "$tool $1 $2" in
     app=$derived/Build/Products/Debug-iphonesimulator/WorkoutTracker.app
     mkdir -p "$app"
     cat "$(dirname "$project")/App/Main.swift" > "$app/WorkoutTracker.debug.dylib" ;;
-  "axe describe-ui --udid") cat "{dir}/describe-ui.json" ;;
+  "axe describe-ui --udid") sed 's/"pid": 4121/"pid": {pid}/' "{dir}/describe-ui.json" ;;
   "axe "*) exit "${STUB_AXE_EXIT:-0}" ;;
   *) exit 1 ;;
 esac
@@ -124,7 +124,10 @@ class Lane(unittest.TestCase):
         self.sim = "LANE-%d" % os.getpid()
         self.other_sim = "LANE-%d-B" % os.getpid()
         stub = LANE_STUB.replace("{dir}", str(self.tmp)).replace("{project}", str(self.checkout / "WorkoutTracker.xcodeproj"))
-        stub = stub.replace("{sim}", self.sim)
+        gone = subprocess.Popen(["true"])
+        gone.wait()
+        self.app_pid = gone.pid
+        stub = stub.replace("{sim}", self.sim).replace("{pid}", str(self.app_pid))
         axe = self.checkout / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
         axe.parent.mkdir(parents=True)
         (self.tmp / "bin").mkdir()
@@ -183,7 +186,7 @@ class Lane(unittest.TestCase):
         return self.checkout / ".claude" / "work" / "evidence" / lane / run
 
     def launched(self, line, run="lane-1", lane="main"):
-        return "launched session as pid 4121 on %s\n%s\nevidence %s\n" % (self.sim, line, self.evidence(lane, run))
+        return "launched session as pid %d on %s\n%s\nevidence %s\n" % (self.app_pid, self.sim, line, self.evidence(lane, run))
 
     def worktree_build(self, code, commit, dirty=""):
         return "app %s commit %s%s (this worktree's build)" % (digest(code), commit[:8], dirty)

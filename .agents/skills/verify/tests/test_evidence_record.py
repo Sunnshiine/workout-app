@@ -250,8 +250,8 @@ class Record(Lane):
         self.assertEqual(code, 0, err)
         run = Path(out.splitlines()[0]).parent
         head = self.worktree_build(b"v2\n", self.b)
-        self.assertEqual(err, "launched session as pid 4121 on %s (animations on)\n%s\nevidence %s\n" % (
-            self.sim, head, run), "the drive's output goes to stderr, and it launched into the take's run")
+        self.assertEqual(err, "launched session as pid %d on %s (animations on)\n%s\nevidence %s\n" % (
+            self.app_pid, self.sim, head, run), "the drive's output goes to stderr, and it launched into the take's run")
         self.assertEqual(self.listing(run), ["appear.end.txt", "appear.mp4", "appear.take", "launches.txt"])
         self.assertRegex((run / "launches.txt").read_text(), r"^\S+ session animated %s on %s from %s\n$" % (
             re.escape(head), self.sim, re.escape(str(self.checkout))))
