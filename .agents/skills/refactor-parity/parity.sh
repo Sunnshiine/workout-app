@@ -62,7 +62,7 @@ binary_for() {
     if [ ! -x "$cache/$key/workout" ]; then
         [ -n "${scratch:-}" ] || scratch_claim "refactor-parity/parity.sh"
         scratch_sync "$1" "${2:-}"
-        (cd "$scratch" && swift build --product workout >&2) || { echo "build failed at $1" >&2; exit 2; }
+        (cd "$scratch" && "$caller/scripts/build-slot.sh" --as parity.sh swift build --product workout >&2) || { echo "build failed at $1" >&2; exit 2; }
         mkdir -p "$cache/$key"
         cp "$scratch/.build/debug/workout" "$cache/$key/workout"
     fi

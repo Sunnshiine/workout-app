@@ -85,6 +85,10 @@ printf '#!/bin/sh\nexit 1\n' >"$root/bin/gh"
 cp "$script_dir/fake-simlock" "$root/bin/simlock"
 chmod +x "$root/bin/"*
 export HOME=$root/home PATH="$root/bin:$PATH" WORKOUT_HOST_LOCK_DIR=$root/locks
+# A fake hostgate first on PATH, so no test takes or waits for a real host slot.
+mkdir -p "$root/bin" && cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
+export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
+unset HOSTGATE_SLOT
 export FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES="$sim $sim2"
 # shellcheck disable=SC2046
 unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT FAKE_SIMLOCK_WHO $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
@@ -95,15 +99,13 @@ done
 
 reset() {
     rm -rf "$state" "/tmp/workout-verify-$sim2" "$root/builds" "$root/sysctl-calls" "$root/mem-calls" "$root/df-calls" "$root/xcrun-calls" \
-        "$root/holding" "$root/release" "$repo/.claude/work/evidence"
+        "$root/holding" "$root/release" "$repo/.claude/work/evidence" "$root/hostgate.log"
 }
 builds() { cat "$root/builds" 2>/dev/null | tr '\n' ' ' | sed 's/ $//'; }
-test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
-# A run of the other agent on its own simulator, holding the build slot it takes until release.
-neighbour_build() {
-    FAKE_SIMLOCK_WHO=neighbour STUB_HOLD=1 "$repo/scripts/test-sim.sh" --sim "$sim2" unit >/dev/null 2>&1 &
-    # shellcheck disable=SC2034 # the tests read first
-    first=$!
-    for _ in $(seq 1 100); do [ -f "$root/holding" ] && break; sleep 0.1; done
+# What the fake hostgate ran: "label=L wait=S nested=yes|no", then the build it ran, per run.
+slots() {
+    sed -E 's/^(label=[^ ]* wait=[^ ]* nested=[^ ]*) .*(xcodebuild [a-z-]+|swift [a-z]+).*/\1 \2/' "$root/hostgate.log" 2>/dev/null \
+        | tr '\n' ';' | sed 's/;$//'
 }
+test_sim() { "$repo/scripts/test-sim.sh" "$@" --sim "$sim" unit >"$root/out" 2>"$root/err"; }
 verify() { SIM=$sim "$repo/.agents/skills/verify/verify.sh" "$@"; }

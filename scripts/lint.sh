@@ -275,6 +275,9 @@ echo "==> Skill links"
 echo "==> Simulators through Simlock"
 python3 "$ROOT/scripts/lint-simulators.py" "$ROOT"
 
+echo "==> Builds in a hostgate slot"
+python3 "$ROOT/scripts/lint-build-slots.py" "$ROOT"
+
 echo "==> Workflow if: guards"
 "$ROOT/scripts/lint-workflow-ifs.sh"
 

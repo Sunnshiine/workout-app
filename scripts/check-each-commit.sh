@@ -50,10 +50,10 @@ echo "scratch: $scratch"
 
 run_step() {
     case $1 in
-        spm-build) swift build --build-tests ;;
-        spm-test) swift test --skip-build ;;
+        spm-build) "$script_dir/build-slot.sh" --as check-each-commit.sh --log "$2" swift build --build-tests ;;
+        spm-test) swift test --skip-build >"$2" 2>&1 ;;
         xcode-bft)
-            xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
+            "$script_dir/build-slot.sh" --as check-each-commit.sh --log "$2" xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
                 -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation -skipMacroValidation \
                 CODE_SIGNING_ALLOWED=NO
             ;;
@@ -73,7 +73,11 @@ for commit in $commits; do
         fi
         log=$logs/${commit:0:8}-$step.log
         start=$SECONDS
-        if (cd "$scratch" && run_step $step) </dev/null >"$log" 2>&1; then
+        rc=0
+        (cd "$scratch" && run_step $step "$log") </dev/null || rc=$?
+        # A build that never got a slot or free disk wrote no log; the host is busy, not the commit.
+        [ $rc != 75 ] || [ -e "$log" ] || exit 75
+        if [ $rc = 0 ]; then
             line="$line  $step"
             [ $step != spm-test ] || line="$line $(read_log count "$log")"
             line="$line $((SECONDS - start))s"

@@ -79,7 +79,7 @@ To run a control commit's app and then this worktree's on one simulator (`instal
 For the CLI there is no server. Build once, then every drive gets its own home:
 
 ```bash
-swift build --product workout
+scripts/build-slot.sh swift build --product workout
 export WORKOUT_HOME=$(mktemp -d) && .build/debug/workout init --scenario fresh-block
 ```
 
@@ -177,7 +177,7 @@ after. The second `shot` prints the tree lines that changed with positions ignor
 only moved is not a change; quote those lines verbatim. Prove side effects alongside the screen.
 After a log under `-UITEST_OFFLINE`, the header reads `Sync status: 1 unsynced` and the branch
 gains a `Set 1, 237.5x5@6` button. For store or sync effects with no UI question, run the same operation through the CLI and
-quote its JSON, or run the covering `swift test --filter` suite. The fixture sheet is a local workbook,
+quote its JSON, or run the covering `scripts/build-slot.sh swift test --filter` suite. The fixture sheet is a local workbook,
 and a log flushes into it as it would into the coach's Sheet. `-UITEST_OFFLINE` makes it read as
 Offline after the boot, so a log stays queued, until `verify.sh online` brings it back. A green flush in fixture mode proves the queue and the cells, not Google. Exercise the real path (taps, the log button, the CLI verbs), never a `-UITEST_*` flag that
 jumps to the end state.

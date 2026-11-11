@@ -10,8 +10,13 @@ trap 'rm -rf "$root"' EXIT
 repo=$root/repo
 mkdir -p "$repo/scripts" "$root/bin"
 cp "$script_dir/../crap.sh" "$script_dir/../test-log-summary.sh" "$script_dir/../test-log-summary.awk" \
-    "$script_dir/../disk-floor.sh" "$script_dir/../sim-lock.sh" "$repo/scripts/"
+    "$script_dir/../disk-floor.sh" "$script_dir/../sim-lock.sh" "$script_dir/../build-slot.sh" "$script_dir/../dev-usage.sh" \
+    "$script_dir/../dev-usage.py" "$script_dir/../hostgate-version" "$repo/scripts/"
 export WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
+# A fake hostgate first on PATH, so no test takes or waits for a real host slot.
+mkdir -p "$root/bin" && cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
+export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
+unset HOSTGATE_SLOT
 pass=0
 fail=0
 
@@ -149,5 +154,13 @@ case "$status $(sed -E 's/after [0-2] s/after N s/' "$root/err")" in
     *) bad "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")" ;;
 esac
 
+rm -f "$root/tool-calls"
+STUB_LOG=$root/test.log FAKE_HOSTGATE_GIVE_UP=1 PATH="$root/bin:$PATH" "$repo/scripts/crap.sh" gate >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 75 ] && [ ! -e "$root/tool-calls" ]; then
+    ok "a slot hostgate gives up on stops crap.sh with 75, not as a test failure"
+else
+    bad "a slot hostgate gives up on stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")"
+fi
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

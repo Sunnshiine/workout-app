@@ -24,6 +24,7 @@ PROJECT = os.environ.get("CLAUDE_PROJECT_DIR")
 SLOT = os.path.join(PROJECT, "scripts/build-slot.sh") if PROJECT else "scripts/build-slot.sh"
 TEST_SIM = os.path.join(PROJECT, "scripts/test-sim.sh") if PROJECT else "scripts/test-sim.sh"
 ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*=")
+ARRAY_ASSIGNMENT = re.compile(r"[A-Za-z_]\w*\+?=")
 REPO_SCRIPT = re.compile(r"(^|/)scripts/[^/]+$")
 
 REDIRECTIONS = ["<<<", "<<-", "&>>", "<<", "&>", ">>", "<>", ">&", "<&", ">|", "<", ">"]
@@ -150,6 +151,16 @@ def tokens(text):
         elif c == "#" and word is None:
             j = text.find("\n", i)
             i = len(text) if j < 0 else j
+        elif c == "(" and word is not None and ARRAY_ASSIGNMENT.fullmatch(word):
+            # An array literal's elements are words, not a command; the $(...) among them still run.
+            j, substitutions = array_end(text, i)
+            extend(text[i:j], i)
+            end_word()
+            for start, end in substitutions:
+                out.append(("op", "(", start - 1))
+                out.extend((kind, part, start + at) for kind, part, at in tokens(text[start:end]))
+                out.append(("op", ")", end))
+            i = j
         elif op := next((o for o in OPERATORS if text.startswith(o, i)), None):
             if op in REDIRECTIONS and word is not None and word.isdigit():
                 word = None
@@ -214,6 +225,35 @@ def substitution_end(text, i):
             depth += (c == "(") - (c == ")") if closer == ")" else 0
             i += 1
     raise ValueError("unclosed substitution")
+
+
+def array_end(text, i):
+    """(the index just past the ) that closes the array literal whose ( is at i, as in args=(swift test),
+    [(start, end) of the commands inside each unquoted $(...) among its elements])."""
+    substitutions = []
+    i += 1
+    while i < len(text):
+        c = text[i]
+        if c == "\\":
+            i += 2
+        elif c == ")":
+            return i + 1, substitutions
+        elif text.startswith("$(", i):
+            j = substitution_end(text, i)
+            substitutions.append((i + 2, j - 1))
+            i = j
+        elif c == "'":
+            j = text.find("'", i + 1)
+            if j < 0:
+                raise ValueError("unclosed quote")
+            i = j + 1
+        elif c == '"':
+            i = dquote_end(text, i)
+        elif c == "`" or text.startswith(("$(", "${"), i):
+            i = substitution_end(text, i)
+        else:
+            i += 1
+    raise ValueError("unclosed array")
 
 
 def unescape_dquoted(raw):
@@ -333,6 +373,9 @@ RULES = {
     "xcodebuild": xcodebuild_refusal,
 }
 
+# The first words scripts/receipt.sh runs through scripts/build-slot.sh; keep the two lists the same.
+RECEIPT_SLOTS = set(RULES)
+
 
 def refusal(argv):
     """(offset in the text to insert the slot at, kinds) for a raw build, or None to allow."""
@@ -346,7 +389,13 @@ def refusal(argv):
         return None
     if REPO_SCRIPT.search(head.text):
         if name == "receipt.sh" and "--" in texts:
-            return refusal(argv[texts.index("--") + 1:])
+            # receipt.sh runs its command in a slot only when the command's first word is the build
+            # itself, as RECEIPT_SLOTS lists; behind env, time or any other word it runs raw.
+            command = argv[texts.index("--") + 1:]
+            inner = refusal(command)
+            if inner and command and os.path.basename(command[0].text) in RECEIPT_SLOTS:
+                return inner if SIM_TEST in inner[1] else None
+            return inner
         return None
     if name in KEYWORDS:
         return refusal(argv[1:])

@@ -205,8 +205,13 @@ refuse	xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme Wo
 refuse	xcodebuild -project P -scheme S
 refuse	xcodebuild archive -scheme S
 refuse	xcodebuild clean build -scheme S
-refuse	scripts/receipt.sh unit -- swift test	scripts/receipt.sh unit -- @SLOT@ swift test
-refuse	bash scripts/receipt.sh unit -- swift test	bash scripts/receipt.sh unit -- @SLOT@ swift test
+refuse	scripts/receipt.sh unit -- xcodebuild test -scheme X	scripts/receipt.sh unit -- @SLOT@ xcodebuild test -scheme X
+refuse	scripts/receipt.sh unit -- env FOO=1 swift test	scripts/receipt.sh unit -- @SLOT@ env FOO=1 swift test
+refuse	scripts/receipt.sh unit -- time swift test	scripts/receipt.sh unit -- time @SLOT@ swift test
+refuse	scripts/receipt.sh unit -- nice swift build	scripts/receipt.sh unit -- @SLOT@ nice swift build
+refuse	scripts/receipt.sh unit -- xcrun swift test	scripts/receipt.sh unit -- @SLOT@ xcrun swift test
+refuse	a=(x $(swift build))	a=(x $(@SLOT@ swift build))
+refuse	args=(--filter X) && swift test	args=(--filter X) && @SLOT@ swift test
 allow	swift --version
 allow	swift
 allow	swift package resolve
@@ -244,6 +249,11 @@ allow	hostgate run -- swift test
 allow	scripts/test-sim.sh unit
 allow	scripts/crap.sh gate
 allow	scripts/receipt.sh unit -- scripts/build-slot.sh swift test
+allow	scripts/receipt.sh unit -- swift test
+allow	bash scripts/receipt.sh unit -- swift build
+allow	args=(swift test --filter X)
+allow	args+=(swift build) && echo "${args[@]}"
+allow	local cmd=(xcodebuild build -scheme S) other=(swift test)
 allow	xcodebuild -version
 allow	xcodebuild -showBuildSettings -project P
 allow	xcodebuild -list

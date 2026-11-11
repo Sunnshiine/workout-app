@@ -69,7 +69,14 @@ echo "Executed 2 tests, with 0 failures (0 unexpected) in 0.1 seconds"
 printf '\033[1m\342\227\207 Test run with 3 tests in 1 suite passed after 0.2 seconds.\033[0m\n'
 EOF
 chmod +x "$root/bin/swift"
-PATH="$root/bin:$PATH" make_receipt unit -- swift test
+cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
+PATH="$root/bin:$PATH" HOME="$root/home" FAKE_HOSTGATE_LOG="$root/hostgate.log" WORKOUT_DISK_FLOOR=0 \
+    WORKOUT_HOST_LOCK_DIR="$root/locks" make_receipt unit -- swift test
+case $(cat "$root/hostgate.log" 2>/dev/null) in
+    "label=workout-app:receipt.sh wait=- nested=no "*" record swift test -- swift test")
+        ok "a raw swift command runs in a host-wide slot labelled workout-app:receipt.sh" ;;
+    *) bad "a raw swift command runs in a host-wide slot labelled workout-app:receipt.sh, got: $(cat "$root/hostgate.log" 2>/dev/null)" ;;
+esac
 head=$(git rev-parse HEAD)
 expect_exit "receipt.sh on a passing command" "$status" 0
 expect_line "the receipt" "$block" "sha: $head"

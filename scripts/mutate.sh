@@ -263,7 +263,16 @@ run_check() {
             reason=$(cat "$log.stderr")
             return
         fi
-        (cd "$scratch" && with_timeout "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
+        # The slot wait counts against neither the build's limit nor the tests' share of it.
+        rm -f "$log.admitted"
+        (cd "$scratch" && "$script_dir/build-slot.sh" --as mutate.sh sh -c 'date +%s >"$0" && exec "$@"' "$log.admitted" \
+            env WITH_TIMEOUT_PY="$with_timeout_py" python3 -c "$with_timeout_py" "$limit" swift build --build-tests) </dev/null >"$log" 2>&1 || rc=$?
+        if [ ! -f "$log.admitted" ]; then
+            result=busy
+            reason=$(tail -1 "$log")
+            return
+        fi
+        start=$((SECONDS - ($(date +%s) - $(cat "$log.admitted"))))
         if [ $rc = 0 ] && [ -n "$build_only" ]; then
             result=pass
             return

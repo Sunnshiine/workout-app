@@ -97,8 +97,10 @@ step() {
 
 run_tests() {
     local log="$OUT/test.log"
-    rm -rf "$PROFILES"
-    if ! test_command >"$log" 2>&1; then
+    rm -rf "$PROFILES" "$log"
+    if ! test_command "$log"; then
+        # Without a log the tests never started: the host stayed busy (75), which is no test failure.
+        [[ -e $log ]] || exit 75
         scripts/test-log-summary.sh --cause "$log" >&2 || true
         echo "crap.sh: tests failed; see $log" >&2
         exit 1
@@ -112,7 +114,7 @@ run_tests() {
 
 test_command() {
     if [[ -z $XCODEBUILD_DIR ]]; then
-        swift test --enable-code-coverage
+        scripts/build-slot.sh --as crap.sh --log "$1" swift test --enable-code-coverage
         return
     fi
     # The sibling WorkoutTracker.xcodeproj would win over Package.swift, so name the package
@@ -121,7 +123,7 @@ test_command() {
     mkdir -p "$workspace"
     printf '<?xml version="1.0" encoding="UTF-8"?>\n<Workspace version = "1.0">\n<FileRef location = "self:"></FileRef>\n</Workspace>\n' \
         >"$workspace/contents.xcworkspacedata"
-    xcodebuild test -workspace "$workspace" -scheme WorkoutTracker -destination platform=macOS \
+    scripts/build-slot.sh --as crap.sh --log "$1" xcodebuild test -workspace "$workspace" -scheme WorkoutTracker -destination platform=macOS \
         -enableCodeCoverage YES -collect-test-diagnostics never \
         -skipPackagePluginValidation -skipMacroValidation \
         -derivedDataPath "$XCODEBUILD_DIR/DerivedData" \
@@ -162,8 +164,10 @@ export_lcov() {
 }
 
 build_tool() {
-    swift build --package-path tools/crap >"$OUT/build.log" 2>&1 ||
+    rm -f "$OUT/build.log"
+    scripts/build-slot.sh --as crap.sh --log "$OUT/build.log" swift build --package-path tools/crap ||
         {
+            [[ -e $OUT/build.log ]] || exit 75
             cat "$OUT/build.log" >&2
             exit 1
         }

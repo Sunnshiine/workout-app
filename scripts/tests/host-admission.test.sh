@@ -53,19 +53,13 @@ VERIFY_RUN=lane-812 STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; 
 expect "a takeover the host refuses leaves the run's app recorded and announces nothing" \
     "$status $(ls "$state" | tr '\n' ' ')$(grep -c "taking over" "$root/err")" "75 args lock pid run 0"
 reset; own_the_app lane-812 5 ""
-WORKOUT_BUILD_SLOTS=1 neighbour_build
-VERIFY_RUN=lane-812 WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
-touch "$root/release"; wait "$first"
-expect "a takeover refused at the build slot uninstalls and announces nothing, and keeps the record" \
-    "$status $(cat "$root/xcrun-calls" 2>/dev/null)$(grep -c "taking over" "$root/err") $(ls "$state" | tr '\n' ' ')" \
-    "75 0 args lock pid run "
+VERIFY_RUN=lane-812 FAKE_HOSTGATE_GIVE_UP=1 test_sim; status=$?
+expect "a takeover whose build hostgate refuses exits 75 before any xcodebuild" "$status $(builds)" "75 "
 reset; own_the_app abandoned-run 61
 STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 test_sim --no-build; status=$?
 expect "a reclaim the host refuses leaves the abandoned run recorded" "$status $(ls "$state" | tr '\n' ' ')" "75 args lock pid run "
 reset; own_the_app abandoned-run 61
-WORKOUT_BUILD_SLOTS=1 neighbour_build
-WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
-touch "$root/release"; wait "$first"
+FAKE_HOSTGATE_GIVE_UP=1 test_sim; status=$?
 test_sim --no-build; status="$status $?"
 expect "a reclaim refused at the build slot leaves the run to the next claim, which reclaims it" \
     "$status $(grep -c 'owns the app' "$root/err")" "75 65 0"
@@ -131,8 +125,8 @@ STUB_DISK_FREE_MB=0 WORKOUT_DISK_FLOOR=0 WORKOUT_ADMIT_WAIT=0 test_sim; status=$
 expect "a floor of 0 never reads the disk" "$status $(cat "$root/df-calls" 2>/dev/null)" "65 "
 reset
 (cd "$repo" && STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 "$repo/scripts/build-slot.sh" sh -c 'echo ran' >"$root/out" 2>"$root/err"); status=$?
-expect "build-slot.sh refuses its command the same way" "$status $(cat "$root/out")$(refusal)" \
-    "75 gave up after N s waiting for a build slot: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
+expect "build-slot.sh refuses its command the same way, before hostgate" "$status $(cat "$root/out")$(refusal)" \
+    "75 gave up after N s waiting for free disk: free disk is 1000 MB on the volume holding $repo, under the floor of 5120 MB (WORKOUT_DISK_FLOOR) a build needs"
 reset
 mkdir -p "$root/elsewhere"
 STUB_DISK_FREE_MB=1000 STUB_LOW_DISK_PATH=$root/elsewhere WORKOUT_ADMIT_WAIT=0 "$repo/scripts/disk-floor.sh" "$root/elsewhere" 2>"$root/err"; status=$?

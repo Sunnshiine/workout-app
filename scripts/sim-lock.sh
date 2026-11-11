@@ -162,7 +162,7 @@ claim_sim() {
   simlock simctl bootstatus "$sim" -b >/dev/null 7>&- 8>&- 9>&- || { echo "simulator $sim did not boot" >&6; exit 69; }
 }
 
-admit_claim() { mem_clear && { [ "$1" = 0 ] || admit_build; }; }
+admit_claim() { mem_clear && { [ "$1" = 0 ] || disk_clear; }; }
 
 # A Live Activity outlives its app's process, so only an uninstall ends one from outside the app.
 launched_with_live_activities() {
@@ -242,18 +242,13 @@ host_knob() {
   eval "$name=\$value"
 }
 
-# A build queue that moves is not stuck: the budget restarts each time a build slot changes hands.
 wait_until_clear() {
-  local what=$1 begun start waited said=-60 holders_seen=
+  local what=$1 start waited said=-60
   shift
-  begun=$(date +%s) start=$begun
-  while slot_holders=; ! "$@"; do
-    if [ -n "$slot_holders" ] && [ "$slot_holders" != "$holders_seen" ]; then
-      [ -z "$holders_seen" ] || start=$(date +%s)
-      holders_seen=$slot_holders
-    fi
-    waited=$(($(date +%s) - begun))
-    if [ $(($(date +%s) - start)) -ge "$WORKOUT_ADMIT_WAIT" ]; then
+  start=$(date +%s)
+  while ! "$@"; do
+    waited=$(($(date +%s) - start))
+    if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
       echo "gave up after $waited s waiting for $what: $busy_reason" >&6
       exit 75
     fi
@@ -318,44 +313,68 @@ load_clear() {
   return 1
 }
 
-take_build_slot() {
-  local slot i=0 tries_past_a_probe=3
-  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
-    slot=$host_lock_dir/build-$i
-    exec 8>>"$slot"
-    if try_flock 8 LOCK_EX "$tries_past_a_probe"; then
-      printf '%s (pid %s)\n' "${0##*/}" "$$" > "$slot"
-      build_slot=$slot
-      return 0
-    fi
-    exec 8>&-
-  done
-  slots_taken
-}
-
-slots_taken() {
-  local i=0 holders=
-  while [ $((i += 1)) -le "$WORKOUT_BUILD_SLOTS" ]; do
-    holders="$holders${holders:+, }$(cat "$host_lock_dir/build-$i")"
-  done
-  slot_holders=$holders
-  busy_reason="all $WORKOUT_BUILD_SLOTS build slots are taken (WORKOUT_BUILD_SLOTS): $holders; lsof $host_lock_dir/build-* lists every process holding one"
-  return 1
-}
-
-drop_build_slot() {
-  exec 8>&-
-  build_slot=
-}
-
-admit_build() { mem_clear && disk_clear && take_build_slot; }
-
+# Every heavy build on this Mac takes one of hostgate's host-wide slots, shared with every repo on it.
+# hostgate's own lines go to fd 6, the caller's stderr. With --log FILE the command's output goes to
+# FILE; redirecting the whole call would bury hostgate's wait lines in it.
 with_build_slot() {
-  local rc=0
-  [ -n "${build_slot:-}" ] || wait_until_clear "a build slot" admit_build
-  "$@" 6>&- || rc=$?
-  drop_build_slot
+  local log=
+  [ "${1:-}" != --log ] || { log=$2; shift 2; }
+  [ -n "${HOSTGATE_SLOT:-}" ] || wait_until_clear "free disk" disk_clear
+  if [ -n "$log" ]; then
+    hostgate_run sh -c 'exec "$@" >"$0" 2>&1' "$log" "$@"
+  else
+    hostgate_run "$@"
+  fi
+}
+
+# Runs the command through hostgate run, or directly with one loud line when hostgate is missing, or
+# when it fails before it starts the command. Exits as the command does, or 75, saying what to do
+# next, when hostgate gave up waiting for a slot.
+hostgate_run() {
+  local pin have wait=() started rc=0 install="gh api -H 'Accept: application/vnd.github.raw' repos/Sunnshiine/hostgate/contents/install | sh"
+  pin=$(cat "$sim_lock_checkout/scripts/hostgate-version")
+  if ! command -v hostgate >/dev/null; then
+    echo "hostgate is not on PATH, so this build takes no host-wide slot and may stall every other agent; install it: $install" >&6
+    "$@" 6>&-
+    return
+  fi
+  have=$(hostgate --version 2>/dev/null) || have=unknown
+  older_version "$have" "$pin" \
+    && echo "hostgate $have is older than the $pin this repo pins (scripts/hostgate-version); update it: $install" >&6
+  [ -z "$admit_wait_set" ] || wait=(--wait "$WORKOUT_ADMIT_WAIT")
+  # The command removes this file as it starts, so a file left after a failed run means hostgate
+  # never started it.
+  started=$(mktemp) || exit 70
+  hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
+    -- sh -c 'rm -f "$0" && exec "$@"' "$started" "$@" 2>&6 6>&- || rc=$?
+  if [ -e "$started" ]; then
+    rm -f "$started"
+    case $rc in
+      0) ;;
+      75)
+        echo "no host-wide build slot came free in time, so nothing was built; \`hostgate status\` names who holds them. Rerun when one frees, or wait longer with WORKOUT_ADMIT_WAIT=<seconds>" >&6
+        ;;
+      69) ;;
+      *)
+        echo "hostgate run failed (exit $rc) before it started the build, so this build takes no host-wide slot and may stall every other agent; reinstall it: $install" >&6
+        rc=0
+        "$@" 6>&- || rc=$?
+        ;;
+    esac
+  fi
   return $rc
+}
+
+# True when version $1 is lower than $2, or is not MAJOR.MINOR.PATCH.
+older_version() {
+  local a b i
+  [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0
+  IFS=. read -ra a <<< "$1"
+  IFS=. read -ra b <<< "$2"
+  for i in 0 1 2; do
+    [ "${a[i]}" -eq "${b[i]}" ] || { [ "${a[i]}" -lt "${b[i]}" ]; return; }
+  done
+  return 1
 }
 
 require_sim_free() {
@@ -365,8 +384,8 @@ require_sim_free() {
 
 host_knob WORKOUT_MEM_FLOOR 25 0
 host_knob WORKOUT_DISK_FLOOR 5120 0
+admit_wait_set=${WORKOUT_ADMIT_WAIT:+1}
 host_knob WORKOUT_ADMIT_WAIT 540 0
-host_knob WORKOUT_BUILD_SLOTS 2 1
 host_knob WORKOUT_LEASE_MINUTES 60 1
 sim_device='iPhone 17 Pro'
 sim_runtime=27.0

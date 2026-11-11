@@ -27,23 +27,17 @@ reset
 STUB_LOAD=212.40 WORKOUT_ADMIT_WAIT=0 verify_build; status=$?
 expect "a 1-minute load of 212.40 holds no build" "$status $(builds)" "65 build"
 reset
-WORKOUT_BUILD_SLOTS=1 neighbour_build
-WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 verify_build
-expect "verify.sh build's slot refusal reaches stderr through the build log's redirect" "$(refusal)" \
-    "gave up after N s waiting for a build slot: all 1 build slots are taken (WORKOUT_BUILD_SLOTS): test-sim.sh (pid $first); lsof $root/locks/build-* lists every process holding one"
-touch "$root/release"; wait "$first"
+verify_build; status=$?
+expect "verify.sh build runs in a slot labelled workout-app:verify.sh" "$status $(builds) | $(slots)" \
+    "65 build | label=workout-app:verify.sh wait=- nested=no xcodebuild build"
 reset
-WORKOUT_BUILD_SLOTS=2 neighbour_build
-WORKOUT_BUILD_SLOTS=2 WORKOUT_ADMIT_WAIT=0 verify_build; status=$?
-expect "verify.sh build takes the second slot beside a test-sim.sh build" "$status $(builds)" "65 build-for-testing build"
-touch "$root/release"; wait "$first"
+FAKE_HOSTGATE_SAY="hostgate: waiting up to 540 s for a slot" verify_build
+expect "hostgate's wait lines reach stderr through the build log's redirect" "$(grep -c 'waiting up to 540 s' "$root/err")" "1"
 reset
-STUB_MEM_LEVEL=12 WORKOUT_ADMIT_WAIT=0 verify_build; status=$?
-expect "verify.sh build waits for memory as a claim does, and gives up with 75 before any xcodebuild" "$status $(builds) $(refusal)" \
-    "75  gave up after N s waiting for a build slot: free memory is 12%, under the floor of 25% (WORKOUT_MEM_FLOOR)"
-reset
-STUB_MEM_LEVEL=12 STUB_LOW_MEM_CALLS=1 WORKOUT_ADMIT_WAIT=30 verify_build; status=$?
-expect "and builds once memory frees" "$status $(builds)" "65 build"
+FAKE_HOSTGATE_GIVE_UP=1 verify_build; status=$?
+expect "a build hostgate gives up on exits 75 before any xcodebuild, naming why and what to do next" \
+    "$status $(builds) $(grep -c '^hostgate: gave up waiting for a slot held by workout-app:neighbour$' "$root/err") $(tail -1 "$root/err" | cut -c1-41)" \
+    "75  1 no host-wide build slot came free in time"
 
 echo "a reclaimed run"
 reset; own_the_app abandoned-run 61
@@ -82,9 +76,7 @@ VERIFY_RUN=abandoned-run verify tree >/dev/null 2>"$root/err"
 expect "a launch of the reclaimed run takes its name back" "$(grep -c reclaimed "$root/err")" "0"
 
 reset; own_the_app abandoned-run 61
-WORKOUT_BUILD_SLOTS=1 neighbour_build
-WORKOUT_BUILD_SLOTS=1 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?
-touch "$root/release"; wait "$first"
+FAKE_HOSTGATE_GIVE_UP=1 test_sim; status=$?
 verify tree >/dev/null 2>&1
 test_sim --no-build; status="$status $?"
 expect "a reclaim refused at the build slot stays reclaimed, though a verify.sh call that names no run follows" \

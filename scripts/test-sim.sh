@@ -23,10 +23,10 @@ the simulator, or a verify run whose app on it was used in the last WORKOUT_LEAS
 when your Simlock identity already holds a lease and no --sim names it. Waits while the host is busy,
 saying why once a minute: in Simlock's queue for a simulator, while free memory
 (kern.memorystatus_level, percent) is under WORKOUT_MEM_FLOOR (25; 0 turns it off), and to build
-while all WORKOUT_BUILD_SLOTS (2) host-wide build slots are taken or free disk on the checkout's or
-HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it off). Gives up with exit 75 after
-WORKOUT_ADMIT_WAIT seconds (540) in either wait; the build-slot budget restarts each time a slot
-changes hands.
+while free disk on the checkout's or HOME's volume is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it
+off). Gives up with exit 75 after WORKOUT_ADMIT_WAIT seconds (540) in either wait. The build alone
+runs in a host-wide hostgate slot (scripts/build-slot.sh --help), which can wait too and exit 75;
+the test run takes none.
 A selection that includes WorkoutTrackerUITests first runs scripts/sim-keyboard.sh ensure, which
 turns off the keyboard preference that hides the software keyboard and prints one `keyboard:` line.
 Every test run writes a result bundle and prints its path. A run's files in .build/test-sim are
@@ -48,6 +48,12 @@ The last line, on every exit after this usage text, is
   test-sim: suite=<s> passed=<n> failed=<m> expected=<k> exit=<e> load1=<start>/<end> bundle=<path>
 where expected= counts tests whose only issues were known issues, which passed= leaves out, exit= is
 this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
+Each XCTest test gets WORKOUT_TEST_ALLOWANCE seconds (60), or up to WORKOUT_TEST_MAX_ALLOWANCE (300)
+when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the whole test run
+outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it (SIGTERM, then SIGKILL
+WORKOUT_TEST_KILL_GRACE seconds (10) later), so a run that stops making
+progress cannot hold its simulator for good.
+A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the run the same way and exits 142.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
@@ -55,8 +61,28 @@ EOF
 
 load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
+# Stops every watcher, then the test run, on every exit, so nothing this script started outlives it.
+# A background xcodebuild ignores the terminal's SIGINT, so a run stopped mid-test stops it here: SIGTERM,
+# then SIGKILL after WORKOUT_TEST_KILL_GRACE seconds, and waits for it. Each signal goes through
+# signal_same, so it reaches only the process this script started, never a pid number reused since.
+stop_run() {
+  local tenths
+  [ -z "${watchdog:-}" ] || { signal_same TERM "$watchdog" "$watchdog_stamp"; wait "$watchdog"; } 2>/dev/null
+  watchdog=
+  [ -n "${run_pid:-}" ] || return 0
+  signal_same TERM "$run_pid" "$run_stamp"
+  for ((tenths = 0; tenths < ${WORKOUT_TEST_KILL_GRACE:-10} * 10; tenths++)); do
+    same_process "$run_pid" "$run_stamp" || break
+    sleep 0.1
+  done
+  signal_same KILL "$run_pid" "$run_stamp"
+  wait "$run_pid" 2>/dev/null
+  run_pid=
+}
+
 finish() {
   local rc=$? counts="- - -" passed failed expected shown=- result
+  stop_run
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
     shown=$bundle
     counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
@@ -86,9 +112,17 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
+# A caller's bound such as perl -e 'alarm N' sends SIGALRM, which would otherwise end the script with
+# finish reading exit=0 for a run stop_run cut short.
+trap 'echo "test-sim: stopped by SIGALRM, most likely a caller'"'"'s alarm bound, before the test run ended" >&2; exit 142' ALRM
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
+. "$repo/scripts/same-process.sh"
+host_knob WORKOUT_TEST_ALLOWANCE 60 1
+host_knob WORKOUT_TEST_MAX_ALLOWANCE 300 1
+host_knob WORKOUT_TEST_RUN_LIMIT 3600 1
+host_knob WORKOUT_TEST_KILL_GRACE 10 1
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -121,9 +155,11 @@ mkdir -p "$logs"
 stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
-  with_build_slot xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker -destination "$destination" \
-    -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO > "$logs/$stamp-build.log" 2>&1 \
-    || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
+  rc=0
+  with_build_slot --log "$logs/$stamp-build.log" xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker \
+    -destination "$destination" -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO || rc=$?
+  [ $rc != 75 ] || [ -e "$logs/$stamp-build.log" ] || exit 75
+  [ $rc = 0 ] || { grep -m 20 -E "error:|BUILD FAILED" "$logs/$stamp-build.log" >&2 || true; echo "build log: $logs/$stamp-build.log" >&2; exit 65; }
 fi
 
 xctestrun=$(for plist in ~/Library/Developer/Xcode/DerivedData/WorkoutTracker-*/info.plist; do
@@ -139,8 +175,27 @@ bundle=$logs/$stamp.xcresult
 echo "bundle: $bundle"
 set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
-  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1
+  -test-timeouts-enabled YES -default-test-execution-time-allowance "$WORKOUT_TEST_ALLOWANCE" \
+  -maximum-test-execution-time-allowance "$WORKOUT_TEST_MAX_ALLOWANCE" \
+  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1 6>&- 7>&- 8>&- 9>&- &
+run_pid=$!
+run_stamp=$(proc_stamp "$run_pid")
+# A run that never ends holds its simulator for good, as xcodebuild idling after its last test did.
+# finish stops the watchdog; after a SIGKILL of this script it runs on and still bounds xcodebuild.
+"$repo/scripts/test-run-watchdog.pl" "$WORKOUT_TEST_RUN_LIMIT" "$WORKOUT_TEST_KILL_GRACE" "$run_pid" \
+  "$run_stamp" "$log.overran" \
+  </dev/null >/dev/null 2>&1 6>&- 7>&- 8>&- 9>&- &
+watchdog=$!
+watchdog_stamp=$(proc_stamp "$watchdog")
+wait "$run_pid"
 rc=$?
+run_pid=
+stop_run
+if [ -e "$log.overran" ]; then
+  rm -f "$log.overran"
+  echo "the test run outlived WORKOUT_TEST_RUN_LIMIT ($WORKOUT_TEST_RUN_LIMIT s), so it was stopped; the log's last lines show where it stood: $log" >&2
+  exit 124
+fi
 # What xcodebuild prints when CoreSimulator or the test runner breaks rather than the app (#537, #908).
 # "Early unexpected exit" only from the XCTest runner; the app crashing at launch prints it too.
 fault=$([ $rc = 0 ] || grep -m1 -oE 'did not return a process handle nor launch error|Simulator device failed to launch|com\.apple\.CoreSimulator\.SimError|The test runner failed to initialize for UI testing|Lost connection to testmanagerd|-Runner \([0-9]+\) encountered an error \(Early unexpected exit' "$log") || true

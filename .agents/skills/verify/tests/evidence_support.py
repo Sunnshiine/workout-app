@@ -114,6 +114,14 @@ def without_simlock(path):
     return os.pathsep.join(d for d in path.split(os.pathsep) if not os.access(os.path.join(d, "simlock"), os.X_OK))
 
 
+def fake_hostgate_first(path, scratch):
+    """PATH with scripts/tests/fake-hostgate first, so no test takes or waits for a real host slot."""
+    bin_dir = os.path.join(scratch, "hostgate-bin")
+    os.makedirs(bin_dir, exist_ok=True)
+    shutil.copy(SKILL.parents[2] / "scripts/tests/fake-hostgate", os.path.join(bin_dir, "hostgate"))
+    return bin_dir + os.pathsep + path
+
+
 FAKE_SIMLOCK = r'''#!/usr/bin/env python3
 import fcntl, json, os, sys, time
 STATE = {state!r}
@@ -220,7 +228,10 @@ def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
     os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0",
-                      WORKOUT_BUILD_SLOTS="100", WORKOUT_HOST_LOCK_DIR=locks, PATH=without_simlock(os.environ["PATH"]))
+                      WORKOUT_HOST_LOCK_DIR=locks, HOSTGATE_STATE_DIR=os.path.join(locks, "hostgate"),
+                      WORKOUT_DEV_USAGE_DIR=os.path.join(locks, "dev-usage"),
+                      PATH=fake_hostgate_first(without_simlock(os.environ["PATH"]), locks))
+    os.environ.pop("HOSTGATE_SLOT", None)
     EVIDENCE_BEFORE[:] = evidence_files(DEFAULT_EVIDENCE)
     os.environ["VERIFY_EVIDENCE"] = tempfile.mkdtemp()
 
