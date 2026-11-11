@@ -32,9 +32,13 @@ tree_cpu() {
 # the log, a window of WORKOUT_TEST_IDLE_SECONDS with no output and under 1% of a CPU stops it. Before
 # then its tree says nothing: the test runner and the app are launchd_sim's children, not xcodebuild's.
 # The window is idle only when xcodebuild's tree holds the same pids at both ends and their CPU grew by
-# under 1% of it: a descendant that started or exited inside it was work. A watcher whose script was
-# killed keeps bounding xcodebuild ($1, started at $2), and exits once that process is gone; it signals a
-# pid only while the pid still names that process, its own poll's sleep included.
+# under 1% of it, without falling: a descendant that started or exited inside it was work, and a sum that
+# fell means a pid passed to another process. So a hung tree whose descendants come and go without pause
+# is never idle, and only WORKOUT_TEST_RUN_LIMIT ends it: ps shows no CPU for a child that started and
+# exited between polls, not even with -S, so that tree reads the same as one working in short children. A
+# watcher whose script was killed keeps bounding xcodebuild ($1, started at $2), and exits once that
+# process is gone; it signals a pid only while the pid still names that process, its own poll's sleep
+# included.
 watch_idle() {
   local pid=$1 born=$2 size='' since='' cpu now_size now_cpu nap='' nap_stamp
   exec 6>&- 7>&- 8>&- 9>&- >/dev/null 2>&1
@@ -49,7 +53,7 @@ watch_idle() {
     fi
     [ $((SECONDS - since)) -ge "$WORKOUT_TEST_IDLE_SECONDS" ] || continue
     if [ "${now_cpu#* }" = "${cpu#* }" ] &&
-      awk -v start="${cpu%% *}" -v end="${now_cpu%% *}" -v window="$WORKOUT_TEST_IDLE_SECONDS" 'BEGIN { exit !(end - start < window / 100) }'; then
+      awk -v start="${cpu%% *}" -v end="${now_cpu%% *}" -v window="$WORKOUT_TEST_IDLE_SECONDS" 'BEGIN { exit !(end >= start && end - start < window / 100) }'; then
       same_process "$pid" "$born" || exit 0
       : >"$idle_mark"
       signal_same TERM "$pid" "$born"
