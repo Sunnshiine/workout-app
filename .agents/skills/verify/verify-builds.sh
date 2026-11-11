@@ -101,6 +101,10 @@ worktree_build_note() {
   fi
 }
 
+refuse_stuck_build() {
+  check_sandbox_report "verify.sh will not start the build: the SwiftLint build plug-in would hang until the operator clears the finding above, by restarting sandboxd while no simulator lease is held, or by rebooting. Until then an app built before still works: verify.sh install and launch put it on the simulator, shot takes a screenshot, and find and tap drive it."
+}
+
 xcodebuild_build() {
   local derived=() rc=0
   [ -z "$2" ] || derived=(-derivedDataPath "$2")
@@ -161,6 +165,7 @@ ensure_cached() {
   root=$(cache_root)
   app=$(cached_app_path "$sha")
   cache_hit "$app" && return 0
+  refuse_stuck_build
   mkdir -p "$root/logs"
   lock=$root/$sha.lock
   exec 4>>"$lock"

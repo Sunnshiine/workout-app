@@ -9,10 +9,13 @@ identity is FAKE_SIMLOCK_WHO (default agent-test). The devices are the UDIDs in 
 A lease without --detach prints its grant, then stays up until SIGTERM or SIGINT, or until --bind-pid's
 process dies, and releases on the way out, as the real one does. It also exits once the state directory
 is gone, so a test that loses track of one leaves no process behind. A lease with --detach prints its grant
-and exits; it lasts until release.
+and exits; it lasts until release, with the TTL --ttl names (default 60m). --mode (slim or full, default
+full) is stored on the lease and shown as its device's mode in list --devices. `lease renew <id> [--ttl d]`
+restarts the TTL, set to d when given. Lease and renew log lines carry the mode and the TTL asked for.
 
 Knobs: FAKE_SIMLOCK_REFUSE=<code> makes every lease fail with that exit code. FAKE_SIMLOCK_REVOKE=<file>
-makes a running lease release and exit 14 once <file> exists. `simctl <args>` runs `xcrun simctl <args>`
+takes the caller's leases back once <file> exists: a running lease releases and exits 14, and a renew or
+list --leases releases them, after which the renew fails. `simctl <args>` runs `xcrun simctl <args>`
 from PATH, so the harness's xcrun answers it.
 """
 import fcntl
@@ -64,7 +67,21 @@ def options(args):
     return found
 
 
+def duration_ms(text):
+    units = {"s": 1000, "m": 60 * 1000, "h": 60 * 60 * 1000}
+    if len(text) < 2 or text[-1] not in units or not text[:-1].isdigit():
+        print("fake simlock: a duration is digits and s, m or h: " + text, file=sys.stderr)
+        sys.exit(2)
+    return int(text[:-1]) * units[text[-1]]
+
+
 def grant(opts):
+    mode = opts.get("--mode", "full")
+    if mode not in ("slim", "full"):
+        print("fake simlock: --mode is slim or full: " + mode, file=sys.stderr)
+        sys.exit(2)
+    asked = opts.get("--ttl", "60m") if "--detach" in opts else None
+
     def take(leases, state):
         if any(lease["requesterId"] == WHO for lease in leases):
             return 13
@@ -72,9 +89,9 @@ def grant(opts):
         free = [udid for udid in DEVICES if udid not in taken]
         if not free:
             return 11 if "--no-wait" in opts else 10
-        ttl = 60 * 60 * 1000 if "--detach" in opts else 60 * 1000
+        ttl = duration_ms(asked) if asked else 60 * 1000
         state["next"] += 1
-        lease = {"id": "lse_{}".format(state["next"] - 1), "udid": free[0],
+        lease = {"id": "lse_{}".format(state["next"] - 1), "udid": free[0], "mode": mode,
                  "requesterId": WHO, "ttlMs": ttl, "ttlDeadline": now_ms() + ttl}
         leases.append(lease)
         return lease
@@ -88,8 +105,9 @@ def grant(opts):
     if lease in (10, 11):
         refuse(lease, "no free device")
     bound = opts.get("--bind-pid")
-    log("lease {} {} by {}{}".format(lease["id"], lease["udid"], WHO,
-                                     ", detached" if "--detach" in opts else ", bound to pid {}".format(bound)))
+    log("lease {} {} by {}{}, mode {}{}".format(lease["id"], lease["udid"], WHO,
+                                              ", detached" if "--detach" in opts else ", bound to pid {}".format(bound),
+                                              mode, ", ttl " + asked if asked else ""))
     print(json.dumps({"lease": {"id": lease["id"], "ttlDeadline": lease["ttlDeadline"]},
                       "device": {"id": "dev_" + lease["udid"], "driverDeviceId": lease["udid"],
                                  "address": lease["udid"]}, "environment": {}}), flush=True)
@@ -130,28 +148,50 @@ def hold(lease, bound):
     drop(lease["id"], stop[0])
 
 
-# Shaped as simlock 0.6.0 prints them: list --devices carries each UDID, list --leases does not.
+def take_back():
+    """Releases the caller's leases once FAKE_SIMLOCK_REVOKE's file exists, as Simlock taking them back."""
+    revoke = os.environ.get("FAKE_SIMLOCK_REVOKE")
+    if not revoke or not os.path.exists(revoke):
+        return
+
+    def remove(leases, _):
+        mine = [lease["id"] for lease in leases if lease["requesterId"] == WHO]
+        leases[:] = [lease for lease in leases if lease["requesterId"] != WHO]
+        return mine
+
+    for lease_id in update(remove):
+        log("release {}: revoked".format(lease_id))
+
+
+# Shaped as simlock 0.6.0 prints them: list --devices carries each UDID and mode, list --leases neither.
 def listing(what):
     if what == "--devices":
-        print(json.dumps([{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid, "state": "ready"}
-                          for udid in DEVICES]))
+        modes = {lease["udid"]: lease.get("mode", "full") for lease in update(lambda leases, _: list(leases))}
+        print(json.dumps([{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid, "state": "ready",
+                           "mode": modes.get(udid, "full")} for udid in DEVICES]))
         return
+    take_back()
     leases = update(lambda leases, _: list(leases))
     print(json.dumps([{"id": lease["id"], "deviceId": "dev_" + lease["udid"], "requesterId": lease["requesterId"],
                        "ttlMs": lease["ttlMs"], "ttlDeadline": lease["ttlDeadline"]} for lease in leases]))
 
 
-def renew(lease_id):
+def renew(lease_id, opts):
+    asked = opts.get("--ttl")
+
     def extend(leases, _):
         for lease in leases:
             if lease["id"] == lease_id and lease["requesterId"] == WHO:
+                if asked:
+                    lease["ttlMs"] = duration_ms(asked)
                 lease["ttlDeadline"] = now_ms() + lease["ttlMs"]
                 return True
         return False
 
+    take_back()
     if not update(extend):
         refuse(1, "no lease {} of yours".format(lease_id))
-    log("renew {}".format(lease_id))
+    log("renew {}{}".format(lease_id, ", ttl " + asked if asked else ""))
 
 
 def main():
@@ -164,7 +204,7 @@ def main():
     elif verb == "list" and args in (["--devices"], ["--leases"]):
         listing(args[0])
     elif verb == "lease" and args[:1] == ["renew"]:
-        renew(args[1])
+        renew(args[1], options(args[2:]))
     elif verb == "lease":
         opts = options(list(args))
         lease, bound = grant(opts)

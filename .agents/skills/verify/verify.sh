@@ -6,6 +6,7 @@ repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
 tiler=$repo/scripts/contact-sheet.swift
 . "$repo/scripts/sim-lock.sh"
+. "$repo/scripts/sandbox-preflight.sh"
 host_knob WORKOUT_LOAD_LIMIT 50 1
 project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
@@ -32,6 +33,7 @@ relaunch="launch <fixture>"
 
 case $cmd in
   build)
+    refuse_stuck_build
     resolve_sim
     commit=$(git -C "$repo" rev-parse HEAD)
     changes=$(git -C "$repo" status --porcelain -- "${inputs[@]}")

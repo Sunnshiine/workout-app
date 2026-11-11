@@ -23,7 +23,7 @@ chmod +x "$repo/scripts/sim-keyboard.sh"
 export WORKOUT_MEM_FLOOR=0 WORKOUT_DISK_FLOOR=0 WORKOUT_HOST_LOCK_DIR=$root/locks
 # A fake hostgate first on PATH, so no test takes or waits for a real host slot.
 mkdir -p "$root/bin" && cp "$script_dir/fake-hostgate" "$root/bin/hostgate"
-export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
+export FAKE_HOSTGATE_LOG=$root/hostgate.log FAKE_HOSTGATE_CHECK_LOG=$root/hostgate-calls HOSTGATE_STATE_DIR=$root/hostgate-state WORKOUT_DEV_USAGE_DIR=$root/dev-usage
 unset HOSTGATE_SLOT
 pass=0
 fail=0
@@ -47,7 +47,14 @@ cp "$STUB_OUT" "$STUB_SEEN"
 [ -z "${STUB_TOUCH:-}" ] || { touch "$STUB_TOUCH"; sleep 0.5; }
 [ -z "${STUB_DEAF:-}" ] || trap '' TERM
 [ -z "${STUB_RELEASE:-}" ] || while [ ! -e "$STUB_RELEASE" ]; do sleep 0.1; done
-[ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
+# perl names the stub's path in its arguments, so pgrep -f still finds it, and SIGTERM ends it with 143.
+[ -z "${STUB_SLEEP:-}" ] || exec perl -e 'select undef, undef, undef, shift' "$STUB_SLEEP" "$0"
+[ -z "${STUB_SPIN:-}" ] || exec perl -e '$end = time + shift; 1 while time < $end' "$STUB_SPIN"
+[ -z "${STUB_CHILD_SPIN:-}" ] || { perl -e '$end = time + shift; 1 while time < $end' "$STUB_CHILD_SPIN"; exit 0; }
+# Busy for 20 s: a child spins 10 s, idles, and exits at 13 s, while the parent spins throughout.
+[ -z "${STUB_BUSY_CHILD_EXITS:-}" ] || exec perl -e '$start = time; $spin = sub { my $end = $start + shift; 1 while time < $end };
+    if (!fork) { $spin->(10); sleep 1 while time < $start + 13; exit 0 } $spin->(20); wait; exit 0'
+[ -z "${STUB_HANG:-}" ] || exec sleep "$STUB_HANG"
 [ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"
 exit "$STUB_RC"
 STUB
@@ -101,3 +108,18 @@ check() {
         printf '    stdout:\n%s\n    last line:\n%s\n    stderr:\n%s\n' "$out" "$last" "$err"
     fi
 }
+
+# shellcheck source=scripts/same-process.sh
+. "$repo/scripts/same-process.sh"
+
+# Put $root/recycled-bin first on PATH, and once $STUB_RECYCLED names a pid, ps reports another start
+# year for it, as a recycled pid would show.
+mkdir -p "$root/recycled-bin"
+cat >"$root/recycled-bin/ps" <<'STUB'
+#!/bin/sh
+out=$(/bin/ps "$@") || exit
+pid=$(cat "$STUB_RECYCLED" 2>/dev/null)
+case " $* " in *" -p $pid "*) [ -n "$pid" ] && out=$(printf '%s\n' "$out" | sed 's/ 20[0-9][0-9]/ 1970/') ;; esac
+printf '%s\n' "$out"
+STUB
+chmod +x "$root/recycled-bin/ps"

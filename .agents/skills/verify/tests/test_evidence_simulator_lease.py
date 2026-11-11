@@ -87,9 +87,9 @@ class SimulatorLease(unittest.TestCase):
             "simulator %s (Simlock lease lse_%s); verify.sh release gives it back\n") % (self.udid, self.udid)))
         self.assertEqual(self.simlock.calls(), [
             "simlock whoami", "simlock list --leases", "simlock list --devices",
-            "simlock lease --platform ios --device iPhone 17 Pro --os 27.0 --timeout 540s --detach --ttl 60m",
-            "simlock whoami", "simlock list --leases", "simlock list --devices", "simlock simctl bootstatus %s -b" % self.udid,
-        ], "a detached lease with a TTL, checked again by the claim, and booted through Simlock")
+            "simlock lease --platform ios --device iPhone 17 Pro --os 27.0 --mode full --timeout 540s --detach --ttl 60m",
+            "simlock simctl bootstatus %s -b" % self.udid,
+        ], "a detached full lease with a TTL, booted through Simlock")
         self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)])
         steps = [call.split() for call in calls if call.split()[:3] in [["xcrun", "simctl", step] for step in
                                                                           ["bootstatus", "install", "launch"]]]
@@ -183,18 +183,16 @@ class SimulatorLease(unittest.TestCase):
         code, out, err, calls = self.run_test_sim("--sim", self.udid, "unit")
         self.assertEqual((code, out, err, calls), (78, "", NO_SIMLOCK, []))
 
-    def test_test_sim_without_sim_is_refused_while_you_hold_a_lease_and_runs_on_it_with_sim(self):
+    def test_test_sim_runs_on_the_verify_lease_you_hold_with_or_without_sim(self):
         self.simlock.hold(self.udid)
-        code, out, err, calls = self.run_test_sim("unit")
-        self.assertEqual((code, out, calls), (75, "", []))
-        self.assertEqual(err.splitlines()[-1], (
-            "your Simlock identity already holds a lease (simulator %s, lease lse_%s); pass that simulator with --sim "
-            "or SIM=, or simlock release its lease first") % (self.udid, self.udid), "Simlock refused a second lease (exit 13)")
-        code, out, err, calls = self.run_test_sim("--sim", self.udid, "unit")
-        self.assertEqual(code, 65, "the stub build failed: %s" % err)
-        self.assertIn("xcodebuild build-for-testing", "\n".join(calls))
-        self.assertIn("-destination platform=iOS Simulator,id=%s " % self.udid, "\n".join(calls))
-        self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)], "the lease it reused is still yours")
+        for argv in [["unit"], ["--sim", self.udid, "unit"]]:
+            with self.subTest(argv=argv):
+                code, out, err, calls = self.run_test_sim(*argv)
+                self.assertEqual(code, 65, "the stub build failed: %s" % err)
+                self.assertIn("-destination platform=iOS Simulator,id=%s " % self.udid, "\n".join(calls))
+                self.assertEqual([call for call in self.simlock.calls() if call.startswith(("simlock lease --", "simlock release"))], [],
+                                 "it leased and released nothing")
+                self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)], "the lease it reused is still yours")
 
     def test_a_lowercase_sim_launches_on_the_simulator_simlock_spells_in_capitals(self):
         self.simlock.hold(self.udid)

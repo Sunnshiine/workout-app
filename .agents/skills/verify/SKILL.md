@@ -20,6 +20,12 @@ simlock whoami                                     # once: Simlock knows who you
 .agents/skills/verify/verify.sh launch session     # install + launch into a fixture, returns when the tree answers
 ```
 
+Before any build, `build` or an app-cache build, `hostgate check --only sandbox-report` runs. When
+it finds sandbox reporting stuck, the build would hang at the SwiftLint plug-in, so verify exits 75
+and names the finding. Only the operator can clear it. A check that runs past
+`WORKOUT_SANDBOX_CHECK_SECONDS` (12) prints one warning and builds. Until then, an app built before still
+installs, launches, and takes shots and taps.
+
 Every simulator comes from Simlock (the `simlock` skill), one lease per agent. `build`, `install`,
 or `launch` leases an iPhone 17 Pro on iOS 27.0 when you hold none, and prints its UDID and lease.
 Every later call finds that lease, and every call but `diff`, `sheet`, and `crop` renews it, so you
@@ -27,9 +33,8 @@ never pass the simulator. Without a lease, `stop` and `release` have nothing to 
 and any other command exits 2, naming `verify.sh launch`. `verify.sh release` stops the app and gives the
 simulator back. Otherwise Simlock reclaims it `WORKOUT_LEASE_MINUTES` (60) after the last call.
 `SIM=<udid>` names only the simulator of a lease you hold, and any other UDID exits 2. To run tests
-on it, pass the same UDID: `scripts/test-sim.sh --sim <udid> unit`. Without `--sim`, `test-sim.sh`
-asks for a second lease, Simlock refuses it (exit 13), and `test-sim.sh` exits 75 naming the
-simulator you hold. Without `simlock` on PATH every command that touches a simulator exits 78.
+on it, run `scripts/test-sim.sh unit`: it runs on the lease you hold and never shortens or releases
+it. Without `simlock` on PATH every command that touches a simulator exits 78.
 Never create, erase, or delete a simulator, and boot or shut one down only through `simlock simctl`.
 XcodeBuildMCP drives the same lease. Set the UDID `launch` printed with `session_set_defaults
 {simulatorId}` alone; its `screenshot`, `snapshot_ui`, `touch` and `tap` take no `simulatorId` and read
