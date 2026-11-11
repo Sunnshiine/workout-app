@@ -248,5 +248,13 @@ else
     bad "a SIGTERM to the hunt left $(alive $recorded $child) of: $recorded $child"
 fi
 
+STUB_LOG=$root/swift.log STUB_RC=0 FAKE_HOSTGATE_GIVE_UP=1 PATH="$root/bin:$PATH" \
+    "$repo/scripts/flake-hunt.sh" --load 0 --repetitions 1 >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 75 ]; then
+    ok "a slot hostgate gives up on stops the hunt with 75, not as a build failure"
+else
+    bad "a slot hostgate gives up on stops the hunt with 75: exit $status, $(cat "$root/err")"
+fi
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

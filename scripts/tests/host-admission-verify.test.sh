@@ -35,8 +35,9 @@ FAKE_HOSTGATE_SAY="hostgate: waiting up to 540 s for a slot" verify_build
 expect "hostgate's wait lines reach stderr through the build log's redirect" "$(grep -c 'waiting up to 540 s' "$root/err")" "1"
 reset
 FAKE_HOSTGATE_GIVE_UP=1 verify_build; status=$?
-expect "a build hostgate gives up on exits 75 before any xcodebuild, naming why" "$status $(builds) $(tail -1 "$root/err")" \
-    "75  hostgate: gave up waiting for a slot held by workout-app:neighbour"
+expect "a build hostgate gives up on exits 75 before any xcodebuild, naming why and what to do next" \
+    "$status $(builds) $(grep -c '^hostgate: gave up waiting for a slot held by workout-app:neighbour$' "$root/err") $(tail -1 "$root/err" | cut -c1-41)" \
+    "75  1 no host-wide build slot came free in time"
 
 echo "a reclaimed run"
 reset; own_the_app abandoned-run 61

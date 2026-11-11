@@ -327,10 +327,11 @@ with_build_slot() {
   fi
 }
 
-# Runs the command through hostgate run, or directly with one loud line when hostgate is missing.
-# Exits as the command does, or 75 when hostgate gave up waiting for a slot.
+# Runs the command through hostgate run, or directly with one loud line when hostgate is missing, or
+# when it fails before it starts the command. Exits as the command does, or 75, saying what to do
+# next, when hostgate gave up waiting for a slot.
 hostgate_run() {
-  local pin have wait=() install="gh api -H 'Accept: application/vnd.github.raw' repos/Sunnshiine/hostgate/contents/install | sh"
+  local pin have wait=() started rc=0 install="gh api -H 'Accept: application/vnd.github.raw' repos/Sunnshiine/hostgate/contents/install | sh"
   pin=$(cat "$sim_lock_checkout/scripts/hostgate-version")
   if ! command -v hostgate >/dev/null; then
     echo "hostgate is not on PATH, so this build takes no host-wide slot and may stall every other agent; install it: $install" >&6
@@ -341,7 +342,27 @@ hostgate_run() {
   older_version "$have" "$pin" \
     && echo "hostgate $have is older than the $pin this repo pins (scripts/hostgate-version); update it: $install" >&6
   [ -z "$admit_wait_set" ] || wait=(--wait "$WORKOUT_ADMIT_WAIT")
-  hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} -- "$@" 2>&6 6>&-
+  # The command removes this file as it starts, so a file left after a failed run means hostgate
+  # never started it.
+  started=$(mktemp) || exit 70
+  hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
+    -- sh -c 'rm -f "$0" && exec "$@"' "$started" "$@" 2>&6 6>&- || rc=$?
+  if [ -e "$started" ]; then
+    rm -f "$started"
+    case $rc in
+      0) ;;
+      75)
+        echo "no host-wide build slot came free in time, so nothing was built; \`hostgate status\` names who holds them. Rerun when one frees, or wait longer with WORKOUT_ADMIT_WAIT=<seconds>" >&6
+        ;;
+      69) ;;
+      *)
+        echo "hostgate run failed (exit $rc) before it started the build, so this build takes no host-wide slot and may stall every other agent; reinstall it: $install" >&6
+        rc=0
+        "$@" 6>&- || rc=$?
+        ;;
+    esac
+  fi
+  return $rc
 }
 
 # True when version $1 is lower than $2, or is not MAJOR.MINOR.PATCH.

@@ -206,6 +206,10 @@ refuse	xcodebuild -project P -scheme S
 refuse	xcodebuild archive -scheme S
 refuse	xcodebuild clean build -scheme S
 refuse	scripts/receipt.sh unit -- xcodebuild test -scheme X	scripts/receipt.sh unit -- @SLOT@ xcodebuild test -scheme X
+refuse	scripts/receipt.sh unit -- env FOO=1 swift test	scripts/receipt.sh unit -- @SLOT@ env FOO=1 swift test
+refuse	scripts/receipt.sh unit -- time swift test	scripts/receipt.sh unit -- time @SLOT@ swift test
+refuse	scripts/receipt.sh unit -- nice swift build	scripts/receipt.sh unit -- @SLOT@ nice swift build
+refuse	scripts/receipt.sh unit -- xcrun swift test	scripts/receipt.sh unit -- @SLOT@ xcrun swift test
 refuse	a=(x $(swift build))	a=(x $(@SLOT@ swift build))
 refuse	args=(--filter X) && swift test	args=(--filter X) && @SLOT@ swift test
 allow	swift --version

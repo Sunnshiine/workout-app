@@ -106,6 +106,14 @@ run_lint "$fx/scripts/lint.sh" "$fx/App/Root.swift"
 expect_exit "doc symbols, file run" "$status" 0
 expect_no_text "doc symbols, file run" "$both" "Doc symbols"
 
+echo "build slots: a whole-tree run fails on a script that starts a build outside a hostgate slot"
+fresh_fixture
+baseline_config
+printf '#!/bin/bash\nswift build\n' >"$fx/scripts/raw-build.sh"
+run_lint
+expect_exit "build slots" "$status" 1
+expect_line "build slots" "$out" "error: scripts/raw-build.sh:2: runs swift build outside a host-wide slot; prefix it with scripts/build-slot.sh --as raw-build.sh"
+
 echo "skill links: a whole-tree run fails on a skill with no link, and a file run skips it"
 fresh_fixture
 baseline_config

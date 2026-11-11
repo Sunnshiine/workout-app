@@ -373,6 +373,9 @@ RULES = {
     "xcodebuild": xcodebuild_refusal,
 }
 
+# The first words scripts/receipt.sh runs through scripts/build-slot.sh; keep the two lists the same.
+RECEIPT_SLOTS = set(RULES)
+
 
 def refusal(argv):
     """(offset in the text to insert the slot at, kinds) for a raw build, or None to allow."""
@@ -386,9 +389,13 @@ def refusal(argv):
         return None
     if REPO_SCRIPT.search(head.text):
         if name == "receipt.sh" and "--" in texts:
-            # receipt.sh runs a raw swift or xcodebuild in a slot itself, but leases no simulator.
-            inner = refusal(argv[texts.index("--") + 1:])
-            return inner if inner and SIM_TEST in inner[1] else None
+            # receipt.sh runs its command in a slot only when the command's first word is the build
+            # itself, as RECEIPT_SLOTS lists; behind env, time or any other word it runs raw.
+            command = argv[texts.index("--") + 1:]
+            inner = refusal(command)
+            if inner and command and os.path.basename(command[0].text) in RECEIPT_SLOTS:
+                return inner if SIM_TEST in inner[1] else None
+            return inner
         return None
     if name in KEYWORDS:
         return refusal(argv[1:])

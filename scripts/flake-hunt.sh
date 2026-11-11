@@ -35,7 +35,8 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo"
 run=${WORKOUT_RUN:-flake-hunt-$$}
 "$repo/scripts/reap.sh" --check "$run"
-log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S).log
+# The pid keeps two hunts started in the same second from sharing a log, which would read as a build.
+log=$repo/.build/flake-hunt/$(date +%Y%m%d-%H%M%S)-$$.log
 mkdir -p "$(dirname "$log")"
 echo "log: $log"
 "$repo/scripts/disk-floor.sh"

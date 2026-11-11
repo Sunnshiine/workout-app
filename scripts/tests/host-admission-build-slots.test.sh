@@ -32,6 +32,7 @@ expect "a build hostgate gives up on exits 75 before any xcodebuild, not as a bu
     "$status $(builds) $(grep -c 'build log' "$root/err")" "75  0"
 expect "and its give-up line is the refusal" "$(grep -m1 '^hostgate:' "$root/err")" \
     "hostgate: gave up waiting for a slot held by workout-app:neighbour"
+expect "then one line names the next step" "$(grep -c 'no host-wide build slot came free in time.*hostgate status.*WORKOUT_ADMIT_WAIT' "$root/err")" "1"
 reset
 WORKOUT_ADMIT_WAIT=30 test_sim
 expect "WORKOUT_ADMIT_WAIT, when set, is hostgate's wait" "$(slots)" \
@@ -60,8 +61,14 @@ build_slot "$repo/scripts/build-slot.sh" --as inner.sh true; status=$?
 expect "a build-slot.sh inside a slot takes no second one" "$status $(cut -d' ' -f1-3 "$root/hostgate.log" | tr '\n' ';')" \
     "0 label=workout-app:build-slot.sh wait=- nested=no;label=workout-app:inner.sh wait=- nested=yes;"
 reset
+HOSTGATE_SLOT=1 WORKOUT_DISK_FLOOR=99999999 WORKOUT_ADMIT_WAIT=0 build_slot true; status=$?
+expect "a build-slot.sh inside a slot runs at once, as its caller already waited for disk" "$status" "0"
+reset
 FAKE_HOSTGATE_GIVE_UP=1 build_slot touch "$root/ran"; status=$?
 expect "when hostgate gives up it exits 75 without running the command" "$status $([ -f "$root/ran" ] && echo ran)" "75 "
+reset
+(cd "$repo" && build_slot sh -c 'exit 75'); status=$?
+expect "a command's own 75 is its status, with no slot line" "$status $(grep -c 'came free' "$root/err")" "75 0"
 
 echo "hostgate missing or old"
 reset
@@ -73,6 +80,17 @@ reset
 no_hostgate test_sim; status=$?
 expect "test-sim.sh builds without hostgate, after the same line" "$status $(builds) $(grep -c 'hostgate is not on PATH' "$root/err")" \
     "65 build-for-testing 1"
+reset
+FAKE_HOSTGATE_BROKEN=1 build_slot sh -c 'echo ran; exit 3'; status=$?
+expect "a hostgate that fails before it starts the command says so, names the install, and runs it anyway" \
+    "$status $(cat "$root/out") $(grep -c 'hostgate run failed (exit 1) before it started the build.*reinstall it: ' "$root/err")" "3 ran 1"
+reset
+FAKE_HOSTGATE_BROKEN=1 test_sim; status=$?
+expect "test-sim.sh builds through a broken hostgate rather than calling it a build failure" \
+    "$status $(builds) $(grep -c 'hostgate run failed' "$root/err")" "65 build-for-testing 1"
+reset
+FAKE_HOSTGATE_BROKEN=69 build_slot touch "$root/ran"; status=$?
+expect "a required check hostgate refuses on is its 69, and the command does not run" "$status $([ -f "$root/ran" ] && echo ran)" "69 "
 reset
 FAKE_HOSTGATE_VERSION=0.9.9 build_slot true; status=$?
 expect "an older hostgate gets a loud line and still runs the command through it" \

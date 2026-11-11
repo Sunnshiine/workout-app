@@ -11,9 +11,11 @@ and stderr to FILE and leaves the waits' lines on stderr. It first waits, saying
 minute, while free disk is under WORKOUT_DISK_FLOOR (5120 MB; 0 turns it off), and exits 75 after
 WORKOUT_ADMIT_WAIT seconds (540). hostgate then waits for its memory floor and a free slot, saying who
 holds them once a minute, and exits 75 when its wait runs out (WORKOUT_ADMIT_WAIT when set, else its
-own). A command already inside a slot (HOSTGATE_SLOT set) runs at once and takes no second one.
-When hostgate is missing, as on CI, it prints one line naming the install command and runs the
-command with no slot; when hostgate is older than scripts/hostgate-version, it says so and uses it.
+own), with a line naming what to do next. A command already inside a slot (HOSTGATE_SLOT set) runs at
+once and takes no second one.
+When hostgate is missing, as on CI, or fails before it starts the command, it prints one line naming
+the install command and runs the command with no slot; when hostgate is older than
+scripts/hostgate-version, it says so and uses it.
 Otherwise exits with the command's status.
 scripts/dev-usage.sh record meters the command, as "<command> <first arg>", into commands.tsv.
 EOF_HELP

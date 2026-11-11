@@ -50,7 +50,8 @@ where expected= counts tests whose only issues were known issues, which passed= 
 this script's exit status, `-` means unknown, and load1 is the 1-minute load average.
 Each XCTest test gets WORKOUT_TEST_ALLOWANCE seconds (60), or up to WORKOUT_TEST_MAX_ALLOWANCE (300)
 when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the whole test run
-outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it, so a run that stops making
+outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it (SIGTERM, then SIGKILL
+WORKOUT_TEST_KILL_GRACE seconds (10) later), so a run that stops making
 progress cannot hold its simulator for good.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
@@ -59,8 +60,28 @@ EOF
 
 load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
+# Stops every watcher, then the test run, on every exit, so nothing this script started outlives it.
+# A background xcodebuild ignores the terminal's SIGINT, so a run stopped mid-test stops it here: SIGTERM,
+# then SIGKILL after WORKOUT_TEST_KILL_GRACE seconds, and waits for it. Each signal goes through
+# signal_same, so it reaches only the process this script started, never a pid number reused since.
+stop_run() {
+  local tenths
+  [ -z "${watchdog:-}" ] || { signal_same TERM "$watchdog" "$watchdog_stamp"; wait "$watchdog"; } 2>/dev/null
+  watchdog=
+  [ -n "${run_pid:-}" ] || return 0
+  signal_same TERM "$run_pid" "$run_stamp"
+  for ((tenths = 0; tenths < ${WORKOUT_TEST_KILL_GRACE:-10} * 10; tenths++)); do
+    same_process "$run_pid" "$run_stamp" || break
+    sleep 0.1
+  done
+  signal_same KILL "$run_pid" "$run_stamp"
+  wait "$run_pid" 2>/dev/null
+  run_pid=
+}
+
 finish() {
   local rc=$? counts="- - -" passed failed expected shown=- result
+  stop_run
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
     shown=$bundle
     counts=$(xcrun xcresulttool get test-results summary --path "$bundle" --compact 2>/dev/null | python3 -c '
@@ -78,7 +99,6 @@ print(s["passedTests"], s["failedTests"], s["expectedFailures"])' 2>/dev/null) |
     } 2>/dev/null >>"$logs/$stamp-test.log" || true
   fi
   echo "$result"
-  [ -z "${run_pid:-}" ] || kill -TERM "$run_pid" 2>/dev/null
   end_lease
   exit "$rc"
 }
@@ -94,9 +114,11 @@ trap 'exit 129' HUP
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"
+. "$repo/scripts/same-process.sh"
 host_knob WORKOUT_TEST_ALLOWANCE 60 1
 host_knob WORKOUT_TEST_MAX_ALLOWANCE 300 1
 host_knob WORKOUT_TEST_RUN_LIMIT 3600 1
+host_knob WORKOUT_TEST_KILL_GRACE 10 1
 project=$repo/WorkoutTracker.xcodeproj
 build=1
 sim=${SIM:-}
@@ -151,17 +173,20 @@ set +e
 xcodebuild test-without-building -xctestrun "$xctestrun" -destination "$destination" \
   -test-timeouts-enabled YES -default-test-execution-time-allowance "$WORKOUT_TEST_ALLOWANCE" \
   -maximum-test-execution-time-allowance "$WORKOUT_TEST_MAX_ALLOWANCE" \
-  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1 7>&- 8>&- 9>&- &
+  -collect-test-diagnostics never -resultBundlePath "$bundle" CODE_SIGNING_ALLOWED=NO "${targets[@]}" > "$log" 2>&1 6>&- 7>&- 8>&- 9>&- &
 run_pid=$!
+run_stamp=$(proc_stamp "$run_pid")
 # A run that never ends holds its simulator for good, as xcodebuild idling after its last test did.
-perl -e 'sleep $ARGV[0]; exit 0 unless kill 0, $ARGV[1]; open my $f, ">", $ARGV[2]; kill "TERM", $ARGV[1]' \
-  "$WORKOUT_TEST_RUN_LIMIT" "$run_pid" "$log.overran" 7>&- 8>&- 9>&- &
+# finish stops the watchdog; after a SIGKILL of this script it runs on and still bounds xcodebuild.
+"$repo/scripts/test-run-watchdog.pl" "$WORKOUT_TEST_RUN_LIMIT" "$WORKOUT_TEST_KILL_GRACE" "$run_pid" \
+  "$run_stamp" "$log.overran" \
+  </dev/null >/dev/null 2>&1 6>&- 7>&- 8>&- 9>&- &
 watchdog=$!
+watchdog_stamp=$(proc_stamp "$watchdog")
 wait "$run_pid"
 rc=$?
 run_pid=
-kill "$watchdog" 2>/dev/null
-wait "$watchdog" 2>/dev/null
+stop_run
 if [ -e "$log.overran" ]; then
   rm -f "$log.overran"
   echo "the test run outlived WORKOUT_TEST_RUN_LIMIT ($WORKOUT_TEST_RUN_LIMIT s), so it was stopped; the log's last lines show where it stood: $log" >&2

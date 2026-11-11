@@ -45,6 +45,7 @@ done
 cat "$STUB_LOG"
 cp "$STUB_OUT" "$STUB_SEEN"
 [ -z "${STUB_TOUCH:-}" ] || { touch "$STUB_TOUCH"; sleep 0.5; }
+[ -z "${STUB_DEAF:-}" ] || trap '' TERM
 [ -z "${STUB_RELEASE:-}" ] || while [ ! -e "$STUB_RELEASE" ]; do sleep 0.1; done
 [ -z "${STUB_SLEEP:-}" ] || sleep "$STUB_SLEEP"
 [ -z "${STUB_BACKDATE:-}" ] || python3 -c 'import os, sys, time; t = time.time() - 30 * 60; os.utime(sys.argv[1], (t, t))' "$STUB_BACKDATE"

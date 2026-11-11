@@ -154,5 +154,13 @@ case "$status $(sed -E 's/after [0-2] s/after N s/' "$root/err")" in
     *) bad "free disk under WORKOUT_DISK_FLOOR stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")" ;;
 esac
 
+rm -f "$root/tool-calls"
+STUB_LOG=$root/test.log FAKE_HOSTGATE_GIVE_UP=1 PATH="$root/bin:$PATH" "$repo/scripts/crap.sh" gate >"$root/out" 2>"$root/err"
+status=$?
+if [ "$status" = 75 ] && [ ! -e "$root/tool-calls" ]; then
+    ok "a slot hostgate gives up on stops crap.sh with 75, not as a test failure"
+else
+    bad "a slot hostgate gives up on stops crap.sh with 75: exit $status, $(cat "$root/out" "$root/err")"
+fi
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

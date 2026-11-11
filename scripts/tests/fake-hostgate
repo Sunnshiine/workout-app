@@ -5,7 +5,8 @@
 # "label=L wait=S nested=yes|no CMD..." to FAKE_HOSTGATE_LOG (wait - when not given), then runs CMD
 # with HOSTGATE_SLOT set, as the real one does. FAKE_HOSTGATE_GIVE_UP=1 makes a run that is not nested
 # print a give-up line and exit 75 without running CMD. FAKE_HOSTGATE_SAY=<line> prints that line on
-# stderr before CMD runs, as the real one prints its wait lines.
+# stderr before CMD runs, as the real one prints its wait lines. FAKE_HOSTGATE_BROKEN=<status> makes run
+# fail with that status before it starts CMD, as an install that cannot import its own code does.
 case ${1:-} in
   --version) echo "${FAKE_HOSTGATE_VERSION:-1.0.0}"; exit 0 ;;
   run) shift ;;
@@ -21,6 +22,10 @@ while [ $# -gt 0 ] && [ "$1" != -- ]; do
 done
 [ "${1:-}" = -- ] || { echo "fake hostgate: run needs -- and a command" >&2; exit 64; }
 shift
+if [ -n "${FAKE_HOSTGATE_BROKEN:-}" ]; then
+  echo "Traceback (most recent call last): ImportError: hostgate is broken" >&2
+  exit "$FAKE_HOSTGATE_BROKEN"
+fi
 nested=no
 [ -z "${HOSTGATE_SLOT:-}" ] || nested=yes
 echo "label=$label wait=$wait nested=$nested $*" >> "${FAKE_HOSTGATE_LOG:-/dev/null}"

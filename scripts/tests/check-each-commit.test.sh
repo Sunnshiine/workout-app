@@ -127,5 +127,9 @@ expect "free disk under WORKOUT_DISK_FLOOR on the scratch tree's volume stops th
     "$? $(cat "$STUB_WATCH" "$STUB_XCODE_SEEN" 2>/dev/null)$(sed -E -e 's/free disk is [0-9]+ MB/free disk is N MB/' -e 's/after [0-2] s/after N s/' "$root/err")" \
     "75 gave up after N s waiting for free disk: free disk is N MB on the volume holding $repo/.build/scratch/1, under the floor of 99999999 MB (WORKOUT_DISK_FLOOR) a build needs"
 
+rm -f "$STUB_WATCH" "$STUB_XCODE_SEEN"
+(cd "$repo" && FAKE_HOSTGATE_GIVE_UP=1 scripts/check-each-commit.sh main~1) >"$root/out" 2>"$root/err"
+expect "a slot hostgate gives up on stops the run with 75, not as a failing commit" \
+    "$? $(cat "$STUB_XCODE_SEEN" 2>/dev/null)" "75 "
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1
