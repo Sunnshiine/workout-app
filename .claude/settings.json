@@ -36,7 +36,7 @@
           {
             "type": "command",
             "command": "p=\"${CLAUDE_PROJECT_DIR:-.}/scripts/sim-mcp-hook.py\"; [ -f \"$p\" ] || { echo '{\"systemMessage\": \"sim-mcp-hook: scripts/sim-mcp-hook.py is missing, so this XcodeBuildMCP call runs without its Simlock lease check\"}'; exit 0; }; python3 \"$p\"; s=$?; [ $s -eq 3 ] && exit 2; [ $s -eq 0 ] || echo \"{\\\"systemMessage\\\": \\\"sim-mcp-hook: the lease check exited $s, so this XcodeBuildMCP call runs unchecked\\\"}\"; exit 0",
-            "timeout": 15
+            "timeout": 20
           }
         ]
       }

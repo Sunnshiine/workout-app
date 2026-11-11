@@ -40,6 +40,9 @@ XcodeBuildMCP drives the same lease. Set the UDID `launch` printed with `session
 {simulatorId}` alone; its `screenshot`, `snapshot_ui`, `touch` and `tap` take no `simulatorId` and read
 that default. Prefer `touch` with `down` and `up`; `tap` can miss ([tap.md](tap.md)). After any
 `session_set_defaults` call, `tap` fails with `SNAPSHOT_EXPIRED` until a fresh `snapshot_ui`.
+To drop only the simulator, call `session_clear_defaults {keys: ["simulatorId"]}`. A wider clear also
+drops the project, scheme, `extraArgs` and `derivedDataPath` from `.xcodebuildmcp/config.yaml`, and
+the hook replies with the `session_set_defaults` call that restores them.
 
 Fixtures: `session` (Block 27 W1 D1, Back Squat then BB RDL, 5 pending sets), `settings`,
 `onboarding` (sheet picker with a stale seeded Block), `long-session` (8 exercises),
