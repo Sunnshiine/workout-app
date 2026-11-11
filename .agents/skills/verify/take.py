@@ -5,8 +5,10 @@
                  [-- VERB [ARG...]]
       records from the moment the recorder says it is capturing, runs VERIFY_SH VERB... (its output
       goes to stderr), waits S seconds, stops the recorder with SIGINT only, and prints the stamp's
-      take lines on stdout. Exit 0 VALID, 3 INVALID, 1 the drive failed, 70 the recorder or ffprobe
-      failed; on 1 and 70 no video is kept. VERIFY_RECORD_START (default 10) is how many seconds
+      take lines on stdout. The recorder writes into a folder of its own under
+      ~/Library/Caches/workout-verify, the video moves to PENDING once the recorder stops, and the
+      folder is removed on every exit but SIGKILL. Exit 0 VALID, 3 INVALID, 1 the drive failed, 70
+      the recorder or ffprobe failed; on 1 and 70 no video is kept. VERIFY_RECORD_START (default 10) is how many seconds
       the recorder gets to start capturing. The load is read as the recorder starts capturing and again
       after the take; both are stamped, and only the second, over L, can make it INVALID.
   take.py summary NAME.take
@@ -22,9 +24,11 @@ import dataclasses
 import json
 import os
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import List, Literal, NamedTuple, Optional, Sequence, Tuple, Union
@@ -35,6 +39,7 @@ STOP_GRACE = 15.0
 INT_GRACE = 1.0
 DRIVE_GRACE = 5.0
 POLL = 0.05
+SAME_PROCESS = Path(__file__).resolve().parents[3] / "scripts" / "same-process.sh"
 
 
 def card_frame(text: str) -> Union[Frame, Literal["none"]]:
@@ -176,12 +181,23 @@ def interrupted(signum, _frame):
 
 
 class Recorder:
-    def __init__(self, sim: str, out: Path):
-        self.log = out.with_name(out.name + ".log")
-        with open(str(self.log), "wb") as log:
-            self.proc = subprocess.Popen(
-                ["xcrun", "simctl", "io", sim, "recordVideo", "--codec", "h264", "--force", str(out)],
-                stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    """Records into a folder of its own under ~/Library/Caches: while sandbox reporting is stuck, recordVideo fails
+    with NSCocoaErrorDomain 513 on any path under ~/Projects, and the Caches path still works."""
+
+    def __init__(self, sim: str, name: str):
+        caches = Path.home() / "Library" / "Caches" / "workout-verify"
+        caches.mkdir(parents=True, exist_ok=True)
+        self.stage = Path(tempfile.mkdtemp(prefix="take-", dir=str(caches)))
+        self.video = self.stage / name
+        self.log = self.stage / "recorder.log"
+        try:
+            with open(str(self.log), "wb") as log:
+                self.proc = subprocess.Popen(
+                    ["xcrun", "simctl", "io", sim, "recordVideo", "--codec", "h264", "--force", str(self.video)],
+                    stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+        except BaseException:
+            shutil.rmtree(str(self.stage), ignore_errors=True)
+            raise
 
     def output(self) -> str:
         return self.log.read_text(errors="replace").strip()
@@ -207,10 +223,18 @@ class Recorder:
         deadline = time.time() + STOP_GRACE
         while self.proc.poll() is None:
             if time.time() > deadline:
-                raise NoTake("simctl recordVideo (pid %d) is still running %g s after SIGINT; stop it with: kill -INT %d"
-                             % (self.proc.pid, STOP_GRACE, self.proc.pid))
+                raise NoTake("simctl recordVideo (pid %d) is still running %g s after SIGINT; stop it with: bash -c %s"
+                             % (self.proc.pid, STOP_GRACE, shlex.quote(self.stop_command())))
             time.sleep(POLL)
         return self.proc.returncode
+
+    def stop_command(self) -> str:
+        """The recorder is our unreaped child here, so its pid is still its own; the start time read now keeps the
+        command from signalling whatever process takes the pid once the recorder exits."""
+        stamp = subprocess.run(
+            ["bash", "-c", '. "$1" && proc_stamp "$2"', "_", str(SAME_PROCESS), str(self.proc.pid)],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, universal_newlines=True).stdout.strip()
+        return ". %s && signal_same INT %d %s" % (shlex.quote(str(SAME_PROCESS)), self.proc.pid, shlex.quote(stamp))
 
 
 def load_now(when: str) -> float:
@@ -263,30 +287,35 @@ def run_drive(argv: List[str], env: dict) -> int:
 
 def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, drive: Sequence[str],
          start_timeout: float) -> Take:
-    recorder = Recorder(sim, out)
-    failed = True
+    recorder = Recorder(sim, out.name)
     try:
-        started = recorder.await_capture(start_timeout)
-        load_before = load_now("as the take began")
-        drive_start = time.time() - started
-        if drive:
-            code = run_drive([verify] + list(drive), dict(os.environ, SIM=sim, VERIFY_RUN=run))
-            if code != 0:
-                raise DriveFailed("the drive `%s` exited %d, so the take is not kept" % (shlex.join(drive), code))
-        drive_end = time.time() - started
-        time.sleep(tail)
-        early = recorder.proc.poll() is not None
-        stopped = time.time() - started
-        failed = False
-    finally:
+        failed = True
         try:
-            recorder_exit = recorder.stop()
-        except NoTake as stuck:
-            if not failed:
-                raise
-            print(stuck, file=sys.stderr)
-    load_after = load_now("after the take")
-    pts, size = probe(out)
+            started = recorder.await_capture(start_timeout)
+            load_before = load_now("as the take began")
+            drive_start = time.time() - started
+            if drive:
+                code = run_drive([verify] + list(drive), dict(os.environ, SIM=sim, VERIFY_RUN=run))
+                if code != 0:
+                    raise DriveFailed("the drive `%s` exited %d, so the take is not kept" % (shlex.join(drive), code))
+            drive_end = time.time() - started
+            time.sleep(tail)
+            early = recorder.proc.poll() is not None
+            stopped = time.time() - started
+            failed = False
+        finally:
+            try:
+                recorder_exit = recorder.stop()
+            except NoTake as stuck:
+                if not failed:
+                    raise
+                print(stuck, file=sys.stderr)
+        load_after = load_now("after the take")
+        if recorder.video.exists():
+            shutil.move(str(recorder.video), str(out))
+        pts, size = probe(out)
+    finally:
+        shutil.rmtree(str(recorder.stage), ignore_errors=True)
     return Take(
         name=out.stem, video=out.name, drive=shlex.join(drive), tail=tail, load_limit=limit,
         load_before=round(load_before, 2), load_after=round(load_after, 2), started=round(started, 3),
@@ -317,7 +346,6 @@ def record(argv: List[str]) -> int:
         print(failure, file=sys.stderr)
         return 1 if isinstance(failure, DriveFailed) else 70
     finally:
-        out.with_name(out.name + ".log").unlink(missing_ok=True)
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         signal.signal(signal.SIGTERM, signal.SIG_DFL)
     print("\n".join(take_lines(take)))

@@ -55,6 +55,14 @@ class Record(Lane):
     def listing(self, directory):
         return sorted(p.name for p in directory.iterdir())
 
+    def staged(self):
+        """The path the recorder wrote: a folder of its own under ~/Library/Caches, removed after the take."""
+        video = Path(next(call for call in self.calls() if " recordVideo " in call).rsplit(" ", 1)[1])
+        self.assertEqual((video.parent.parent, video.name),
+                         (self.tmp / "home" / "Library" / "Caches" / "workout-verify", "appear.mp4"))
+        self.assertFalse(video.parent.exists(), "the recorder's folder is removed")
+        return video
+
     def test_a_valid_take_stamps_every_key_in_order_and_stops_the_recorder_with_one_sigint(self):
         self.launch()
         before = time.time()
@@ -82,7 +90,7 @@ class Record(Lane):
         self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 \n")
         self.assertEqual(self.listing(self.run), ["appear.end.txt", "appear.mp4", "appear.take", "launches.txt"])
         self.assertEqual(self.calls()[:3], [
-            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4"),
+            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.staged()),
             "Recording started",
             "axe tap --udid %s --wait-timeout 3 -x 5 -y 6 --tap-style physical" % self.sim,
         ], "the drive ran only after the recorder said it was capturing")
@@ -93,6 +101,14 @@ class Record(Lane):
             "AXStaticText\t\tRest 1:58 remaining\t\t@100,816 202x51\n"))
         self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1,
                          "screen_pt=, card_pt= and the end tree come from one describe after the take")
+
+    def test_a_take_is_kept_when_the_recorder_cannot_write_under_the_repo(self):
+        """While sandbox reporting is stuck, recordVideo fails with Code=513 on any path under ~/Projects."""
+        self.launch()
+        code, _, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_DENY=str(self.run))
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual((self.run / "appear.mp4").read_text(), "mp4 \n")
+        self.staged()
 
     def test_a_take_whose_tree_holds_no_active_set_card_stamps_card_pt_none(self):
         self.launch()
@@ -232,7 +248,7 @@ class Record(Lane):
         self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_NEVER_STARTS="1", VERIFY_RECORD_START="1"),
                          (70, "", "simctl recordVideo did not start capturing within 1 s, so nothing was driven\n"))
         self.assertEqual(self.calls(), [
-            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.run / ".pending" / "appear.mp4")])
+            "xcrun simctl io %s recordVideo --codec h264 --force %s" % (self.sim, self.staged())])
         self.assertEqual(self.signals(), "INT\n")
         self.assertEqual(self.listing(self.run), [".pending", "launches.txt"])
         self.assertEqual(self.listing(self.run / ".pending"), [])

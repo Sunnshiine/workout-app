@@ -60,6 +60,9 @@ case "$tool $1 $2" in
     esac ;;
   "xcrun simctl io")
     out=$8
+    case "$out" in "${STUB_DENY:-/nonexistent}"/*)
+      echo "Error Domain=NSCocoaErrorDomain Code=513 \\"You don't have permission to save the file.\\"" >&2; exit 1 ;;
+    esac
     trap 'echo INT >> "{dir}/signals"; touch "{dir}/stopped"; echo "mp4 ${STUB_MARK:-}" > "$out"; exit 0' INT
     trap 'echo TERM >> "{dir}/signals"; exit 143' TERM
     sleep 0.2

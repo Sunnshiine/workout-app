@@ -1,3 +1,5 @@
+import shlex
+
 from evidence_support import *  # noqa: F401,F403
 
 
@@ -123,7 +125,9 @@ class TakeJudge(unittest.TestCase):
 
 
 
-RECORDER_STUB = """#!/bin/sh
+RECORDER_STUB = """#!/bin/bash
+. "{repo}/scripts/same-process.sh"
+proc_stamp $$ > "{dir}/recorder.stamp"
 echo $$ > "{dir}/recorder.pid"
 if [ -n "${STUB_STUCK:-}" ]; then trap '' INT; else trap 'echo mp4 > "$8"; exit 0' INT; fi
 [ -n "${STUB_NEVER_STARTS:-}" ] || echo "Recording started" >&2
@@ -140,6 +144,17 @@ while :; do sleep 0.1; done
 """
 
 
+def same_process(call, *args):
+    return subprocess.run(["bash", "-c", '. "$0" && %s "$@"' % call, str(REPO / "scripts" / "same-process.sh")]
+                          + list(args)).returncode
+
+
+def running(pid):
+    stat = subprocess.run(["ps", "-o", "stat=", "-p", pid], stdout=subprocess.PIPE,
+                          universal_newlines=True).stdout.strip()
+    return stat != "" and not stat.startswith("Z")
+
+
 class Film(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp()).resolve()
@@ -147,9 +162,11 @@ class Film(unittest.TestCase):
         (self.tmp / "bin").mkdir()
         for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB),
                            (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n")]:
-            path.write_text(stub.replace("{dir}", str(self.tmp)))
+            path.write_text(stub.replace("{dir}", str(self.tmp)).replace("{repo}", str(REPO)))
             path.chmod(0o755)
-        self.env = dict(os.environ, PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
+        self.env = dict(os.environ, HOME=str(self.tmp / "home"),
+                        PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
+        self.staging = self.tmp / "home" / "Library" / "Caches" / "workout-verify"
         self.addCleanup(self.kill_recorder)
         self.saved = take.STOP_GRACE
         self.addCleanup(setattr, take, "STOP_GRACE", self.saved)
@@ -162,10 +179,7 @@ class Film(unittest.TestCase):
     def kill_recorder(self):
         pid = self.tmp / "recorder.pid"
         if pid.exists():
-            try:
-                os.kill(int(pid.read_text()), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            same_process("signal_same KILL", pid.read_text().strip(), (self.tmp / "recorder.stamp").read_text().strip())
 
     def film(self, drive, start_timeout=5.0, **env):
         with mock.patch.dict(os.environ, dict(self.env, **env)), tempfile.TemporaryFile("w+") as stderr, \
@@ -174,13 +188,30 @@ class Film(unittest.TestCase):
                 take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, drive,
                           start_timeout)
             except (take.DriveFailed, take.NoTake) as failure:
+                self.assertEqual(list(self.staging.iterdir()), [], "the recorder's folder is removed")
                 stderr.seek(0)
                 return type(failure).__name__, str(failure), stderr.read()
         self.fail("film returned a take")
 
     def stuck(self):
         pid = int((self.tmp / "recorder.pid").read_text())
-        return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: kill -INT %d\n" % (pid, pid)
+        stamp = (self.tmp / "recorder.stamp").read_text().strip()
+        command = ". %s && signal_same INT %d %s" % (shlex.quote(str(REPO / "scripts" / "same-process.sh")), pid,
+                                                     shlex.quote(stamp))
+        return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: bash -c %s\n" % (
+            pid, shlex.quote(command))
+
+    def test_the_stop_command_for_a_stuck_recorder_signals_it_only_while_it_is_the_same_process(self):
+        hint = self.film_stuck(["fail"])[2]
+        command = hint.split("stop it with: ", 1)[1]
+        self.assertEqual(subprocess.run(command, shell=True).returncode, 0)
+        self.kill_recorder()
+        pid = (self.tmp / "recorder.pid").read_text().strip()
+        deadline = time.time() + 10
+        while running(pid):
+            self.assertLess(time.time(), deadline, "the recorder outlived SIGKILL")
+            time.sleep(0.05)
+        self.assertEqual(subprocess.run(command, shell=True).returncode, 3, "an exited recorder's pid is not signalled")
 
     def test_a_load_that_cannot_be_read_as_the_take_begins_drives_nothing(self):
         (self.tmp / "bin" / "sysctl").write_text("#!/bin/sh\necho 'sysctl: transient' >&2\nexit 1\n")
@@ -219,4 +250,5 @@ class Film(unittest.TestCase):
         self.assertEqual(record.returncode, 130)
         self.assertEqual((self.tmp / "drive-exit").read_text(), "the EXIT trap ran\n")
         self.assertEqual(sorted(p.name for p in self.tmp.iterdir()),
-                         ["bin", "drive-exit", "driving", "recorder.pid", "verify.sh"])
+                         ["bin", "drive-exit", "driving", "home", "recorder.pid", "recorder.stamp", "verify.sh"])
+        self.assertEqual(list(self.staging.iterdir()), [], "the recorder's folder is removed")
