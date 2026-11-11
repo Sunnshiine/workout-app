@@ -69,7 +69,8 @@ when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the 
 outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it (SIGTERM, then SIGKILL
 WORKOUT_TEST_KILL_GRACE seconds (10) later), so a run that stops making
 progress cannot hold its simulator for good.
-A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the run the same way and exits 142.
+A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the build or the run the same way,
+at once, and exits 142.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
