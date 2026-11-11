@@ -5,6 +5,8 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/host-admission-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/host-admission-harness.sh"
+# shellcheck source=scripts/same-process.sh
+. "$repo/scripts/same-process.sh"
 
 build_slot() { "$repo/scripts/build-slot.sh" "$@" >"$root/out" 2>"$root/err"; }
 # PATH with no hostgate on it, as on a CI runner; the harness's other stubs stay.
@@ -37,6 +39,16 @@ reset
 WORKOUT_ADMIT_WAIT=30 test_sim
 expect "WORKOUT_ADMIT_WAIT, when set, is hostgate's wait" "$(slots)" \
     "label=workout-app:test-sim.sh wait=30 nested=no xcodebuild build-for-testing"
+reset
+(STUB_HOLD=1 test_sim; echo $? >"$root/alarmed") &
+alarmed=$!
+while [ ! -e "$root/holding" ] && kill -0 "$alarmed" 2>/dev/null; do sleep 0.1; done
+script=$(pgrep -f "$repo/scripts/test-sim.sh --sim $sim unit" | head -1)
+began=$SECONDS
+[ -z "$script" ] || signal_same ALRM "$script" "$(proc_stamp "$script")"
+wait "$alarmed"
+expect "a SIGALRM during the build ends test-sim.sh within seconds, with exit 142, and stops the build" \
+    "$(cat "$root/alarmed") $((SECONDS - began < 10)) $(pgrep -f "$root/bin/xcodebuild" | wc -l | tr -d ' ')" "142 1 0"
 reset
 test_sim --no-build; status=$?
 expect "--no-build takes no slot" "$status $(builds) $(slots)" "65 test-without-building "

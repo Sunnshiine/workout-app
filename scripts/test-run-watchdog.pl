@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 # Usage: scripts/test-run-watchdog.pl LIMIT GRACE PID START MARKER
 # Bounds the test run PID, which started at START (ps -o lstart= of PID, read at launch). Once PID has
-# run LIMIT seconds it creates MARKER, sends SIGTERM, and sends SIGKILL GRACE seconds later if PID is
-# still running. It checks once a second and exits as soon as PID has exited. Before every signal it
-# checks that PID still carries START, and exits at once if it does not, so a pid number another
+# run LIMIT seconds it creates MARKER, sends SIGTERM, and sends SIGKILL GRACE seconds (at least 1) later
+# if PID is still running. It checks once a second and exits as soon as PID has exited. Before every
+# signal it checks that PID still carries START, and exits at once if it does not, so a pid number another
 # process has since taken is never signalled. It outlives the script that started it on purpose: after
 # a SIGKILL of that script, its xcodebuild still needs the bound.
 use strict;
@@ -11,7 +11,7 @@ use warnings;
 
 my ($limit, $grace, $pid, $start, $marker) = @ARGV;
 die "usage: $0 LIMIT GRACE PID START MARKER\n"
-  unless defined $marker && "$limit $grace $pid" =~ /^\d+ \d+ \d+$/;
+  unless defined $marker && "$limit $grace $pid" =~ /^\d+ [1-9]\d* \d+$/;
 $start =~ s/^\s+|\s+$//g;
 
 # True while PID is the process that started at START and has not exited.
@@ -34,5 +34,4 @@ for (1 .. $grace) {
   sleep 1;
   exit 0 unless same();
 }
-exit 0 unless same();
 kill 'KILL', $pid;

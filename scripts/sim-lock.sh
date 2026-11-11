@@ -281,6 +281,20 @@ with_build_slot() {
   fi
 }
 
+# Runs "$@". With slot_stoppable set it runs as a job the shell waits on, its pid and stamp in slot_job and
+# slot_job_stamp, so a trapped signal runs its trap at once rather than when the build ends, and the trap
+# can stop the job. Such a job starts with SIGINT ignored, so only a caller whose traps stop it sets
+# slot_stoppable, after sourcing same-process.sh.
+slot_run() {
+  [ -n "${slot_stoppable:-}" ] || { "$@"; return; }
+  local rc=0
+  "$@" &
+  slot_job=$! slot_job_stamp=$(proc_stamp "$!")
+  wait "$slot_job" || rc=$?
+  slot_job=
+  return "$rc"
+}
+
 # Runs the command through hostgate run, or directly with one loud line when hostgate is missing, or
 # when it fails before it starts the command. Exits as the command does, or 75, saying what to do
 # next, when hostgate gave up waiting for a slot.
@@ -289,7 +303,7 @@ hostgate_run() {
   pin=$(cat "$sim_lock_checkout/scripts/hostgate-version")
   if ! command -v hostgate >/dev/null; then
     echo "hostgate is not on PATH, so this build takes no host-wide slot and may stall every other agent; install it: $install" >&6
-    "$@" 6>&-
+    slot_run "$@" 6>&-
     return
   fi
   have=$(hostgate --version 2>/dev/null) || have=unknown
@@ -299,7 +313,7 @@ hostgate_run() {
   # The command removes this file as it starts, so a file left after a failed run means hostgate
   # never started it.
   started=$(mktemp) || exit 70
-  hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
+  slot_run hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
     -- sh -c 'rm -f "$0" && exec "$@"' "$started" "$@" 2>&6 6>&- || rc=$?
   if [ -e "$started" ]; then
     rm -f "$started"
@@ -312,7 +326,7 @@ hostgate_run() {
       *)
         echo "hostgate run failed (exit $rc) before it started the build, so this build takes no host-wide slot and may stall every other agent; reinstall it: $install" >&6
         rc=0
-        "$@" 6>&- || rc=$?
+        slot_run "$@" 6>&- || rc=$?
         ;;
     esac
   fi
