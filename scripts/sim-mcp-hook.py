@@ -13,7 +13,9 @@ shell path; the settings hook turns exit 3 into Claude Code's blocking exit 2. W
 answer (missing, slower than SIM_HOOK_TIMEOUT seconds (default 8), unreadable output) the call is allowed with a
 warning. Before a build, `hostgate check --only sandbox-report` runs alongside, bounded by SIM_HOOK_SANDBOX_TIMEOUT
 (default 12; the check takes about 7 s when reporting is stuck): stuck refuses, since the build would hang, naming
-what still works and the operator step; no answer allows with a warning. Each allowed build appends a line to $XDG_STATE_HOME/sim-hook/workout-app.log, because an
+what still works and the operator step, and how to lease when the default is no simulator the caller's lease
+holds; no answer allows with a warning. A lease refusal on a tool that builds nothing runs the check too, so
+it offers no build while reporting is stuck. Each allowed build appends a line to $XDG_STATE_HOME/sim-hook/workout-app.log, because an
 MCP build takes no host-wide build slot. Tools that never need a simulator from this server stay
 refused, each naming this repo's command. Any argument prints this and exits 2.
 """
@@ -21,11 +23,12 @@ import json
 import os
 import re
 import signal
-import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+from sim_mcp_lookups import Unchecked, lookups, sandbox_lookup
 
 SERVER = "mcp__XcodeBuildMCP__"
 REPO = "workout-app"
@@ -57,20 +60,16 @@ REFUSED = {
 DROPS_RECORD = {"simulatorId", "simulatorName"}
 UNTRACKED = ("simulatorName", "profile", "persist")
 AGENT_ID = re.compile(r"[A-Za-z][\w.-]*:\S+")
-SANDBOX_CHECK = ["hostgate", "check", "--only", "sandbox-report"]
 SANDBOX_STUCK = """Refused: host sandbox reporting is stuck, so {tool} would hang. Every Xcode build of this app runs SwiftLint's
 build plug-in, which waits on it, and so does the shell route ({verify} build). hostgate check --only sandbox-report says so.
-It needs the operator: restart sandboxd when no simulator lease is held, or reboot. Then build again.
+The check flaps, so a build a minute later may get through. The operator clears it for good: restart
+sandboxd when no simulator lease is held, or reboot.
 What works now, with an app already built (no build step):
    {verify} launch session                  this worktree's last build
    {verify} launch --at <commit> session    a commit already in the shared app cache (one not cached yet would build)
    {verify} shot <name>, and tap --id <id>  see and drive it
    XcodeBuildMCP install_app_sim, launch_app_sim, screenshot, snapshot_ui, and touch (down and up) on your leased simulator"""
 SESSION_TOOLS = {"session_set_defaults", "session_clear_defaults", "session_use_defaults_profile"}
-
-
-class Unchecked(Exception):
-    """Simlock or hostgate could not answer."""
 
 
 class Interrupted(Exception):
@@ -152,82 +151,6 @@ def record(tool, tool_input, session):
     return None
 
 
-def start(argv):
-    """Popen in its own process group, so a run cut short can be ended with everything it started."""
-    try:
-        return subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, start_new_session=True)
-    except OSError as error:
-        return error
-
-
-def finish(run, deadline):
-    """(exit status, stdout); None when it runs past deadline; the OSError when it never started."""
-    if isinstance(run, OSError):
-        return run
-    try:
-        out, _ = run.communicate(timeout=max(0.0, deadline - time.monotonic()))
-    except subprocess.TimeoutExpired:
-        return None
-    return run.returncode, out
-
-
-def lookups(lease_bound, sandbox_bound):
-    """Simlock's live leases, and the host sandbox check when sandbox_bound is set, all started at once.
-    Returns (leases or Unchecked, sandbox), sandbox being None when not asked, True when stuck, False when
-    fine, or Unchecked."""
-    began = time.monotonic()
-    argv = {"leases": ["simlock", "list", "--leases"], "devices": ["simlock", "list", "--devices"]}
-    if sandbox_bound is not None:
-        argv["sandbox"] = SANDBOX_CHECK
-    runs = {name: start(a) for name, a in argv.items()}
-    try:
-        done = {name: finish(run, began + (sandbox_bound if name == "sandbox" else lease_bound))
-                for name, run in runs.items()}
-    finally:
-        for run in runs.values():
-            if isinstance(run, subprocess.Popen) and run.returncode is None:
-                try:
-                    os.killpg(run.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
-                run.wait()
-    return read_leases(done, lease_bound), read_sandbox(done.get("sandbox", "unasked"), sandbox_bound)
-
-
-def read_leases(done, bound):
-    """{UDID: (lease id, requester)} for every live lease, or Unchecked."""
-    out = {}
-    for what in ("leases", "devices"):
-        result = done[what]
-        if isinstance(result, OSError):
-            return Unchecked(f"simlock did not start ({result})")
-        if result is None:
-            return Unchecked(f"simlock list took longer than {bound:g} s")
-        if result[0]:
-            return Unchecked(f"simlock list --{what} exited {result[0]}")
-        out[what] = result[1]
-    try:
-        udids = {d["id"]: d["driverDeviceId"].upper() for d in json.loads(out["devices"]) if d.get("driverDeviceId")}
-        now = time.time() * 1000
-        return {udids[l["deviceId"]]: (l["id"], l.get("requesterId") or "")
-                for l in json.loads(out["leases"])
-                if l["deviceId"] in udids and l.get("ttlDeadline", now + 1) > now}
-    except (ValueError, KeyError, TypeError, AttributeError) as error:
-        return Unchecked(f"simlock list printed what this hook cannot read ({error!r})")
-
-
-def read_sandbox(result, bound):
-    if result == "unasked":
-        return None
-    if isinstance(result, OSError):
-        return Unchecked(f"hostgate did not start ({result})")
-    if result is None:
-        return Unchecked(f"hostgate check took longer than {bound:g} s")
-    if result[0] in (0, 1):
-        return result[0] == 1
-    return Unchecked(f"hostgate check exited {result[0]}")
-
-
 def callers(session):
     ids = {os.environ.get("CLAUDE_CODE_SESSION_ID"), session}
     return {f"claude-code:{i}" for i in ids if i}
@@ -238,7 +161,19 @@ def mine(requester, me):
     return not me or not AGENT_ID.fullmatch(requester) or requester in me
 
 
-def refusal(tool, target, own, me, other):
+def lease_steps(own, then):
+    if own:
+        udid, lease = own
+        return [f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone{then}."]
+    return [
+        "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
+        f"   {LEASE}",
+        f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone{then}.",
+        "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
+    ]
+
+
+def refusal(tool, target, own, me, other, stuck):
     setting = tool == "session_set_defaults"
     then = "" if setting else f", then {tool} again"
     lines = [f"Refused: {tool} {'sets as the default only' if setting else 'runs only on'} a simulator your Simlock lease holds (ADR-0024),"]
@@ -248,23 +183,20 @@ def refusal(tool, target, own, me, other):
         lines.append(f"and {target} is leased by {other}, another agent (you are {' or '.join(sorted(me))}).")
     else:
         lines.append(f"and no live Simlock lease holds {target}.")
-    if own:
-        udid, lease = own
+    lines += lease_steps(own, then)
+    if stuck:
         lines += [
-            f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone{then}.",
+            "Or take the shell path, which leases, installs and launches this worktree's last build, and prints the UDID",
+            "to set with session_set_defaults {simulatorId} for screenshot, snapshot_ui and touch (prefer touch with down and up; tap can miss).",
+            "It builds nothing, since host sandbox reporting is stuck and a build would hang:",
+            f"   {VERIFY} launch session",
         ]
     else:
         lines += [
-            "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
-            f"   {LEASE}",
-            f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone{then}.",
-            "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
+            "Or take the shell path, which leases, builds in a host build slot, installs and launches, and prints the UDID",
+            "to set with session_set_defaults {simulatorId} for screenshot, snapshot_ui and touch (prefer touch with down and up; tap can miss):",
+            f"   {VERIFY} build && {VERIFY} launch session",
         ]
-    lines += [
-        "Or take the shell path, which leases, builds in a host build slot, installs and launches, and prints the UDID",
-        "to set with session_set_defaults {simulatorId} for screenshot, snapshot_ui and touch (prefer touch with down and up; tap can miss):",
-        f"   {VERIFY} build && {VERIFY} launch session",
-    ]
     return "\n".join(lines)
 
 
@@ -324,28 +256,37 @@ def gate(tool, tool_input, session):
             ), None
     else:
         return 0, "", None
-    held_by, stuck = lookups(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")),
-                             float(os.environ.get("SIM_HOOK_SANDBOX_TIMEOUT", "12")) if tool in BUILDS else None)
+    began = time.monotonic()
+    sandbox_bound = float(os.environ.get("SIM_HOOK_SANDBOX_TIMEOUT", "12"))
+    held_by, stuck = lookups(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")), sandbox_bound if tool in BUILDS else None)
+    checked = not isinstance(held_by, Unchecked)
+    me = callers(session)
+    lease, requester = held_by.get(target, (None, "")) if checked else (None, "")
+    leased = bool(lease) and mine(requester, me)
+    own = next(((u, l) for u, (l, r) in held_by.items() if me and r in me), None) if checked else None
     if stuck is True:
-        return 3, SANDBOX_STUCK.format(tool=tool, verify=VERIFY), None
+        text = SANDBOX_STUCK.format(tool=tool, verify=VERIFY)
+        if checked and not leased:
+            text += "\n".join(["", "Those MCP tools run only on a simulator your Simlock lease holds (ADR-0024), and this"
+                                f" session's default ({target or 'none set'}) is not one:"] + lease_steps(own, ""))
+        return 3, text, None
     warnings = []
     if isinstance(stuck, Unchecked):
         warnings.append(f"sim-mcp-hook: could not check host sandbox reporting before {tool}, because {stuck}."
                         " If the build hangs, run hostgate check.")
-    if isinstance(held_by, Unchecked):
+    if not checked:
         warnings.append(f"sim-mcp-hook: allowed {tool} on {target or 'the session default'} unchecked, because {held_by}."
                         " Lease your simulator with simlock lease all the same.")
         if tool in BUILDS:
             log_build(tool, session, target or "-", "unchecked")
         return allowed(warnings)
-    me = callers(session)
-    lease, requester = held_by.get(target, (None, ""))
-    if lease and mine(requester, me):
+    if leased:
         if tool in BUILDS:
             log_build(tool, session, target, lease)
         return allowed(warnings)
-    own = next(((u, l) for u, (l, r) in held_by.items() if me and r in me), None)
-    return 3, refusal(tool, target, own, me, requester if lease else None), None
+    if tool not in BUILDS:
+        stuck = sandbox_lookup(began + sandbox_bound, sandbox_bound)
+    return 3, refusal(tool, target, own, me, requester if lease else None, stuck is True), None
 
 
 def main():

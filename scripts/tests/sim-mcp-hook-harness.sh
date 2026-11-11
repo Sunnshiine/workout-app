@@ -46,7 +46,7 @@ mkdir -p "$stub" "$tmp/nosimlock" "$tmp/state/sim-hook"
 cat >"$stub/simlock" <<'STUB'
 #!/bin/bash
 case ${SIMLOCK_MODE:-} in
-    slow) sleep 30 & echo $! >>"$SIMLOCK_FIXTURE/children"; wait; exit 0 ;;
+    slow) sleep "${SIMLOCK_SLEEP:-30}" & echo $! >>"$SIMLOCK_FIXTURE/children"; wait; touch "$SIMLOCK_FIXTURE/outlived$2"; exit 0 ;;
     rendezvous) meet "${2#--}" ;;
     together)
         touch "$SIMLOCK_FIXTURE/started$2"
@@ -83,7 +83,7 @@ cat >"$stub/hostgate" <<'STUB'
 echo "$*" >>"$SIMLOCK_FIXTURE/hostgate.calls"
 case ${HOSTGATE_MODE:-fine} in
     fine) exit 0 ;;
-    stuck) echo '[{"id": "sandbox-report", "severity": "fail"}]'; exit 1 ;;
+    stuck) sleep "${HOSTGATE_DELAY:-0}"; echo '[{"id": "sandbox-report", "severity": "fail"}]'; exit 1 ;;
     broken) exit 70 ;;
     slow) sleep 30 & echo $! >>"$SIMLOCK_FIXTURE/children"; wait ;;
     rendezvous) meet sandbox ;;
