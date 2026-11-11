@@ -233,7 +233,7 @@ wait_until_clear() {
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
 }
 
-# Linux has neither kern.memorystatus_level nor vm.loadavg, so there neither holds anything.
+# Linux has no kern.memorystatus_level, so there it holds nothing.
 mem_clear() {
   local reading
   [ "$WORKOUT_MEM_FLOOR" -gt 0 ] || return 0
@@ -265,24 +265,6 @@ disk_clear() {
     busy_reason="free disk is $free MB on the volume holding $path, under the floor of $WORKOUT_DISK_FLOOR MB (WORKOUT_DISK_FLOOR) a build needs"
     return 1
   done
-}
-
-load_clear() {
-  local reading now rc=0
-  if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
-    [ "$(uname)" = Darwin ] || return 0
-    busy_reason="sysctl -n vm.loadavg failed: $reading"
-    return 1
-  fi
-  read -r _ now _ <<< "$reading"
-  awk -v now="$now" -v limit="$1" 'BEGIN { if (now !~ /^[0-9]+(\.[0-9]+)?$/) exit 3; exit (now + 0 > limit + 0) }' || rc=$?
-  case $rc in
-    0) return 0 ;;
-    1) busy_reason="the 1-minute load is $now, over $1 (WORKOUT_LOAD_LIMIT)" ;;
-    3) busy_reason="sysctl -n vm.loadavg printed no 1-minute load: $reading" ;;
-    *) busy_reason="awk could not compare the 1-minute load $now with $1 (exit $rc)" ;;
-  esac
-  return 1
 }
 
 # Every heavy build on this Mac takes one of hostgate's host-wide slots, shared with every repo on it.

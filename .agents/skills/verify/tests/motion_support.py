@@ -70,13 +70,13 @@ def tree_frame_around(top, bottom, left, right):
 RESTS = tree_frame_around(*STILL_BOX)
 
 
-def stamp(video, drive="", drive_start=0.0, drive_end=0.0, load_after=14.02, animations="on", like=None,
+def stamp(video, drive="", drive_start=0.0, drive_end=0.0, recorder_exit=0, animations="on", like=None,
           stopped=None, card_pt=RESTS):
     pts, size = take.probe(like or video)
     filmed = take.Take(
-        name=video.stem, video=video.name, drive=drive, tail=2.0, load_limit=50.0, load_before=12.31,
-        load_after=load_after, started=1791817306.217, drive_start=drive_start, drive_end=drive_end,
-        stopped=round(max(pts[-1], drive_end) + 2.0, 3) if stopped is None else stopped, recorder_exit=0,
+        name=video.stem, video=video.name, drive=drive, tail=2.0, load_before=12.31,
+        load_after=14.02, started=1791817306.217, drive_start=drive_start, drive_end=drive_end,
+        stopped=round(max(pts[-1], drive_end) + 2.0, 3) if stopped is None else stopped, recorder_exit=recorder_exit,
         recorder_early=False, frames=len(pts), first_frame=round(pts[0], 3), last_frame=round(pts[-1], 3),
         video_px=size)
     path = video.with_suffix(".take")
@@ -221,7 +221,7 @@ def frames(*cards, start=0.0):
 
 
 TAKE = take.Take(
-    name="x", video="x.mp4", drive="", tail=2.0, load_limit=50.0, load_before=1.0, load_after=1.0, started=0.0,
+    name="x", video="x.mp4", drive="", tail=2.0, load_before=1.0, load_after=1.0, started=0.0,
     drive_start=0.0, drive_end=0.0, stopped=3.0, recorder_exit=0, recorder_early=False, frames=2, first_frame=0.0,
     last_frame=1.0, video_px=(600, 1200), screen_pt=(200, 400), animations="on", card_pt=Frame(16, 100, 170, 160))
 

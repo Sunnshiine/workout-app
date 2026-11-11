@@ -12,19 +12,22 @@ frames=
 for t in ${STUB_PTS:-0.000000 3.402000 0.400000}; do frames="$frames${frames:+, }{\\"pts_time\\": \\"$t\\"}"; done
 echo "{\\"frames\\": [$frames], \\"streams\\": [{\\"width\\": 1206, \\"height\\": 2622}]}"
 """
-CLAIMING_SYSCTL_STUB = """#!/bin/sh
-if [ -f "{dir}/claimed" ]; then echo "{ 12.31 9.00 8.00 }"; exit 0; fi
-touch "{dir}/claimed"
-echo lane-2 > "{state}/run"
-echo {pid} > "{state}/pid"
-echo "{ 63.20 9.00 8.00 }"
+CLAIMING_FOREGROUND_STUB = """import os, sys
+if os.path.exists("{dir}/claimed"):
+    print("ok (wall/cpu 1.02)")
+    sys.exit(0)
+open("{dir}/claimed", "w").close()
+open("{state}/run", "w").write("lane-2\\n")
+open("{state}/pid", "w").write("{pid}\\n")
+print("starved (wall/cpu 2.70)")
+sys.exit(3)
 """
-TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_limit", "load_before", "load_after", "started",
-             "drive_start", "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame",
-             "last_frame", "video_px", "verdict", "invalid", "invalid_rules", "screen_pt", "card_pt", "animations",
+TAKE_KEYS = ["format", "name", "video", "drive", "tail", "load_before", "load_after", "started", "drive_start",
+             "drive_end", "stopped", "recorder_exit", "recorder_early", "frames", "first_frame", "last_frame",
+             "video_px", "foreground", "verdict", "invalid", "invalid_rules", "screen_pt", "card_pt", "animations",
              "app"]
 SUMMARY = re.compile(r"^take appear (VALID|INVALID) \d+\.\d\d s, drive \+\d+\.\d\d\.\.\+\d+\.\d\d s, 3 frames, "
-                     r"last \+3\.40 s, load 12\.3 then (\d+\.\d) \(limit 50\), animations on$")
+                     r"last \+3\.40 s, load 12\.3 then (\d+\.\d), foreground ok \(wall/cpu 1\.02\), animations on$")
 
 
 class Record(Lane):
@@ -40,10 +43,9 @@ class Record(Lane):
         self.assertEqual(self.verify("launch", "--animated", "session", VERIFY_RUN="lane-1")[0], 0)
 
     def record(self, *argv, **env):
-        for marker in ["signals", "stopped"]:
+        for marker in ["signals", "stopped", "foreground-calls"]:
             (self.tmp / marker).unlink(missing_ok=True)
         env.setdefault("VERIFY_RUN", "lane-1")
-        env.setdefault("WORKOUT_LOAD_LIMIT", "50")
         return self.verify("record", "appear", "--tail", "0.5", *argv, **env)
 
     def stamp(self, run=None):
@@ -78,10 +80,10 @@ class Record(Lane):
         timed = {key: float(values.pop(key)) for key in ["started", "drive_start", "drive_end", "stopped"]}
         self.assertEqual(values, {
             "format": "take/1", "name": "appear", "video": "appear.mp4", "drive": "tap -x 5 -y 6", "tail": "0.5",
-            "load_limit": "50", "load_before": "12.31", "load_after": "14.02", "recorder_exit": "0",
+            "load_before": "12.31", "load_after": "14.02", "recorder_exit": "0",
             "recorder_early": "0", "frames": "3", "first_frame": "0.000", "last_frame": "3.402",
-            "video_px": "1206x2622", "verdict": "VALID", "invalid": "", "invalid_rules": "", "screen_pt": "402x874",
-            "card_pt": "@-83,476 4770x308", "animations": "on",
+            "video_px": "1206x2622", "foreground": "ok (wall/cpu 1.02)", "verdict": "VALID", "invalid": "",
+            "invalid_rules": "", "screen_pt": "402x874", "card_pt": "@-83,476 4770x308", "animations": "on",
             "app": self.worktree_build(b"v2\n", self.b)})
         self.assertTrue(before < timed["started"] < time.time(), timed)
         self.assertTrue(0 <= timed["drive_start"] <= timed["drive_end"], timed)
@@ -134,50 +136,57 @@ class Record(Lane):
         self.assertEqual(self.listing(self.run / ".pending"), [])
         self.assertEqual(self.calls().count("axe describe-ui --udid %s" % self.sim), 1)
 
-    def test_load_over_the_limit_after_the_take_keeps_it_and_exits_3_with_the_reason(self):
+    def test_a_take_under_any_load_is_recorded_valid_and_stamps_the_load_as_information(self):
         self.launch()
-        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_AFTER="63.20")
-        self.assertEqual((code, err), (3, "load 63.2 at the end, over 50\n"))
-        self.assertEqual(SUMMARY.match(out.splitlines()[3]).groups(), ("INVALID", "63.2"))
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="130.00",
+                                     STUB_LOAD_AFTER="520.00")
+        self.assertEqual((code, err), (0, ""))
         values = dict(self.stamp())
-        self.assertEqual((values["verdict"], values["invalid"], values["invalid_rules"]),
-                         ("INVALID", "load 63.2 at the end, over 50", "load"))
+        self.assertEqual((values["load_before"], values["load_after"], values["foreground"], values["verdict"]),
+                         ("130.00", "520.00", "ok (wall/cpu 1.02)", "VALID"))
+
+    def test_a_foreground_starved_for_the_whole_wait_is_recorded_anyway_and_stamped_starved(self):
+        self.launch()
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="starved 2.70")
+        self.assertEqual(code, 0)
+        self.assertRegex(err, "^" + re.escape("recording anyway after ") + r"\d+" + re.escape(
+            " s, with the foreground still starved (wall/cpu 2.70)\nthe host starved the foreground before this "
+            "take (starved (wall/cpu 2.70)), so discount any jank in it\n") + "$")
+        values = dict(self.stamp())
+        self.assertEqual((values["foreground"], values["verdict"]), ("starved (wall/cpu 2.70)", "VALID"))
         self.assertEqual(self.listing(self.run), ["appear.end.txt", "appear.mp4", "appear.take", "launches.txt"])
 
-    def test_load_over_the_limit_before_the_take_refuses_with_no_recorder_and_no_drive(self):
+    def test_a_starved_foreground_is_waited_on_until_it_gets_its_share(self):
         self.launch()
-        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20")
-        self.assertEqual((code, out), (75, ""))
-        self.assertRegex(err, (
-            r"^gave up after \d+ s waiting for the load to fall to 50 before recording: the 1-minute load is 63\.20, "
-            r"over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="starved 2.70,ok 1.40",
+                                     WORKOUT_ADMIT_WAIT="30")
+        self.assertEqual(code, 0)
+        self.assertRegex(err, "^" + re.escape(
+            "waiting up to 30 s for the host to stop starving the foreground: starved (wall/cpu 2.70)\n")
+            + r"went ahead after \d+ s\n$")
+        self.assertEqual(dict(self.stamp())["foreground"], "ok (wall/cpu 1.40)")
+        self.assertEqual(len((self.tmp / "foreground-calls").read_text().splitlines()), 2)
+
+    def test_a_foreground_probe_that_fails_records_nothing(self):
+        self.launch()
+        self.assertEqual(self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="broken 0"), (70, "", (
+            "%s/foreground.py exited 1, so nothing was recorded\n" % self.verify_path.parent)))
         self.assertEqual(self.calls(), [])
         self.assertEqual(self.listing(self.run), ["launches.txt"])
 
-    def test_load_that_stays_over_the_limit_is_waited_on_then_refused(self):
-        self.launch()
-        code, out, err = self.record(STUB_LOAD_BEFORE="50.01", WORKOUT_ADMIT_WAIT="2")
-        self.assertEqual((code, out), (75, ""))
-        self.assertRegex(err, (
-            r"^waiting up to 2 s for the load to fall to 50 before recording: the 1-minute load is 50\.01, over 50 "
-            r"\(WORKOUT_LOAD_LIMIT\)\ngave up after \d+ s waiting for the load to fall to 50 before recording: the "
-            r"1-minute load is 50\.01, over 50 \(WORKOUT_LOAD_LIMIT\)\n$"))
-        self.assertGreaterEqual(int(re.search(r"gave up after (\d+) s", err).group(1)), 2)
-        self.assertEqual(self.calls(), [])
-
-    def test_a_run_that_takes_the_simulator_while_record_waits_for_load_is_refused_after_the_wait(self):
+    def test_a_run_that_takes_the_simulator_while_record_waits_for_the_foreground_is_refused_after_the_wait(self):
         self.launch()
         other = subprocess.Popen(FIXTURE_APP, start_new_session=True)
         self.addCleanup(other.wait)
         self.addCleanup(other.kill)
         state = Path("/tmp/workout-verify-%s" % self.sim)
-        (self.tmp / "bin" / "sysctl").write_text(CLAIMING_SYSCTL_STUB.replace("{dir}", str(self.tmp)).replace(
-            "{state}", str(state)).replace("{pid}", str(other.pid)))
+        (self.verify_path.parent / "foreground.py").write_text(CLAIMING_FOREGROUND_STUB.replace(
+            "{dir}", str(self.tmp)).replace("{state}", str(state)).replace("{pid}", str(other.pid)))
         code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", WORKOUT_ADMIT_WAIT="10")
         self.assertEqual((code, out), (75, ""))
         self.assertRegex(err, re.escape(
-            "waiting up to 10 s for the load to fall to 50 before recording: the 1-minute load is 63.20, over 50 "
-            "(WORKOUT_LOAD_LIMIT)\n") + r"went ahead after \d+ s\n" + re.escape(
+            "waiting up to 10 s for the host to stop starving the foreground: starved (wall/cpu 2.70)\n")
+            + r"went ahead after \d+ s\n" + re.escape(
             "the app on %s belongs to run lane-2 (pid %d), not to lane-1, so this would drive another run's app; "
             "launch yours first: SIM=%s VERIFY_RUN=lane-1 %s launch <fixture>\n"
             % (self.sim, other.pid, self.sim, self.verify_path)) + "$")
@@ -189,27 +198,12 @@ class Record(Lane):
         Path("/tmp/workout-verify-%s/reclaimed.lane-1" % self.sim).write_text("test-sim.sh run (pid 1) at T\n")
         for drive in [["tap", "-x", "5", "-y", "6"], ["launch", "--animated", "session"]]:
             with self.subTest(drive=drive):
-                refused = self.record("--", *drive, STUB_LOAD_BEFORE="63.20", WORKOUT_ADMIT_WAIT="30")
+                refused = self.record("--", *drive, STUB_FOREGROUND="starved 2.70", WORKOUT_ADMIT_WAIT="30")
                 self.assertEqual(refused, (75, "", (
                     "run lane-1 was reclaimed by test-sim.sh run (pid 1) at T; launch again: SIM=%s VERIFY_RUN=lane-1 "
                     "%s launch <fixture>\n" % (self.sim, self.verify_path))))
                 self.assertEqual(self.calls(), [])
                 self.assertEqual(self.listing(self.run), ["launches.txt"])
-
-    def test_load_at_the_limit_is_admitted_as_host_admission_admits_a_launch(self):
-        self.launch()
-        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="50.00")
-        self.assertEqual((code, err), (0, ""))
-        self.assertEqual(dict(self.stamp())["load_before"], "50.00")
-
-    def test_one_load_limit_admits_and_judges_a_take(self):
-        self.launch()
-        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_LOAD_BEFORE="63.20", STUB_LOAD_AFTER="70.00",
-                                     WORKOUT_LOAD_LIMIT="70")
-        self.assertEqual((code, err), (0, ""))
-        values = dict(self.stamp())
-        self.assertEqual((values["load_limit"], values["load_before"], values["load_after"], values["verdict"]),
-                         ("70", "63.20", "70.00", "VALID"))
 
     def test_a_take_of_a_launch_refused_for_another_runs_app_hints_that_launch_as_given(self):
         app = self.own_the_app("owner-1")

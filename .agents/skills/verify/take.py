@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """Films one verify.sh drive with simctl recordVideo, and owns the take stamp (NAME.take).
 
-  take.py record --sim UDID --run RUN --verify VERIFY_SH --out PENDING/NAME.mp4 --tail S --limit L
-                 [-- VERB [ARG...]]
+  take.py record --sim UDID --run RUN --verify VERIFY_SH --out PENDING/NAME.mp4 --tail S
+                 --foreground "ok|starved (wall/cpu R)" [-- VERB [ARG...]]
       records from the moment the recorder says it is capturing, runs VERIFY_SH VERB... (its output
       goes to stderr), waits S seconds, stops the recorder with SIGINT only, and prints the stamp's
       take lines on stdout. The recorder writes into a folder of its own under
       ~/Library/Caches/workout-verify, the video moves to PENDING once the recorder stops, and the
       folder is removed on every exit but SIGKILL. Exit 0 VALID, 3 INVALID, 1 the drive failed, 70
       the recorder or ffprobe failed; on 1 and 70 no video is kept. VERIFY_RECORD_START (default 10) is how many seconds
-      the recorder gets to start capturing. The load is read as the recorder starts capturing and again
-      after the take; both are stamped, and only the second, over L, can make it INVALID.
+      the recorder gets to start capturing. --foreground is what foreground.py printed before the take,
+      and is stamped. The load is read as the recorder starts capturing and again after the take, and
+      both are stamped; neither judges the take.
   take.py summary NAME.take
       one line on stdout, as `take appear VALID 4.71 s, drive +0.32..+2.69 s, 37 frames, last +3.40 s,
-      load 12.3 then 14.0 (limit 50), animations on`; each INVALID reason on stderr
+      load 12.3 then 14.0, foreground ok (wall/cpu 1.02), animations on`; each INVALID reason, and a
+      starved foreground, on stderr
 
 Every time in a stamp but `started` is seconds after `started`, the moment the recorder said it was
 capturing. Frame times are the video's own pts: recordVideo writes a frame only when the screen
@@ -23,6 +25,7 @@ import argparse
 import dataclasses
 import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -46,13 +49,27 @@ def card_frame(text: str) -> Union[Frame, Literal["none"]]:
     return "none" if text == "none" else Frame.parse(text)
 
 
+class Foreground(NamedTuple):
+    starved: bool
+    ratio: float
+
+    @staticmethod
+    def parse(text: str) -> "Foreground":
+        found = re.fullmatch(r"(ok|starved) \(wall/cpu (\d+\.\d\d)\)", text)
+        if not found:
+            raise ValueError("not `ok (wall/cpu R)` or `starved (wall/cpu R)`: %s" % text)
+        return Foreground(found.group(1) == "starved", float(found.group(2)))
+
+    def __str__(self) -> str:
+        return "%s (wall/cpu %.2f)" % ("starved" if self.starved else "ok", self.ratio)
+
+
 @dataclasses.dataclass(frozen=True)
 class Take:
     name: str
     video: str
     drive: str
     tail: float
-    load_limit: float
     load_before: float
     load_after: float
     started: float
@@ -69,6 +86,7 @@ class Take:
     animations: str = "unknown"
     app: str = ""
     card_pt: Union[Frame, Literal["none"], None] = None
+    foreground: Optional[Foreground] = None
 
 
 def seconds(value: float) -> str:
@@ -85,7 +103,6 @@ FIELDS = {
     "video": (str, str),
     "drive": (str, str),
     "tail": (float, repr),
-    "load_limit": (float, "{:g}".format),
     "load_before": (float, "{:.2f}".format),
     "load_after": (float, "{:.2f}".format),
     "started": (float, seconds),
@@ -102,9 +119,6 @@ FIELDS = {
 APPENDED = {"screen_pt": pixels, "card_pt": card_frame, "animations": str, "app": str}
 
 
-RULES_THAT_ONLY_HIDE_MOTION = frozenset({"load"})
-
-
 class Reason(NamedTuple):
     rule: str
     text: str
@@ -112,8 +126,6 @@ class Reason(NamedTuple):
 
 def judge(take: Take) -> List[Reason]:
     reasons = []
-    if take.load_after > take.load_limit:
-        reasons.append(Reason("load", "load %.1f at the end, over %g" % (take.load_after, take.load_limit)))
     if take.recorder_early:
         reasons.append(Reason("recorder_early", "the recorder stopped before the take ended"))
     if take.recorder_exit != 0:
@@ -131,6 +143,7 @@ def take_lines(take: Take) -> List[str]:
     reasons = judge(take)
     lines = ["format=take/1"]
     lines += ["%s=%s" % (key, render(getattr(take, key))) for key, (_, render) in FIELDS.items()]
+    lines += [] if take.foreground is None else ["foreground=%s" % (take.foreground,)]
     lines += ["verdict=%s" % ("INVALID" if reasons else "VALID"), "invalid=%s" % "; ".join(r.text for r in reasons),
               "invalid_rules=%s" % ",".join(r.rule for r in reasons)]
     return lines
@@ -143,7 +156,7 @@ def parse(text: str) -> Take:
     missing = [key + "=" for key in FIELDS if key not in found]
     if missing:
         raise ValueError("no %s" % " ".join(missing))
-    readers = dict({key: read for key, (read, _) in FIELDS.items()}, **APPENDED)
+    readers = dict({key: read for key, (read, _) in FIELDS.items()}, foreground=Foreground.parse, **APPENDED)
     values = {}
     for key, read in readers.items():
         if key in found:
@@ -156,9 +169,10 @@ def parse(text: str) -> Take:
 
 def summary(take: Take) -> str:
     drive = "drive +%.2f..+%.2f s" % (take.drive_start, take.drive_end) if take.drive else "no drive"
-    return "take %s %s %.2f s, %s, %d frame%s, last +%.2f s, load %.1f then %.1f (limit %g), animations %s" % (
+    foreground = "" if take.foreground is None else ", foreground %s" % (take.foreground,)
+    return "take %s %s %.2f s, %s, %d frame%s, last +%.2f s, load %.1f then %.1f%s, animations %s" % (
         take.name, "INVALID" if judge(take) else "VALID", take.stopped, drive, take.frames,
-        "" if take.frames == 1 else "s", take.last_frame, take.load_before, take.load_after, take.load_limit,
+        "" if take.frames == 1 else "s", take.last_frame, take.load_before, take.load_after, foreground,
         take.animations)
 
 
@@ -285,8 +299,8 @@ def run_drive(argv: List[str], env: dict) -> int:
         raise
 
 
-def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, drive: Sequence[str],
-         start_timeout: float) -> Take:
+def film(sim: str, run: str, verify: str, out: Path, tail: float, foreground: Foreground,
+         drive: Sequence[str], start_timeout: float) -> Take:
     recorder = Recorder(sim, out.name)
     try:
         failed = True
@@ -317,11 +331,11 @@ def film(sim: str, run: str, verify: str, out: Path, tail: float, limit: float, 
     finally:
         shutil.rmtree(str(recorder.stage), ignore_errors=True)
     return Take(
-        name=out.stem, video=out.name, drive=shlex.join(drive), tail=tail, load_limit=limit,
-        load_before=round(load_before, 2), load_after=round(load_after, 2), started=round(started, 3),
+        name=out.stem, video=out.name, drive=shlex.join(drive), tail=tail, load_before=round(load_before, 2),
+        load_after=round(load_after, 2), started=round(started, 3),
         drive_start=round(drive_start, 3), drive_end=round(drive_end, 3), stopped=round(stopped, 3),
         recorder_exit=recorder_exit, recorder_early=early, frames=len(pts), first_frame=round(pts[0], 3),
-        last_frame=round(pts[-1], 3), video_px=size)
+        last_frame=round(pts[-1], 3), video_px=size, foreground=foreground)
 
 
 def record(argv: List[str]) -> int:
@@ -329,14 +343,14 @@ def record(argv: List[str]) -> int:
     parser = argparse.ArgumentParser(prog="take.py record")
     for flag in ["--sim", "--run", "--verify", "--out"]:
         parser.add_argument(flag, required=True)
-    for flag in ["--tail", "--limit"]:
-        parser.add_argument(flag, required=True, type=float)
+    parser.add_argument("--tail", required=True, type=float)
+    parser.add_argument("--foreground", required=True, type=Foreground.parse)
     args = parser.parse_args(flags)
     out = Path(args.out)
     signal.signal(signal.SIGINT, interrupted)
     signal.signal(signal.SIGTERM, interrupted)
     try:
-        take = film(args.sim, args.run, args.verify, out, args.tail, args.limit, drive,
+        take = film(args.sim, args.run, args.verify, out, args.tail, args.foreground, drive,
                     float(os.environ.get("VERIFY_RECORD_START", "10")))
     except Interrupted as signum:
         out.unlink(missing_ok=True)
@@ -357,6 +371,9 @@ def report(path: str) -> int:
     print(summary(take))
     for reason in judge(take):
         print(reason.text, file=sys.stderr)
+    if take.foreground is not None and take.foreground.starved:
+        print("the host starved the foreground before this take (%s), so discount any jank in it" % (take.foreground,),
+              file=sys.stderr)
     if take.animations == "off":
         print("animations are off in this app (it was launched without --animated), so the take cannot show motion",
               file=sys.stderr)

@@ -10,7 +10,6 @@ def reading(rules=(), invalid="", animations="on", no_card=None, lost=0, faint=0
                                look=look, frames=37, load="12.31/14.02")
 
 
-LOAD = "load 63.2 at the end, over 50"
 RECORDER = "recorder exit 1 after SIGINT; the video may be cut short"
 EARLY = "the recorder stopped before the take ended"
 UNCOVERED = "the screen never changed after the drive began at +3.50 s, so the take shows nothing the drive did"
@@ -42,19 +41,17 @@ class JudgeTake(unittest.TestCase):
             (75, reading(), 0.0, (Verdict.INVALID, "record exited 75")),
             (1, None, 0.0, (Verdict.INVALID, "record exited 1")),
             (0, None, 0.0, (Verdict.INVALID, "record left no stamp")),
-            (3, reading(rules=("load",), invalid=LOAD), 0.0, (Verdict.INVALID, f"take INVALID: {LOAD}")),
-            (3, reading(rules=("load",), invalid=LOAD, no_card=NO_FRAMES), 0.0,
-             (Verdict.INVALID, f"take INVALID: {LOAD}")),
-            (3, reading(rules=("load",), invalid=LOAD, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
-            (3, reading(rules=("load",), invalid=LOAD, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
+            (3, reading(rules=("window",), invalid=SHORT, no_card=NO_FRAMES), 0.0,
+             (Verdict.INVALID, f"take INVALID: {SHORT}")),
+            (3, reading(rules=("window",), invalid=SHORT, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
             (3, reading(rules=("recorder_exit",), invalid=RECORDER, worst=412.0), 0.0,
              (Verdict.INVALID, f"take INVALID: {RECORDER}")),
             (3, reading(rules=("recorder_early",), invalid=EARLY, lost=2), 0.0,
              (Verdict.INVALID, f"take INVALID: {EARLY}")),
             (3, reading(rules=("coverage",), invalid=UNCOVERED, worst=412.0), 0.0,
              (Verdict.INVALID, f"take INVALID: {UNCOVERED}")),
-            (3, reading(rules=("load", "coverage"), invalid=f"{LOAD}; {UNCOVERED}", lost=2), 0.0,
-             (Verdict.INVALID, f"take INVALID: {LOAD}; {UNCOVERED}")),
+            (3, reading(rules=("window", "coverage"), invalid=f"{SHORT}; {UNCOVERED}", lost=2), 0.0,
+             (Verdict.INVALID, f"take INVALID: {SHORT}; {UNCOVERED}")),
             (3, reading(rules=("window",), invalid=SHORT, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (3, reading(rules=("window",), invalid=SHORT), 0.0, (Verdict.INVALID, f"take INVALID: {SHORT}")),
             (3, reading(rules=("ramp",), invalid=NO_FADE, worst=412.0), 0.0,
@@ -73,7 +70,7 @@ class JudgeTake(unittest.TestCase):
                                "from the window's start")),
             (0, reading(faint=2, partial=True, worst=412.0), 0.0, (Verdict.FAIL, "an edge moved 412.0 pt")),
             (0, reading(partial=True, lost=2), 0.0, (Verdict.FAIL, "lost the card in 2 frames")),
-            (3, reading(rules=("load",), invalid=LOAD, faint=2, partial=True), 0.0,
+            (3, reading(rules=("window",), invalid=SHORT, faint=2, partial=True), 0.0,
              (Verdict.INVALID, "the card was faint for its first 2 frames, so its edges were not read from the "
                                "window's start")),
             (3, reading(no_card=NO_FRAMES), 0.0, (Verdict.INVALID, f"no card: {NO_FRAMES}")),
@@ -91,7 +88,7 @@ class JudgeTake(unittest.TestCase):
         missed = 'the take ended without "Set 3 of 3"'
         cases = [
             (0, reading(), (Verdict.INVALID, missed)),
-            (3, reading(rules=("load",), invalid=LOAD), (Verdict.INVALID, missed)),
+            (3, reading(rules=("window",), invalid=SHORT), (Verdict.INVALID, missed)),
             (0, reading(no_card=NO_FRAMES), (Verdict.INVALID, missed)),
             (0, reading(worst=412.0), (Verdict.INVALID, missed)),
             (0, reading(lost=2), (Verdict.INVALID, missed)),

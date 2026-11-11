@@ -12,7 +12,7 @@ from typing import Dict, Iterable, List, Literal, NamedTuple, Optional, Sequence
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from take import RULES_THAT_ONLY_HIDE_MOTION, Reason, Take, judge  # noqa: E402
+from take import Reason, Take, judge  # noqa: E402
 from tree import Frame  # noqa: E402
 
 THRESHOLD = 4.0
@@ -33,7 +33,7 @@ SOLID_CONTRAST = 0.75
 LOOK_LUM = 0.5
 MIN_WINDOW_S = 1.5
 
-HIDES_MOTION = RULES_THAT_ONLY_HIDE_MOTION | {"window"}
+HIDES_MOTION = frozenset({"window"})
 
 
 def moved_counts(rules: Iterable[str]) -> bool:

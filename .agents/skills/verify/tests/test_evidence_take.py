@@ -8,7 +8,6 @@ name=appear
 video=appear.mp4
 drive=launch --animated session
 tail=2.0
-load_limit=50
 load_before=12.31
 load_after=14.02
 started=1791817306.217
@@ -21,6 +20,7 @@ frames=37
 first_frame=0.000
 last_frame=3.402
 video_px=1206x2622
+foreground=ok (wall/cpu 1.02)
 verdict=VALID
 invalid=
 invalid_rules=
@@ -43,11 +43,32 @@ class TakeJudge(unittest.TestCase):
 
     def test_the_summary_reads_the_whole_stamp(self):
         self.assertEqual(take.summary(take.parse(STAMP)), (
-            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0 (limit 50), "
+            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0, "
+            "foreground ok (wall/cpu 1.02), animations on"))
+        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20", animations="off",
+                                                 foreground="starved (wall/cpu 2.70)")), (
+            "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2, "
+            "foreground starved (wall/cpu 2.70), animations off"))
+
+    def test_the_summary_of_a_starved_take_tells_the_reviewer_to_discount_its_jank_and_still_exits_0(self):
+        path = Path(tempfile.mkdtemp()) / "appear.take"
+        self.addCleanup(shutil.rmtree, str(path.parent), True)
+        for foreground, said in [("ok (wall/cpu 1.02)", ""), ("starved (wall/cpu 2.70)", (
+                "the host starved the foreground before this take (starved (wall/cpu 2.70)), so discount any jank "
+                "in it\n"))]:
+            path.write_text(STAMP.replace("foreground=ok (wall/cpu 1.02)", "foreground=" + foreground))
+            done = subprocess.run([sys.executable, str(SKILL / "take.py"), "summary", str(path)],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.assertEqual((done.returncode, done.stderr), (0, said))
+
+    def test_a_stamp_from_before_the_foreground_probe_parses_and_its_load_judges_nothing(self):
+        old = take.parse(STAMP.replace("foreground=ok (wall/cpu 1.02)\n", "")
+                         .replace("load_before=12.31", "load_limit=50\nload_before=12.31")
+                         .replace("load_after=14.02", "load_after=63.20"))
+        self.assertEqual((old.foreground, take.judge(old)), (None, []))
+        self.assertEqual(take.summary(old), (
+            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 63.2, "
             "animations on"))
-        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20", animations="off")), (
-            "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2 (limit 50), "
-            "animations off"))
 
     def test_parse_reads_the_four_lines_verify_sh_appends_and_defaults_them_when_absent(self):
         appended = take.parse(STAMP)
@@ -73,19 +94,16 @@ class TakeJudge(unittest.TestCase):
             (STAMP.replace("frames=37", "frames=many"), "frames=many does not parse"),
             (STAMP.replace("screen_pt=402x874", "screen_pt=402"), "screen_pt=402 does not parse"),
             (STAMP.replace("card_pt=@16,476 370x308", "card_pt=@16,476"), "card_pt=@16,476 does not parse"),
+            (STAMP.replace("foreground=ok (wall/cpu 1.02)", "foreground=ok"), "foreground=ok does not parse"),
         ]:
             with self.subTest(why=why):
                 with self.assertRaises(ValueError) as raised:
                     take.parse(text)
                 self.assertEqual(str(raised.exception), why)
 
-    def test_load_over_the_limit_at_the_end_as_host_admission_reads_over(self):
-        self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="50.01")), [("load", "load 50.0 at the end, over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="50.00")), [])
-
-    def test_load_over_the_limit_at_the_start_is_record_s_refusal_not_a_rule_so_the_take_is_valid(self):
-        self.assertEqual(take.judge(stamp_with(load_before="63.20", load_after="14.02")), [])
+    def test_neither_load_nor_a_starved_foreground_makes_a_take_invalid(self):
+        self.assertEqual(take.judge(stamp_with(load_before="130.00", load_after="520.00",
+                                               foreground="starved (wall/cpu 2.70)")), [])
 
     def test_a_recorder_that_stopped_early_or_exited_nonzero(self):
         self.assertEqual(take.judge(stamp_with(recorder_early="1")),
@@ -107,9 +125,8 @@ class TakeJudge(unittest.TestCase):
         self.assertEqual(take.judge(stamp_with(drive="", frames="2")), [])
 
     def test_every_failed_rule_gives_its_rule_and_reason_in_rule_order_and_the_stamp_lists_the_rules(self):
-        broken = stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2", drive_start="3.500")
+        broken = stamp_with(recorder_early="1", recorder_exit="2", drive_start="3.500")
         self.assertEqual(take.judge(broken), [
-            ("load", "load 70.0 at the end, over 50"),
             ("recorder_early", "the recorder stopped before the take ended"),
             ("recorder_exit", "recorder exit 2 after SIGINT; the video may be cut short"),
             ("coverage",
@@ -117,10 +134,10 @@ class TakeJudge(unittest.TestCase):
         ])
         self.assertEqual(take.take_lines(broken)[-3:], [
             "verdict=INVALID",
-            "invalid=load 70.0 at the end, over 50; the recorder stopped before the take ended; recorder exit "
-            "2 after SIGINT; the video may be cut short; the screen never changed after the drive began at +3.50 s, "
-            "so the take shows nothing the drive did",
-            "invalid_rules=load,recorder_early,recorder_exit,coverage",
+            "invalid=the recorder stopped before the take ended; recorder exit 2 after SIGINT; the video may be "
+            "cut short; the screen never changed after the drive began at +3.50 s, so the take shows nothing the "
+            "drive did",
+            "invalid_rules=recorder_early,recorder_exit,coverage",
         ])
 
 
@@ -185,8 +202,8 @@ class Film(unittest.TestCase):
         with mock.patch.dict(os.environ, dict(self.env, **env)), tempfile.TemporaryFile("w+") as stderr, \
                 contextlib.redirect_stderr(stderr):
             try:
-                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, drive,
-                          start_timeout)
+                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0,
+                          take.Foreground(False, 1.02), drive, start_timeout)
             except (take.DriveFailed, take.NoTake) as failure:
                 self.assertEqual(list(self.staging.iterdir()), [], "the recorder's folder is removed")
                 stderr.seek(0)
@@ -237,8 +254,8 @@ class Film(unittest.TestCase):
     def interrupt_a_take(self, **env):
         record = subprocess.Popen(
             [sys.executable, str(SKILL / "take.py"), "record", "--sim", "SIM", "--run", "lane-1", "--verify",
-             str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--limit", "50",
-             "--", "launch", "--animated", "session"],
+             str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--foreground",
+             "ok (wall/cpu 1.02)", "--", "launch", "--animated", "session"],
             env=dict(self.env, **env), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.addCleanup(record.kill)
         deadline = time.time() + 10

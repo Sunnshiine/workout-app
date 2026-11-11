@@ -20,8 +20,8 @@ read the screen's size or the card's frame from the tree, or when the tree recor
 (NAME.end.txt) lacks what the take's drive leads to, the marks TAKES lists beside each drive: the next Set
 active after a log, the review open, then closed, the Superset partner in front, the rest pill gone. Else
 it FAILs when the card was lost or an edge
-ranged over more than 0.5 pt, even on a take INVALID only for load at its end or for a window under
-1.5 s, or with animations off, because those can hide motion but never invent it. Else it is
+ranged over more than 0.5 pt, even on a take INVALID only for a window under 1.5 s, or with
+animations off, because those can hide motion but never invent it. Else it is
 INVALID when its edges were partial (the card was faint or missing in the window's first frames, so a
 move there went unread), the take is INVALID, or its animations are not on, the rule that keeps cardframe
 from printing still=yes; or when it started late, or cardframe read no card (none in the tree, none in

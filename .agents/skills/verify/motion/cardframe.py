@@ -31,7 +31,7 @@ then fades the app in from black. The window is INVALID when:
     because the card cannot be read through it;
   - it watched less than 1.5 s, from opening to the recorder's stop (rule window), as when the fade ended
     long after the launch returned. A tap's window opens at the drive's start and watches the whole tail.
-A take is also INVALID for the stamp's own reasons (load, recorder, coverage; see take.py summary).
+A take is also INVALID for the stamp's own reasons (recorder, coverage; see take.py summary).
 
 Box. The card is the longest vertical run of at least 120 pt where the column at --x pt is brighter than
 the paper column at --ref pt by 4.0. Runs join across a gap of up to 8 pt only while the joined run stays

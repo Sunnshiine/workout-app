@@ -32,6 +32,17 @@ SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS = """#!/bin/sh
 [ "$2" = kern.memorystatus_level ] && echo 5 || echo '{ 500.00 500.00 500.00 }'
 """
 
+FOREGROUND_STUB = """import os, sys
+with open("{dir}/foreground-calls", "a+") as calls:
+    calls.write("probe\\n")
+    calls.seek(0)
+    probes = len(calls.read().splitlines())
+answers = os.environ.get("STUB_FOREGROUND", "ok 1.02").split(",")
+state, ratio = answers[min(probes, len(answers)) - 1].split()
+print("%s (wall/cpu %s)" % (state, ratio))
+sys.exit({"ok": 0, "starved": 3}.get(state, 1))
+"""
+
 LANE_STUB = """#!/bin/sh
 tool=$(basename "$0")
 printf '%s\\n' "$tool $*" >> "{dir}/calls"
@@ -154,7 +165,10 @@ class Lane(unittest.TestCase):
         return done.stdout.strip()
 
     def link_verify(self, checkout):
-        return link_checkout(checkout) / "verify.sh"
+        skill = link_checkout(checkout)
+        (skill / "foreground.py").unlink()
+        (skill / "foreground.py").write_text(FOREGROUND_STUB.replace("{dir}", str(self.tmp)))
+        return skill / "verify.sh"
 
     def edit(self, code):
         (self.checkout / "App" / "Main.swift").write_text(code)
