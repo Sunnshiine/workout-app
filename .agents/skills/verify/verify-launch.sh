@@ -19,14 +19,13 @@ record_refusal() {
 }
 
 refuse() {
-  trap end_claim EXIT
+  trap - EXIT
   record_refusal "$1"
   exit "$2"
 }
 
 report_unchanged() {
   local rc=$?
-  end_claim
   [ $rc -ne 0 ] || return 0
   record_refusal "app on $sim unchanged: $(installed_line); this $cmd wanted $wanted_line"
 }
@@ -71,7 +70,7 @@ install_app() {
     simctl_install
     holds_wanted || refuse "after simctl install, $sim holds $(installed_line), not $wanted_line that this $cmd installed from $app" 70
   fi
-  trap end_claim EXIT
+  trap - EXIT
 }
 
 launch_parse() {

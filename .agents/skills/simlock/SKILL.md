@@ -13,14 +13,17 @@ host. It works only if every agent follows its rules. ADR-0024 records why worko
    read them again in each session instead of relying on memory.
 
 3. In this repo, take the simulator through the scripts, which lease it for you:
-   - `scripts/test-sim.sh` leases an iPhone 17 Pro on iOS 27.0 for one run and releases it when the
-     run ends, even when the run is killed.
+   - `scripts/test-sim.sh` runs on the lease you hold. Holding none, it leases an iPhone 17 Pro on
+     iOS 27.0 and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run for your next run,
+     because Simlock deletes a released device and first-boots a replacement, which loads the
+     host for minutes. A run never releases or shortens a lease; `simlock release <id>` does.
    - `verify.sh launch` leases one for your verify run. Later verify calls find and renew it.
      `verify.sh release` gives it back, and Simlock reclaims it after `WORKOUT_LEASE_MINUTES` (60)
      without a call.
-   - You hold one lease at a time. A second request fails, and `test-sim.sh` exits 75 naming the
-     simulator you hold. Pass that one: `scripts/test-sim.sh --sim <udid> unit`. `--sim` and `SIM=`
-     accept only the simulator of your own lease.
+   - You hold one lease at a time, and every script uses it. `--sim` and `SIM=` accept only the
+     simulator of your own lease.
+   - To design on the app, take the lease with `verify.sh launch`. Its 60 min TTL renews with
+     every verify call, and a lease test-sim kept becomes one. XcodeBuildMCP calls renew nothing.
 
 4. Never create, boot, shut down, erase, or delete a simulator yourself, and never name one by
    model in a `-destination`. `scripts/lint.sh` fails on each (`scripts/lint-simulators.py`).

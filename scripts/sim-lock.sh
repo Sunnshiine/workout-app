@@ -65,73 +65,50 @@ simlock_refusal() {
   esac
 }
 
-# Takes a lease of its own, tied to this script's pid, so it ends with the script even under SIGKILL.
-lease_sim() {
-  local grant wait=(--timeout "${WORKOUT_ADMIT_WAIT}s") code
-  need_simlock
+# Takes a detached lease that Simlock keeps for $1 past its last renew, and sets sim and lease_id. Always
+# a full device: a slim one has no Live Activity or widgets, so an agent could not see the app on it.
+detached_lease() {
+  local wait=(--timeout "${WORKOUT_ADMIT_WAIT}s") err grant code=0 said parsed
   [ "$WORKOUT_ADMIT_WAIT" -gt 0 ] || wait=(--no-wait)
-  lease_dir=$(mktemp -d "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
-  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock" >&6
-  (exec 7>&- 8>&- 9>&-; exec simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" \
-    "${wait[@]}" --bind-pid $$ >"$lease_dir/grant" 2>"$lease_dir/err") &
-  lease_pid=$!
-  until [ "$(wc -l < "$lease_dir/grant")" -ge 1 ]; do
-    if ! kill -0 "$lease_pid" 2>/dev/null; then
-      code=0
-      wait "$lease_pid" || code=$?
-      lease_pid=
-      simlock_refusal "$code" "$(tail -n 1 "$lease_dir/err")"
-    fi
-    sleep 0.2
-  done
-  grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
-    "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
-  read -r sim lease_id <<< "$grant"
+  err=$(mktemp "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
+  grant=$(simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --mode full "${wait[@]}" \
+    --detach --ttl "$1" 2>"$err" 7>&- 8>&- 9>&-) || code=$?
+  said=$(tail -n 1 "$err")
+  rm -f "$err"
+  [ "$code" = 0 ] || simlock_refusal "$code" "$said"
+  parsed=$(printf '%s\n' "$grant" | python3 -c 'import json, sys; g = json.loads(sys.stdin.readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])') \
+    || { echo "simlock lease printed a grant this script cannot read: ${grant:0:300}" >&6; exit 70; }
+  read -r sim lease_id <<< "$parsed"
   forget_runs "$sim"
-  echo "simulator $sim (Simlock lease $lease_id)" >&6
 }
 
-# Exits 69 when Simlock took the lease back while the script ran.
-lease_kept() {
-  local code=0
-  [ -n "${lease_pid:-}" ] && ! kill -0 "$lease_pid" 2>/dev/null || return 0
-  wait "$lease_pid" || code=$?
-  lease_pid=
-  simlock_refusal "$code" "$(tail -n 1 "$lease_dir/err")"
+renew_lease() {
+  local id=$1
+  shift
+  simlock lease renew "$id" "$@" >/dev/null 7>&- 8>&- 9>&- \
+    || { echo "could not renew Simlock lease $id on $sim; lease again" >&6; exit 75; }
 }
 
-end_lease() {
-  [ -z "${lease_dir:-}" ] || rm -rf "$lease_dir"
-  [ -n "${lease_pid:-}" ] || return 0
-  kill "$lease_pid" 2>/dev/null || true
-  wait "$lease_pid" 2>/dev/null || true
-  lease_pid=
-}
-
-# A verify run spans many calls, so its lease is detached, with a TTL of WORKOUT_LEASE_MINUTES that each
-# call renews once half of it has passed. Sets sim to the lease's UDID, or to $1's, which must be the
-# caller's own lease. With take, a caller holding no lease gets one; without, it is refused.
+# A verify run spans many calls, so its lease is detached and full, with a TTL of WORKOUT_LEASE_MINUTES
+# that each call renews once half of it has passed. A shorter lease, as test-sim.sh keeps, gets that TTL.
+# Sets sim to the lease's UDID, or to $1's, which must be the caller's own lease. With take, a caller
+# holding no lease gets one; without, it is refused.
 hold_lease() {
-  local named=$1 take=${2:-} held id ttl left grant
+  local named=$1 take=${2:-} held id ttl left
   held=$(own_lease "$named") || exit
   if [ -n "$held" ]; then
     read -r sim id ttl left <<< "$held"
-    [ $((left * 2000)) -ge "$ttl" ] || simlock lease renew "$id" >/dev/null 7>&- 8>&- 9>&- \
-      || { echo "could not renew Simlock lease $id on $sim; lease again" >&6; exit 75; }
+    if [ "$ttl" -lt $((WORKOUT_LEASE_MINUTES * 60000)) ]; then
+      renew_lease "$id" --ttl "${WORKOUT_LEASE_MINUTES}m"
+    elif [ $((left * 2000)) -lt "$ttl" ]; then
+      renew_lease "$id"
+    fi
     return 0
   fi
   [ -n "$take" ] || { echo "you hold no Simlock lease; verify.sh launch <fixture> takes one" >&6; exit 2; }
   echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock for $WORKOUT_LEASE_MINUTES min, renewed by each verify call" >&6
-  lease_dir=$(mktemp -d "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
-  simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --timeout "${WORKOUT_ADMIT_WAIT}s" \
-    --detach --ttl "${WORKOUT_LEASE_MINUTES}m" >"$lease_dir/grant" 2>"$lease_dir/err" 7>&- 8>&- 9>&- \
-    || simlock_refusal $? "$(tail -n 1 "$lease_dir/err")"
-  grant=$(python3 -c 'import json, sys; g = json.loads(open(sys.argv[1]).readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])' \
-    "$lease_dir/grant") || { echo "simlock lease printed a grant this script cannot read: $(head -c 300 "$lease_dir/grant")" >&6; exit 70; }
-  read -r sim id <<< "$grant"
-  rm -rf "$lease_dir"
-  forget_runs "$sim"
-  echo "simulator $sim (Simlock lease $id); verify.sh release gives it back" >&6
+  detached_lease "${WORKOUT_LEASE_MINUTES}m"
+  echo "simulator $sim (Simlock lease $lease_id); verify.sh release gives it back" >&6
 }
 
 release_lease() {
@@ -142,14 +119,11 @@ release_lease() {
   simlock release "$id" >/dev/null 7>&- 8>&- 9>&- && echo "released Simlock lease $id on $udid"
 }
 
-# The simulator a run drives: the named one, which must be the caller's own lease, else a lease of its own.
+# Claims $1, the simulator of a lease the caller holds, for one run: no other run starts on it while this
+# script lives, and the host has room for the run.
 claim_sim() {
-  local named=$1 who=$2 build=${3:-0} dir
-  if [ -n "$named" ]; then
-    sim=$(own_lease "$named" | awk '{print $1}') || exit
-  else
-    lease_sim
-  fi
+  local who=$2 build=${3:-0} dir
+  sim=$1
   dir=/tmp/workout-verify-$sim
   mkdir -p "$dir"
   exec 9>>"$dir/lock"
@@ -229,8 +203,6 @@ settle_run() {
   fi
   [ -z "$abandoned" ] || rm -f "$dir/pid" "$dir/args"
 }
-
-end_claim() { end_lease; }
 
 host_knob() {
   local name=$1 default=$2 min=$3 value

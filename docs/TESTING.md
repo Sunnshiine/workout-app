@@ -67,10 +67,11 @@ each failing test's name and prints the issue it finds.
 
 Each concurrent simulator run takes its own worktree, which `scripts/lane.sh up` makes (Running
 beside other agents, below), and its own simulator, which Simlock leases (ADR-0024,
-`.agents/skills/simlock/SKILL.md`). `scripts/test-sim.sh` leases an iPhone 17 Pro on iOS 27.0 for
-one run and releases it on exit. `verify.sh launch` leases one for a verify run, which later calls
-renew and `verify.sh release` ends. An agent holds one lease at a time, so with a verify lease
-open, run `scripts/test-sim.sh --sim <UDID>`. Simlock runs at most six simulators across every app
+`.agents/skills/simlock/SKILL.md`). An agent holds one lease at a time, and `scripts/test-sim.sh`
+runs on it. Holding none, test-sim leases an iPhone 17 Pro on iOS 27.0 and keeps it
+`WORKOUT_TEST_LEASE_MINUTES` (10) after the run, so the next run reuses the device instead of
+costing the host a first boot. `verify.sh launch` leases one for a verify run, which later calls
+renew and `verify.sh release` ends. Simlock runs at most six simulators across every app
 on the Mac and queues the rest; `test-sim.sh --help` names the waits and exit codes. Simlock
 does not gate builds. The build slots and the memory and disk floors do (ADR-0020):
 `scripts/build-slot.sh` runs anything else heavy under a build slot, as in

@@ -3,8 +3,6 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/test-sim-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/test-sim-harness.sh"
-# shellcheck source=scripts/same-process.sh
-. "$repo/scripts/same-process.sh"
 # stop NAME...: SIGTERM each process this test started and saved as $NAME, with its stamp in $NAME_stamp.
 stop() {
     local name pid stamp stamp_var
@@ -242,16 +240,6 @@ stop bystander releaser
 wait 2>/dev/null
 
 echo "test-sim.sh signals only the xcodebuild that carries the start time it read at launch"
-# Once $root/recycled names a pid, this ps reports another start year for it, as a recycled pid would show.
-mkdir -p "$root/recycled-bin"
-cat >"$root/recycled-bin/ps" <<'STUB'
-#!/bin/sh
-out=$(/bin/ps "$@") || exit
-pid=$(cat "$STUB_RECYCLED" 2>/dev/null)
-case " $* " in *" -p $pid "*) [ -n "$pid" ] && out=$(printf '%s\n' "$out" | sed 's/ 20[0-9][0-9]/ 1970/') ;; esac
-printf '%s\n' "$out"
-STUB
-chmod +x "$root/recycled-bin/ps"
 rm -f "$release" "$root/started" "$root/recycled"
 (sleep "$stuck_for" && touch "$release") &
 releaser=$!

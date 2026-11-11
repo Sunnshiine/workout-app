@@ -73,7 +73,7 @@ scripts/lint.sh [file.swift ...]                  # what CI runs, the line below
 scripts/swift-format-changed.sh [--fix] [<base>]  # swift-format the Swift files this branch changes, as CI does
 scripts/crap.sh gate                              # the change-risk gate CI runs (ADR-0016)
 scripts/test-sim.sh unit                          # simulator suites from one build: unit | visual | ui | all; leases its simulator from Simlock
-scripts/test-sim.sh --sim <UDID> unit              # run on the simulator of a Simlock lease you already hold, such as verify's
+scripts/test-sim.sh --sim <UDID> unit              # name the simulator of the Simlock lease you hold; without --sim a run uses that lease anyway
 scripts/test-sim.sh --no-build WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
 scripts/tests-for.py App/Views/ActiveSetCard.swift  # test-sim.sh IDs of the suites covering a file, or a test function's full ID; no argument: this branch's files
 scripts/build-slot.sh xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
@@ -140,14 +140,19 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
   simulator yourself, and never name one by model in a `-destination`; `scripts/lint.sh` fails on
   each. A raw `xcodebuild` or XcodeBuildMCP call takes no lease, so give it `id=<UDID>` of a lease
   you hold.
-- You hold one lease at a time. When you already hold one, `test-sim.sh` exits 75 and names it;
-  pass it as `scripts/test-sim.sh --sim <UDID> ...`. While Simlock has no free simulator it waits
-  up to `WORKOUT_ADMIT_WAIT` (540 s), then exits 75. It exits 78 without `simlock` on PATH.
+- You hold one lease at a time, and `test-sim.sh` runs on it, verify's included. Holding none, it
+  leases one and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run for your next run, since
+  each released device costs the host a first boot; `simlock release <id>` gives it back sooner.
+  While Simlock has no free simulator it waits up to `WORKOUT_ADMIT_WAIT` (540 s), then exits 75.
+  It exits 78 without `simlock` on PATH, and 75 before a build when `hostgate check` finds sandbox
+  reporting stuck, which would hang the build at the SwiftLint plug-in. `verify.sh build` refuses
+  the same way; an app built before still installs, launches and drives.
 - Concurrent simulator runs each need their own worktree. `scripts/lane.sh up <name> <commit>`
   makes one (`docs/TESTING.md`); Simlock gives each run its own simulator.
 - `test-sim.sh` exits 69 when the simulator broke rather than a test, as when a launch returns no
   process handle (#537), or when Simlock took its lease back. Rerun the same command; do not debug
-  the app.
+  the app. It stops an xcodebuild that sits silent and idle `WORKOUT_TEST_IDLE_SECONDS` (300) after
+  its last test, says so, and exits on the tests' result.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

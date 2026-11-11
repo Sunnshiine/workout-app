@@ -78,4 +78,36 @@ fix that load.
 
 Supersedes ADR-0020's simulator cap and idle-lane reclaim, and ADR-0022 for lanes on this Mac.
 
+**Amended (2026-11-10): test-sim keeps its lease.** Simlock 0.6.0 deletes a device when its lease is
+released and first-boots a fresh clone to refill its warm pool. No Simlock setting keeps a released
+device. A full first boot loads the host for about four minutes. Over about a day of this host's
+Simlock events, 79 leases caused 78 first boots. 49 leases followed the same agent's earlier lease,
+and 41 of those came within 10 minutes of its release, 30 within a minute. Keeping a lease 60
+minutes would have caught 44. Over the same day Simlock queued one request, so a seat held for 10
+idle minutes cost other agents little. Two consecutive `test-sim.sh unit` runs on the old code took
+two leases and caused two full first boots.
+
+- `test-sim.sh` runs on the lease its identity holds, verify's included. Holding none, it takes a
+  detached full lease and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run. A heartbeat renews
+  it while the run lives and stops when the script dies, so a killed run's lease lapses within the
+  TTL. A run never releases or shortens a lease, even after a fault, because the lease may be the
+  one the agent is designing on. The same two runs on the new code took one lease and caused no
+  first boot. The one release came after them.
+- verify gives a lease test-sim kept its own `WORKOUT_LEASE_MINUTES` (60) TTL.
+- Leases stay full, as decided above. A slim device has no Live Activity or widgets, so an agent
+  could not see the Lock Screen card on one. Moving a slim lease to full would also release a
+  simulator in use.
+- `test-sim.sh` stops an `xcodebuild test-without-building` once every selected bundle has printed
+  its end line and the run has printed nothing and used under 1% of a CPU for
+  `WORKOUT_TEST_IDLE_SECONDS` (300). It then exits on the tests' result. A unit run on this host
+  passed its tests and then sat silent for 604 s at 0.4% of a core until it was stopped by hand.
+  The two runs above each did the same, and the stop ended both at 300 s with exit 0.
+- Before a build, `test-sim.sh` runs `hostgate check --only sandbox-report`. A failing finding means
+  the build would hang at the SwiftLint plug-in, so the run exits 75 with the remedy and takes no
+  lease. `verify.sh build` and its app-cache builds run the same check, and their refusal names
+  what still works: installing, launching and driving an app built before. Without hostgate, or when
+  the check runs past `WORKOUT_SANDBOX_CHECK_SECONDS` (12), each prints one warning and builds. The
+  check reports a stuck sandbox after about 7 s, so a shorter bound would wave the build through. `scripts/hostgate-version` pins the
+  minimum version.
+
 <!-- doc-symbols: not-in-tree sim-pool.sh scripts/sim-pool.sh scripts/measure-host.sh capacity.config.limits.ios.maxRunning lease.maxPerRequester -->
