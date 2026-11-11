@@ -121,12 +121,12 @@ run_lease() {
 # Renews the lease while this script lives. It holds no fd of the script's, so neither the simulator's
 # lock nor a build slot, and it stops once the script is gone, so a SIGKILLed run's lease lapses.
 start_heartbeat() {
-  local born
+  local born nap='' nap_stamp
   born=$(proc_stamp $$)
   (
-    trap 'exit 0' TERM
+    trap '[ -z "$nap" ] || signal_same TERM "$nap" "$nap_stamp"; exit 0' TERM
     exec 6>&- 7>&- 8>&- 9>&- >/dev/null 2>&1
-    while sleep "$WORKOUT_LEASE_RENEW_SECONDS" & wait $!; same_process $$ "$born"; do
+    while sleep "$WORKOUT_LEASE_RENEW_SECONDS" & nap=$! nap_stamp=$(proc_stamp $!); wait "$nap"; nap=''; same_process $$ "$born"; do
       simlock lease renew "$run_lease" || exit 3
     done
   ) &

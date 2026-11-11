@@ -13,31 +13,33 @@ tests_ended() {
     END { exit !(x >= xctest && s >= swift) }' "$log"
 }
 
-# CPU seconds xcodebuild ($1) and its descendants have used.
+# CPU seconds xcodebuild ($1) and its running descendants have used, then their pids in order. ps shows an
+# exited child its parent has not reaped as a zombie with no CPU, so zombies are left out.
 tree_cpu() {
-  ps -A -o pid=,ppid=,time= | awk -v root="$1" '
-    { t = $3; d = 0
+  ps -A -o pid=,ppid=,stat=,time= | awk -v root="$1" '
+    $3 ~ /^Z/ { next }
+    { t = $4; d = 0
       if (t ~ /-/) { split(t, a, "-"); d = a[1]; t = a[2] }
       n = split(t, p, ":"); s = 0
       for (i = 1; i <= n; i++) s = s * 60 + p[i]
       cpu[$1] = s + d * 86400; parent[$1] = $2 }
     END { tree[root] = 1; grew = 1
       while (grew) { grew = 0; for (k in parent) if (!(k in tree) && (parent[k] in tree)) { tree[k] = 1; grew = 1 } }
-      for (k in tree) total += cpu[k]
-      printf "%.2f\n", total }'
+      for (k in tree) print k, cpu[k] }' | sort -n | awk '{ total += $2; pids = pids " " $1 } END { printf "%.2f%s\n", total, pids }'
 }
 
 # xcodebuild has sat for half an hour after its last test, waiting on nothing. Once every end line is in
 # the log, a window of WORKOUT_TEST_IDLE_SECONDS with no output and under 1% of a CPU stops it. Before
 # then its tree says nothing: the test runner and the app are launchd_sim's children, not xcodebuild's.
-# A descendant that exits takes its seconds out of the sum, so a sum that fell is not idle. A watcher
-# whose script was killed keeps bounding xcodebuild ($1, started at $2), and exits once that process is
-# gone; it signals a pid only while the pid still names that process.
+# The window is idle only when xcodebuild's tree holds the same pids at both ends and their CPU grew by
+# under 1% of it: a descendant that started or exited inside it was work. A watcher whose script was
+# killed keeps bounding xcodebuild ($1, started at $2), and exits once that process is gone; it signals a
+# pid only while the pid still names that process, its own poll's sleep included.
 watch_idle() {
-  local pid=$1 born=$2 size='' since='' cpu now_size now_cpu
+  local pid=$1 born=$2 size='' since='' cpu now_size now_cpu nap='' nap_stamp
   exec 6>&- 7>&- 8>&- 9>&- >/dev/null 2>&1
-  trap 'exit 0' TERM
-  while sleep "$WORKOUT_TEST_IDLE_POLL_SECONDS" & wait $!; same_process "$pid" "$born"; do
+  trap '[ -z "$nap" ] || signal_same TERM "$nap" "$nap_stamp"; exit 0' TERM
+  while sleep "$WORKOUT_TEST_IDLE_POLL_SECONDS" & nap=$! nap_stamp=$(proc_stamp $!); wait "$nap"; nap=''; same_process "$pid" "$born"; do
     tests_ended || continue
     now_size=$(wc -c <"$log")
     now_cpu=$(tree_cpu "$pid") || { since=''; continue; }
@@ -46,7 +48,8 @@ watch_idle() {
       continue
     fi
     [ $((SECONDS - since)) -ge "$WORKOUT_TEST_IDLE_SECONDS" ] || continue
-    if awk -v start="$cpu" -v end="$now_cpu" -v window="$WORKOUT_TEST_IDLE_SECONDS" 'BEGIN { exit !(end >= start && end - start < window / 100) }'; then
+    if [ "${now_cpu#* }" = "${cpu#* }" ] &&
+      awk -v start="${cpu%% *}" -v end="${now_cpu%% *}" -v window="$WORKOUT_TEST_IDLE_SECONDS" 'BEGIN { exit !(end - start < window / 100) }'; then
       same_process "$pid" "$born" || exit 0
       : >"$idle_mark"
       signal_same TERM "$pid" "$born"

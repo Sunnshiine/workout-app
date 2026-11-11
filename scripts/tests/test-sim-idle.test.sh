@@ -79,8 +79,34 @@ busy STUB_BUSY_CHILD_EXITS=1
 expect "a busy run is not stopped when a child that used more CPU than the window exits inside it" \
     "$? $(grep -c '^stopped xcodebuild' "$root/err")" "0 0"
 
-# A run stopped by a signal stops its watchers with it, though one would sleep out a 30 s poll. Python resets
-# SIGINT, which a background job ignores.
+# Each read of the process table shows xcodebuild ($STUB_CHURN_ROOT names it) with a new child in place of
+# the last, xcodebuild's CPU up a second and the tree's sum up 0.001 s: the parent's growth cancels the
+# seconds each exited child takes out of the sum.
+mkdir -p "$root/churn-bin"
+cat >"$root/churn-bin/ps" <<'STUB'
+#!/bin/sh
+case "$*" in "-A -o pid=,ppid=,time=") ;; "-A -o pid=,ppid=,stat=,time=") stat=1 ;; *) exec /bin/ps "$@" ;; esac
+n=$(($(cat "$STUB_CHURN" 2>/dev/null || echo 0) + 1))
+echo "$n" >"$STUB_CHURN"
+awk -v n="$n" -v root="$(pgrep -f "$STUB_CHURN_ROOT" | head -1)" -v stat="${stat:-}" '
+    function t(s) { return sprintf("%d:%05.2f", int(s / 60), s - 60 * int(s / 60)) }
+    function row(pid, ppid, cpu) { print pid, ppid, (stat ? "R " : "") t(cpu) }
+    BEGIN { row(root, 1, 10 + n); row(900000 + n, root, 100 - 0.999 * n) }'
+STUB
+chmod +x "$root/churn-bin/ps"
+rm -f "$root/churn" "$root/seen" "$root/load-read"
+STUB_SLEEP=12 STUB_CHURN=$root/churn STUB_CHURN_ROOT="$root/bin/xcodebuild" WORKOUT_TEST_IDLE_SECONDS=4 PATH="$root/churn-bin:$root/bin:$PATH" \
+    "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
+expect "a run whose children exit while xcodebuild's CPU grows as much is not stopped, though the tree's sum barely moves" \
+    "$? $(grep -c '^stopped xcodebuild' "$root/err") $([ -s "$root/churn" ] && echo ps-read)" "0 0 ps-read"
+
+# A run stopped by a signal stops its watchers with it, and the sleeps they wait on, though one would sleep
+# out a 30 s poll. Python resets SIGINT, which a background job ignores.
+descendants() {
+    ps -A -o pid=,ppid= | awk -v root="$1" '{ parent[$1] = $2 } END { tree[root] = 1; grew = 1
+        while (grew) { grew = 0; for (k in parent) if (!(k in tree) && (parent[k] in tree)) { tree[k] = 1; grew = 1 } }
+        for (k in tree) if (k != root) print k }'
+}
 printf '%s\n' "◇ Test run started." >"$root/xcodebuild.log"
 for sig in TERM INT HUP ALRM; do
     rm -f "$root/seen" "$root/load-read"
@@ -90,13 +116,15 @@ for sig in TERM INT HUP ALRM; do
     born=$(proc_stamp "$pid")
     for _ in $(seq 100); do [ -e "$root/seen" ] && break; sleep 0.1; done
     sleep 1
+    tree=()
+    for kid in $(descendants "$pid"); do tree+=("$kid $(proc_stamp "$kid")"); done
     signal_same "$sig" "$pid" "$born"
     wait "$pid"
     status=$?
     sleep 2
-    expect "a run stopped by SIG$sig leaves no watcher, heartbeat or xcodebuild behind" \
-        "$status $(pgrep -f "$repo/scripts/test-sim.sh" | wc -l | tr -d ' ') $(pgrep -f "$root/bin/xcodebuild" | wc -l | tr -d ' ')" \
-        "$((128 + $(kill -l "$sig"))) 0 0"
+    left=0
+    for kid in "${tree[@]}"; do same_process "${kid%% *}" "${kid#* }" && left=$((left + 1)); done
+    expect "a run stopped by SIG$sig leaves none of its ${#tree[@]} descendants behind" "$status $left" "$((128 + $(kill -l "$sig"))) 0"
 done
 
 # A watcher whose script was SIGKILLed keeps bounding xcodebuild, and stops when xcodebuild has gone. Forcing
