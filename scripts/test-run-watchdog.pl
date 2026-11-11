@@ -13,6 +13,8 @@ my ($limit, $grace, $pid, $start, $marker) = @ARGV;
 die "usage: $0 LIMIT GRACE PID START MARKER\n"
   unless defined $marker && "$limit $grace $pid" =~ /^\d+ [1-9]\d* \d+$/;
 $start =~ s/^\s+|\s+$//g;
+# START comes from same-process.sh's proc_stamp, read in the C locale.
+$ENV{LC_ALL} = 'C';
 
 # True while PID is the process that started at START and has not exited.
 sub same {

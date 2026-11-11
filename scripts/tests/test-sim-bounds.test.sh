@@ -333,7 +333,7 @@ rm -f "$release"
 echo "the watchdog signals only the process that carries the start time it was given"
 watchdog=$repo/scripts/test-run-watchdog.pl
 mark=$root/mark
-lstart() { ps -o lstart= -p "$1"; }
+lstart() { LC_ALL=C ps -o lstart= -p "$1"; }
 sleep 30 &
 child=$!
 rm -f "$mark"
