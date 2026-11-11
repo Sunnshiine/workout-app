@@ -53,6 +53,7 @@ when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the 
 outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it (SIGTERM, then SIGKILL
 WORKOUT_TEST_KILL_GRACE seconds (10) later), so a run that stops making
 progress cannot hold its simulator for good.
+A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the run the same way and exits 142.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
@@ -111,6 +112,9 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 trap 'exit 129' HUP
+# A caller's bound such as perl -e 'alarm N' sends SIGALRM, which would otherwise end the script with
+# finish reading exit=0 for a run stop_run cut short.
+trap 'echo "test-sim: stopped by SIGALRM, most likely a caller'"'"'s alarm bound, before the test run ended" >&2; exit 142' ALRM
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 . "$repo/scripts/sim-lock.sh"

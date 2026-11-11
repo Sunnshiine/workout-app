@@ -141,7 +141,7 @@ releaser_stamp=$(proc_stamp "$releaser")
         STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$started STUB_RC=0 \
             STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=600 HOME=$root/home PATH="$root/bin:$PATH" \
             perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit 2>&1 \
-            | cat >/dev/null
+            | cat >"$root/ended"
         [ -e "$release" ] && echo late >"$root/pipe" || echo early >"$root/pipe"
     ) &
     local piped=$!
@@ -171,6 +171,17 @@ releaser_stamp=$(proc_stamp "$releaser")
         ok "$how: a pipe on test-sim.sh closes when it ends"
     else
         bad "$how: a pipe on test-sim.sh closes when it ends"
+    fi
+    # Each trapped signal ends with a result line that names the script's own status; SIGKILL runs no trap.
+    local want
+    # SIGALRM also prints a line naming it.
+    case $how in TERM) want=143 ;; INT) want=130 ;; HUP) want=129 ;; ALRM) want=142 ;; KILL) want= ;; esac
+    if [ -z "$want" ]; then
+        :
+    elif tail -1 "$root/ended" | grep -q " exit=$want " && { [ "$how" != ALRM ] || grep -q 'stopped by SIGALRM' "$root/ended"; }; then
+        ok "$how: the result line reads exit=$want"
+    else
+        bad "$how: the result line reads exit=$want: $(tail -2 "$root/ended" | tr '\n' '|')"
     fi
     # After SIGKILL the stub xcodebuild runs on until it sees the release file.
     touch "$release"
@@ -229,6 +240,47 @@ else
 fi
 stop bystander releaser
 wait 2>/dev/null
+
+echo "test-sim.sh signals only the xcodebuild that carries the start time it read at launch"
+# Once $root/recycled names a pid, this ps reports another start year for it, as a recycled pid would show.
+mkdir -p "$root/recycled-bin"
+cat >"$root/recycled-bin/ps" <<'STUB'
+#!/bin/sh
+out=$(/bin/ps "$@") || exit
+pid=$(cat "$STUB_RECYCLED" 2>/dev/null)
+case " $* " in *" -p $pid "*) [ -n "$pid" ] && out=$(printf '%s\n' "$out" | sed 's/ 20[0-9][0-9]/ 1970/') ;; esac
+printf '%s\n' "$out"
+STUB
+chmod +x "$root/recycled-bin/ps"
+rm -f "$release" "$root/started" "$root/recycled"
+(sleep "$stuck_for" && touch "$release") &
+releaser=$!
+releaser_stamp=$(proc_stamp "$releaser")
+(
+    STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 \
+        STUB_RELEASE="$release" STUB_RECYCLED=$root/recycled WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=1 \
+        HOME=$root/home PATH="$root/recycled-bin:$root/bin:$PATH" \
+        "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1
+    echo $? >"$root/recycled-status"
+) &
+recycled_run=$!
+while { [ ! -e "$root/started" ] || [ -z "$(watchdogs)" ]; } && [ ! -e "$release" ]; do sleep 0.1; done
+sleep 1
+runs >"$root/recycled"
+kill_script TERM
+sleep 3
+if [ -n "$(runs)" ] && [ ! -e "$release" ]; then
+    ok "after SIGTERM, an xcodebuild pid whose start time changed gets no signal"
+else
+    bad "after SIGTERM, an xcodebuild pid whose start time changed gets no signal: $( [ -e "$release" ] && echo released || echo signalled)"
+fi
+touch "$release"
+gone runs
+wait "$recycled_run"
+if [ "$(cat "$root/recycled-status" 2>/dev/null)" = 143 ]; then ok "test-sim.sh then exits 143"; else bad "test-sim.sh then exits 143: $(cat "$root/recycled-status" 2>/dev/null)"; fi
+stop releaser
+wait 2>/dev/null
+rm -f "$release"
 
 echo "the watchdog signals only the process that carries the start time it was given"
 watchdog=$repo/scripts/test-run-watchdog.pl
