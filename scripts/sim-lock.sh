@@ -310,19 +310,22 @@ hostgate_run() {
   older_version "$have" "$pin" \
     && echo "hostgate $have is older than the $pin this repo pins (scripts/hostgate-version); update it: $install" >&6
   [ -z "$admit_wait_set" ] || wait=(--wait "$WORKOUT_ADMIT_WAIT")
-  # The command removes this file as it starts, so a file left after a failed run means hostgate
-  # never started it.
+  # The command removes this file as it starts, so a file left after a run means hostgate never
+  # started it, whatever its status. HOSTGATE_PIN_FILE registers the pin, so `hostgate check` warns once
+  # the installed hostgate falls behind it.
   started=$(mktemp) || exit 70
-  slot_run hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
+  slot_run env HOSTGATE_PIN_FILE="$sim_lock_checkout/scripts/hostgate-version" hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
     -- sh -c 'rm -f "$0" && exec "$@"' "$started" "$@" 2>&6 6>&- || rc=$?
   if [ -e "$started" ]; then
     rm -f "$started"
     case $rc in
-      0) ;;
       75)
         echo "no host-wide build slot came free in time, so nothing was built; \`hostgate status\` names who holds them. Rerun when one frees, or wait longer with WORKOUT_ADMIT_WAIT=<seconds>" >&6
         ;;
       69) ;;
+      129 | 1[3-9][0-9] | 2[0-9][0-9])
+        echo "hostgate run was stopped by signal $((rc - 128)) before it started the build, so nothing was built" >&6
+        ;;
       *)
         echo "hostgate run failed (exit $rc) before it started the build, so this build takes no host-wide slot and may stall every other agent; reinstall it: $install" >&6
         rc=0
