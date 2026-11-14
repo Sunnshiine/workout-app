@@ -18,9 +18,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # 3.9 is what /usr/bin/python3 is on a stock Xcode machine, and scripts/lint.sh runs it there.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
+      # actions/setup-python has no 3.9 for Ubuntu 26.04, so uv installs the .python-version pin, as
+      # verify-tools.yml's tree job does.
+      - uses: astral-sh/setup-uv@v10.3.0
+      - name: Put the pinned python3 on PATH
+        run: |
+          uv venv "$RUNNER_TEMP/py"
+          echo "$RUNNER_TEMP/py/bin" >> "$GITHUB_PATH"
+      - name: python3 is the pinned version
+        run: python3 -c 'import sys; v = "%d.%d" % sys.version_info[:2]; p = open(".python-version").read().strip(); print(v); assert v == p, (v, p)'
       - name: Checker tests
         run: scripts/tests/lint-doc-symbols.test.sh
       - name: Every doc span and fenced path names something in the tree
