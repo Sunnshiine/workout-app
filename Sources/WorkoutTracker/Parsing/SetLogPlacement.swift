@@ -86,7 +86,8 @@ enum SetLogPlacementResolution: Sendable, Equatable {
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int
-    let nextAnchorRow: Int
+    /// The rows below `row` that belong to this Exercise, in sheet order, hidden ones included.
+    let spanRows: [Int]
 
     func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(
@@ -125,7 +126,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let anchorSetCount = prescribedSetCount(in: grid, setsColumn: setsColumn)
         var lines = [PrescriptionLine(row: row, setCount: anchorSetCount, firstSetIndex: 0)]
         var nextFirstSetIndex = anchorSetCount
-        for continuationRow in (row + 1)..<nextAnchorRow where snapshot.isRowVisible(continuationRow) {
+        for continuationRow in spanRows where snapshot.isRowVisible(continuationRow) {
             guard let lineSetCount = setCount(at: continuationRow, in: grid, setsColumn: setsColumn) else { continue }
             lines.append(
                 PrescriptionLine(row: continuationRow, setCount: lineSetCount, firstSetIndex: nextFirstSetIndex)
@@ -140,9 +141,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// starts on the row below it. Set N takes the Nth of these, so "which row is Set N on" and
     /// "which row does an occupied header redirect to" read the same list.
     func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
-        let firstRow = row + (headerHoldsSetLogs ? 0 : 1)
-        guard firstRow < nextAnchorRow else { return [] }
-        return (firstRow..<nextAnchorRow).filter { snapshot.isRowVisible($0) }
+        ((headerHoldsSetLogs ? [row] : []) + spanRows).filter { snapshot.isRowVisible($0) }
     }
 
     func visibleSetLogRow(for setIndex: Int, headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> Int? {

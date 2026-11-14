@@ -207,7 +207,7 @@ private let supportWorkbooks: [WorkbookScenario] = [
 /// (`Sources/WorkoutCLI/Commands/InitCommand.swift`), and its shape is pinned by
 /// `Tests/Unit/WorkbookScenarioTests.swift`, `Sources/WorkoutCLI/README.md`,
 /// `scripts/viewed-session-across-sync.sh`, and the verify skill's `cli-headless.md`, not by a graph.
-private let workbooksWithoutALaunchScenario = Set<WorkbookScenario>([.freshBlock]).union(supportWorkbooks)
+private let workbooksWithoutALaunchScenario = Set<WorkbookScenario>([.freshBlock, .hiddenExerciseBelowCoachNote]).union(supportWorkbooks)
 
 /// Every difference between the two sides today, in address order, with the side that is wrong
 /// named per entry.

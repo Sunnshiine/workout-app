@@ -67,7 +67,7 @@ extension SetLogPlacementNarration {
 
     static func occupiedHeaderVisibleWritableRow(anchor: SheetLayoutExerciseAnchor) -> Self {
         .scan(
-            rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
+            rows: anchor.spanRows,
             selection: """
                 first visible writable row below header Notes that hold a Coach Note or Legacy Log, \
                 before the next Exercise.
@@ -83,7 +83,7 @@ extension SetLogPlacementNarration {
     /// anchor row under its own placement kind, so this narration never claims the anchor row.
     static func visibleSetLogRow(setIndex: Int, anchor: SheetLayoutExerciseAnchor) -> Self {
         .scan(
-            rows: Array(anchor.row + 1..<anchor.nextAnchorRow),
+            rows: anchor.spanRows,
             selection: "visible Set row for Set \(setIndex + 1).",
             absence: "no visible Set row found for Set \(setIndex + 1) before the next Exercise."
         )

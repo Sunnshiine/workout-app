@@ -37,6 +37,10 @@ struct DayColumns: Sendable {
     let lastSetRPE: Int?
     let notes: Int?
     let span: Range<Int>  // [dayStart, nextDayStart)
+
+    /// The columns only the coach writes, which prescribe a Set. The app writes Notes and Last Set
+    /// RPE itself, so a row's owner cannot depend on them: a Set Log landing there would move the row.
+    var prescription: [Int] { [sets, reps, percentOneRM, load].compactMap { $0 } }
 }
 
 struct SheetLayout: Sendable {
@@ -260,9 +264,8 @@ func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
     }
 }
 
-/// Every row in a day's span that starts an Exercise block, hidden or not. A hidden row still ends
-/// the block above it: the rows under a retired movement belong to that movement, not to the
-/// Exercise before it.
+/// Every row in a day's span that starts an Exercise block, hidden or not. A hidden row starts a
+/// retired movement's block, which keeps its rows from the Exercise before it.
 func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int) -> [Int] {
     guard firstRow < upper else { return [] }
 
@@ -276,9 +279,7 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
 
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
 /// movement is retired without losing its history, so a hidden row is not an Exercise — the same
-/// reading ADR-0003 already gives it on the write side. Block boundaries still come from every
-/// anchor row, so a retired movement's own continuation rows are dropped with it rather than
-/// absorbed by the Exercise above.
+/// reading ADR-0003 already gives it on the write side.
 private func exerciseAnchors(
     in snapshot: SheetSnapshot,
     cols: DayColumns,
@@ -287,14 +288,40 @@ private func exerciseAnchors(
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
     let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    return rows.enumerated().compactMap { index, row in
-        guard snapshot.isRowVisible(row) else { return nil }
+    let visibleRows = rows.filter { snapshot.isRowVisible($0) }
+    return visibleRows.enumerated().map { index, row in
+        let end = index + 1 < visibleRows.count ? visibleRows[index + 1] : upper
         return SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
-            nextAnchorRow: index + 1 < rows.count ? rows[index + 1] : upper
+            spanRows: spanRows(below: row, before: end, anchorRows: Set(rows), in: snapshot, cols: cols)
         )
     }
+}
+
+/// The rows between a visible Exercise's anchor and the next visible Exercise that belong to it. A
+/// hidden anchor in between is a retired movement and keeps its rows, so its still-visible Prescription
+/// Lines are not read as the Exercise's own. It keeps them only up to its first visible row that
+/// prescribes nothing. From there the rows are the Exercise's again, as they look to the coach who
+/// hid the movement above them.
+private func spanRows(
+    below anchor: Int,
+    before end: Int,
+    anchorRows: Set<Int>,
+    in snapshot: SheetSnapshot,
+    cols: DayColumns
+) -> [Int] {
+    var rows: [Int] = []
+    var inRetiredMovement = false
+    for row in (anchor + 1)..<end {
+        if anchorRows.contains(row) {
+            inRetiredMovement = true
+        } else if inRetiredMovement, snapshot.isRowVisible(row) {
+            inRetiredMovement = cols.prescription.contains { !snapshot.values.cell(row: row, col: $0).trimmed.isEmpty }
+        }
+        if !inRetiredMovement { rows.append(row) }
+    }
+    return rows
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {

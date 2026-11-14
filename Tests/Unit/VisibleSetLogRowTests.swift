@@ -4,7 +4,7 @@ import Testing
 
 // The Exercise spans rows 10..<15. Rows 11 and 13 are hidden, so the visible rows below the anchor
 // are 12 and 14.
-private let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 10, nextAnchorRow: 15)
+private let anchor = SheetLayoutExerciseAnchor(name: "Squat", row: 10, spanRows: Array(11..<15))
 
 private func snapshot(hiddenRows: Set<Int> = []) -> SheetSnapshot {
     SheetSnapshot(
@@ -53,7 +53,7 @@ private func snapshot(hiddenRows: Set<Int> = []) -> SheetSnapshot {
 }
 
 @Test func visibleSetLogRowFindsNoRowWhenTheExerciseHasNoRowBelowItsAnchor() {
-    let lastRow = SheetLayoutExerciseAnchor(name: "Bench", row: 10, nextAnchorRow: 11)
+    let lastRow = SheetLayoutExerciseAnchor(name: "Bench", row: 10, spanRows: [])
 
     #expect(lastRow.visibleSetLogRow(for: 0, headerHoldsSetLogs: false, in: snapshot()) == nil)
     #expect(lastRow.visibleSetLogRow(for: 0, headerHoldsSetLogs: true, in: snapshot()) == 10)
