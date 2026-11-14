@@ -146,9 +146,26 @@ RECORDER_STUB = """#!/bin/bash
 . "{repo}/scripts/same-process.sh"
 proc_stamp $$ > "{dir}/recorder.stamp"
 echo $$ > "{dir}/recorder.pid"
-if [ -n "${STUB_STUCK:-}" ]; then trap '' INT; else trap 'echo mp4 > "$8"; exit 0' INT; fi
-[ -n "${STUB_NEVER_STARTS:-}" ] || echo "Recording started" >&2
-while :; do sleep 0.1; done
+exec "{python}" -I -S "{dir}/bin/recorder.py" "$8"
+"""
+RECORDER_PY = """import os, signal, sys
+stuck = bool(os.environ.get("STUB_STUCK"))
+waits = {signal.SIGALRM} if stuck else {signal.SIGINT, signal.SIGALRM}
+try:
+    if stuck:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.pthread_sigmask(signal.SIG_BLOCK, waits)
+    if not os.environ.get("STUB_NEVER_STARTS"):
+        sys.stderr.write("Recording started\\n")
+        sys.stderr.flush()
+    signal.alarm(30)
+    stop = signal.sigwait(waits)
+except KeyboardInterrupt:
+    stop = signal.SIGINT
+if stop == signal.SIGALRM:
+    sys.exit(1)
+with open(sys.argv[1], "w") as out:
+    out.write("mp4\\n")
 """
 WRAPPED_LAUNCH_STUB = """#!/bin/bash
 trap 'echo "the EXIT trap ran" > "{dir}/drive-exit"' EXIT
@@ -178,8 +195,10 @@ class Film(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.tmp), True)
         (self.tmp / "bin").mkdir()
         for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB),
-                           (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n")]:
-            path.write_text(stub.replace("{dir}", str(self.tmp)).replace("{repo}", str(REPO)))
+                           (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n"),
+                           (self.tmp / "bin" / "recorder.py", RECORDER_PY)]:
+            path.write_text(stub.replace("{dir}", str(self.tmp)).replace("{repo}", str(REPO)).replace(
+                "{python}", sys.executable))
             path.chmod(0o755)
         self.env = dict(os.environ, HOME=str(self.tmp / "home"),
                         PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
