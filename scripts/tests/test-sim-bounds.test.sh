@@ -3,24 +3,8 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/test-sim-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/test-sim-harness.sh"
-# stop NAME...: SIGTERM each process this test started and saved as $NAME, with its stamp in $NAME_stamp.
-stop() {
-    local name pid stamp stamp_var
-    for name in "$@"; do
-        pid=${!name}
-        stamp_var=${name}_stamp
-        stamp=${!stamp_var:-}
-        signal_same TERM "$pid" "$stamp"
-    done
-    return 0
-}
-# kill_script SIG: signals the test-sim.sh this test started, found and stamped at once.
-kill_script() {
-    local pid
-    pid=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" | head -1)
-    [ -n "$pid" ] && signal_same "$1" "$pid" "$(proc_stamp "$pid")"
-}
-
+# shellcheck source=scripts/tests/test-sim-stopping.sh
+. "$(dirname "${BASH_SOURCE[0]}")/test-sim-stopping.sh"
 passing="✔ Test run with 1 test in 1 suite passed after 0.010 seconds.
 ** TEST EXECUTE SUCCEEDED **"
 printf '%s\n' "$passing" >"$root/xcodebuild.log"
@@ -62,10 +46,7 @@ fi
 echo "a run that outlives WORKOUT_TEST_RUN_LIMIT is stopped and exits 124"
 # xcodebuild that never finishes, as one that idled after its last test did. Without the bound
 # this release file ends it after 30 s with status 0, so the check fails instead of hanging.
-release=$root/release
-(sleep 30 && touch "$release") &
-releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
+release_after 30
 run env STUB_RC=0 STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=1
 stop releaser
 wait "$releaser" 2>/dev/null
@@ -92,9 +73,7 @@ fi
 
 echo "a stub xcodebuild that ignores SIGTERM gets SIGKILL after WORKOUT_TEST_KILL_GRACE"
 rm -f "$release"
-(sleep 30 && touch "$release") &
-releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
+release_after 30
 run env STUB_RC=0 STUB_DEAF=1 STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=1 WORKOUT_TEST_KILL_GRACE=1
 stop releaser
 wait "$releaser" 2>/dev/null
@@ -105,18 +84,6 @@ else
 fi
 
 echo "no watchdog outlives test-sim.sh, however it ends"
-# GONE_WITHIN bounds how long the checks below wait for a process to quit. STUCK_FOR, well past it, is
-# how long a stub xcodebuild that nothing stops runs before it ends itself, so a check fails rather
-# than hangs.
-gone_within=${GONE_WITHIN:-20}
-stuck_for=${STUCK_FOR:-$((gone_within * 4))}
-watchdogs() { pgrep -f "$root/repo/.build/test-sim/.*overran" || true; }
-runs() { pgrep -f "$root/bin/xcodebuild" || true; }
-gone() {
-    local deadline=$((SECONDS + gone_within))
-    while [ -n "$("$1")" ] && [ $SECONDS -lt $deadline ]; do sleep 0.1; done
-    [ -z "$("$1")" ]
-}
 
 run env STUB_RC=0
 if [ "$status" = 0 ] && [ -z "$(watchdogs)" ] && [ -z "$(runs)" ]; then
@@ -130,9 +97,7 @@ fi
 ended_by() {
     local how=$1 started=$root/started
     rm -f "$release" "$started"
-    (sleep "$stuck_for" && touch "$release") &
-    releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
+    release_after "$stuck_for"
     # A background job starts with SIGINT ignored, and bash cannot trap a signal ignored at entry, so
     # test-sim.sh gets the default back, as it has when run from a terminal.
     (
@@ -197,9 +162,7 @@ ended_by KILL
 
 echo "after a SIGKILL of test-sim.sh, the watchdog still bounds xcodebuild, and signals nothing else"
 rm -f "$release"
-(sleep "$stuck_for" && touch "$release") &
-releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
+release_after "$stuck_for"
 (
     STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 \
         STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=4 WORKOUT_TEST_KILL_GRACE=1 HOME=$root/home PATH="$root/bin:$PATH" \
@@ -211,12 +174,12 @@ kill_script KILL
 if gone runs; then ok "the watchdog stops the xcodebuild a SIGKILLed test-sim.sh left"; else bad "the watchdog stops the xcodebuild a SIGKILLed test-sim.sh left: $(runs)"; fi
 stop releaser
 wait 2>/dev/null
+# The overrun marker the killed script never read.
+find "$repo/.build/test-sim" -name '*.overran' -delete
 
 # The stub exits, a bystander starts, and the watchdog's next tick must leave it alone.
 rm -f "$release"
-(sleep "$stuck_for" && touch "$release") &
-releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
+release_after "$stuck_for"
 (
     STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 \
         STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=3 WORKOUT_TEST_KILL_GRACE=1 HOME=$root/home PATH="$root/bin:$PATH" \
@@ -239,41 +202,10 @@ fi
 stop bystander releaser
 wait 2>/dev/null
 
-echo "test-sim.sh signals only the xcodebuild that carries the start time it read at launch"
-rm -f "$release" "$root/started" "$root/recycled"
-(sleep "$stuck_for" && touch "$release") &
-releaser=$!
-releaser_stamp=$(proc_stamp "$releaser")
-(
-    STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 \
-        STUB_RELEASE="$release" STUB_RECYCLED=$root/recycled WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=1 \
-        HOME=$root/home PATH="$root/recycled-bin:$root/bin:$PATH" \
-        "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1
-    echo $? >"$root/recycled-status"
-) &
-recycled_run=$!
-while { [ ! -e "$root/started" ] || [ -z "$(watchdogs)" ]; } && [ ! -e "$release" ]; do sleep 0.1; done
-sleep 1
-runs >"$root/recycled"
-kill_script TERM
-sleep 3
-if [ -n "$(runs)" ] && [ ! -e "$release" ]; then
-    ok "after SIGTERM, an xcodebuild pid whose start time changed gets no signal"
-else
-    bad "after SIGTERM, an xcodebuild pid whose start time changed gets no signal: $( [ -e "$release" ] && echo released || echo signalled)"
-fi
-touch "$release"
-gone runs
-wait "$recycled_run"
-if [ "$(cat "$root/recycled-status" 2>/dev/null)" = 143 ]; then ok "test-sim.sh then exits 143"; else bad "test-sim.sh then exits 143: $(cat "$root/recycled-status" 2>/dev/null)"; fi
-stop releaser
-wait 2>/dev/null
-rm -f "$release"
-
 echo "the watchdog signals only the process that carries the start time it was given"
 watchdog=$repo/scripts/test-run-watchdog.pl
 mark=$root/mark
-lstart() { ps -o lstart= -p "$1"; }
+lstart() { LC_ALL=C ps -o lstart= -p "$1"; }
 sleep 30 &
 child=$!
 rm -f "$mark"
@@ -294,7 +226,7 @@ else
     bad "the process it was given gets SIGTERM past the limit, and the marker is made: status $child_status"
 fi
 
-sh -c 'trap "" TERM; sleep 30' &
+perl -e '$SIG{TERM} = "IGNORE"; sleep 30' &
 child=$!
 sleep 0.2
 rm -f "$mark"
@@ -302,6 +234,21 @@ rm -f "$mark"
 wait "$child"
 child_status=$?
 if [ "$child_status" = 137 ]; then ok "one that ignores SIGTERM gets SIGKILL after the grace"; else bad "one that ignores SIGTERM gets SIGKILL after the grace: status $child_status"; fi
+
+# The child marks itself recycled on SIGTERM, as a pid that another process took during the grace shows.
+perl -e '$SIG{TERM} = sub { open my $f, ">", $ARGV[0]; print $f "$$\n"; close $f }; sleep 1 for 1 .. 30' "$root/recycled" &
+child=$!
+child_stamp=$(proc_stamp "$child")
+rm -f "$mark" "$root/recycled"
+STUB_RECYCLED=$root/recycled PATH="$root/recycled-bin:$PATH" "$watchdog" 1 3 "$child" "$(lstart "$child")" "$mark"
+if [ -e "$root/recycled" ] && kill -0 "$child" 2>/dev/null; then
+    ok "a pid whose start time changed during the grace gets no SIGKILL"
+else
+    bad "a pid whose start time changed during the grace gets no SIGKILL: $([ -e "$root/recycled" ] && echo killed || echo "no SIGTERM")"
+fi
+signal_same KILL "$child" "$child_stamp"
+wait "$child" 2>/dev/null
+rm -f "$root/recycled"
 
 true &
 child=$!
@@ -317,6 +264,7 @@ else
 fi
 
 if "$watchdog" 1 1 x y "$mark" 2>/dev/null; then bad "a pid that is not a number is a usage error"; else ok "a pid that is not a number is a usage error"; fi
+if "$watchdog" 1 0 1 y "$mark" 2>/dev/null; then bad "a grace of 0 is a usage error"; else ok "a grace of 0 is a usage error"; fi
 
 printf '\n%d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]

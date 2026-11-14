@@ -64,11 +64,12 @@ Usage: .agents/skills/verify/verify.sh <command> [args]
                               the recorder captures, runs COMMAND (a drive command, launch included),
                               then S more seconds (default 2), stamps load, timing, frames and the
                               verdict, and saves the tree at the take's end as `tree` prints it.
-                              Waits first while the 1-minute load is over WORKOUT_LOAD_LIMIT. Exit 0 VALID, 3 INVALID
-                              (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder or ffprobe
-                              failed, or the screen size or the card's frame could not be read from the
+                              Waits first, up to WORKOUT_ADMIT_WAIT, while foreground.py finds
+                              the foreground starved, then records anyway. Exit 0 VALID, 3 INVALID
+                              (both kept, reasons on stderr), 1 COMMAND failed, 70 recorder, ffprobe or
+                              foreground.py failed, or the screen size or the card's frame could not be read from the
                               tree after the take (nothing kept, a VALID take included), 75 nothing ran
-                              (simulator held or load never fell). A take whose screen never changed
+                              (simulator held). A take whose screen never changed
                               after COMMAND began is INVALID, but any change counts, the rest pill's
                               countdown included, so VALID does not say COMMAND did anything;
                               NAME.end.txt shows what it did
@@ -113,8 +114,6 @@ Environment: SIM (names your lease's simulator; any other UDID exits 2),
                   WORKOUT_DISK_FLOOR (5120 MB), then run in a host-wide hostgate slot
                   (scripts/build-slot.sh --help). A floor of 0 turns it off. A wait says why once a
                   minute, and exits 75 after WORKOUT_ADMIT_WAIT seconds.
-             WORKOUT_LOAD_LIMIT (50): record waits while the 1-minute load is over it, and a take
-                  whose load ends over it is INVALID, since a loaded host films a move as a cut.
 Exit 75: another run holds the simulator or owns its app, this run was reclaimed or its last launch
          was refused, Simlock had no simulator free, or a wait for the host ran out.
 Evidence: <VERIFY_EVIDENCE>/<run>/ survives stop and worktree removal; its launches.txt names the

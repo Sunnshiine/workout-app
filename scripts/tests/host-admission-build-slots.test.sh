@@ -5,6 +5,8 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/host-admission-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/host-admission-harness.sh"
+# shellcheck source=scripts/same-process.sh
+. "$repo/scripts/same-process.sh"
 
 build_slot() { "$repo/scripts/build-slot.sh" "$@" >"$root/out" 2>"$root/err"; }
 # PATH with no hostgate on it, as on a CI runner; the harness's other stubs stay.
@@ -37,6 +39,16 @@ reset
 WORKOUT_ADMIT_WAIT=30 test_sim
 expect "WORKOUT_ADMIT_WAIT, when set, is hostgate's wait" "$(slots)" \
     "label=workout-app:test-sim.sh wait=30 nested=no xcodebuild build-for-testing"
+reset
+(STUB_HOLD=1 test_sim; echo $? >"$root/alarmed") &
+alarmed=$!
+while [ ! -e "$root/holding" ] && kill -0 "$alarmed" 2>/dev/null; do sleep 0.1; done
+script=$(pgrep -f "$repo/scripts/test-sim.sh --sim $sim unit" | head -1)
+began=$SECONDS
+[ -z "$script" ] || signal_same ALRM "$script" "$(proc_stamp "$script")"
+wait "$alarmed"
+expect "a SIGALRM during the build ends test-sim.sh within seconds, with exit 142, and stops the build" \
+    "$(cat "$root/alarmed") $((SECONDS - began < 10)) $(pgrep -f "$root/bin/xcodebuild" | wc -l | tr -d ' ')" "142 1 0"
 reset
 test_sim --no-build; status=$?
 expect "--no-build takes no slot" "$status $(builds) $(slots)" "65 test-without-building "
@@ -88,6 +100,20 @@ reset
 FAKE_HOSTGATE_BROKEN=1 test_sim; status=$?
 expect "test-sim.sh builds through a broken hostgate rather than calling it a build failure" \
     "$status $(builds) $(grep -c 'hostgate run failed' "$root/err")" "65 build-for-testing 1"
+reset
+FAKE_HOSTGATE_DIE=TERM build_slot sh -c 'echo ran'; status=$?
+# bash itself also reports the signal ("Terminated: 15"), so the check counts lines rather than reading stderr whole.
+expect "a hostgate stopped by a signal before it starts the command is stopped, not broken: nothing runs" \
+    "$status $(cat "$root/out") $(grep -c 'hostgate run failed' "$root/err") $(grep -c '^hostgate run was stopped by signal 15 before it started the build, so nothing was built$' "$root/err")" \
+    "143  0 1"
+reset
+FAKE_HOSTGATE_NOOP=1 build_slot sh -c 'echo ran; exit 3'; status=$?
+expect "a hostgate that exits 0 without starting the command is broken: it says so and runs the command" \
+    "$status $(cat "$root/out") $(grep -c 'hostgate run failed (exit 0) before it started the build.*reinstall it: ' "$root/err")" "3 ran 1"
+reset
+FAKE_HOSTGATE_PIN_LOG=$root/pins build_slot true
+expect "hostgate run gets the pin file's absolute path in HOSTGATE_PIN_FILE" "$(cat "$root/pins")" "$repo/scripts/hostgate-version"
+rm -f "$root/pins"
 reset
 FAKE_HOSTGATE_BROKEN=69 build_slot touch "$root/ran"; status=$?
 expect "a required check hostgate refuses on is its 69, and the command does not run" "$status $([ -f "$root/ran" ] && echo ran)" "69 "

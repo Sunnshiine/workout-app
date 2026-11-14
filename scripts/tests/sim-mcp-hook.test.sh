@@ -100,6 +100,11 @@ gate build_run_sim "{\"extraArgs\": [\"-destination\", \"id=$(tr '[:upper:]' '[:
 check "an extraArgs -destination on the recorded leased UDID runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 gate build_run_sim '{"extraArgs": ["-destination-timeout", "30"]}'
 check "extraArgs without -destination run" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
+for pair in "\"id=$MINE\", \"-destination\", \"id=$FREE_UDID\"" "\"id=$FREE_UDID\", \"-destination\", \"id=$MINE\""; do
+    gate build_run_sim "{\"extraArgs\": [\"-destination\", $pair]}"
+    check "two extraArgs -destination, one on the recorded UDID, are refused in either order ($pair)" \
+        '[ $status = 2 ] && err_has "-destination id=$FREE_UDID from extraArgs"'
+done
 recorded session_clear_defaults '{}'
 gate build_run_sim "{\"extraArgs\": [\"-destination\", \"id=$MINE\"]}"
 check "with no default recorded, an extraArgs -destination is refused" '[ $status = 2 ] && err_has "Drop -destination from extraArgs"'
@@ -168,7 +173,9 @@ for call in "{\"simulatorId\": \"$MINE\", \"simulatorName\": \"iPhone 17 Pro\"}"
     check "session_set_defaults $call is refused, naming the call that works" \
         '[ $status = 2 ] && err_has "Call session_set_defaults {simulatorId: <your leased UDID>} alone."'
 done
+recorded_as "$MINE"
 for call in "{\"extraArgs\": [\"-destination\", \"id=$MINE\"]}" \
+    "{\"simulatorId\": \"$MINE\", \"extraArgs\": [\"-destination\", \"id=$MINE\"]}" \
     "{\"simulatorId\": \"$MINE\", \"extraArgs\": [\"-quiet\", \"-destination\", \"id=$FREE_UDID\"]}"; do
     PATH_BIN=$tmp/nosimlock gate session_set_defaults "$call"
     check "session_set_defaults $call is refused, since a stored -destination outlives the default" \

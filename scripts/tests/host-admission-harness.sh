@@ -91,7 +91,7 @@ export FAKE_HOSTGATE_LOG=$root/hostgate.log HOSTGATE_STATE_DIR=$root/hostgate-st
 unset HOSTGATE_SLOT
 export FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES="$sim $sim2"
 # shellcheck disable=SC2046
-unset VERIFY_RUN SIM WORKOUT_LOAD_LIMIT FAKE_SIMLOCK_WHO $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
+unset VERIFY_RUN SIM FAKE_SIMLOCK_WHO $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$repo/scripts/sim-lock.sh")
 # The caller holds a lease on $sim, and another agent, neighbour, one on $sim2.
 for who in agent-test neighbour; do
     FAKE_SIMLOCK_WHO=$who simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --detach --ttl 60m >/dev/null

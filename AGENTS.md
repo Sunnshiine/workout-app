@@ -89,7 +89,8 @@ uv run python3 <script.py>                          # with Pillow and numpy from
 ```
 
 Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-slot.sh <command>`,
-which holds a host-wide `hostgate` slot (pinned in `scripts/hostgate-version`); scripts do the same,
+which holds a host-wide `hostgate` slot (pinned in `scripts/hostgate-version`, which `hostgate check`
+then warns the installed one has fallen behind); scripts do the same,
 and `scripts/lint-build-slots.py` fails one that does not. A hook refuses the raw form.
 XcodeBuildMCP builds and runs only on a simulator your Simlock lease holds,
 and `scripts/sim-mcp-hook.py` refuses any other naming the lease command. To see the app,
@@ -152,7 +153,8 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
 - `test-sim.sh` exits 69 when the simulator broke rather than a test, as when a launch returns no
   process handle (#537), or when Simlock took its lease back. Rerun the same command; do not debug
   the app. It stops an xcodebuild that sits silent and idle `WORKOUT_TEST_IDLE_SECONDS` (300) after
-  its last test, says so, and exits on the tests' result.
+  its last test, says so, and exits on the tests' result. A signal, such as a caller's
+  `perl -e 'alarm N'` bound, stops its build or test run at once and exits 128+N.
 - macOS has no `timeout`, so `timeout N cmd` exits 127 without running the command.
 - The `WorkoutTracker` scheme launches against local fixtures (`-UITEST_FIXTURE true`), never the
   live Sheet. `Copy of WorkoutTracker` runs live.

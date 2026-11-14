@@ -7,7 +7,9 @@
 # print a give-up line and exit 75 without running CMD. FAKE_HOSTGATE_SAY=<line> prints that line on
 # stderr before CMD runs, as the real one prints its wait lines. FAKE_HOSTGATE_BROKEN=<status> makes run
 # fail with that status before it starts CMD, as an install that cannot import its own code does, and
-# fails check the same way. `check ARGS` appends "check ARGS" to FAKE_HOSTGATE_CHECK_LOG, sleeps
+# fails check the same way. FAKE_HOSTGATE_DIE=<signal> makes run die of that signal before it starts CMD,
+# and FAKE_HOSTGATE_NOOP=1 makes it exit 0 without starting CMD. FAKE_HOSTGATE_PIN_LOG=<file> gets
+# HOSTGATE_PIN_FILE, or -, appended per run. `check ARGS` appends "check ARGS" to FAKE_HOSTGATE_CHECK_LOG, sleeps
 # FAKE_HOSTGATE_CHECK_SLEEP seconds, prints FAKE_HOSTGATE_CHECK_OUT, and exits FAKE_HOSTGATE_CHECK_RC (0).
 broken() {
   echo "Traceback (most recent call last): ImportError: hostgate is broken" >&2
@@ -38,6 +40,9 @@ shift
 nested=no
 [ -z "${HOSTGATE_SLOT:-}" ] || nested=yes
 echo "label=$label wait=$wait nested=$nested $*" >> "${FAKE_HOSTGATE_LOG:-/dev/null}"
+echo "${HOSTGATE_PIN_FILE:--}" >> "${FAKE_HOSTGATE_PIN_LOG:-/dev/null}"
+[ -z "${FAKE_HOSTGATE_DIE:-}" ] || kill -s "$FAKE_HOSTGATE_DIE" $$
+[ -z "${FAKE_HOSTGATE_NOOP:-}" ] || exit 0
 if [ $nested = no ] && [ -n "${FAKE_HOSTGATE_GIVE_UP:-}" ]; then
   echo "hostgate: gave up waiting for a slot held by workout-app:neighbour" >&2
   exit 75

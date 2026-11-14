@@ -5,10 +5,10 @@ from motion_support import *  # noqa: F401,F403
 
 class ClipRejections:
     def test_an_invalid_take_is_measured_under_a_banner_reads_still_unknown_and_exits_3(self):
-        code, out, _ = self.lines("ticking", load_after=63.2)
+        code, out, _ = self.lines("ticking", recorder_exit=1)
         self.assertEqual(code, 3)
         self.assertEqual(out[:3], [
-            "INVALID take: load 63.2 at the end, over 50",
+            "INVALID take: recorder exit 1 after SIGINT; the video may be cut short",
             "take=INVALID animations=on frames=10 window_frames=10",
             "window=start from=0.000 to=2.900 window_s=2.900",
         ])

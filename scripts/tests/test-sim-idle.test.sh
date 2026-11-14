@@ -79,26 +79,34 @@ busy STUB_BUSY_CHILD_EXITS=1
 expect "a busy run is not stopped when a child that used more CPU than the window exits inside it" \
     "$? $(grep -c '^stopped xcodebuild' "$root/err")" "0 0"
 
-# Each read of the process table shows xcodebuild ($STUB_CHURN_ROOT names it) with a new child in place of
-# the last, xcodebuild's CPU up a second and the tree's sum up 0.001 s: the parent's growth cancels the
-# seconds each exited child takes out of the sum.
+# Each read of the process table shows xcodebuild ($STUB_CHURN_ROOT names it) with its CPU up a second.
+# churn: a new child in place of the last, and the tree's sum up 0.001 s, as the parent's growth cancels
+# the seconds each exited child takes out of the sum. reuse: one child pid, whose 100 s fall to 0.5 s on
+# the third read as another process takes the pid, and gains 0.5 s a read after.
 mkdir -p "$root/churn-bin"
 cat >"$root/churn-bin/ps" <<'STUB'
 #!/bin/sh
 case "$*" in "-A -o pid=,ppid=,time=") ;; "-A -o pid=,ppid=,stat=,time=") stat=1 ;; *) exec /bin/ps "$@" ;; esac
 n=$(($(cat "$STUB_CHURN" 2>/dev/null || echo 0) + 1))
 echo "$n" >"$STUB_CHURN"
-awk -v n="$n" -v root="$(pgrep -f "$STUB_CHURN_ROOT" | head -1)" -v stat="${stat:-}" '
+awk -v n="$n" -v root="$(pgrep -f "$STUB_CHURN_ROOT" | head -1)" -v stat="${stat:-}" -v mode="$STUB_CHURN_MODE" '
     function t(s) { return sprintf("%d:%05.2f", int(s / 60), s - 60 * int(s / 60)) }
     function row(pid, ppid, cpu) { print pid, ppid, (stat ? "R " : "") t(cpu) }
-    BEGIN { row(root, 1, 10 + n); row(900000 + n, root, 100 - 0.999 * n) }'
+    BEGIN { row(root, 1, 10 + n)
+        if (mode == "churn") row(900000 + n, root, 100 - 0.999 * n)
+        else row(900001, root, n <= 2 ? 100 : 0.5 * (n - 2)) }'
 STUB
 chmod +x "$root/churn-bin/ps"
-rm -f "$root/churn" "$root/seen" "$root/load-read"
-STUB_SLEEP=12 STUB_CHURN=$root/churn STUB_CHURN_ROOT="$root/bin/xcodebuild" WORKOUT_TEST_IDLE_SECONDS=4 PATH="$root/churn-bin:$root/bin:$PATH" \
-    "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
+churn() {
+    rm -f "$root/churn" "$root/seen" "$root/load-read"
+    STUB_SLEEP=12 STUB_CHURN=$root/churn STUB_CHURN_MODE=$1 STUB_CHURN_ROOT="$root/bin/xcodebuild" WORKOUT_TEST_IDLE_SECONDS=4 \
+        PATH="$root/churn-bin:$root/bin:$PATH" "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/out" 2>"$root/err"
+    echo "$? $(grep -c '^stopped xcodebuild' "$root/err") $([ -s "$root/churn" ] && echo ps-read)"
+}
 expect "a run whose children exit while xcodebuild's CPU grows as much is not stopped, though the tree's sum barely moves" \
-    "$? $(grep -c '^stopped xcodebuild' "$root/err") $([ -s "$root/churn" ] && echo ps-read)" "0 0 ps-read"
+    "$(churn churn)" "0 0 ps-read"
+expect "a busy run is not stopped when a child's pid passes to another process and the tree's sum falls" \
+    "$(churn reuse)" "0 0 ps-read"
 
 # A run stopped by a signal stops its watchers with it, and the sleeps they wait on, though one would sleep
 # out a 30 s poll. Python resets SIGINT, which a background job ignores.

@@ -227,7 +227,7 @@ def leased_path(bin_dir, sim):
 def setUpModule():
     locks = tempfile.mkdtemp(prefix="workout-host-locks-")
     unittest.addModuleCleanup(shutil.rmtree, locks, True)
-    os.environ.update(WORKOUT_LOAD_LIMIT="1000000", WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0",
+    os.environ.update(WORKOUT_MEM_FLOOR="0", WORKOUT_DISK_FLOOR="0",
                       WORKOUT_HOST_LOCK_DIR=locks, HOSTGATE_STATE_DIR=os.path.join(locks, "hostgate"),
                       WORKOUT_DEV_USAGE_DIR=os.path.join(locks, "dev-usage"),
                       PATH=fake_hostgate_first(without_simlock(os.environ["PATH"]), locks))

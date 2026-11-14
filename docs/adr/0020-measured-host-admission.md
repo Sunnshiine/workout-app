@@ -143,3 +143,20 @@ What the numbers say:
 reclaim, and `scripts/measure-host.sh` are gone. Build slots and the memory and disk floors stand.
 
 <!-- doc-symbols: not-in-tree sim-pool.sh scripts/measure-host.sh -->
+
+## Amendment (2026-11-11): a CPU-share probe replaces the load in `verify.sh record`
+
+The Decision's first point gave `WORKOUT_LOAD_LIMIT` one job, judging whether a motion take measured
+the app or the host. Measurement says the 1-minute load cannot do that job.
+`.agents/skills/verify/foreground.py` runs 100 ms of CPU work 20 times and takes the median of wall
+time over CPU time. The median read 1.01 to 1.03 at loads of 57 to 130, and 2.7 at loads of 383 to
+520. At a load of 130 the foreground still got its CPU, so the limit of 50 refused takes the host
+could film well.
+
+`record` now waits up to `WORKOUT_ADMIT_WAIT` while the probe reads over 2, then records anyway, and
+never exits 75 on the host. The take stamps `foreground=ok (wall/cpu R)` or `foreground=starved
+(wall/cpu R)`, and the summary of a starved take tells the reviewer to discount its jank. The load is
+still stamped before and after the take, and judges nothing. `WORKOUT_LOAD_LIMIT` and `load_clear`
+are gone. The limit of 2 is provisional, because no take has been filmed between the two measured
+bands. The Decision above keeps its original text, and this section replaces its first point's
+second sentence.
