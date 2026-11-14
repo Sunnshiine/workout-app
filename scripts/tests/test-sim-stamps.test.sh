@@ -75,14 +75,17 @@ stop releaser
 wait 2>/dev/null
 rm -f "$release" "$root/recycled"
 
-# The caller's `perl -e 'alarm N'` bound sends ALRM, so a second signal can be either.
-for second in TERM ALRM; do
+# finish ignores all four signals it traps. The caller's `perl -e 'alarm N'` bound sends ALRM.
+# A background job starts with INT ignored, and bash cannot trap a signal ignored at its start, so perl
+# restores INT's default before test-sim.sh runs.
+for second in TERM ALRM HUP INT; do
 echo "a second signal, $second, while test-sim.sh stops its run does not cut the stop short"
 rm -f "$release" "$root/started"
 release_after "$stuck_for"
 (
     STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 STUB_DEAF=1 \
         STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=3 HOME=$root/home PATH="$root/bin:$PATH" \
+        perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' \
         "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/twice" 2>&1
 ) &
 twice_run=$!
