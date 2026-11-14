@@ -16,6 +16,39 @@ final class WorkoutTrackerLongSessionUITests: XCTestCase {
     }
 
     @MainActor
+    func testPickingALaterExerciseLeavesThisSessionInSheetOrder() throws {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.staticTexts["Back Squat"].appears(within: 3))
+
+        app.buttons["stage-queue-button"].tap()
+        XCTAssertTrue(app.staticTexts["This Session"].appears(within: 3))
+        tapWhenHittable(app.buttons["stage-queue-row-exercise-3"])
+        XCTAssertTrue(app.staticTexts["Pause at the top."].appears(within: 3))
+
+        assertThisSessionReadsInSheetOrder(onStage: 3, in: app, "picked")
+
+        tapWhenHittable(app.buttons["stage-queue-row-exercise-3"])
+        XCTAssertTrue(app.staticTexts["Pause at the top."].appears(within: 3))
+        let logButton = app.buttons["log-active-set-button"]
+        waitUntilEnabled(logButton)
+        logButton.press(forDuration: 1.0)
+        XCTAssertTrue(app.staticTexts["Keep the front foot planted."].appears(within: 3))
+
+        assertThisSessionReadsInSheetOrder(onStage: 4, in: app, "finished")
+    }
+
+    @MainActor
+    private func assertThisSessionReadsInSheetOrder(onStage order: Int, in app: XCUIApplication, _ moment: String) {
+        tapWhenHittable(app.buttons["stage-queue-button"])
+        let onStage = app.buttons["stage-queue-row-exercise-\(order)"]
+        XCTAssertTrue(onStage.appears(within: 3))
+        waitForFrameToSettle(of: onStage)
+
+        let tops = (0..<8).map { app.buttons["stage-queue-row-exercise-\($0)"].frame.minY }
+        XCTAssertEqual(tops, tops.sorted(), "rows read top to bottom in the Sheet's order once an Exercise is \(moment) out of order")
+    }
+
+    @MainActor
     func testLongSessionQueueListsEveryExerciseAndJumpLandsOnStage() throws {
         let app = launchFixtureApp()
 

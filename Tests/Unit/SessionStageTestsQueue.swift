@@ -50,17 +50,17 @@ extension SessionStageTests {
         #expect(stage.queue.rows.map(\.title) == ["Squat", "BB RDL"])
     }
 
-    @Test func theWheelListsFinishedRowsThenTheStageThenEveryRowLeft() {
+    @Test func anExerciseDoneOutOfOrderKeepsItsPlaceInTheSheetOrder() {
         let squat = makeExercise(name: "Squat", order: 0, setStates: [.pending])
-        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.logged])
-        let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
-        let curl = makeExercise(name: "Curl", order: 3, setStates: [.skipped])
+        let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending])
+        let row = makeExercise(name: "DB Row", order: 2, setStates: [.logged])
+        let curl = makeExercise(name: "Curl", order: 3, setStates: [.logged, .pending])
 
-        let queue = makeStage([squat, bench, row, curl], focus: .activeSet(ActiveSetID(exerciseOrder: 2, setIndex: 0))).queue
+        let queue = makeStage([squat, bench, row, curl], focus: .activeSet(ActiveSetID(exerciseOrder: 3, setIndex: 1))).queue
 
-        #expect(queue.wheelRows.map(\.title) == ["Bench Press", "Curl", "DB Row", "Squat"])
         #expect(queue.rows.map(\.title) == ["Squat", "Bench Press", "DB Row", "Curl"])
-        #expect(queue.position.number == 3)
+        #expect(queue.restingRowID == "exercise-3")
+        #expect(queue.position.number == 4)
     }
 
     @Test func theWheelRestsOnTheRowOnStage() {

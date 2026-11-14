@@ -47,7 +47,7 @@ struct SessionQueueSheet: View {
             .padding(.bottom)
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: queue.pairingMode)
-        .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.wheelRows.map(\.id))
+        .animation(reduceMotion ? nil : .spring(duration: 0.32, bounce: 0), value: queue.rows.map(\.id))
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground { palette.paperBackground }
@@ -64,7 +64,7 @@ struct SessionQueueSheet: View {
                 wheelEndSpace
 
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(queue.wheelRows) { row in
+                    ForEach(queue.rows) { row in
                         Group {
                             if row.kind == .superset {
                                 supersetRow(for: row)
@@ -99,7 +99,7 @@ struct SessionQueueSheet: View {
         .scrollIndicators(.hidden)
         .scrollPosition(id: $centeredRowID, anchor: .center)
         .scrollTargetBehavior(
-            WheelSnap(rowCenters: queue.wheelRows.compactMap { rowCenters[$0.id] }, freePastLastRow: showsOpenExercises)
+            WheelSnap(rowCenters: queue.rows.compactMap { rowCenters[$0.id] }, freePastLastRow: showsOpenExercises)
         )
         // Sized from the scroll box, so the row is centred against the layout the wheel keeps.
         .onScrollGeometryChange(for: CGFloat.self, of: \.containerSize.height) { _, height in

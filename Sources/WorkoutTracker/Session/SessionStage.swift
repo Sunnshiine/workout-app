@@ -172,16 +172,9 @@ struct SessionQueue: Equatable {
         rows.first { $0.pairingRole == .source }
     }
 
-    /// The sheet's order: finished rows sit above the wheel's centre and every row left reads downward
-    /// from it, one the athlete jumped past included. `position` keeps counting in Session order.
-    var wheelRows: [Row] {
-        let others = rows.filter { !$0.isOnStage }
-        return others.filter(\.isComplete) + rows.filter(\.isOnStage) + others.filter { !$0.isComplete }
-    }
-
     /// The row the wheel rests on: the one on stage, or the last when a finished Session has none.
     var restingRowID: String? {
-        (rows.first(where: \.isOnStage) ?? wheelRows.last)?.id
+        (rows.first(where: \.isOnStage) ?? rows.last)?.id
     }
 
     /// How large a row draws at its distance from the wheel's centre, counted in its own heights so

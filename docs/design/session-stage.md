@@ -226,9 +226,9 @@ button, the X, or nothing, so the title never moves (operator rulings
 2026-10-11 and 2026-10-12: self-describing icons over words, V3's stem in
 V1's icon-only header button). The queue sheet itself is living paper (§2).
 
-**The Lens.** The sheet's rows are a wheel that rests on the Exercise on stage,
-with finished rows above it and every row left below it, one the athlete jumped
-past included, so what remains reads downward from the centre. A row carries its name and one mark per Set, with no
+**The Lens.** The sheet's rows are a wheel that rests on the Exercise on stage.
+The rows stay in the coach's Sheet order, and picking, logging, or finishing an
+Exercise out of order never changes its place in the order. A row carries its name and one mark per Set, with no
 count and no "Now". The name on stage is `queueNameOnStage` in action ink, a
 finished name is `queueName` in secondary text, and the rest are `queueName` in
 primary text. A name wraps to two lines, or as many as it needs from xxLarge
@@ -251,8 +251,7 @@ the same marks in place of a count, here and on the completion stage. With them
 below it, the wheel stops snapping 32pt past the last row, so the list can always
 reach its end. Move On's slot holds its frame when Move On is absent, so the
 wheel's centre never moves.
-VoiceOver reads finished rows, then the
-rest, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
+VoiceOver reads the rows in Sheet order, and each row's value as "1 of 4 Sets logged, 1 skipped", with the selected
 trait on the row on stage.
 
 Decided from the session-queue prototype (operator, 2026-11-06: "List is boring.
@@ -261,7 +260,10 @@ shrink 0.16, fade 0, Set mark 20×7 radius 2.5). Also from the operator that day
 "we don't need, like, the little, um, pills on top", "I also don't think we need
 to show count", "really try to minimize text on the screen", and "the ability to
 see all of the sets that I have for each exercise" for planning warm-ups and gym
-time.
+time. The operator, 2026-11-14, on the rows reordering when Exercises were done
+out of order: "i expect exercises to stay in prescribed order even if i choose to
+do them out of order (currently when i do them out of order, it fucks up the
+order)".
 
 Rejected, so the question stays closed:
 
@@ -273,6 +275,7 @@ Rejected, so the question stays closed:
   but "it did feel slightly off", perhaps "too much round on round", and "I also
   don't think we need to show count."
 - **Checklist**: "quite interesting", and not carried forward.
-- **Split**: "split hides finish exercises" carried into Lens as finished rows
-  above the centre.
+- **Split**: "split hides finish exercises" was carried into Lens as finished
+  rows above the centre, until the 2026-11-14 ruling kept every row in Sheet
+  order.
 - **Ledger, Stem, Tucked, Poster, Dial, Odometer**: not carried forward.
