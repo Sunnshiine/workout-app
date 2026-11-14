@@ -163,11 +163,10 @@ class Record(Lane):
     def test_a_starved_foreground_is_waited_on_until_it_gets_its_share(self):
         self.launch()
         code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="starved 2.70,ok 1.40",
-                                     WORKOUT_ADMIT_WAIT="30")
+                                     WORKOUT_ADMIT_WAIT="30", STUB_CLOCK="1")
         self.assertExit(code, 0, out, err)
-        self.assertRegex(err, "^" + re.escape(
-            "waiting up to 30 s for the host to stop starving the foreground: starved (wall/cpu 2.70)\n")
-            + r"went ahead after \d+ s\n$")
+        self.assertEqual(err, "waiting up to 30 s for the host to stop starving the foreground: starved (wall/cpu "
+                         "2.70)\nwent ahead after 2 s\n")
         self.assertEqual(dict(self.stamp())["foreground"], "ok (wall/cpu 1.40)")
         self.assertEqual(len((self.tmp / "foreground-calls").read_text().splitlines()), 2)
 
@@ -186,15 +185,14 @@ class Record(Lane):
         state = Path("/tmp/workout-verify-%s" % self.sim)
         (self.verify_path.parent / "foreground.py").write_text(CLAIMING_FOREGROUND_STUB.replace(
             "{dir}", str(self.tmp)).replace("{state}", str(state)).replace("{pid}", str(other.pid)))
-        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", WORKOUT_ADMIT_WAIT="10")
+        code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", WORKOUT_ADMIT_WAIT="10", STUB_CLOCK="1")
         self.assertEqual((code, out), (75, ""))
-        self.assertRegex(err, re.escape(
+        self.assertRegex(err, "^" + re.escape(
             "waiting up to 10 s for the host to stop starving the foreground: starved (wall/cpu 2.70)\n")
-            + r"went ahead after \d+ s\n" + re.escape(
+            + "went ahead after 2 s\n" + re.escape(
             "the app on %s belongs to run lane-2 (pid %d), not to lane-1, so this would drive another run's app; "
             "launch yours first: SIM=%s VERIFY_RUN=lane-1 %s launch <fixture>\n"
             % (self.sim, other.pid, self.sim, self.verify_path)) + "$")
-        self.assertGreaterEqual(int(re.search(r"went ahead after (\d+) s", err).group(1)), 2)
         self.assertEqual(self.calls(), [])
 
     def test_a_reclaimed_run_records_nothing_and_is_told_who_reclaimed_it_before_any_wait(self):

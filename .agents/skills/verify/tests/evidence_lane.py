@@ -74,16 +74,7 @@ case "$tool $1 $2" in
     case "$out" in "${STUB_DENY:-/nonexistent}"/*)
       echo "Error Domain=NSCocoaErrorDomain Code=513 \\"You don't have permission to save the file.\\"" >&2; exit 1 ;;
     esac
-    trap 'echo INT >> "{dir}/signals"; touch "{dir}/stopped"; echo "mp4 ${STUB_MARK:-}" > "$out"; exit 0' INT
-    trap 'echo TERM >> "{dir}/signals"; exit 143' TERM
-    sleep 0.2
-    if [ -z "${STUB_NEVER_STARTS:-}" ]; then
-      echo "Recording started" >> "{dir}/calls"
-      echo "Recording started" >&2
-    fi
-    i=0
-    while [ $i -lt 300 ]; do sleep 0.1; i=$((i + 1)); done
-    exit 1 ;;
+    exec "{python}" -I -S "{dir}/recorder.py" "$out" ;;
   "xcodebuild build -project")
     project=$3 derived=$HOME/Library/Developer/Xcode/DerivedData/WorkoutTracker-test
     while [ $# -gt 0 ]; do [ "$1" != -derivedDataPath ] || derived=$2; shift; done
@@ -99,6 +90,40 @@ case "$tool $1 $2" in
   "axe describe-ui --udid") sed 's/"pid": 4121/"pid": {pid}/' "{dir}/describe-ui.json" ;;
   "axe "*) exit "${STUB_AXE_EXIT:-0}" ;;
   *) exit 1 ;;
+esac
+"""
+
+RECORDER_STUB = """import os, signal, sys
+stops = {signal.SIGINT, signal.SIGTERM, signal.SIGALRM}
+try:
+    signal.pthread_sigmask(signal.SIG_BLOCK, stops)
+    if not os.environ.get("STUB_NEVER_STARTS"):
+        with open("{dir}/calls", "a") as calls:
+            calls.write("Recording started\\n")
+        sys.stderr.write("Recording started\\n")
+        sys.stderr.flush()
+    signal.alarm(30)
+    stop = signal.sigwait(stops)
+except KeyboardInterrupt:
+    stop = signal.SIGINT
+if stop == signal.SIGALRM:
+    sys.exit(1)
+with open("{dir}/signals", "a") as signals:
+    signals.write(stop.name[3:] + "\\n")
+if stop == signal.SIGTERM:
+    sys.exit(143)
+open("{dir}/stopped", "w").close()
+with open(sys.argv[1], "w") as out:
+    out.write("mp4 %s\\n" % os.environ.get("STUB_MARK", ""))
+"""
+CLOCK_STUB = """#!/bin/sh
+[ -n "${STUB_CLOCK:-}" ] || exec {real} "$@"
+now=$(cat "{dir}/clock" 2>/dev/null || echo 0)
+case "$(basename "$0") $*" in
+  "date +%s") echo "$now" ;;
+  "sleep "*[!0-9]*) exec {real} "$@" ;;
+  "sleep "*) echo $((now + $1)) > "{dir}/clock" ;;
+  *) exec {real} "$@" ;;
 esac
 """
 
@@ -141,7 +166,7 @@ class Lane(unittest.TestCase):
         gone = subprocess.Popen(["true"])
         gone.wait()
         self.app_pid = gone.pid
-        stub = stub.replace("{sim}", self.sim).replace("{pid}", str(self.app_pid))
+        stub = stub.replace("{sim}", self.sim).replace("{pid}", str(self.app_pid)).replace("{python}", sys.executable)
         axe = self.checkout / ".build" / "verify" / "node_modules" / "xcodebuildmcp" / "bundled" / "axe"
         axe.parent.mkdir(parents=True)
         (self.tmp / "bin").mkdir()
@@ -151,6 +176,11 @@ class Lane(unittest.TestCase):
             tool.chmod(0o755)
         (self.tmp / "bin" / "sysctl").write_text(SYSCTL_REFUSING_ALL_BUT_THE_SUITES_KNOBS)
         (self.tmp / "bin" / "sysctl").chmod(0o755)
+        (self.tmp / "recorder.py").write_text(RECORDER_STUB.replace("{dir}", str(self.tmp)))
+        for name in ["date", "sleep"]:
+            (self.tmp / "bin" / name).write_text(CLOCK_STUB.replace("{dir}", str(self.tmp)).replace(
+                "{real}", shutil.which(name, path=os.environ["PATH"])))
+            (self.tmp / "bin" / name).chmod(0o755)
         (self.tmp / "describe-ui.json").write_text(MINI)
         self.simlock = FakeSimlock(self.tmp / "bin")
         self.simlock.hold(self.sim)
