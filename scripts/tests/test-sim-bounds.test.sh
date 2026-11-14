@@ -301,7 +301,9 @@ stop releaser
 wait 2>/dev/null
 rm -f "$release" "$root/recycled"
 
-echo "a second signal while test-sim.sh stops its run does not cut the stop short"
+# The caller's `perl -e 'alarm N'` bound sends ALRM, so a second signal can be either.
+for second in TERM ALRM; do
+echo "a second signal, $second, while test-sim.sh stops its run does not cut the stop short"
 rm -f "$release" "$root/started"
 release_after "$stuck_for"
 (
@@ -317,18 +319,32 @@ script=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" | head -1)
 script_stamp=$(proc_stamp "$script")
 signal_same TERM "$script" "$script_stamp"
 sleep 1
-signal_same TERM "$script" "$script_stamp"
+signal_same "$second" "$script" "$script_stamp"
 wait "$twice_run"
 if [ ! -e "$release" ] && [ -z "$(runs)" ] && tail -1 "$root/twice" | grep -q ' exit=143 '; then
     ok "test-sim.sh still kills the xcodebuild that ignores SIGTERM, and prints its result line"
 else
     bad "test-sim.sh still kills the xcodebuild that ignores SIGTERM, and prints its result line: left $(runs), last line $(tail -1 "$root/twice")"
 fi
+left=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" || true)
+if [ -z "$left$(watchdogs)" ]; then
+    ok "its watchdog, idle watcher and lease heartbeat are gone too"
+else
+    bad "its watchdog, idle watcher and lease heartbeat are gone too: test-sim.sh pids $left, watchdogs $(watchdogs)"
+fi
+marks=$(cd "$root/repo/.build/test-sim" 2>/dev/null && ls -- *-idle 2>/dev/null)
+newest=$(ls -t "$root/repo/.build/test-sim/"*-test.log 2>/dev/null | head -1)
+if [ -z "$marks" ] && [ -n "$newest" ] && tail -1 "$newest" | grep -q ' exit=143 '; then
+    ok "and its cleanup finished: no idle mark is left, and the run's log ends on the result line"
+else
+    bad "and its cleanup finished: no idle mark is left, and the run's log ends on the result line: marks ${marks:-none}"
+fi
 touch "$release"
 gone runs
 stop releaser
 wait 2>/dev/null
 rm -f "$release"
+done
 
 echo "the watchdog signals only the process that carries the start time it was given"
 watchdog=$repo/scripts/test-run-watchdog.pl
