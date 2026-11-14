@@ -20,7 +20,8 @@ expect() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"; printf '    got:  %s
 
 # The built "tiler" prints the md5 of the source it was built from and its arguments, then exits
 # FAKE_TILER_RC. FAKE_SWIFTC_SLOW=1 makes the output executable first and whole a second later, so a
-# run that executed it early would print nothing. FAKE_SWIFTC_FAIL=1 leaves a partial output and fails,
+# run that executed it early would print nothing. It signs the whole output ad hoc, as the linker signs
+# a real one, so a later edit breaks the signature. FAKE_SWIFTC_FAIL=1 leaves a partial output and fails,
 # and FAKE_SWIFTC_NOTHING=1 exits 0 having written nothing.
 cat >"$root/swiftc" <<STUB
 #!/bin/sh
@@ -35,6 +36,7 @@ chmod +x "\$out"
 [ -z "\${FAKE_SWIFTC_FAIL:-}" ] || { echo "error: fake swiftc failed" >&2; exit 1; }
 [ -z "\${FAKE_SWIFTC_SLOW:-}" ] || sleep 1
 printf 'echo "built from %s: \$*"\nexit \${FAKE_TILER_RC:-0}\n' "\$(md5 -q "\$src")" >> "\$out"
+codesign -s - "\$out" 2>/dev/null
 STUB
 cat >"$root/bin/swift" <<STUB
 #!/bin/sh
@@ -82,6 +84,28 @@ expect "the original source hits its own binary again" "$status $(compiles) $(ca
 printf '\n' >>"$root/swiftc"
 run out.png a.png
 expect "a different compiler misses" "$status $(compiles) $(binaries)" "0 3 3"
+
+echo "a cached binary that would not run is built again, and the shot still comes out"
+# A truncated or edited Mach-O passes exec and is then killed for its signature (exit 137), so the
+# signature is checked before exec. A signed file the kernel cannot exec fails exec itself.
+cached() { find "$root/cache" -maxdepth 1 -name 'contact-sheet-*'; }
+for broken in truncated edited unexecutable; do
+    reset
+    run out.png a.png
+    bin=$(cached)
+    case $broken in
+        truncated) head -c 40 "$bin" >"$root/cut" && cat "$root/cut" >"$bin" ;;
+        edited) printf 'echo "a stranger wrote this"\n' >>"$bin" ;;
+        unexecutable) printf '#!%s/no-such-interpreter\n' "$root" >"$bin" && codesign -f -s - "$bin" 2>/dev/null ;;
+    esac
+    run out.png a.png
+    expect "a $broken binary at the key is replaced: the shot comes out of a new build" \
+        "$status $(compiles) $(scripted) $(cat "$root/out")" "0 2 0 $(built out.png a.png)"
+    expect "with one line naming why, after any line exec printed" "$(tail -1 "$root/err" | sed "s|$bin|BIN|")" \
+        "contact-sheet.sh: the cached tiler BIN would not run, so it is built again"
+    run out.png a.png
+    expect "and the next call hits the new one" "$status $(compiles) $(cat "$root/err")" "0 2 "
+done
 
 echo "the tiler's own exit passes through, and nothing runs it twice"
 reset

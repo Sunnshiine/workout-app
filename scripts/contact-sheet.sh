@@ -12,8 +12,9 @@ named for the source's bytes and the compiler's, so every worktree on the Mac sh
 to either builds a new one. A miss builds it with swiftc in a host-wide slot (scripts/build-slot.sh),
 waiting CONTACT_SHEET_WAIT seconds (0) for one: the build takes about as long as running the script,
 so a shot never waits on a busy host, and the next miss tries again. A copy appears only whole, by
-rename, so concurrent first calls never run a partial one. When the slot, the build or the cache
-fails, it prints one line naming why and runs the .swift file by path that once.
+rename, so concurrent first calls never run a partial one, and a hit checks its signature first, so
+a copy truncated or edited later is built again rather than run. When the slot, the build or the
+cache fails, it prints one line naming why and runs the .swift file by path that once.
 CONTACT_SHEET_SWIFTC names the compiler (default: xcrun --find swiftc).
 EOF_HELP
 }
@@ -46,7 +47,14 @@ key=$(md5 -q "$source") && toolchain=$(stat -L -f '%z %m %i' "$compiler") \
   && key=$(md5 -q -s "$key $compiler $toolchain") || as_script "cannot key the tiler cache"
 binary=$cache/contact-sheet-$key
 
-[ -x "$binary" ] && exec "$binary" "$@"
+# A truncated or edited copy passes exec and is then killed for its signature, which no fallback
+# can follow, so the signature is checked first; execfail returns here from a copy exec refuses.
+shopt -s execfail
+if [ -x "$binary" ]; then
+  codesign -v "$binary" 2>/dev/null && exec "$binary" "$@"
+  echo "contact-sheet.sh: the cached tiler $binary would not run, so it is built again" >&2
+  rm -f "$binary"
+fi
 
 mkdir -p "$cache" 2>/dev/null && building=$(mktemp -d "$cache/.build.XXXXXX" 2>/dev/null) \
   || as_script "cannot write the tiler cache at $cache"
