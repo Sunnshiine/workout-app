@@ -228,7 +228,7 @@ V1's icon-only header button). The queue sheet itself is living paper (§2).
 
 **The Lens.** The sheet's rows are a wheel that rests on the Exercise on stage.
 The rows stay in the coach's Sheet order, and picking, logging, or finishing an
-Exercise out of order never moves one. A row carries its name and one mark per Set, with no
+Exercise out of order never changes its place in the order. A row carries its name and one mark per Set, with no
 count and no "Now". The name on stage is `queueNameOnStage` in action ink, a
 finished name is `queueName` in secondary text, and the rest are `queueName` in
 primary text. A name wraps to two lines, or as many as it needs from xxLarge
