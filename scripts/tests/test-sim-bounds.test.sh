@@ -3,31 +3,8 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/test-sim-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/test-sim-harness.sh"
-# stop NAME...: SIGTERM each process this test started and saved as $NAME, with its stamp in $NAME_stamp.
-stop() {
-    local name pid stamp stamp_var
-    for name in "$@"; do
-        pid=${!name}
-        stamp_var=${name}_stamp
-        stamp=${!stamp_var:-}
-        signal_same TERM "$pid" "$stamp"
-    done
-    return 0
-}
-# release_after SECONDS: touches $release after SECONDS from one process, saved as releaser, so stop
-# ends it and leaves no sleep behind.
-release_after() {
-    perl -e 'sleep shift; open my $f, ">", shift' "$1" "$release" &
-    releaser=$!
-    releaser_stamp=$(proc_stamp "$releaser")
-}
-# kill_script SIG: signals the test-sim.sh this test started, found and stamped at once.
-kill_script() {
-    local pid
-    pid=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" | head -1)
-    [ -n "$pid" ] && signal_same "$1" "$pid" "$(proc_stamp "$pid")"
-}
-
+# shellcheck source=scripts/tests/test-sim-stopping.sh
+. "$(dirname "${BASH_SOURCE[0]}")/test-sim-stopping.sh"
 passing="✔ Test run with 1 test in 1 suite passed after 0.010 seconds.
 ** TEST EXECUTE SUCCEEDED **"
 printf '%s\n' "$passing" >"$root/xcodebuild.log"
@@ -69,7 +46,6 @@ fi
 echo "a run that outlives WORKOUT_TEST_RUN_LIMIT is stopped and exits 124"
 # xcodebuild that never finishes, as one that idled after its last test did. Without the bound
 # this release file ends it after 30 s with status 0, so the check fails instead of hanging.
-release=$root/release
 release_after 30
 run env STUB_RC=0 STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=1
 stop releaser
@@ -108,18 +84,6 @@ else
 fi
 
 echo "no watchdog outlives test-sim.sh, however it ends"
-# GONE_WITHIN bounds how long the checks below wait for a process to quit. STUCK_FOR, well past it, is
-# how long a stub xcodebuild that nothing stops runs before it ends itself, so a check fails rather
-# than hangs.
-gone_within=${GONE_WITHIN:-20}
-stuck_for=${STUCK_FOR:-$((gone_within * 4))}
-watchdogs() { pgrep -f "$root/repo/.build/test-sim/.*overran" || true; }
-runs() { pgrep -f "$root/bin/xcodebuild" || true; }
-gone() {
-    local deadline=$((SECONDS + gone_within))
-    while [ -n "$("$1")" ] && [ $SECONDS -lt $deadline ]; do sleep 0.1; done
-    [ -z "$("$1")" ]
-}
 
 run env STUB_RC=0
 if [ "$status" = 0 ] && [ -z "$(watchdogs)" ] && [ -z "$(runs)" ]; then
@@ -237,114 +201,6 @@ else
 fi
 stop bystander releaser
 wait 2>/dev/null
-
-echo "test-sim.sh signals only the xcodebuild that carries the start time it read at launch"
-rm -f "$release" "$root/started" "$root/recycled"
-release_after "$stuck_for"
-(
-    STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 \
-        STUB_RELEASE="$release" STUB_RECYCLED=$root/recycled WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=1 \
-        HOME=$root/home PATH="$root/recycled-bin:$root/bin:$PATH" \
-        "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1
-    echo $? >"$root/recycled-status"
-) &
-recycled_run=$!
-while { [ ! -e "$root/started" ] || [ -z "$(watchdogs)" ]; } && [ ! -e "$release" ]; do sleep 0.1; done
-sleep 1
-runs >"$root/recycled"
-kill_script TERM
-sleep 3
-if [ -n "$(runs)" ] && [ ! -e "$release" ]; then
-    ok "after SIGTERM, an xcodebuild pid whose start time changed gets no signal"
-else
-    bad "after SIGTERM, an xcodebuild pid whose start time changed gets no signal: $( [ -e "$release" ] && echo released || echo signalled)"
-fi
-touch "$release"
-gone runs
-wait "$recycled_run"
-if [ "$(cat "$root/recycled-status" 2>/dev/null)" = 143 ]; then ok "test-sim.sh then exits 143"; else bad "test-sim.sh then exits 143: $(cat "$root/recycled-status" 2>/dev/null)"; fi
-stop releaser
-wait 2>/dev/null
-
-echo "test-sim.sh signals only the watchdog that carries the start time it read at launch"
-# The stub xcodebuild ignores SIGTERM, so test-sim.sh spends the kill grace stopping it, and the watchdog,
-# which sees its xcodebuild unchanged, runs on through that grace unless test-sim.sh signalled it.
-rm -f "$release" "$root/started" "$root/recycled"
-release_after "$stuck_for"
-(
-    STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 STUB_DEAF=1 \
-        STUB_RELEASE="$release" STUB_RECYCLED=$root/recycled WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=5 \
-        HOME=$root/home PATH="$root/recycled-bin:$root/bin:$PATH" \
-        "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >/dev/null 2>&1
-    echo $? >"$root/recycled-status"
-) &
-recycled_run=$!
-while { [ ! -e "$root/started" ] || [ -z "$(watchdogs)" ]; } && [ ! -e "$release" ]; do sleep 0.1; done
-# The stub sets its SIGTERM trap half a second after it marks itself started.
-sleep 1
-watchdogs >"$root/recycled"
-kill_script TERM
-sleep 2
-if [ -n "$(watchdogs)" ]; then
-    ok "after SIGTERM, a watchdog pid whose start time changed gets no signal"
-else
-    bad "after SIGTERM, a watchdog pid whose start time changed gets no signal"
-fi
-wait "$recycled_run"
-if [ "$(cat "$root/recycled-status" 2>/dev/null)" = 143 ] && [ ! -e "$release" ]; then
-    ok "test-sim.sh exits 143 without waiting on that watchdog"
-else
-    bad "test-sim.sh exits 143 without waiting on that watchdog: $(cat "$root/recycled-status" 2>/dev/null), $([ -e "$release" ] && echo "waited for the release" || echo early)"
-fi
-if gone watchdogs; then ok "the watchdog quits once its xcodebuild is gone"; else bad "the watchdog quits once its xcodebuild is gone: $(watchdogs)"; fi
-stop releaser
-wait 2>/dev/null
-rm -f "$release" "$root/recycled"
-
-# The caller's `perl -e 'alarm N'` bound sends ALRM, so a second signal can be either.
-for second in TERM ALRM; do
-echo "a second signal, $second, while test-sim.sh stops its run does not cut the stop short"
-rm -f "$release" "$root/started"
-release_after "$stuck_for"
-(
-    STUB_LOG=$root/xcodebuild.log STUB_OUT=$root/out STUB_SEEN=$root/seen STUB_TOUCH=$root/started STUB_RC=0 STUB_DEAF=1 \
-        STUB_RELEASE="$release" WORKOUT_TEST_RUN_LIMIT=600 WORKOUT_TEST_KILL_GRACE=3 HOME=$root/home PATH="$root/bin:$PATH" \
-        "$repo/scripts/test-sim.sh" --no-build --sim "$sim" unit >"$root/twice" 2>&1
-) &
-twice_run=$!
-while { [ ! -e "$root/started" ] || [ -z "$(watchdogs)" ]; } && [ ! -e "$release" ]; do sleep 0.1; done
-# The stub sets its SIGTERM trap half a second after it marks itself started.
-sleep 1
-script=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" | head -1)
-script_stamp=$(proc_stamp "$script")
-signal_same TERM "$script" "$script_stamp"
-sleep 1
-signal_same "$second" "$script" "$script_stamp"
-wait "$twice_run"
-if [ ! -e "$release" ] && [ -z "$(runs)" ] && tail -1 "$root/twice" | grep -q ' exit=143 '; then
-    ok "test-sim.sh still kills the xcodebuild that ignores SIGTERM, and prints its result line"
-else
-    bad "test-sim.sh still kills the xcodebuild that ignores SIGTERM, and prints its result line: left $(runs), last line $(tail -1 "$root/twice")"
-fi
-left=$(pgrep -f "$repo/scripts/test-sim.sh --no-build" || true)
-if [ -z "$left$(watchdogs)" ]; then
-    ok "its watchdog, idle watcher and lease heartbeat are gone too"
-else
-    bad "its watchdog, idle watcher and lease heartbeat are gone too: test-sim.sh pids $left, watchdogs $(watchdogs)"
-fi
-marks=$(cd "$root/repo/.build/test-sim" 2>/dev/null && ls -- *-idle 2>/dev/null)
-newest=$(ls -t "$root/repo/.build/test-sim/"*-test.log 2>/dev/null | head -1)
-if [ -z "$marks" ] && [ -n "$newest" ] && tail -1 "$newest" | grep -q ' exit=143 '; then
-    ok "and its cleanup finished: no idle mark is left, and the run's log ends on the result line"
-else
-    bad "and its cleanup finished: no idle mark is left, and the run's log ends on the result line: marks ${marks:-none}"
-fi
-touch "$release"
-gone runs
-stop releaser
-wait 2>/dev/null
-rm -f "$release"
-done
 
 echo "the watchdog signals only the process that carries the start time it was given"
 watchdog=$repo/scripts/test-run-watchdog.pl
