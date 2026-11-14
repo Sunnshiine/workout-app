@@ -64,38 +64,6 @@ test_sim --no-build; status="$status $?"
 expect "a reclaim refused at the build slot leaves the run to the next claim, which reclaims it" \
     "$status $(grep -c 'owns the app' "$root/err")" "75 65 0"
 
-echo "load_clear, which judges a verify.sh record take"
-load_wait() { WORKOUT_ADMIT_WAIT=0 bash -c '. "$1/scripts/sim-lock.sh"; wait_until_clear "the load" load_clear "$2"' _ "$repo" "$1" 2>"$root/err"; }
-reset
-STUB_LOAD=80.00 load_wait 50; status=$?
-expect "a load over the limit holds" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
-STUB_LOAD=50.00 load_wait 50; status=$?
-expect "a load exactly at the limit is under it" "$status $(cat "$root/err")" "0 "
-mkdir -p "$root/broken-awk"
-printf '#!/bin/sh\necho "awk: cannot run" >&2\nexit 2\n' > "$root/broken-awk/awk"
-chmod +x "$root/broken-awk/awk"
-PATH="$root/broken-awk:$PATH" STUB_LOAD=1.00 load_wait 50; status=$?
-expect "an awk that cannot compare the load holds, it never clears" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load: awk could not compare the 1-minute load 1.00 with 50 (exit 2)"
-STUB_LOAD=n/a load_wait 50; status=$?
-expect "a load reading that is not a number holds" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load: sysctl -n vm.loadavg printed no 1-minute load: { n/a 1.00 1.00 }"
-STUB_SYSCTL_FAILS=1 load_wait 50; status=$?
-expect "on macOS a sysctl that fails holds" "$status $(refusal)" \
-    "75 gave up after N s waiting for the load: sysctl -n vm.loadavg failed: sysctl: unknown oid 'vm.loadavg'"
-if gawk=$(command -v gawk); then
-    mkdir -p "$root/gawk"
-    ln -s "$gawk" "$root/gawk/awk"
-    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 load_wait 50; status=$?
-    expect "under gawk, a load over the limit holds" "$status $(refusal)" \
-        "75 gave up after N s waiting for the load: the 1-minute load is 80.00, over 50 (WORKOUT_LOAD_LIMIT)"
-    PATH="$root/gawk:$PATH" STUB_LOAD=80.00 load_wait 100; status=$?
-    expect "under gawk, a load under the limit clears and says nothing" "$status $(cat "$root/err")" "0 "
-else
-    echo "  skip the gawk checks: no gawk on PATH (brew install gawk)"
-fi
-
 echo "disk"
 reset
 STUB_DISK_FREE_MB=1000 WORKOUT_ADMIT_WAIT=0 test_sim; status=$?

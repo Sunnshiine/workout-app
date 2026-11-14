@@ -7,7 +7,6 @@ tree=$here/tree.py
 tiler=$repo/scripts/contact-sheet.swift
 . "$repo/scripts/sim-lock.sh"
 . "$repo/scripts/sandbox-preflight.sh"
-host_knob WORKOUT_LOAD_LIMIT 50 1
 project=$repo/WorkoutTracker.xcodeproj
 bundle=com.sunnypatel.WorkoutTracker
 work=$repo/.build/verify
@@ -302,8 +301,24 @@ case $cmd in
     command -v ffprobe >/dev/null || { echo "record reads its video with ffprobe; install it: brew install ffmpeg" >&2; exit 70; }
     [ "${1:-}" != launch ] || relaunch="$*"
     require_sim_free "$sim"; require_own_app
-    wait_until_clear "the load to fall to $WORKOUT_LOAD_LIMIT before recording" \
-      load_clear "$WORKOUT_LOAD_LIMIT"
+    start=$(date +%s) said=-60
+    while :; do
+      rc=0
+      foreground=$(python3 "$here/foreground.py" 7>&- 8>&- 9>&-) || rc=$?
+      [ $rc -ne 0 ] || break
+      [ $rc -eq 3 ] || { echo "$here/foreground.py exited $rc, so nothing was recorded" >&2; exit 70; }
+      waited=$(($(date +%s) - start))
+      if [ "$waited" -ge "$WORKOUT_ADMIT_WAIT" ]; then
+        echo "recording anyway after $waited s, with the foreground still $foreground" >&2
+        break
+      fi
+      if [ $((waited - said)) -ge 60 ]; then
+        echo "waiting up to $WORKOUT_ADMIT_WAIT s for the host to stop starving the foreground: $foreground" >&2
+        said=$waited
+      fi
+      sleep 2 7>&- 8>&- 9>&-
+    done
+    [ "$said" -lt 0 ] || [ "$rc" -ne 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&2
     require_sim_free "$sim"; require_own_app; ensure_axe
     dir=$(run_dir)
     pending=$dir/.pending
@@ -311,7 +326,7 @@ case $cmd in
     rm -f "$pending/$name.mp4" "$pending/$name.take" "$pending/$name.end.txt"
     rc=0
     python3 "$here/take.py" record --sim "$sim" --run "${dir##*/}" --verify "$0" --out "$pending/$name.mp4" \
-      --tail "$tail" --limit "$WORKOUT_LOAD_LIMIT" -- "$@" > "$pending/$name.take" || rc=$?
+      --tail "$tail" --foreground "$foreground" -- "$@" > "$pending/$name.take" || rc=$?
     if [ $rc -ne 0 ] && [ $rc -ne 3 ]; then
       rm -f "$pending/$name.mp4" "$pending/$name.take"
       exit $rc

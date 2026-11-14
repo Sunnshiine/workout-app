@@ -3,6 +3,8 @@ set -uo pipefail
 
 # shellcheck source=scripts/tests/sim-mcp-hook-harness.sh
 . "$(dirname "${BASH_SOURCE[0]}")/sim-mcp-hook-harness.sh"
+# shellcheck source=scripts/same-process.sh
+. "$repo/scripts/same-process.sh"
 
 echo "when Simlock cannot answer, the call runs with a warning"
 : >"$log"
@@ -36,7 +38,12 @@ for tool in build_sim build_run_sim test_sim; do
     check "$tool with sandbox reporting stuck is refused" \
         '[ $status = 2 ] && err_has "Refused: host sandbox reporting is stuck, so $tool would hang."'
 done
-check "the refusal names the operator step" 'err_has "It needs the operator: restart sandboxd when no simulator lease is held, or reboot."'
+check "the refusal says a later build may get through, and names the operator step that clears it for good" \
+    'err_has "The check flaps, so a build a minute later may get through. The operator clears it for good: restart" && err_has "sandboxd when no simulator lease is held, or reboot."'
+check "with the default leased, the stuck refusal says nothing of leasing" '! err_has "Those MCP tools run only" && ! err_has "1. Lease one"'
+HOSTGATE_MODE=stuck HOSTGATE_DELAY=4.5 gate build_run_sim '{}'
+check "a stuck check as slow as the real one (4.5 s) still refuses under the default bound of 12 s" \
+    '[ $status = 2 ] && err_has "Refused: host sandbox reporting is stuck"'
 check "the refusal says the shell build hangs too" 'err_has "so does the shell route (.agents/skills/verify/verify.sh build)"'
 check "the refusal names launching this worktree's build" 'err_has ".agents/skills/verify/verify.sh launch session "'
 check "the refusal names launching a cached commit" 'err_has ".agents/skills/verify/verify.sh launch --at <commit> session"'
@@ -49,7 +56,26 @@ for tool in boot_sim open_sim install_app_sim launch_app_sim; do
 done
 HOSTGATE_MODE=stuck gate session_set_defaults "{\"simulatorId\": \"$MINE\"}"
 check "session_set_defaults runs while the sandbox is stuck" '[ $status = 0 ]'
-check "only a build asks hostgate" '[ ! -s "$tmp/hostgate.calls" ]'
+check "a tool that builds nothing and is allowed asks no hostgate" '[ ! -s "$tmp/hostgate.calls" ]'
+
+echo "under a stuck sandbox, each refusal knows the other state"
+recorded_as "$FREE_UDID" nobody
+HOSTGATE_MODE=stuck gate build_run_sim '{}' nobody
+check "a stuck build with no leased default also says how to lease" \
+    '[ $status = 2 ] && err_has "Refused: host sandbox reporting is stuck" && err_has "this session'"'"'s default ($FREE_UDID) is not one:" && err_has "1. Lease one."'
+recorded_as "$FREE_UDID"
+HOSTGATE_MODE=stuck gate build_run_sim '{}'
+check "a stuck build whose caller holds another lease points it there" \
+    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE. Call session_set_defaults {simulatorId: \"$MINE\"} alone."'
+for tool in install_app_sim launch_app_sim; do
+    HOSTGATE_MODE=stuck gate "$tool" '{}' nobody
+    check "$tool refused for its lease while the sandbox is stuck offers the shell path with no build" \
+        '[ $status = 2 ] && err_has "builds nothing, since host sandbox reporting is stuck" && err_has "   .agents/skills/verify/verify.sh launch session" && ! err_has "verify.sh build"'
+done
+HOSTGATE_MODE=fine gate install_app_sim '{}' nobody
+check "the same refusal with a fine sandbox offers the shell build" \
+    '[ $status = 2 ] && err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
+recorded_as "$MINE"
 HOSTGATE_MODE=fine gate build_run_sim '{}'
 check "a fine sandbox lets the build run, quietly" '[ $status = 0 ] && [ ! -s "$tmp/err" ] && [ ! -s "$tmp/out" ]'
 mkdir -p "$tmp/simlock-only" && cp "$stub/simlock" "$tmp/simlock-only/"
@@ -69,6 +95,10 @@ HOSTGATE_MODE=rendezvous SIMLOCK_MODE=rendezvous RENDEZVOUS="leases devices sand
 check "the sandbox check runs at once with the lease lookups" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 
 echo "a lookup cut short leaves nothing running"
+rm -f "$tmp"/outlived--*
+SIMLOCK_MODE=slow SIMLOCK_SLEEP=3 SIM_HOOK_TIMEOUT=0.3 gate build_run_sim '{}'
+check "a lookup past its bound is ended with its group, not waited out" \
+    '[ $status = 0 ] && [ ! -e "$tmp/outlived--leases" ] && [ ! -e "$tmp/outlived--devices" ]'
 : >"$tmp/children"
 SIMLOCK_MODE=slow SIM_HOOK_TIMEOUT=0.3 gate build_run_sim '{}'
 check "simlock past its bound: the lookups and their children are ended" 'none_alive "$tmp/children"'
@@ -77,9 +107,9 @@ printf '%s' '{"session_id": "me", "hook_event_name": "PreToolUse", "tool_name": 
 (cd "$repo" && exec env -u CLAUDE_CODE_SESSION_ID SIMLOCK_MODE=slow HOSTGATE_MODE=slow SIM_HOOK_TIMEOUT=20 \
     SIM_HOOK_SANDBOX_TIMEOUT=20 CLAUDE_PROJECT_DIR="$repo" XDG_STATE_HOME="$tmp/state" PATH="$stub:/usr/bin:/bin" \
     python3 scripts/sim-mcp-hook.py <"$tmp/in" >/dev/null 2>&1) &
-hook=$!
+hook=$! hook_stamp=$(proc_stamp $!)
 for _ in $(seq 40); do [ "$(wc -l <"$tmp/children" | tr -d " ")" -ge 3 ] && break; sleep 0.1; done
-kill -TERM "$hook"; wait "$hook"; hook_status=$?
+signal_same TERM "$hook" "$hook_stamp"; wait "$hook"; hook_status=$?
 check "a hook ended by SIGTERM exits 143 and ends every lookup and its children" '[ $hook_status = 143 ] && none_alive "$tmp/children"'
 echo
 printf '%d passed, %d failed\n' "$pass" "$fail"

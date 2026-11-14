@@ -1,3 +1,5 @@
+import shlex
+
 from evidence_support import *  # noqa: F401,F403
 
 
@@ -6,7 +8,6 @@ name=appear
 video=appear.mp4
 drive=launch --animated session
 tail=2.0
-load_limit=50
 load_before=12.31
 load_after=14.02
 started=1791817306.217
@@ -19,6 +20,7 @@ frames=37
 first_frame=0.000
 last_frame=3.402
 video_px=1206x2622
+foreground=ok (wall/cpu 1.02)
 verdict=VALID
 invalid=
 invalid_rules=
@@ -41,11 +43,32 @@ class TakeJudge(unittest.TestCase):
 
     def test_the_summary_reads_the_whole_stamp(self):
         self.assertEqual(take.summary(take.parse(STAMP)), (
-            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0 (limit 50), "
+            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 14.0, "
+            "foreground ok (wall/cpu 1.02), animations on"))
+        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20", animations="off",
+                                                 foreground="starved (wall/cpu 2.70)")), (
+            "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2, "
+            "foreground starved (wall/cpu 2.70), animations off"))
+
+    def test_the_summary_of_a_starved_take_tells_the_reviewer_to_discount_its_jank_and_still_exits_0(self):
+        path = Path(tempfile.mkdtemp()) / "appear.take"
+        self.addCleanup(shutil.rmtree, str(path.parent), True)
+        for foreground, said in [("ok (wall/cpu 1.02)", ""), ("starved (wall/cpu 2.70)", (
+                "the host starved the foreground before this take (starved (wall/cpu 2.70)), so discount any jank "
+                "in it\n"))]:
+            path.write_text(STAMP.replace("foreground=ok (wall/cpu 1.02)", "foreground=" + foreground))
+            done = subprocess.run([sys.executable, str(SKILL / "take.py"), "summary", str(path)],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            self.assertEqual((done.returncode, done.stderr), (0, said))
+
+    def test_a_stamp_from_before_the_foreground_probe_parses_and_its_load_judges_nothing(self):
+        old = take.parse(STAMP.replace("foreground=ok (wall/cpu 1.02)\n", "")
+                         .replace("load_before=12.31", "load_limit=50\nload_before=12.31")
+                         .replace("load_after=14.02", "load_after=63.20"))
+        self.assertEqual((old.foreground, take.judge(old)), (None, []))
+        self.assertEqual(take.summary(old), (
+            "take appear VALID 4.71 s, drive +0.00..+2.69 s, 37 frames, last +3.40 s, load 12.3 then 63.2, "
             "animations on"))
-        self.assertEqual(take.summary(stamp_with(drive="", frames=1, load_after="63.20", animations="off")), (
-            "take appear INVALID 4.71 s, no drive, 1 frame, last +3.40 s, load 12.3 then 63.2 (limit 50), "
-            "animations off"))
 
     def test_parse_reads_the_four_lines_verify_sh_appends_and_defaults_them_when_absent(self):
         appended = take.parse(STAMP)
@@ -71,19 +94,16 @@ class TakeJudge(unittest.TestCase):
             (STAMP.replace("frames=37", "frames=many"), "frames=many does not parse"),
             (STAMP.replace("screen_pt=402x874", "screen_pt=402"), "screen_pt=402 does not parse"),
             (STAMP.replace("card_pt=@16,476 370x308", "card_pt=@16,476"), "card_pt=@16,476 does not parse"),
+            (STAMP.replace("foreground=ok (wall/cpu 1.02)", "foreground=ok"), "foreground=ok does not parse"),
         ]:
             with self.subTest(why=why):
                 with self.assertRaises(ValueError) as raised:
                     take.parse(text)
                 self.assertEqual(str(raised.exception), why)
 
-    def test_load_over_the_limit_at_the_end_as_host_admission_reads_over(self):
-        self.assertEqual(take.judge(stamp_with(load_after="63.20")), [("load", "load 63.2 at the end, over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="50.01")), [("load", "load 50.0 at the end, over 50")])
-        self.assertEqual(take.judge(stamp_with(load_after="50.00")), [])
-
-    def test_load_over_the_limit_at_the_start_is_record_s_refusal_not_a_rule_so_the_take_is_valid(self):
-        self.assertEqual(take.judge(stamp_with(load_before="63.20", load_after="14.02")), [])
+    def test_neither_load_nor_a_starved_foreground_makes_a_take_invalid(self):
+        self.assertEqual(take.judge(stamp_with(load_before="130.00", load_after="520.00",
+                                               foreground="starved (wall/cpu 2.70)")), [])
 
     def test_a_recorder_that_stopped_early_or_exited_nonzero(self):
         self.assertEqual(take.judge(stamp_with(recorder_early="1")),
@@ -105,9 +125,8 @@ class TakeJudge(unittest.TestCase):
         self.assertEqual(take.judge(stamp_with(drive="", frames="2")), [])
 
     def test_every_failed_rule_gives_its_rule_and_reason_in_rule_order_and_the_stamp_lists_the_rules(self):
-        broken = stamp_with(load_after="70.00", recorder_early="1", recorder_exit="2", drive_start="3.500")
+        broken = stamp_with(recorder_early="1", recorder_exit="2", drive_start="3.500")
         self.assertEqual(take.judge(broken), [
-            ("load", "load 70.0 at the end, over 50"),
             ("recorder_early", "the recorder stopped before the take ended"),
             ("recorder_exit", "recorder exit 2 after SIGINT; the video may be cut short"),
             ("coverage",
@@ -115,26 +134,59 @@ class TakeJudge(unittest.TestCase):
         ])
         self.assertEqual(take.take_lines(broken)[-3:], [
             "verdict=INVALID",
-            "invalid=load 70.0 at the end, over 50; the recorder stopped before the take ended; recorder exit "
-            "2 after SIGINT; the video may be cut short; the screen never changed after the drive began at +3.50 s, "
-            "so the take shows nothing the drive did",
-            "invalid_rules=load,recorder_early,recorder_exit,coverage",
+            "invalid=the recorder stopped before the take ended; recorder exit 2 after SIGINT; the video may be "
+            "cut short; the screen never changed after the drive began at +3.50 s, so the take shows nothing the "
+            "drive did",
+            "invalid_rules=recorder_early,recorder_exit,coverage",
         ])
 
 
 
-RECORDER_STUB = """#!/bin/sh
+RECORDER_STUB = """#!/bin/bash
+. "{repo}/scripts/same-process.sh"
+proc_stamp $$ > "{dir}/recorder.stamp"
 echo $$ > "{dir}/recorder.pid"
-if [ -n "${STUB_STUCK:-}" ]; then trap '' INT; else trap 'echo mp4 > "$8"; exit 0' INT; fi
-[ -n "${STUB_NEVER_STARTS:-}" ] || echo "Recording started" >&2
-while :; do sleep 0.1; done
+exec "{python}" -I -S "{dir}/bin/recorder.py" "$8"
+"""
+RECORDER_PY = """import os, signal, sys
+stuck = bool(os.environ.get("STUB_STUCK"))
+waits = {signal.SIGALRM} if stuck else {signal.SIGINT, signal.SIGALRM}
+try:
+    if stuck:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    signal.pthread_sigmask(signal.SIG_BLOCK, waits)
+    if not os.environ.get("STUB_NEVER_STARTS"):
+        sys.stderr.write("Recording started\\n")
+        sys.stderr.flush()
+    signal.alarm(30)
+    stop = signal.sigwait(waits)
+except KeyboardInterrupt:
+    stop = signal.SIGINT
+if stop == signal.SIGALRM:
+    sys.exit(1)
+with open(sys.argv[1], "w") as out:
+    out.write("mp4\\n")
 """
 WRAPPED_LAUNCH_STUB = """#!/bin/bash
 trap 'echo "the EXIT trap ran" > "{dir}/drive-exit"' EXIT
 [ "$1" != fail ] || exit 4
 touch "{dir}/driving"
+if [ -n "${STUB_CHILD_SURVIVES_INT:-}" ]; then
+    while :; do sh -c 'trap "" INT; sleep 0.3'; done
+fi
 while :; do sleep 0.1; done
 """
+
+
+def same_process(call, *args):
+    return subprocess.run(["bash", "-c", '. "$0" && %s "$@"' % call, str(REPO / "scripts" / "same-process.sh")]
+                          + list(args)).returncode
+
+
+def running(pid):
+    stat = subprocess.run(["ps", "-o", "stat=", "-p", pid], stdout=subprocess.PIPE,
+                          universal_newlines=True).stdout.strip()
+    return stat != "" and not stat.startswith("Z")
 
 
 class Film(unittest.TestCase):
@@ -143,10 +195,14 @@ class Film(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.tmp), True)
         (self.tmp / "bin").mkdir()
         for path, stub in [(self.tmp / "bin" / "xcrun", RECORDER_STUB), (self.tmp / "verify.sh", WRAPPED_LAUNCH_STUB),
-                           (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n")]:
-            path.write_text(stub.replace("{dir}", str(self.tmp)))
+                           (self.tmp / "bin" / "sysctl", "#!/bin/sh\necho '{ 1.00 1.00 1.00 }'\n"),
+                           (self.tmp / "bin" / "recorder.py", RECORDER_PY)]:
+            path.write_text(stub.replace("{dir}", str(self.tmp)).replace("{repo}", str(REPO)).replace(
+                "{python}", sys.executable))
             path.chmod(0o755)
-        self.env = dict(os.environ, PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
+        self.env = dict(os.environ, HOME=str(self.tmp / "home"),
+                        PATH="%s:%s" % (self.tmp / "bin", os.environ["PATH"]))
+        self.staging = self.tmp / "home" / "Library" / "Caches" / "workout-verify"
         self.addCleanup(self.kill_recorder)
         self.saved = take.STOP_GRACE
         self.addCleanup(setattr, take, "STOP_GRACE", self.saved)
@@ -159,25 +215,39 @@ class Film(unittest.TestCase):
     def kill_recorder(self):
         pid = self.tmp / "recorder.pid"
         if pid.exists():
-            try:
-                os.kill(int(pid.read_text()), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            same_process("signal_same KILL", pid.read_text().strip(), (self.tmp / "recorder.stamp").read_text().strip())
 
     def film(self, drive, start_timeout=5.0, **env):
         with mock.patch.dict(os.environ, dict(self.env, **env)), tempfile.TemporaryFile("w+") as stderr, \
                 contextlib.redirect_stderr(stderr):
             try:
-                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0, 50.0, drive,
-                          start_timeout)
+                take.film("SIM", "lane-1", str(self.tmp / "verify.sh"), self.tmp / "appear.mp4", 0.0,
+                          take.Foreground(False, 1.02), drive, start_timeout)
             except (take.DriveFailed, take.NoTake) as failure:
+                self.assertEqual(list(self.staging.iterdir()), [], "the recorder's folder is removed")
                 stderr.seek(0)
                 return type(failure).__name__, str(failure), stderr.read()
         self.fail("film returned a take")
 
     def stuck(self):
         pid = int((self.tmp / "recorder.pid").read_text())
-        return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: kill -INT %d\n" % (pid, pid)
+        stamp = (self.tmp / "recorder.stamp").read_text().strip()
+        command = ". %s && signal_same INT %d %s" % (shlex.quote(str(REPO / "scripts" / "same-process.sh")), pid,
+                                                     shlex.quote(stamp))
+        return "simctl recordVideo (pid %d) is still running 0.3 s after SIGINT; stop it with: bash -c %s\n" % (
+            pid, shlex.quote(command))
+
+    def test_the_stop_command_for_a_stuck_recorder_signals_it_only_while_it_is_the_same_process(self):
+        hint = self.film_stuck(["fail"])[2]
+        command = hint.split("stop it with: ", 1)[1]
+        self.assertEqual(subprocess.run(command, shell=True).returncode, 0)
+        self.kill_recorder()
+        pid = (self.tmp / "recorder.pid").read_text().strip()
+        deadline = time.time() + 10
+        while running(pid):
+            self.assertLess(time.time(), deadline, "the recorder outlived SIGKILL")
+            time.sleep(0.05)
+        self.assertEqual(subprocess.run(command, shell=True).returncode, 3, "an exited recorder's pid is not signalled")
 
     def test_a_load_that_cannot_be_read_as_the_take_begins_drives_nothing(self):
         (self.tmp / "bin" / "sysctl").write_text("#!/bin/sh\necho 'sysctl: transient' >&2\nexit 1\n")
@@ -194,11 +264,18 @@ class Film(unittest.TestCase):
                                              "was driven", self.stuck()))
 
     def test_an_interrupted_take_gives_the_drive_sigint_so_its_exit_trap_runs(self):
+        self.interrupt_a_take()
+
+    def test_a_drive_whose_child_survives_sigint_still_runs_its_exit_trap(self):
+        """bash outlives a SIGINT when the child it waits on does, so the drive then gets SIGTERM, not SIGKILL."""
+        self.interrupt_a_take(STUB_CHILD_SURVIVES_INT="1")
+
+    def interrupt_a_take(self, **env):
         record = subprocess.Popen(
             [sys.executable, str(SKILL / "take.py"), "record", "--sim", "SIM", "--run", "lane-1", "--verify",
-             str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--limit", "50",
-             "--", "launch", "--animated", "session"],
-            env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+             str(self.tmp / "verify.sh"), "--out", str(self.tmp / "appear.mp4"), "--tail", "0", "--foreground",
+             "ok (wall/cpu 1.02)", "--", "launch", "--animated", "session"],
+            env=dict(self.env, **env), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
         self.addCleanup(record.kill)
         deadline = time.time() + 10
         while not (self.tmp / "driving").exists():
@@ -209,4 +286,5 @@ class Film(unittest.TestCase):
         self.assertEqual(record.returncode, 130)
         self.assertEqual((self.tmp / "drive-exit").read_text(), "the EXIT trap ran\n")
         self.assertEqual(sorted(p.name for p in self.tmp.iterdir()),
-                         ["bin", "drive-exit", "driving", "recorder.pid", "verify.sh"])
+                         ["bin", "drive-exit", "driving", "home", "recorder.pid", "recorder.stamp", "verify.sh"])
+        self.assertEqual(list(self.staging.iterdir()), [], "the recorder's folder is removed")

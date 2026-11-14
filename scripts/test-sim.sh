@@ -69,7 +69,8 @@ when it asks for more (xcodebuild's -test-timeouts-enabled). Exits 124 when the 
 outlives WORKOUT_TEST_RUN_LIMIT seconds (3600), after stopping it (SIGTERM, then SIGKILL
 WORKOUT_TEST_KILL_GRACE seconds (10) later), so a run that stops making
 progress cannot hold its simulator for good.
-A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the run the same way and exits 142.
+A SIGALRM, such as a caller's `perl -e 'alarm N'` bound, stops the build or the run the same way,
+at once, and exits 142.
 A pipe such as `| tee` hides the exit status from the caller; read exit= instead.
 EOF
   exit 2
@@ -77,24 +78,32 @@ EOF
 
 load1() { sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}' || echo -; }
 
-# Stops every watcher, then the test run, on every exit, so nothing this script started outlives it.
-# A background xcodebuild ignores the terminal's SIGINT, so a run stopped mid-test stops it here: SIGTERM,
-# then SIGKILL after WORKOUT_TEST_KILL_GRACE seconds, and waits for it. Each signal goes through
-# signal_same, so it reaches only the process this script started, never a pid number reused since.
-stop_run() {
-  local tenths
-  [ -z "${watchdog:-}" ] || { signal_same TERM "$watchdog" "$watchdog_stamp"; wait "$watchdog"; } 2>/dev/null
-  watchdog=
-  [ -z "${watcher:-}" ] || { signal_same TERM "$watcher" "$watcher_stamp"; wait "$watcher"; } 2>/dev/null
-  watcher=
-  [ -n "${run_pid:-}" ] || return 0
-  signal_same TERM "$run_pid" "$run_stamp"
+# stop_job PID STAMP: SIGTERM, then SIGKILL after WORKOUT_TEST_KILL_GRACE seconds, then waits for it. Each
+# signal goes through signal_same, so it reaches only the process this script started, never a pid number
+# reused since. An empty STAMP means a signal came between the launch and its stamp read, milliseconds
+# ago, so a stamp read now is as good.
+stop_job() {
+  local stamp=${2:-$(proc_stamp "$1")} tenths
+  signal_same TERM "$1" "$stamp"
   for ((tenths = 0; tenths < ${WORKOUT_TEST_KILL_GRACE:-10} * 10; tenths++)); do
-    same_process "$run_pid" "$run_stamp" || break
+    same_process "$1" "$stamp" || break
     sleep 0.1
   done
-  signal_same KILL "$run_pid" "$run_stamp"
-  wait "$run_pid" 2>/dev/null
+  signal_same KILL "$1" "$stamp"
+  wait "$1" 2>/dev/null
+}
+
+# Stops the build, every watcher, then the test run, on every exit, so nothing this script started
+# outlives it. A background job ignores the terminal's SIGINT, so a build or run stopped midway stops
+# here. A watcher this script cannot signal is left to quit once the run has, rather than waited on.
+stop_run() {
+  [ -z "${slot_job:-}" ] || stop_job "$slot_job" "${slot_job_stamp:-}"
+  slot_job=
+  [ -z "${watchdog:-}" ] || { signal_same TERM "$watchdog" "$watchdog_stamp" && wait "$watchdog"; } 2>/dev/null
+  watchdog=
+  [ -z "${watcher:-}" ] || { signal_same TERM "$watcher" "$watcher_stamp" && wait "$watcher"; } 2>/dev/null
+  watcher=
+  [ -z "${run_pid:-}" ] || stop_job "$run_pid" "$run_stamp"
   run_pid=
 }
 
@@ -146,7 +155,7 @@ lease_kept() {
 # Renews the lease so its keep window starts now. The lease may be the one an agent designs on, so a run
 # never releases it, even after a fault. A lease another run held the simulator of is that run's to renew.
 end_run_lease() {
-  [ -z "$heartbeat" ] || { signal_same TERM "$heartbeat" "$heartbeat_stamp"; wait "$heartbeat" 2>/dev/null; heartbeat=; } || true
+  [ -z "$heartbeat" ] || { signal_same TERM "$heartbeat" "$heartbeat_stamp" && wait "$heartbeat" 2>/dev/null; heartbeat=; } || true
   [ -n "$run_lease" ] && [ -n "${claimed_sim:-}" ] || return 0
   simlock lease renew "$run_lease" >/dev/null 2>&1 7>&- 8>&- 9>&- || return 0
   [ -n "$named" ] || echo "kept simulator $sim (Simlock lease $run_lease) for $run_lease_minutes min for your next run; simlock release $run_lease gives it back now" >&2
@@ -154,6 +163,10 @@ end_run_lease() {
 
 finish() {
   local rc=$? counts="- - -" passed failed expected shown=- result
+  # A second signal would end finish before stop_run, and leave xcodebuild unbounded. A signal during the
+  # build lands here under set -e, where stop_job's failed SIGKILL would end finish without a result line.
+  trap '' INT TERM HUP ALRM
+  set +e
   stop_run
   [ -z "$stamp" ] || rm -f "$logs/$stamp-idle"
   if [ -n "$bundle" ] && [ -d "$bundle" ]; then
@@ -184,9 +197,15 @@ stamp=
 named=
 run_lease=
 heartbeat=
+heartbeat_stamp=
+slot_job=
+slot_job_stamp=
 run_pid=
+run_stamp=
 watchdog=
+watchdog_stamp=
 watcher=
+watcher_stamp=
 trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -249,6 +268,8 @@ stamp=$(date +%Y%m%d-%H%M%S)-$$
 
 if [ $build = 1 ]; then
   rc=0
+  # The build runs as a job this script waits on, so a signal stops it at once rather than once it ends.
+  slot_stoppable=1
   with_build_slot --log "$logs/$stamp-build.log" xcodebuild build-for-testing -project "$project" -scheme WorkoutTracker \
     -destination "$destination" -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO || rc=$?
   [ $rc != 75 ] || [ -e "$logs/$stamp-build.log" ] || exit 75

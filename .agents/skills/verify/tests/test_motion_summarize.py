@@ -108,24 +108,24 @@ def ruled(m, *rules, animations="on"):
 class StillOf(unittest.TestCase):
     def test_only_rules_that_hide_motion_and_never_invent_it_keep_a_move_sound(self):
         self.assertEqual([cardframe.moved_counts(rules) for rules in
-                          [(), ("load",), ("window",), ("load", "window"), ("ramp",), ("load", "coverage"),
-                           ("recorder_exit",), ("recorder_early",)]],
-                         [True, True, True, True, False, False, False, False])
+                          [(), ("window",), ("ramp",), ("window", "coverage"), ("recorder_exit",),
+                           ("recorder_early",)]],
+                         [True, True, False, False, False, False])
 
     def test_a_reading_that_cannot_vouch_says_why_by_its_edges_then_its_rules_then_its_animations(self):
         held = cardframe.summarize(TAKE, frames(card(100), card(100)), 0.0)
         faint = cardframe.summarize(TAKE, frames(card(100, contrast=5.0), card(100)), 0.0)
         missing = cardframe.summarize(TAKE, frames(None, card(100)), 0.0)
         empty = cardframe.summarize(TAKE, [Sample(0.0, None, FLAT)], 0.0)
-        self.assertEqual([m.unvouched for m in [ruled(held), ruled(held, "load"), ruled(held, animations="off"),
-                                                ruled(faint, "load", animations="off"), ruled(missing),
-                                                ruled(empty, "load")]], [
+        self.assertEqual([m.unvouched for m in [ruled(held), ruled(held, "window"), ruled(held, animations="off"),
+                                                ruled(faint, "window", animations="off"), ruled(missing),
+                                                ruled(empty, "window")]], [
             None,
-            "take INVALID: load reason",
+            "take INVALID: window reason",
             "animations off",
             "the card was faint for its first 1 frames, so its edges were not read from the window's start",
             "the card was missing from the window's first frames, so its edges were not read from the window's start",
-            "take INVALID: load reason",
+            "take INVALID: window reason",
         ])
 
     def test_the_still_table(self):
@@ -137,16 +137,15 @@ class StillOf(unittest.TestCase):
         cases = [
             ("box moved, VALID", ruled(moved), Still.NO),
             ("look changed, VALID", ruled(faded), Still.NO),
-            ("box moved under load", ruled(moved, "load"), Still.NO),
             ("box moved in a short window", ruled(moved, "window"), Still.NO),
             ("box moved, animations off", ruled(moved, animations="off"), Still.NO),
             ("box moved with no ramp", ruled(moved, "ramp"), Still.UNKNOWN),
             ("look changed with no ramp", ruled(faded, "ramp"), Still.UNKNOWN),
-            ("box moved under load and no coverage", ruled(moved, "load", "coverage"), Still.UNKNOWN),
+            ("box moved in a short window and no coverage", ruled(moved, "window", "coverage"), Still.UNKNOWN),
             ("box moved, recorder exit 1", ruled(moved, "recorder_exit"), Still.UNKNOWN),
             ("nothing moved, VALID", ruled(held), Still.YES),
             ("nothing moved, VALID, edges partial", ruled(held_after_a_faint_frame), Still.UNKNOWN),
-            ("nothing moved under load", ruled(held, "load"), Still.UNKNOWN),
+            ("nothing moved in a short window", ruled(held, "window"), Still.UNKNOWN),
             ("nothing moved, animations off", ruled(held, animations="off"), Still.UNKNOWN),
             ("nothing moved, animations unknown", ruled(held, animations="unknown"), Still.UNKNOWN),
             ("no card", ruled(empty), Still.UNKNOWN),

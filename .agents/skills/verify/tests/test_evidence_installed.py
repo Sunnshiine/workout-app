@@ -150,8 +150,8 @@ class LaunchAnimated(Lane):
     def test_an_animated_launch_leaves_motion_on_and_says_so(self):
         head = self.worktree_build(b"v2\n", self.b)
         self.assertEqual(self.verify("launch", "--animated", "session", VERIFY_RUN="lane-1"), (0, (
-            "launched session as pid 4121 on %s (animations on)\n%s\nevidence %s\n"
-        ) % (self.sim, head, self.evidence("main", "lane-1")), ""))
+            "launched session as pid %d on %s (animations on)\n%s\nevidence %s\n"
+        ) % (self.app_pid, self.sim, head, self.evidence("main", "lane-1")), ""))
         self.assertIn(self.launch_call("-UITEST_DISABLE_LIVE_ACTIVITIES"), self.calls())
         self.assertEqual((Path("/tmp/workout-verify-%s" % self.sim) / "args").read_text(),
                          "-UITEST_FIXTURE -UITEST_SESSION -UITEST_FULL_BLOCK -UITEST_DISABLE_LIVE_ACTIVITIES\n")
@@ -175,13 +175,19 @@ class LaunchAnimated(Lane):
             with self.subTest(flags=flags):
                 code, out, err = self.verify("launch", *(flags + ["session"]), VERIFY_RUN="lane-1")
                 self.assertEqual((code, out.splitlines()[:2]),
-                                 (0, ["launched session as pid 4121 on %s (animations on)" % self.sim, cached]), err)
+                                 (0, ["launched session as pid %d on %s (animations on)" % (self.app_pid, self.sim), cached]), err)
                 self.assertIn(self.launch_call("-UITEST_DISABLE_LIVE_ACTIVITIES"), self.calls())
 
 
 class Doctor(Lane):
     def doctor_app_line(self):
         return self.verify("doctor")[1].splitlines()[1]
+
+    def test_doctor_reads_no_host_process_for_the_pid_the_launch_printed(self):
+        self.verify("build")
+        self.verify("launch", "session", VERIFY_RUN="lane-1")
+        self.assertIn("FAIL no app launched by this tool on %s" % self.sim, self.verify("doctor")[1],
+                      "the fixture's launch pid is one this test started and reaped, so no live process answers for it")
 
     def test_doctor_passes_this_worktrees_build_once_it_is_installed(self):
         self.verify("build")

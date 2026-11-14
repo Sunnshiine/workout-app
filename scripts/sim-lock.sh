@@ -233,7 +233,7 @@ wait_until_clear() {
   [ "$said" -lt 0 ] || echo "went ahead after $(($(date +%s) - start)) s" >&6
 }
 
-# Linux has neither kern.memorystatus_level nor vm.loadavg, so there neither holds anything.
+# Linux has no kern.memorystatus_level, so there it holds nothing.
 mem_clear() {
   local reading
   [ "$WORKOUT_MEM_FLOOR" -gt 0 ] || return 0
@@ -267,24 +267,6 @@ disk_clear() {
   done
 }
 
-load_clear() {
-  local reading now rc=0
-  if ! reading=$(PATH=$PATH:/usr/sbin sysctl -n vm.loadavg 2>&1); then
-    [ "$(uname)" = Darwin ] || return 0
-    busy_reason="sysctl -n vm.loadavg failed: $reading"
-    return 1
-  fi
-  read -r _ now _ <<< "$reading"
-  awk -v now="$now" -v limit="$1" 'BEGIN { if (now !~ /^[0-9]+(\.[0-9]+)?$/) exit 3; exit (now + 0 > limit + 0) }' || rc=$?
-  case $rc in
-    0) return 0 ;;
-    1) busy_reason="the 1-minute load is $now, over $1 (WORKOUT_LOAD_LIMIT)" ;;
-    3) busy_reason="sysctl -n vm.loadavg printed no 1-minute load: $reading" ;;
-    *) busy_reason="awk could not compare the 1-minute load $now with $1 (exit $rc)" ;;
-  esac
-  return 1
-}
-
 # Every heavy build on this Mac takes one of hostgate's host-wide slots, shared with every repo on it.
 # hostgate's own lines go to fd 6, the caller's stderr. With --log FILE the command's output goes to
 # FILE; redirecting the whole call would bury hostgate's wait lines in it.
@@ -299,6 +281,20 @@ with_build_slot() {
   fi
 }
 
+# Runs "$@". With slot_stoppable set it runs as a job the shell waits on, its pid and stamp in slot_job and
+# slot_job_stamp, so a trapped signal runs its trap at once rather than when the build ends, and the trap
+# can stop the job. Such a job starts with SIGINT ignored, so only a caller whose traps stop it sets
+# slot_stoppable, after sourcing same-process.sh.
+slot_run() {
+  [ -n "${slot_stoppable:-}" ] || { "$@"; return; }
+  local rc=0
+  "$@" &
+  slot_job=$! slot_job_stamp=$(proc_stamp "$!")
+  wait "$slot_job" || rc=$?
+  slot_job=
+  return "$rc"
+}
+
 # Runs the command through hostgate run, or directly with one loud line when hostgate is missing, or
 # when it fails before it starts the command. Exits as the command does, or 75, saying what to do
 # next, when hostgate gave up waiting for a slot.
@@ -307,30 +303,33 @@ hostgate_run() {
   pin=$(cat "$sim_lock_checkout/scripts/hostgate-version")
   if ! command -v hostgate >/dev/null; then
     echo "hostgate is not on PATH, so this build takes no host-wide slot and may stall every other agent; install it: $install" >&6
-    "$@" 6>&-
+    slot_run "$@" 6>&-
     return
   fi
   have=$(hostgate --version 2>/dev/null) || have=unknown
   older_version "$have" "$pin" \
     && echo "hostgate $have is older than the $pin this repo pins (scripts/hostgate-version); update it: $install" >&6
   [ -z "$admit_wait_set" ] || wait=(--wait "$WORKOUT_ADMIT_WAIT")
-  # The command removes this file as it starts, so a file left after a failed run means hostgate
-  # never started it.
+  # The command removes this file as it starts, so a file left after a run means hostgate never
+  # started it, whatever its status. HOSTGATE_PIN_FILE registers the pin, so `hostgate check` warns once
+  # the installed hostgate falls behind it.
   started=$(mktemp) || exit 70
-  hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
+  slot_run env HOSTGATE_PIN_FILE="$sim_lock_checkout/scripts/hostgate-version" hostgate run --label "workout-app:${slot_label:-${0##*/}}" ${wait[@]+"${wait[@]}"} \
     -- sh -c 'rm -f "$0" && exec "$@"' "$started" "$@" 2>&6 6>&- || rc=$?
   if [ -e "$started" ]; then
     rm -f "$started"
     case $rc in
-      0) ;;
       75)
         echo "no host-wide build slot came free in time, so nothing was built; \`hostgate status\` names who holds them. Rerun when one frees, or wait longer with WORKOUT_ADMIT_WAIT=<seconds>" >&6
         ;;
       69) ;;
+      129 | 1[3-9][0-9] | 2[0-9][0-9])
+        echo "hostgate run was stopped by signal $((rc - 128)) before it started the build, so nothing was built" >&6
+        ;;
       *)
         echo "hostgate run failed (exit $rc) before it started the build, so this build takes no host-wide slot and may stall every other agent; reinstall it: $install" >&6
         rc=0
-        "$@" 6>&- || rc=$?
+        slot_run "$@" 6>&- || rc=$?
         ;;
     esac
   fi
