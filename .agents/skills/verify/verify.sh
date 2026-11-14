@@ -4,7 +4,7 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../../.." && pwd)
 tree=$here/tree.py
-tiler=$repo/scripts/contact-sheet.swift
+tiler=$repo/scripts/contact-sheet.sh
 . "$repo/scripts/sim-lock.sh"
 . "$repo/scripts/sandbox-preflight.sh"
 project=$repo/WorkoutTracker.xcodeproj

@@ -1,0 +1,68 @@
+#!/bin/bash
+set -uo pipefail
+
+help() {
+  cat <<'EOF_HELP'
+Usage: scripts/contact-sheet.sh OUT.png IMAGE...
+       scripts/contact-sheet.sh --crop X,Y,W,H OUT.png IMAGE
+Runs scripts/contact-sheet.swift, the tiler, from a compiled copy, and exits as the tiler does.
+Running the .swift file by path compiles it with swift-frontend on every call, outside any build slot.
+The copy lives in <main checkout>/.claude/work/contact-sheet (CONTACT_SHEET_CACHE overrides it),
+named for the source's bytes and the compiler's, so every worktree on the Mac shares it and an edit
+to either builds a new one. A miss builds it with swiftc in a host-wide slot (scripts/build-slot.sh),
+waiting CONTACT_SHEET_WAIT seconds (0) for one: the build takes about as long as running the script,
+so a shot never waits on a busy host, and the next miss tries again. A copy appears only whole, by
+rename, so concurrent first calls never run a partial one. When the slot, the build or the cache
+fails, it prints one line naming why and runs the .swift file by path that once.
+CONTACT_SHEET_SWIFTC names the compiler (default: xcrun --find swiftc).
+EOF_HELP
+}
+
+case ${1:-} in
+  -h|--help) help; exit 0 ;;
+esac
+here=$(cd "$(dirname "$0")" && pwd)
+source=$here/contact-sheet.swift
+
+as_script() {
+  echo "contact-sheet.sh: $1, so this call runs contact-sheet.swift as a script, which compiles it outside a slot" >&2
+  exec "$source" ${args[@]+"${args[@]}"}
+}
+
+args=("$@")
+swiftc=${CONTACT_SHEET_SWIFTC:-$(xcrun --find swiftc 2>/dev/null)} || as_script "xcrun found no swiftc"
+[ -x "$swiftc" ] || as_script "no swiftc at '$swiftc'"
+if [ -n "${CONTACT_SHEET_CACHE:-}" ]; then
+  cache=$CONTACT_SHEET_CACHE
+else
+  common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) \
+    || as_script "no git checkout holds $here, so the tiler has no cache"
+  cache=$(dirname "$common")/.claude/work/contact-sheet
+fi
+# Asking swiftc its version runs swift-frontend, which a hit must not, so the compiler's realpath
+# and stat stand for its version: a new toolchain is a new file.
+compiler=$(cd "$(dirname "$swiftc")" && pwd -P)/$(basename "$swiftc")
+key=$(md5 -q "$source") && toolchain=$(stat -L -f '%z %m %i' "$compiler") \
+  && key=$(md5 -q -s "$key $compiler $toolchain") || as_script "cannot key the tiler cache"
+binary=$cache/contact-sheet-$key
+
+[ -x "$binary" ] && exec "$binary" "$@"
+
+mkdir -p "$cache" 2>/dev/null && building=$(mktemp -d "$cache/.build.XXXXXX" 2>/dev/null) \
+  || as_script "cannot write the tiler cache at $cache"
+find "$cache" -maxdepth 1 -name '.build.*' -mmin +1440 -exec rm -rf {} + 2>/dev/null
+log=$building/build.log
+wait=${CONTACT_SHEET_WAIT:-0}
+rc=0
+WORKOUT_ADMIT_WAIT=$wait "$here/build-slot.sh" --as contact-sheet.sh \
+  "$swiftc" -O -o "$building/contact-sheet" "$source" >"$log" 2>&1 || rc=$?
+case $rc in
+  0) ;;
+  75) rm -rf "$building"; as_script "every host-wide build slot is busy (waited $wait s for one)" ;;
+  *) rm -f "$building/contact-sheet"; as_script "swiftc failed to build the tiler with exit $rc (log: $log)" ;;
+esac
+[ -s "$building/contact-sheet" ] && [ -x "$building/contact-sheet" ] \
+  || as_script "the tiler build left no binary (log: $log)"
+mv -f "$building/contact-sheet" "$binary" || as_script "cannot move the built tiler into $cache"
+rm -rf "$building"
+exec "$binary" "$@"

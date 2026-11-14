@@ -259,9 +259,10 @@ output kills nothing. `scripts/flake-hunt.sh` records its busy loops the same wa
 
 ## Changing this skill
 
-After an edit to anything in this skill, `scripts/contact-sheet.swift`, or `scripts/sim-lock.sh`, run
+After an edit to anything in this skill, `scripts/contact-sheet.swift` or `.sh`, or `scripts/sim-lock.sh`, run
 `uv run --locked python -m unittest discover -s .agents/skills/verify/tests`, the command
 `.github/workflows/verify-tools.yml` runs. The motion tests in it need `ffmpeg` and `ffprobe` on PATH. Also run
 every `scripts/tests/host-admission*.test.sh` after an edit to `verify.sh`, a `verify-*.sh` helper,
-`scripts/sim-lock.sh`, or `scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` after an edit to the tiler. CI runs
+`scripts/sim-lock.sh`, or `scripts/build-slot.sh`, and `scripts/contact-sheet.test.sh` and
+`scripts/tests/contact-sheet-cache.test.sh` after an edit to the tiler. CI runs
 every script test through `.github/workflows/script-tests.yml`.
