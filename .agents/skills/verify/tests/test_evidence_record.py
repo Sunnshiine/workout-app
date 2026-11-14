@@ -48,6 +48,10 @@ class Record(Lane):
         env.setdefault("VERIFY_RUN", "lane-1")
         return self.verify("record", "appear", "--tail", "0.5", *argv, **env)
 
+    def assertExit(self, code, want, out, err):
+        """A failed exit names what verify.sh said, since the code alone cannot tell which path returned it."""
+        self.assertEqual(code, want, "verify.sh record said\nstdout:\n%s\nstderr:\n%s" % (out, err))
+
     def stamp(self, run=None):
         return [line.split("=", 1) for line in ((run or self.run) / "appear.take").read_text().splitlines()]
 
@@ -148,7 +152,7 @@ class Record(Lane):
     def test_a_foreground_starved_for_the_whole_wait_is_recorded_anyway_and_stamped_starved(self):
         self.launch()
         code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="starved 2.70")
-        self.assertEqual(code, 0)
+        self.assertExit(code, 0, out, err)
         self.assertRegex(err, "^" + re.escape("recording anyway after ") + r"\d+" + re.escape(
             " s, with the foreground still starved (wall/cpu 2.70)\nthe host starved the foreground before this "
             "take (starved (wall/cpu 2.70)), so discount any jank in it\n") + "$")
@@ -160,7 +164,7 @@ class Record(Lane):
         self.launch()
         code, out, err = self.record("--", "tap", "-x", "5", "-y", "6", STUB_FOREGROUND="starved 2.70,ok 1.40",
                                      WORKOUT_ADMIT_WAIT="30")
-        self.assertEqual(code, 0)
+        self.assertExit(code, 0, out, err)
         self.assertRegex(err, "^" + re.escape(
             "waiting up to 30 s for the host to stop starving the foreground: starved (wall/cpu 2.70)\n")
             + r"went ahead after \d+ s\n$")
