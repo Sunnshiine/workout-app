@@ -390,3 +390,45 @@ import Testing
     #expect(day.exercises.map(\.exerciseName.entered) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exercises.map { $0.sets.count } == [3, 2])
 }
+
+/// Block - 31, Week 3, Day 3: the coach hid last week's rows under the Squat and wrote the new Drop
+/// line below them, so the athlete sees "1 x 6" then "2 x 8" under one name. Rows 16-20 (A1) are
+/// hidden, row 21 is visible and has no name.
+@Test func aVisibleLineBelowRowsTheCoachHidJoinsTheExerciseTheAthleteSeesAboveIt() throws {
+    let hidden = SheetRowVisibility(hiddenByUser: true)
+    let snapshot = SheetSnapshot(
+        values: gridFromA1(
+            [
+                "C12": "Day 1", "S12": "Day 2",
+                "D14": "Sets", "F14": "Reps", "H14": "Load", "K14": "Notes",
+                "C15": "0:2:0 HB SQ or SSB SQ", "D15": "1", "F15": "6", "H15": "RPE8", "K15": "175x6@8",
+                "D16": "2", "F16": "8", "H16": "Drop 20%",
+                "C17": "0:2:0 Horizontal Chest Press", "D17": "2", "F17": "11 - 12",
+                "C19": "0:2:0 Hip Thrust", "D19": "2", "F19": "7 - 8", "K19": "Start w/ 10 sec hold",
+                "D21": "2", "F21": "8", "H21": "Drop 20%",
+                "C22": "0:2:0 Horizontal Chest Press", "D22": "2", "F22": "10 - 11",
+                "C24": "0:2:0 Hip Thrust", "D24": "2", "F24": "6 - 7"
+            ],
+            rows: 32,
+            cols: 30
+        ),
+        rowVisibility: [15: hidden, 16: hidden, 17: hidden, 18: hidden, 19: hidden]
+    )
+
+    let parsed = SheetParser().parse(snapshot: snapshot, tabName: "Block - 31")
+    let day = try #require(parsed.block.weeks.first?.days.first)
+    #expect(
+        day.exercises.map(\.exerciseName.entered)
+            == ["0:2:0 HB SQ or SSB SQ", "0:2:0 Horizontal Chest Press", "0:2:0 Hip Thrust"]
+    )
+    #expect(day.exercises.map { $0.sets.count } == [3, 2, 2])
+
+    let layout = try #require(SheetLayoutInterpreter().interpret(snapshot).day(at: SessionAddress(week: 1, day: 1)))
+    let squat = try #require(layout.exerciseAnchors.first)
+    let notesRows = (0..<3).map { setIndex -> Int? in
+        guard case .placed(let placement) = squat.setLogPlacement(for: setIndex, in: snapshot, cols: layout.columns)
+        else { return nil }
+        return placement.row
+    }
+    #expect(notesRows == [14, 20, 20])
+}

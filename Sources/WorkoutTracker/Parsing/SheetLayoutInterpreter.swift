@@ -260,9 +260,8 @@ func locateWeekSections(in grid: SheetGrid) -> [WeekSection] {
     }
 }
 
-/// Every row in a day's span that starts an Exercise block, hidden or not. A hidden row still ends
-/// the block above it: the rows under a retired movement belong to that movement, not to the
-/// Exercise before it.
+/// Every named row in a day's span, hidden or not. The Sheet tab grid draws a divider at each one;
+/// only the visible ones start an Exercise (`exerciseAnchors`).
 func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int) -> [Int] {
     guard firstRow < upper else { return [] }
 
@@ -276,9 +275,9 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
 
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
 /// movement is retired without losing its history, so a hidden row is not an Exercise — the same
-/// reading ADR-0003 already gives it on the write side. Block boundaries still come from every
-/// anchor row, so a retired movement's own continuation rows are dropped with it rather than
-/// absorbed by the Exercise above.
+/// reading ADR-0003 already gives it on the write side. Each Exercise runs to the next visible
+/// anchor, so a visible row under hidden ones belongs to the Exercise the athlete sees above it, as
+/// a coach who hides last week's rows and writes the new line below them means it.
 private func exerciseAnchors(
     in snapshot: SheetSnapshot,
     cols: DayColumns,
@@ -286,10 +285,9 @@ private func exerciseAnchors(
     upper: Int
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
-    let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    return rows.enumerated().compactMap { index, row in
-        guard snapshot.isRowVisible(row) else { return nil }
-        return SheetLayoutExerciseAnchor(
+    let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper).filter(snapshot.isRowVisible)
+    return rows.enumerated().map { index, row in
+        SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
             nextAnchorRow: index + 1 < rows.count ? rows[index + 1] : upper

@@ -92,9 +92,8 @@ import Testing
 
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(day.exerciseAnchors.map(\.row) == [14, 18])
-    // Back Squat stops at the hidden row rather than swallowing it: the retired movement's block
-    // still ends the block above it.
-    #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [16, 32])
+    // Back Squat runs to the next visible Exercise. The hidden row inside its span prescribes nothing.
+    #expect(day.exerciseAnchors.map(\.nextAnchorRow) == [18, 32])
 
     let backSquat = try #require(day.exerciseAnchors.first)
     #expect(
@@ -103,9 +102,10 @@ import Testing
     )
 }
 
-/// A coach who retires a multi-line movement may hide only its anchor row. Its continuation rows
-/// stay visible, and they must go with it instead of becoming extra Sets of the Exercise above.
-@Test func layoutInterpreterDoesNotAbsorbAHiddenExercisesVisibleContinuationRows() throws {
+/// A visible row under a hidden anchor reads as the athlete sees the Sheet: a line of the visible
+/// Exercise above it. This reverses #648, which gave the row to the hidden movement on an argued
+/// layout; Block - 31 put the coach's new line in exactly this place (`SheetParserTests`).
+@Test func layoutInterpreterGivesAVisibleRowUnderAHiddenAnchorToTheExerciseAboveIt() throws {
     let snapshot = SheetSnapshot(
         values: gridFromA1(
             [
@@ -128,7 +128,10 @@ import Testing
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(
         backSquat.prescriptionLines(in: snapshot, setsColumn: day.columns.sets)
-            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0)]
+            == [
+                PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0),
+                PrescriptionLine(row: 17, setCount: 2, firstSetIndex: 3)
+            ]
     )
 }
 
