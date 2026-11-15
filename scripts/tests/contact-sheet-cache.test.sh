@@ -48,17 +48,28 @@ shift
 echo "as a script: \$*"
 STUB
 # xcrun names the macOS SDK, which a swiftc run bare cannot find (#1235's CI sheet job), and fails on
-# anything else; FAKE_XCRUN_NO_SDK=1 makes it find none.
+# anything else; FAKE_XCRUN_NO_SDK=1 makes it find none. It names the real SDK, because the build's
+# SDKROOT reaches dev-usage.sh's python3, and /usr/bin/python3 fails under one that does not exist.
+sdk=$(/usr/bin/xcrun --sdk macosx --show-sdk-path) || exit 3
 cat >"$root/bin/xcrun" <<STUB
 #!/bin/sh
 echo "xcrun \$*" >> "$root/calls"
 [ "\$*" = "--sdk macosx --show-sdk-path" ] || { echo "fake xcrun: unexpected \$*" >&2; exit 1; }
 [ -z "\${FAKE_XCRUN_NO_SDK:-}" ] || { echo "xcrun: error: SDK cannot be located" >&2; exit 1; }
-echo "$root/MacOSX.sdk"
+echo "$sdk"
 STUB
 # cp copies, then with FAKE_CP_EDIT=FILE appends a line to FILE, as an edit landing just after the copy would.
+# FAKE_CP_LOCK=1 makes the destination's directory unwritable while the real cp runs, so cp itself fails.
 cat >"$root/bin/cp" <<STUB
 #!/bin/sh
+if [ -n "\${FAKE_CP_LOCK:-}" ]; then
+  for last; do :; done
+  chmod 0555 "\${last%/*}"
+  /bin/cp "\$@"
+  rc=\$?
+  chmod 0755 "\${last%/*}"
+  exit \$rc
+fi
 /bin/cp "\$@" || exit
 [ -z "\${FAKE_CP_EDIT:-}" ] || printf '// edited after the copy\n' >> "\$FAKE_CP_EDIT"
 STUB
@@ -91,7 +102,7 @@ expect "the next call runs the cached binary and no swiftc, swift or slot" \
     "$status $(compiles) $(scripted) $(wc -l <"$root/slots" | tr -d ' ')" "0 1 0 1"
 expect "with every argument" "$(cat "$root/out")|$(cat "$root/err")" "$(built --crop 1,2,3,4 out.png a.png)|"
 expect "the build alone asked xcrun, for the macOS SDK, and compiled against it" \
-    "$(grep -c '^xcrun ' "$root/calls" | tr -d ' ') $(grep '^sdk ' "$root/calls")" "1 sdk $root/MacOSX.sdk"
+    "$(grep -c '^xcrun ' "$root/calls" | tr -d ' ') $(grep '^sdk ' "$root/calls")" "1 sdk $sdk"
 expect "one binary, no build left behind" "$(binaries) $(leftovers)" "1 0"
 
 echo "a changed source or compiler builds a new binary"
@@ -110,7 +121,7 @@ echo "a build compiles against the macOS SDK, whatever SDKROOT the caller set"
 reset
 TILE_SDKROOT=$root/iPhoneSimulator.sdk run out.png a.png
 expect "a caller's SDK for another platform does not reach the build" \
-    "$status $(grep '^sdk ' "$root/calls") $(cat "$root/out")" "0 sdk $root/MacOSX.sdk $(built out.png a.png)"
+    "$status $(grep '^sdk ' "$root/calls") $(cat "$root/out")" "0 sdk $sdk $(built out.png a.png)"
 reset
 FAKE_XCRUN_NO_SDK=1 run out.png a.png
 expect "xcrun finding no macOS SDK falls back, with one line naming why" \
@@ -197,6 +208,12 @@ printf 'a file\n' >"$root/cache"
 run out.png a.png
 expect "a cache it cannot write falls back" "$status $(compiles) $(scripted) $(cut -d, -f1 "$root/err")" \
     "0 0 1 contact-sheet.sh: cannot write the tiler cache at $root/cache"
+reset
+FAKE_CP_LOCK=1 run out.png a.png
+expect "a copy cp itself fails (an unwritable build dir) falls back, leaving nothing in the cache" \
+    "$status $(compiles) $(scripted) $(cat "$root/out") $(binaries) $(leftovers)" "0 0 1 as a script: out.png a.png 0 0"
+expect "with only the line naming why, not cp's own" "$(cat "$root/err")" \
+    "contact-sheet.sh: cannot copy the tiler source into $root/cache, so this call runs contact-sheet.swift as a script, which compiles it outside a slot"
 
 echo "concurrent first calls never run a partial binary, and leave one"
 reset

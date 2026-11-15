@@ -75,7 +75,7 @@ find "$cache" -maxdepth 1 -name '.build.*' -mmin +1440 -exec rm -rf {} + 2>/dev/
 # The build compiles a copy and is named for the copy's bytes, so a source that changes during the
 # build (an edit, a branch switch) cannot leave the new source's binary at the old source's key.
 copy=$building/contact-sheet.swift
-cp "$source" "$copy" && key=$(key_of "$copy") || { rm -rf "$building"; as_script "cannot copy the tiler source into $cache"; }
+cp "$source" "$copy" 2>/dev/null && key=$(key_of "$copy") || { rm -rf "$building"; as_script "cannot copy the tiler source into $cache"; }
 binary=$cache/contact-sheet-$key
 log=$building/build.log
 wait=${CONTACT_SHEET_WAIT:-0}
