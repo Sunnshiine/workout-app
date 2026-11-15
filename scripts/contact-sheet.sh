@@ -14,7 +14,8 @@ waiting CONTACT_SHEET_WAIT seconds (0) for one: the build takes about as long as
 so a shot never waits on a busy host, and the next miss tries again. A copy appears only whole, by
 rename, so concurrent first calls never run a partial one, and a hit checks its signature first, so
 a copy truncated or edited later is built again rather than run. When the slot, the build or the
-cache fails, it prints one line naming why and runs the .swift file by path that once.
+cache fails, it prints one line naming why (a failed build adds its log's last lines) and runs the
+.swift file by path that once.
 CONTACT_SHEET_SWIFTC names the compiler (default: xcrun --find swiftc).
 EOF_HELP
 }
@@ -25,8 +26,10 @@ esac
 here=$(cd "$(dirname "$0")" && pwd)
 source=$here/contact-sheet.swift
 
+# Prints why, then the last lines of the build log $2 when given, so a CI log shows a failed build.
 as_script() {
   echo "contact-sheet.sh: $1, so this call runs contact-sheet.swift as a script, which compiles it outside a slot" >&2
+  [ -z "${2:-}" ] || tail -n 10 "$2" | sed 's/^/contact-sheet.sh:   /' >&2
   exec "$source" ${args[@]+"${args[@]}"}
 }
 
@@ -67,10 +70,10 @@ WORKOUT_ADMIT_WAIT=$wait "$here/build-slot.sh" --as contact-sheet.sh \
 case $rc in
   0) ;;
   75) rm -rf "$building"; as_script "every host-wide build slot is busy (waited $wait s for one)" ;;
-  *) rm -f "$building/contact-sheet"; as_script "swiftc failed to build the tiler with exit $rc (log: $log)" ;;
+  *) rm -f "$building/contact-sheet"; as_script "swiftc failed to build the tiler with exit $rc (log: $log)" "$log" ;;
 esac
 [ -s "$building/contact-sheet" ] && [ -x "$building/contact-sheet" ] \
-  || as_script "the tiler build left no binary (log: $log)"
+  || as_script "the tiler build left no binary (log: $log)" "$log"
 mv -f "$building/contact-sheet" "$binary" || as_script "cannot move the built tiler into $cache"
 rm -rf "$building"
 exec "$binary" "$@"

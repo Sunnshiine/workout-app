@@ -128,8 +128,9 @@ expect "the next miss tries the slot again" "$status $(wc -l <"$root/slots" | tr
 reset
 FAKE_SWIFTC_FAIL=1 run out.png a.png
 expect "a failed build falls back" "$status $(compiles) $(scripted) $(cat "$root/out")" "0 1 1 as a script: out.png a.png"
-expect "with one line naming why" "$(fallback_line)" \
-    "contact-sheet.sh: swiftc failed to build the tiler with exit 1 (log: L), so this call runs contact-sheet.swift as a script, which compiles it outside a slot"
+expect "with one line naming why, then the build log's last lines" "$(fallback_line)" \
+    "contact-sheet.sh: swiftc failed to build the tiler with exit 1 (log: L), so this call runs contact-sheet.swift as a script, which compiles it outside a slot
+contact-sheet.sh:   error: fake swiftc failed"
 expect "and leaves no binary, partial or whole, in the cache" "$(binaries) $(find "$root/cache" -name contact-sheet | wc -l | tr -d ' ')" "0 0"
 run out.png a.png
 expect "so the next call builds again and runs the whole one" "$status $(compiles) $(cat "$root/out")" "0 2 $(built out.png a.png)"
