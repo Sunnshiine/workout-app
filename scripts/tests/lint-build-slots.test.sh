@@ -104,6 +104,57 @@ case $out in
     *) bad "a finding names the line and the fix: $out" ;;
 esac
 
+echo "running a .swift file by path compiles it, so it is a heavy build too"
+root=$(tree by-path)
+cat > "$root/scripts/shoot.sh" <<'SH'
+#!/bin/bash
+tiler=$repo/scripts/contact-sheet.swift
+scripts/contact-sheet.swift out.png a.png
+"$tiler" out.png a.png
+line=$("${tiler}" out.png a.png)
+perl -e 'alarm 60; exec @ARGV' "$tiler" out.png a.png
+env LANG=C "$tiler" out.png a.png
+if swift "$repo/tools/generate.swift"; then :; fi
+xcrun swift generate.swift
+SH
+cat > "$root/scripts/contact-sheet.sh" <<'SH'
+#!/bin/bash
+source=$here/contact-sheet.swift
+other=$here/other.swift
+exec "$source" "$@"
+exec "$other" "$@"
+SH
+cat > "$root/scripts/fine.sh" <<'SH'
+#!/bin/bash
+tiler=$repo/scripts/contact-sheet.swift
+scripts/build-slot.sh --as fine.sh "$tiler" out.png a.png
+with_build_slot "$tiler" out.png a.png
+echo "$tiler" scripts/contact-sheet.swift
+cp "$tiler" "$tmp/"
+[ -f "$tiler" ] || exit 1
+case $f in
+    *.swift) ;;
+    Tests/Unit/GoogleAuthTests.swift) return 1 ;;
+    Sources/*.swift | App/*.swift) continue ;;
+esac
+SH
+check "$root"
+expect_exit "by path" 1
+expect_errors "by path" 8
+case $out in
+    *"error: scripts/shoot.sh:5: runs \$repo/scripts/contact-sheet.swift by path, which compiles it with swift-frontend outside a host-wide slot"*)
+        ok "a finding names the line and the file it compiles" ;;
+    *) bad "a finding names the line and the file it compiles: $out" ;;
+esac
+case $out in
+    *"scripts/contact-sheet.sh:5: runs \$here/other.swift"*) ok "an exception covers only the .swift file it names" ;;
+    *) bad "an exception covers only the .swift file it names: $out" ;;
+esac
+case $out in
+    *"scripts/fine.sh"*|*"scripts/contact-sheet.sh:4:"*) bad "a slotted call, a mention, a case pattern and a listed exception pass: $out" ;;
+    *) ok "a slotted call, a mention, a case pattern and a listed exception pass" ;;
+esac
+
 echo "a script it cannot read is an error, not a pass"
 root=$(tree unreadable)
 printf '#!/bin/bash\necho "unclosed\n' > "$root/scripts/broken.sh"

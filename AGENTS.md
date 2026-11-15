@@ -92,6 +92,8 @@ Run every `swift build`, `swift test`, or `xcodebuild` build as `scripts/build-s
 which holds a host-wide `hostgate` slot (pinned in `scripts/hostgate-version`, which `hostgate check`
 then warns the installed one has fallen behind); scripts do the same,
 and `scripts/lint-build-slots.py` fails one that does not. A hook refuses the raw form.
+Running a `.swift` file by path compiles it too, so the lint counts it; run the tiler as
+`scripts/contact-sheet.sh`, which runs a compiled copy it caches.
 XcodeBuildMCP builds and runs only on a simulator your Simlock lease holds,
 and `scripts/sim-mcp-hook.py` refuses any other naming the lease command. To see the app,
 `verify.sh launch session` leases a simulator and prints its UDID. Set it with XcodeBuildMCP's
