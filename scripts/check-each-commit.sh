@@ -51,7 +51,7 @@ echo "scratch: $scratch"
 run_step() {
     case $1 in
         spm-build) "$script_dir/build-slot.sh" --as check-each-commit.sh --log "$2" swift build --build-tests ;;
-        spm-test) swift test --skip-build >"$2" 2>&1 ;;
+        spm-test) "$script_dir/build-slot.sh" --as check-each-commit.sh --log "$2" swift test --skip-build ;;
         xcode-bft)
             "$script_dir/build-slot.sh" --as check-each-commit.sh --log "$2" xcodebuild build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker \
                 -destination 'generic/platform=iOS Simulator' -skipPackagePluginValidation -skipMacroValidation \
