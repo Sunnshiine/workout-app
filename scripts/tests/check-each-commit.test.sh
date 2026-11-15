@@ -102,6 +102,21 @@ expect "xcodebuild builds for testing on a generic simulator destination" "$(sor
     "build-for-testing -project WorkoutTracker.xcodeproj -scheme WorkoutTracker -destination generic/platform=iOS Simulator -skipPackagePluginValidation -skipMacroValidation CODE_SIGNING_ALLOWED=NO"
 expect "the caller's HEAD and status never change while commits build" "$(sort -u "$STUB_WATCH")" "$(sort -u <<<"$before")"
 expect "the caller's uncommitted edit is still there after the run" "$(git -C "$repo" status --porcelain; git -C "$repo" rev-parse HEAD)" "$before"
+expect "every step that runs takes one hostgate slot, once per commit" \
+    "$(sed -E 's/^label=([^ ]*) .* record ([^ ]*) ([^ ]*) -- .*/\1 \2 \3/' "$FAKE_HOSTGATE_LOG" | sort | uniq -c)" \
+    "   6 workout-app:check-each-commit.sh swift build
+   5 workout-app:check-each-commit.sh swift test
+   4 workout-app:check-each-commit.sh xcodebuild build-for-testing"
+
+mv "$root/bin/hostgate" "$root/hostgate.off"
+(cd "$repo" && PATH=$(printf '%s' "$PATH" | tr ':' '\n' | while IFS= read -r d; do [ -x "$d/hostgate" ] || printf '%s:' "$d"; done | sed 's/:$//') \
+    scripts/check-each-commit.sh main~6..main~5) >"$root/out" 2>"$root/err"
+status=$?
+mv "$root/hostgate.off" "$root/bin/hostgate"
+expect "with no hostgate every step still runs, each after the one loud line naming the install" \
+    "$status $(sed -E '1,2d; s/ [0-9]+s( |$)/ Ns\1/g' "$root/out")
+$(sort "$root/err" | uniq -c)" "0 ok    $c1  spm-build Ns  spm-test 5 Ns  xcode-bft Ns  raise the gate
+   3 hostgate is not on PATH, so this build takes no host-wide slot and may stall every other agent; install it: gh api -H 'Accept: application/vnd.github.raw' repos/Sunnshiine/hostgate/contents/install | sh"
 
 (cd "$repo" && scripts/check-each-commit.sh main~1) >"$root/out" 2>"$root/err"
 expect "BASE alone means BASE..HEAD" "$? $(sed -E '1,2d; s/ [0-9]+s( |$)/ Ns\1/g' "$root/out")" \
