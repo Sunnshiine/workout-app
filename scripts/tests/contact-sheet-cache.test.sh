@@ -56,7 +56,13 @@ echo "xcrun \$*" >> "$root/calls"
 [ -z "\${FAKE_XCRUN_NO_SDK:-}" ] || { echo "xcrun: error: SDK cannot be located" >&2; exit 1; }
 echo "$root/MacOSX.sdk"
 STUB
-chmod +x "$root/swiftc" "$root/bin/swift" "$root/bin/hostgate" "$root/bin/xcrun"
+# cp copies, then with FAKE_CP_EDIT=FILE appends a line to FILE, as an edit landing just after the copy would.
+cat >"$root/bin/cp" <<STUB
+#!/bin/sh
+/bin/cp "\$@" || exit
+[ -z "\${FAKE_CP_EDIT:-}" ] || printf '// edited after the copy\n' >> "\$FAKE_CP_EDIT"
+STUB
+chmod +x "$root/swiftc" "$root/bin/swift" "$root/bin/hostgate" "$root/bin/xcrun" "$root/bin/cp"
 
 reset() { rm -rf "$root/cache" "$root/calls" "$root/slots"; touch "$root/calls"; }
 # The caller's SDKROOT is TILE_SDKROOT, unset by default, whatever this shell's is.
@@ -122,6 +128,12 @@ cp "$root/contact-sheet.swift.orig" "$repo/scripts/contact-sheet.swift"
 run out.png a.png
 expect "and the original source's key still holds the original's binary" "$status $(compiles) $(cat "$root/out")" \
     "0 2 $(built out.png a.png)"
+reset
+FAKE_CP_EDIT=$repo/scripts/contact-sheet.swift run out.png a.png
+run out.png a.png
+expect "a source edited just after the build copied it misses, so the binary is named for the copy" \
+    "$status $(compiles) $(cat "$root/out")" "0 2 $(built out.png a.png)"
+cp "$root/contact-sheet.swift.orig" "$repo/scripts/contact-sheet.swift"
 
 echo "a cached binary that would not run is built again, and the shot still comes out"
 # A truncated or edited Mach-O passes exec and is then killed for its signature (exit 137), so the
