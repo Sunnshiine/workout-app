@@ -22,14 +22,17 @@ expect() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"; printf '    got:  %s
 # FAKE_TILER_RC. FAKE_SWIFTC_SLOW=1 makes the output executable first and whole a second later, so a
 # run that executed it early would print nothing. It signs the whole output ad hoc, as the linker signs
 # a real one, so a later edit breaks the signature. FAKE_SWIFTC_FAIL=1 leaves a partial output and fails,
-# and FAKE_SWIFTC_NOTHING=1 exits 0 having written nothing.
+# FAKE_SWIFTC_NOTHING=1 exits 0 having written nothing, and FAKE_SWIFTC_EDIT=FILE appends a line to FILE
+# as the compile starts, as a branch switch or an edit landing mid-build would.
 cat >"$root/swiftc" <<STUB
 #!/bin/sh
 echo "swiftc \$*" >> "$root/calls"
+echo "sdk \${SDKROOT:-unset}" >> "$root/calls"
 out= src=
 while [ \$# -gt 0 ]; do
   case \$1 in -o) out=\$2; shift 2 ;; -*) shift ;; *) src=\$1; shift ;; esac
 done
+[ -z "\${FAKE_SWIFTC_EDIT:-}" ] || printf '// edited mid-build\n' >> "\$FAKE_SWIFTC_EDIT"
 [ -z "\${FAKE_SWIFTC_NOTHING:-}" ] || exit 0
 printf '#!/bin/sh\n' > "\$out"
 chmod +x "\$out"
@@ -44,11 +47,21 @@ echo "swift \$*" >> "$root/calls"
 shift
 echo "as a script: \$*"
 STUB
-chmod +x "$root/swiftc" "$root/bin/swift" "$root/bin/hostgate"
+# xcrun names the macOS SDK, which a swiftc run bare cannot find (#1235's CI sheet job), and fails on
+# anything else; FAKE_XCRUN_NO_SDK=1 makes it find none.
+cat >"$root/bin/xcrun" <<STUB
+#!/bin/sh
+echo "xcrun \$*" >> "$root/calls"
+[ "\$*" = "--sdk macosx --show-sdk-path" ] || { echo "fake xcrun: unexpected \$*" >&2; exit 1; }
+[ -z "\${FAKE_XCRUN_NO_SDK:-}" ] || { echo "xcrun: error: SDK cannot be located" >&2; exit 1; }
+echo "$root/MacOSX.sdk"
+STUB
+chmod +x "$root/swiftc" "$root/bin/swift" "$root/bin/hostgate" "$root/bin/xcrun"
 
 reset() { rm -rf "$root/cache" "$root/calls" "$root/slots"; touch "$root/calls"; }
+# The caller's SDKROOT is TILE_SDKROOT, unset by default, whatever this shell's is.
 tile() {
-    PATH="$root/bin:$PATH" CONTACT_SHEET_CACHE="$root/cache" CONTACT_SHEET_SWIFTC="${CONTACT_SHEET_SWIFTC:-$root/swiftc}" \
+    env -u SDKROOT ${TILE_SDKROOT:+SDKROOT="$TILE_SDKROOT"} PATH="$root/bin:$PATH" CONTACT_SHEET_CACHE="$root/cache" CONTACT_SHEET_SWIFTC="${CONTACT_SHEET_SWIFTC:-$root/swiftc}" \
         WORKOUT_DEV_USAGE_DIR="$root/usage" FAKE_HOSTGATE_LOG="$root/slots" \
         "$repo/scripts/contact-sheet.sh" "$@"
 }
@@ -71,6 +84,8 @@ run --crop 1,2,3,4 out.png a.png
 expect "the next call runs the cached binary and no swiftc, swift or slot" \
     "$status $(compiles) $(scripted) $(wc -l <"$root/slots" | tr -d ' ')" "0 1 0 1"
 expect "with every argument" "$(cat "$root/out")|$(cat "$root/err")" "$(built --crop 1,2,3,4 out.png a.png)|"
+expect "the build alone asked xcrun, for the macOS SDK, and compiled against it" \
+    "$(grep -c '^xcrun ' "$root/calls" | tr -d ' ') $(grep '^sdk ' "$root/calls")" "1 sdk $root/MacOSX.sdk"
 expect "one binary, no build left behind" "$(binaries) $(leftovers)" "1 0"
 
 echo "a changed source or compiler builds a new binary"
@@ -84,6 +99,29 @@ expect "the original source hits its own binary again" "$status $(compiles) $(ca
 printf '\n' >>"$root/swiftc"
 run out.png a.png
 expect "a different compiler misses" "$status $(compiles) $(binaries)" "0 3 3"
+
+echo "a build compiles against the macOS SDK, whatever SDKROOT the caller set"
+reset
+TILE_SDKROOT=$root/iPhoneSimulator.sdk run out.png a.png
+expect "a caller's SDK for another platform does not reach the build" \
+    "$status $(grep '^sdk ' "$root/calls") $(cat "$root/out")" "0 sdk $root/MacOSX.sdk $(built out.png a.png)"
+reset
+FAKE_XCRUN_NO_SDK=1 run out.png a.png
+expect "xcrun finding no macOS SDK falls back, with one line naming why" \
+    "$status $(compiles) $(scripted) $(binaries) $(leftovers) $(cut -d, -f1 "$root/err")" \
+    "0 0 1 0 0 contact-sheet.sh: xcrun found no macOS SDK to build the tiler against"
+
+echo "a source edited during its build cannot put the new source's binary at the old source's key"
+reset
+FAKE_SWIFTC_EDIT=$repo/scripts/contact-sheet.swift run out.png a.png
+expect "the call builds and runs the source as it was when the call began" "$status $(compiles) $(cat "$root/out")" \
+    "0 1 built from $(md5 -q "$root/contact-sheet.swift.orig"): out.png a.png"
+run out.png a.png
+expect "the edited source misses and builds its own binary" "$status $(compiles) $(cat "$root/out")" "0 2 $(built out.png a.png)"
+cp "$root/contact-sheet.swift.orig" "$repo/scripts/contact-sheet.swift"
+run out.png a.png
+expect "and the original source's key still holds the original's binary" "$status $(compiles) $(cat "$root/out")" \
+    "0 2 $(built out.png a.png)"
 
 echo "a cached binary that would not run is built again, and the shot still comes out"
 # A truncated or edited Mach-O passes exec and is then killed for its signature (exit 137), so the

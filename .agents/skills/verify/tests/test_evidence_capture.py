@@ -197,6 +197,21 @@ class VerifyCrop(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in self.dir.iterdir() if "-crop-" in p.name), [self.crop.name])
         self.assertEqual(self.crop.read_bytes(), first, "rerunning converges")
 
+    def test_a_crop_runs_the_tiler_through_its_cache_wrapper(self):
+        # verify.sh's tiler is scripts/contact-sheet.sh, which builds the tiler with CONTACT_SHEET_SWIFTC on a
+        # miss. This swiftc only says it was asked and fails, so the wrapper falls back and the crop comes out.
+        scratch = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, scratch, ignore_errors=True)
+        swiftc, calls = scratch / "swiftc", scratch / "calls"
+        swiftc.write_text('#!/bin/sh\necho "$@" >> "%s"\nexit 1\n' % calls)
+        swiftc.chmod(0o755)
+        code, out, err = verify_sh("crop", "01-before", "weight-pill", run=self.run, evidence=self.evidence,
+                                   path=fake_hostgate_first(without_simlock(os.environ["PATH"]), str(scratch)),
+                                   CONTACT_SHEET_SWIFTC=str(swiftc), CONTACT_SHEET_CACHE=str(scratch / "cache"))
+        self.assertEqual((code, out), (0, "%s\t444x164\n" % self.crop), err)
+        self.assertTrue(calls.exists(), "verify.sh ran the tiler without scripts/contact-sheet.sh: %s" % err)
+        self.assertTrue(err.startswith("contact-sheet.sh: swiftc failed to build the tiler with exit 1"), err)
+
     def test_a_missing_shot_lists_the_runs_shots(self):
         self.assertEqual(verify_sh("crop", "09-nope", "0", "0", "10", "10", run=self.run, evidence=self.evidence),
                          (1, "", "no shot 09-nope in %s; shots: 01-before \n" % self.dir))
