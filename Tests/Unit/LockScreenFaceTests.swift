@@ -29,6 +29,26 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         #expect(card.stats.map(\.spoken) == ["140 pounds", "6 Reps", "RPE 10"])
     }
 
+    /// The card's Reps rail starts a range at its low end, and the Log button logs what it shows.
+    @Test func aRangeTheCardStartedAtItsLowEndShowsThatEnd() throws {
+        let card = try content(
+            after: exercise("Flat DB BP", next: ("8-10", "RPE 8")),
+            showingDraft: SetLogDraft(weight: .pounds(140), reps: 8, rpe: .eight)
+        )
+
+        #expect(card.stats.map(\.value) == ["140", "8", "8"])
+    }
+
+    @Test func aTimedSetKeepsItsTimeWhateverRepsTheCardHolds() throws {
+        let card = try content(
+            after: exercise("Plank", next: ("40 sec", "RPE 8")),
+            showingDraft: SetLogDraft(weight: .bodyweight, reps: 12, rpe: nil)
+        )
+
+        #expect(card.stats[1].label == "sec")
+        #expect(card.stats[1].value == "40")
+    }
+
     @Test func aDropSetShowsTheWeightWorkedOutFromTheSetBefore() throws {
         let card = try content(after: exercise("BB RDL", next: ("8", "Drop 17.5%"), loggedAt: 300))
 

@@ -41,8 +41,8 @@ enum LockScreenTurn: Equatable, Sendable {
     case back
 }
 
-/// One of the three numbers the card's rest face shows: the weight the Set's card holds, then the
-/// coach's Reps and RPE.
+/// One of the three numbers the card's rest face shows: the weight, Reps and RPE the Set's card
+/// holds, and the coach's Reps and RPE where it holds none.
 struct LockScreenStat: Equatable, Sendable {
     /// The value's unit, `lbs`, which the card draws over it in capitals. Empty over a value that names
     /// itself, as `BW` does.
