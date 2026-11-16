@@ -22,6 +22,13 @@ host. It works only if every agent follows its rules. ADR-0024 records why worko
      without a call.
    - You hold one lease at a time, and every script uses it. `--sim` and `SIM=` accept only the
      simulator of your own lease.
+   - Leases are slim by default (ADR-0025). A slim simulator runs about half the processes of a
+     full one, and the app builds, launches, draws and takes taps on it. Slim keeps widgets (Live
+     Activities, chronod, PosterBoard), iCloud and linkd on, so none of those is a reason for full.
+     Ask for full with `WORKOUT_LEASE_MODE=full` (or `simlock lease ... --mode full`) only when the
+     work truly needs a service slim turns off. The Live Activity drives in the verify skill set it,
+     and `test-sim.sh` sets it for `ActionButtonDictationUITests`. A full ask over a slim lease you
+     hold exits 2 and names the `simlock release <id>` that frees it.
    - To design on the app, take the lease with `verify.sh launch`. Its 60 min TTL renews with
      every verify call, and a lease test-sim kept becomes one. XcodeBuildMCP calls renew nothing.
 

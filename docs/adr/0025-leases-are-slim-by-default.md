@@ -1,0 +1,66 @@
+# Leases are slim by default
+
+ADR-0024 made every Simlock lease a full boot. Simlock's slim mode then turned off chronod and
+liveactivitiesd, which `features/live-activity.md` drives, and the ADR set aside a slim lease for
+`test-sim.sh` until it was measured. A probe has measured it since, and the operator has made slim
+the host's default.
+
+What probe SLIM-1 measured on 2026-11-15, on Simlock 0.6.0, with every slim group turned off:
+
+- A slim iPhone 17 Pro on iOS 27.0 ran a median of 96 processes. The full devices in the same
+  window ran 178 to 269. Its steady CPU median was 1% to 3% of a core. The full devices' CPU is not
+  a fair comparison, because other agents were testing on them.
+- On slim, `verify.sh build`, `launch`, `shot` and `tap` saw and drove the app. So did XcodeBuildMCP's
+  `build_run_sim`, `snapshot_ui`, `touch` and `screenshot`. The Google sign-in sheet opened and
+  loaded.
+- The Live Activity did not appear on slim, in the Dynamic Island or on the Lock Screen. ActivityKit
+  could not reach its service. The same drive passed on a full lease.
+- Every slim lease was a cold boot of 21 to 47 s. A warm full lease took 0.6 to 5 s, because the
+  warm pool held full devices.
+
+Since 2026-11-16 the host's Simlock serves slim when a lease names no mode. Its slim config keeps
+three groups on: widgets (Live Activities, chronod, PosterBoard), icloud, and other (linkd and the
+rest). The list of groups slim turns off lives in Simlock's config, not in this repo.
+
+## Decision
+
+- **Every lease the scripts take is slim, unless `WORKOUT_LEASE_MODE=full` asks for full.**
+  `detached_lease` in `scripts/sim-lock.sh` passes `--mode` explicitly, so what the scripts print
+  stays true if Simlock's default changes. `verify.sh` and `scripts/test-sim.sh` print the mode of
+  the lease they took or found. The XcodeBuildMCP hook prints a `--mode slim` lease command and
+  the mode of the lease the caller holds.
+- **Full is for a service slim turns off.** The Live Activity drives in `features/live-activity.md`,
+  `features/lock-screen-logging.md` and the locked drive of `features/say-a-set.md` set
+  `WORKOUT_LEASE_MODE=full` from their first verify call. `test-sim.sh` asks for full when its
+  selection reaches `ActionButtonDictationUITests`, which locks the screen and reads the Live
+  Activity card: `ui`, `all`, the `WorkoutTrackerUITests` bundle, or a test ID under that class. A
+  set `WORKOUT_LEASE_MODE` wins over that. No other UI test reads the Lock Screen or an activity.
+  The smoke tests tap SpringBoard's Open prompt, which is for the app's own URL scheme.
+- **Full asked over a held slim lease exits 2.** The message names `simlock release <id>` and
+  `WORKOUT_LEASE_MODE=slim`. Running the call on the slim device would miss the service it asked
+  for and fail without saying why. A held full lease serves a slim ask. verify's drives, `stop`
+  and `release` never refuse on the mode, so `release` stays the way out.
+
+## Considered alternatives
+
+- *Keep every lease full (ADR-0024).* Each agent that never looks at a widget pays about twice
+  the processes.
+- *Swap a held slim lease for a full one.* That releases the device the agent may be designing on,
+  and the replacement costs a first boot. The refusal names the release and lets the agent choose.
+- *Lease full whenever `VERIFY_LIVE_ACTIVITIES=1` is set.* A drive's lease usually comes from
+  `verify.sh build`, which runs before the launch that reads that flag. So build would lease slim
+  and the launch would refuse anyway. The feature docs set `WORKOUT_LEASE_MODE=full` for the whole
+  drive instead.
+
+## Consequences
+
+- The warm pool now serves two kinds, as ADR-0024 warned. Whichever kind is not warm costs a cold
+  boot. Most leases are slim now, so a full lease is the one more likely to cold-boot.
+- An agent holding a slim lease that turns out to need full releases it and leases again, which
+  costs the host one first boot.
+- The Live Activity drives and `ActionButtonDictationUITests` stay on full. The SLIM-1 failure came
+  from a slim config that also turned off widgets, and the host's slim config now keeps widgets on.
+  If a probe on that config shows the Live Activity working, a later change can move them to slim.
+- CI is unchanged. Its runner boots its own slim simulator (ADR-0022).
+
+Supersedes ADR-0024's "Leases are full boots" decision and its amendment's "Leases stay full".

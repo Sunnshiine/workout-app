@@ -61,7 +61,7 @@ class SimulatorLease(unittest.TestCase):
         Path(str(self.simlock.state) + ".calls").unlink(missing_ok=True)
         environment = dict(os.environ, HOME=str(self.home), PATH="%s:%s" % (self.stubs, os.environ["PATH"]),
                            VERIFY_EVIDENCE=str(self.evidence))
-        for name in ["SIM", "VERIFY_RUN"]:
+        for name in ["SIM", "VERIFY_RUN", "WORKOUT_LEASE_MODE"]:
             environment.pop(name, None)
         environment.update(env)
         done = subprocess.run(argv, cwd=str(self.checkout), env=environment,
@@ -83,18 +83,51 @@ class SimulatorLease(unittest.TestCase):
         self.assertEqual((code, out, err), (0, "launched session as pid 4121 on %s\n"
                                                "app %s commit unknown (not built by verify.sh)\n"
                                                "evidence %s/issue-1\n" % (self.udid, digest(b"head\n"), self.evidence), (
-            "leasing an iPhone 17 Pro simulator on iOS 27.0 from Simlock for 60 min, renewed by each verify call\n"
-            "simulator %s (Simlock lease lse_%s); verify.sh release gives it back\n") % (self.udid, self.udid)))
+            "leasing a slim iPhone 17 Pro simulator on iOS 27.0 from Simlock for 60 min, renewed by each verify call\n"
+            "simulator %s (Simlock lease lse_%s, slim); verify.sh release gives it back\n") % (self.udid, self.udid)))
         self.assertEqual(self.simlock.calls(), [
             "simlock whoami", "simlock list --leases", "simlock list --devices",
-            "simlock lease --platform ios --device iPhone 17 Pro --os 27.0 --mode full --timeout 540s --detach --ttl 60m",
+            "simlock lease --platform ios --device iPhone 17 Pro --os 27.0 --mode slim --timeout 540s --detach --ttl 60m",
             "simlock simctl bootstatus %s -b" % self.udid,
-        ], "a detached full lease with a TTL, booted through Simlock")
+        ], "a detached slim lease with a TTL, booted through Simlock")
         self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)])
         steps = [call.split() for call in calls if call.split()[:3] in [["xcrun", "simctl", step] for step in
                                                                           ["bootstatus", "install", "launch"]]]
         self.assertEqual([(step[2], self.udid in step) for step in steps],
                          [("bootstatus", True), ("install", True), ("launch", True)], "booted, installed and launched on it")
+
+    def test_workout_lease_mode_full_leases_a_full_simulator(self):
+        code, out, err, calls = self.verify("launch", "session", VERIFY_RUN="issue-1", STUB_BOOTED=self.udid,
+                                            WORKOUT_LEASE_MODE="full")
+        self.assertEqual(code, 0, err)
+        self.assertIn("simulator %s (Simlock lease lse_%s, full)" % (self.udid, self.udid), err)
+        lease, = [call for call in self.simlock.calls() if call.startswith("simlock lease ")]
+        self.assertIn(" --mode full ", lease)
+
+    def test_a_full_launch_over_a_held_slim_lease_is_refused_and_release_still_gives_it_back(self):
+        self.simlock.hold(self.udid, mode="slim")
+        for argv in [["build"], ["install"], ["launch", "session"]]:
+            with self.subTest(argv=argv):
+                self.assertEqual(self.verify(*argv, VERIFY_RUN="issue-1", WORKOUT_LEASE_MODE="full"), (2, "", (
+                    "your Simlock lease lse_%s on %s is slim, and this verify call asks for a full one (WORKOUT_LEASE_MODE=full);"
+                    " give it back with simlock release lse_%s and rerun, or run on it with WORKOUT_LEASE_MODE=slim\n")
+                    % (self.udid, self.udid, self.udid), []))
+                self.assertEqual(self.simlock.leases(), [(self.udid, FakeSimlock.PRINCIPAL)], "and keeps the lease")
+        self.assertEqual(self.verify("stop", WORKOUT_LEASE_MODE="full")[0], 0, "stop runs on it")
+        self.assertEqual(self.verify("release", WORKOUT_LEASE_MODE="full"),
+                         (0, "nothing launched by this tool on %s\nreleased Simlock lease lse_%s on %s\n"
+                          % (self.udid, self.udid, self.udid), "", []))
+        self.assertEqual(self.simlock.leases(), [])
+
+    def test_a_held_full_lease_serves_the_slim_default(self):
+        self.simlock.hold(self.udid, mode="full")
+        code, out, err, calls = self.verify("launch", "session", VERIFY_RUN="issue-1", STUB_BOOTED=self.udid)
+        self.assertEqual(code, 0, err)
+        self.assertEqual([call for call in self.simlock.calls() if call.startswith(("simlock lease --", "simlock release"))], [])
+
+    def test_a_lease_mode_other_than_slim_or_full_is_refused(self):
+        self.assertEqual(self.verify("launch", "session", WORKOUT_LEASE_MODE="fat"),
+                         (2, "", "WORKOUT_LEASE_MODE must be slim or full: fat\n", []))
 
     def test_the_leased_pair_is_the_pair_the_visual_baselines_were_recorded_on(self):
         ci = (REPO / ".github" / "workflows" / "ci.yml").read_text()

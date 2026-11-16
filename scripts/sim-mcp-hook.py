@@ -35,7 +35,7 @@ REPO = "workout-app"
 VERIFY = ".agents/skills/verify/verify.sh"
 ROOT = Path(__file__).resolve().parent.parent
 LEASE = (
-    "simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m"
+    "simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --mode slim --timeout 540s --detach --ttl 60m"
     " | python3 -c 'import json, sys; g = json.loads(sys.stdin.readline());"
     " print(g[\"device\"][\"driverDeviceId\"], g[\"lease\"][\"id\"])'"
 )
@@ -163,10 +163,11 @@ def mine(requester, me):
 
 def lease_steps(own, then):
     if own:
-        udid, lease = own
-        return [f"You hold Simlock lease {lease} on {udid}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone{then}."]
+        udid, lease, mode = own
+        return [f"You hold Simlock lease {lease} on {udid}{f' ({mode})' if mode else ''}. Call session_set_defaults {{simulatorId: \"{udid}\"}} alone{then}."]
     return [
-        "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id:",
+        "1. Lease one. It waits up to 9 min for a free simulator, so give the shell 600 s, and prints the UDID and the lease id."
+        " It is slim; ask --mode full only for a service slim turns off (.agents/skills/simlock/SKILL.md):",
         f"   {LEASE}",
         f"2. Call session_set_defaults {{simulatorId: \"<UDID>\"}} alone{then}.",
         "   The lease lasts 60 min: renew it with simlock lease renew <lease-id>, and give it back with simlock release <lease-id>.",
@@ -261,9 +262,9 @@ def gate(tool, tool_input, session):
     held_by, stuck = lookups(float(os.environ.get("SIM_HOOK_TIMEOUT", "8")), sandbox_bound if tool in BUILDS else None)
     checked = not isinstance(held_by, Unchecked)
     me = callers(session)
-    lease, requester = held_by.get(target, (None, "")) if checked else (None, "")
+    lease, requester, _ = held_by.get(target, (None, "", None)) if checked else (None, "", None)
     leased = bool(lease) and mine(requester, me)
-    own = next(((u, l) for u, (l, r) in held_by.items() if me and r in me), None) if checked else None
+    own = next(((u, l, m) for u, (l, r, m) in held_by.items() if me and r in me), None) if checked else None
     if stuck is True:
         text = SANDBOX_STUCK.format(tool=tool, verify=VERIFY)
         if checked and not leased:

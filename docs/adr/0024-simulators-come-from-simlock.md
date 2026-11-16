@@ -111,3 +111,7 @@ two leases and caused two full first boots.
   minimum version.
 
 <!-- doc-symbols: not-in-tree sim-pool.sh scripts/sim-pool.sh scripts/measure-host.sh capacity.config.limits.ios.maxRunning lease.maxPerRequester -->
+
+**Superseded in part (2026-11-15).** ADR-0025 makes leases slim by default, with full one
+`WORKOUT_LEASE_MODE=full` away. It replaces "Leases are full boots" and "Leases stay full". The rest
+stands.

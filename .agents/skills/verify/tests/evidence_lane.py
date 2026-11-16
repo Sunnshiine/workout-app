@@ -137,7 +137,7 @@ class Lane(unittest.TestCase):
                         GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"), GIT_CONFIG_NOSYSTEM="1",
                         GIT_AUTHOR_NAME="lane", GIT_AUTHOR_EMAIL="lane@example.com",
                         GIT_COMMITTER_NAME="lane", GIT_COMMITTER_EMAIL="lane@example.com", WORKOUT_ADMIT_WAIT="0")
-        for name in ["SIM", "VERIFY_RUN", "VERIFY_EVIDENCE", "VERIFY_LIVE_ACTIVITIES"]:
+        for name in ["SIM", "VERIFY_RUN", "VERIFY_EVIDENCE", "VERIFY_LIVE_ACTIVITIES", "WORKOUT_LEASE_MODE"]:
             self.env.pop(name, None)
         self.checkout = self.tmp / "checkout"
         self.git("init", "-q", "-b", "main", str(self.checkout), cwd=self.tmp)

@@ -150,10 +150,12 @@ with open(STATE, "r+") as file:
     if args == ["whoami"]:
         print("Principal: %s\nName:      %s\nRole:      agent\nVia:       socket" % (principal, principal))
     elif args == ["list", "--devices"]:
-        udids = state["free"] + [l["udid"] for l in state["leases"]]
-        print(json.dumps([{{"id": "dev_" + u, "driverDeviceId": u, "address": u, "state": "ready"}} for u in udids]))
+        modes = dict.fromkeys(state["free"], "full")
+        modes.update((l["udid"], l.get("mode", "full")) for l in state["leases"])
+        print(json.dumps([{{"id": "dev_" + u, "driverDeviceId": u, "address": u, "state": "ready", "mode": m}}
+                          for u, m in modes.items()]))
     elif args == ["list", "--leases"]:
-        print(json.dumps([{{k: v for k, v in dict(l, deviceId="dev_" + l["udid"]).items() if k != "udid"}}
+        print(json.dumps([{{k: v for k, v in dict(l, deviceId="dev_" + l["udid"]).items() if k not in ("udid", "mode")}}
                           for l in state["leases"]]))
     elif args[:2] == ["lease", "renew"]:
         lease = next((l for l in state["leases"] if l["id"] == args[2]), None) or fail(14, "LEASE_NOT_FOUND")
@@ -167,11 +169,13 @@ with open(STATE, "r+") as file:
             fail(64, "the fake simlock leases only with --detach")
         udid = state["free"].pop(0)
         ttl = int(flag("--ttl").rstrip("m")) * 60000
+        mode = flag("--mode") or "full"
         lease = {{"id": "lse_" + udid, "udid": udid, "requesterId": principal, "ttlMs": ttl,
-                  "ttlDeadline": now_ms + ttl}}
+                  "ttlDeadline": now_ms + ttl, "mode": mode}}
         state["leases"].append(lease)
         print(json.dumps({{"lease": {{"id": lease["id"], "ttlDeadline": lease["ttlDeadline"]}},
-                          "device": {{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid}}, "environment": {{}}}}))
+                          "device": {{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid, "mode": mode}},
+                          "environment": {{}}}}))
     elif args[:1] == ["release"] and len(args) == 2:
         lease = next((l for l in mine if l["id"] == args[1]), None) or fail(14, "LEASE_NOT_FOUND")
         state["leases"].remove(lease)
@@ -202,10 +206,10 @@ class FakeSimlock:
         change(state)
         self.state.write_text(json.dumps(state))
 
-    def hold(self, udid, minutes_left=60, minutes=60, requester=PRINCIPAL):
-        """Gives requester, by default the caller, a lease on udid with minutes_left of its TTL to run."""
+    def hold(self, udid, minutes_left=60, minutes=60, requester=PRINCIPAL, mode="full"):
+        """Gives requester, by default the caller, a lease of a mode device on udid with minutes_left of its TTL to run."""
         lease = {"id": "lse_" + udid, "udid": udid, "requesterId": requester, "ttlMs": minutes * 60000,
-                 "ttlDeadline": int((time.time() + minutes_left * 60) * 1000)}
+                 "ttlDeadline": int((time.time() + minutes_left * 60) * 1000), "mode": mode}
         self.edit(lambda state: state["leases"].append(lease))
         return lease["id"]
 

@@ -93,7 +93,7 @@ chmod +x "$stub/simlock" "$stub/hostgate"
 export SIMLOCK_FIXTURE=$tmp
 future=$(( $(date +%s) * 1000 + 3600000 ))
 cat >"$tmp/devices" <<'JSON'
-[{"id": "dev_mine", "driverDeviceId": "AAAAAAAA-0000-0000-0000-000000000001"},
+[{"id": "dev_mine", "driverDeviceId": "AAAAAAAA-0000-0000-0000-000000000001", "mode": "slim"},
  {"id": "dev_other", "driverDeviceId": "BBBBBBBB-0000-0000-0000-000000000002"},
  {"id": "dev_anon", "driverDeviceId": "CCCCCCCC-0000-0000-0000-000000000003"},
  {"id": "dev_codex", "driverDeviceId": "FFFFFFFF-0000-0000-0000-000000000006"},

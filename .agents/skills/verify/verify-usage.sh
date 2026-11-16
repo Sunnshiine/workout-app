@@ -102,6 +102,9 @@ Environment: SIM (names your lease's simulator; any other UDID exits 2),
              VERIFY_LIVE_ACTIVITIES=1 (launch without -UITEST_DISABLE_LIVE_ACTIVITIES; for
              features/live-activity.md, and its shots carry the activity overlay),
              VERIFY_RECORD_START (default 10; seconds record gives the recorder to start capturing),
+             WORKOUT_LEASE_MODE (slim; full leases a full simulator, for a service slim turns off
+                  such as features/live-activity.md. build, install and launch exit 2 over a held
+                  slim lease when it is full, naming the release; other commands run on it),
              WORKOUT_LEASE_MINUTES (60; the Simlock lease's TTL, and a run's lease on its app. Every
                   command but build, install, diff, sheet and crop renews the run's, one with no
                   VERIFY_RUN only before it runs out. Once it has, the next launch, install or

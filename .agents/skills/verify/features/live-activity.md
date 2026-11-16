@@ -24,6 +24,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 
 Preconditions:
 
+- Export `WORKOUT_LEASE_MODE=full` before the drive's first `verify.sh build` or `launch`, and keep it for the whole drive. The Live Activity has been measured working only on a full lease (ADR-0025). Over a slim lease you already hold, `launch` exits 2 and names the `simlock release <id>` that frees it.
 - Every launch in this file takes `VERIFY_LIVE_ACTIVITIES=1`, which is the only way the app requests an activity. Without it the Lab's status row reads `Live Activities disabled` and `verify.sh tap --id live-activity-lab-start-button` exits 1 saying `disabled`.
 - `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session -UITEST_OFFLINE` shows the stage with `log-active-set-button` labeled `Log 237.5 × 5 @6`. `-UITEST_OFFLINE` keeps the log queued, so `rest-after-log` carries `1 unsynced`.
 

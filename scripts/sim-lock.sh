@@ -25,7 +25,7 @@ need_simlock() {
   exit 78
 }
 
-# Prints "UDID LEASE-ID TTL-MS SECONDS-LEFT" for the lease the caller's Simlock identity holds, or
+# Prints "UDID LEASE-ID TTL-MS SECONDS-LEFT MODE" for the lease the caller's Simlock identity holds, or
 # nothing. With a UDID, exits 2 unless that lease is on that device; 78 without simlock, 70 when it fails.
 own_lease() {
   local who leases devices
@@ -37,12 +37,14 @@ own_lease() {
   printf '%s' "$devices" | WHO="$who" LEASES="$leases" UDID=$(printf %s "${1:-}" | tr '[:lower:]' '[:upper:]') python3 -c '
 import json, os, sys, time
 who = next(line.split(":", 1)[1].strip() for line in os.environ["WHO"].splitlines() if line.startswith("Principal:"))
-udids = {d["id"]: d["driverDeviceId"].upper() for d in json.load(sys.stdin) if d.get("driverDeviceId")}
+devices = {d["id"]: d for d in json.load(sys.stdin) if d.get("driverDeviceId")}
+udids = {key: d["driverDeviceId"].upper() for key, d in devices.items()}
 mine = [(udids.get(l["deviceId"], "?"), l) for l in json.loads(os.environ["LEASES"]) if l["requesterId"] == who]
 want = os.environ["UDID"]
 for udid, lease in mine:
     if not want or udid == want:
-        print(udid, lease["id"], lease["ttlMs"], int(lease["ttlDeadline"] / 1000 - time.time()))
+        mode = devices.get(lease["deviceId"], {}).get("mode") or "unknown"
+        print(udid, lease["id"], lease["ttlMs"], int(lease["ttlDeadline"] / 1000 - time.time()), mode)
         sys.exit(0)
 if want:
     held = mine[0][0] if mine else "none"
@@ -65,20 +67,20 @@ simlock_refusal() {
   esac
 }
 
-# Takes a detached lease that Simlock keeps for $1 past its last renew, and sets sim and lease_id. Always
-# a full device: a slim one has no Live Activity or widgets, so an agent could not see the app on it.
+# Takes a detached lease of a WORKOUT_LEASE_MODE device that Simlock keeps for $1 past its last renew,
+# and sets sim, lease_id and lease_mode, the mode the grant names (ADR-0025).
 detached_lease() {
   local wait=(--timeout "${WORKOUT_ADMIT_WAIT}s") err grant code=0 said parsed
   [ "$WORKOUT_ADMIT_WAIT" -gt 0 ] || wait=(--no-wait)
   err=$(mktemp "${TMPDIR:-/tmp}/workout-lease.XXXXXX")
-  grant=$(simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --mode full "${wait[@]}" \
+  grant=$(simlock lease --platform ios --device "$sim_device" --os "$sim_runtime" --mode "$WORKOUT_LEASE_MODE" "${wait[@]}" \
     --detach --ttl "$1" 2>"$err" 7>&- 8>&- 9>&-) || code=$?
   said=$(tail -n 1 "$err")
   rm -f "$err"
   [ "$code" = 0 ] || simlock_refusal "$code" "$said"
-  parsed=$(printf '%s\n' "$grant" | python3 -c 'import json, sys; g = json.loads(sys.stdin.readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"])') \
+  parsed=$(printf '%s\n' "$grant" | MODE="$WORKOUT_LEASE_MODE" python3 -c 'import json, os, sys; g = json.loads(sys.stdin.readline()); print(g["device"]["driverDeviceId"], g["lease"]["id"], g["device"].get("mode") or os.environ["MODE"])') \
     || { echo "simlock lease printed a grant this script cannot read: ${grant:0:300}" >&6; exit 70; }
-  read -r sim lease_id <<< "$parsed"
+  read -r sim lease_id lease_mode <<< "$parsed"
   forget_runs "$sim"
 }
 
@@ -89,15 +91,26 @@ renew_lease() {
     || { echo "could not renew Simlock lease $id on $sim; lease again" >&6; exit 75; }
 }
 
-# A verify run spans many calls, so its lease is detached and full, with a TTL of WORKOUT_LEASE_MINUTES
+# A full lease asked for over a held slim one would run on a device without the services it was asked for,
+# so it is refused rather than used. A held full lease serves a slim ask as it is.
+fits_lease_mode() {
+  local id=$1 mode=$2 what=$3
+  [ "$WORKOUT_LEASE_MODE" = full ] && [ "$mode" = slim ] || return 0
+  echo "your Simlock lease $id on $sim is slim, and $what asks for a full one (WORKOUT_LEASE_MODE=full); give it back with simlock release $id and rerun, or run on it with WORKOUT_LEASE_MODE=slim" >&6
+  exit 2
+}
+
+# A verify run spans many calls, so its lease is detached, with a TTL of WORKOUT_LEASE_MINUTES
 # that each call renews once half of it has passed. A shorter lease, as test-sim.sh keeps, gets that TTL.
 # Sets sim to the lease's UDID, or to $1's, which must be the caller's own lease. With take, a caller
-# holding no lease gets one; without, it is refused.
+# holding no lease gets one, and one holding a slim lease while asking for full is refused; without, a
+# caller holding none is refused, and stop and release stay open on any lease.
 hold_lease() {
-  local named=$1 take=${2:-} held id ttl left
+  local named=$1 take=${2:-} held id ttl left mode
   held=$(own_lease "$named") || exit
   if [ -n "$held" ]; then
-    read -r sim id ttl left <<< "$held"
+    read -r sim id ttl left mode <<< "$held"
+    [ -z "$take" ] || fits_lease_mode "$id" "$mode" "this verify call"
     if [ "$ttl" -lt $((WORKOUT_LEASE_MINUTES * 60000)) ]; then
       renew_lease "$id" --ttl "${WORKOUT_LEASE_MINUTES}m"
     elif [ $((left * 2000)) -lt "$ttl" ]; then
@@ -106,9 +119,9 @@ hold_lease() {
     return 0
   fi
   [ -n "$take" ] || { echo "you hold no Simlock lease; verify.sh launch <fixture> takes one" >&6; exit 2; }
-  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock for $WORKOUT_LEASE_MINUTES min, renewed by each verify call" >&6
+  echo "leasing a $WORKOUT_LEASE_MODE $sim_device simulator on iOS $sim_runtime from Simlock for $WORKOUT_LEASE_MINUTES min, renewed by each verify call" >&6
   detached_lease "${WORKOUT_LEASE_MINUTES}m"
-  echo "simulator $sim (Simlock lease $lease_id); verify.sh release gives it back" >&6
+  echo "simulator $sim (Simlock lease $lease_id, $lease_mode); verify.sh release gives it back" >&6
 }
 
 release_lease() {
@@ -358,6 +371,11 @@ host_knob WORKOUT_DISK_FLOOR 5120 0
 admit_wait_set=${WORKOUT_ADMIT_WAIT:+1}
 host_knob WORKOUT_ADMIT_WAIT 540 0
 host_knob WORKOUT_LEASE_MINUTES 60 1
+WORKOUT_LEASE_MODE=${WORKOUT_LEASE_MODE:-slim}
+case $WORKOUT_LEASE_MODE in
+  slim|full) ;;
+  *) echo "WORKOUT_LEASE_MODE must be slim or full: $WORKOUT_LEASE_MODE" >&6; exit 2 ;;
+esac
 sim_device='iPhone 17 Pro'
 sim_runtime=27.0
 sim_lock_checkout=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

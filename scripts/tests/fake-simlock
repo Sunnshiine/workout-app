@@ -109,7 +109,7 @@ def grant(opts):
                                               ", detached" if "--detach" in opts else ", bound to pid {}".format(bound),
                                               mode, ", ttl " + asked if asked else ""))
     print(json.dumps({"lease": {"id": lease["id"], "ttlDeadline": lease["ttlDeadline"]},
-                      "device": {"id": "dev_" + lease["udid"], "driverDeviceId": lease["udid"],
+                      "device": {"id": "dev_" + lease["udid"], "driverDeviceId": lease["udid"], "mode": mode,
                                  "address": lease["udid"]}, "environment": {}}), flush=True)
     return lease, bound
 

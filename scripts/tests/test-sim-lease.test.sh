@@ -40,21 +40,21 @@ renews_since() { log_since "$1" '^renew' | wc -l | tr -d ' '; }
 destination() { grep -m1 '^platform=' "$STUB_ARGS"; }
 err() { sed 's/lse_[0-9]*/lse_N/g' "$root/err"; }
 PATH="$root/bin:$PATH"
-kept="kept simulator $spare_sim (Simlock lease lse_N) for 10 min for your next run; simlock release lse_N gives it back now"
+kept="kept simulator $spare_sim (Simlock lease lse_N, slim) for 10 min for your next run; simlock release lse_N gives it back now"
 
 before=$(mark)
 test_sim
-expect "with no lease held it leases a detached full simulator kept 10 min, runs on it, and keeps the lease when the run ends" \
+expect "with no lease held it leases a detached slim simulator kept 10 min, runs on it, and keeps the lease when the run ends" \
     "$? $(destination) | $(err) | $(log_since "$before" '^(lease|release)') | $(held)" \
-    "0 platform=iOS Simulator,id=$spare_sim | leasing an iPhone 17 Pro simulator on iOS 27.0 from Simlock, kept 10 min after the run for your next run (WORKOUT_TEST_LEASE_MINUTES)
-simulator $spare_sim (Simlock lease lse_N)
-$kept | lease lse_N $spare_sim by runner, detached, mode full, ttl 10m | $spare_sim"
+    "0 platform=iOS Simulator,id=$spare_sim | leasing a slim iPhone 17 Pro simulator on iOS 27.0 from Simlock, kept 10 min after the run for your next run (WORKOUT_TEST_LEASE_MINUTES)
+simulator $spare_sim (Simlock lease lse_N, slim)
+$kept | lease lse_N $spare_sim by runner, detached, mode slim, ttl 10m | $spare_sim"
 first=$(mine)
 test_sim
 expect "a second run from the same identity runs on the same simulator, with one lease and no release across both runs" \
     "$? $(destination) | $(mine) | $(log_since "$before" '^(lease|release)')" \
-    "0 platform=iOS Simulator,id=$spare_sim | $first | lease lse_N $spare_sim by runner, detached, mode full, ttl 10m"
-expect "and says which lease it ran on and that it kept it" "$(err)" "simulator $spare_sim (your Simlock lease lse_N)
+    "0 platform=iOS Simulator,id=$spare_sim | $first | lease lse_N $spare_sim by runner, detached, mode slim, ttl 10m"
+expect "and says which lease it ran on and that it kept it" "$(err)" "simulator $spare_sim (your Simlock lease lse_N, slim)
 $kept"
 expect "and leaves no scratch dir behind" "$(leftovers)" "0"
 
@@ -93,7 +93,7 @@ test_sim
 expect "a second run while the first holds the simulator exits 75 and names the holder, and both keep the lease" \
     "$? $(tail -1 "$root/err" | sed 's/pid [0-9]*/pid N/') | $(mine)" \
     "75 $spare_sim is held by a test-sim.sh run (pid N); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$spare_sim/lock lists every process holding it) | $first"
-test_sim -- ui
+WORKOUT_LEASE_MODE=slim test_sim -- ui
 expect "and so does a UI run, which leaves the lease the first run is on alone" \
     "$? $(tail -1 "$root/err" | sed 's/pid [0-9]*/pid N/') | $(mine)" \
     "75 $spare_sim is held by a test-sim.sh run (pid N); wait for it to finish, or use another simulator (lsof /tmp/workout-verify-$spare_sim/lock lists every process holding it) | $first"
@@ -101,11 +101,20 @@ touch "$root/release"; wait "$pid"
 
 before=$(mark)
 rm -f "$root/keyboard"
-test_sim -- ui
-expect "a UI run runs on the lease a unit run kept, with no new lease and no release" \
+WORKOUT_LEASE_MODE=slim test_sim -- ui
+expect "a UI run with WORKOUT_LEASE_MODE=slim runs on the slim lease a unit run kept, with no new lease and no release" \
     "$? $(destination) | $(mine) | $(log_since "$before" '^(lease|release)') | $(cat "$root/keyboard")" \
     "0 platform=iOS Simulator,id=$spare_sim | $first |  | ensure $spare_sim"
 full=$first
+
+before=$(mark)
+test_sim -- ui
+expect "a UI run asks for full, so it refuses the slim lease a unit run kept, naming the release, and leaves the lease alone" \
+    "$? $(err) | $(mine) | $(log_since "$before" '^(lease|release)') $([ -e "$root/seen" ] || echo no-xcodebuild)" \
+    "2 your Simlock lease lse_N on $spare_sim is slim, and this test run asks for a full one (WORKOUT_LEASE_MODE=full); give it back with simlock release lse_N and rerun, or run on it with WORKOUT_LEASE_MODE=slim | $first |  no-xcodebuild"
+test_sim -- WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
+expect "a UI test outside ActionButtonDictationUITests runs on the slim lease" "$? $(destination) | $(mine)" \
+    "0 platform=iOS Simulator,id=$spare_sim | $first"
 
 test_sim --sim "$(echo "$spare_sim" | tr '[:upper:]' '[:lower:]')"
 expect "--sim naming your own lease runs on it, says nothing of it, and leaves it held" \
@@ -134,7 +143,7 @@ expect "--sim when you hold no lease exits 2" "$? $(cat "$root/err")" \
 
 WORKOUT_TEST_LEASE_MINUTES=3 test_sim
 expect "WORKOUT_TEST_LEASE_MINUTES sets how long the lease is kept" "$? $(log_since 0 '^lease .* by runner' | tail -1) | $(tail -1 "$root/err" | sed 's/lse_[0-9]*/lse_N/g')" \
-    "0 lease lse_N $spare_sim by runner, detached, mode full, ttl 3m | kept simulator $spare_sim (Simlock lease lse_N) for 3 min for your next run; simlock release lse_N gives it back now"
+    "0 lease lse_N $spare_sim by runner, detached, mode slim, ttl 3m | kept simulator $spare_sim (Simlock lease lse_N, slim) for 3 min for your next run; simlock release lse_N gives it back now"
 give_back
 
 simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --mode full --detach --ttl 60m >/dev/null
@@ -142,8 +151,22 @@ before=$(mark)
 WORKOUT_LEASE_RENEW_SECONDS=1 STUB_SLEEP=1.5 test_sim
 expect "a run on a verify lease renews it without shortening it, and keeps it" \
     "$? $(log_since "$before" '^(lease|release|renew)' | sort -u) | $(simlock list --leases | python3 -c 'import json, sys; print(" ".join(str(l["ttlMs"]) for l in json.load(sys.stdin) if l["requesterId"] == "runner"))') | $(tail -1 "$root/err" | sed 's/lse_[0-9]*/lse_N/g')" \
-    "0 renew lse_N | 3600000 | kept simulator $spare_sim (Simlock lease lse_N) for 60 min for your next run; simlock release lse_N gives it back now"
+    "0 renew lse_N | 3600000 | kept simulator $spare_sim (Simlock lease lse_N, full) for 60 min for your next run; simlock release lse_N gives it back now"
 give_back
+
+before=$(mark)
+test_sim -- WorkoutTrackerUITests/ActionButtonDictationUITests
+expect "holding none, a run reaching ActionButtonDictationUITests leases a full simulator and says so" \
+    "$? $(log_since "$before" '^lease') | $(grep '^simulator' "$root/err" | sed 's/lse_[0-9]*/lse_N/g')" \
+    "0 lease lse_N $spare_sim by runner, detached, mode full, ttl 10m | simulator $spare_sim (Simlock lease lse_N, full)"
+give_back
+before=$(mark)
+WORKOUT_LEASE_MODE=full test_sim
+expect "WORKOUT_LEASE_MODE=full leases a full simulator for any selection" "$? $(log_since "$before" '^lease')" \
+    "0 lease lse_N $spare_sim by runner, detached, mode full, ttl 10m"
+give_back
+WORKOUT_LEASE_MODE=fat test_sim
+expect "a WORKOUT_LEASE_MODE other than slim or full exits 2" "$? $(cat "$root/err")" "2 WORKOUT_LEASE_MODE must be slim or full: fat"
 
 FAKE_SIMLOCK_REFUSE=10 test_sim
 expect "Simlock's queue timing out exits 75" "$? $(tail -1 "$root/err")" \
