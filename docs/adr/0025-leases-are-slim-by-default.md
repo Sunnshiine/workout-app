@@ -30,9 +30,10 @@ icloud and other on. The list lives in Simlock's config, not in this repo, and c
   stays true if Simlock's default changes. `verify.sh` and `scripts/test-sim.sh` print the mode of
   the lease they took or found. The XcodeBuildMCP hook prints a `--mode slim` lease command and
   the mode of the lease the caller holds.
-- **Full is for a service slim turns off.** The Live Activity drives in `features/live-activity.md`,
-  `features/lock-screen-logging.md` and the locked drive of `features/say-a-set.md` set
-  `WORKOUT_LEASE_MODE=full` from their first verify call. `test-sim.sh` asks for full when
+- **Full is for a service slim turns off, and for the callers kept on it by order.** The Live
+  Activity drives in `features/live-activity.md`, `features/lock-screen-logging.md` and the
+  locked drive of `features/say-a-set.md` set `WORKOUT_LEASE_MODE=full` from their first verify
+  call. `test-sim.sh` asks for full when
   `TEST_RUNNER_WORKOUT_ACTION_BUTTON=1` is set and its selection reaches
   `ActionButtonDictationUITests`, which locks the screen and reads the Live Activity card: `ui`,
   `all`, the `WorkoutTrackerUITests` bundle, or a test ID under that class. Without that variable
