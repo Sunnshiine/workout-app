@@ -188,3 +188,17 @@ private let shippedNoRowRefusal = """
     #expect(client.writes.isEmpty)
     #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).map(\.status) == [.conflict])
 }
+
+@MainActor
+@Test func flushLeavesASetFlagParkedForWantOfARowToBeRaisedAgain() async throws {
+    let container = try makeContainer()
+    let ctx = container.mainContext
+    try parkedWrite(exercise: "Squat", column: .setFlag, value: "Set 1 · Pain", refusal: shippedNoRowRefusal, in: ctx)
+    let client = FlushStubClient(grid: squatGrid(["C17": "Bench"]))
+    let sync = SyncCoordinator(client: client, context: ctx)
+
+    await sync.flushPending(spreadsheetId: "sid")
+
+    #expect(client.writes.isEmpty)
+    #expect(try ctx.fetch(FetchDescriptor<PendingWrite>()).map(\.status) == [.conflict])
+}
