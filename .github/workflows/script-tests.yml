@@ -50,7 +50,7 @@ jobs:
     if: github.event.action != 'edited' || github.event.changes.base
     name: ${{ github.event.action == 'edited' && !github.event.changes.base && 'script-tests (edit, base unchanged)' || 'script-tests' }}
     runs-on: xcode-27
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - name: Read the pinned SwiftLint version
