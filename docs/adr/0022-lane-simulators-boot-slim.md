@@ -95,5 +95,6 @@ Shutdown. The next `create` writes it again.
 
 **Superseded for lanes (2026-11-10).** ADR-0024 moves local simulators to Simlock, which leases full
 boots, and removes `scripts/sim-pool.sh`. CI keeps its slim boot through `scripts/ci/sim-slim.sh`.
+ADR-0025 (2026-11-16) makes Simlock leases slim by default.
 
 <!-- doc-symbols: not-in-tree sim-pool.sh scripts/sim-pool.sh scripts/measure-host.sh scripts/sim-pool-disabled-jobs.txt -->

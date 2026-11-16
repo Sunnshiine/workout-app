@@ -15,7 +15,7 @@ chmod +x "$root/bin/simlock"
 export PATH="$root/bin:$PATH" FAKE_SIMLOCK_STATE=$root/simlock FAKE_SIMLOCK_DEVICES="$first $second" FAKE_SIMLOCK_WHO=verifier
 export WORKOUT_HOST_LOCK_DIR=$root/locks TMPDIR=$root
 # shellcheck disable=SC2046
-unset SIM $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$script_dir/../sim-lock.sh")
+unset SIM WORKOUT_LEASE_MODE $(sed -n 's/^host_knob \([A-Z_]*\) .*/\1/p' "$script_dir/../sim-lock.sh")
 pass=0
 fail=0
 ok()  { pass=$((pass + 1)); printf '  ok   %s\n' "$1"; }
@@ -49,8 +49,32 @@ expect "a lease the caller took elsewhere, slim included, is used as it is: neve
 
 reset; before=0
 out=$(hold "" take)
-expect "holding none, a call that takes one leases a full device for 60 min" \
+expect "holding none, a call that takes one leases a slim device for 60 min and names its mode" \
+    "$? $out | $(log_since "$before") | $(tail -1 "$root/err")" \
+    "0 $first | lease lse_1 $first by verifier, detached, mode slim, ttl 60m | simulator $first (Simlock lease lse_1, slim); verify.sh release gives it back"
+
+reset; before=0
+out=$(FAKE_SIMLOCK_GRANT_MODE=full hold "" take)
+expect "the line it prints names the mode Simlock granted, not the one it asked for" \
+    "$? $out | $(log_since "$before") | $(tail -1 "$root/err")" \
+    "0 $first | lease lse_1 $first by verifier, detached, mode full, ttl 60m | simulator $first (Simlock lease lse_1, full); verify.sh release gives it back"
+
+reset; before=0
+out=$(WORKOUT_LEASE_MODE=full hold "" take)
+expect "with WORKOUT_LEASE_MODE=full it leases a full device" \
     "$? $out | $(log_since "$before")" "0 $first | lease lse_1 $first by verifier, detached, mode full, ttl 60m"
+
+reset; lease 60m slim; before=$(mark)
+out=$(WORKOUT_LEASE_MODE=full hold "" take)
+expect "asking for full over a held slim lease exits 2, naming the release, and leases and releases nothing" \
+    "$? $out | $(log_since "$before") | $(cat "$root/err")" \
+    "2  |  | your Simlock lease lse_1 on $first is slim, and this verify call asks for a full one (WORKOUT_LEASE_MODE=full); give it back with simlock release lse_1 and rerun, or run on it with WORKOUT_LEASE_MODE=slim"
+out=$(WORKOUT_LEASE_MODE=full hold "")
+expect "a call that takes no lease, as a drive, stop or release, runs on the slim lease" "$? $out" "0 $first"
+
+reset; lease 60m full; before=$(mark)
+out=$(hold "" take)
+expect "a held full lease serves the slim default as it is" "$? $out | $(log_since "$before")" "0 $first | "
 
 printf '\npassed %s, failed %s\n' "$pass" "$fail"
 [ "$fail" -eq 0 ] || exit 1

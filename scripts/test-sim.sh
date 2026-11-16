@@ -17,12 +17,17 @@ open issue whose title names each failing test, and any error or crash that stop
 before the run finished.
 The simulator comes from Simlock (.agents/skills/simlock/SKILL.md): an iPhone 17 Pro on iOS 27.0.
 A run uses the lease your Simlock identity holds, such as verify's. Holding none, it takes a detached
-lease and keeps it WORKOUT_TEST_LEASE_MINUTES (10) after the run so your next run reuses the device,
-because a released device is deleted and its replacement costs the host a first boot. The run renews
+lease, slim unless WORKOUT_LEASE_MODE=full asks for a full one, and keeps it
+WORKOUT_TEST_LEASE_MINUTES (10) after the run so your next run reuses the device, because a released
+device is deleted and its replacement costs the host a first boot. The run renews
 the lease every WORKOUT_LEASE_RENEW_SECONDS (60) while it lives and once as it ends, never shortening
 it, then names the lease and `simlock release <id>` to give it back sooner; a SIGKILLed run's lease
-lapses after its TTL. --sim UDID (or SIM=UDID) names that lease's simulator, and refuses (exit 2) any
-other UDID. A run never releases a lease. Exits 78 when simlock is not on PATH. Refuses
+lapses after its TTL. With TEST_RUNNER_WORKOUT_ACTION_BUTTON=1, which runs
+ActionButtonDictationUITests instead of skipping them, a selection that reaches that class (ui, all,
+the WorkoutTrackerUITests bundle, or a test ID under it) asks for full unless WORKOUT_LEASE_MODE is
+set. A run asking for full refuses (exit 2) a held slim lease, naming the release that frees it.
+--sim UDID (or SIM=UDID) names that lease's simulator, and refuses (exit 2) any other UDID. A run
+never releases a lease. Exits 78 when simlock is not on PATH. Refuses
 (exit 75) while another test-sim.sh run holds the simulator, or a verify run whose app on it was used
 in the last WORKOUT_LEASE_MINUTES (60). Waits while the host is busy,
 saying why once a minute: in Simlock's queue for a simulator, while free memory
@@ -109,22 +114,23 @@ stop_run() {
 
 # Runs on the caller's lease, renewed with its own TTL so a verify lease keeps its length, else leases a
 # detached device that Simlock keeps WORKOUT_TEST_LEASE_MINUTES past the run's end, for the next run: a
-# release deletes the device, and its replacement costs the host a first boot. Sets sim, run_lease, and
-# run_lease_minutes.
+# release deletes the device, and its replacement costs the host a first boot. Sets sim, run_lease,
+# run_lease_minutes, and run_lease_mode.
 run_lease() {
   local held ttl
   held=$(own_lease "$1") || exit
   if [ -n "$held" ]; then
-    read -r sim run_lease ttl _ <<< "$held"
+    read -r sim run_lease ttl _ run_lease_mode <<< "$held"
+    fits_lease_mode "$run_lease" "$run_lease_mode" "this test run"
     renew_lease "$run_lease"
     run_lease_minutes=$(((ttl + 59999) / 60000))
-    [ -n "$1" ] || echo "simulator $sim (your Simlock lease $run_lease)" >&2
+    [ -n "$1" ] || echo "simulator $sim (your Simlock lease $run_lease, $run_lease_mode)" >&2
     return 0
   fi
-  echo "leasing an $sim_device simulator on iOS $sim_runtime from Simlock, kept $WORKOUT_TEST_LEASE_MINUTES min after the run for your next run (WORKOUT_TEST_LEASE_MINUTES)" >&2
+  echo "leasing a $WORKOUT_LEASE_MODE $sim_device simulator on iOS $sim_runtime from Simlock, kept $WORKOUT_TEST_LEASE_MINUTES min after the run for your next run (WORKOUT_TEST_LEASE_MINUTES)" >&2
   detached_lease "${WORKOUT_TEST_LEASE_MINUTES}m"
-  run_lease=$lease_id run_lease_minutes=$WORKOUT_TEST_LEASE_MINUTES
-  echo "simulator $sim (Simlock lease $run_lease)" >&2
+  run_lease=$lease_id run_lease_minutes=$WORKOUT_TEST_LEASE_MINUTES run_lease_mode=$lease_mode
+  echo "simulator $sim (Simlock lease $run_lease, $run_lease_mode)" >&2
 }
 
 # Renews the lease while this script lives. It holds no fd of the script's, so neither the simulator's
@@ -158,7 +164,7 @@ end_run_lease() {
   [ -z "$heartbeat" ] || { signal_same TERM "$heartbeat" "$heartbeat_stamp" && wait "$heartbeat" 2>/dev/null; heartbeat=; } || true
   [ -n "$run_lease" ] && [ -n "${claimed_sim:-}" ] || return 0
   simlock lease renew "$run_lease" >/dev/null 2>&1 7>&- 8>&- 9>&- || return 0
-  [ -n "$named" ] || echo "kept simulator $sim (Simlock lease $run_lease) for $run_lease_minutes min for your next run; simlock release $run_lease gives it back now" >&2
+  [ -n "$named" ] || echo "kept simulator $sim (Simlock lease $run_lease, $run_lease_mode) for $run_lease_minutes min for your next run; simlock release $run_lease gives it back now" >&2
 }
 
 finish() {
@@ -196,6 +202,7 @@ bundle=
 stamp=
 named=
 run_lease=
+run_lease_mode=
 heartbeat=
 heartbeat_stamp=
 slot_job=
@@ -215,6 +222,7 @@ trap 'exit 129' HUP
 trap 'echo "test-sim: stopped by SIGALRM, most likely a caller'"'"'s alarm bound, before the test run ended" >&2; exit 142' ALRM
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
+lease_mode_set=${WORKOUT_LEASE_MODE:+1}
 . "$repo/scripts/sim-lock.sh"
 . "$repo/scripts/same-process.sh"
 . "$repo/scripts/sandbox-preflight.sh"
@@ -249,6 +257,14 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ ${#targets[@]} -gt 0 ] || usage
+# ActionButtonDictationUITests locks the screen to read the Live Activity card. Its tests skip unless
+# TEST_RUNNER_WORKOUT_ACTION_BUTTON=1, so only then does a selection that reaches it lease full, and a
+# set WORKOUT_LEASE_MODE wins over that (ADR-0025).
+if [ -z "$lease_mode_set" ] && [ "${TEST_RUNNER_WORKOUT_ACTION_BUTTON:-}" = 1 ]; then
+  for target in "${targets[@]#-only-testing:}"; do
+    case $target in WorkoutTrackerUITests | WorkoutTrackerUITests/ActionButtonDictationUITests*) WORKOUT_LEASE_MODE=full ;; esac
+  done
+fi
 bundles=$(printf '%s\n' "${targets[@]#-only-testing:}" | cut -d/ -f1 | sort -u)
 xctest_ends=$(wc -l <<< "$bundles" | tr -d ' ')
 swift_testing_ends=$(grep -cxE 'WorkoutTracker(Snapshot)?Tests' <<< "$bundles" || true)

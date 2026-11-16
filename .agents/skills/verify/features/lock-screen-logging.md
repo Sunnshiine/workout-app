@@ -28,6 +28,7 @@ During a rest the Lock Screen card is the rest timer for the Set the stage's car
 
 Preconditions:
 
+- Export `WORKOUT_LEASE_MODE=full` before the drive's first `verify.sh build` or `launch`, and keep it for the whole drive. A slim lease was measured working on 2026-11-16 (ADR-0025): the card, and its Log, Reps and RPE buttons. The note button and the mic were not run on slim, and nothing else in this file was either. This drive stays on full by a standing order, kept provisionally, and a follow-up may move it to slim. Over a slim lease you already hold, `launch` exits 2 and names the `simlock release <id>` that frees it.
 - Every launch here takes `VERIFY_LIVE_ACTIVITIES=1`. `-UITEST_OFFLINE` keeps each write queued, so `Sync status` counts them.
 - Run this on a simulator of your own, because locking it wedged a shared one's screenshots (`live-activity.md`, Gotchas). `verify.sh axe touch` lands where `tap` reports success and does nothing on a loaded host.
 - A touch longer than about 0.2 s on `log-active-set-button` can start its hold, so give it `--delay 0.12` to `0.15`. Under load `tap --id` can report success and log nothing, so check `Sync status` after it.

@@ -44,7 +44,7 @@ check "a lease past its deadline is refused" '[ $status = 2 ] && err_has "no liv
 setting "$FREE_UDID" nobody
 check "an unleased simulator is refused" '[ $status = 2 ] && err_has "Refused: session_set_defaults sets as the default only a simulator your Simlock lease holds"'
 check "the refusal names the UDID" 'err_has "no live Simlock lease holds $FREE_UDID"'
-check "the refusal names the lease command" "err_has \"simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --timeout 540s --detach --ttl 60m\""
+check "the refusal names the lease command" "err_has \"simlock lease --platform ios --device 'iPhone 17 Pro' --os 27.0 --mode slim --timeout 540s --detach --ttl 60m\""
 check "the refusal names the call that works" 'err_has "2. Call session_set_defaults {simulatorId: \"<UDID>\"} alone."'
 check "the refusal names the shell path" 'err_has ".agents/skills/verify/verify.sh build && .agents/skills/verify/verify.sh launch session"'
 check "the refusal prefers touch and says tap can miss" 'err_has "prefer touch with down and up; tap can miss" && ! err_has "reaches no control"'
@@ -56,7 +56,7 @@ check "the printed lease command reads the UDID and the lease id from a grant" \
     '[ "$(printf "%s\n" "$grant" | bash -c "${lease_line#*| }")" = "U L" ]'
 setting "$FREE_UDID"
 check "a caller holding a lease is pointed at its own simulator" \
-    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE. Call session_set_defaults {simulatorId: \"$MINE\"} alone." && ! err_has "1. Lease one"'
+    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE (slim). Call session_set_defaults {simulatorId: \"$MINE\"} alone." && ! err_has "1. Lease one"'
 gate session_set_defaults '{"scheme": "WorkoutTracker"}'
 check "session_set_defaults without a simulator runs" '[ $status = 0 ] && [ ! -s "$tmp/err" ]'
 

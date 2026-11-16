@@ -66,7 +66,7 @@ check "a stuck build with no leased default also says how to lease" \
 recorded_as "$FREE_UDID"
 HOSTGATE_MODE=stuck gate build_run_sim '{}'
 check "a stuck build whose caller holds another lease points it there" \
-    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE. Call session_set_defaults {simulatorId: \"$MINE\"} alone."'
+    '[ $status = 2 ] && err_has "You hold Simlock lease lse_mine on $MINE (slim). Call session_set_defaults {simulatorId: \"$MINE\"} alone."'
 for tool in install_app_sim launch_app_sim; do
     HOSTGATE_MODE=stuck gate "$tool" '{}' nobody
     check "$tool refused for its lease while the sandbox is stuck offers the shell path with no build" \

@@ -24,6 +24,7 @@ Logging a set starts the rest timer, and the rest timer puts the countdown, the 
 
 Preconditions:
 
+- Export `WORKOUT_LEASE_MODE=full` before the drive's first `verify.sh build` or `launch`, and keep it for the whole drive. A slim lease was measured working on 2026-11-16 (ADR-0025): the island collapsed and expanded, the Lock Screen card, and the card's Log, Reps and RPE buttons. The card's mic and the Lab were not run on slim, and nothing else in this file was either. This drive stays on full by a standing order, kept provisionally, and a follow-up may move it to slim. Over a slim lease you already hold, `launch` exits 2 and names the `simlock release <id>` that frees it.
 - Every launch in this file takes `VERIFY_LIVE_ACTIVITIES=1`, which is the only way the app requests an activity. Without it the Lab's status row reads `Live Activities disabled` and `verify.sh tap --id live-activity-lab-start-button` exits 1 saying `disabled`.
 - `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session -UITEST_OFFLINE` shows the stage with `log-active-set-button` labeled `Log 237.5 × 5 @6`. `-UITEST_OFFLINE` keeps the log queued, so `rest-after-log` carries `1 unsynced`.
 

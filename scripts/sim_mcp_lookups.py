@@ -71,7 +71,7 @@ def end(runs):
 
 
 def read_leases(done, bound):
-    """{UDID: (lease id, requester)} for every live lease, or Unchecked."""
+    """{UDID: (lease id, requester, mode)} for every live lease, or Unchecked. mode is the device's, or None."""
     out = {}
     for what in ("leases", "devices"):
         result = done[what]
@@ -83,9 +83,10 @@ def read_leases(done, bound):
             return Unchecked(f"simlock list --{what} exited {result[0]}")
         out[what] = result[1]
     try:
-        udids = {d["id"]: d["driverDeviceId"].upper() for d in json.loads(out["devices"]) if d.get("driverDeviceId")}
+        devices = {d["id"]: d for d in json.loads(out["devices"]) if d.get("driverDeviceId")}
+        udids = {key: d["driverDeviceId"].upper() for key, d in devices.items()}
         now = time.time() * 1000
-        return {udids[l["deviceId"]]: (l["id"], l.get("requesterId") or "")
+        return {udids[l["deviceId"]]: (l["id"], l.get("requesterId") or "", devices[l["deviceId"]].get("mode"))
                 for l in json.loads(out["leases"])
                 if l["deviceId"] in udids and l.get("ttlDeadline", now + 1) > now}
     except (ValueError, KeyError, TypeError, AttributeError) as error:
