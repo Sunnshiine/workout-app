@@ -18,6 +18,17 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         #expect(card.stats.allSatisfy { !$0.isMissing })
     }
 
+    /// Sunny, 2026-11-16: the app read 140 × 6 @10 and the Lock Screen read other numbers.
+    @Test func aCardTheAthleteEditedShowsItsOwnRepsAndRPEOverThePrescription() throws {
+        let card = try content(
+            after: exercise("0:2:0 Flat DB BP", next: ("5", "RPE 8")),
+            showingDraft: SetLogDraft(weight: .pounds(140), reps: 6, rpe: .ten)
+        )
+
+        #expect(card.stats.map(\.value) == ["140", "6", "10"])
+        #expect(card.stats.map(\.spoken) == ["140 pounds", "6 Reps", "RPE 10"])
+    }
+
     @Test func aDropSetShowsTheWeightWorkedOutFromTheSetBefore() throws {
         let card = try content(after: exercise("BB RDL", next: ("8", "Drop 17.5%"), loggedAt: 300))
 
@@ -195,9 +206,13 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
     }
 
     private func content(after exercise: Exercise, showing weight: Weight? = nil) throws -> LiveActivityRestContent {
+        try content(after: exercise, showingDraft: weight.map { SetLogDraft(weight: $0, reps: nil, rpe: nil) })
+    }
+
+    private func content(after exercise: Exercise, showingDraft draft: SetLogDraft?) throws -> LiveActivityRestContent {
         let focus = ActiveSetFocusManager(session: nil)
-        if let weight {
-            focus.cardShows(SetLogDraft(weight: weight, reps: nil, rpe: nil), for: nextSet)
+        if let draft {
+            focus.cardShows(draft, for: nextSet)
         }
         let session = makeSingleSession(exercises: [exercise])
         return try #require(
