@@ -213,17 +213,15 @@ final class ActiveSetFocusManager {
         )
     }
 
+    /// The rest's content on the Set the card shows, so a log reads the advance it just made.
     func liveActivityRestContent(
-        afterLogging set: ExerciseSet,
         in session: Session,
         history: LastPerformedLookupSnapshot,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent? {
         LiveActivityRestContentBuilder.content(
-            afterLogging: set,
-            in: session,
-            supersetState: supersetState,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: self, history: history),
             restStartDate: restStartDate,
             restEndDate: restEndDate

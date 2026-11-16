@@ -170,12 +170,10 @@ import Testing
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
     let session = Session(dayNumber: 1, date: nil)
     session.exercises = [exercise]
-    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -193,12 +191,10 @@ import Testing
     let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
     connectCurrentWeek([openSession, currentSession])
-    let loggedSet = try #require(currentExercise.sets.first)
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: currentSession,
+            followingTheCardIn: currentSession,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -221,7 +217,6 @@ import Testing
     let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
     connectCurrentWeek([openSession, currentSession])
-    let loggedSet = try #require(currentExercise.sets.first)
 
     let makeupQueue = SessionProgressTracker().openExercises(for: currentSession)
     let firstOpen = try #require(makeupQueue.first)
@@ -230,8 +225,7 @@ import Testing
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: currentSession,
+            followingTheCardIn: currentSession,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -260,12 +254,10 @@ import Testing
     let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
     connectCurrentWeek([day1, day2, currentSession])
-    let loggedSet = try #require(currentExercise.sets.first)
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: currentSession,
+            followingTheCardIn: currentSession,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -297,8 +289,7 @@ import Testing
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: logging,
-            in: currentSession,
+            followingTheCardIn: currentSession,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -321,11 +312,9 @@ import Testing
     let currentExercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let currentSession = makeSingleSession(dayNumber: 3, exercises: [currentExercise])
     connectCurrentWeek([openSession, currentSession])
-    let loggedSet = try #require(currentExercise.sets.first)
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: currentSession,
+            followingTheCardIn: currentSession,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -354,11 +343,9 @@ import Testing
         ]
     )
     connectCurrentWeek([first, second])
-    let loggedSet = try #require(first.exercises.first?.sets.first { $0.index == 0 })
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: first,
+            followingTheCardIn: first,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)

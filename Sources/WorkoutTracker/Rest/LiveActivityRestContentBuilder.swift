@@ -214,17 +214,18 @@ enum LiveActivityRestContentBuilder {
         let set: ExerciseSet
     }
 
+    /// The rest's content on the Set the card shows. With no Pending Set left in `session`, it
+    /// points at the first Open Exercise of an earlier day in the Current Week; nil with none.
     static func content(
-        afterLogging loggedSet: ExerciseSet,
-        in session: Session,
-        supersetState: SupersetState? = nil,
+        followingTheCardIn session: Session,
         reading source: LoggablePressSource,
         restStartDate: Date,
         restEndDate: Date
     ) -> LiveActivityRestContent? {
-        guard let target = targetSet(afterLogging: loggedSet, in: session, supersetState: supersetState) else {
-            return nil
-        }
+        let target =
+            source.focus.activeSet(in: session).map { RestTargetSet(session: session, exercise: $0.exercise, set: $0.set) }
+            ?? openExerciseFallback(for: session)
+        guard let target else { return nil }
         return content(for: target, following: session, reading: source, restStartDate: restStartDate, restEndDate: restEndDate)
     }
 
@@ -281,24 +282,6 @@ enum LiveActivityRestContentBuilder {
         )
     }
 
-    private static func targetSet(
-        afterLogging loggedSet: ExerciseSet,
-        in session: Session,
-        supersetState: SupersetState?
-    ) -> RestTargetSet? {
-        if let supersetSetID = supersetState?.nextSetID(after: loggedSet, in: session) {
-            if let target = set(for: supersetSetID, in: session) {
-                return RestTargetSet(session: session, exercise: target.exercise, set: target.set)
-            }
-        }
-
-        if let sessionTarget = SessionSetOrder.nextPendingSet(after: loggedSet, in: session) {
-            return RestTargetSet(session: session, exercise: sessionTarget.exercise, set: sessionTarget.set)
-        }
-
-        return openExerciseFallback(for: session)
-    }
-
     /// The widget-only makeup fallback: when the Current Session has no Pending
     /// Set left, point the rest widget at the earliest earlier Current-Week day
     /// that still owes work. The earlier-day selection is the Open Exercise
@@ -318,12 +301,5 @@ enum LiveActivityRestContentBuilder {
             return nil
         }
         return RestTargetSet(session: open.session, exercise: position.exercise, set: position.set)
-    }
-
-    private static func set(
-        for setID: ActiveSetID,
-        in session: Session
-    ) -> SessionSetPosition? {
-        SessionSetOrder.orderedSets(in: session).first { $0.setID == setID }
     }
 }

@@ -200,11 +200,9 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
             focus.cardShows(SetLogDraft(weight: weight, reps: nil, rpe: nil), for: nextSet)
         }
         let session = makeSingleSession(exercises: [exercise])
-        let logged = try #require(exercise.sets.first { $0.index == 0 })
         return try #require(
             LiveActivityRestContentBuilder.content(
-                afterLogging: logged,
-                in: session,
+                followingTheCardIn: session,
                 reading: LoggablePressSource(focus: focus, history: .empty),
                 restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
                 restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)

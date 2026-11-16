@@ -188,7 +188,6 @@ final class LockScreenPress {
             return await refuse(.writeFailed, pressing: nil)
         }
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
-        focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
         let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
         switch subject {
         case .rest(let rest):
