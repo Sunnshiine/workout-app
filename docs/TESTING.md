@@ -70,7 +70,7 @@ beside other agents, below), and its own simulator, which Simlock leases (ADR-00
 `.agents/skills/simlock/SKILL.md`). An agent holds one lease at a time, and `scripts/test-sim.sh`
 runs on it. Holding none, test-sim leases a slim iPhone 17 Pro on iOS 27.0 (ADR-0025;
 `WORKOUT_LEASE_MODE=full` asks for full, and a selection reaching `ActionButtonDictationUITests`
-asks for it itself) and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run, so the next
+asks for it itself when `TEST_RUNNER_WORKOUT_ACTION_BUTTON=1` runs that class) and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run, so the next
 run reuses the device instead of costing the host a first boot. `verify.sh launch` leases one for a verify run, which later calls
 renew and `verify.sh release` ends. Simlock runs at most six simulators across every app
 on the Mac and queues the rest; `test-sim.sh --help` names the waits and exit codes. Simlock

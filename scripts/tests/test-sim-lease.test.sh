@@ -6,6 +6,7 @@ set -uo pipefail
 
 # The harness's leases hold $sim and $other_sim, so a lease this identity takes gets $spare_sim.
 export FAKE_SIMLOCK_WHO=runner
+unset TEST_RUNNER_WORKOUT_ACTION_BUTTON
 expect() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"; printf '    got:\n%s\n    want:\n%s\n    stderr:\n%s\n' "$2" "$3" "$(cat "$root/err")"; fi; }
 passing="✔ Test run with 1 test in 1 suite passed after 1.000 seconds.
 ** TEST EXECUTE SUCCEEDED **"
@@ -101,15 +102,19 @@ touch "$root/release"; wait "$pid"
 
 before=$(mark)
 rm -f "$root/keyboard"
-WORKOUT_LEASE_MODE=slim test_sim -- ui
-expect "a UI run with WORKOUT_LEASE_MODE=slim runs on the slim lease a unit run kept, with no new lease and no release" \
+WORKOUT_LEASE_MODE=slim TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 test_sim -- ui
+expect "a UI run with TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 and WORKOUT_LEASE_MODE=slim runs on the slim lease a unit run kept, with no new lease and no release" \
     "$? $(destination) | $(mine) | $(log_since "$before" '^(lease|release)') | $(cat "$root/keyboard")" \
     "0 platform=iOS Simulator,id=$spare_sim | $first |  | ensure $spare_sim"
 full=$first
 
 before=$(mark)
 test_sim -- ui
-expect "a UI run asks for full, so it refuses the slim lease a unit run kept, naming the release, and leaves the lease alone" \
+expect "a plain UI run, whose ActionButtonDictationUITests skip, runs on the slim lease a unit run kept" \
+    "$? $(destination) | $(mine) | $(log_since "$before" '^(lease|release)')" "0 platform=iOS Simulator,id=$spare_sim | $first | "
+before=$(mark)
+TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 test_sim -- ui
+expect "a UI run with TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 asks for full, so it refuses the slim lease a unit run kept, naming the release, and leaves the lease alone" \
     "$? $(err) | $(mine) | $(log_since "$before" '^(lease|release)') $([ -e "$root/seen" ] || echo no-xcodebuild)" \
     "2 your Simlock lease lse_N on $spare_sim is slim, and this test run asks for a full one (WORKOUT_LEASE_MODE=full); give it back with simlock release lse_N and rerun, or run on it with WORKOUT_LEASE_MODE=slim | $first |  no-xcodebuild"
 test_sim -- WorkoutTrackerUITests/WorkoutTrackerUISmokeTests/testCurrentSessionLogsFirstSetAndAdvancesActiveSet
@@ -156,7 +161,12 @@ give_back
 
 before=$(mark)
 test_sim -- WorkoutTrackerUITests/ActionButtonDictationUITests
-expect "holding none, a run reaching ActionButtonDictationUITests leases a full simulator and says so" \
+expect "holding none, a run reaching ActionButtonDictationUITests without TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 leases slim" \
+    "$? $(log_since "$before" '^lease')" "0 lease lse_N $spare_sim by runner, detached, mode slim, ttl 10m"
+give_back
+before=$(mark)
+TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 test_sim -- WorkoutTrackerUITests/ActionButtonDictationUITests
+expect "holding none, a run reaching ActionButtonDictationUITests with TEST_RUNNER_WORKOUT_ACTION_BUTTON=1 leases a full simulator and says so" \
     "$? $(log_since "$before" '^lease') | $(grep '^simulator' "$root/err" | sed 's/lse_[0-9]*/lse_N/g')" \
     "0 lease lse_N $spare_sim by runner, detached, mode full, ttl 10m | simulator $spare_sim (Simlock lease lse_N, full)"
 give_back

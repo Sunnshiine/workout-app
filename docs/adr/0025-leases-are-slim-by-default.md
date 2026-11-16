@@ -7,9 +7,8 @@ the host's default.
 
 What probe SLIM-1 measured on 2026-11-15, on Simlock 0.6.0, with every slim group turned off:
 
-- A slim iPhone 17 Pro on iOS 27.0 ran a median of 96 processes. The full devices in the same
-  window ran 178 to 269. Its steady CPU median was 1% to 3% of a core. The full devices' CPU is not
-  a fair comparison, because other agents were testing on them.
+- A slim iPhone 17 Pro on iOS 27.0 ran far fewer processes than the full devices in the same window,
+  and idled near zero CPU. The counts depend on Simlock's slim config, so this ADR does not pin them.
 - On slim, `verify.sh build`, `launch`, `shot` and `tap` saw and drove the app. So did XcodeBuildMCP's
   `build_run_sim`, `snapshot_ui`, `touch` and `screenshot`. The Google sign-in sheet opened and
   loaded.
@@ -19,8 +18,8 @@ What probe SLIM-1 measured on 2026-11-15, on Simlock 0.6.0, with every slim grou
   warm pool held full devices.
 
 Since 2026-11-16 the host's Simlock serves slim when a lease names no mode. Its slim config keeps
-three groups on: widgets (Live Activities, chronod, PosterBoard), icloud, and other (linkd and the
-rest). The list of groups slim turns off lives in Simlock's config, not in this repo.
+the widgets group (Live Activities), icloud and other on. The list of groups slim turns off lives in
+Simlock's config, not in this repo; `simlock config get ios.slim.categories` prints it.
 
 ## Decision
 
@@ -31,10 +30,12 @@ rest). The list of groups slim turns off lives in Simlock's config, not in this 
   the mode of the lease the caller holds.
 - **Full is for a service slim turns off.** The Live Activity drives in `features/live-activity.md`,
   `features/lock-screen-logging.md` and the locked drive of `features/say-a-set.md` set
-  `WORKOUT_LEASE_MODE=full` from their first verify call. `test-sim.sh` asks for full when its
-  selection reaches `ActionButtonDictationUITests`, which locks the screen and reads the Live
-  Activity card: `ui`, `all`, the `WorkoutTrackerUITests` bundle, or a test ID under that class. A
-  set `WORKOUT_LEASE_MODE` wins over that. No other UI test reads the Lock Screen or an activity.
+  `WORKOUT_LEASE_MODE=full` from their first verify call. `test-sim.sh` asks for full when
+  `TEST_RUNNER_WORKOUT_ACTION_BUTTON=1` is set and its selection reaches
+  `ActionButtonDictationUITests`, which locks the screen and reads the Live Activity card: `ui`,
+  `all`, the `WorkoutTrackerUITests` bundle, or a test ID under that class. Without that variable
+  the class's tests skip, so a plain `ui` or `all` run stays slim. A set `WORKOUT_LEASE_MODE` wins
+  over both. No other UI test reads the Lock Screen or an activity.
   The smoke tests tap SpringBoard's Open prompt, which is for the app's own URL scheme.
 - **Full asked over a held slim lease exits 2.** The message names `simlock release <id>` and
   `WORKOUT_LEASE_MODE=slim`. Running the call on the slim device would miss the service it asked
@@ -43,8 +44,8 @@ rest). The list of groups slim turns off lives in Simlock's config, not in this 
 
 ## Considered alternatives
 
-- *Keep every lease full (ADR-0024).* Each agent that never looks at a widget pays about twice
-  the processes.
+- *Keep every lease full (ADR-0024).* Each agent that never looks at a widget pays for every
+  service slim turns off.
 - *Swap a held slim lease for a full one.* That releases the device the agent may be designing on,
   and the replacement costs a first boot. The refusal names the release and lets the agent choose.
 - *Lease full whenever `VERIFY_LIVE_ACTIVITIES=1` is set.* A drive's lease usually comes from
@@ -58,7 +59,7 @@ rest). The list of groups slim turns off lives in Simlock's config, not in this 
   boot. Most leases are slim now, so a full lease is the one more likely to cold-boot.
 - An agent holding a slim lease that turns out to need full releases it and leases again, which
   costs the host one first boot.
-- The Live Activity drives and `ActionButtonDictationUITests` stay on full. The SLIM-1 failure came
+- The Live Activity drives and `ActionButtonDictationUITests` (when it runs) stay on full. The SLIM-1 failure came
   from a slim config that also turned off widgets, and the host's slim config now keeps widgets on.
   If a probe on that config shows the Live Activity working, a later change can move them to slim.
 - CI is unchanged. Its runner boots its own slim simulator (ADR-0022).

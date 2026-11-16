@@ -22,9 +22,10 @@ WORKOUT_TEST_LEASE_MINUTES (10) after the run so your next run reuses the device
 device is deleted and its replacement costs the host a first boot. The run renews
 the lease every WORKOUT_LEASE_RENEW_SECONDS (60) while it lives and once as it ends, never shortening
 it, then names the lease and `simlock release <id>` to give it back sooner; a SIGKILLed run's lease
-lapses after its TTL. A selection that reaches ActionButtonDictationUITests (ui, all, the
-WorkoutTrackerUITests bundle, or a test ID under that class) asks for full unless WORKOUT_LEASE_MODE
-is set. A run asking for full refuses (exit 2) a held slim lease, naming the release that frees it.
+lapses after its TTL. With TEST_RUNNER_WORKOUT_ACTION_BUTTON=1, which runs
+ActionButtonDictationUITests instead of skipping them, a selection that reaches that class (ui, all,
+the WorkoutTrackerUITests bundle, or a test ID under it) asks for full unless WORKOUT_LEASE_MODE is
+set. A run asking for full refuses (exit 2) a held slim lease, naming the release that frees it.
 --sim UDID (or SIM=UDID) names that lease's simulator, and refuses (exit 2) any other UDID. A run
 never releases a lease. Exits 78 when simlock is not on PATH. Refuses
 (exit 75) while another test-sim.sh run holds the simulator, or a verify run whose app on it was used
@@ -256,9 +257,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 [ ${#targets[@]} -gt 0 ] || usage
-# ActionButtonDictationUITests locks the screen to read the Live Activity card, so a selection that
-# reaches it leases full unless WORKOUT_LEASE_MODE names a mode (ADR-0025).
-if [ -z "$lease_mode_set" ]; then
+# ActionButtonDictationUITests locks the screen to read the Live Activity card. Its tests skip unless
+# TEST_RUNNER_WORKOUT_ACTION_BUTTON=1, so only then does a selection that reaches it lease full, and a
+# set WORKOUT_LEASE_MODE wins over that (ADR-0025).
+if [ -z "$lease_mode_set" ] && [ "${TEST_RUNNER_WORKOUT_ACTION_BUTTON:-}" = 1 ]; then
   for target in "${targets[@]#-only-testing:}"; do
     case $target in WorkoutTrackerUITests | WorkoutTrackerUITests/ActionButtonDictationUITests*) WORKOUT_LEASE_MODE=full ;; esac
   done
