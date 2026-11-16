@@ -129,7 +129,7 @@ struct LockScreenCardFaceView: View {
     }
 }
 
-/// The card at rest: the countdown, the Cadence, and the Set's numbers, with one button to log it.
+/// The card at rest: the countdown, the Exercise and its Cadence, and the Set's numbers, with one button to log it.
 /// The Coach Note opens where the numbers were, and nothing above them moves.
 struct LockScreenRestFace: View {
     let state: WorkoutActivityAttributes.ContentState
@@ -162,20 +162,11 @@ struct LockScreenRestFace: View {
                         .contentTransition(.identity)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
-                    if let cadence = state.cadence {
-                        Text(cadence)
-                            .liveActivityFont(.caption)
-                            .foregroundStyle(colors.secondaryText)
-                            .lineLimit(1)
-                            .padding(.top, LockScreenCardMetrics.underCountdown)
-                            .accessibilityLabel("Cadence \(cadence)")
+                    exerciseAndCadence
+                        .padding(.top, LockScreenCardMetrics.underCountdown)
 
-                        Spacer(minLength: 8)
-                        numbersOrNote
-                    } else {
-                        numbersOrNote.padding(.top, LockScreenCardMetrics.underCountdown)
-                        Spacer(minLength: 0)
-                    }
+                    Spacer(minLength: 8)
+                    numbersOrNote
                 }
             }
 
@@ -192,6 +183,25 @@ struct LockScreenRestFace: View {
                     .transition(.opacity)
             }
         }
+    }
+
+    /// The Exercise names whose numbers these are. It cuts off before the Cadence does.
+    private var exerciseAndCadence: some View {
+        let colors = state.liveActivityColors
+
+        return HStack(spacing: 8) {
+            Text(state.exerciseName)
+                .foregroundStyle(colors.primaryText)
+                .truncationMode(.tail)
+            if let cadence = state.cadence {
+                Text(cadence)
+                    .foregroundStyle(colors.secondaryText)
+                    .fixedSize()
+                    .accessibilityLabel("Cadence \(cadence)")
+            }
+        }
+        .liveActivityFont(.caption)
+        .lineLimit(1)
     }
 
     @ViewBuilder

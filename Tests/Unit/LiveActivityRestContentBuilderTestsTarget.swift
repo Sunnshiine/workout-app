@@ -10,12 +10,10 @@ import Testing
     let endDate = Date(timeIntervalSinceReferenceDate: 1_090)
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending, .pending])
     let session = makeSingleSession(exercises: [exercise])
-    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: startDate,
             restEndDate: endDate
@@ -40,12 +38,10 @@ import Testing
     let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged])
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending])
     let session = makeSingleSession(exercises: [squat, bench])
-    let loggedSet = try #require(squat.sets.first)
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -66,12 +62,10 @@ import Testing
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .logged])
     let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
     let session = makeSingleSession(exercises: [squat, bench, row])
-    let loggedSet = try #require(squat.sets.first { $0.index == 0 })
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -92,12 +86,10 @@ import Testing
         ExerciseSet(index: 1, prescribedReps: "8", prescribedLoad: "Drop 17.5%", percentOneRM: nil, state: .pending)
     ]
     let session = makeSingleSession(exercises: [rdl])
-    let loggedSet = try #require(rdl.sets.first { $0.index == 0 })
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -108,21 +100,21 @@ import Testing
 }
 
 @MainActor
-@Test func liveActivityContentUsesSupersetAlternationAndCountsDisplayedExerciseOnly() throws {
-    let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.logged, .pending])
+@Test func liveActivityContentFollowsTheCardThroughASupersetAndCountsDisplayedExerciseOnly() throws {
+    let squat = makeExercise(name: "Back Squat", order: 0, setStates: [.pending, .pending])
     let bench = makeExercise(name: "Bench Press", order: 1, setStates: [.pending, .pending, .pending])
     let row = makeExercise(name: "DB Row", order: 2, setStates: [.pending])
     let session = makeSingleSession(exercises: [squat, bench, row])
     let loggedSet = try #require(squat.sets.first { $0.index == 0 })
-    let supersetState = SupersetState()
-    #expect(supersetState.createSuperset(with: [squat, bench], in: session))
+    let focus = ActiveSetFocusManager(session: session)
+    #expect(focus.createSuperset(with: [squat, bench], in: session))
+    loggedSet.state = .logged
+    focus.advanceAfterLog(loggedSet, in: session)
 
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
-            supersetState: supersetState,
-            reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
+            followingTheCardIn: session,
+            reading: LoggablePressSource(focus: focus, history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
         )
@@ -139,11 +131,9 @@ import Testing
 @Test func liveActivityContentSuppressesWhenNoPendingTargetExists() throws {
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged])
     let session = makeSingleSession(exercises: [exercise])
-    let loggedSet = try #require(exercise.sets.first)
 
     let content = LiveActivityRestContentBuilder.content(
-        afterLogging: loggedSet,
-        in: session,
+        followingTheCardIn: session,
         reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
         restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
         restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -156,11 +146,9 @@ import Testing
 @Test func liveActivityTargetValidationKeepsMatchingCurrentDisplayedPendingSet() throws {
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
     let session = makeSingleSession(exercises: [exercise])
-    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -174,12 +162,10 @@ import Testing
 @Test func liveActivityTargetValidationEndsWhenTargetSetIsNoLongerPending() throws {
     let exercise = makeExercise(name: "Bench Press", order: 0, setStates: [.logged, .pending])
     let session = makeSingleSession(exercises: [exercise])
-    let loggedSet = try #require(exercise.sets.first { $0.index == 0 })
     let targetSet = try #require(exercise.sets.first { $0.index == 1 })
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: session,
+            followingTheCardIn: session,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -201,8 +187,7 @@ import Testing
     try container.mainContext.save()
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: viewed,
+            followingTheCardIn: viewed,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)
@@ -236,8 +221,7 @@ import Testing
     loggedSet.state = .logged
     let content = try #require(
         LiveActivityRestContentBuilder.content(
-            afterLogging: loggedSet,
-            in: viewed,
+            followingTheCardIn: viewed,
             reading: LoggablePressSource(focus: ActiveSetFocusManager(session: nil), history: .empty),
             restStartDate: Date(timeIntervalSinceReferenceDate: 1_000),
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090)

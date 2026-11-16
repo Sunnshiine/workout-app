@@ -38,15 +38,16 @@ final class HeadlessWrites {
         (try? app.sync.fetchPendingWriteRecords().count) ?? 0
     }
 
-    /// Starts the rest the stage would after this Set, on the stage's own timer, and reads it back
-    /// toward the Set the card focuses next. With no rest to start, the logged Set's Exercise as it
-    /// now stands. Either counts the queue the write joined.
+    /// Moves the card past this Set, starts the rest the stage would after it on the stage's own
+    /// timer, and reads the rest back on the Set the card moved to. With no rest to start, the
+    /// logged Set's Exercise as it now stands. Either counts the queue the write joined.
     func restSubject(
         afterLogging position: SessionSetPosition,
         in session: Session,
         wasSupersetMember: Bool
     ) -> LiveActivityDictationContent.Subject {
         let set = position.set
+        focus.advanceAfterSpokenWrite(set, in: session, holding: false)
         guard
             let interval = restTimer.startRest(
                 afterLogging: set,
@@ -55,7 +56,6 @@ final class HeadlessWrites {
                 durations: app.settings
             ),
             var content = focus.liveActivityRestContent(
-                afterLogging: set,
                 in: session,
                 history: app.lastPerformed.snapshot,
                 restStartDate: interval.start,

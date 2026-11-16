@@ -31,7 +31,6 @@ struct ActiveSetCardVisualTests {
                 dictation: .ready,
                 startsHandsFree: false,
                 start: {},
-                shows: { _ in },
                 finish: { nil },
                 listenHandsFree: { nil },
                 cancel: {},
@@ -120,7 +119,8 @@ struct ActiveSetCardVisualTests {
                     onFlag: {},
                     onTouchWhileHeld: {},
                     onClearMenuOpened: {},
-                    onClearMenuClosed: {}
+                    onClearMenuClosed: {},
+                    onShow: { _ in }
                 )
                 .padding(.horizontal, 16)
                 Spacer(minLength: 0)

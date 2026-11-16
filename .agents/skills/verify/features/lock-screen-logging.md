@@ -2,7 +2,7 @@
 
 <!-- doc-symbols: not-in-tree ListCell ReduceMotionEnabled -->
 
-During a rest the Lock Screen card is the rest timer for the Set the stage's card is on. Its rest face shows the countdown, the Cadence under it, and the weight the stage holds with the coach's Reps and RPE, each under its unit. A Set is logged in three taps without unlocking: Log, the Reps, then the RPE. The weight cannot change here. The last tap runs in the app's process, through the same store call as the Log capsule, so the rest restarts, the card moves to the next Set, and the write queues. A lighter green fills the card when the rest starts, and the fill's right edge runs left on the system clock until the rest is over, with no update from the app.
+During a rest the Lock Screen card is the rest timer for the Set the stage's card is on. Its rest face shows the countdown, the Cadence under it, and the weight, Reps and RPE the stage's card holds, each under its unit. Where the card holds no Reps or RPE it shows the coach's. A Set is logged in three taps without unlocking: Log, the Reps, then the RPE. The weight cannot change here. The last tap runs in the app's process, through the same store call as the Log capsule, so the rest restarts, the card moves to the next Set, and the write queues. A lighter green fills the card when the rest starts, and the fill's right edge runs left on the system clock until the rest is over, with no update from the app.
 
 ## Sub-features
 

@@ -177,8 +177,8 @@ final class LockScreenPress {
         return card.face
     }
 
-    /// In the stage's order (write, rest, then focus) and before anything is awaited, since a second
-    /// press can arrive while the card draws.
+    /// In the stage's order (write, focus, then the rest on the Set the focus moved to) and before
+    /// anything is awaited, since a second press can arrive while the card draws.
     private func write(_ setLog: SetLog, to position: SessionSetPosition, in session: Session) async -> Outcome {
         // Read before the write, which dissolves a Superset when it logs a side's last Set.
         let wasSupersetMember = focus.isPaired(position.exercise)
@@ -188,7 +188,6 @@ final class LockScreenPress {
             return await refuse(.writeFailed, pressing: nil)
         }
         let subject = writes.restSubject(afterLogging: position, in: session, wasSupersetMember: wasSupersetMember)
-        focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
         let readback = LiveActivityDictationContent.Readback.logged(setLog.readback, to: .init(position, in: session))
         switch subject {
         case .rest(let rest):

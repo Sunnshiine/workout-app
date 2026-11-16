@@ -210,8 +210,8 @@ final class BackgroundDictation {
             return Self.notLogged(.writeFailed, at: position.setID, shown: shown)
         }
         let settled = settled(heard, for: position, in: session, shown: shown, wasSupersetMember: wasSupersetMember)
-        // The card moves on with the write, in the stage's order (write, rest, then focus) and
-        // before anything is awaited, since a second press can arrive while the readback draws.
+        // The card moves on with the write before anything is awaited, since a second press can
+        // arrive while the readback draws. A log's rest already moved it; a skip moves it here.
         if settled.wrote {
             focus.advanceAfterSpokenWrite(position.set, in: session, holding: false)
             dictation.dismiss()

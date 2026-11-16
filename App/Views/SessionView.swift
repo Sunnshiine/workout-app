@@ -90,10 +90,13 @@ struct SessionView: View {
         // is no glance, and a hold its Clear menu suspended would otherwise outlast the lock. An
         // Effort Countdown ends too, since its voice and timer cannot be trusted in the background.
         .onChange(of: scenePhase) { _, phase in
-            guard phase == .background else { return }
-            coordinator.endSpokenWriteHold()
-            coordinator.cancelCountdown()
-            // The Lock Screen's RPE Chips log what the card shows, which the athlete may have just changed.
+            // Notification Center pulled over the app leaves it inactive, and shows the Lock Screen card.
+            guard phase != .active else { return }
+            if phase == .background {
+                coordinator.endSpokenWriteHold()
+                coordinator.cancelCountdown()
+            }
+            // The Lock Screen card shows and logs what the stage's card shows, which the athlete may have just changed.
             coordinator.retargetLiveActivityOnLeavingTheApp()
         }
         .onDisappear(perform: coordinator.cancelCountdown)

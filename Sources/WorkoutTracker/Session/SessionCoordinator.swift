@@ -212,12 +212,15 @@ final class SessionCoordinator {
             let wasSupersetMember = isSupersetMember(set)
             try perform(.momentumFlow) {
                 try wiring.logging.log(set, as: log)
-                startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
-                reconcileLiveActivity()
+                let restStarted = startRest(afterLogging: set, in: session, wasSupersetMember: wasSupersetMember)
                 switch source {
                 case .card: advanceAfterLog(set, in: session)
                 case .speech: advanceAfterSpokenWrite(set, in: session, wasSupersetMember: wasSupersetMember)
                 }
+                if restStarted {
+                    startOrUpdateLiveActivity(in: session)
+                }
+                reconcileLiveActivity()
             }
             wiring.sync.requestPendingWriteFlush()
         } catch {

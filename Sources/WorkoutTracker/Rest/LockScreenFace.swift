@@ -41,8 +41,8 @@ enum LockScreenTurn: Equatable, Sendable {
     case back
 }
 
-/// One of the three numbers the card's rest face shows: the weight the Set's card holds, then the
-/// coach's Reps and RPE.
+/// One of the three numbers the card's rest face shows: the weight, Reps and RPE the Set's card
+/// holds, and the coach's Reps and RPE where it holds none.
 struct LockScreenStat: Equatable, Sendable {
     /// The value's unit, `lbs`, which the card draws over it in capitals. Empty over a value that names
     /// itself, as `BW` does.
@@ -66,8 +66,19 @@ extension LockScreenStat {
         self.init(label: label, value: Self.missingValue, spoken: spoken, isMissing: true)
     }
 
-    static func row(weight: Weight?, prescription: Prescription, repsCell: String) -> [LockScreenStat] {
-        [Self.weight(weight), reps(prescription.reps, cell: repsCell), rpe(prescription.load.rpeTarget)]
+    /// The weight, Reps and RPE the stage's card shows, and the prescription's where it shows none.
+    /// A Timed Set keeps its time, which the card holds no Reps for.
+    static func row(showing draft: SetLogDraft, prescription: Prescription, repsCell: String) -> [LockScreenStat] {
+        let shownReps: LockScreenStat? =
+            switch (draft.reps, prescription.reps) {
+            case (_, .timed), (nil, _): nil
+            case (let reps?, _): counted(reps...reps)
+            }
+        return [
+            weight(draft.weight),
+            shownReps ?? reps(prescription.reps, cell: repsCell),
+            rpe(draft.rpe ?? prescription.load.rpeTarget)
+        ]
     }
 
     /// The numbers of a Set Log, where the rest face draws the Set's.

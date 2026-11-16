@@ -6,19 +6,19 @@ extension SessionCoordinator {
         return focusManager.isPaired(exercise)
     }
 
-    func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) {
-        guard
-            wiring.restTimer.startRest(
-                afterLogging: set,
-                in: session,
-                wasSupersetMember: wasSupersetMember,
-                durations: wiring.restDurations
-            ) != nil
-        else { return }
-        startOrUpdateLiveActivity(afterLogging: set, in: session)
+    /// Starts the rest the stage runs after logging `set`. True when one started.
+    func startRest(afterLogging set: ExerciseSet, in session: Session, wasSupersetMember: Bool) -> Bool {
+        wiring.restTimer.startRest(
+            afterLogging: set,
+            in: session,
+            wasSupersetMember: wasSupersetMember,
+            durations: wiring.restDurations
+        ) != nil
     }
 
-    func startOrUpdateLiveActivity(afterLogging set: ExerciseSet, in session: Session) {
+    /// Brings the rest's Lock Screen card up on the Set the card moved to. Called after the
+    /// advance, so the start names the Set the turn's retarget would, and no retarget follows it.
+    func startOrUpdateLiveActivity(in session: Session) {
         let event = LiveActivityProductionEvent(
             source: .userSetLog,
             outcome: .success,
@@ -26,12 +26,8 @@ extension SessionCoordinator {
         )
         guard
             LiveActivityCreationPolicy.shouldCreateOrUpdate(for: event),
-            let restInterval = wiring.restTimer.interval
-        else { return }
-
-        guard
+            let restInterval = wiring.restTimer.interval,
             let content = focusManager.liveActivityRestContent(
-                afterLogging: set,
                 in: session,
                 history: wiring.history(),
                 restStartDate: restInterval.start,
