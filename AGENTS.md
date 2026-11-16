@@ -147,8 +147,9 @@ more) starts no CI run. Every PR starts a Receipts run, and when no other workfl
   service slim turns off. Slim keeps the widgets group (Live Activities), icloud and other on;
   `simlock config get ios.slim.categories` lists the groups it turns off. The Live Activity drives,
   and `ActionButtonDictationUITests` under `TEST_RUNNER_WORKOUT_ACTION_BUTTON=1`, ask for full
-  themselves by a standing order, not because slim was measured failing them
-  (`.agents/skills/simlock/SKILL.md`).
+  themselves by a standing order. Slim as configured on 2026-11-16 ran the Live Activity, a slim
+  config with every group off failed it (ADR-0025), and the Action button tests were not run on
+  slim (`.agents/skills/simlock/SKILL.md`).
 - You hold one lease at a time, and `test-sim.sh` runs on it, verify's included. Holding none, it
   leases one and keeps it `WORKOUT_TEST_LEASE_MINUTES` (10) after the run for your next run, since
   each released device costs the host a first boot; `simlock release <id>` gives it back sooner.

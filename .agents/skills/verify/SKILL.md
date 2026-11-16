@@ -57,10 +57,11 @@ never touches Google. Live Activities are off because a rest-timer activity outl
 sits over the top of every later shot on the shared simulator.
 `VERIFY_LIVE_ACTIVITIES=1 verify.sh launch session` drops that one flag, so the rest timer and the
 Live Activity Lab work and every shot of that run may carry the activity overlay. `stop` uninstalls
-such a run, which is what ends the activity. Such a drive runs on a full lease, so export
-`WORKOUT_LEASE_MODE=full` before its first call. Drive it from `features/live-activity.md`. A
-relaunch is `stop` then `launch`, and it resets all state. `launch` boots the simulator through
-Simlock when it is shut down, and installs nothing when the boot fails (exit 69).
+such a run, which is what ends the activity. Such a drive runs on a full lease by a standing
+order, so export `WORKOUT_LEASE_MODE=full` before its first call. Drive it from
+`features/live-activity.md`. A relaunch is `stop` then `launch`, and it resets all state.
+`launch` boots the simulator through Simlock when it is shut down, and installs nothing when the
+boot fails (exit 69).
 
 `launch` prints the app it installed:
 

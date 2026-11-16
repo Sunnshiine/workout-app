@@ -63,8 +63,11 @@ icloud and other on. The list lives in Simlock's config, not in this repo, and c
 - An agent holding a slim lease that turns out to need full releases it and leases again, which
   costs the host one first boot.
 - The Live Activity drives and `ActionButtonDictationUITests` (when it runs) stay on full. The SLIM-1 failure came
-  from a slim config that also turned off widgets. A later probe on the config that keeps widgets on
-  saw the Live Activity in the Dynamic Island and on the Lock Screen, with its card buttons working.
+  from a slim config that also turned off widgets. On 2026-11-16 a later probe ran the config that
+  keeps widgets on. On slim it saw the Live Activity in the Dynamic Island, collapsed and expanded,
+  and on the Lock Screen. It pressed the card's Log button, one Reps chip and one RPE chip, and the
+  app then showed the Set they logged. It did not run the card's mic or note button, the Live
+  Activity Lab, the Control, Siri, a rest notification banner or `ActionButtonDictationUITests`.
   These callers stay on full by the coordinator's order, and a later change can move them to slim.
 - CI is unchanged. Its runner boots its own slim simulator (ADR-0022).
 
