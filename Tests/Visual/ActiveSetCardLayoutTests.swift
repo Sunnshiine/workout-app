@@ -234,7 +234,6 @@ private enum CardHost {
                         dictation: $0,
                         startsHandsFree: false,
                         start: {},
-                        shows: { _ in },
                         finish: { nil },
                         listenHandsFree: { nil },
                         cancel: {},
@@ -247,7 +246,8 @@ private enum CardHost {
                 onFlag: {},
                 onTouchWhileHeld: {},
                 onClearMenuOpened: {},
-                onClearMenuClosed: {}
+                onClearMenuClosed: {},
+                onShow: { _ in }
             )
             .padding(.horizontal, 16)
             Spacer(minLength: 0)

@@ -7,8 +7,6 @@ struct SetCardMic {
     /// True while the Action button, Siri, or the Live Activity waits for this card to listen.
     let startsHandsFree: Bool
     let start: () -> Void
-    /// Reports what the card shows as it changes, which fills what the athlete leaves unsaid.
-    let shows: (SetLogDraft) -> Void
     let finish: () async -> SetDictation.Outcome?
     let listenHandsFree: () async -> SetDictation.Outcome?
     let cancel: () async -> Void
@@ -34,6 +32,9 @@ struct ActiveSetCard: View {
     let onTouchWhileHeld: () -> Void
     let onClearMenuOpened: () -> Void
     let onClearMenuClosed: () -> Void
+    /// Reports what the card shows as it changes. A Spoken Set fills what the athlete leaves
+    /// unsaid from it, and the Lock Screen card shows and logs it, with or without a mic.
+    let onShow: (SetLogDraft) -> Void
     @Environment(LastPerformedLookupStore.self) private var history
     @Environment(\.themePalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -68,7 +69,7 @@ struct ActiveSetCard: View {
                 inputDismissalRequestID: inputDismissalRequestID,
                 dictation: mic?.dictation ?? .ready,
                 onDismissDictation: { mic?.dismiss() },
-                onShow: { mic?.shows($0) }
+                onShow: onShow
             )
             .id(PillsIdentity(set: set.persistentModelID, mode: setCardMode))
             .opacity(countdownRun == nil ? 1 : 0)

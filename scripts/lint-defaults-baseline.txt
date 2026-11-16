@@ -26,7 +26,6 @@ LaunchFlag|memberwise|needs|empty
 LiveActivityController|start|staleDate|nil
 LiveActivityController|update|staleDate|nil
 LiveActivityProductionAdapter|endIfReadyCapExpired|at|now
-LiveActivityRestContentBuilder|content|supersetState|nil
 LiveActivityRestContent|init|target|nil
 LocalWorkbook.Tab|init|cols|number
 LocalWorkbook.Tab|init|hiddenRows|empty

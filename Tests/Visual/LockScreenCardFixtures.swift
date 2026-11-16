@@ -120,7 +120,7 @@ struct LockScreenCardSet: Sendable {
             cardFace: face,
             cardTurn: nil,
             cardStats: LockScreenStat.row(
-                weight: weight,
+                showing: SetLogDraft(weight: weight, reps: nil, rpe: nil),
                 prescription: Prescription(reps: reps, load: load, percentOneRM: nil),
                 repsCell: reps
             )

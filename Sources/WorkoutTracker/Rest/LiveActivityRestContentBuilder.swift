@@ -269,7 +269,7 @@ enum LiveActivityRestContentBuilder {
             restStartDate: restStartDate,
             restEndDate: restEndDate,
             press: LoggablePressContent(for: position, following: session, showing: draft, history: source.history),
-            stats: LockScreenStat.row(weight: draft.weight, prescription: target.set.prescription, repsCell: target.set.prescribedReps),
+            stats: LockScreenStat.row(showing: draft, prescription: target.set.prescription, repsCell: target.set.prescribedReps),
             cadence: target.exercise.exerciseName.cadence,
             coachNote: target.exercise.lockScreenCoachNote,
             start: target.exercise.session === session ? LockScreenStart(position) : nil,

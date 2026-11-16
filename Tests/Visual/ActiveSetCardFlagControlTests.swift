@@ -37,7 +37,8 @@ struct ActiveSetCardFlagControlTests {
                     onFlag: {},
                     onTouchWhileHeld: {},
                     onClearMenuOpened: {},
-                    onClearMenuClosed: {}
+                    onClearMenuClosed: {},
+                    onShow: { _ in }
                 )
                 .padding(.horizontal, 16)
                 Spacer(minLength: 0)

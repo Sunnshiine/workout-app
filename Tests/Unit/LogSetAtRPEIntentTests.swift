@@ -311,7 +311,7 @@ struct LogSetAtRPEIntentTests {
             restEndDate: Date(timeIntervalSinceReferenceDate: 1_090),
             press: .ready(squatOffer),
             stats: LockScreenStat.row(
-                weight: .pounds(1002.5),
+                showing: SetLogDraft(weight: .pounds(1002.5), reps: nil, rpe: nil),
                 prescription: Prescription(reps: "5", load: "RPE7", percentOneRM: nil),
                 repsCell: "5"
             ),

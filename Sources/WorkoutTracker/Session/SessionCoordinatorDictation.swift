@@ -29,8 +29,8 @@ extension SessionCoordinator {
         dictatingMode = mode
     }
 
-    /// The card reports what it shows for `set` as the athlete changes it, which fills what a
-    /// Spoken Set leaves unsaid, from the card's mic or a press with the phone locked alike.
+    /// The card reports what it shows for `set` as the athlete changes it. A Spoken Set fills what
+    /// the athlete leaves unsaid from it, and the Lock Screen card shows and logs it.
     func cardShows(_ draft: SetLogDraft, for set: ExerciseSet) {
         guard let setID = Self.activeSetID(for: set) else { return }
         focusManager.cardShows(draft, for: setID)

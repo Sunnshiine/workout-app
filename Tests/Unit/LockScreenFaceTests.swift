@@ -66,7 +66,10 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
         ]
     )
     func theRepsReadAsTheCoachWroteThem(cell: String, label: String, value: String, spoken: String) {
-        let stat = LockScreenStat.row(weight: nil, prescription: Prescription(reps: cell, load: "", percentOneRM: nil), repsCell: cell)[1]
+        let blank = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+        let stat = LockScreenStat.row(showing: blank, prescription: Prescription(reps: cell, load: "", percentOneRM: nil), repsCell: cell)[
+            1
+        ]
 
         #expect(stat.label == label)
         #expect(stat.value == value)
@@ -74,9 +77,12 @@ private let nextSet = ActiveSetID(exerciseOrder: 0, setIndex: 1)
     }
 
     @Test func aSetWhoseCardHoldsNoWeightDashesIt() {
-        let stat = LockScreenStat.row(weight: nil, prescription: Prescription(reps: "5", load: "RPE 8", percentOneRM: nil), repsCell: "5")[
-            0
-        ]
+        let blank = SetLogDraft(weight: nil, reps: nil, rpe: nil)
+        let stat = LockScreenStat.row(
+            showing: blank,
+            prescription: Prescription(reps: "5", load: "RPE 8", percentOneRM: nil),
+            repsCell: "5"
+        )[0]
 
         #expect(stat.label == "lbs")
         #expect(stat.value == "—")
