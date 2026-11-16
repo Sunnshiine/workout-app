@@ -17,9 +17,11 @@ What probe SLIM-1 measured on 2026-11-15, on Simlock 0.6.0, with every slim grou
 - Every slim lease was a cold boot of 21 to 47 s. A warm full lease took 0.6 to 5 s, because the
   warm pool held full devices.
 
-Since 2026-11-16 the host's Simlock serves slim when a lease names no mode. Its slim config keeps
-the widgets group (Live Activities), icloud and other on. The list of groups slim turns off lives in
-Simlock's config, not in this repo; `simlock config get ios.slim.categories` prints it.
+Since 2026-11-16 the host's Simlock serves slim when a lease names no mode. On that day its slim
+config turned off the siri, search, store, pim, web, family, health, photos, apps, messaging,
+connectivity and telemetry groups, and kept widgets (Live Activities, chronod, PosterBoard, navd),
+icloud and other on. The list lives in Simlock's config, not in this repo, and changes with it;
+`simlock config get ios.slim.categories` prints the groups slim turns off now.
 
 ## Decision
 
@@ -60,8 +62,9 @@ Simlock's config, not in this repo; `simlock config get ios.slim.categories` pri
 - An agent holding a slim lease that turns out to need full releases it and leases again, which
   costs the host one first boot.
 - The Live Activity drives and `ActionButtonDictationUITests` (when it runs) stay on full. The SLIM-1 failure came
-  from a slim config that also turned off widgets, and the host's slim config now keeps widgets on.
-  If a probe on that config shows the Live Activity working, a later change can move them to slim.
+  from a slim config that also turned off widgets. A later probe on the config that keeps widgets on
+  saw the Live Activity in the Dynamic Island and on the Lock Screen, with its card buttons working.
+  These callers stay on full by the coordinator's order, and a later change can move them to slim.
 - CI is unchanged. Its runner boots its own slim simulator (ADR-0022).
 
 Supersedes ADR-0024's "Leases are full boots" decision and its amendment's "Leases stay full".
