@@ -10,12 +10,13 @@ A lease without --detach prints its grant, then stays up until SIGTERM or SIGINT
 process dies, and releases on the way out, as the real one does. It also exits once the state directory
 is gone, so a test that loses track of one leaves no process behind. A lease with --detach prints its grant
 and exits; it lasts until release, with the TTL --ttl names (default 60m). --mode (slim or full, default
-full) is stored on the lease and shown as its device's mode in list --devices. `lease renew <id> [--ttl d]`
-restarts the TTL, set to d when given. Lease and renew log lines carry the mode and the TTL asked for.
+slim, as the host's daemon serves) is stored on the lease and shown as its device's mode in list --devices.
+`lease renew <id> [--ttl d]` restarts the TTL, set to d when given. Lease and renew log lines carry the mode and the TTL asked for.
 
 Knobs: FAKE_SIMLOCK_REFUSE=<code> makes every lease fail with that exit code. FAKE_SIMLOCK_REVOKE=<file>
 takes the caller's leases back once <file> exists: a running lease releases and exits 14, and a renew or
-list --leases releases them, after which the renew fails. `simctl <args>` runs `xcrun simctl <args>`
+list --leases releases them, after which the renew fails. FAKE_SIMLOCK_GRANT_MODE=<mode> grants
+that mode whatever --mode asks, as a daemon whose config serves another would. `simctl <args>` runs `xcrun simctl <args>`
 from PATH, so the harness's xcrun answers it.
 """
 import fcntl
@@ -76,10 +77,11 @@ def duration_ms(text):
 
 
 def grant(opts):
-    mode = opts.get("--mode", "full")
+    mode = opts.get("--mode", "slim")
     if mode not in ("slim", "full"):
         print("fake simlock: --mode is slim or full: " + mode, file=sys.stderr)
         sys.exit(2)
+    mode = os.environ.get("FAKE_SIMLOCK_GRANT_MODE") or mode
     asked = opts.get("--ttl", "60m") if "--detach" in opts else None
 
     def take(leases, state):
@@ -166,7 +168,7 @@ def take_back():
 # Shaped as simlock 0.6.0 prints them: list --devices carries each UDID and mode, list --leases neither.
 def listing(what):
     if what == "--devices":
-        modes = {lease["udid"]: lease.get("mode", "full") for lease in update(lambda leases, _: list(leases))}
+        modes = {lease["udid"]: lease.get("mode", "slim") for lease in update(lambda leases, _: list(leases))}
         print(json.dumps([{"id": "dev_" + udid, "driverDeviceId": udid, "address": udid, "state": "ready",
                            "mode": modes.get(udid, "full")} for udid in DEVICES]))
         return

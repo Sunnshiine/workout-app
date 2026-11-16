@@ -54,6 +54,12 @@ expect "holding none, a call that takes one leases a slim device for 60 min and 
     "0 $first | lease lse_1 $first by verifier, detached, mode slim, ttl 60m | simulator $first (Simlock lease lse_1, slim); verify.sh release gives it back"
 
 reset; before=0
+out=$(FAKE_SIMLOCK_GRANT_MODE=full hold "" take)
+expect "the line it prints names the mode Simlock granted, not the one it asked for" \
+    "$? $out | $(log_since "$before") | $(tail -1 "$root/err")" \
+    "0 $first | lease lse_1 $first by verifier, detached, mode full, ttl 60m | simulator $first (Simlock lease lse_1, full); verify.sh release gives it back"
+
+reset; before=0
 out=$(WORKOUT_LEASE_MODE=full hold "" take)
 expect "with WORKOUT_LEASE_MODE=full it leases a full device" \
     "$? $out | $(log_since "$before")" "0 $first | lease lse_1 $first by verifier, detached, mode full, ttl 60m"
