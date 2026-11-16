@@ -100,13 +100,15 @@ struct LockScreenCardReading: CustomTestStringConvertible, Sendable {
         LockScreenCardReading(
             name: "at rest",
             set: .backSquat,
-            reads: ["Ready", "Say Set", "Show the Coach Note", "Cadence 3:1:1", "252.5 pounds", "5 Reps", "RPE 7", "Log this Set"]
+            reads: [
+                "Ready", "Say Set", "Show the Coach Note", "Back Squat", "Cadence 3:1:1", "252.5 pounds", "5 Reps", "RPE 7", "Log this Set"
+            ]
         ),
         LockScreenCardReading(
             name: "the Coach Note open",
             set: .backSquat,
             face: .coachNote,
-            reads: ["Ready", "Cadence 3:1:1", LockScreenCardSet.coachNote, "Close the Coach Note"]
+            reads: ["Ready", "Back Squat", "Cadence 3:1:1", LockScreenCardSet.coachNote, "Close the Coach Note"]
         ),
         LockScreenCardReading(
             name: "the Reps",
@@ -124,12 +126,15 @@ struct LockScreenCardReading: CustomTestStringConvertible, Sendable {
         LockScreenCardReading(
             name: "no Cadence and no Coach Note",
             set: .neitherCadenceNorCoachNote,
-            reads: ["Ready", "Say Set", "252.5 pounds", "5 Reps", "RPE 7", "Log this Set"]
+            reads: ["Ready", "Say Set", "Back Squat", "252.5 pounds", "5 Reps", "RPE 7", "Log this Set"]
         ),
         LockScreenCardReading(
             name: "the worst case",
             set: .worstCase,
-            reads: ["Ready", "Say Set", "Show the Coach Note", "Cadence 2-3:1:0", "1002.5 pounds", "AMRAP Reps", "No RPE", "Log this Set"]
+            reads: [
+                "Ready", "Say Set", "Show the Coach Note", "Paused Low-Bar Competition Back Squat w/ Safety Squat Bar", "Cadence 2-3:1:0",
+                "1002.5 pounds", "AMRAP Reps", "No RPE", "Log this Set"
+            ]
         ),
         LockScreenCardReading(
             name: "the worst case's RPE",
@@ -142,7 +147,7 @@ struct LockScreenCardReading: CustomTestStringConvertible, Sendable {
             name: "a Set the card cannot log",
             set: .noWeight,
             reads: [
-                "Ready", "Say Set", "Show the Coach Note", "Cadence 3:1:1", "No weight", "8 Reps", "No RPE",
+                "Ready", "Say Set", "Show the Coach Note", "BB RDL", "Cadence 3:1:1", "No weight", "8 Reps", "No RPE",
                 "Open WorkoutTracker to log this Set"
             ]
         ),
@@ -150,8 +155,8 @@ struct LockScreenCardReading: CustomTestStringConvertible, Sendable {
             name: "a Set that opens on a hold",
             set: .openingHold,
             reads: [
-                "Ready", "Start the 10 second hold", "Show the Coach Note", "Cadence 2-3:1:0", "185 pounds", "8 to 10 Reps",
-                "No RPE", "Log this Set"
+                "Ready", "Start the 10 second hold", "Show the Coach Note", "BB RDL", "Cadence 2-3:1:0", "185 pounds",
+                "8 to 10 Reps", "No RPE", "Log this Set"
             ]
         )
     ]
