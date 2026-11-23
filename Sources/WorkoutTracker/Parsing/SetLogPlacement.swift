@@ -107,40 +107,51 @@ struct PrescriptionRow: Sendable, Equatable {
     /// a non-numeric one, so it cannot make sync build a Set per count (#686).
     private static let maxSetsPerLine = 99
 
-    /// The Sets cell's count: `3`, `2 sets`, `x2`, and `1+2` as 3. Nil when it names no count.
-    let setsCellCount: Int?
-    /// The Sets cell starts with a number, as `3` and `2 sets` do and `x2` does not.
-    let setsCellStartsWithACount: Bool
-    /// The row's first Load value is a Drop.
-    let isDrop: Bool
-    private let repsCellCount: Int?
+    private let setsCell: String
+    private let repsCell: String
+    private let loadCell: String
 
     init(row: Int, in grid: SheetGrid, cols: DayColumns) {
-        setsCellCount = Self.count(inSetsCell: grid.cellOrEmpty(row, cols.sets))
-        setsCellStartsWithACount = grid.cellOrEmpty(row, cols.sets).trimmed.prefixMatch(of: /\d/) != nil
-        isDrop = PrescribedLoad(PrescriptionValueList.load(grid.cellOrEmpty(row, cols.load)).value(at: 0)).isDrop
-        repsCellCount = grid.cellOrEmpty(row, cols.reps).trimmed.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/)
-            .flatMap { Self.capped(Int($0.1)) }
+        setsCell = grid.cellOrEmpty(row, cols.sets).trimmed
+        repsCell = grid.cellOrEmpty(row, cols.reps).trimmed
+        loadCell = grid.cellOrEmpty(row, cols.load)
+    }
+
+    /// The Sets cell's count: `3`, `2 sets`, `x2`, and `1+2` as 3. Nil when it names no count.
+    var setsCellCount: Int? { Self.count(inSetsCell: setsCell) }
+
+    /// The Sets cell starts with a number, as `3` and `2 sets` do and `x2` does not.
+    var setsCellStartsWithACount: Bool { setsCell.first?.isNumber ?? false }
+
+    /// The row's first Load value is a Drop.
+    var isDrop: Bool {
+        loadCell.contains("%") && PrescribedLoad(PrescriptionValueList.load(loadCell).value(at: 0)).isDrop
     }
 
     /// How many Sets this row adds as a continuation Line, or nil when it is not a Line. A Drop line
     /// is a Line however its count is written: its Sets cell, else the N of an `N x M` Reps cell,
     /// else one Set.
     var lineSetCount: Int? {
-        setsCellCount ?? (isDrop ? repsCellCount ?? 1 : nil)
+        if let setsCellCount { return setsCellCount }
+        guard isDrop else { return nil }
+        return repsCell.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/).flatMap { Self.capped(Int($0.1)) } ?? 1
     }
 
     static func count(inSetsCell cell: String) -> Int? {
         let text = cell.trimmed
-        let addends = text.split(separator: "+", omittingEmptySubsequences: false)
-            .map { Int($0.trimmingCharacters(in: .whitespaces)) }
-        if addends.count > 1, addends.allSatisfy({ $0 != nil }) {
-            return capped(addends.compactMap { $0 }.reduce(0, +))
-        }
-        if let match = text.prefixMatch(of: /\d+/) {
-            return capped(Int(match.0))
-        }
-        return text.wholeMatch(of: /[xX×]\s*(\d+)/).flatMap { capped(Int($0.1)) }
+        guard let first = text.first else { return nil }
+        if let sum = sum(of: text) { return capped(sum) }
+        if first.isNumber { return capped(Int(text.prefix { $0.isNumber })) }
+        guard "xX×".contains(first) else { return nil }
+        let rest = text.dropFirst().trimmingCharacters(in: .whitespaces)
+        return rest.allSatisfy(\.isNumber) ? capped(Int(rest)) : nil
+    }
+
+    /// `1+2` as 3. Nil unless every side of a `+` is a whole number.
+    private static func sum(of text: String) -> Int? {
+        guard text.contains("+") else { return nil }
+        let addends = text.split(separator: "+", omittingEmptySubsequences: false).map { Int($0.trimmingCharacters(in: .whitespaces)) }
+        return addends.allSatisfy { $0 != nil } ? addends.compactMap { $0 }.reduce(0, +) : nil
     }
 
     private static func capped(_ value: Int?) -> Int? {

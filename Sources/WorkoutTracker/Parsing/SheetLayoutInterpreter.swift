@@ -277,7 +277,9 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
 /// Load is a Drop.
 private func marksADropLine(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
     let name = grid.cell(row: row, col: cols.name).trimmed
-    let nameMarksADrop = name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil || name.allSatisfy { "↳→>-–—".contains($0) }
+    let nameMarksADrop =
+        name.allSatisfy { "↳→>-–—".contains($0) }
+        || (name.localizedCaseInsensitiveContains("drop") && name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil)
     return nameMarksADrop && PrescriptionRow(row: row, in: grid, cols: cols).isDrop
 }
 

@@ -237,7 +237,7 @@ extension ExerciseSet {
             .filter { $0.index < index }
             .sorted { $0.index > $1.index }
             .compactMap { earlier in
-                earlier.setLog.map { EarlierSetLog(index: earlier.index, setLog: $0, load: earlier.prescription.load) }
+                earlier.setLog.map { EarlierSetLog(index: earlier.index, setLog: $0, load: PrescribedLoad(earlier.prescribedLoad)) }
             }
     }
 }

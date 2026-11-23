@@ -46,7 +46,8 @@ enum PrescribedReps: Equatable, Sendable {
 
     /// `2 x 8` prescribes the reps after its Set count.
     private static func repsAfterASetCount(_ cell: String) -> String {
-        cell.wholeMatch(of: /\d+\s*[xX×]\s*(.+)/).map { String($0.1) } ?? cell
+        guard cell.contains(where: { "xX×".contains($0) }) else { return cell }
+        return cell.wholeMatch(of: /\d+\s*[xX×]\s*(.+)/).map { String($0.1) } ?? cell
     }
 
     var target: ClosedRange<Int>? {
