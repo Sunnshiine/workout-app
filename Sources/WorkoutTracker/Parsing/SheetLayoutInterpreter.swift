@@ -273,19 +273,6 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
     return rows
 }
 
-/// A named row whose Load is a Drop and whose name marks a Drop of the Exercise named `above`:
-/// `Drop`, `↳`, `Drop set`, or that Exercise's own name with `Drop` on it, as `HB SQ Drop` is under
-/// `HB SQ`. `Leg Press Drop Set` names another movement, so it stays an Exercise.
-private func marksADropLine(_ row: Int, under above: String, in grid: SheetGrid, cols: DayColumns) -> Bool {
-    let name = grid.cell(row: row, col: cols.name).trimmed
-    if name.allSatisfy({ "↳→>-–—".contains($0) }) { return PrescriptionRow(row: row, in: grid, cols: cols).isDrop }
-    guard name.localizedCaseInsensitiveContains("drop"), name.firstMatch(of: /\bdrops?\b/.ignoresCase()) != nil else { return false }
-    let movement = name.replacing(/\b(?:drops?|sets?)\b|[↳→>\-–—]/.ignoresCase(), with: " ")
-        .split(whereSeparator: \.isWhitespace).joined(separator: " ")
-    let namesTheMovementAbove = movement.isEmpty || above.localizedCaseInsensitiveContains(movement)
-    return namesTheMovementAbove && PrescriptionRow(row: row, in: grid, cols: cols).isDrop
-}
-
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
 /// movement is retired without losing its history, so a hidden row is not an Exercise — the same
 /// reading ADR-0003 already gives it on the write side. Each Exercise runs to the next visible
@@ -299,30 +286,16 @@ private func exerciseAnchors(
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
     let named = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    let dropLines = namedDropLines(named, in: snapshot, cols: cols)
-    let rows = named.filter { snapshot.isRowVisible($0) && !dropLines.contains($0) }
+    let rows = named.filter(snapshot.isRowVisible)
     return rows.enumerated().map { index, row in
         let nextAnchorRow = index + 1 < rows.count ? rows[index + 1] : upper
         return SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
             nextAnchorRow: nextAnchorRow,
-            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols),
-            namedDropRows: dropLines.filter { $0 > row && $0 < nextAnchorRow }.sorted()
+            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols)
         )
     }
-}
-
-/// The named rows that are Drop lines of the visible Exercise named on the row above them.
-private func namedDropLines(_ named: [Int], in snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
-    let grid = snapshot.values
-    return Set(
-        zip(named, named.dropFirst()).filter { above, row in
-            snapshot.isRowVisible(row) && snapshot.isRowVisible(above)
-                && marksADropLine(row, under: grid.cell(row: above, col: cols.name).trimmed, in: grid, cols: cols)
-        }
-        .map(\.1)
-    )
 }
 
 /// The visible rows under a hidden named row that stay with the movement the coach hid: from the

@@ -5,8 +5,8 @@ import Testing
 
 private let frozenNow = Date(timeIntervalSince1970: 1_780_000_000)
 
-/// The top Set of `HB SQ` 1x6 on row 15, with the Drop on row 17 written as a named Drop row or as
-/// an unnamed continuation Line, and `Next Lift` on row 22.
+/// The top Set of `HB SQ` 1x6 on row 15, with the Drop on row 17 written as an unnamed Drop line
+/// the app adds, or as a named Drop row, which is an Exercise of its own, and `Next Lift` on row 22.
 private let namedDrop: [String: String] = ["C17": "HB SQ Drop", "F17": "8", "H17": "Drop 20%"]
 private let unnamedDrop: [String: String] = ["F17": "8", "H17": "Drop 20%"]
 
@@ -34,9 +34,8 @@ private func lastSetRPE(after app: WorkoutApplication) async throws -> String? {
 /// Last Set RPE mirrors the last Set the coach counted, as the app wrote it before it read Drop
 /// lines. A Drop Set it adds after them never writes it. Provisional call, recorded in #1247.
 @MainActor
-@Test(arguments: [namedDrop, unnamedDrop])
-func lastSetRPEStaysOnTheTopSetWhenTheDropIsLogged(drop: [String: String]) async throws {
-    let (app, _) = try await makeApp(drop: drop)
+@Test func lastSetRPEStaysOnTheTopSetWhenTheDropIsLogged() async throws {
+    let (app, _) = try await makeApp(drop: unnamedDrop)
     let sets = try app.session(SessionAddress(week: 1, day: 1)).exercises[0].sets
     #expect(sets.map(\.prescribedLoad) == ["RPE8", "Drop 20%"])
 
@@ -53,14 +52,18 @@ func lastSetRPEStaysOnTheTopSetWhenTheDropIsLogged(drop: [String: String]) async
     #expect(try await lastSetRPE(after: app) == nil)
 }
 
-/// The update case: the Sheet already holds the top Set's log and its Last Set RPE from before
-/// the app read the Drop, and the athlete then logs the Drop.
+/// A named Drop row is an Exercise of its own, so its log writes its own Last Set RPE, as before the
+/// app read Drop lines, including on a Sheet that already holds the top Set's.
 @MainActor
-@Test func lastSetRPEWrittenBeforeTheUpdateStaysWhenTheDropIsLogged() async throws {
-    var drop = namedDrop
-    drop.merge(["K15": "175x6@8", "I15": "8"]) { _, new in new }
-    let (app, _) = try await makeApp(drop: drop)
+@Test(arguments: [[:], ["K15": "175x6@8", "I15": "8"]])
+func aNamedDropRowsLogWritesItsOwnLastSetRPE(written: [String: String]) async throws {
+    let (app, _) = try await makeApp(drop: namedDrop.merging(written) { _, new in new })
 
-    _ = try app.log(try #require(SetAddress("w1d1.e0.s1")), setLog: "140x8@9")
+    if written.isEmpty {
+        _ = try app.log(try #require(SetAddress("w1d1.e0.s0")), setLog: "175x6@8")
+    }
+    _ = try app.log(try #require(SetAddress("w1d1.e1.s0")), setLog: "140x8@9")
     #expect(try await lastSetRPE(after: app) == "8")
+    #expect(try await app.sheet(tab: nil).cells["I17"] == "9")
+    #expect(try await app.sheet(tab: nil).cells["K17"] == "140x8@9")
 }

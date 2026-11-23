@@ -98,20 +98,6 @@ struct SheetLayoutExerciseAnchor: Sendable {
     let nextAnchorRow: Int
     /// Visible rows in the span that belong to a movement the coach hid, not to this Exercise.
     let retiredRows: Set<Int>
-    /// The rows of Drop lines the coach named, such as `HB SQ Drop`, in sheet order. The app read
-    /// each as an Exercise of its own before it read Drop lines, running to the next of them or to
-    /// `nextAnchorRow`, so each keeps that span's rows for its Set Logs, and the Sets above the
-    /// first keep only the rows above it.
-    let namedDropRows: [Int]
-
-    var countedRowsEnd: Int { namedDropRows.first ?? nextAnchorRow }
-
-    /// The rows an added Drop on `lineRow` may hold Set Logs on: those of the named Drop line's span
-    /// it sits in, else those above the first named Drop line.
-    private func dropSpan(containing lineRow: Int) -> Range<Int> {
-        guard let start = namedDropRows.last(where: { $0 <= lineRow }) else { return (row + 1)..<countedRowsEnd }
-        return start..<(namedDropRows.first { $0 > start } ?? nextAnchorRow)
-    }
 
     func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(
@@ -139,7 +125,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let continuations = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).compactMap { lineRow in
             let reading = PrescriptionRow(row: lineRow, in: grid, cols: cols)
             return reading.lineSetCount.map {
-                (row: lineRow, setCount: $0, addsADrop: lineRow >= countedRowsEnd || reading.setsCellCount == nil)
+                (row: lineRow, setCount: $0, addsADrop: reading.setsCellCount == nil)
             }
         }
         let ordered =
@@ -162,7 +148,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// itself; every other rule starts on the row below it. Set N takes the Nth of these, so "which
     /// row is Set N on" and "which row does an occupied header redirect to" read the same list.
     func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
-        ownVisibleRows(from: row + (headerHoldsSetLogs ? 0 : 1), before: countedRowsEnd, in: snapshot)
+        ownVisibleRows(from: row + (headerHoldsSetLogs ? 0 : 1), before: nextAnchorRow, in: snapshot)
     }
 
     func visibleSetLogRow(for setIndex: Int, headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> Int? {
@@ -302,10 +288,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
         cols: DayColumns
     ) -> [Int] {
         let grid = snapshot.values
-        let span = dropSpan(containing: line.row)
-        let role = line.notesRole(in: grid, cols: cols)
-        let ownRowIsProtected = role.coachNote != nil || (namedDropRows.contains(line.row) && role.legacyLog != nil)
-        let spareRows = ownVisibleRows(from: span.lowerBound, before: span.upperBound, in: snapshot).filter { spare in
+        let ownRowIsProtected = line.notesRole(in: grid, cols: cols).coachNote != nil
+        let spareRows = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).filter { spare in
             !lines.contains { $0.row == spare }
                 && HeaderNotesRole(notesCell: grid.cellOrEmpty(spare, cols.notes).trimmed, setCount: line.setCount).coachNote == nil
         }
