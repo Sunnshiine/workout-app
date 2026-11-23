@@ -95,15 +95,17 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   Set Logs, and the Exercises below it keep their order. Its Drop weighs off its own first Set, so
   it gets no suggestion from the Exercise above; that suggestion would reach a dictated or Lock
   Screen Set Log, and is left to #1247. Under a hidden named row, a visible row other than a Drop
-  line that prescribes Sets, or whose Notes hold a Coach Note in which nothing could be a
-  hand-typed Set Log, stays with the hidden movement, along with every row after it up to the next
-  visible Exercise (#1230). Those rows are neither Lines nor writable rows of the Exercise above.
-  When any visible row in that run may hold a Set Log, none of the run stays with the hidden
-  movement, and the Exercise above reads every row of it as it did before, so no Set Log or Set
-  index moves. A Drop line, a blank row, and a row of Set Logs above the run still belong to the
-  Exercise above, as #1229 read Block - 31. A coach's new non-Drop line written under hidden rows
-  reads as the hidden movement's too; that reading is provisional until a real Sheet shows which a
-  coach means.
+  line that prescribes Sets stays with the hidden movement, along with every row after it up to
+  the next visible Exercise (#1230). Those rows are neither Lines nor writable rows of the
+  Exercise above. When any visible row of that run holds Notes text, none of it stays with the
+  hidden movement: the app read that text before as a Set Log of the Exercise above, so it still
+  does, and no Set Log or Set index moves. A Drop line, a blank row, and a row of Set Logs above the
+  run still belong to the Exercise above, as #1229 read Block - 31. Coach text alone under a hidden
+  named row (#1230's second layout) reads as before, and a log can land on it: refusing that log
+  would leave a Set that reads Logged once the sync banner clears, with no mark that it never
+  reached the Sheet. A mark on the Set comes first (#1247). A coach's new non-Drop line written
+  under hidden rows reads as the hidden movement's too; that reading is provisional until a real
+  Sheet shows which a coach means.
   Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
   so a Drop Set the app adds after them never writes it. That call is provisional until Sunny or
   the coach says which RPE they read there (#1247).

@@ -138,9 +138,10 @@ func aSetLogBelowALineUnderAHiddenNameKeepsEveryRowFromRetiring(cells: [String: 
 }
 
 /// #1230, layout 2: Back Squat's Notes hold a Coach Note, the next named row is hidden, and the
-/// visible row under it holds that movement's coach text. Back Squat's Set Logs have nowhere safe to
-/// go, so the write is refused rather than read or overwrite the coach's text.
-@Test func aProtectedHeadersScanDoesNotTakeAHiddenMovementsCoachText() throws {
+/// visible row under it holds coach text. The app read that text as Back Squat's first Set Log
+/// before it read Drop lines, and still does, so it writes there too. Refusing it would leave a Set
+/// that reads Logged with no mark once the banner clears (#1247).
+@Test func aHiddenMovementsCoachTextReadsAsTheExerciseAboveDid() throws {
     let cells = [
         "C15": "Back Squat", "D15": "3", "F15": "5", "H15": "RPE7", "K15": "Brace hard",
         "C16": "0:2:0 Hip Thrust", "D16": "2", "F16": "8",
@@ -149,9 +150,14 @@ func aSetLogBelowALineUnderAHiddenNameKeepsEveryRowFromRetiring(cells: [String: 
     ]
     let (snapshot, day, exercises) = try parsedDay(cells, hidden: [15])
 
-    #expect(exercises[0].sets.map(\.state) == [.pending, .pending, .pending])
+    #expect(exercises[0].sets.map(\.state) == [.logged, .pending, .pending])
+    #expect(exercises[0].sets.first?.unstructuredSetLog == "Start w/ 10 sec hold")
     let backSquat = try #require(day.exerciseAnchors.first)
-    #expect(backSquat.setLogPlacement(for: 0, in: snapshot, cols: day.columns) == .occupiedHeaderBlocksSetRow)
+    guard case .placed(let placement) = backSquat.setLogPlacement(for: 0, in: snapshot, cols: day.columns) else {
+        Issue.record("Set 1 has no row")
+        return
+    }
+    #expect(placement.row == 16)
 }
 
 /// #1168's Leg Ext.: a blank visible row under hidden named rows stays the Exercise's spare row, and

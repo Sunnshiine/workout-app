@@ -299,14 +299,14 @@ private func exerciseAnchors(
 }
 
 /// The visible rows under a hidden named row that stay with the movement the coach hid: from the
-/// first one that prescribes Sets other than a Drop, or whose Notes hold coach text with no Set Log
-/// in it, to the end of the span (#1230). Before that, a Drop line, a blank row, and a row of Set
-/// Logs still belong to the Exercise above. A row holding a Set Log never retires, and none of the
-/// rows around it do either, so no Set changes the index or the row it had before.
+/// first one that prescribes Sets other than a Drop to the end of the span (#1230). Before that, a
+/// Drop line, a blank row, and a row of Set Logs still belong to the Exercise above. When any
+/// visible row of that run holds Notes text, the app read it before as a Set Log of the Exercise
+/// above, so none of the run retires and every Set keeps the index, row, and Set Log it had.
 private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
     guard let start = firstRowAHiddenMovementKeeps(in: span, snapshot: snapshot, cols: cols) else { return [] }
     let retired = start..<span.upperBound
-    return anyRowHoldsASetLog(retired, snapshot: snapshot, cols: cols) ? [] : Set(retired)
+    return anyRowHoldsNotes(retired, snapshot: snapshot, cols: cols) ? [] : Set(retired)
 }
 
 private func firstRowAHiddenMovementKeeps(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Int? {
@@ -321,31 +321,13 @@ private func firstRowAHiddenMovementKeeps(in span: Range<Int>, snapshot: SheetSn
     return nil
 }
 
-private func anyRowHoldsASetLog(_ rows: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Bool {
-    rows.contains { snapshot.isRowVisible($0) && notesMayHoldASetLog(snapshot.values.cellOrEmpty($0, cols.notes)) }
+private func anyRowHoldsNotes(_ rows: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Bool {
+    rows.contains { snapshot.isRowVisible($0) && !snapshot.values.cellOrEmpty($0, cols.notes).trimmed.isEmpty }
 }
 
 private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
     let reading = PrescriptionRow(row: row, in: grid, cols: cols)
-    guard !reading.isDrop else { return false }
-    return reading.setsCellCount != nil || holdsCoachTextAlone(grid.cellOrEmpty(row, cols.notes))
-}
-
-/// A Coach Note in which no comma-separated value could be a Set Log a hand typed: `skip`, a
-/// formatted Set Log, or anything with reps after an `x`, as `BWx8@8`, `50kgx9@9` and `bar x 9` have.
-private func holdsCoachTextAlone(_ notes: String) -> Bool {
-    let text = notes.trimmed
-    guard let coachNote = HeaderNotesRole(notesCell: text, setCount: 1).coachNote, !coachNote.isEmpty else { return false }
-    return !notesMayHoldASetLog(text)
-}
-
-private func notesMayHoldASetLog(_ notes: String) -> Bool {
-    notes.split(separator: ",").contains { part in
-        let value = part.trimmingCharacters(in: .whitespacesAndNewlines)
-        return value.caseInsensitiveCompare(SetLogToken.skipSentinel) == .orderedSame
-            || SetLog(formatted: value) != nil
-            || value.firstMatch(of: /[xX×]\s*\d/) != nil
-    }
+    return !reading.isDrop && reading.setsCellCount != nil
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {
