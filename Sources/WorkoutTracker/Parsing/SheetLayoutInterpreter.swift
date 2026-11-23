@@ -308,7 +308,7 @@ private func exerciseAnchors(
             row: row,
             nextAnchorRow: nextAnchorRow,
             retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols),
-            countedRowsEnd: dropLines.filter { $0 > row && $0 < nextAnchorRow }.min() ?? nextAnchorRow
+            namedDropRows: dropLines.filter { $0 > row && $0 < nextAnchorRow }.sorted()
         )
     }
 }

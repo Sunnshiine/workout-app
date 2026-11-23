@@ -49,17 +49,6 @@ private let layouts: [DropLayout] = [
     DropLayout("Sets cell blank", layout(dropLine, ["D16": ""]), sets: 2, loads: ["RPE8", "Drop 20%"], rows: [14, 15]),
     DropLayout("Sets cell x2", layout(dropLine, ["D16": "x2"])),
     DropLayout("2 x 8 in the Reps cell", layout(dropLine, ["D16": "", "E16": "", "F16": "2 x 8"])),
-    DropLayout(
-        "top Set and drops on one row",
-        layout(["D15": "1+2", "F15": "6, 8, 8", "H15": "RPE8, Drop 20%"]),
-        rows: [14, 14, 14]
-    ),
-    DropLayout(
-        "top Set and drops on one row worded -20%",
-        layout(["D15": "1+2", "F15": "6, 8, 8", "H15": "RPE8, -20%"]),
-        loads: ["RPE8", "-20%", "-20%"],
-        rows: [14, 14, 14]
-    ),
     DropLayout("drop line named Drop", layout(dropLine, ["C16": "Drop"])),
     DropLayout("drop line named with an arrow", layout(dropLine, ["C16": "↳"])),
     DropLayout("drop line named after the lift", layout(dropLine, ["C16": "HB SQ Drop"])),
@@ -268,18 +257,87 @@ func aNamedDropRowsOwnLogStaysTheDrops(name: String) throws {
     #expect(rows == [nil, 15])
 }
 
-/// `x2` and `1+2` count Sets only on a row whose Load lists a Drop. Elsewhere the Sets cell reads its
-/// leading number, as it did before, so no other Exercise gains Sets or moves its Set Logs.
+/// A row the app gave a Set count before it read Drop lines keeps that count, its Sets cell's
+/// leading number, so no Exercise gains Sets or moves its Set Logs. `x2` counts only on a Drop line.
 @Test(
     arguments: [
         (layout(["D16": "x2", "F16": "8", "H16": "RPE7"]), 1),
         (layout(["D15": "x3"]), 1),
         (layout(["D15": "1+2"]), 1),
+        (layout(["D15": "1+2", "F15": "6, 8", "H15": "RPE8, Drop 20%"]), 1),
         (layout(["D16": "1+2", "F16": "8", "H16": "RPE7", "D17": "2", "F17": "8", "H17": "RPE7"]), 4)
     ] as [([String: String], Int)]
 )
-func aSetsCellsDropFormsCountOnlyOnADropRow(cells: [String: String], setCount: Int) throws {
+func aRowTheAppCountedBeforeKeepsItsCount(cells: [String: String], setCount: Int) throws {
     let (_, _, exercises) = try parsedDay(cells, hidden: [])
 
     #expect(exercises[0].sets.count == setCount)
+}
+
+/// `layout` with the next Exercise on row 22, leaving rows 16 to 21 to the squat.
+private func roomyLayout(_ cells: [String: String]) -> [String: String] {
+    layout(["C18": "", "D18": "", "F18": "", "H18": "", "C22": "Next Lift", "D22": "2", "F22": "10", "H22": "RPE8"], cells)
+}
+
+/// Before the app read Drop lines, a named Drop row was an Exercise of its own, running to the next
+/// named row, and a Coach Note in its Notes sent its log to the next row of that span. It still
+/// does, and no other Drop takes that row.
+@Test(
+    arguments: [
+        (
+            roomyLayout(["K15": "175x6@8", "C17": "HB SQ Drop", "F17": "8", "H17": "Drop 20%", "K17": "Slow eccentric", "K18": "140x8@8"]),
+            [SetLog(weight: .pounds(175), reps: 6, rpe: .eight), SetLog(weight: .pounds(140), reps: 8, rpe: .eight)],
+            [14, 17]
+        ),
+        (
+            roomyLayout([
+                "K15": "175x6@8", "C16": "Drop", "F16": "8", "H16": "Drop 20%", "K16": "Keep tight",
+                "C17": "Drop", "F17": "8", "H17": "Drop 30%", "K17": "Fast", "K18": "122.5x8@8"
+            ]),
+            [SetLog(weight: .pounds(175), reps: 6, rpe: .eight), nil, SetLog(weight: .pounds(122.5), reps: 8, rpe: .eight)],
+            [14, nil, 17]
+        ),
+        (
+            roomyLayout([
+                "K15": "Brace", "F16": "8", "H16": "Drop 20%", "K16": "175x6@8",
+                "C17": "Drop", "F17": "8", "H17": "Drop 30%", "K17": "Fast", "K18": "122.5x8@8"
+            ]),
+            [SetLog(weight: .pounds(175), reps: 6, rpe: .eight), nil, SetLog(weight: .pounds(122.5), reps: 8, rpe: .eight)],
+            [15, nil, 17]
+        )
+    ] as [([String: String], [SetLog?], [Int?])]
+)
+func aNamedDropRowsCoachNoteSendsItsLogToItsOwnNextRow(cells: [String: String], logs: [SetLog?], rows: [Int?]) throws {
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.map(\.setLog) == logs)
+    #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: logs.count, snapshot: snapshot, day: day) == rows)
+}
+
+/// A Sets cell the app read no count in before, such as `100`, adds a Drop: the top Set's log the
+/// app sent to that row stays the top Set's.
+@Test func aDropRowsSetsCellPastTheLimitKeepsTheTopSetsLog() throws {
+    let cells = roomyLayout(["K15": "Brace", "D16": "100", "F16": "8", "H16": "Drop 20%", "K16": "175x6@8"])
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.map(\.setLog) == [SetLog(weight: .pounds(175), reps: 6, rpe: .eight), nil])
+    #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: 2, snapshot: snapshot, day: day) == [15, 16])
+}
+
+/// A named Drop row's Legacy Log is protected, as the app protected that row's header before, and
+/// coach text on a spare row is never a Drop's Set Log.
+@Test(
+    arguments: [
+        (
+            roomyLayout(["K15": "175x6@8", "C16": "HB SQ Drop", "D16": "2", "F16": "8", "H16": "Drop 20%", "K16": "140x8, 140x8"]),
+            [14, 16, 16]
+        ),
+        (roomyLayout(["K15": "175x6@8", "F16": "8", "H16": "Drop 20%", "K16": "Slow", "K17": "Keep chest up"]), [14, 17])
+    ] as [([String: String], [Int?])]
+)
+func aDropLeavesALegacyLogAndCoachTextAlone(cells: [String: String], rows: [Int?]) throws {
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.dropFirst().allSatisfy { $0.state == .pending })
+    #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: rows.count, snapshot: snapshot, day: day) == rows)
 }

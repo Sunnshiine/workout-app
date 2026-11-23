@@ -81,12 +81,15 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
 - **Amended 2026-11-23:** a continuation row whose first Load value is a Drop is a Line even when
   its Sets cell holds no number. Its count comes from the Sets cell (`2`, `2 sets`, `x2`), else
-  the N of an `N x M` Reps cell, else one Set. On a row whose Load lists a Drop, a Sets cell `1+2`
-  counts 3; on any other row the Sets cell reads only its leading number, as before, so no Exercise
-  without a Drop gains Sets or moves a Set Log. A Drop line whose Sets cell starts with no number
+  the N of an `N x M` Reps cell, else one Set. A row whose Sets cell starts with a number keeps the
+  count the app read before, that number, so `1+2` is one Set and no Exercise gains Sets or moves
+  a Set Log; `x2` counts only on a Drop line the app did not read before. A Drop line whose Sets cell starts with no number
   adds Sets without moving any other: the app read that row as a plain row before, and may have
   sent another Set's Set Log there, so every other Set keeps the address it had, and the added Drop
-  takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row.
+  takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row
+  that holds no Coach Note. A Drop above the first named Drop line looks only above it; a named
+  Drop line looks only in its own span, to the next named Drop line or Exercise, and treats a
+  Legacy Log in its Notes as the app treated it in that Exercise's header.
   Its Sets are numbered after every other Line's, wherever its row sits, because a queued write
   names its Set by index: a Drop the coach adds above a later Line, or one an update first reads,
   must not hand that Line's queued Set Log to the Drop. A

@@ -98,10 +98,20 @@ struct SheetLayoutExerciseAnchor: Sendable {
     let nextAnchorRow: Int
     /// Visible rows in the span that belong to a movement the coach hid, not to this Exercise.
     let retiredRows: Set<Int>
-    /// The first row of a Drop line the coach named, such as `HB SQ Drop`, or `nextAnchorRow`. The
-    /// app read that row as an Exercise of its own before it read Drop lines, so the rows from it on
-    /// hold that Drop's Set Logs, and the Sets above it keep only the rows above it.
-    let countedRowsEnd: Int
+    /// The rows of Drop lines the coach named, such as `HB SQ Drop`, in sheet order. The app read
+    /// each as an Exercise of its own before it read Drop lines, running to the next of them or to
+    /// `nextAnchorRow`, so each keeps that span's rows for its Set Logs, and the Sets above the
+    /// first keep only the rows above it.
+    let namedDropRows: [Int]
+
+    var countedRowsEnd: Int { namedDropRows.first ?? nextAnchorRow }
+
+    /// The rows an added Drop on `lineRow` may hold Set Logs on: those of the named Drop line's span
+    /// it sits in, else those above the first named Drop line.
+    private func dropSpan(containing lineRow: Int) -> Range<Int> {
+        guard let start = namedDropRows.last(where: { $0 <= lineRow }) else { return (row + 1)..<countedRowsEnd }
+        return start..<(namedDropRows.first { $0 > start } ?? nextAnchorRow)
+    }
 
     func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(
@@ -129,7 +139,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let continuations = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).compactMap { lineRow in
             let reading = PrescriptionRow(row: lineRow, in: grid, cols: cols)
             return reading.lineSetCount.map {
-                (row: lineRow, setCount: $0, addsADrop: lineRow >= countedRowsEnd || !reading.setsCellStartsWithACount)
+                (row: lineRow, setCount: $0, addsADrop: lineRow >= countedRowsEnd || reading.setsCellCount == nil)
             }
         }
         let ordered =
@@ -268,19 +278,38 @@ struct SheetLayoutExerciseAnchor: Sendable {
         )
     }
 
-    /// The row each added Drop line's Set Logs take, keyed by the Line's own row.
+    /// The row each added Drop line's Set Logs take, keyed by the Line's own row. A Drop takes its
+    /// own row unless its Notes hold a Coach Note, or a Legacy Log on a row named as a Drop, as the
+    /// app protected that row's header before. Otherwise it takes the next free row of its span that
+    /// holds no Coach Note.
     private func addedDropRows(lines: [PrescriptionLine], in snapshot: SheetSnapshot, cols: DayColumns, col: Int) -> [Int: Int] {
         var taken = countedRows(lines.countedLines, in: snapshot, cols: cols, col: col)
-        let spareRows = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).filter { row in !lines.contains { $0.row == row }
-        }
         var rows: [Int: Int] = [:]
         for line in lines where line.addsADrop {
-            let ownRow = line.notesRole(in: snapshot.values, cols: cols).coachNote == nil ? [line.row] : []
-            guard let row = (ownRow + spareRows).first(where: { !taken.contains($0) }) else { break }
+            guard let row = candidateRows(for: line, lines: lines, in: snapshot, cols: cols).first(where: { !taken.contains($0) })
+            else { continue }
             taken.insert(row)
             rows[line.row] = row
         }
         return rows
+    }
+
+    /// The rows an added Drop line may take, in the order it tries them.
+    private func candidateRows(
+        for line: PrescriptionLine,
+        lines: [PrescriptionLine],
+        in snapshot: SheetSnapshot,
+        cols: DayColumns
+    ) -> [Int] {
+        let grid = snapshot.values
+        let span = dropSpan(containing: line.row)
+        let role = line.notesRole(in: grid, cols: cols)
+        let ownRowIsProtected = role.coachNote != nil || (namedDropRows.contains(line.row) && role.legacyLog != nil)
+        let spareRows = ownVisibleRows(from: span.lowerBound, before: span.upperBound, in: snapshot).filter { spare in
+            !lines.contains { $0.row == spare }
+                && HeaderNotesRole(notesCell: grid.cellOrEmpty(spare, cols.notes).trimmed, setCount: line.setCount).coachNote == nil
+        }
+        return (ownRowIsProtected ? [] : [line.row]) + spareRows
     }
 
     private func countedRows(_ counted: [PrescriptionLine], in snapshot: SheetSnapshot, cols: DayColumns, col: Int) -> Set<Int> {

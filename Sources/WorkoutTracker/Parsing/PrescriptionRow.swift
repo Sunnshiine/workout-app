@@ -16,50 +16,32 @@ struct PrescriptionRow: Sendable, Equatable {
         loadCell = grid.cellOrEmpty(row, cols.load)
     }
 
-    /// The Sets cell's count: `3` and `2 sets`, and on a row whose Load lists a Drop, `x2` and
-    /// `1+2` as 3. Nil when it names no count. A row with no Drop reads only the leading number, as
-    /// the app read every row before it read Drop lines, so those Sets keep their Set Logs.
-    var setsCellCount: Int? { Self.count(inSetsCell: setsCell, readsDropForms: listsADrop) }
-
-    /// The Sets cell starts with a number, as `3` and `2 sets` do and `x2` does not.
-    var setsCellStartsWithACount: Bool { setsCell.first?.isNumber ?? false }
+    /// The Sets cell's leading number, as `3` and `2 sets` give it, or nil. It is the count the app
+    /// read on every row before it read Drop lines, so a row it gives a count to keeps that count,
+    /// and its Sets keep their Set Logs.
+    var setsCellCount: Int? {
+        setsCell.first?.isNumber ?? false ? Self.capped(Int(setsCell.prefix { $0.isNumber })) : nil
+    }
 
     /// The row's first Load value is a Drop.
     var isDrop: Bool {
         loadCell.contains("%") && PrescribedLoad(PrescriptionValueList.load(loadCell).value(at: 0)).isDrop
     }
 
-    private var listsADrop: Bool {
-        loadCell.contains("%") && loadCell.split(separator: ",").contains { PrescribedLoad(String($0)).isDrop }
-    }
-
     /// How many Sets this row adds as a continuation Line, or nil when it is not a Line. A Drop line
-    /// is a Line however its count is written: its Sets cell, else the N of an `N x M` Reps cell,
-    /// else one Set.
+    /// is a Line however its count is written: its Sets cell's number, else `x2`, else the N of an
+    /// `N x M` Reps cell, else one Set.
     var lineSetCount: Int? {
         if let setsCellCount { return setsCellCount }
         guard isDrop else { return nil }
-        return repsCell.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/).flatMap { Self.capped(Int($0.1)) } ?? 1
+        return timesCount ?? repsCell.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/).flatMap { Self.capped(Int($0.1)) } ?? 1
     }
 
-    private static func count(inSetsCell text: String, readsDropForms: Bool) -> Int? {
-        if readsDropForms, let count = dropFormCount(text) { return count }
-        return text.first?.isNumber ?? false ? capped(Int(text.prefix { $0.isNumber })) : nil
-    }
-
-    /// `1+2` and `x2`.
-    private static func dropFormCount(_ text: String) -> Int? {
-        if let sum = sum(of: text) { return capped(sum) }
-        guard let first = text.first, "xX×".contains(first) else { return nil }
-        let rest = text.dropFirst().trimmingCharacters(in: .whitespaces)
-        return rest.allSatisfy(\.isNumber) ? capped(Int(rest)) : nil
-    }
-
-    /// `1+2` as 3. Nil unless every side of a `+` is a whole number.
-    private static func sum(of text: String) -> Int? {
-        guard text.contains("+") else { return nil }
-        let addends = text.split(separator: "+", omittingEmptySubsequences: false).map { Int($0.trimmingCharacters(in: .whitespaces)) }
-        return addends.allSatisfy { $0 != nil } ? addends.compactMap { $0 }.reduce(0, +) : nil
+    /// `x2` in the Sets cell.
+    private var timesCount: Int? {
+        guard let first = setsCell.first, "xX×".contains(first) else { return nil }
+        let rest = setsCell.dropFirst().trimmingCharacters(in: .whitespaces)
+        return rest.allSatisfy(\.isNumber) ? Self.capped(Int(rest)) : nil
     }
 
     private static func capped(_ value: Int?) -> Int? {
