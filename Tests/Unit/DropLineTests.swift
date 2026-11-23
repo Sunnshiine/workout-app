@@ -105,20 +105,36 @@ func aDropLineShowsAsLoggableSetsOfTheExerciseAboveIt(layout: DropLayout) throws
 }
 
 /// #1230, layout 1: a retired Hamstring Curl's name row is hidden, and its visible row below keeps a
-/// Sets count and old Set Logs. They stay with the Hamstring Curl, not the Back Squat above.
-@Test func aRetiredMovementsVisibleLineUnderItsHiddenNameIsNotTheExerciseAbovesSets() throws {
+/// Sets count and old Set Logs. A row holding a Set Log never retires, so Back Squat reads it as
+/// main does, its Sets 4 and 5 logged, and every Set keeps its index and row.
+@Test func aRetiredMovementsVisibleLineHoldingSetLogsReadsAsMainReadsIt() throws {
     let cells = [
         "C15": "Back Squat", "D15": "3", "F15": "5", "H15": "RPE7",
         "C16": "0:1:0 Hamstring Curl", "D16": "2", "F16": "10",
         "D17": "2", "F17": "10", "K17": "60x10@8, 60x10@8",
         "C19": "2-3:1:0 BB RDL", "D19": "2", "F19": "8"
     ]
-    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [15])
+    let (_, _, exercises) = try parsedDay(cells, hidden: [15])
 
     #expect(exercises.map(\.exerciseName.entered) == ["Back Squat", "2-3:1:0 BB RDL"])
-    #expect(exercises[0].sets.map(\.state) == [.pending, .pending, .pending])
-    let backSquat = try #require(day.exerciseAnchors.first)
-    #expect(setLogRows(backSquat, sets: 3, snapshot: snapshot, day: day) == [14, 14, 14])
+    #expect(exercises[0].sets.map(\.state) == [.pending, .pending, .pending, .logged, .logged])
+}
+
+/// H7, after an update: the top Set's Coach Note sent its log to the free row below a hidden named
+/// row and a Line the coach wrote under it. That log keeps the row from retiring, and the Line with
+/// it, so the top Set still reads it, and no Set changes index.
+@Test(arguments: [
+    (["K18": "175x6@8"], [SetState.logged, .pending, .pending, .pending]),
+    (["K18": "175x6@8", "D19": "2", "F19": "8", "H19": "RPE7"], [.logged, .pending, .pending, .pending, .pending, .pending])
+])
+func aSetLogBelowALineUnderAHiddenNameKeepsEveryRowFromRetiring(cells: [String: String], states: [SetState]) throws {
+    let body = roomyLayout([
+        "K15": "Brace", "C16": "Old Lift", "D16": "3", "F16": "8", "H16": "RPE7", "D17": "3", "F17": "10", "H17": "RPE7"
+    ])
+    let (_, _, exercises) = try parsedDay(body.merging(cells) { $1 }, hidden: [15])
+
+    #expect(exercises[0].sets.map(\.state) == states)
+    #expect(exercises[0].sets.first?.setLog == SetLog(weight: .pounds(175), reps: 6, rpe: .eight))
 }
 
 /// #1230, layout 2: Back Squat's Notes hold a Coach Note, the next named row is hidden, and the

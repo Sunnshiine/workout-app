@@ -301,17 +301,28 @@ private func exerciseAnchors(
 /// The visible rows under a hidden named row that stay with the movement the coach hid: from the
 /// first one that prescribes Sets other than a Drop, or whose Notes hold coach text with no Set Log
 /// in it, to the end of the span (#1230). Before that, a Drop line, a blank row, and a row of Set
-/// Logs still belong to the Exercise above.
+/// Logs still belong to the Exercise above. A row holding a Set Log never retires, and none of the
+/// rows around it do either, so no Set changes the index or the row it had before.
 private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
+    guard let start = firstRowAHiddenMovementKeeps(in: span, snapshot: snapshot, cols: cols) else { return [] }
+    let retired = start..<span.upperBound
+    return anyRowHoldsASetLog(retired, snapshot: snapshot, cols: cols) ? [] : Set(retired)
+}
+
+private func firstRowAHiddenMovementKeeps(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Int? {
     var underHiddenName = false
     for row in span {
         if !snapshot.isRowVisible(row) {
             underHiddenName = underHiddenName || !snapshot.values.cell(row: row, col: cols.name).trimmed.isEmpty
         } else if underHiddenName, keepsAHiddenMovementsOwnContent(row, in: snapshot.values, cols: cols) {
-            return Set(row..<span.upperBound)
+            return row
         }
     }
-    return []
+    return nil
+}
+
+private func anyRowHoldsASetLog(_ rows: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Bool {
+    rows.contains { snapshot.isRowVisible($0) && notesMayHoldASetLog(snapshot.values.cellOrEmpty($0, cols.notes)) }
 }
 
 private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
@@ -325,7 +336,11 @@ private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, col
 private func holdsCoachTextAlone(_ notes: String) -> Bool {
     let text = notes.trimmed
     guard let coachNote = HeaderNotesRole(notesCell: text, setCount: 1).coachNote, !coachNote.isEmpty else { return false }
-    return !text.split(separator: ",").contains { part in
+    return !notesMayHoldASetLog(text)
+}
+
+private func notesMayHoldASetLog(_ notes: String) -> Bool {
+    notes.split(separator: ",").contains { part in
         let value = part.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.caseInsensitiveCompare(SetLogToken.skipSentinel) == .orderedSame
             || SetLog(formatted: value) != nil
