@@ -268,18 +268,17 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
     var rows: [Int] = []
     for row in firstRow..<upper {
         if isSheetLayoutDayHeader(grid.cell(row: row, col: cols.name)) { break }
-        if isAnchorRow(row, in: grid, cols: cols) { rows.append(row) }
+        if !grid.cell(row: row, col: cols.name).trimmed.isEmpty { rows.append(row) }
     }
     return rows
 }
 
-/// A named row, unless the name only marks a Drop line of the Exercise above: a Drop Load under a
-/// name such as `Drop`, `↳`, or `HB SQ Drop`.
-private func isAnchorRow(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
+/// A named row whose name only marks a Drop line, such as `Drop`, `↳`, or `HB SQ Drop`, and whose
+/// Load is a Drop.
+private func marksADropLine(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
     let name = grid.cell(row: row, col: cols.name).trimmed
-    guard !name.isEmpty else { return false }
-    let marksADrop = name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil || name.allSatisfy { "↳→>-–—".contains($0) }
-    return !(marksADrop && PrescriptionRow(row: row, in: grid, cols: cols).isDrop)
+    let nameMarksADrop = name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil || name.allSatisfy { "↳→>-–—".contains($0) }
+    return nameMarksADrop && PrescriptionRow(row: row, in: grid, cols: cols).isDrop
 }
 
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
@@ -294,7 +293,13 @@ private func exerciseAnchors(
     upper: Int
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
-    let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper).filter(snapshot.isRowVisible)
+    let named = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
+    let rows = named.indices.filter { index in
+        let row = named[index]
+        let followsAVisibleExercise = index > 0 && snapshot.isRowVisible(named[index - 1])
+        return snapshot.isRowVisible(row) && !(followsAVisibleExercise && marksADropLine(row, in: grid, cols: cols))
+    }
+    .map { named[$0] }
     return rows.enumerated().map { index, row in
         let nextAnchorRow = index + 1 < rows.count ? rows[index + 1] : upper
         return SheetLayoutExerciseAnchor(
@@ -307,14 +312,14 @@ private func exerciseAnchors(
 }
 
 /// The visible rows under a hidden named row that stay with the movement the coach hid: from the
-/// first one that prescribes Sets other than a Drop, or whose Notes hold a Coach Note, to the end of
-/// the span (#1230). Before that, a Drop line, a blank row, and a row of Set Logs still belong to the
-/// Exercise above.
+/// first one that prescribes Sets other than a Drop, or whose Notes hold coach text with no Set Log
+/// in it, to the end of the span (#1230). Before that, a Drop line, a blank row, and a row of Set
+/// Logs still belong to the Exercise above.
 private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
     var underHiddenName = false
     for row in span {
         if !snapshot.isRowVisible(row) {
-            underHiddenName = underHiddenName || isAnchorRow(row, in: snapshot.values, cols: cols)
+            underHiddenName = underHiddenName || !snapshot.values.cell(row: row, col: cols.name).trimmed.isEmpty
         } else if underHiddenName, keepsAHiddenMovementsOwnContent(row, in: snapshot.values, cols: cols) {
             return Set(row..<span.upperBound)
         }
@@ -324,8 +329,18 @@ private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: Day
 
 private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
     let reading = PrescriptionRow(row: row, in: grid, cols: cols)
-    let notes = HeaderNotesRole(notesCell: grid.cellOrEmpty(row, cols.notes).trimmed, setCount: reading.setsCellCount ?? 1)
-    return (reading.setsCellCount != nil && !reading.isDrop) || notes.coachNote != nil
+    guard !reading.isDrop else { return false }
+    return reading.setsCellCount != nil || holdsCoachTextAlone(grid.cellOrEmpty(row, cols.notes))
+}
+
+/// Notes text in which no comma-separated value reads as a Set Log, as `105x9 easy` or `skip` does.
+private func holdsCoachTextAlone(_ notes: String) -> Bool {
+    let values = notes.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    return !values.isEmpty
+        && !values.contains { value in
+            value.caseInsensitiveCompare(SetLogToken.skipSentinel) == .orderedSame
+                || value.prefixMatch(of: /\d+(?:\.\d+)?\s*[xX×]\s*\d+/) != nil
+        }
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {

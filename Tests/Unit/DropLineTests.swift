@@ -65,7 +65,6 @@ private let layouts: [DropLayout] = [
     DropLayout("drop line named after the lift", layout(dropLine, ["C16": "HB SQ Drop"])),
     DropLayout("worded 20% drop", layout(dropLine, ["H16": "20% drop"]), loads: ["RPE8", "20% drop", "20% drop"]),
     DropLayout("worded -20%", layout(dropLine, ["H16": "-20%"]), loads: ["RPE8", "-20%", "-20%"]),
-    DropLayout("worded @80%", layout(dropLine, ["H16": "@80%"]), loads: ["RPE8", "@80%", "@80%"]),
     DropLayout(
         "below a blank row",
         layout(["D17": "2", "F17": "8", "H17": "Drop 20%"]),
@@ -106,6 +105,7 @@ func aDropLineShowsAsLoggableSetsOfTheExerciseAboveIt(layout: DropLayout) throws
     #expect(top.sets.map(\.prescribedLoad) == layout.prescribedLoads)
     #expect(top.sets.first?.setLog == SetLog(weight: .pounds(175), reps: 6, rpe: .eight))
     #expect(top.sets.dropFirst().allSatisfy { $0.state == .pending })
+    #expect(top.sets.dropFirst().allSatisfy { PrescribedReps($0.prescribedReps) == .target(8...8) })
 
     let rows = setLogRows(try #require(day.exerciseAnchors.first), sets: layout.squatSetCount, snapshot: snapshot, day: day)
     #expect(rows == layout.setLogRows)
@@ -164,4 +164,84 @@ func aDropLineShowsAsLoggableSetsOfTheExerciseAboveIt(layout: DropLayout) throws
     let (_, _, exercises) = try parsedDay(cells, hidden: [15, 16])
 
     #expect(exercises[0].sets.map(\.setLog) == [SetLog(weight: .pounds(105), reps: 9, rpe: .nine)])
+}
+
+/// A drop row under rows the coach hid, whose Notes the athlete or coach already wrote in, stays the
+/// Exercise's own: neither its Coach Note nor a hand-typed Set Log hands it to the hidden movement.
+@Test(arguments: ["Stay tight", "140x8@8, 140x8 grindy"])
+func aDropRowsOwnNotesUnderHiddenRowsKeepItsSets(notes: String) throws {
+    let cells = layout(["C16": "Old Chest Press", "D16": "2", "F16": "12", "D17": "2", "F17": "8", "H17": "Drop 20%", "K17": notes])
+    let (_, _, exercises) = try parsedDay(cells, hidden: [15])
+
+    #expect(exercises[0].sets.map(\.prescribedLoad) == ["RPE8", "Drop 20%", "Drop 20%"])
+}
+
+/// #1168's Leg Ext. with hand-typed Set Logs on its spare row: they read as the Exercise's own.
+@Test(arguments: [
+    (1, "105x9 easy", [SetState.logged]),
+    (3, "105x9@9, 105x9 grindy", [.logged, .logged, .pending])
+])
+func aHandTypedSetLogUnderHiddenNamedRowsStaysWithTheExerciseAbove(sets: Int, notes: String, states: [SetState]) throws {
+    let cells = [
+        "C15": "0:2:0 Leg Ext.", "D15": "\(sets)", "F15": "9", "H15": "RPE9", "K15": "Pause at the top",
+        "C16": "0:2:0 Old Leg Curl", "D16": "2", "F16": "10",
+        "K18": notes,
+        "C19": "2-3:1:0 BB RDL", "D19": "2", "F19": "8"
+    ]
+    let (_, _, exercises) = try parsedDay(cells, hidden: [15, 16])
+
+    #expect(exercises[0].sets.map(\.state) == states)
+}
+
+/// Before the app read a drop row with no Sets count, a top Set whose Notes hold a Coach Note sent
+/// its Set Log to that row. The log stays the top Set's, and the Drop takes the next free row.
+@Test func aTopSetsLogOnAnUnreadDropRowStaysTheTopSets() throws {
+    let cells = layout(["K15": "Brace hard", "F16": "8", "H16": "Drop 20%", "K16": "175x6@8"])
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.map(\.setLog) == [SetLog(weight: .pounds(175), reps: 6, rpe: .eight), nil])
+    #expect(exercises[0].sets.map(\.prescribedLoad) == ["RPE8", "Drop 20%"])
+    #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: 2, snapshot: snapshot, day: day) == [15, 16])
+}
+
+@Test func threeTopSetLogsOnAnUnreadDropRowStayTheTopSets() throws {
+    let cells = layout(
+        ["D15": "3", "K15": "Brace", "F16": "", "H16": "Drop 20%", "K16": "185x6@8, 147.5x8@8, 147.5x8@8"]
+    )
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.map(\.state) == [.logged, .logged, .logged, .pending])
+    #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: 4, snapshot: snapshot, day: day) == [15, 15, 15, 16])
+}
+
+@Test func aBareShareAfterADropTakesItsWord() throws {
+    let (_, _, exercises) = try parsedDay(layout(dropLine, ["H16": "Drop 10%, 15%"]), hidden: [])
+
+    #expect(exercises[0].sets.map(\.prescribedLoad) == ["RPE8", "Drop 10%", "Drop 15%"])
+}
+
+/// A row named as a Drop is a Drop line only under a visible Exercise. First in its Day, or under a
+/// hidden row, it is an Exercise of its own.
+@Test(
+    arguments: [
+        (["C15": "DB Curl Drop Set", "D15": "3", "F15": "10", "H15": "-10%"], Set<Int>(), ["DB Curl Drop Set", "Next Lift"]),
+        (
+            [
+                "C15": "Comp BP", "D15": "3", "F15": "5", "H15": "RPE7", "C16": "HB SQ", "D16": "1", "F16": "6", "H16": "RPE8",
+                "C17": "HB SQ Drop", "D17": "2", "F17": "8", "H17": "Drop 20%"
+            ],
+            Set([15]),
+            ["Comp BP", "HB SQ Drop", "Next Lift"]
+        ),
+        (
+            ["C15": "Snatch", "D15": "3", "F15": "2", "H15": "RPE7", "C16": "Drop Snatch", "D16": "3", "F16": "3", "H16": "@80%"],
+            Set<Int>(),
+            ["Snatch", "Drop Snatch", "Next Lift"]
+        )
+    ] as [([String: String], Set<Int>, [String])]
+)
+func aDropNamedRowWithNoVisibleExerciseAboveIsItsOwnExercise(cells: [String: String], hidden: Set<Int>, names: [String]) throws {
+    let (_, _, exercises) = try parsedDay(cells.merging(nextLift) { $1 }, hidden: hidden)
+
+    #expect(exercises.map(\.exerciseName.entered) == names)
 }

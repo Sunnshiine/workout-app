@@ -13,7 +13,7 @@ import Testing
         ("Drop10%", .drop(percent: 10)),
         ("20% drop", .drop(percent: 20)),
         ("-20%", .drop(percent: 20)),
-        ("@80%", .drop(percent: 20)),
+        ("@80%", .uninterpreted),
         ("Drop 20% off the top set", .drop(percent: 20)),
         ("Drop 0%", .uninterpreted),
         ("Drop 100%", .uninterpreted),

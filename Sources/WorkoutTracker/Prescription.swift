@@ -61,7 +61,7 @@ enum PrescribedLoad: Equatable, Sendable {
     /// `BW` in any casing.
     case bodyweight
     /// `Drop 17.5%`, `20% drop`, `-20%`, `Drop 10% from top set`: that share off the top Set's
-    /// weight. `@80%` is a 20% Drop.
+    /// weight.
     case drop(percent: Double)
     /// `RPE8`, `rpe 6.5`: one of the ten RPE points.
     case rpe(RPE)
@@ -105,8 +105,7 @@ enum PrescribedLoad: Equatable, Sendable {
 private nonisolated(unsafe) let dropWordings: [(pattern: Regex<(Substring, Substring)>, shareOff: @Sendable (Double) -> Double)] = [
     (/drop\s*(\d+(?:\.\d+)?)\s*%(?:\s+(?:from|off)\s+(?:the\s+)?top(?:\s+set)?)?/.ignoresCase(), { $0 }),
     (/-?\s*(\d+(?:\.\d+)?)\s*%\s+drop/.ignoresCase(), { $0 }),
-    (/-\s*(\d+(?:\.\d+)?)\s*%/, { $0 }),
-    (/@\s*(\d+(?:\.\d+)?)\s*%/, { 100 - $0 })
+    (/-\s*(\d+(?:\.\d+)?)\s*%/, { $0 })
 ]
 
 extension ExerciseSet {

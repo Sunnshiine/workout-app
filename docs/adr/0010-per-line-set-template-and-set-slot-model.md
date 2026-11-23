@@ -81,12 +81,19 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
 - **Amended 2026-11-23:** a continuation row whose first Load value is a Drop is a Line even when
   its Sets cell holds no number. Its count comes from the Sets cell (`2`, `2 sets`, `x2`), else
-  the N of an `N x M` Reps cell, else one Set. A Sets cell `1+2` counts 3. A named row whose name
-  only marks the Drop (`Drop`, `↳`, a name containing the word `drop`) and whose Load is a Drop
-  does not start an Exercise. It is a Line of the Exercise above. Under a hidden named row, a
-  visible row that prescribes Sets other than a Drop, or holds a Coach Note, stays with the hidden
-  movement, along with every row after it up to the next visible Exercise. Those rows are neither
-  Lines nor writable rows of the Exercise above (#1230). A Drop line, a blank row, and a row of
-  Set Logs above them still belong to the Exercise above, as #1229 read Block - 31.
+  the N of an `N x M` Reps cell, else one Set. A Sets cell `1+2` counts 3. A Drop line whose Sets
+  cell starts with no number adds Sets without moving any other: the app read that row as a plain
+  row before, and may have sent another Set's Set Log there, so every other Set keeps the address
+  it had, and the added Drop takes its own row's Notes or, when that cell is taken or holds a Coach
+  Note, the next free row. A named row whose name only marks the Drop (`Drop`, `↳`, a name
+  containing the word `drop`) and whose Load is a Drop is a Line of the Exercise above when the
+  named row above it is visible; first in its Day, or under a hidden named row, it is an Exercise
+  of its own. Under a hidden named row, a visible row other than a Drop line that prescribes Sets,
+  or whose Notes hold coach text with no Set Log in it, stays with the hidden movement, along with
+  every row after it up to the next visible Exercise (#1230). Those rows are neither Lines nor
+  writable rows of the Exercise above. A Drop line, a blank row, and a row of Set Logs above them
+  still belong to the Exercise above, as #1229 read Block - 31. A coach's new non-Drop line written
+  under hidden rows reads as the hidden movement's too; that reading is provisional until a real
+  Sheet shows which a coach means.
 
 See PRD and slices: issues #297–#301.

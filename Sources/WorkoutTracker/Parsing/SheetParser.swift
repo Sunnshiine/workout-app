@@ -20,10 +20,10 @@ private func splitLoadValues(_ load: String) -> [String] {
     }
 }
 
-/// A bare number such as `35` takes the unit before it. A value with its own letters, or a share
-/// such as `-20%`, does not.
+/// A bare value such as `35` or `15%` takes the unit before it. A value with its own letters, or a
+/// Drop on its own such as `-20%`, does not.
 private func takesTheUnitPrefix(_ value: String) -> Bool {
-    !value.contains { $0.isLetter || $0 == "%" }
+    !value.contains { $0.isLetter } && !PrescribedLoad(value).isDrop
 }
 
 /// The per-Set values one Prescription cell lists. A Reps or Load cell carries one comma-separated
@@ -162,7 +162,7 @@ private func parsedSetsForLine(
     let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
-    let lineHoldsLegacyLog = line.notesRole(in: grid, cols: cols).legacyLog != nil
+    let lineHoldsLegacyLog = !line.addsADrop && line.notesRole(in: grid, cols: cols).legacyLog != nil
 
     return (0..<line.setCount).map { position in
         let setIndex = line.firstSetIndex + position
@@ -199,10 +199,15 @@ private func parsedMultiLineExercise(
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let cols = day.columns
     let lines = anchor.prescriptionLines(in: snapshot, cols: cols)
-    var exercise =
-        lines.isMultiLine
-        ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
-        : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+    var exercise: ParsedExercise
+    if lines.countedLines.isMultiLine {
+        exercise = parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
+    } else {
+        exercise = parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+        exercise.sets += lines.filter(\.addsADrop).flatMap {
+            parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0)
+        }
+    }
     for position in exercise.sets.indices {
         let setIndex = exercise.sets[position].index
         exercise.sets[position].setFlags = landedSetFlags(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)

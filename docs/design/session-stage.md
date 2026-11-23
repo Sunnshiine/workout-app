@@ -109,7 +109,7 @@ after:
 - **Reps (1–100) and RPE (5–10) are side-by-side one-tap scroll rails**,
   labels below; selected chips take a cream fill with an inset action ring.
 - **The weight pre-fills from the coach's number** when there is one: BW, a
-  Drop from the previous Set, or a %1RM of the Training Max. For an RPE target
+  Drop off the top Set, or a %1RM of the Training Max. For an RPE target
   it pre-fills the Load Suggestion estimated from the athlete's own Set Logs
   (ADR-0018). Reps and RPE pre-fill from the prescription when it names one
   value. A rep range such as `11-12` pre-fills its low end, though the weight
