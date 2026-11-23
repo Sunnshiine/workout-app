@@ -8,7 +8,7 @@ struct PrescriptionLine: Sendable, Equatable {
     let setCount: Int
     let firstSetIndex: Int
     /// A Drop line the app did not read before it read Drop lines: one whose Sets cell starts with
-    /// no count, or one at or below a row named as a Drop. Another Set's Set Log may sit on its row,
+    /// no count. Another Set's Set Log may sit on its row,
     /// and a queued write names its Set by index, so its Sets come after every other Line's, in
     /// index and in row, and the Sets the app already had keep both.
     let addsADrop: Bool
@@ -265,9 +265,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
     }
 
     /// The row each added Drop line's Set Logs take, keyed by the Line's own row. A Drop takes its
-    /// own row unless its Notes hold a Coach Note, or a Legacy Log on a row named as a Drop, as the
-    /// app protected that row's header before. Otherwise it takes the next free row of its span that
-    /// holds no Coach Note.
+    /// own row unless its Notes hold a Coach Note. Otherwise it takes the next free row of its
+    /// Exercise that holds no Coach Note.
     private func addedDropRows(lines: [PrescriptionLine], in snapshot: SheetSnapshot, cols: DayColumns, col: Int) -> [Int: Int] {
         var taken = countedRows(lines.countedLines, in: snapshot, cols: cols, col: col)
         var rows: [Int: Int] = [:]

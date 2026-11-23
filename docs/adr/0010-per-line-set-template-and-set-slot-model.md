@@ -87,25 +87,23 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   adds Sets without moving any other: the app read that row as a plain row before, and may have
   sent another Set's Set Log there, so every other Set keeps the address it had, and the added Drop
   takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row
-  that holds no Coach Note. A Drop above the first named Drop line looks only above it; a named
-  Drop line looks only in its own span, to the next named Drop line or Exercise, and treats a
-  Legacy Log in its Notes as the app treated it in that Exercise's header.
-  Its Sets are numbered after every other Line's, wherever its row sits, because a queued write
-  names its Set by index: a Drop the coach adds above a later Line, or one an update first reads,
-  must not hand that Line's queued Set Log to the Drop. A
-  named row whose Load is a Drop and whose name marks a Drop of the Exercise named above it (`Drop`,
-  `↳`, `Drop set`, or that Exercise's name with `Drop` on it, as `HB SQ Drop` under `HB SQ`) is a
-  Line of that Exercise when the named row above it is visible. First in its Day, under a hidden
-  named row, or named for another movement (`Leg Press Drop Set` under `HB SQ`), it is an Exercise
-  of its own. The app read such a named row as an Exercise of its own before, so it and the rows
-  below it keep their Set Logs as that Exercise's: the Sets above it address only the rows above
-  it, as they did. Under a hidden named row, a visible row other than a Drop line that prescribes
-  Sets, or whose Notes hold a Coach Note in which nothing could be a hand-typed Set Log, stays with
-  the hidden movement, along with every row after it up to the next visible Exercise (#1230).
-  Those rows are neither Lines nor writable rows of the Exercise above. A Drop line, a blank row,
-  and a row of Set Logs above them still belong to the Exercise above, as #1229 read Block - 31. A
-  coach's new non-Drop line written under hidden rows reads as the hidden movement's too; that
-  reading is provisional until a real Sheet shows which a coach means.
+  that holds no Coach Note, before the next visible named row. Its Sets are numbered after every
+  other Line's, wherever its row sits, because a queued write names its Set by index: a Drop the
+  coach adds above a later Line, or one an update first reads, must not hand that Line's queued Set
+  Log to the Drop. A named row is an Exercise of its own whatever its name, as the app read it
+  before, so a named Drop row such as `HB SQ Drop` under `HB SQ` keeps its Sets, Set indices, and
+  Set Logs, and the Exercises below it keep their order. Its Drop weighs off its own first Set, so
+  it gets no suggestion from the Exercise above; that suggestion would reach a dictated or Lock
+  Screen Set Log, and is left to #1247. Under a hidden named row, a visible row other than a Drop
+  line that prescribes Sets, or whose Notes hold a Coach Note in which nothing could be a
+  hand-typed Set Log, stays with the hidden movement, along with every row after it up to the next
+  visible Exercise (#1230). Those rows are neither Lines nor writable rows of the Exercise above.
+  When any visible row in that run may hold a Set Log, none of the run stays with the hidden
+  movement, and the Exercise above reads every row of it as it did before, so no Set Log or Set
+  index moves. A Drop line, a blank row, and a row of Set Logs above the run still belong to the
+  Exercise above, as #1229 read Block - 31. A coach's new non-Drop line written under hidden rows
+  reads as the hidden movement's too; that reading is provisional until a real Sheet shows which a
+  coach means.
   Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
   so a Drop Set the app adds after them never writes it. That call is provisional until Sunny or
   the coach says which RPE they read there (#1247).
