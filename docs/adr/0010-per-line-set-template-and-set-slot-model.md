@@ -79,5 +79,14 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   still conflicts, because a Legacy Log records the Line as done and a redirect would log it a
   second time elsewhere. Set Logs written under this rule sit on the spare row, so a coach who
   later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
+- **Amended 2026-11-23:** a continuation row whose first Load value is a Drop is a Line even when
+  its Sets cell holds no number. Its count comes from the Sets cell (`2`, `2 sets`, `x2`), else
+  the N of an `N x M` Reps cell, else one Set. A Sets cell `1+2` counts 3. A named row whose name
+  only marks the Drop (`Drop`, `↳`, a name containing the word `drop`) and whose Load is a Drop
+  does not start an Exercise. It is a Line of the Exercise above. Under a hidden named row, a
+  visible row that prescribes Sets other than a Drop, or holds a Coach Note, stays with the hidden
+  movement, along with every row after it up to the next visible Exercise. Those rows are neither
+  Lines nor writable rows of the Exercise above (#1230). A Drop line, a blank row, and a row of
+  Set Logs above them still belong to the Exercise above, as #1229 read Block - 31.
 
 See PRD and slices: issues #297–#301.

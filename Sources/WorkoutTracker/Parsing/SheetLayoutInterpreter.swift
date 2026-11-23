@@ -268,9 +268,18 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
     var rows: [Int] = []
     for row in firstRow..<upper {
         if isSheetLayoutDayHeader(grid.cell(row: row, col: cols.name)) { break }
-        if !grid.cell(row: row, col: cols.name).trimmed.isEmpty { rows.append(row) }
+        if isAnchorRow(row, in: grid, cols: cols) { rows.append(row) }
     }
     return rows
+}
+
+/// A named row, unless the name only marks a Drop line of the Exercise above: a Drop Load under a
+/// name such as `Drop`, `↳`, or `HB SQ Drop`.
+private func isAnchorRow(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
+    let name = grid.cell(row: row, col: cols.name).trimmed
+    guard !name.isEmpty else { return false }
+    let marksADrop = name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil || name.allSatisfy { "↳→>-–—".contains($0) }
+    return !(marksADrop && PrescriptionRow(row: row, in: grid, cols: cols).isDrop)
 }
 
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
@@ -287,12 +296,36 @@ private func exerciseAnchors(
     let grid = snapshot.values
     let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper).filter(snapshot.isRowVisible)
     return rows.enumerated().map { index, row in
-        SheetLayoutExerciseAnchor(
+        let nextAnchorRow = index + 1 < rows.count ? rows[index + 1] : upper
+        return SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
-            nextAnchorRow: index + 1 < rows.count ? rows[index + 1] : upper
+            nextAnchorRow: nextAnchorRow,
+            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols)
         )
     }
+}
+
+/// The visible rows under a hidden named row that stay with the movement the coach hid: from the
+/// first one that prescribes Sets other than a Drop, or whose Notes hold a Coach Note, to the end of
+/// the span (#1230). Before that, a Drop line, a blank row, and a row of Set Logs still belong to the
+/// Exercise above.
+private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
+    var underHiddenName = false
+    for row in span {
+        if !snapshot.isRowVisible(row) {
+            underHiddenName = underHiddenName || isAnchorRow(row, in: snapshot.values, cols: cols)
+        } else if underHiddenName, keepsAHiddenMovementsOwnContent(row, in: snapshot.values, cols: cols) {
+            return Set(row..<span.upperBound)
+        }
+    }
+    return []
+}
+
+private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
+    let reading = PrescriptionRow(row: row, in: grid, cols: cols)
+    let notes = HeaderNotesRole(notesCell: grid.cellOrEmpty(row, cols.notes).trimmed, setCount: reading.setsCellCount ?? 1)
+    return (reading.setsCellCount != nil && !reading.isDrop) || notes.coachNote != nil
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {

@@ -35,13 +35,18 @@ enum PrescribedReps: Equatable, Sendable {
     case uninterpreted
 
     init(_ cell: String) {
-        let trimmed = cell.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = Self.repsAfterASetCount(cell.trimmingCharacters(in: .whitespacesAndNewlines))
         guard let match = trimmed.wholeMatch(of: /(\d+)(?:\s*[-–]\s*(\d+))?/), let low = Int(match.1) else {
             self = EffortDuration(trimmed).map(Self.timed) ?? .uninterpreted
             return
         }
         let high = match.2.flatMap { Int($0) } ?? low
         self = low <= high ? .target(low...high) : .uninterpreted
+    }
+
+    /// `2 x 8` prescribes the reps after its Set count.
+    private static func repsAfterASetCount(_ cell: String) -> String {
+        cell.wholeMatch(of: /\d+\s*[xX×]\s*(.+)/).map { String($0.1) } ?? cell
     }
 
     var target: ClosedRange<Int>? {
@@ -55,18 +60,19 @@ enum PrescribedReps: Equatable, Sendable {
 enum PrescribedLoad: Equatable, Sendable {
     /// `BW` in any casing.
     case bodyweight
-    /// `Drop 17.5%`: that share off the previous Set's weight.
+    /// `Drop 17.5%`, `20% drop`, `-20%`, `Drop 10% from top set`: that share off the top Set's
+    /// weight. `@80%` is a 20% Drop.
     case drop(percent: Double)
     /// `RPE8`, `rpe 6.5`: one of the ten RPE points.
     case rpe(RPE)
-    /// `Start conservative`, `RPE 5.5`, `Drop 10% from top set`, and any other text.
+    /// `Start conservative`, `RPE 5.5`, and any other text.
     case uninterpreted
 
     init(_ cell: String) {
         let trimmed = cell.trimmingCharacters(in: .whitespacesAndNewlines)
         if Weight(text: trimmed) == .bodyweight {
             self = .bodyweight
-        } else if let match = trimmed.wholeMatch(of: /Drop\s+([0-9]+(?:\.[0-9]+)?)%/.ignoresCase()), let percent = Double(match.1) {
+        } else if let percent = Self.dropPercent(trimmed) {
             self = .drop(percent: percent)
         } else if let match = trimmed.wholeMatch(of: /RPE\s*(.+)/.ignoresCase()), let rpe = RPE(text: String(match.1)) {
             self = .rpe(rpe)
@@ -79,7 +85,29 @@ enum PrescribedLoad: Equatable, Sendable {
         guard case .rpe(let rpe) = self else { return nil }
         return rpe
     }
+
+    var isDrop: Bool {
+        guard case .drop = self else { return false }
+        return true
+    }
+
+    private static func dropPercent(_ text: String) -> Double? {
+        for wording in dropWordings {
+            guard let match = text.wholeMatch(of: wording.pattern), let number = Double(match.1) else { continue }
+            let off = wording.shareOff(number)
+            return off > 0 && off < 100 ? off : nil
+        }
+        return nil
+    }
 }
+
+/// Each wording a coach writes a Drop in, and the share off the top Set it names.
+private nonisolated(unsafe) let dropWordings: [(pattern: Regex<(Substring, Substring)>, shareOff: @Sendable (Double) -> Double)] = [
+    (/drop\s*(\d+(?:\.\d+)?)\s*%(?:\s+(?:from|off)\s+(?:the\s+)?top(?:\s+set)?)?/.ignoresCase(), { $0 }),
+    (/-?\s*(\d+(?:\.\d+)?)\s*%\s+drop/.ignoresCase(), { $0 }),
+    (/-\s*(\d+(?:\.\d+)?)\s*%/, { $0 }),
+    (/@\s*(\d+(?:\.\d+)?)\s*%/, { 100 - $0 })
+]
 
 extension ExerciseSet {
     var prescription: Prescription {

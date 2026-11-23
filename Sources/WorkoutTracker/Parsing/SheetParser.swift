@@ -13,11 +13,17 @@ private func splitLoadValues(_ load: String) -> [String] {
     guard prefix.contains(where: { $0.isLetter }) else { return values }
 
     return values.enumerated().map { index, value in
-        if index > 0, !value.contains(where: { $0.isLetter }) {
+        if index > 0, takesTheUnitPrefix(value) {
             return "\(prefix)\(value)"
         }
         return value
     }
+}
+
+/// A bare number such as `35` takes the unit before it. A value with its own letters, or a share
+/// such as `-20%`, does not.
+private func takesTheUnitPrefix(_ value: String) -> Bool {
+    !value.contains { $0.isLetter || $0 == "%" }
 }
 
 /// The per-Set values one Prescription cell lists. A Reps or Load cell carries one comma-separated
@@ -192,7 +198,7 @@ private func parsedMultiLineExercise(
 
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let cols = day.columns
-    let lines = anchor.prescriptionLines(in: snapshot, setsColumn: cols.sets)
+    let lines = anchor.prescriptionLines(in: snapshot, cols: cols)
     var exercise =
         lines.isMultiLine
         ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
