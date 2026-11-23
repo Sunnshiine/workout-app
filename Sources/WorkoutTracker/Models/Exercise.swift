@@ -63,10 +63,11 @@ extension ExerciseSet {
     /// The Set is Logged or Skipped — the athlete is done with it.
     var isSettled: Bool { state == .logged || state == .skipped }
 
-    /// A Set with no owning Exercise reports itself final. No write path reaches that,
-    /// because `SetCoordinates(of:)` refuses such a Set before any mirror write is enqueued.
+    /// The last Set the coach counted, so an added Drop Set is never final. A Set with no owning
+    /// Exercise reports itself final. No write path reaches that, because `SetCoordinates(of:)`
+    /// refuses such a Set before any mirror write is enqueued.
     var isFinalSetOfExercise: Bool {
-        index == (exercise?.sets.map(\.index).max() ?? index)
+        !isAddedDrop && index == (exercise?.sets.filter { !$0.isAddedDrop }.map(\.index).max() ?? index)
     }
 }
 
@@ -124,6 +125,9 @@ final class ExerciseSet {
     var unstructuredSetLog: String?
     var loggedAt: Date?
     var setFlagsData: Data?
+    /// A Drop Set the app adds after every Set the coach counted (ADR-0010). Last Set RPE never
+    /// mirrors one.
+    var isAddedDrop = false
     var exercise: Exercise?
 
     var state: SetState {

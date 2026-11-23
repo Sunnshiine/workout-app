@@ -25,6 +25,7 @@ enum BlockBuilder {
                         )
                         set.setLog = $0.setLog
                         set.setFlags = $0.setFlags.map { SetFlagEntry(flag: $0, standing: .landed) }
+                        set.isAddedDrop = $0.isAddedDrop
                         return set
                     }
                     return ex

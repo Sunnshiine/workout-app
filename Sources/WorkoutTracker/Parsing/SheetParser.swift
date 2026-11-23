@@ -61,6 +61,7 @@ struct ParsedSet {
     var setLog: SetLog?
     var unstructuredSetLog: String?
     var setFlags: [SetFlag] = []
+    var isAddedDrop = false
 
     init(
         index: Int,
@@ -168,7 +169,7 @@ private func parsedSetsForLine(
         let setIndex = line.firstSetIndex + position
         let rawLog = lineHoldsLegacyLog ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
         let logState = SetLogToken.classify(rawLog)
-        return ParsedSet(
+        var set = ParsedSet(
             index: setIndex,
             prescribedReps: reps.value(at: position),
             prescribedLoad: load.value(at: position),
@@ -177,6 +178,8 @@ private func parsedSetsForLine(
             setLog: logState.setLog,
             unstructuredSetLog: logState.unstructuredSetLog
         )
+        set.isAddedDrop = line.addsADrop
+        return set
     }
 }
 

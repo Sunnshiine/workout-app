@@ -78,6 +78,14 @@ avoid-list lives and binds as the rest of this glossary does. A new Logging term
 - **Detached Session**
 - **Exercise History fill**
 - **Movement**
+
+### Timed Sets
+
+The terms for a Set timed rather than counted live in
+[docs/context/timed-sets.md](docs/context/timed-sets.md), where each one's definition and
+avoid-list binds as the rest of this glossary does. A new Timed Set term goes there, with its name
+added here.
+
 - **Opening Hold**
 - **Timed Set**
 - **Timed Effort**

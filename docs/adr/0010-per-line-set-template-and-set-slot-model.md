@@ -106,5 +106,8 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   and a row of Set Logs above them still belong to the Exercise above, as #1229 read Block - 31. A
   coach's new non-Drop line written under hidden rows reads as the hidden movement's too; that
   reading is provisional until a real Sheet shows which a coach means.
+  Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
+  so a Drop Set the app adds after them never writes it. That call is provisional until Sunny or
+  the coach says which RPE they read there (#1247).
 
 See PRD and slices: issues #297–#301.
