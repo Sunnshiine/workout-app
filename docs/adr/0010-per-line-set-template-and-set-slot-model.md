@@ -86,7 +86,10 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   without a Drop gains Sets or moves a Set Log. A Drop line whose Sets cell starts with no number
   adds Sets without moving any other: the app read that row as a plain row before, and may have
   sent another Set's Set Log there, so every other Set keeps the address it had, and the added Drop
-  takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row. A
+  takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row.
+  Its Sets are numbered after every other Line's, wherever its row sits, because a queued write
+  names its Set by index: a Drop the coach adds above a later Line, or one an update first reads,
+  must not hand that Line's queued Set Log to the Drop. A
   named row whose Load is a Drop and whose name marks a Drop of the Exercise named above it (`Drop`,
   `↳`, `Drop set`, or that Exercise's name with `Drop` on it, as `HB SQ Drop` under `HB SQ`) is a
   Line of that Exercise when the named row above it is visible. First in its Day, under a hidden

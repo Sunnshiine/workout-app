@@ -7,9 +7,10 @@ struct PrescriptionLine: Sendable, Equatable {
     let row: Int
     let setCount: Int
     let firstSetIndex: Int
-    /// A Drop line whose Sets cell starts with no count. The app read such a row as a plain row
-    /// before it read Drop lines, and may have written another Set's Set Log there, so its Sets take
-    /// a row only after every other Line's Sets keep theirs.
+    /// A Drop line the app did not read before it read Drop lines: one whose Sets cell starts with
+    /// no count, or one at or below a row named as a Drop. Another Set's Set Log may sit on its row,
+    /// and a queued write names its Set by index, so its Sets come after every other Line's, in
+    /// index and in row, and the Sets the app already had keep both.
     let addsADrop: Bool
 
     /// The zero-based position of Set `setIndex` within this Line's own Set-Log list, or nil
@@ -29,19 +30,9 @@ extension Array where Element == PrescriptionLine {
     /// a single Line means the existing single-anchor (Kevin) path applies.
     var isMultiLine: Bool { count > 1 }
 
-    /// The Lines that do not add a Drop, numbered as if the added Drops were not there.
-    var countedLines: [PrescriptionLine] {
-        var nextFirstSetIndex = 0
-        return filter { !$0.addsADrop }.map { line in
-            defer { nextFirstSetIndex += line.setCount }
-            return PrescriptionLine(row: line.row, setCount: line.setCount, firstSetIndex: nextFirstSetIndex, addsADrop: false)
-        }
-    }
-
-    /// Set `setIndex`'s index among `countedLines`' Sets.
-    func countedIndex(of setIndex: Int) -> Int {
-        setIndex - filter { $0.addsADrop && $0.firstSetIndex < setIndex }.reduce(0) { $0 + $1.setCount }
-    }
+    /// The Lines that do not add a Drop. They come first and keep the Set indices they had before the
+    /// app read added Drops.
+    var countedLines: [PrescriptionLine] { filter { !$0.addsADrop } }
 
     func line(containing setIndex: Int) -> PrescriptionLine? {
         first { $0.position(of: setIndex) != nil }
@@ -127,6 +118,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// visible blank-name continuation row inside the Exercise span that `PrescriptionRow` reads as
     /// a Line is another (coach J. Alarcon's one-line-per-row template, and a coach's Drop line). A
     /// row the coach hid, or one a hidden movement keeps, prescribes nothing here.
+    /// Lines that add a Drop follow every other Line, whatever row they sit on.
     ///
     /// Kevin's template returns exactly one Line: his continuation rows hold Set Logs in the
     /// Notes column with an empty Sets cell and no Drop, so they never qualify, keeping that path
@@ -134,22 +126,20 @@ struct SheetLayoutExerciseAnchor: Sendable {
     func prescriptionLines(in snapshot: SheetSnapshot, cols: DayColumns) -> [PrescriptionLine] {
         let grid = snapshot.values
         let anchorSetCount = prescribedSetCount(in: grid, cols: cols)
-        var lines = [PrescriptionLine(row: row, setCount: anchorSetCount, firstSetIndex: 0, addsADrop: false)]
-        var nextFirstSetIndex = anchorSetCount
-        for continuationRow in ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot) {
-            let reading = PrescriptionRow(row: continuationRow, in: grid, cols: cols)
-            guard let lineSetCount = reading.lineSetCount else { continue }
-            lines.append(
-                PrescriptionLine(
-                    row: continuationRow,
-                    setCount: lineSetCount,
-                    firstSetIndex: nextFirstSetIndex,
-                    addsADrop: continuationRow >= countedRowsEnd || !reading.setsCellStartsWithACount
-                )
-            )
-            nextFirstSetIndex += lineSetCount
+        let continuations = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).compactMap { lineRow in
+            let reading = PrescriptionRow(row: lineRow, in: grid, cols: cols)
+            return reading.lineSetCount.map {
+                (row: lineRow, setCount: $0, addsADrop: lineRow >= countedRowsEnd || !reading.setsCellStartsWithACount)
+            }
         }
-        return lines
+        let ordered =
+            [(row: row, setCount: anchorSetCount, addsADrop: false)]
+            + continuations.filter { !$0.addsADrop } + continuations.filter(\.addsADrop)
+        var nextFirstSetIndex = 0
+        return ordered.map { line in
+            defer { nextFirstSetIndex += line.setCount }
+            return PrescriptionLine(row: line.row, setCount: line.setCount, firstSetIndex: nextFirstSetIndex, addsADrop: line.addsADrop)
+        }
     }
 
     private func ownVisibleRows(from firstRow: Int, before endRow: Int, in snapshot: SheetSnapshot) -> [Int] {
@@ -189,7 +179,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         if lines.line(containing: setIndex)?.addsADrop ?? false {
             return addedDropPlacement(for: setIndex, lines: lines, in: snapshot, cols: cols, col: col)
         }
-        return countedPlacement(for: lines.countedIndex(of: setIndex), lines: lines.countedLines, in: snapshot, cols: cols, col: col)
+        return countedPlacement(for: setIndex, lines: lines.countedLines, in: snapshot, cols: cols, col: col)
     }
 
     /// Where a counted Line's Set lives: the addressing the Exercise had before it read added Drops.
