@@ -60,6 +60,50 @@ func unsupportedPrescribedLoadReturnsNone(prescribedLoad: String) {
     )
 }
 
+/// Block - 31, Week 3: a 175 top Set, then two `Drop 20%` Sets the athlete logged at 140 each.
+@Test func everyDropComesOffTheTopSetNotTheDropBeforeIt() {
+    #expect(
+        suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(140))), (index: 0, setLog: logged(.pounds(175)))], drops: [1])
+            == .prescribedWeight(140)
+    )
+}
+
+@Test func aTwentyPercentDropOffA185TopSetRoundsToThePlate() {
+    #expect(
+        suggest(
+            load: "Drop 20%",
+            today: [
+                (index: 2, setLog: logged(.pounds(147.5))), (index: 1, setLog: logged(.pounds(147.5))),
+                (index: 0, setLog: logged(.pounds(185)))
+            ],
+            drops: [1, 2]
+        )
+            == .prescribedWeight(147.5)
+    )
+}
+
+@Test func withTwoTopSetsADropComesOffTheNearerOne() {
+    #expect(
+        suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(200))), (index: 0, setLog: logged(.pounds(190)))])
+            == .prescribedWeight(160)
+    )
+}
+
+@Test func aDropWithOnlyEarlierDropsLoggedHasNoTopSetToComeOff() {
+    #expect(suggest(load: "Drop 20%", today: [(index: 1, setLog: logged(.pounds(140)))], drops: [1]) == .noSuggestion)
+}
+
+@Test func aFirstSetPrescribedAsADropIsStillTheTopSet() {
+    #expect(
+        suggest(
+            load: "Drop 20%",
+            today: [(index: 1, setLog: logged(.pounds(140))), (index: 0, setLog: logged(.pounds(175)))],
+            drops: [0, 1]
+        )
+            == .prescribedWeight(140)
+    )
+}
+
 @Test func dropOnTheFirstSetHasNothingToDropFrom() {
     #expect(suggest(load: "Drop 20%") == .noSuggestion)
 }
@@ -81,13 +125,16 @@ private func suggest(
     percentOneRM: String? = nil,
     trainingMax: Double? = nil,
     today earlierSets: [(index: Int, setLog: SetLog)] = [],
+    drops: Set<Int> = [],
     history: String? = nil
 ) -> LoadSuggestion {
     LoadSuggestionEngine.suggest(
         LoadSuggestionInputs(
             prescription: Prescription(reps: reps, load: load, percentOneRM: percentOneRM),
             trainingMax: trainingMax,
-            earlierSets: earlierSets,
+            earlierSets: earlierSets.map {
+                EarlierSetLog(index: $0.index, setLog: $0.setLog, load: drops.contains($0.index) ? .drop(percent: 20) : .rpe(.eight))
+            },
             lastPerformed: history.map { LastPerformedLookupEntry(occurrence: entry($0)) }
         )
     )

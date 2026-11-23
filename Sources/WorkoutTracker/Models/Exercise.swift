@@ -232,10 +232,12 @@ final class ExerciseSet {
 
 extension ExerciseSet {
     /// The structured Set Logs on this Exercise's earlier Sets, nearest first.
-    var earlierSetLogs: [(index: Int, setLog: SetLog)] {
+    var earlierSetLogs: [EarlierSetLog] {
         (exercise?.sets ?? [])
             .filter { $0.index < index }
             .sorted { $0.index > $1.index }
-            .compactMap { earlier in earlier.setLog.map { (index: earlier.index, setLog: $0) } }
+            .compactMap { earlier in
+                earlier.setLog.map { EarlierSetLog(index: earlier.index, setLog: $0, load: earlier.prescription.load) }
+            }
     }
 }
