@@ -179,6 +179,10 @@ func aDropRowsOwnNotesUnderHiddenRowsKeepItsSets(notes: String) throws {
 /// #1168's Leg Ext. with hand-typed Set Logs on its spare row: they read as the Exercise's own.
 @Test(arguments: [
     (1, "105x9 easy", [SetState.logged]),
+    (1, "BWx8@8", [.logged]),
+    (1, "BW+25x8@8", [.logged]),
+    (1, "50kgx9@9", [.logged]),
+    (1, "bar x 9", [.logged]),
     (3, "105x9@9, 105x9 grindy", [.logged, .logged, .pending])
 ])
 func aHandTypedSetLogUnderHiddenNamedRowsStaysWithTheExerciseAbove(sets: Int, notes: String, states: [SetState]) throws {
@@ -220,10 +224,15 @@ func aHandTypedSetLogUnderHiddenNamedRowsStaysWithTheExerciseAbove(sets: Int, no
     #expect(exercises[0].sets.map(\.prescribedLoad) == ["RPE8", "Drop 10%", "Drop 15%"])
 }
 
-/// A row named as a Drop is a Drop line only under a visible Exercise. First in its Day, or under a
-/// hidden row, it is an Exercise of its own.
+/// A row named as a Drop is a Drop line only under a visible Exercise whose movement it names. First
+/// in its Day, under a hidden row, or named for another movement, it is an Exercise of its own.
 @Test(
     arguments: [
+        (
+            layout(["C16": "Leg Press Drop Set", "D16": "3", "F16": "10", "H16": "Drop 20%"]),
+            Set<Int>(),
+            ["HB SQ", "Leg Press Drop Set", "Next Lift"]
+        ),
         (["C15": "DB Curl Drop Set", "D15": "3", "F15": "10", "H15": "-10%"], Set<Int>(), ["DB Curl Drop Set", "Next Lift"]),
         (
             [
@@ -240,8 +249,37 @@ func aHandTypedSetLogUnderHiddenNamedRowsStaysWithTheExerciseAbove(sets: Int, no
         )
     ] as [([String: String], Set<Int>, [String])]
 )
-func aDropNamedRowWithNoVisibleExerciseAboveIsItsOwnExercise(cells: [String: String], hidden: Set<Int>, names: [String]) throws {
+func aDropNamedRowIsAnExerciseUnlessItDropsTheOneAbove(cells: [String: String], hidden: Set<Int>, names: [String]) throws {
     let (_, _, exercises) = try parsedDay(cells.merging(nextLift) { $1 }, hidden: hidden)
 
     #expect(exercises.map(\.exerciseName.entered) == names)
+}
+
+/// Before the app read a Drop line, a row named as one was an Exercise of its own and kept its Set
+/// Logs in its own Notes. A top Set whose Notes hold a Coach Note does not take that row.
+@Test(arguments: ["HB SQ Drop", "Drop", "↳"])
+func aNamedDropRowsOwnLogStaysTheDrops(name: String) throws {
+    let cells = layout(["K15": "Brace hard", "C16": name, "D16": "1", "F16": "8", "H16": "Drop 20%", "K16": "147.5x8@8"])
+    let (snapshot, day, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises.map(\.exerciseName.entered) == ["HB SQ", "Next Lift"])
+    #expect(exercises[0].sets.map(\.setLog) == [nil, SetLog(weight: .pounds(147.5), reps: 8, rpe: .eight)])
+    let rows = setLogRows(try #require(day.exerciseAnchors.first), sets: 2, snapshot: snapshot, day: day)
+    #expect(rows == [nil, 15])
+}
+
+/// `x2` and `1+2` count Sets only on a row whose Load lists a Drop. Elsewhere the Sets cell reads its
+/// leading number, as it did before, so no other Exercise gains Sets or moves its Set Logs.
+@Test(
+    arguments: [
+        (layout(["D16": "x2", "F16": "8", "H16": "RPE7"]), 1),
+        (layout(["D15": "x3"]), 1),
+        (layout(["D15": "1+2"]), 1),
+        (layout(["D16": "1+2", "F16": "8", "H16": "RPE7", "D17": "2", "F17": "8", "H17": "RPE7"]), 4)
+    ] as [([String: String], Int)]
+)
+func aSetsCellsDropFormsCountOnlyOnADropRow(cells: [String: String], setCount: Int) throws {
+    let (_, _, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.count == setCount)
 }

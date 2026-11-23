@@ -101,81 +101,26 @@ enum SetLogPlacementResolution: Sendable, Equatable {
     case notesColumnMissing
 }
 
-/// What one row's Sets, Reps and Load cells say about the Sets it prescribes.
-struct PrescriptionRow: Sendable, Equatable {
-    /// The most Sets one Prescription Line can prescribe. A larger count is a typo, and is read like
-    /// a non-numeric one, so it cannot make sync build a Set per count (#686).
-    private static let maxSetsPerLine = 99
-
-    private let setsCell: String
-    private let repsCell: String
-    private let loadCell: String
-
-    init(row: Int, in grid: SheetGrid, cols: DayColumns) {
-        setsCell = grid.cellOrEmpty(row, cols.sets).trimmed
-        repsCell = grid.cellOrEmpty(row, cols.reps).trimmed
-        loadCell = grid.cellOrEmpty(row, cols.load)
-    }
-
-    /// The Sets cell's count: `3`, `2 sets`, `x2`, and `1+2` as 3. Nil when it names no count.
-    var setsCellCount: Int? { Self.count(inSetsCell: setsCell) }
-
-    /// The Sets cell starts with a number, as `3` and `2 sets` do and `x2` does not.
-    var setsCellStartsWithACount: Bool { setsCell.first?.isNumber ?? false }
-
-    /// The row's first Load value is a Drop.
-    var isDrop: Bool {
-        loadCell.contains("%") && PrescribedLoad(PrescriptionValueList.load(loadCell).value(at: 0)).isDrop
-    }
-
-    /// How many Sets this row adds as a continuation Line, or nil when it is not a Line. A Drop line
-    /// is a Line however its count is written: its Sets cell, else the N of an `N x M` Reps cell,
-    /// else one Set.
-    var lineSetCount: Int? {
-        if let setsCellCount { return setsCellCount }
-        guard isDrop else { return nil }
-        return repsCell.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/).flatMap { Self.capped(Int($0.1)) } ?? 1
-    }
-
-    static func count(inSetsCell cell: String) -> Int? {
-        let text = cell.trimmed
-        guard let first = text.first else { return nil }
-        if let sum = sum(of: text) { return capped(sum) }
-        if first.isNumber { return capped(Int(text.prefix { $0.isNumber })) }
-        guard "xX×".contains(first) else { return nil }
-        let rest = text.dropFirst().trimmingCharacters(in: .whitespaces)
-        return rest.allSatisfy(\.isNumber) ? capped(Int(rest)) : nil
-    }
-
-    /// `1+2` as 3. Nil unless every side of a `+` is a whole number.
-    private static func sum(of text: String) -> Int? {
-        guard text.contains("+") else { return nil }
-        let addends = text.split(separator: "+", omittingEmptySubsequences: false).map { Int($0.trimmingCharacters(in: .whitespaces)) }
-        return addends.allSatisfy { $0 != nil } ? addends.compactMap { $0 }.reduce(0, +) : nil
-    }
-
-    private static func capped(_ value: Int?) -> Int? {
-        guard let value, value <= maxSetsPerLine else { return nil }
-        return max(value, 1)
-    }
-}
-
 struct SheetLayoutExerciseAnchor: Sendable {
     let name: String
     let row: Int
     let nextAnchorRow: Int
     /// Visible rows in the span that belong to a movement the coach hid, not to this Exercise.
     let retiredRows: Set<Int>
+    /// The first row of a Drop line the coach named, such as `HB SQ Drop`, or `nextAnchorRow`. The
+    /// app read that row as an Exercise of its own before it read Drop lines, so the rows from it on
+    /// hold that Drop's Set Logs, and the Sets above it keep only the rows above it.
+    let countedRowsEnd: Int
 
     func headerNotesRole(in grid: SheetGrid, cols: DayColumns) -> HeaderNotesRole {
         HeaderNotesRole(
             notesCell: grid.cellOrEmpty(row, cols.notes).trimmed,
-            setCount: prescribedSetCount(in: grid, setsColumn: cols.sets)
+            setCount: prescribedSetCount(in: grid, cols: cols)
         )
     }
 
-    func prescribedSetCount(in grid: SheetGrid, setsColumn: Int?) -> Int {
-        setsColumn.flatMap { PrescriptionRow.count(inSetsCell: grid.cell(row: row, col: $0)) } ?? 1
+    func prescribedSetCount(in grid: SheetGrid, cols: DayColumns) -> Int {
+        PrescriptionRow(row: row, in: grid, cols: cols).setsCellCount ?? 1
     }
 
     /// The Prescription Lines that make up this Exercise. Line 0 is always the anchor row. Each
@@ -188,10 +133,10 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// (`isMultiLine == false`) on the existing single-anchor logic.
     func prescriptionLines(in snapshot: SheetSnapshot, cols: DayColumns) -> [PrescriptionLine] {
         let grid = snapshot.values
-        let anchorSetCount = prescribedSetCount(in: grid, setsColumn: cols.sets)
+        let anchorSetCount = prescribedSetCount(in: grid, cols: cols)
         var lines = [PrescriptionLine(row: row, setCount: anchorSetCount, firstSetIndex: 0, addsADrop: false)]
         var nextFirstSetIndex = anchorSetCount
-        for continuationRow in ownVisibleRows(from: row + 1, in: snapshot) {
+        for continuationRow in ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot) {
             let reading = PrescriptionRow(row: continuationRow, in: grid, cols: cols)
             guard let lineSetCount = reading.lineSetCount else { continue }
             lines.append(
@@ -199,7 +144,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
                     row: continuationRow,
                     setCount: lineSetCount,
                     firstSetIndex: nextFirstSetIndex,
-                    addsADrop: !reading.setsCellStartsWithACount
+                    addsADrop: continuationRow >= countedRowsEnd || !reading.setsCellStartsWithACount
                 )
             )
             nextFirstSetIndex += lineSetCount
@@ -207,9 +152,9 @@ struct SheetLayoutExerciseAnchor: Sendable {
         return lines
     }
 
-    private func ownVisibleRows(from firstRow: Int, in snapshot: SheetSnapshot) -> [Int] {
-        guard firstRow < nextAnchorRow else { return [] }
-        return (firstRow..<nextAnchorRow).filter { snapshot.isRowVisible($0) && !retiredRows.contains($0) }
+    private func ownVisibleRows(from firstRow: Int, before endRow: Int, in snapshot: SheetSnapshot) -> [Int] {
+        guard firstRow < endRow else { return [] }
+        return (firstRow..<endRow).filter { snapshot.isRowVisible($0) && !retiredRows.contains($0) }
     }
 
     /// The rows inside this Exercise's span that can carry a Set Log, in sheet order, without hidden
@@ -217,7 +162,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// itself; every other rule starts on the row below it. Set N takes the Nth of these, so "which
     /// row is Set N on" and "which row does an occupied header redirect to" read the same list.
     func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
-        ownVisibleRows(from: row + (headerHoldsSetLogs ? 0 : 1), in: snapshot)
+        ownVisibleRows(from: row + (headerHoldsSetLogs ? 0 : 1), before: countedRowsEnd, in: snapshot)
     }
 
     func visibleSetLogRow(for setIndex: Int, headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> Int? {
@@ -336,7 +281,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// The row each added Drop line's Set Logs take, keyed by the Line's own row.
     private func addedDropRows(lines: [PrescriptionLine], in snapshot: SheetSnapshot, cols: DayColumns, col: Int) -> [Int: Int] {
         var taken = countedRows(lines.countedLines, in: snapshot, cols: cols, col: col)
-        let spareRows = visibleSetLogRows(headerHoldsSetLogs: false, in: snapshot).filter { row in !lines.contains { $0.row == row } }
+        let spareRows = ownVisibleRows(from: row + 1, before: nextAnchorRow, in: snapshot).filter { row in !lines.contains { $0.row == row }
+        }
         var rows: [Int: Int] = [:]
         for line in lines where line.addsADrop {
             let ownRow = line.notesRole(in: snapshot.values, cols: cols).coachNote == nil ? [line.row] : []

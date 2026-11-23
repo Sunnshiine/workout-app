@@ -236,7 +236,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let anchorRow = anchor.row
     let name = ExerciseName(entered: grid.cell(row: anchorRow, col: cols.name).trimmed)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
-    let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
+    let setCount = anchor.prescribedSetCount(in: grid, cols: cols)
     let sets = parsedSets(
         ParsedSetContext(
             setCount: setCount,

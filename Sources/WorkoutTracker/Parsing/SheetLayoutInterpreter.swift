@@ -273,14 +273,17 @@ func anchorRows(in grid: SheetGrid, cols: DayColumns, firstRow: Int, upper: Int)
     return rows
 }
 
-/// A named row whose name only marks a Drop line, such as `Drop`, `↳`, or `HB SQ Drop`, and whose
-/// Load is a Drop.
-private func marksADropLine(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
+/// A named row whose Load is a Drop and whose name marks a Drop of the Exercise named `above`:
+/// `Drop`, `↳`, `Drop set`, or that Exercise's own name with `Drop` on it, as `HB SQ Drop` is under
+/// `HB SQ`. `Leg Press Drop Set` names another movement, so it stays an Exercise.
+private func marksADropLine(_ row: Int, under above: String, in grid: SheetGrid, cols: DayColumns) -> Bool {
     let name = grid.cell(row: row, col: cols.name).trimmed
-    let nameMarksADrop =
-        name.allSatisfy { "↳→>-–—".contains($0) }
-        || (name.localizedCaseInsensitiveContains("drop") && name.firstMatch(of: /\bdrop\b/.ignoresCase()) != nil)
-    return nameMarksADrop && PrescriptionRow(row: row, in: grid, cols: cols).isDrop
+    if name.allSatisfy({ "↳→>-–—".contains($0) }) { return PrescriptionRow(row: row, in: grid, cols: cols).isDrop }
+    guard name.localizedCaseInsensitiveContains("drop"), name.firstMatch(of: /\bdrops?\b/.ignoresCase()) != nil else { return false }
+    let movement = name.replacing(/\b(?:drops?|sets?)\b|[↳→>\-–—]/.ignoresCase(), with: " ")
+        .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    let namesTheMovementAbove = movement.isEmpty || above.localizedCaseInsensitiveContains(movement)
+    return namesTheMovementAbove && PrescriptionRow(row: row, in: grid, cols: cols).isDrop
 }
 
 /// The Exercises a day surfaces: one per anchor row the coach left visible. Hiding a row is how a
@@ -296,21 +299,30 @@ private func exerciseAnchors(
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
     let named = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    let rows = named.indices.filter { index in
-        let row = named[index]
-        let followsAVisibleExercise = index > 0 && snapshot.isRowVisible(named[index - 1])
-        return snapshot.isRowVisible(row) && !(followsAVisibleExercise && marksADropLine(row, in: grid, cols: cols))
-    }
-    .map { named[$0] }
+    let dropLines = namedDropLines(named, in: snapshot, cols: cols)
+    let rows = named.filter { snapshot.isRowVisible($0) && !dropLines.contains($0) }
     return rows.enumerated().map { index, row in
         let nextAnchorRow = index + 1 < rows.count ? rows[index + 1] : upper
         return SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
             nextAnchorRow: nextAnchorRow,
-            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols)
+            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols),
+            countedRowsEnd: dropLines.filter { $0 > row && $0 < nextAnchorRow }.min() ?? nextAnchorRow
         )
     }
+}
+
+/// The named rows that are Drop lines of the visible Exercise named on the row above them.
+private func namedDropLines(_ named: [Int], in snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
+    let grid = snapshot.values
+    return Set(
+        zip(named, named.dropFirst()).filter { above, row in
+            snapshot.isRowVisible(row) && snapshot.isRowVisible(above)
+                && marksADropLine(row, under: grid.cell(row: above, col: cols.name).trimmed, in: grid, cols: cols)
+        }
+        .map(\.1)
+    )
 }
 
 /// The visible rows under a hidden named row that stay with the movement the coach hid: from the
@@ -335,14 +347,17 @@ private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, col
     return reading.setsCellCount != nil || holdsCoachTextAlone(grid.cellOrEmpty(row, cols.notes))
 }
 
-/// Notes text in which no comma-separated value reads as a Set Log, as `105x9 easy` or `skip` does.
+/// A Coach Note in which no comma-separated value could be a Set Log a hand typed: `skip`, a
+/// formatted Set Log, or anything with reps after an `x`, as `BWx8@8`, `50kgx9@9` and `bar x 9` have.
 private func holdsCoachTextAlone(_ notes: String) -> Bool {
-    let values = notes.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-    return !values.isEmpty
-        && !values.contains { value in
-            value.caseInsensitiveCompare(SetLogToken.skipSentinel) == .orderedSame
-                || value.prefixMatch(of: /\d+(?:\.\d+)?\s*[xX×]\s*\d+/) != nil
-        }
+    let text = notes.trimmed
+    guard let coachNote = HeaderNotesRole(notesCell: text, setCount: 1).coachNote, !coachNote.isEmpty else { return false }
+    return !text.split(separator: ",").contains { part in
+        let value = part.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.caseInsensitiveCompare(SetLogToken.skipSentinel) == .orderedSame
+            || SetLog(formatted: value) != nil
+            || value.firstMatch(of: /[xX×]\s*\d/) != nil
+    }
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {

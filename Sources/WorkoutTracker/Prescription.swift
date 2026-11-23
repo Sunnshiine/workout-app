@@ -44,10 +44,10 @@ enum PrescribedReps: Equatable, Sendable {
         self = low <= high ? .target(low...high) : .uninterpreted
     }
 
-    /// `2 x 8` prescribes the reps after its Set count.
+    /// `2 x 8` and `2x8-10` prescribe the reps after their Set count. `2x30s` stays as written.
     private static func repsAfterASetCount(_ cell: String) -> String {
         guard cell.contains(where: { "xX×".contains($0) }) else { return cell }
-        return cell.wholeMatch(of: /\d+\s*[xX×]\s*(.+)/).map { String($0.1) } ?? cell
+        return cell.wholeMatch(of: /\d+\s*[xX×]\s*(\d+(?:\s*[-–]\s*\d+)?)/).map { String($0.1) } ?? cell
     }
 
     var target: ClosedRange<Int>? {
@@ -96,7 +96,7 @@ enum PrescribedLoad: Equatable, Sendable {
         for wording in dropWordings {
             guard let match = text.wholeMatch(of: wording.pattern), let number = Double(match.1) else { continue }
             let off = wording.shareOff(number)
-            return off > 0 && off < 100 ? off : nil
+            return off < 100 ? off : nil
         }
         return nil
     }
@@ -105,8 +105,8 @@ enum PrescribedLoad: Equatable, Sendable {
 /// Each wording a coach writes a Drop in, and the share off the top Set it names.
 private nonisolated(unsafe) let dropWordings: [(pattern: Regex<(Substring, Substring)>, shareOff: @Sendable (Double) -> Double)] = [
     (/drop\s*(\d+(?:\.\d+)?)\s*%(?:\s+(?:from|off)\s+(?:the\s+)?top(?:\s+set)?)?/.ignoresCase(), { $0 }),
-    (/-?\s*(\d+(?:\.\d+)?)\s*%\s+drop/.ignoresCase(), { $0 }),
-    (/-\s*(\d+(?:\.\d+)?)\s*%/, { $0 })
+    (/[-−]?\s*(\d+(?:\.\d+)?)\s*%\s+drop(?:\s+(?:from|off)\s+(?:the\s+)?top(?:\s+set)?)?/.ignoresCase(), { $0 }),
+    (/[-−]\s*(\d+(?:\.\d+)?)\s*%/, { $0 })
 ]
 
 extension ExerciseSet {
