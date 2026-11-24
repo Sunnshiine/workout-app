@@ -217,6 +217,7 @@ final class WorkoutStore {
                 dayNumbering: coordinates.dayNumbering,
                 exercise: coordinates.exercise,
                 setIndex: coordinates.setIndex,
+                setIndexSpace: SetIndexSpace(of: set),
                 column: column,
                 operation: operation,
                 valueToWrite: valueToWrite,

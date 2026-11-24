@@ -97,8 +97,8 @@ import Testing
 
     let backSquat = try #require(day.exerciseAnchors.first)
     #expect(
-        backSquat.prescriptionLines(in: snapshot, setsColumn: day.columns.sets)
-            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0)]
+        backSquat.prescriptionLines(in: snapshot, cols: day.columns)
+            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0, addsADrop: false)]
     )
 }
 
@@ -127,10 +127,10 @@ import Testing
 
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(
-        backSquat.prescriptionLines(in: snapshot, setsColumn: day.columns.sets)
+        backSquat.prescriptionLines(in: snapshot, cols: day.columns)
             == [
-                PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0),
-                PrescriptionLine(row: 17, setCount: 2, firstSetIndex: 3)
+                PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0, addsADrop: false),
+                PrescriptionLine(row: 17, setCount: 2, firstSetIndex: 3, addsADrop: false)
             ]
     )
 }

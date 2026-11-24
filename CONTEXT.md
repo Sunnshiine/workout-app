@@ -22,7 +22,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Exercise**: A named entry in a Session (optionally prefixed with a tempo notation, e.g. "2-3:1:0 BB RDL"). Each Exercise has one or more prescribed Sets, authored across one or more Prescription Lines. Distinct from Movement, the cross-Session identity that several spellings of the same name can share. Avoid: lift, which names only the three Main Lifts.
 
-**Prescription Line**: One prescription row of an Exercise, carrying its own Sets/Reps/Load and its own comma-separated Set Logs in its Notes cell. Most Exercises are a single Line (the anchor row, whose Sets cell is the total — e.g. Kevin's template). Some coaches (e.g. J. Alarcon) stack several Lines per Exercise: the anchor row plus blank-name continuation rows that each have their own numeric Sets cell. An Exercise's Set count is the sum of its Lines' Sets. When a Line's Notes cell holds a Coach Note, that Line's Set Logs move to a Visible Writable Row in the same Exercise that is not itself a Line. Avoid: set group, sub-exercise, row.
+**Prescription Line**: One prescription row of an Exercise, carrying its own Sets/Reps/Load and its own comma-separated Set Logs in its Notes cell. Most Exercises are a single Line (the anchor row, whose Sets cell is the total — e.g. Kevin's template). Some coaches (e.g. J. Alarcon) stack several Lines per Exercise: the anchor row plus blank-name continuation rows that each have their own numeric Sets cell. A continuation row whose Load is a Drop is a Line however its count is written: its Sets cell (`2`, or `x2` on a row with no leading number), else the N of an `N x M` Reps cell, else one Set. A named row is an Exercise of its own, even one named `Drop` or `HB SQ Drop` under `HB SQ`. An Exercise's Set count is the sum of its Lines' Sets. When a Line's Notes cell holds a Coach Note, that Line's Set Logs move to a Visible Writable Row in the same Exercise that is not itself a Line. Avoid: set group, sub-exercise, row.
 
 **Set**: One prescribed effort within an Exercise. A single Prescription Line may represent multiple Sets, and the app writes that Line's Set Logs into its row as comma-separated values. Avoid: working set.
 
@@ -38,7 +38,7 @@ A mobile client for powerlifting athletes that surfaces and logs workouts from a
 
 **Prescribed Reps**: The coach's Reps cell for a Set. It is exactly one of three things: a rep target, either one whole number ("5") or a range whose ends both resolve, low end first ("8-10", "7 – 8"); a duration, which makes the Set a Timed Set ("40 sec", "0:45"); or text the app does not interpret ("AMRAP", "5+", "1-2-3-3-2-1"). Avoid: target reps, rep goal.
 
-**Prescribed Load**: The coach's intensity instruction for a given Set. It is exactly one of four things: bodyweight ("BW"), a Drop of a share off the previous Set's weight ("Drop 17.5%"), an RPE target on one of the ten RPE points ("RPE6"), or text the app does not interpret ("Start conservative", "RPE 5.5"). The %1RM is its own column, not a Prescribed Load. Read-only from the athlete's perspective. Avoid: target load.
+**Prescribed Load**: The coach's intensity instruction for a given Set. It is exactly one of four things: bodyweight ("BW"), a Drop of a share off the top Set's weight ("Drop 17.5%", "20% drop", "-20%"), where the top Set is the nearest earlier Set that is not itself a Drop, or the Exercise's first Set, an RPE target on one of the ten RPE points ("RPE6"), or text the app does not interpret ("Start conservative", "RPE 5.5"). The %1RM is its own column, not a Prescribed Load. Read-only from the athlete's perspective. Avoid: target load.
 
 **RPE** (Rate of Perceived Exertion): One of ten points of effort: 5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10. A `{weight}x{reps}@{RPE}` token whose RPE is any other number is not a Set Log, so the app keeps it as the text it was entered as. Used prescriptively ("RPE6" = end set 4 reps from failure) and as athlete feedback in Last Set RPE. Distinct from %1RM, which is a separate column.
 
@@ -78,6 +78,14 @@ avoid-list lives and binds as the rest of this glossary does. A new Logging term
 - **Detached Session**
 - **Exercise History fill**
 - **Movement**
+
+### Timed Sets
+
+The terms for a Set timed rather than counted live in
+[docs/context/timed-sets.md](docs/context/timed-sets.md), where each one's definition and
+avoid-list binds as the rest of this glossary does. A new Timed Set term goes there, with its name
+added here.
+
 - **Opening Hold**
 - **Timed Set**
 - **Timed Effort**

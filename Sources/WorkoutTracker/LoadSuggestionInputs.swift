@@ -1,10 +1,17 @@
 import Foundation
 
+/// An earlier Set of the same Exercise that holds a Set Log, with the Load the coach prescribed for it.
+struct EarlierSetLog: Sendable {
+    let index: Int
+    let setLog: SetLog
+    let load: PrescribedLoad
+}
+
 struct LoadSuggestionInputs: Sendable {
     let prescription: Prescription
     let trainingMax: Double?
     /// Nearest first.
-    let earlierSets: [(index: Int, setLog: SetLog)]
+    let earlierSets: [EarlierSetLog]
     let lastPerformed: LastPerformedLookupEntry?
 }
 

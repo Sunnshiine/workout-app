@@ -79,5 +79,36 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   still conflicts, because a Legacy Log records the Line as done and a redirect would log it a
   second time elsewhere. Set Logs written under this rule sit on the spare row, so a coach who
   later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
+- **Amended 2026-11-23:** a continuation row whose first Load value is a Drop is a Line even when
+  its Sets cell holds no number. Its count comes from the Sets cell (`2`, `2 sets`, `x2`), else
+  the N of an `N x M` Reps cell, whose Sets then prescribe M Reps, else one Set. Other rows read
+  `N x M` Reps as before. A row whose Sets cell starts with a number keeps the
+  count the app read before, that number, so `1+2` is one Set and no Exercise gains Sets or moves
+  a Set Log; `x2` counts only on a Drop line the app did not read before. A Drop line whose Sets cell starts with no number
+  adds Sets without moving any other: the app read that row as a plain row before, and may have
+  sent another Set's Set Log there, so every other Set keeps the address it had, and the added Drop
+  takes its own row's Notes or, when that cell is taken or holds a Coach Note, the next free row
+  that holds no Coach Note, before the next visible named row. Its Sets are numbered after every
+  other Line's, wherever its row sits, because a queued write names its Set by index: a Drop the
+  coach adds above a later Line, or one an update first reads, must not hand that Line's queued Set
+  Log to the Drop. A named row is an Exercise of its own whatever its name, as the app read it
+  before, so a named Drop row such as `HB SQ Drop` under `HB SQ` keeps its Sets, Set indices, and
+  Set Logs, and the Exercises below it keep their order. Its Drop weighs off its own first Set, so
+  it gets no suggestion from the Exercise above; that suggestion would reach a dictated or Lock
+  Screen Set Log, and is left to #1247. From the first added Drop with no row left for its Set
+  Logs, no added Drop is read, as before, so at sync the app offers no Set whose log it would
+  refuse. A coach edit can still renumber the Sets between a log and its flush, so a queued write
+  records which Sets its index counts among (`PendingWrite.setIndexSpace`; nil on a write queued
+  before Drops were read, which names a counted Set). A counted Set's write takes the address it
+  had before Drops were read, and an added Drop's write is refused when no added Drop read at flush
+  has its index. Two coach edits still put one Set's log on another's row, as main's addressing
+  does for counted Sets (#1247). In a single-line Exercise, a counted Set past a lowered count
+  takes the next row under the top Set, which can be a Drop's. A Drop's write can land on another
+  Drop whose index it takes after the coach hides or clears an earlier one. Rows under a hidden
+  named row read as they did before (#1229): #1230's two layouts stay as they are until a refused
+  log can be marked on its Set (#1247).
+  Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
+  so a Drop Set the app adds after them never writes it. That call is provisional until Sunny or
+  the coach says which RPE they read there (#1247).
 
 See PRD and slices: issues #297–#301.

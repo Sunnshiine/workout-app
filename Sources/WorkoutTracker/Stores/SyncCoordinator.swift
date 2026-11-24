@@ -154,7 +154,7 @@ final class SyncCoordinator {
         let sets = block.setsByID
         for write in writes where write.recordedSession.blockTab == block.tabName {
             guard write.overlays(on: layout) else { continue }
-            sets[SetCoordinates.ID(write)]?.replay(write)
+            write.queuedSet(in: sets)?.replay(write)
         }
     }
 
@@ -330,7 +330,8 @@ extension SyncCoordinator {
         guard let flag = write.setFlag else { return }
         let blocks = (try? context.fetch(FetchDescriptor<Block>())) ?? []
         let block = blocks.first { $0.tabName == write.recordedSession.blockTab }
-        block?.setsByID[SetCoordinates.ID(write)]?.record(flag, standing: standing)
+        guard let sets = block?.setsByID else { return }
+        write.queuedSet(in: sets)?.record(flag, standing: standing)
     }
 
     fileprivate func append(

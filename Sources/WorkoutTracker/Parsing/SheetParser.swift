@@ -13,11 +13,17 @@ private func splitLoadValues(_ load: String) -> [String] {
     guard prefix.contains(where: { $0.isLetter }) else { return values }
 
     return values.enumerated().map { index, value in
-        if index > 0, !value.contains(where: { $0.isLetter }) {
+        if index > 0, takesTheUnitPrefix(value) {
             return "\(prefix)\(value)"
         }
         return value
     }
+}
+
+/// A bare value such as `35` or `15%` takes the unit before it. A value with its own letters, or a
+/// Drop on its own such as `-20%`, does not.
+private func takesTheUnitPrefix(_ value: String) -> Bool {
+    !value.contains { $0.isLetter } && !PrescribedLoad(value).isDrop
 }
 
 /// The per-Set values one Prescription cell lists. A Reps or Load cell carries one comma-separated
@@ -55,6 +61,7 @@ struct ParsedSet {
     var setLog: SetLog?
     var unstructuredSetLog: String?
     var setFlags: [SetFlag] = []
+    var isAddedDrop = false
 
     init(
         index: Int,
@@ -153,16 +160,17 @@ private func parsedSetsForLine(
     line: PrescriptionLine
 ) -> [ParsedSet] {
     let grid = snapshot.values
-    let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
+    let repsCell = grid.cellOrEmpty(line.row, cols.reps)
+    let reps = PrescriptionValueList.reps(line.addsADrop ? PrescriptionRow.repsOfAnAddedDrop(repsCell) : repsCell)
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
-    let lineHoldsLegacyLog = line.notesRole(in: grid, cols: cols).legacyLog != nil
+    let lineHoldsLegacyLog = !line.addsADrop && line.notesRole(in: grid, cols: cols).legacyLog != nil
 
     return (0..<line.setCount).map { position in
         let setIndex = line.firstSetIndex + position
         let rawLog = lineHoldsLegacyLog ? "" : rawSetLog(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
         let logState = SetLogToken.classify(rawLog)
-        return ParsedSet(
+        var set = ParsedSet(
             index: setIndex,
             prescribedReps: reps.value(at: position),
             prescribedLoad: load.value(at: position),
@@ -171,6 +179,8 @@ private func parsedSetsForLine(
             setLog: logState.setLog,
             unstructuredSetLog: logState.unstructuredSetLog
         )
+        set.isAddedDrop = line.addsADrop
+        return set
     }
 }
 
@@ -192,11 +202,16 @@ private func parsedMultiLineExercise(
 
 private func parsedExercise(snapshot: SheetSnapshot, day: SheetLayoutDay, anchor: SheetLayoutExerciseAnchor) -> ParsedExercise {
     let cols = day.columns
-    let lines = anchor.prescriptionLines(in: snapshot, setsColumn: cols.sets)
-    var exercise =
-        lines.isMultiLine
-        ? parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
-        : parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+    let lines = anchor.prescriptionLines(in: snapshot, cols: cols)
+    var exercise: ParsedExercise
+    if lines.countedLines.isMultiLine {
+        exercise = parsedMultiLineExercise(snapshot: snapshot, cols: cols, anchor: anchor, lines: lines)
+    } else {
+        exercise = parsedSingleLineExercise(snapshot: snapshot, cols: cols, anchor: anchor)
+        exercise.sets += lines.filter(\.addsADrop).flatMap {
+            parsedSetsForLine(snapshot: snapshot, cols: cols, anchor: anchor, line: $0)
+        }
+    }
     for position in exercise.sets.indices {
         let setIndex = exercise.sets[position].index
         exercise.sets[position].setFlags = landedSetFlags(for: setIndex, anchor: anchor, snapshot: snapshot, cols: cols)
@@ -225,7 +240,7 @@ private func parsedSingleLineExercise(snapshot: SheetSnapshot, cols: DayColumns,
     let anchorRow = anchor.row
     let name = ExerciseName(entered: grid.cell(row: anchorRow, col: cols.name).trimmed)
     let role = anchor.headerNotesRole(in: grid, cols: cols)
-    let setCount = anchor.prescribedSetCount(in: grid, setsColumn: cols.sets)
+    let setCount = anchor.prescribedSetCount(in: grid, cols: cols)
     let sets = parsedSets(
         ParsedSetContext(
             setCount: setCount,

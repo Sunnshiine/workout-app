@@ -54,9 +54,9 @@ enum LoadSuggestionEngine {
     }
 
     private static func drop(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
-        guard case .drop(let dropPercent) = inputs.prescription.load, let previous = previousSetPounds(inputs)
+        guard case .drop(let dropPercent) = inputs.prescription.load, let top = topSetPounds(inputs)
         else { return nil }
-        return .prescribedWeight(roundToNearestPlateIncrement(previous * (1 - dropPercent / 100)))
+        return .prescribedWeight(roundToNearestPlateIncrement(top * (1 - dropPercent / 100)))
     }
 
     private static func percentOneRM(_ inputs: LoadSuggestionInputs) -> LoadSuggestion? {
@@ -91,9 +91,13 @@ enum LoadSuggestionEngine {
             .element
     }
 
-    private static func previousSetPounds(_ inputs: LoadSuggestionInputs) -> Double? {
+    /// Every Drop comes off the top Set, the nearest earlier Set the coach did not prescribe as a
+    /// Drop, so a second Drop weighs what the first did. The athlete's Block - 31 logs read this way.
+    /// An Exercise's first Set is a top Set whatever its Load says, since nothing comes before it.
+    private static func topSetPounds(_ inputs: LoadSuggestionInputs) -> Double? {
         inputs.earlierSets
             .lazy
+            .filter { !$0.load.isDrop || $0.index == 0 }
             .compactMap { earlier -> Double? in
                 guard case .pounds(let pounds) = earlier.setLog.weight else { return nil }
                 return pounds

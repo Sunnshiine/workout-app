@@ -61,6 +61,20 @@ enum PendingWriteColumn: String, Codable, Sendable {
     case setFlag
 }
 
+/// Which Sets a queued write's Set index counts among. The coach can change how many Sets come
+/// before an added Drop, so its index alone cannot say whether it names a Drop or a counted Set.
+enum SetIndexSpace: String, Sendable {
+    /// The Sets the app read before it read added Drops, numbered as it numbered them then.
+    case counted
+    /// The added Drops, numbered after every counted Set.
+    case addedDrops
+
+    @MainActor
+    init(of set: ExerciseSet) {
+        self = set.isAddedDrop ? .addedDrops : .counted
+    }
+}
+
 enum PendingWriteOperation: String, Codable, Sendable {
     case upsert
     case delete
@@ -89,6 +103,8 @@ final class PendingWrite {
     // Nil on a write queued before #813, which named only the first Exercise of its name.
     private var exerciseOrdinalRaw: Int?
     var setIndex: Int
+    // Nil on a write queued before the app read added Drops, all of which name counted Sets.
+    var setIndexSpaceRaw: String?
     var columnRaw: String
     var operationRaw: String
     var valueToWrite: String?
@@ -104,6 +120,17 @@ final class PendingWrite {
     var column: PendingWriteColumn {
         get { PendingWriteColumn(rawValue: columnRaw) ?? .notes }
         set { columnRaw = newValue.rawValue }
+    }
+
+    var setIndexSpace: SetIndexSpace {
+        setIndexSpaceRaw.flatMap(SetIndexSpace.init(rawValue:)) ?? .counted
+    }
+
+    /// The Set in `sets` this write was queued for: the one at its Set index, when that index still
+    /// counts among the same Sets.
+    @MainActor
+    func queuedSet(in sets: [SetCoordinates.ID: ExerciseSet]) -> ExerciseSet? {
+        sets[SetCoordinates.ID(self)].flatMap { SetIndexSpace(of: $0) == setIndexSpace ? $0 : nil }
     }
 
     var operation: PendingWriteOperation {
@@ -147,6 +174,7 @@ final class PendingWrite {
         dayNumbering: DayNumbering,
         exercise: ExerciseReference,
         setIndex: Int,
+        setIndexSpace: SetIndexSpace? = nil,  // default: nil names a counted Set, as every write queued before Drops did
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
         valueToWrite: String?,
@@ -161,6 +189,7 @@ final class PendingWrite {
         self.exerciseName = exercise.name.entered
         self.exerciseOrdinalRaw = exercise.ordinal
         self.setIndex = setIndex
+        self.setIndexSpaceRaw = setIndexSpace?.rawValue
         self.columnRaw = column.rawValue
         self.operationRaw = operation.rawValue
         self.valueToWrite = valueToWrite
