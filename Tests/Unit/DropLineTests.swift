@@ -318,3 +318,16 @@ func aDropLeavesALegacyLogAndCoachTextAlone(cells: [String: String], rows: [Int?
     #expect(exercises[0].sets.dropFirst().allSatisfy { $0.state == .pending })
     #expect(setLogRows(try #require(day.exerciseAnchors.first), sets: rows.count, snapshot: snapshot, day: day) == rows)
 }
+
+/// `RPE8, -20%` on a counted Line keeps the coach's RPE 8 on the Set it names, and reads the rest
+/// as Drops off it. Main glued the `RPE` prefix onto them as `RPE-20%`, which named no RPE.
+@Test func aCountedLinesRPETargetStaysOnItsSetBeforeItsDrops() throws {
+    let cells = [
+        "C15": "RDL", "D15": "3", "F15": "8", "H15": "RPE8, -20%",
+        "C22": "Next Lift", "D22": "2", "F22": "10", "H22": "RPE8"
+    ]
+    let (_, _, exercises) = try parsedDay(cells, hidden: [])
+
+    #expect(exercises[0].sets.map(\.prescribedLoad) == ["RPE8", "-20%", "-20%"])
+    #expect(exercises[0].sets.map { PrescribedLoad($0.prescribedLoad) } == [.rpe(.eight), .drop(percent: 20), .drop(percent: 20)])
+}
