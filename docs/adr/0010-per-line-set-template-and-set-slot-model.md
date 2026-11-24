@@ -81,7 +81,8 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   later clears the Coach Note moves the Line's reads back to its own cell and leaves them behind.
 - **Amended 2026-11-23:** a continuation row whose first Load value is a Drop is a Line even when
   its Sets cell holds no number. Its count comes from the Sets cell (`2`, `2 sets`, `x2`), else
-  the N of an `N x M` Reps cell, else one Set. A row whose Sets cell starts with a number keeps the
+  the N of an `N x M` Reps cell, whose Sets then prescribe M Reps, else one Set. Other rows read
+  `N x M` Reps as before. A row whose Sets cell starts with a number keeps the
   count the app read before, that number, so `1+2` is one Set and no Exercise gains Sets or moves
   a Set Log; `x2` counts only on a Drop line the app did not read before. A Drop line whose Sets cell starts with no number
   adds Sets without moving any other: the app read that row as a plain row before, and may have
@@ -94,18 +95,10 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   before, so a named Drop row such as `HB SQ Drop` under `HB SQ` keeps its Sets, Set indices, and
   Set Logs, and the Exercises below it keep their order. Its Drop weighs off its own first Set, so
   it gets no suggestion from the Exercise above; that suggestion would reach a dictated or Lock
-  Screen Set Log, and is left to #1247. Under a hidden named row, a visible row other than a Drop
-  line that prescribes Sets stays with the hidden movement, along with every row after it up to
-  the next visible Exercise (#1230). Those rows are neither Lines nor writable rows of the
-  Exercise above. When any visible row of that run holds Notes text, none of it stays with the
-  hidden movement: the app read that text before as a Set Log of the Exercise above, so it still
-  does, and no Set Log or Set index moves. A Drop line, a blank row, and a row of Set Logs above the
-  run still belong to the Exercise above, as #1229 read Block - 31. Coach text alone under a hidden
-  named row (#1230's second layout) reads as before, and a log can land on it: refusing that log
-  would leave a Set that reads Logged once the sync banner clears, with no mark that it never
-  reached the Sheet. A mark on the Set comes first (#1247). A coach's new non-Drop line written
-  under hidden rows reads as the hidden movement's too; that reading is provisional until a real
-  Sheet shows which a coach means.
+  Screen Set Log, and is left to #1247. An added Drop with no row left for its Set Logs is not
+  read, as before, so the app never offers a Set whose log it would refuse. Rows under a hidden
+  named row read as they did before (#1229): #1230's two layouts stay as they are until a refused
+  log can be marked on its Set (#1247).
   Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
   so a Drop Set the app adds after them never writes it. That call is provisional until Sunny or
   the coach says which RPE they read there (#1247).

@@ -160,7 +160,8 @@ private func parsedSetsForLine(
     line: PrescriptionLine
 ) -> [ParsedSet] {
     let grid = snapshot.values
-    let reps = PrescriptionValueList.reps(grid.cellOrEmpty(line.row, cols.reps))
+    let repsCell = grid.cellOrEmpty(line.row, cols.reps)
+    let reps = PrescriptionValueList.reps(line.addsADrop ? PrescriptionRow.repsOfAnAddedDrop(repsCell) : repsCell)
     let load = PrescriptionValueList.load(grid.cellOrEmpty(line.row, cols.load))
     let percent = grid.cellOrEmpty(line.row, cols.percentOneRM)
     let lineHoldsLegacyLog = !line.addsADrop && line.notesRole(in: grid, cols: cols).legacyLog != nil

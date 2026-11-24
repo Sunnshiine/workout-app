@@ -3,9 +3,10 @@ import Testing
 
 @testable import WorkoutTracker
 
-/// One step of a Drop workbook: the athlete's `log`, `flush` and `sync`, or a coach edit to the Sheet.
+/// One step of a Drop workbook: the athlete's `log`, `deleteLog`, `flush` and `sync`, or a coach edit to the Sheet.
 enum DropWorkbookStep: Sendable {
     case log(String, String)
+    case deleteLog(String)
     case flush
     case sync
     case edit([String: String])
@@ -62,6 +63,8 @@ private func run(_ step: DropWorkbookStep, app: WorkoutApplication, url: URL) as
     switch step {
     case .log(let address, let setLog):
         _ = try? app.log(try #require(SetAddress(address)), setLog: setLog)
+    case .deleteLog(let address):
+        _ = try? app.deleteLog(try #require(SetAddress(address)))
     case .flush:
         _ = try? await app.flush()
     case .sync:

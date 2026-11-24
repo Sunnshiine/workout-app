@@ -105,9 +105,8 @@ func aDropLineShowsAsLoggableSetsOfTheExerciseAboveIt(layout: DropLayout) throws
 }
 
 /// #1230, layout 1: a retired Hamstring Curl's name row is hidden, and its visible row below keeps a
-/// Sets count and old Set Logs. A row holding a Set Log never retires, so Back Squat reads it as
-/// main does, its Sets 4 and 5 logged, and every Set keeps its index and row.
-@Test func aRetiredMovementsVisibleLineHoldingSetLogsReadsAsMainReadsIt() throws {
+/// Sets count and old Set Logs. Back Squat reads that row as main does, its Sets 4 and 5 logged.
+@Test func aVisibleLineUnderAHiddenNameReadsAsMainReadsIt() throws {
     let cells = [
         "C15": "Back Squat", "D15": "3", "F15": "5", "H15": "RPE7",
         "C16": "0:1:0 Hamstring Curl", "D16": "2", "F16": "10",
@@ -121,13 +120,12 @@ func aDropLineShowsAsLoggableSetsOfTheExerciseAboveIt(layout: DropLayout) throws
 }
 
 /// H7, after an update: the top Set's Coach Note sent its log to the free row below a hidden named
-/// row and a Line the coach wrote under it. That log keeps the row from retiring, and the Line with
-/// it, so the top Set still reads it, and no Set changes index.
+/// row and a Line the coach wrote under it. The top Set still reads it, and no Set changes index.
 @Test(arguments: [
     (["K18": "175x6@8"], [SetState.logged, .pending, .pending, .pending]),
     (["K18": "175x6@8", "D19": "2", "F19": "8", "H19": "RPE7"], [.logged, .pending, .pending, .pending, .pending, .pending])
 ])
-func aSetLogBelowALineUnderAHiddenNameKeepsEveryRowFromRetiring(cells: [String: String], states: [SetState]) throws {
+func aSetLogBelowALineUnderAHiddenNameStaysTheTopSets(cells: [String: String], states: [SetState]) throws {
     let body = roomyLayout([
         "K15": "Brace", "C16": "Old Lift", "D16": "3", "F16": "8", "H16": "RPE7", "D17": "3", "F17": "10", "H17": "RPE7"
     ])
@@ -288,7 +286,7 @@ private func roomyLayout(_ cells: [String: String]) -> [String: String] {
                 "K15": "Brace", "F16": "8", "H16": "Drop 20%", "K16": "175x6@8",
                 "C17": "Drop", "F17": "8", "H17": "Drop 30%", "K17": "Fast", "K18": "122.5x8@8"
             ]),
-            [["175x6@8", ""], ["122.5x8@8"], ["", ""]]
+            [["175x6@8"], ["122.5x8@8"], ["", ""]]
         )
     ] as [([String: String], [[String]])]
 )

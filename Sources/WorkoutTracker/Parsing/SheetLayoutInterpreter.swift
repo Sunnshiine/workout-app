@@ -285,49 +285,14 @@ private func exerciseAnchors(
     upper: Int
 ) -> [SheetLayoutExerciseAnchor] {
     let grid = snapshot.values
-    let named = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper)
-    let rows = named.filter(snapshot.isRowVisible)
+    let rows = anchorRows(in: grid, cols: cols, firstRow: firstRow, upper: upper).filter(snapshot.isRowVisible)
     return rows.enumerated().map { index, row in
-        let nextAnchorRow = index + 1 < rows.count ? rows[index + 1] : upper
-        return SheetLayoutExerciseAnchor(
+        SheetLayoutExerciseAnchor(
             name: grid.cell(row: row, col: cols.name).trimmed,
             row: row,
-            nextAnchorRow: nextAnchorRow,
-            retiredRows: retiredRows(in: (row + 1)..<nextAnchorRow, snapshot: snapshot, cols: cols)
+            nextAnchorRow: index + 1 < rows.count ? rows[index + 1] : upper
         )
     }
-}
-
-/// The visible rows under a hidden named row that stay with the movement the coach hid: from the
-/// first one that prescribes Sets other than a Drop to the end of the span (#1230). Before that, a
-/// Drop line, a blank row, and a row of Set Logs still belong to the Exercise above. When any
-/// visible row of that run holds Notes text, the app read it before as a Set Log of the Exercise
-/// above, so none of the run retires and every Set keeps the index, row, and Set Log it had.
-private func retiredRows(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Set<Int> {
-    guard let start = firstRowAHiddenMovementKeeps(in: span, snapshot: snapshot, cols: cols) else { return [] }
-    let retired = start..<span.upperBound
-    return anyRowHoldsNotes(retired, snapshot: snapshot, cols: cols) ? [] : Set(retired)
-}
-
-private func firstRowAHiddenMovementKeeps(in span: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Int? {
-    var underHiddenName = false
-    for row in span {
-        if !snapshot.isRowVisible(row) {
-            underHiddenName = underHiddenName || !snapshot.values.cell(row: row, col: cols.name).trimmed.isEmpty
-        } else if underHiddenName, keepsAHiddenMovementsOwnContent(row, in: snapshot.values, cols: cols) {
-            return row
-        }
-    }
-    return nil
-}
-
-private func anyRowHoldsNotes(_ rows: Range<Int>, snapshot: SheetSnapshot, cols: DayColumns) -> Bool {
-    rows.contains { snapshot.isRowVisible($0) && !snapshot.values.cellOrEmpty($0, cols.notes).trimmed.isEmpty }
-}
-
-private func keepsAHiddenMovementsOwnContent(_ row: Int, in grid: SheetGrid, cols: DayColumns) -> Bool {
-    let reading = PrescriptionRow(row: row, in: grid, cols: cols)
-    return !reading.isDrop && reading.setsCellCount != nil
 }
 
 private func isSheetLayoutDayHeader(_ value: String) -> Bool {

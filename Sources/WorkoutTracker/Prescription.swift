@@ -35,19 +35,13 @@ enum PrescribedReps: Equatable, Sendable {
     case uninterpreted
 
     init(_ cell: String) {
-        let trimmed = Self.repsAfterASetCount(cell.trimmingCharacters(in: .whitespacesAndNewlines))
+        let trimmed = cell.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let match = trimmed.wholeMatch(of: /(\d+)(?:\s*[-–]\s*(\d+))?/), let low = Int(match.1) else {
             self = EffortDuration(trimmed).map(Self.timed) ?? .uninterpreted
             return
         }
         let high = match.2.flatMap { Int($0) } ?? low
         self = low <= high ? .target(low...high) : .uninterpreted
-    }
-
-    /// `2 x 8` and `2x8-10` prescribe the reps after their Set count. `2x30s` stays as written.
-    private static func repsAfterASetCount(_ cell: String) -> String {
-        guard cell.contains(where: { "xX×".contains($0) }) else { return cell }
-        return cell.wholeMatch(of: /\d+\s*[xX×]\s*(\d+(?:\s*[-–]\s*\d+)?)/).map { String($0.1) } ?? cell
     }
 
     var target: ClosedRange<Int>? {

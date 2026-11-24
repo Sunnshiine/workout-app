@@ -37,6 +37,13 @@ struct PrescriptionRow: Sendable, Equatable {
         return timesCount ?? repsCell.wholeMatch(of: /(\d+)\s*[xX×]\s*\d.*/).flatMap { Self.capped(Int($0.1)) } ?? 1
     }
 
+    /// The Reps an added Drop line prescribes: `8` of `2 x 8`, whose count the Line already took.
+    /// `2x30s` and a row the app read before stay as written.
+    static func repsOfAnAddedDrop(_ cell: String) -> String {
+        guard cell.contains(where: { "xX×".contains($0) }) else { return cell }
+        return cell.trimmed.wholeMatch(of: /\d+\s*[xX×]\s*(\d+(?:\s*[-–]\s*\d+)?)/).map { String($0.1) } ?? cell
+    }
+
     /// `x2` in the Sets cell.
     private var timesCount: Int? {
         guard let first = setsCell.first, "xX×".contains(first) else { return nil }

@@ -102,9 +102,10 @@ import Testing
     )
 }
 
-/// A visible line under a hidden anchor that prescribes Sets other than a Drop stays with the hidden
-/// movement (#1230). A Drop line in the same place joins the Exercise above (`DropLineTests`).
-@Test func layoutInterpreterLeavesAHiddenMovementsVisibleLineWithIt() throws {
+/// A visible row under a hidden anchor reads as the athlete sees the Sheet: a line of the visible
+/// Exercise above it. This reverses #648, which gave the row to the hidden movement on an argued
+/// layout; Block - 31 put the coach's new line in exactly this place (`SheetParserTests`).
+@Test func layoutInterpreterGivesAVisibleRowUnderAHiddenAnchorToTheExerciseAboveIt() throws {
     let snapshot = SheetSnapshot(
         values: gridFromA1(
             [
@@ -127,7 +128,10 @@ import Testing
     #expect(day.exerciseAnchors.map(\.name) == ["Back Squat", "2-3:1:0 BB RDL"])
     #expect(
         backSquat.prescriptionLines(in: snapshot, cols: day.columns)
-            == [PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0, addsADrop: false)]
+            == [
+                PrescriptionLine(row: 14, setCount: 3, firstSetIndex: 0, addsADrop: false),
+                PrescriptionLine(row: 17, setCount: 2, firstSetIndex: 3, addsADrop: false)
+            ]
     )
 }
 
