@@ -112,7 +112,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// visible blank-name continuation row inside the Exercise span that `PrescriptionRow` reads as
     /// a Line is another (coach J. Alarcon's one-line-per-row template, and a coach's Drop line). A
     /// row the coach hid prescribes nothing here. Lines that add a Drop follow every other Line,
-    /// whatever row they sit on, and one with no row left for its Set Logs is not read, as before.
+    /// whatever row they sit on. From the first one with no row left for its Set Logs, none is read,
+    /// as before, so an added Drop the app reads never changes index.
     ///
     /// Kevin's template returns exactly one Line: his continuation rows hold Set Logs in the
     /// Notes column with an empty Sets cell and no Drop, so they never qualify, keeping that path
@@ -132,7 +133,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
         let lines = Self.numbered(ordered)
         guard let col = cols.notes else { return lines.countedLines }
         let dropRows = addedDropRows(lines: lines, in: snapshot, cols: cols, col: col)
-        return Self.numbered(ordered.filter { !$0.addsADrop || dropRows[$0.row] != nil })
+        return lines.countedLines + lines.filter(\.addsADrop).prefix { dropRows[$0.row] != nil }
     }
 
     private static func numbered(_ lines: [PrescriptionLine]) -> [PrescriptionLine] {
@@ -149,8 +150,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
     }
 
     /// The rows inside this Exercise's span that can carry a Set Log, in sheet order, without hidden
-    /// rows or the rows a hidden movement keeps. A compact header keeps Set Logs on the anchor row
-    /// itself; every other rule starts on the row below it. Set N takes the Nth of these, so "which
+    /// rows. A compact header keeps Set Logs on the anchor row itself; every other rule starts on the
+    /// row below it. Set N takes the Nth of these, so "which
     /// row is Set N on" and "which row does an occupied header redirect to" read the same list.
     func visibleSetLogRows(headerHoldsSetLogs: Bool, in snapshot: SheetSnapshot) -> [Int] {
         ownVisibleRows(from: row + (headerHoldsSetLogs ? 0 : 1), before: nextAnchorRow, in: snapshot)
