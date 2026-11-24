@@ -101,8 +101,10 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   records which Sets its index counts among (`PendingWrite.setIndexSpace`; nil on a write queued
   before Drops were read, which names a counted Set). A counted Set's write takes the address it
   had before Drops were read, and an added Drop's write is refused when no added Drop read at flush
-  has its index. Neither lands on the other's row. A Drop's write can still land on another Drop
-  whose index it takes after the coach hides or clears an earlier one (#1247). Rows under a hidden
+  has its index. Two coach edits still put one Set's log on another's row, as main's addressing
+  does for counted Sets (#1247). In a single-line Exercise, a counted Set past a lowered count
+  takes the next row under the top Set, which can be a Drop's. A Drop's write can land on another
+  Drop whose index it takes after the coach hides or clears an earlier one. Rows under a hidden
   named row read as they did before (#1229): #1230's two layouts stay as they are until a refused
   log can be marked on its Set (#1247).
   Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,

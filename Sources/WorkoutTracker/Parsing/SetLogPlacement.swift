@@ -181,10 +181,9 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// write targeting cannot diverge.
     ///
     /// A queued write passes `space`, the Sets its index counted among when it was queued. A
-    /// counted Set's write then takes the address it had before the app read added Drops, and an
-    /// added Drop's write is refused when no added Drop read now has its index, so neither lands on
-    /// the other's row after the coach changes a Sets count. A read passes nil and takes the Sets
-    /// as the Sheet numbers them now.
+    /// counted Set's write then takes the address it had before the app read added Drops, past the
+    /// count included, and an added Drop's write is refused when no added Drop read now has its
+    /// index. A read passes nil and takes the Sets as the Sheet numbers them now.
     func setLogPlacement(
         for setIndex: Int,
         among space: SetIndexSpace? = nil,  // default: a read takes the Sets as the Sheet numbers them now
