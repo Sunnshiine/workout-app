@@ -95,8 +95,11 @@ Set-Slot model that both the reader (`SheetParser`) and the write planner
   before, so a named Drop row such as `HB SQ Drop` under `HB SQ` keeps its Sets, Set indices, and
   Set Logs, and the Exercises below it keep their order. Its Drop weighs off its own first Set, so
   it gets no suggestion from the Exercise above; that suggestion would reach a dictated or Lock
-  Screen Set Log, and is left to #1247. An added Drop with no row left for its Set Logs is not
-  read, as before, so the app never offers a Set whose log it would refuse. Rows under a hidden
+  Screen Set Log, and is left to #1247. From the first added Drop with no row left for its Set
+  Logs, no added Drop is read, as before. So no Drop the app reads changes Set index, and at sync
+  the app offers no Set whose log it would refuse. A coach edit between a Drop's log and its flush
+  can still take its row; that log then takes the path of an extra Set past the prescribed count
+  (#1247). Rows under a hidden
   named row read as they did before (#1229): #1230's two layouts stay as they are until a refused
   log can be marked on its Set (#1247).
   Last Set RPE mirrors the last Set the coach counted, as it did before the app read Drop lines,
