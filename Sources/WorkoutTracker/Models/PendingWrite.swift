@@ -174,7 +174,7 @@ final class PendingWrite {
         dayNumbering: DayNumbering,
         exercise: ExerciseReference,
         setIndex: Int,
-        setIndexSpace: SetIndexSpace? = nil,
+        setIndexSpace: SetIndexSpace? = nil,  // default: nil names a counted Set, as every write queued before Drops did
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
         valueToWrite: String?,

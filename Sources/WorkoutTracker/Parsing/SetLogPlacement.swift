@@ -187,7 +187,7 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// as the Sheet numbers them now.
     func setLogPlacement(
         for setIndex: Int,
-        among space: SetIndexSpace? = nil,
+        among space: SetIndexSpace? = nil,  // default: a read takes the Sets as the Sheet numbers them now
         in snapshot: SheetSnapshot,
         cols: DayColumns
     ) -> SetLogPlacementResolution {
