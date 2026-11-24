@@ -79,11 +79,11 @@ import Testing
     #expect(
         try types(
             PendingWrite.self,
-            ["blockTab", "week", "day", "dayNumberingRaw", "exerciseName", "exerciseOrdinalRaw"]
+            ["blockTab", "week", "day", "dayNumberingRaw", "exerciseName", "exerciseOrdinalRaw", "setIndexSpaceRaw"]
         )
             == [
                 "blockTab": "String", "week": "Int", "day": "Int", "dayNumberingRaw": "Optional<String>",
-                "exerciseName": "String", "exerciseOrdinalRaw": "Optional<Int>"
+                "exerciseName": "String", "exerciseOrdinalRaw": "Optional<Int>", "setIndexSpaceRaw": "Optional<String>"
             ]
     )
     #expect(

@@ -4,6 +4,7 @@ struct SheetWriteRequest: Sendable, Equatable {
     var session: SessionCoordinate
     var exercise: ExerciseReference
     var setIndex: Int
+    var setIndexSpace: SetIndexSpace
     var column: PendingWriteColumn
     var operation: PendingWriteOperation
     var valueToWrite: String?
@@ -16,6 +17,7 @@ struct SheetWriteRequest: Sendable, Equatable {
             session: write.recordedSession,
             exercise: write.exercise,
             setIndex: write.setIndex,
+            setIndexSpace: write.setIndexSpace,
             column: write.column,
             operation: write.operation,
             valueToWrite: write.valueToWrite,
@@ -27,6 +29,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         session: SessionCoordinate,
         exercise: ExerciseReference,
         setIndex: Int,
+        setIndexSpace: SetIndexSpace = .counted,
         column: PendingWriteColumn,
         operation: PendingWriteOperation,
         valueToWrite: String?,
@@ -35,6 +38,7 @@ struct SheetWriteRequest: Sendable, Equatable {
         self.session = session
         self.exercise = exercise
         self.setIndex = setIndex
+        self.setIndexSpace = setIndexSpace
         self.column = column
         self.operation = operation
         self.valueToWrite = valueToWrite
@@ -301,7 +305,12 @@ struct SheetWritePlanner: Sendable {
         case .notes, .setFlag:
             return .setLog(
                 anchor: anchor,
-                anchor.setLogPlacement(for: request.setIndex, in: snapshot.snapshot, cols: day.columns)
+                anchor.setLogPlacement(
+                    for: request.setIndex,
+                    among: request.setIndexSpace,
+                    in: snapshot.snapshot,
+                    cols: day.columns
+                )
             )
         }
     }

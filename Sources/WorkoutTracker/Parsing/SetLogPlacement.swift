@@ -37,6 +37,11 @@ extension Array where Element == PrescriptionLine {
     func line(containing setIndex: Int) -> PrescriptionLine? {
         first { $0.position(of: setIndex) != nil }
     }
+
+    /// The Sets that Set `setIndex` counts among as these Lines read it now.
+    func space(of setIndex: Int) -> SetIndexSpace {
+        (line(containing: setIndex)?.addsADrop ?? false) ? .addedDrops : .counted
+    }
 }
 
 /// Which rule decided where Set N's Set Log lives — the five leaves of the Visible Writable Row
@@ -174,14 +179,27 @@ struct SheetLayoutExerciseAnchor: Sendable {
     /// is a Notes-column concern; Last Set RPE targeting stays on the Exercise anchor row and is not
     /// resolved here. This is the one query the read, write, and audit paths ask, so display and
     /// write targeting cannot diverge.
-    func setLogPlacement(for setIndex: Int, in snapshot: SheetSnapshot, cols: DayColumns) -> SetLogPlacementResolution {
+    ///
+    /// A queued write passes `space`, the Sets its index counted among when it was queued. A
+    /// counted Set's write then takes the address it had before the app read added Drops, and an
+    /// added Drop's write is refused when no added Drop read now has its index, so neither lands on
+    /// the other's row after the coach changes a Sets count. A read passes nil and takes the Sets
+    /// as the Sheet numbers them now.
+    func setLogPlacement(
+        for setIndex: Int,
+        among space: SetIndexSpace? = nil,
+        in snapshot: SheetSnapshot,
+        cols: DayColumns
+    ) -> SetLogPlacementResolution {
         guard let col = cols.notes else { return .notesColumnMissing }
 
         let lines = prescriptionLines(in: snapshot, cols: cols)
-        if lines.line(containing: setIndex)?.addsADrop ?? false {
+        switch space ?? lines.space(of: setIndex) {
+        case .addedDrops:
             return addedDropPlacement(for: setIndex, lines: lines, in: snapshot, cols: cols, col: col)
+        case .counted:
+            return countedPlacement(for: setIndex, lines: lines.countedLines, in: snapshot, cols: cols, col: col)
         }
-        return countedPlacement(for: setIndex, lines: lines.countedLines, in: snapshot, cols: cols, col: col)
     }
 
     /// Where a counted Line's Set lives: the addressing the Exercise had before it read added Drops.
@@ -254,8 +272,8 @@ struct SheetLayoutExerciseAnchor: Sendable {
         cols: DayColumns,
         col: Int
     ) -> SetLogPlacementResolution {
+        guard let addition = lines.line(containing: setIndex), addition.addsADrop else { return .setRowNotFound }
         guard
-            let addition = lines.line(containing: setIndex),
             let position = addition.position(of: setIndex),
             let row = addedDropRows(lines: lines, in: snapshot, cols: cols, col: col)[addition.row]
         else { return .occupiedHeaderBlocksSetRow }

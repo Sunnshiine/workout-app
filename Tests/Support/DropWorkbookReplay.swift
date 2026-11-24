@@ -1,12 +1,17 @@
 import Foundation
+import SwiftData
 import Testing
 
 @testable import WorkoutTracker
 
-/// One step of a Drop workbook: the athlete's `log`, `deleteLog`, `flush` and `sync`, or a coach edit to the Sheet.
+/// One step of a Drop workbook: the athlete's `log`, `deleteLog`, `skip`, `flag`, `flush` and `sync`,
+/// a log queued as main's build queues it (`logAsMain`), or a coach edit to the Sheet.
 enum DropWorkbookStep: Sendable {
     case log(String, String)
+    case logAsMain(String, String)
     case deleteLog(String)
+    case skip(String)
+    case flag(String, SetFlag)
     case flush
     case sync
     case edit([String: String])
@@ -30,6 +35,10 @@ struct DropWorkbook: Sendable, CustomTestStringConvertible {
 struct ReplayedDropWorkbook {
     let cells: [String: String]
     let sets: [String]
+    /// The body's Cell Notes, where a Set Flag lands.
+    let cellNotes: [String: String]
+    /// The writes still on the phone, refused ones included.
+    let queuedWrites: Int
 }
 
 /// Runs `workbook` on a file-backed Sheet, as the CLI does, so a coach edit between two steps is
@@ -51,30 +60,53 @@ func replayed(_ workbook: DropWorkbook) async throws -> ReplayedDropWorkbook {
     for step in workbook.steps {
         try await run(step, app: app, url: url)
     }
-    let cells = try #require(LocalWorkbook.load(from: url).tabs["Block 27"]).cells
+    let replayedTab = try #require(LocalWorkbook.load(from: url).tabs["Block 27"])
+    let cells = replayedTab.cells
     let sets = try app.session(SessionAddress(week: 1, day: 1)).exercises.flatMap { exercise in
         exercise.sets.map { "e\(exercise.order).s\($0.index) \($0.prescribedLoad) \($0.state) \($0.setLog ?? $0.unstructuredSetLog ?? "")" }
     }
-    return ReplayedDropWorkbook(cells: cells.filter { key, value in isBodyCell(key) && !value.isEmpty }, sets: sets)
+    return ReplayedDropWorkbook(
+        cells: cells.filter { key, value in isBodyCell(key) && !value.isEmpty },
+        sets: sets,
+        cellNotes: replayedTab.cellNotes.filter { key, _ in isBodyCell(key) },
+        queuedWrites: try app.container.mainContext.fetchCount(FetchDescriptor<PendingWrite>())
+    )
 }
 
 @MainActor
 private func run(_ step: DropWorkbookStep, app: WorkoutApplication, url: URL) async throws {
     switch step {
-    case .log(let address, let setLog):
-        _ = try? app.log(try #require(SetAddress(address)), setLog: setLog)
-    case .deleteLog(let address):
-        _ = try? app.deleteLog(try #require(SetAddress(address)))
-    case .flush:
-        _ = try? await app.flush()
-    case .sync:
-        _ = try? await app.sync()
     case .edit(let cells):
         try editTab(at: url) { $0.cells.merge(cells) { _, new in new } }
     case .hide(let rows):
         try editTab(at: url) { tab in for row in rows { tab.hiddenRows[row] = SheetRowVisibility(hiddenByUser: true) } }
     case .unhide(let rows):
         try editTab(at: url) { tab in for row in rows { tab.hiddenRows[row] = nil } }
+    case .flush:
+        _ = try? await app.flush()
+    case .sync:
+        _ = try? await app.sync()
+    default:
+        try runAthleteStep(step, app: app)
+    }
+}
+
+@MainActor
+private func runAthleteStep(_ step: DropWorkbookStep, app: WorkoutApplication) throws {
+    switch step {
+    case .log(let address, let setLog):
+        _ = try? app.log(try #require(SetAddress(address)), setLog: setLog)
+    case .logAsMain(let address, let setLog):
+        _ = try? app.log(try #require(SetAddress(address)), setLog: setLog)
+        for write in try app.container.mainContext.fetch(FetchDescriptor<PendingWrite>()) { write.setIndexSpaceRaw = nil }
+    case .deleteLog(let address):
+        _ = try? app.deleteLog(try #require(SetAddress(address)))
+    case .skip(let address):
+        _ = try? app.skip(try #require(SetAddress(address)))
+    case .flag(let address, let flag):
+        _ = try? app.flag(try #require(SetAddress(address)), as: flag)
+    default:
+        break
     }
 }
 
